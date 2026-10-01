@@ -36,6 +36,7 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
+- [`docs/AGENTS.md`](./docs/AGENTS.md): Project documentation guides, host migration blueprints, and configuration examples.
 - [`rules/AGENTS.md`](./rules/AGENTS.md): Antigravity plugin rules and guidelines for host projects.
 - [`src/AGENTS.md`](./src/AGENTS.md): Framework source code index (core, CLI, analyzers, suites, plugin).
 - [`tests/AGENTS.md`](./tests/AGENTS.md): Vitest unit test suites and hermetic verification tests.

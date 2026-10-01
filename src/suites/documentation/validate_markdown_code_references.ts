@@ -58,6 +58,7 @@ const DEFAULT_SCAN_DIRECTORIES = [
   '.agents/skills',
   'AGENTS.md',
   'README.md',
+  'docs',
   'src',
   'tests',
   'scripts',
