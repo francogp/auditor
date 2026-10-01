@@ -3,7 +3,7 @@
  *
  * AGENT PLUGIN & SKILL INTEGRATION AUDITOR (Node.js 26+ Native)
  *
- * Verifies that the host project has properly integrated the official @fgp/auditor
+ * Verifies that the host project has properly integrated the official @francogp/auditor
  * AI agent plugin in `.agents/plugins.json` (via `npx auditor-init-agent`).
  * In --fix mode, automatically registers the plugin into `.agents/plugins.json`.
  */
@@ -46,8 +46,8 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     if (fs.existsSync(hostPkgPath)) {
       try {
         const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as { name?: string };
-        // If the project being audited is @fgp/auditor itself, it is the provider of the plugin and skill
-        if (pkgData.name === '@fgp/auditor') {
+        // If the project being audited is @francogp/auditor itself, it is the provider of the plugin and skill
+        if (pkgData.name === '@francogp/auditor') {
           const hasPluginJson = fs.existsSync(path.join(this.projectRoot, 'plugin.json'));
           const hasSkillMd = fs.existsSync(path.join(this.projectRoot, 'skills/auditor-framework/SKILL.md'));
           if (hasPluginJson && hasSkillMd) {
@@ -69,7 +69,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         const data = JSON.parse(raw) as { entries?: Array<{ path: string }> };
         if (Array.isArray(data.entries)) {
           isRegistered = data.entries.some(
-            e => e.path === 'node_modules/@fgp/auditor' || e.path.endsWith('@fgp/auditor')
+            e => e.path === 'node_modules/@francogp/auditor' || e.path.endsWith('@francogp/auditor')
           );
         }
       } catch {

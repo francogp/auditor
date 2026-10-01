@@ -1,11 +1,11 @@
 ---
 name: auditor-framework
-description: MANDATORY governance and architectural engine for creating, refactoring, maintaining, and administering ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts in Poké Vicio. YOU MUST ALWAYS TRIGGER THIS SKILL whenever the user mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `packages/auditor/`, `audit.config.ts`, `scripts/lib/auditorBase.ts`, or `scripts/lib/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_audit_findings', or audit scripts ('npm run audit', 'npm run audit:fallow:*', 'npm run audit:lint'). Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @fgp/auditor, and zero ad-hoc console loggers.
+description: MANDATORY governance and architectural engine for creating, refactoring, maintaining, and administering ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts in Poké Vicio. YOU MUST ALWAYS TRIGGER THIS SKILL whenever the user mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `packages/auditor/`, `audit.config.ts`, `scripts/lib/auditorBase.ts`, or `scripts/lib/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_audit_findings', or audit scripts ('npm run audit', 'npm run audit:fallow:*', 'npm run audit:lint'). Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
 ---
 
 # Auditor Framework: Governance, Architecture & Maintenance
 
-This skill defines the immutable standard and architectural contract for creating, administering, refactoring, and maintaining all sub-auditors, reporting scripts, and the `@fgp/auditor` engine across the repository.
+This skill defines the immutable standard and architectural contract for creating, administering, refactoring, and maintaining all sub-auditors, reporting scripts, and the `@francogp/auditor` engine across the repository.
 
 Every sub-auditor and reporter is part of a unified static analysis and verification system orchestrated by `npm run audit`.
 
@@ -14,18 +14,18 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 ## 🏛️ Core Principles & Tooling Mandates
 
 1. **Strict OOP Inheritance Mandate**:
-   - Every sub-auditor MUST extend either `BaseAuditor<TRuleId>` or `FileScanAuditor<TRuleId>` from `@fgp/auditor`.
+   - Every sub-auditor MUST extend either `BaseAuditor<TRuleId>` or `FileScanAuditor<TRuleId>` from `@francogp/auditor`.
    - Creating standalone procedural scripts, custom CLI loggers, or ad-hoc result printers is **STRICTLY FORBIDDEN**.
 2. **Unified Box-Drawing Table & Terminal Width Mandate (Max 80 Cols, Zero Wrapping)**:
-   - ALL terminal tables, whether rendered by sub-auditors (`BaseAuditor`), orchestrators (`audit_full.ts`), or interactive reporters (`report_fallow.ts`, `report_complexity.ts`, `report_findings.ts`), MUST use the shared Box-Drawing utilities from `@fgp/auditor` (`renderBanner`, `renderBoxTable`, `formatStatusBadge`, `getVisualWidth`).
+   - ALL terminal tables, whether rendered by sub-auditors (`BaseAuditor`), orchestrators (`audit_full.ts`), or interactive reporters (`report_fallow.ts`, `report_complexity.ts`, `report_findings.ts`), MUST use the shared Box-Drawing utilities from `@francogp/auditor` (`renderBanner`, `renderBoxTable`, `formatStatusBadge`, `getVisualWidth`).
    - Hardcoding custom ASCII banners (`╔════...` exceeding 80 columns) or ad-hoc bulleted lists (`•`) is **STRICTLY FORBIDDEN**.
    - Tables must fit within the standard 80-column terminal width (`TERMINAL_WIDTH = 80`) and use `getVisualWidth()` for padding so emojis (`✅`, `❌`, `⚠️`) do NOT throw column borders out of alignment.
    - **Consolidated Total Row Requirement**: Every multi-row summary or breakdown table displaying numeric findings across categories or rules MUST include a dedicated `footerRows` entry labeled `TOTAL CONSOLIDADO` separated by a standard divider (`├───┼───┤`), providing explicit, mathematically transparent sums for all error and warning columns.
 3. **Dynamic Auto-Discovery & Extension Mandate (Zero Hardcoded Lists)**:
-   - The master orchestrator (`npm run audit`) and safe-commit diff gatekeeper (`npm run audit:for-commit`) discover all generic suites dynamically via `@fgp/auditor` and host-specific extensions registered in `audit.config.ts`.
+   - The master orchestrator (`npm run audit`) and safe-commit diff gatekeeper (`npm run audit:for-commit`) discover all generic suites dynamically via `@francogp/auditor` and host-specific extensions registered in `audit.config.ts`.
    - **Never hardcode an array of auditors or task IDs**. Any generic suite placed in `packages/auditor/src/suites/<family>/` or host extension registered in `audit.config.ts` is automatically discovered, categorized, timed, and executed.
 4. **Strict Agnostic Engine & Zero Project Hardcoding Mandate**:
-   - The `@fgp/auditor` core package MUST remain 100% project-agnostic.
+   - The `@francogp/auditor` core package MUST remain 100% project-agnostic.
    - It is **STRICTLY FORBIDDEN** to hardcode host-specific directory names (e.g. `external`, `showdown`, `backup_legacy_code`, `test aventura`), host domain entity identifiers (e.g. `pokemon`, `species`, `tariffId`, `formulaId`), or project-specific test subpaths (`fuzzer`, `simulation`) inside `packages/auditor/`.
    - All host-specific directories, ignore patterns, entity prefixes, and custom test roots MUST be declared in `audit.config.ts`:
      - `paths.ignoredDirs`: Host-specific third-party or backup folders to skip globally.
@@ -50,7 +50,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
    - Sub-auditors MUST NEVER implement custom recursive directory traversals (`fs.readdir` loops, `getAllFiles`, `getAllVueFiles`, `getFilesRecursively`, `walkSourceFiles`, `walkFiles`, `walkDir`, `collectMarkdownFiles`).
    - File discovery MUST use the centralized, cached, and ignore-aware scanner: `this.context.collectFiles(roots, extensions)` or `collectRepositoryFiles()`.
 9. **Unified Dual Output Standard (`StandardAuditResult`)**:
-   - **Console (stdout)**: Emits formatted progress lines (`🔍 [X/N]`) followed by clean visual Box-Drawing tables (`[ ✅ PASS ]`, `[ ❌ FAIL ]`, `[ ⚠️ WARN ]`), runtimes in ms, and domain metrics via `@fgp/auditor`.
+   - **Console (stdout)**: Emits formatted progress lines (`🔍 [X/N]`) followed by clean visual Box-Drawing tables (`[ ✅ PASS ]`, `[ ❌ FAIL ]`, `[ ⚠️ WARN ]`), runtimes in ms, and domain metrics via `@francogp/auditor`.
    - **Scratch Disk (`scratch/audits/`)**: ALWAYS saves 100% complete structured JSON conforming to `StandardAuditResult` to `scratch/audits/<family>/<id>.json` (and `scratch/audits/latest_audit.json` for global runs).
 10. **Zero Double-Reporting Anti-Pattern**:
     - NEVER pass string arrays (`errors`, `warnings`) to `context.finish(...)` if violations were already registered with `this.addViolation(...)` or `context.addError()`. Doing so causes duplicate violation listings in the terminal summary table.
@@ -78,7 +78,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Grouping console results under opaque "FAMILIAS" headers is permanently eradicated. Full machine-readable findings reside in `scratch/audits/latest_audit.json`.
 15. **Single Source of Truth Directory Ignore Mandate (`CANONICAL_IGNORE_DIRS` + `getEffectiveIgnoreDirs`)**:
     - Sub-auditors and maintenance scripts MUST NEVER declare local ignore sets (`const IGNORE_DIRS`, `const SKIP_DIRS`, `const SKIP_NAMES`, `const SKIP_SUBDIRECTORIES`).
-    - Directory ignores are strictly governed by `CANONICAL_IGNORE_DIRS` in `@fgp/auditor`, combined with `getEffectiveIgnoreDirs()` which dynamically includes `config.paths.ignoredDirs`.
+    - Directory ignores are strictly governed by `CANONICAL_IGNORE_DIRS` in `@francogp/auditor`, combined with `getEffectiveIgnoreDirs()` which dynamically includes `config.paths.ignoredDirs`.
     - Documentation auditors that need to inspect documentation trees must configure `unignoreDirs: ['docs', '.agents']` instead of maintaining custom walkers.
     - Sub-auditors supporting unit-test sandboxes (`tempDir`) must forward `projectRoot: effectiveRoot` via `AuditorOptions` into `super({...})` to guarantee isolation from the live project repository.
 16. **Mandatory Audit Metadata & Anti-Staleness Header Mandate (`AuditRunMetadata`)**:
@@ -111,7 +111,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 - `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `audit.config.ts`
-All domain-specific rules unique to Poké Vicio (19 extensions: Pokémon domain, FSM, Showdown, Assets, SQLite) reside in `scripts/auditors/` and extend `BaseAuditor` imported from `@fgp/auditor`.
+All domain-specific rules unique to Poké Vicio (19 extensions: Pokémon domain, FSM, Showdown, Assets, SQLite) reside in `scripts/auditors/` and extend `BaseAuditor` imported from `@francogp/auditor`.
 
 Configured at root in `audit.config.ts`:
 - `paths.migrationsDir`: `'database/migrations'`
@@ -152,7 +152,7 @@ Use `FileScanAuditor` when the audit inspects files line-by-line across specific
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '@fgp/auditor';
+import { BaseAuditor, FileScanAuditor } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -223,7 +223,7 @@ Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, 
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '@fgp/auditor';
+import { BaseAuditor } from '@francogp/auditor';
 import { MY_DATA } from '../../../src/data/myData.ts';
 
 enableCompileCache();
@@ -292,7 +292,7 @@ Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFil
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext } from '@fgp/auditor';
+import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -353,7 +353,7 @@ if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) ==
 
 Host extensions declared in `audit.config.ts` are automatically loaded by the audit engine. For quick in-development execution, they can be invoked via `npm run audit -- --rule=validate_<topic>` or registered in `package.json`.
 
-Because `@fgp/auditor` auto-discovers all built-in suites in `packages/auditor/src/suites/` and loads extensions from `audit.config.ts`, **no manual registration in runner files is needed**. Running `npm run audit` will automatically discover and execute all suites.
+Because `@francogp/auditor` auto-discovers all built-in suites in `packages/auditor/src/suites/` and loads extensions from `audit.config.ts`, **no manual registration in runner files is needed**. Running `npm run audit` will automatically discover and execute all suites.
 
 ---
 
@@ -419,7 +419,7 @@ If diagnostic needs or query patterns require analyzing audit data in ways not y
 
 ## 🧠 Fallow Code Quality Governance & Content-Aware Complexity (Zero Arbitrary Line Limits)
 
-Fallow is integrated into `@fgp/auditor` (`audit_project.ts` and `report_fallow.ts`) to evaluate **code structure, semantic content, and mental load** through AST parsing, NOT through arbitrary line limits:
+Fallow is integrated into `@francogp/auditor` (`audit_project.ts` and `report_fallow.ts`) to evaluate **code structure, semantic content, and mental load** through AST parsing, NOT through arbitrary line limits:
 
 1. **AST Content Analysis over Raw Line Counts**:
    - Arbitrary line limits (such as `≤ 60 LOC` per function or raw file line caps) are **STRICTLY FORBIDDEN**. Raw line counts penalize comments, JSDocs, Mermaid architecture diagrams, TypeScript domain interfaces, blank lines, and formatting.

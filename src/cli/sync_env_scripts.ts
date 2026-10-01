@@ -1,8 +1,9 @@
+#!/usr/bin/env -S node --experimental-strip-types
 /**
  * src/cli/sync_env_scripts.ts
  *
  * Environment Scripts Synchronizer (Node.js 26+ Native)
- * Synchronizes the canonical setup-linux.sh and setup-windows.ps1 from @fgp/auditor
+ * Synchronizes the canonical setup-linux.sh and setup-windows.ps1 from @francogp/auditor
  * into the host project root, ensuring zero code divergence.
  */
 
@@ -76,11 +77,17 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean
 }
 
 // CLI entrypoint
-const isDirectCli = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+const isDirectCli = process.argv[1] && (() => {
+  try {
+    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  }
+})();
 if (isDirectCli) {
   const isDryRun = process.argv.includes('--dry-run');
   console.log('\n┌────────────────────────────────────────────────────────┐');
-  console.log('│  🔄 Sincronizador de Scripts de Entorno (@fgp/auditor) │');
+  console.log('│  🔄 Sincronizador de Scripts de Entorno (@francogp/auditor) │');
   console.log('└────────────────────────────────────────────────────────┘\n');
 
   const result = syncEnvScripts({ dryRun: isDryRun });
@@ -91,7 +98,7 @@ if (isDirectCli) {
       console.log(`  - ${f}`);
     }
     console.log('\nEstructura de plugins inicializada en scripts/setup/plugins/');
-    console.log('Cero divergencia con el estándar oficial de @fgp/auditor.\n');
+    console.log('Cero divergencia con el estándar oficial de @francogp/auditor.\n');
   } else {
     console.error(`❌ Error al sincronizar: ${result.message}`);
     process.exit(1);

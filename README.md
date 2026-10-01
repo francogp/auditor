@@ -1,4 +1,4 @@
-# @fgp/auditor
+# @francogp/auditor
 
 Motor autónomo de análisis estático, auditoría de arquitectura y gobierno de calidad de código para proyectos basados en Node.js 26+ nativo (`--permission`, `--experimental-strip-types`). Provee el framework `BaseAuditor`, runner concurrente de alta velocidad, renderizado unificado en terminal con tablas Box-Drawing (80 columnas), integración con Fallow y herramientas nativas, **distribución oficial de skills para agentes de Antigravity** y **gestión de entorno de desarrollo multiplataforma con soporte de plugins**.
 
@@ -28,14 +28,15 @@ El repositorio del auditor gestiona su propio entorno de forma determinista y ai
 
 ### 1. Instalación en el Proyecto Host
 
-En el `package.json` del proyecto host (ej. `facturacion2` o `PokeBorrador`):
+En el `package.json` del proyecto host (ej. `PokeBorrador` o `facturacion2`):
 ```json
 {
   "devDependencies": {
-    "@fgp/auditor": "file:../auditor"
+    "@francogp/auditor": "github:francogp/auditor#main"
   }
 }
 ```
+*(O como enlace local durante desarrollo: `"@francogp/auditor": "file:../auditor"`)*
 
 Luego ejecuta `npm install`.
 
@@ -47,11 +48,11 @@ Para que el agente de Antigravity cargue automáticamente el skill oficial `audi
 npx auditor-init-agent
 ```
 
-Este comando registra `@fgp/auditor` en `.agents/plugins.json` del proyecto host sin duplicar código ni plantillas.
+Este comando registra `@francogp/auditor` en `.agents/plugins.json` del proyecto host sin duplicar código ni plantillas.
 
 ### 3. Sincronizar Scripts de Entorno Canónicos
 
-Para que el proyecto host utilice los scripts canónicos de setup y actualización de entorno de `@fgp/auditor`:
+Para que el proyecto host utilice los scripts canónicos de setup y actualización de entorno de `@francogp/auditor`:
 
 ```bash
 npx auditor-sync-env
@@ -63,7 +64,7 @@ Esto copiará `setup-linux.sh` y `setup-windows.ps1` al host e inicializará el 
 
 ## 🔌 Sistema de Plugins para Setup de Entorno
 
-Los scripts de setup generados por `@fgp/auditor` son **100% agnósticos y libres de código hardcodeado**. Si tu proyecto host necesita tareas adicionales durante la inicialización:
+Los scripts de setup generados por `@francogp/auditor` son **100% agnósticos y libres de código hardcodeado**. Si tu proyecto host necesita tareas adicionales durante la inicialización:
 
 1. **Plugins por Scripts**:
    Coloca tus scripts específicos en `scripts/setup/plugins/`:
@@ -84,7 +85,7 @@ Los scripts de setup generados por `@fgp/auditor` son **100% agnósticos y libre
 
 ## 🏛️ Invariante de Piso de Versión (Cero Hardcoding)
 
-Cualquier proyecto que consuma `@fgp/auditor` **no puede solicitar ni utilizar versiones de Node.js o npm inferiores a las exigidas por el auditor**.
+Cualquier proyecto que consuma `@francogp/auditor` **no puede solicitar ni utilizar versiones de Node.js o npm inferiores a las exigidas por el auditor**.
 - La cota mínima se define dinámicamente en el `package.json` y `.nvmrc` del auditor al correr su setup.
 - El comando `npx auditor-check-env` (ejecutado automáticamente en `preinstall`) lee dinámicamente el `package.json` de la librería y valida que el host satisfaga o supere dicho piso.
 
@@ -105,7 +106,7 @@ Cualquier proyecto que consuma `@fgp/auditor` **no puede solicitar ni utilizar v
 
 ## 🧪 Pruebas Unitarias del Framework
 
-Para ejecutar la suite completa de pruebas unitarias de `@fgp/auditor`:
+Para ejecutar la suite completa de pruebas unitarias de `@francogp/auditor`:
 
 ```bash
 npm test
@@ -113,4 +114,4 @@ npm test
 
 ## 📜 Licencia
 
-Propietario: Franco Gastón Pellegrini (`@fgp`).
+MIT License © 2026 Franco Gastón Pellegrini (`@francogp`). Consulta [LICENSE](LICENSE) para más detalles.

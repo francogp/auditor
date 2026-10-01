@@ -8,7 +8,7 @@ param(
 )
 
 # Script Canónico de Inicialización y Preparación de Entorno para Windows (PowerShell)
-# Proporcionado por @fgp/auditor - Cero Hardcoding, Aislamiento Multi-Proyecto y Soporte de Plugins
+# Proporcionado por @francogp/auditor - Cero Hardcoding, Aislamiento Multi-Proyecto y Soporte de Plugins
 
 $ErrorActionPreference = "Stop"
 
@@ -103,8 +103,8 @@ if (-not $targetNodeVer) {
     exit 1
 }
 
-# Invariante Dinámico: Si el proyecto host usa @fgp/auditor, validar que no sea inferior
-$auditorPkgPath = Join-Path $PSScriptRoot "node_modules/@fgp/auditor/package.json"
+# Invariante Dinámico: Si el proyecto host usa @francogp/auditor, validar que no sea inferior
+$auditorPkgPath = Join-Path $PSScriptRoot "node_modules/@francogp/auditor/package.json"
 if (Test-Path $auditorPkgPath) {
     try {
         $auditorPkg = Get-Content -Raw -Path $auditorPkgPath | ConvertFrom-Json
@@ -113,7 +113,7 @@ if (Test-Path $auditorPkgPath) {
             $targetSemver = [System.Version]$targetNodeVer
             $auditorSemver = [System.Version]$auditorNodeMin
             if ($targetSemver -lt $auditorSemver) {
-                Write-Host "[ERROR] La versión objetivo v$targetNodeVer es INFERIOR al mínimo exigido por @fgp/auditor (v$auditorNodeMin)." -ForegroundColor Red
+                Write-Host "[ERROR] La versión objetivo v$targetNodeVer es INFERIOR al mínimo exigido por @francogp/auditor (v$auditorNodeMin)." -ForegroundColor Red
                 exit 1
             }
         }

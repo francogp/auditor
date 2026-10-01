@@ -1,3 +1,4 @@
+#!/usr/bin/env -S node --experimental-strip-types
 /**
  * src/cli/check_environment.ts
  *
@@ -83,7 +84,7 @@ export function checkEnvironment(targetDir: string = process.cwd()): boolean {
 
   if (!isHostNodeEngineAdequate || !isHostNpmEngineAdequate) {
     console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-    console.error('Las versiones de Node.js o npm declaradas en package.json son INFERIORES a las requeridas por @fgp/auditor:');
+    console.error('Las versiones de Node.js o npm declaradas en package.json son INFERIORES a las requeridas por @francogp/auditor:');
     console.error(`  - Requisito del Auditor: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`);
     console.error(`  - Declarado en Host:     Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`);
     console.error('\nActualiza "engines.node" y "engines.npm" en package.json para satisfacer o superar el piso del auditor.');
@@ -125,7 +126,13 @@ export function checkEnvironment(targetDir: string = process.cwd()): boolean {
 }
 
 // Ejecución directa si se invoca como CLI / preinstall
-const isDirectCli = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+const isDirectCli = process.argv[1] && (() => {
+  try {
+    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  }
+})();
 if (isDirectCli) {
   const success = checkEnvironment();
   if (!success) {

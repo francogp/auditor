@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Script Canónico de Inicialización y Preparación de Entorno para Linux / macOS
-# Proporcionado por @fgp/auditor - Cero Hardcoding, Aislamiento Multi-Proyecto y Soporte de Plugins
+# Proporcionado por @francogp/auditor - Cero Hardcoding, Aislamiento Multi-Proyecto y Soporte de Plugins
 
 set -e
 
@@ -74,15 +74,15 @@ if [ -z "$TARGET_NODE_VER" ]; then
     exit 1
 fi
 
-# Invariante Dinámico: Si el proyecto host usa @fgp/auditor, validar que TARGET_NODE_VER >= Requisito Auditor
-AUDITOR_PKG="$SCRIPT_DIR/node_modules/@fgp/auditor/package.json"
+# Invariante Dinámico: Si el proyecto host usa @francogp/auditor, validar que TARGET_NODE_VER >= Requisito Auditor
+AUDITOR_PKG="$SCRIPT_DIR/node_modules/@francogp/auditor/package.json"
 if [ -f "$AUDITOR_PKG" ]; then
     AUDITOR_NODE_MIN=$(grep -o '"node": *"[^"]*"' "$AUDITOR_PKG" | grep -o '[0-9.]*' | head -n 1)
     if [ -n "$AUDITOR_NODE_MIN" ]; then
         # Comparación semver básica con sort -V
         LOWER_VER=$(printf '%s\n%s\n' "$TARGET_NODE_VER" "$AUDITOR_NODE_MIN" | sort -V | head -n 1)
         if [ "$TARGET_NODE_VER" != "$AUDITOR_NODE_MIN" ] && [ "$LOWER_VER" = "$TARGET_NODE_VER" ]; then
-            echo "❌ ERROR: La versión objetivo v$TARGET_NODE_VER es INFERIOR al mínimo exigido por @fgp/auditor (v$AUDITOR_NODE_MIN)."
+            echo "❌ ERROR: La versión objetivo v$TARGET_NODE_VER es INFERIOR al mínimo exigido por @francogp/auditor (v$AUDITOR_NODE_MIN)."
             exit 1
         fi
     fi

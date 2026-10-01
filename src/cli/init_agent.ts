@@ -1,8 +1,9 @@
+#!/usr/bin/env -S node --experimental-strip-types
 /**
  * src/cli/init_agent.ts
  *
  * Antigravity Agent Plugin Registrator (Node.js 26+ Native)
- * Automatically registers @fgp/auditor in .agents/plugins.json of the host project
+ * Automatically registers @francogp/auditor in .agents/plugins.json of the host project
  * so Antigravity AI agents instantly discover the official auditor-framework skill and rules.
  */
 
@@ -20,7 +21,7 @@ export function initAgentSkill(options: InitAgentOptions = {}): { success: boole
   const agentsDir = path.join(targetDir, '.agents');
   const pluginsJsonPath = path.join(agentsDir, 'plugins.json');
 
-  const relativePluginEntry = 'node_modules/@fgp/auditor';
+  const relativePluginEntry = 'node_modules/@francogp/auditor';
 
   if (!fs.existsSync(agentsDir)) {
     if (!options.dryRun) {
@@ -43,13 +44,13 @@ export function initAgentSkill(options: InitAgentOptions = {}): { success: boole
   }
 
   const alreadyRegistered = pluginsConfig.entries?.some(
-    e => e.path === relativePluginEntry || e.path.endsWith('@fgp/auditor')
+    e => e.path === relativePluginEntry || e.path.endsWith('@francogp/auditor')
   );
 
   if (alreadyRegistered) {
     return {
       success: true,
-      message: `El plugin @fgp/auditor ya se encuentra registrado en ${pluginsJsonPath}`,
+      message: `El plugin @francogp/auditor ya se encuentra registrado en ${pluginsJsonPath}`,
       created: false
     };
   }
@@ -62,17 +63,23 @@ export function initAgentSkill(options: InitAgentOptions = {}): { success: boole
 
   return {
     success: true,
-    message: `Registrado exitosamente @fgp/auditor en ${pluginsJsonPath}`,
+    message: `Registrado exitosamente @francogp/auditor en ${pluginsJsonPath}`,
     created: true
   };
 }
 
 // CLI entrypoint
-const isDirectCli = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+const isDirectCli = process.argv[1] && (() => {
+  try {
+    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  }
+})();
 if (isDirectCli) {
   const isDryRun = process.argv.includes('--dry-run');
   console.log('\n┌────────────────────────────────────────────────────────┐');
-  console.log('│  🤖 Antigravity Agent Skill Registrator (@fgp/auditor) │');
+  console.log('│  🤖 Antigravity Agent Skill Registrator (@francogp/auditor) │');
   console.log('└────────────────────────────────────────────────────────┘\n');
 
   const result = initAgentSkill({ dryRun: isDryRun });

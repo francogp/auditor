@@ -4,7 +4,7 @@
  * Dedicated unit test suite for AgentPluginAuditor:
  * - Detects missing plugin registration in host projects (missing-agent-plugin-registration)
  * - Verifies clean execution when properly registered in .agents/plugins.json
- * - Verifies clean execution when running directly on @fgp/auditor provider
+ * - Verifies clean execution when running directly on @francogp/auditor provider
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -95,7 +95,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
   });
 
   describe('Clean Execution (Negative Verification)', () => {
-    it('runs on compliant host projects with registered @fgp/auditor plugin and reports zero errors', async () => {
+    it('runs on compliant host projects with registered @francogp/auditor plugin and reports zero errors', async () => {
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
         JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
@@ -105,7 +105,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       await fs.mkdir(agentsDir, { recursive: true });
       await fs.writeFile(
         path.join(agentsDir, 'plugins.json'),
-        JSON.stringify({ entries: [{ path: 'node_modules/@fgp/auditor' }] }, null, 2),
+        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
         'utf8'
       );
 
@@ -116,8 +116,8 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(result.status).toBe('passed');
     });
 
-    it('runs on the @fgp/auditor provider repository itself and reports zero errors', async () => {
-      // In the provider repo, package.json has name @fgp/auditor and root plugin.json exists
+    it('runs on the @francogp/auditor provider repository itself and reports zero errors', async () => {
+      // In the provider repo, package.json has name @francogp/auditor and root plugin.json exists
       const auditor = new AgentPluginAuditor();
       const result = await auditor.execute();
 

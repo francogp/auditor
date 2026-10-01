@@ -1,3 +1,4 @@
+#!/usr/bin/env -S node --experimental-strip-types
 /**
  * src/cli/setup_env.ts
  *
@@ -6,6 +7,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,7 +34,13 @@ export function runSetup(args: string[] = process.argv.slice(2)): number {
 }
 
 // CLI entrypoint
-const isDirectCli = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+const isDirectCli = process.argv[1] && (() => {
+  try {
+    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  }
+})();
 if (isDirectCli) {
   const code = runSetup();
   process.exit(code);

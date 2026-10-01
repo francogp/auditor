@@ -1,3 +1,4 @@
+#!/usr/bin/env -S node --experimental-strip-types
 /**
  * scripts/maintenance/audit_for_commit.ts
  * 
