@@ -64,7 +64,15 @@ describe('O1DataStructuresAuditor', () => {
       const code = `
         const server = OFFICIAL_SERVERS.find(s => s.id === 'dev');
       `;
-      const issues = scanFileForO1Issues('src/logic/serverFinder.ts', code);
+      const catalogPatterns = [
+        {
+          name: 'OFFICIAL_SERVERS',
+          pattern: /\bOFFICIAL_SERVERS\.(?:find|filter|some|findLast)\s*\(/g,
+          alternative: 'OFFICIAL_SERVERS_BY_ID[serverId]',
+          definingFile: 'src/data/system/official_servers.ts'
+        }
+      ];
+      const issues = scanFileForO1Issues('src/logic/serverFinder.ts', code, catalogPatterns);
       const issue = issues.find(i => i.ruleId === 'o1-catalog-lookup');
       expect(issue).toBeDefined();
       expect(issue?.isWarning).toBe(false);

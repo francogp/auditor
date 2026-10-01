@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -27,12 +28,18 @@ export const DEAD_CSS_RULES: readonly DeadCssRuleId[] = [
   'dead-scoped-css'
 ] as const;
 
-const GLOBAL_UTILITY_CLASSES = new Set([
-  'pixelated', 'allow-aliasing', 'clickable', 'flex', 'hidden', 'active', 'disabled', 'legacy-ui',
-  'legacy-panel', 'legacy-confirm-btn', 'retro-btn', 'pulse', 'gold', 'silver', 'bronze',
+const DEFAULT_GLOBAL_UTILITY_CLASSES = new Set([
+  'clickable', 'flex', 'hidden', 'active', 'disabled',
   'w-full', 'h-full', 'truncate', 'pointer-events-none', 'pointer-events-auto', 'select-none',
-  'custom-scrollbar', 'custom-scrollbar-vicio', 'empty-state', 'scrollable-content', 'modal-footer', 'm-type-tag'
+  'custom-scrollbar', 'empty-state', 'scrollable-content', 'modal-footer', 'emoji',
+  'tabular-nums'
 ]);
+
+function getEffectiveGlobalUtilityClasses(projectRoot?: string): ReadonlySet<string> {
+  const config = getAuditConfig(projectRoot);
+  const configured = config.styles?.globalUtilityClasses ?? [];
+  return new Set([...DEFAULT_GLOBAL_UTILITY_CLASSES, ...configured]);
+}
 
 const VUE_TRANSITION_SUFFIXES = [
   '-enter-from',
@@ -60,12 +67,15 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 2, 'Recopilando tokens de código globales en src/...');
-    const allSrcFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue', '.json']));
+    const config = getAuditConfig(this.projectRoot);
+    const globalUtilityClasses = getEffectiveGlobalUtilityClasses(this.projectRoot);
+    const srcRoots = config.paths.srcRoots ?? ['src'];
+    this.context.logStep(1, 2, 'Recopilando tokens de código globales en código fuente...');
+    const allSrcFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.json']));
     const globalTokens = new Set<string>();
 
     for (const relPath of allSrcFiles) {
-      if (relPath.includes('.spec.') || relPath.includes('.test.') || relPath.includes('.simulation.')) {
+      if (relPath.includes('.spec.') || relPath.includes('.test.')) {
         continue;
       }
       const fullPath = path.resolve(this.projectRoot, relPath);
@@ -79,12 +89,16 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
       }
     }
 
-    this.context.logStep(2, 2, 'Auditando clases scoped en src/components y src/views...');
-    const componentFiles = await this.context.collectFiles(['src/components', 'src/views'], new Set(['.vue']));
+    const compRoots = [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views'])
+    ];
+    this.context.logStep(2, 2, 'Auditando clases scoped en componentes...');
+    const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
     let scopedClassesChecked = 0;
 
     for (const relPath of componentFiles) {
-      if (relPath.includes('.spec.') || relPath.includes('.test.') || relPath.includes('.simulation.')) {
+      if (relPath.includes('.spec.') || relPath.includes('.test.')) {
         continue;
       }
 
@@ -165,7 +179,7 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
 
             // Skip file extensions or numbers
             if (className === 'scss' || className === 'css' || className === 'vue' || className === 'png' || className === 'webp') continue;
-            if (GLOBAL_UTILITY_CLASSES.has(className)) continue;
+            if (globalUtilityClasses.has(className)) continue;
             if (VUE_TRANSITION_SUFFIXES.some(suffix => className.endsWith(suffix))) continue;
             if (Array.from(dynamicPrefixes).some(prefix => className.startsWith(prefix))) continue;
 

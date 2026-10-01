@@ -25,8 +25,10 @@ import {
   FileScanAuditor,
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
-  loadFallowIgnorePatterns
+  loadFallowIgnorePatterns,
+  getEffectiveScannableRoots
 } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -216,7 +218,9 @@ export function scanFileForIllegalHeaders(filePath: string, content: string): He
 export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
   private readonly collectedViolations: HeaderViolation[] = [];
 
-  constructor(roots: readonly string[] = ['src', 'scripts', 'tests', 'database', 'supabase']) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
       id: 'validate_audit_headers',
       name: 'Audit Headers & Suppression Validator',
@@ -233,7 +237,8 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
         'header-auditor-escape': 'Escape hatch mal ubicado',
         'unjustified-escape-hatch': 'Escape hatch sin justificación'
       },
-      roots
+      roots: effectiveRoots,
+      projectRoot
     });
   }
 
@@ -261,8 +266,9 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
  * Legacy procedural audit runner preserved for testing and external consumers.
  */
 export function auditAuditHeaders(targetDir = process.cwd()): AuditHeadersResult {
-  const canonicalRoots = ['src', 'scripts', 'tests', 'database', 'supabase'] as const;
-  const rootsToScan = canonicalRoots.filter(r => fs.existsSync(path.resolve(targetDir, r)));
+  const config = getAuditConfig(targetDir);
+  const scannableRoots = getEffectiveScannableRoots(config);
+  const rootsToScan = scannableRoots.filter(r => fs.existsSync(path.resolve(targetDir, r)));
 
   const auditor = new AuditHeadersAuditor(rootsToScan);
   const files = auditor['context'].collectFiles(rootsToScan);

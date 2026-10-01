@@ -26,7 +26,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, getEffectiveScannableRoots } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -42,6 +43,18 @@ export const EPHEMERAL_STORAGE_RULES: readonly EphemeralStorageRuleId[] = [
 ] as const;
 
 export const CANONICAL_SOURCE_ROOTS = ['src', 'scripts', 'tests', 'supabase', 'data', 'database'] as const;
+
+export function getEffectiveSourceRoots(projectRoot?: string): readonly string[] {
+  const config = getAuditConfig(projectRoot);
+  const scannable = getEffectiveScannableRoots(config);
+  const additional = [
+    ...(config.paths.dataRoots ?? []),
+    config.persistence.supabaseDir ?? 'supabase',
+    'database'
+  ];
+  return Array.from(new Set([...scannable, ...additional]));
+}
+
 const FORBIDDEN_DIR_NAMES = new Set(['temp', 'tmp', '.temp', '.tmp', 'ephemeral', 'scratch']);
 const FORBIDDEN_DIR_PREFIXES = ['temp_', 'tmp_'];
 
@@ -53,6 +66,7 @@ const GITIGNORE_FORBIDDEN_REGEX = /(?:^|\/)(?:src|scripts|tests|supabase|data|da
 
 export interface EphemeralStorageIsolationAuditorOptions {
   projectRoot?: string;
+  roots?: readonly string[];
   allowedDatabaseDirs?: ReadonlySet<string>;
   allowedDatabaseFiles?: ReadonlySet<string>;
 }
@@ -67,6 +81,8 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
         ? { projectRoot: optionsOrRoot }
         : (optionsOrRoot ?? {});
 
+    const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
+
     super({
       id: 'validate_ephemeral_storage_isolation',
       name: 'Ephemeral Storage & Scratch Isolation Validator',
@@ -79,13 +95,17 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
         'ephemeral-no-gitignore-source-temp': 'Entrada temporal en .gitignore',
         'ephemeral-no-source-temp-references': 'Referencia a carpeta temporal'
       },
-      roots: [...CANONICAL_SOURCE_ROOTS],
+      roots: [...effectiveRoots],
       allowedExtensions: new Set(['.ts', '.vue', '.js', '.sql', '.sh']),
       projectRoot: options.projectRoot
     });
 
-    this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? DEFAULT_ALLOWED_DATABASE_DIRS;
-    this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? DEFAULT_ALLOWED_DATABASE_FILES;
+    const config = getAuditConfig(options.projectRoot);
+    const configuredDbDirs = config.persistence?.allowedDatabaseDirs;
+    const configuredDbFiles = config.persistence?.allowedDatabaseFiles;
+
+    this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? (configuredDbDirs ? new Set(configuredDbDirs) : DEFAULT_ALLOWED_DATABASE_DIRS);
+    this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
   }
 
   public override runAudit(): void {
@@ -100,7 +120,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
   }
 
   private scanSourceDirectoriesOnDisk(): void {
-    for (const root of CANONICAL_SOURCE_ROOTS) {
+    for (const root of this.roots) {
       const rootDir = path.resolve(this.projectRoot, root);
       if (!fs.existsSync(rootDir)) continue;
 
@@ -128,7 +148,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
               severity: 'error',
               file: `database/${entry.name}`,
               line: 1,
-              message: `Forbidden directory 'database/${entry.name}' detected. All temporary databases, test simulation exports, and scratch artifacts must reside strictly inside 'scratch/database/'.`,
+              message: `Forbidden directory 'database/${entry.name}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/database/'.`,
               context: `database/${entry.name}`
             });
           }

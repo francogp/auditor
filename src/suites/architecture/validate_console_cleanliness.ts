@@ -21,6 +21,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -36,12 +37,19 @@ export const CONSOLE_CLEANLINESS_RULES: readonly ConsoleCleanlinessRuleId[] = [
 const DEBUGGER_REGEX = /\bdebugger\b;?/g;
 const CONSOLE_LOG_REGEX = /\bconsole\.log\s*\(/g;
 
-const EXEMPT_LOGGING_FILES = new Set([
-  'src/logic/utils/logger.ts'
-]);
+function getExemptLoggingFiles(projectRoot?: string): ReadonlySet<string> {
+  const config = getAuditConfig(projectRoot);
+  const custom = [
+    ...(config.paths.exemptFiles ?? []),
+    ...(config.domain.loggerModule ? [config.domain.loggerModule] : [])
+  ];
+  return new Set(custom);
+}
 
 export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlinessRuleId> {
-  constructor() {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
     super({
       id: 'validate_console_cleanliness',
       name: 'Console & Debugger Cleanliness Auditor',
@@ -53,8 +61,9 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
         'no-debugger-statement': 'Instrucciones debugger en src/',
         'no-console-log-in-src': 'Llamadas directas a console.log()'
       },
-      roots: ['src'],
-      allowedExtensions: new Set(['.ts', '.vue', '.js'])
+      roots: effectiveRoots,
+      allowedExtensions: new Set(['.ts', '.vue', '.js']),
+      projectRoot
     });
   }
 
@@ -65,14 +74,14 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
     this.auditDebugger(normalizedPath, content);
 
     // 2. Audit raw console.log (exempt files, CLI tools, and terminal/auditor engine modules excluded)
+    const config = getAuditConfig(this.projectRoot);
+    const exemptFiles = getExemptLoggingFiles(this.projectRoot);
     const isCliOrTerminalOutput =
-      normalizedPath.startsWith('src/cli/') ||
-      normalizedPath.startsWith('src/core/') ||
-      normalizedPath.startsWith('src/suites/') ||
-      normalizedPath.startsWith('src/analyzers/') ||
-      normalizedPath.startsWith('scripts/');
+      isScriptPath(normalizedPath, config) ||
+      isExemptFile(normalizedPath, config) ||
+      isCliPath(normalizedPath, config);
 
-    if (!EXEMPT_LOGGING_FILES.has(normalizedPath) && !isCliOrTerminalOutput) {
+    if (!exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput) {
       this.auditConsoleLog(normalizedPath, content);
     }
   }

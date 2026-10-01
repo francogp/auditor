@@ -3,8 +3,8 @@
  *
  * TEST ANTI-FRAGMENTATION & JSDOM GOVERNANCE AUDITOR (Node.js 26+ Native)
  *
- * Enforces test suite architecture standards across Facturación 2.0:
- *   - Prevents proliferation of micro-files (< 60 lines).
+ * Enforces test suite architecture standards across the test suite:
+ *   - Prevents proliferation of micro-files (< 60 lines or configurable minimum).
  *   - Encourages domain-cohesive test suites (300-800 lines) to eliminate
  *     Vitest worker thread setup/teardown and module boot overhead.
  *   - Detects unnecessary @vitest-environment jsdom annotations on tests that do not
@@ -27,6 +27,7 @@ import {
   FileScanAuditor,
   BaseAuditor,
 } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -58,6 +59,8 @@ export interface TestSuiteDistribution {
 }
 
 export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationRuleId> {
+  private readonly minTestLines: number;
+  private readonly fragmentationWhitelist: ReadonlySet<string>;
   private distribution: TestSuiteDistribution = {
     micro: 0,
     small: 0,
@@ -68,7 +71,13 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
     totalTestLines: 0,
   };
 
-  constructor() {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? [
+      ...(config.paths.testRoots ?? ['tests']),
+      ...(config.paths.integrationRoots ?? []),
+      ...(config.paths.e2eRoots ?? [])
+    ];
     super({
       id: 'validate_test_fragmentation',
       name: 'Test Anti-Fragmentation Validator',
@@ -80,9 +89,13 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
         'no-fragmented-tests': 'Archivo fragmentado (<60 líneas)',
         'unnecessary-jsdom': 'JSDOM innecesario sin Vue/DOM'
       },
-      roots: ['tests'],
+      roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.js']),
+      projectRoot
     });
+    this.minTestLines = config.paths.minTestFileLines ?? MIN_TEST_FILE_LINES;
+    const customWhitelist = config.paths.testFragmentationWhitelist ?? [];
+    this.fragmentationWhitelist = new Set([...TEST_FRAGMENTATION_WHITELIST, ...customWhitelist]);
   }
 
   public getDistribution(): Readonly<TestSuiteDistribution> {
@@ -104,7 +117,7 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
     this.distribution.totalTestFiles++;
     this.distribution.totalTestLines += lineCount;
 
-    if (lineCount < MIN_TEST_FILE_LINES) {
+    if (this.minTestLines > 0 && lineCount < this.minTestLines) {
       this.distribution.micro++;
     } else if (lineCount < 300) {
       this.distribution.small++;
@@ -124,11 +137,11 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
   }
 
   private checkMicroTestFragmentation(relPath: string, content: string, lineCount: number): void {
-    if (lineCount >= MIN_TEST_FILE_LINES) {
+    if (this.minTestLines <= 0 || lineCount >= this.minTestLines) {
       return;
     }
 
-    if (TEST_FRAGMENTATION_WHITELIST.has(relPath)) {
+    if (this.fragmentationWhitelist.has(relPath) || TEST_FRAGMENTATION_WHITELIST.has(relPath)) {
       return;
     }
 
@@ -141,7 +154,7 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
       severity: 'error',
       file: relPath,
       line: 1,
-      message: `Test file is overly fragmented (${lineCount} lines < ${MIN_TEST_FILE_LINES} line minimum). Consolidate into a domain-cohesive test suite (300-800 lines) or annotate with // test-fragmentation-ok: <justification>.`,
+      message: `Test file is overly fragmented (${lineCount} lines < ${this.minTestLines} line minimum). Consolidate into a domain-cohesive test suite (300-800 lines) or annotate with // test-fragmentation-ok: <justification>.`,
       context: `Lines: ${lineCount}`,
     });
   }

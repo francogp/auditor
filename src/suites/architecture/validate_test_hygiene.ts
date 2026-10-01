@@ -3,7 +3,7 @@
  *
  * TEST HYGIENE & SIMULATION INTEGRITY AUDITOR (Node.js 26+ Native)
  *
- * Enforces test suite architecture and simulation standards across Facturación 2.0:
+ * Enforces test suite architecture and testing hygiene standards across projects:
  *   1. No Tautological Integration Mocks (`no-tautological-integration-mocks`):
  *      In `tests/integration/`, forbids mocking core execution subsystems (`@/logic/db/supabase`).
  *      Integration suites must run against real engines and databases.
@@ -54,20 +54,7 @@ export const TEST_HYGIENE_RULES: readonly TestHygieneRuleId[] = [
 // Core subsystems forbidden from being mocked in tests/integration/
 export function getForbiddenIntegrationMockTargets(): readonly string[] {
   const config = getAuditConfig();
-  const engine = config.persistence?.engine;
-  if (engine === 'supabase') {
-    return ['@/logic/db/supabase'];
-  }
-  if (engine === 'sqlite') {
-    return ['@/logic/db/sqlite', '@/logic/db/database'];
-  }
-  if (engine === 'hybrid') {
-    return ['@/logic/db/supabase', '@/logic/db/sqlite', '@/logic/db/database'];
-  }
-  if (engine === 'postgres') {
-    return ['@/logic/db/postgres', '@/logic/db/database'];
-  }
-  return [];
+  return config.persistence?.forbiddenMockModules ?? [];
 }
 
 const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /(?::has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=)/;
@@ -155,19 +142,21 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
   }
 
   private scanE2eSimulations(relPath: string, content: string): void {
+    const config = getAuditConfig();
+    const shouldCheckIdLocatorsOnly = config.e2e?.idLocatorsOnly === true;
     const lines = content.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
       const lineContent = lines[i];
       if (!lineContent) continue;
 
-      if (PLAYWRIGHT_TEXT_LOCATOR_REGEX.test(lineContent) && !this.isLineIgnored(lineContent, ['locator-ok'])) {
+      if (shouldCheckIdLocatorsOnly && PLAYWRIGHT_TEXT_LOCATOR_REGEX.test(lineContent) && !this.isLineIgnored(lineContent, ['locator-ok'])) {
         this.addViolation({
           ruleId: 'playwright-id-locators-only',
           severity: 'error',
           file: relPath,
           line: i + 1,
-          message: `Text-based locator detected in E2E simulation. Mandate requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`,
+          message: `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`,
           context: lineContent.trim()
         });
       }

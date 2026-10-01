@@ -6,7 +6,7 @@
 
 import path from 'node:path';
 import { statSync, existsSync, readdirSync, readFileSync } from 'node:fs';
-import { getAuditConfig, isTestPath, isDataPath, isConstantsPath } from '../../core/auditConfig.ts';
+import { getAuditConfig, isDataPath, isConstantsPath, isInCodeRoots, isExemptFile, isScriptPath } from '../../core/auditConfig.ts';
 import { isPathIgnored } from '../../core/auditorBase.ts';
 
 export const AUDIT_SEVERITIES = ['error', 'warning'] as const;
@@ -51,7 +51,7 @@ export function matchesRule(descriptor: RuleDescriptor | AuditRule, selectedRule
 
 export const Z_INDEX_CONSISTENCY_DESCRIPTOR: RuleDescriptor = {
   id: 'z-index-parity',
-  name: 'Z-Index Parity (visuals.ts <-> _base.scss)',
+  name: 'Z-Index Parity (Design System Layers)',
   category: 'Z-Index fuera de estándar',
   aliases: ['z-index', 'zindex', 'visuals', 'parity', 'z-index-parity']
 };
@@ -137,12 +137,12 @@ export const CANONICAL_DEFAULT_Z_LAYERS: Record<string, number> = {
 
 function loadZLayers(): Record<string, number> {
   const config = getAuditConfig();
-  const relFile = config.domain.zLayersFile ?? 'src/logic/constants/visuals.ts';
-  const candidates = [
-    path.resolve(process.cwd(), relFile),
-    path.resolve(process.cwd(), '../..', relFile)
-  ];
-  for (const absPath of candidates) {
+  if (config.styles?.zLayers && Object.keys(config.styles.zLayers).length > 0) {
+    return { ...config.styles.zLayers };
+  }
+  const relFile = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
+  if (relFile) {
+    const absPath = path.resolve(process.cwd(), relFile);
     if (existsSync(absPath)) {
       try {
         const content = readFileSync(absPath, 'utf-8');
@@ -235,7 +235,7 @@ export const gpuGaps: AuditRule = {
     const lastSemi = Math.max(beforeMatch.lastIndexOf(';'), beforeMatch.lastIndexOf('}'), beforeMatch.lastIndexOf('{'));
     const selectorText = beforeMatch.substring(lastSemi + 1).trim();
 
-    const highDensityKeywords = /(card|item|sprite|avatar|nickname|badge|icon|grid|list|row|cell|weather|overlay|background)/i;
+    const highDensityKeywords = /(card|item|avatar|badge|icon|grid|list|row|cell|overlay|background)/i;
     if (highDensityKeywords.test(selectorText) || (filePath && highDensityKeywords.test(filePath))) {
       return false;
     }
@@ -261,10 +261,10 @@ export const legacyDates: AuditRule = {
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     const lowerPath = normalizeFilePath(filePath);
-    if (lowerPath.includes('migrate_temporal.ts') || lowerPath.endsWith('eslint.config.js')) {
+    if (lowerPath.endsWith('eslint.config.js') || isExemptFile(filePath)) {
       return false;
     }
-    return !isTestPath(filePath);
+    return isInCodeRoots(filePath);
   },
   fixable: false
 };
@@ -272,15 +272,20 @@ export const legacyDates: AuditRule = {
 export const hardcodedTimezone: AuditRule = {
   regex: /toZonedDateTimeISO\(\s*['"]([^'"]+)['"]\s*\)|toPlainDateTime\(\s*['"]([^'"]+)['"]\s*\)|Temporal\.TimeZone\.from\(\s*['"]([^'"]+)['"]\s*\)/g,
   message: (match: string) => {
-    const tzVar = getAuditConfig().domain.timezoneVariable ?? 'APP_TIMEZONE';
-    const helperMod = getAuditConfig().domain.timezoneHelperModule ?? '@/logic/utils/timeUtils';
-    return `Timezone hardcodeado detectado: '${match}'. Usa la variable global '${tzVar}' importada desde '${helperMod}' para respetar la configuración del servidor.`;
+    const tzVar = getAuditConfig().domain?.timezoneVariable ?? 'APP_TIMEZONE';
+    const helperMod = getAuditConfig().domain?.timezoneHelperModule;
+    const modMsg = helperMod ? ` importada desde '${helperMod}'` : '';
+    return `Timezone hardcodeado detectado: '${match}'. Usa la variable global '${tzVar}'${modMsg} para respetar la configuración del servidor.`;
   },
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => { // string-ok: Internal string formatting or DOM token identifier
     if (!filePath) return false;
-    if (filePath.endsWith('timeUtils.ts')) return false;
-    return !isTestPath(filePath);
+    const config = getAuditConfig();
+    if (config?.domain?.enabled === false) return false;
+    const helperMod = config.domain?.timezoneHelperModule;
+    if (helperMod && filePath.includes(helperMod.replace(/^@\//, ''))) return false;
+    if (isExemptFile(filePath)) return false;
+    return isInCodeRoots(filePath);
   },
   fixable: false
 };
@@ -307,9 +312,10 @@ export const noDomainIdFallbacks: AuditRule = {
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
-    const normPath = normalizeFilePath(filePath);
-    if (normPath.includes('audit_rules.ts') || normPath.includes('.test.') || normPath.includes('.spec.') || normPath.includes('tests/')) return false;
-    if (!normPath.includes('src/')) return false;
+    const config = getAuditConfig();
+    if (config.domain?.enabled === false) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
 
     // Respect standard escape hatches for pure display localization / text
     const matchIndex = match.index ?? 0;
@@ -383,6 +389,10 @@ export const noAliasConstants: AuditRule = {
   }
 };
 
+export const DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES = [
+  'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'
+];
+
 export const noLiteralSuffixInConstantName: AuditRule = {
   regex: /\b([A-Z0-9_]+_(\d{2,}))\b/g,
   message: (match: string) => `Constante con sufijo numérico crudo detectada: '${match}'. Está PROHIBIDO incluir literales numéricos al final de los nombres de constantes (ej: _100, _600, _10000). Usa nombres semánticos descriptivos.`,
@@ -393,8 +403,11 @@ export const noLiteralSuffixInConstantName: AuditRule = {
     if (norm.includes('node_modules') || norm.includes('.spec.') || norm.includes('.test.')) return false;
     const constName = match[1] || '';
     if (/^\d/.test(constName)) return false;
-    // Ignorar excepciones conocidas legítimas como Gen1, Gen2, RGB, HTTP, 2D, 3D, W3C, ISO, etc.
-    if (/(?:GEN_\d|ISO_\d|UTF_8|BASE_64|RGB_|RGBA_|WASM_|HTML_5|CSS_3|HTTP_\d)/i.test(constName)) return false;
+    const config = getAuditConfig();
+    const prefixes = config.domain?.allowedNumericConstantPrefixes ?? DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES;
+    for (const prefix of prefixes) {
+      if (constName.startsWith(prefix) || constName.includes(prefix)) return false;
+    }
     return true;
   }
 };
@@ -402,7 +415,7 @@ export const noLiteralSuffixInConstantName: AuditRule = {
 export const timersPromises: AuditRule = {
   regex: /new Promise\(r => setTimeout\(r, (\d+)\)\)/g,
   message: "Uso de setTimeout manual en script Node. Considera 'import { setTimeout } from \"node:timers/promises\"'.",
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => !!filePath && normalizeFilePath(filePath).includes('scripts/') && !normalizeFilePath(filePath).includes('node_modules'),
+  check: (_content: string, _match: RegExpExecArray, filePath?: string) => !!filePath && isScriptPath(filePath) && !normalizeFilePath(filePath).includes('node_modules'),
   fixable: false
 };
 
@@ -410,7 +423,7 @@ export const explicitResource: AuditRule = {
   regex: /const (\w+) = (new DatabaseSync|fs\.openSync)/g,
   message: `Recurso detectado sin 'using'. Usa Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
   fix: (match: string) => match.replace('const', 'using'),
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => !!filePath && normalizeFilePath(filePath).includes('scripts/')
+  check: (_content: string, _match: RegExpExecArray, filePath?: string) => !!filePath && isScriptPath(filePath)
 };
 
 export const manualAnimations: AuditRule = {
@@ -444,10 +457,20 @@ export const manualTimersFrontend: AuditRule = {
   check: (content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     if (/audit-disable\s+timers/i.test(content)) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
+
     const norm = normalizeFilePath(filePath);
-    if (!norm.includes('src/')) return false;
-    if (norm.includes('.spec.') || norm.includes('.test.') || norm.includes('node_modules')) return false;
-    if (norm.includes('src/logic/utils/timeutils') || norm.includes('src/stores/auth') || norm.includes('src/views/auth/') || norm.includes('src/logic/auth/')) return false;
+    const config = getAuditConfig();
+    const uiRoots = [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views'])
+    ];
+    const isUiFile = norm.endsWith('.vue') || uiRoots.some(r => {
+      const clean = r.replace(/^\/+|\/+$/g, '').toLowerCase();
+      return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+    });
+    if (!isUiFile) return false;
 
     // Check for line-level timer-ok or delay-ok justification
     const matchIndex = _match.index ?? 0;
@@ -464,23 +487,20 @@ export const manualTimersFrontend: AuditRule = {
 export const zeroTimerLogic: AuditRule = {
   id: 'zeroTimerLogic',
   name: 'Zero Timer Logic',
-  aliases: ['zerotimerbattlelogic', 'zerotimercalculationlogic', 'zerotimerlogic'],
+  aliases: ['zerotimerlogic'],
   regex: /\b(sleep)\s*\(/g,
   message: "Uso de 'sleep()' nativo detectado en lógica central. Las funciones de lógica de negocio deben ser 100% deterministas y orientadas a eventos.",
   severity: 'error',
   check: (content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
+    if (filePath.endsWith('audit_rules.ts')) return false;
     if (/audit-disable\s+timers/i.test(content)) return false;
-    const norm = normalizeFilePath(filePath);
-    if (!norm.includes('src/logic/') && !norm.includes('src/components/')) return false;
-    if (norm.includes('.spec.') || norm.includes('.test.') || norm.includes('gsaphelpers')) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
     return true;
   },
   fixable: false
 };
-
-export const zeroTimerBattleLogic = zeroTimerLogic;
-export const zeroTimerCalculationLogic = zeroTimerLogic;
 
 export const noPlaywrightWaitForTimeout: AuditRule = {
   regex: /\bpage\.waitForTimeout\s*\(/g,
@@ -490,8 +510,12 @@ export const noPlaywrightWaitForTimeout: AuditRule = {
     if (!filePath) return false;
     const norm = normalizeFilePath(filePath);
     if (norm.includes('node_modules')) return false;
-    if (norm.includes('tests/unit/')) return false;
-    return norm.includes('scripts/e2e/') || norm.includes('tests/');
+    const config = getAuditConfig();
+    const e2eRoots = config.paths?.e2eRoots ?? ['tests/e2e'];
+    return e2eRoots.some(r => {
+      const clean = r.replace(/^\/+|\/+$/g, '').toLowerCase();
+      return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+    });
   },
   fixable: false
 };
@@ -510,10 +534,33 @@ export const intersectionObserverRoot: AuditRule = {
   fixable: false
 };
 
+export function getProhibitedTemplateDbRegex(): RegExp {
+  const config = getAuditConfig();
+  const prohibited = config?.persistence?.prohibitedTemplateIdentifiers && config.persistence.prohibitedTemplateIdentifiers.length > 0
+    ? config.persistence.prohibitedTemplateIdentifiers
+    : (config?.persistence?.engine === 'none' ? ['__none_match__'] : ['supabase', 'db']);
+  const pattern = prohibited.join('|');
+  return new RegExp(`\\b(?:${pattern})\\b`, 'gi');
+}
+
 export const dbInTemplates: AuditRule = {
-  regex: /\bsupabase\b/g,
-  message: "Acceso directo a Supabase detectado dentro de un bloque <template>. Está PROHIBIDO consultar la base de datos en el render loop. Cachea los datos reactivamente con 'computed' o acciones de store en <script> y expón una estructura de datos lista para renderizar.",
+  get regex() {
+    return getProhibitedTemplateDbRegex();
+  },
+  message: "Acceso directo a base de datos / persistencia detectado dentro de un bloque <template>. Está PROHIBIDO consultar la base de datos en el render loop. Cachea los datos reactivamente con 'computed' o acciones de store en <script> y expón una estructura de datos lista para renderizar.",
   severity: 'error',
+  check: (content: string, match: RegExpExecArray, filePath?: string) => {
+    if (!filePath || !filePath.endsWith('.vue')) return false;
+    const config = getAuditConfig();
+    if (config.persistence?.engine === 'none' && (!config.persistence?.prohibitedTemplateIdentifiers || config.persistence.prohibitedTemplateIdentifiers.length === 0)) {
+      return false;
+    }
+    const templateOpenIndex = content.lastIndexOf('<template', match.index);
+    const templateCloseIndex = content.lastIndexOf('</template>', match.index);
+    if (templateOpenIndex === -1) return false;
+    if (templateCloseIndex !== -1 && templateOpenIndex < templateCloseIndex) return false;
+    return true;
+  },
   fixable: false
 };
 
@@ -526,8 +573,11 @@ export const functionCallsInTemplates: AuditRule = {
     const funcName = match[1] || match[2];
     if (!funcName) return false;
     
-    const safeFunctions = /^(t|i18n|translate|formatCurrency|formatNumber|class|style|typeof)$/i;
-    if (safeFunctions.test(funcName)) return false;
+    const config = getAuditConfig();
+    const userSafe = config.templates?.safeTemplateFunctions ?? [];
+    const defaultSafe = ['t', 'i18n', 'translate', 'formatNumber', 'class', 'style', 'typeof'];
+    const allSafe = new Set([...defaultSafe, ...userSafe].map(f => f.toLowerCase()));
+    if (allSafe.has(funcName.toLowerCase())) return false;
     
     try {
       const scriptStart = content.indexOf('<script');
@@ -542,7 +592,11 @@ export const functionCallsInTemplates: AuditRule = {
       const defStart = defMatch.index;
       const defContext = scriptContent.substring(defStart, Math.min(scriptContent.length, defStart + 1000));
       
-      const isHeavy = /\b(supabase|\.map\(|\.filter\(|\.reduce\()/i.test(defContext);
+      const prohibitedDb = getAuditConfig().persistence?.prohibitedTemplateIdentifiers && getAuditConfig().persistence!.prohibitedTemplateIdentifiers!.length > 0
+        ? getAuditConfig().persistence!.prohibitedTemplateIdentifiers!
+        : (getAuditConfig().persistence?.engine === 'none' ? [] : ['supabase', 'db']);
+      const dbPattern = prohibitedDb.length > 0 ? prohibitedDb.join('|') + '|' : '';
+      const isHeavy = new RegExp(`\\b(${dbPattern}\\.map\\(|\\.filter\\(|\\.reduce\\()`, 'i').test(defContext);
       return isHeavy;
     } catch (_e) {
       return false;
@@ -586,9 +640,17 @@ export const zIndexAudit: AuditRule = {
       return `Z-Index relativo detectado: '${match}'. Cerca de Z_LAYERS.${nearestKey}. Usa 'calc(var(--z-${key}) ${sign} ${Math.abs(offset)})'.`;
     }
 
-    return `Z-Index hardcodeado fuera de estándar: '${match}'. Define una nueva capa en 'visuals.ts' o usa una existente.`;
+    const zFile = getAuditConfig().styles?.zLayersTsFile ?? getAuditConfig().domain?.zLayersFile;
+    const targetMsg = zFile ? `en '${zFile}'` : 'en la configuración de estilos';
+    return `Z-Index hardcodeado fuera de estándar: '${match}'. Define una nueva capa ${targetMsg} o usa una existente.`;
   },
   severity: 'error',
+  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
+    const config = getAuditConfig();
+    if (config.styles?.zLayersEnabled === false) return false;
+    if (filePath && isExemptFile(filePath)) return false;
+    return true;
+  },
   fix: (match: string) => {
     const valMatch = match.match(/-?\d+/);
     if (!valMatch) return match;
@@ -628,12 +690,20 @@ export const zIndexAudit: AuditRule = {
 
 export const zIndexConstantDeclaration: AuditRule = {
   regex: /const\s+([A-Z0-9_]*Z_INDEX[A-Z0-9_]*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi,
-  message: (match: string) => `Declaración de constante de Z-Index aislada detectada: '${match}'. Está PROHIBIDO declarar constantes de Z-Index fuera de 'src/logic/constants/visuals.ts' (Z_LAYERS). Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`,
+  message: (match: string) => {
+    const zFile = getAuditConfig().styles?.zLayersTsFile ?? getAuditConfig().domain?.zLayersFile;
+    const targetDesc = zFile ? `'${zFile}' (Z_LAYERS)` : 'la configuración canónica de Z_LAYERS';
+    return `Declaración de constante de Z-Index aislada detectada: '${match}'. Está PROHIBIDO declarar constantes de Z-Index fuera de ${targetDesc}. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`;
+  },
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
+    const config = getAuditConfig();
+    if (config.styles?.zLayersEnabled === false) return false;
     if (!filePath) return false;
     const norm = normalizeFilePath(filePath);
-    return !norm.includes('src/logic/constants/visuals.ts') && !norm.includes('node_modules');
+    const zFile = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
+    if (zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, ''))) return false;
+    return !norm.includes('node_modules');
   },
   fixable: false
 };
@@ -644,11 +714,10 @@ export const forbiddenFallbacks: AuditRule = {
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    if (norm.includes('node_modules') || norm.includes('external')) return false;
-    const isTestOrMock = norm.includes('.spec.') || norm.includes('.test.') || norm.includes('tests/fixtures');
-    if (isTestOrMock) return false;
-    return norm.includes('src/') || norm.includes('scripts/e2e/');
+    const config = getAuditConfig();
+    if (config.domain?.enabled === false) return false;
+    if (isExemptFile(filePath)) return false;
+    return isInCodeRoots(filePath);
   },
   fixable: false
 };
@@ -733,13 +802,8 @@ export const forbiddenTypeCasts: AuditRule = {
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    if (norm.includes('node_modules')) return false;
-    if (isTestPath(filePath)) return false;
-    const codeRoots = getAuditConfig()?.paths?.codeRoots ?? ['src', 'scripts'];
-    const isInCodeRoots = codeRoots.some(root => norm.includes(root.replace(/^\/+|\/+$/g, '')));
-    if (!isInCodeRoots) return false;
-    return true;
+    if (isExemptFile(filePath)) return false;
+    return isInCodeRoots(filePath);
   },
   fixable: false
 };
@@ -755,19 +819,16 @@ export const magicNumbers: AuditRule = {
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
+    if (!isInCodeRoots(filePath)) return false;
+
     const norm = normalizeFilePath(filePath);
     
-    // STRICT SCOPE: Only audit files in configured code roots
-    const codeRoots = getAuditConfig()?.paths?.codeRoots ?? ['src', 'scripts'];
-    const isInCodeRoots = codeRoots.some(root => norm.includes(root.replace(/^\/+|\/+$/g, '')));
-    if (!isInCodeRoots) return false;
-
-    // Ignore tests, configured ignored paths, data catalogs, constants modules, config files, and styles
+    // Ignore configured ignored paths, data catalogs, constants modules, config files, styles, and exempt files
     if (
-      isTestPath(filePath) ||
       isPathIgnored(filePath) ||
       isDataPath(filePath) ||
       isConstantsPath(filePath) ||
+      isExemptFile(filePath) ||
       norm.endsWith('config.ts') ||
       norm.endsWith('.scss') || norm.endsWith('.css')
     ) {
@@ -848,7 +909,9 @@ export const magicNumbers: AuditRule = {
     }
 
     const num = parseInt(match[2] || '', 10);
-    if (isNaN(num) || EXEMPT_AUDIT_NUMERIC_LITERALS.has(num)) return false;
+    const config = getAuditConfig();
+    const customExempt = config.constants?.exemptMagicNumbers ?? [];
+    if (isNaN(num) || EXEMPT_AUDIT_NUMERIC_LITERALS.has(num) || customExempt.includes(num)) return false;
 
     return true;
   },
@@ -857,14 +920,18 @@ export const magicNumbers: AuditRule = {
 
 export const badConstantNames: AuditRule = {
   regex: /^\s*(?:export\s+)?const\s+([A-Z0-9_]+?_\d+)\b/gm,
-  message: (match: string) => `Nombre de constante antipatrón detectado en declaración: '${match.trim()}'. Está PROHIBIDO incluir el valor numérico en el nombre de la constante (ej: usa ARCHAEOLOGY_CAVE_BASE_WEIGHT en lugar de ARCHAEOLOGY_CAVE_BASE_WEIGHT_10). Describe el propósito semántico o la intención de dominio.`,
+  message: (match: string) => `Nombre de constante antipatrón detectado en declaración: '${match.trim()}'. Está PROHIBIDO incluir el valor numérico en el nombre de la constante (ej: usa MAX_RETRY_COUNT en lugar de MAX_RETRY_COUNT_10). Describe el propósito semántico o la intención de dominio.`,
   severity: 'error',
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     const norm = normalizeFilePath(filePath);
     if (norm.includes('node_modules') || norm.includes('.spec.') || norm.includes('.test.')) return false;
     const constName = match[1] || '';
-    if (/(?:GEN_\d|ISO_\d|UTF_8|BASE_64|RGB_|RGBA_|WASM_|HTML_5|CSS_3|HTTP_\d|D3_|GEN1_|GEN2_|GEN3_|GEN4_|GEN5_|GEN6_|GEN7_|GEN8_|GEN9_)/i.test(constName)) return false;
+    const config = getAuditConfig();
+    const prefixes = config.domain?.allowedNumericConstantPrefixes ?? DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES;
+    for (const prefix of prefixes) {
+      if (constName.startsWith(prefix) || constName.includes(prefix)) return false;
+    }
     return true;
   },
   fixable: false
@@ -927,6 +994,8 @@ export const missingInteractiveId: AuditRule = {
   message: (match: string) => `Elemento interactivo de UI sin atributo ID detectado: '${match.replace(/\s+/g, ' ').slice(0, 90)}...'. Todo elemento interactivo (button, input, select, textarea o elementos con eventos @click/@change/@submit) en templates Vue DEBE poseer un atributo 'id' o ':id' explícito para garantizar testabilidad y accesibilidad Playwright.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
+    const config = getAuditConfig();
+    if (!config.templates?.requireInputIds) return false;
     if (!filePath || !filePath.endsWith('.vue')) return false;
     const norm = normalizeFilePath(filePath);
     if (norm.includes('node_modules')) return false;
@@ -995,10 +1064,9 @@ const BASE_INFRA_AND_UUID_IDENTIFIERS: ReadonlySet<string> = new Set<string>([ /
   'conversationId', 'conversation_id', 'terminalId', 'terminal_id',
   'messageId', 'message_id', 'authId', 'auth_id',
   'elementId', 'modalId', 'tabId', 'domId', 'htmlId', 'uid', 'toastId',
-  'targetUid', 'cardId', 'slotId',
+  'targetUid',
   'sourceId', 'source_id', 'targetId', 'rawId', 'expectedId', 'expected_id',
-  'eventId', 'event_id', 'categoryId', 'category_id', 'categoryIdOrUid', 'maybeUid',
-  'serverId', 'server_id', 'selectedServerId', 'selected_server_id', 'assetId', 'asset_id'
+  'eventId', 'event_id', 'categoryId', 'category_id', 'categoryIdOrUid', 'maybeUid'
 ]);
 
 function getEffectiveInfraIdentifiers(): ReadonlySet<string> {
@@ -1023,10 +1091,20 @@ export const strictDomainParamTypes: AuditRule = {
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
+    const config = getAuditConfig();
+    if (config.domain?.enabled === false) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
     const norm = normalizeFilePath(filePath);
-    if (norm.includes('audit_rules.ts') || norm.includes('.test.') || norm.includes('.spec.') || norm.includes('tests/')) return false;
-    if (norm.endsWith('database.ts') || norm.endsWith('database.types.ts')) return false;
-    if (!norm.includes('src/')) return false;
+    const allowedDbFiles = [
+      'database.ts',
+      'database.types.ts',
+      'supabase.types.ts',
+      'schema.types.ts',
+      'db.types.ts',
+      ...(config.persistence?.allowedDatabaseFiles ?? [])
+    ];
+    if (allowedDbFiles.some(f => norm.endsWith(f.replace(/\\/g, '/')))) return false;
 
     const idParamName = match[1];
     if (!idParamName) return false;
@@ -1080,10 +1158,10 @@ export const noInlineTypeImports: AuditRule = {
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
     const norm = normalizeFilePath(filePath);
-    if (!norm.includes('src/')) return false;
     if (norm.endsWith('.d.ts')) return false; // Allowed in ambient .d.ts declaration files
-    if (norm.includes('.test.') || norm.includes('.spec.') || norm.includes('tests/')) return false;
     return true;
   },
   fixable: false
@@ -1099,10 +1177,17 @@ export const noInlineLiteralUnions: AuditRule = {
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
+    const config = getAuditConfig();
+    if (config.domain?.enabled === false) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
     const norm = normalizeFilePath(filePath);
-    if (!norm.includes('src/')) return false;
-    if (norm.includes('/types/')) return false; // Allowed in canonical type definitions under src/types/
-    if (norm.includes('.test.') || norm.includes('.spec.') || norm.includes('tests/')) return false;
+    const typesRoots = config.paths?.typesRoots ?? ['src/types'];
+    const isTypesModule = typesRoots.some(r => {
+      const clean = r.replace(/^\/+|\/+$/g, '').toLowerCase();
+      return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+    });
+    if (isTypesModule) return false;
 
     const matchIndex = match.index ?? 0;
     const lineStartIndex = content.lastIndexOf('\n', matchIndex) + 1;
@@ -1159,10 +1244,8 @@ export const noRawJsonImportsOutsideData: AuditRule = {
   fixable: false,
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return true;
-    const norm = normalizeFilePath(filePath);
-    const codeRoots = getAuditConfig()?.paths?.codeRoots ?? ['src', 'scripts'];
-    const isExcluded = norm.startsWith('src/data/') || norm.startsWith('scripts/') || norm.startsWith('tests/') || codeRoots.some(r => r !== 'src' && norm.startsWith(r + '/'));
-    return !isExcluded;
+    if (isDataPath(filePath) || isScriptPath(filePath) || isExemptFile(filePath)) return false;
+    return isInCodeRoots(filePath);
   }
 };
 
@@ -1181,44 +1264,20 @@ export const noSassAtImport: AuditRule = {
   }
 };
 
-export const overscrollBehaviorLock: AuditRule = {
-  id: 'overscrollBehaviorLock',
-  name: 'Global Overscroll Behavior Lock',
-  category: 'Overscroll Navigation Lock',
-  regex: /html\s*,\s*body\s*\{/g,
-  message: `Mandato de bloqueo de sobre-desplazamiento violado: '_base.scss' debe declarar 'overscroll-behavior: none !important;' para prevenir pull-to-refresh y navegación gestual accidental en navegadores móviles.`,
-  severity: 'error',
-  fixable: false,
-  check: (content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return false;
-    const config = getAuditConfig();
-    if (config.styles?.zLayersEnabled === false) return false;
-    const norm = normalizeFilePath(filePath);
-    const configuredScss = config.styles?.zLayersScssFile ? normalizeFilePath(config.styles.zLayersScssFile) : null;
-    if (configuredScss) {
-      if (!norm.endsWith(configuredScss)) return false;
-    } else {
-      if (!norm.endsWith('src/styles/core/_base.scss') && !norm.endsWith('src/styles/_base.scss')) return false;
-    }
-    return !content.includes('overscroll-behavior: none !important;');
-  }
-};
-
 export const noLayoutAnimationInGsap: AuditRule = {
   id: 'noLayoutAnimationInGsap',
   name: 'No Layout Animation In GSAP',
   category: 'Rendimiento GPU (GSAP)',
   aliases: ['gsap-layout', 'nolayoutanimationingsap', 'layout-animation', 'perf-gsap'],
-  regex: /\b(?:gsap|timeline|weatherTimeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g,
+  regex: /\b(?:gsap|timeline|[a-zA-Z0-9_]*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g,
   message: (match: string) => `[TUTORIAL GPU OPTIMIZATION] Se detectó animación de propiedades CSS de layout/repintado CPU en llamada a GSAP: '${match}'.
-   📚 REGLA: (gpu_optimization_manual.md) está PROHIBIDO animar propiedades de layout o backgroundPosition ('backgroundPosition', 'backgroundPositionX', 'backgroundPositionY') en GSAP porque colapsan el fill-rate forzando reflows y repintados continuos a 60 FPS.
+   📚 REGLA: (Directivas de Rendimiento GPU en GSAP) está PROHIBIDO animar propiedades de layout o backgroundPosition ('backgroundPosition', 'backgroundPositionX', 'backgroundPositionY') en GSAP porque colapsan el fill-rate forzando reflows y repintados continuos a 60 FPS.
    💡 SOLUCIÓN: Usa propiedades aceleradas por GPU ('x', 'y', 'scale', 'scaleX', 'scaleY', 'rotation', 'opacity', 'transform'). Para fondos continuos, usa translate3d modular con 'gsap.utils.unitize'.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    if (!norm.includes('src/') || norm.includes('ui-demo/')) return false;
-    if (norm.includes('.test.') || norm.includes('.spec.') || norm.includes('tests/')) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
 
     // Look ahead within the GSAP call (up to 400 chars) for tween config object
     const startIdx = match.index ?? 0;
@@ -1247,22 +1306,32 @@ export const noLayoutAnimationInGsap: AuditRule = {
   fixable: false
 };
 
+export function getNamedTimerConstantsRegex(): RegExp {
+  const config = getAuditConfig();
+  const customFuncs = config.animation?.customTimerFunctions ?? [];
+  const defaultFuncs = ['gsapSleep'];
+  const allFuncs = Array.from(new Set([...defaultFuncs, ...customFuncs])).map(f => RegExp.escape(f));
+  const funcsPart = allFuncs.length > 0 ? `|\\b(?:${allFuncs.join('|')})\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*\\)` : '';
+  return new RegExp(`\\b(?:gsap\\.)?delayedCall\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*,${funcsPart}`, 'g');
+}
+
 export const namedTimerConstants: AuditRule = {
   id: 'namedTimerConstants',
   name: 'Named GSAP Delay Constants',
   category: 'Retardos GSAP sin constante nombrada',
   aliases: ['timer-constants', 'named-timer-constants', 'timer_constants', 'delayedcall-magic', 'gsap-delay-constants'],
-  regex: /\b(?:gsap\.)?delayedCall\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*,|\bgsapSleep\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*\)/g,
+  get regex() {
+    return getNamedTimerConstantsRegex();
+  },
   message: (match: string) => `Número mágico detectado en retardo de animación GSAP: '${match.trim()}'. Define y usa una constante semántica con sufijo '_SEC' (segundos), ej. 'ANIMATION_DELAY_SEC'. Recuerda que en src/ los timers nativos (setTimeout/setInterval) están TERMINANTEMENTE PROHIBIDOS (regla manualTimersFrontend) y debe usarse ÚNICAMENTE GSAP.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    if (!norm.includes('src/') && !norm.includes('scripts/')) return false;
-    if (norm.includes('.spec.') || norm.includes('.test.') || norm.includes('node_modules')) return false;
+    if (!isInCodeRoots(filePath)) return false;
+    if (isExemptFile(filePath)) return false;
 
     // Permitir 0 (deferral / microtask idiomático)
-    const valStr = match[1] || match[2];
+    const valStr = match.slice(1).find(Boolean);
     if (!valStr || parseFloat(valStr) === 0) return false;
 
     // Check for suppression on the line
@@ -1278,8 +1347,8 @@ export const namedTimerConstants: AuditRule = {
 };
 
 export const auditRulesConfig = {
-  viewport, gpuGaps, legacyDates, hardcodedTimezone, nodePrefix, esmExtensions, tsIgnore, timersPromises, explicitResource, zIndexAudit, zIndexConstantDeclaration, manualAnimations, emptyVueTransitions, manualTimersFrontend, zeroTimerLogic, zeroTimerBattleLogic, zeroTimerCalculationLogic, noPlaywrightWaitForTimeout, jsonStringifyInWatch, intersectionObserverRoot, dbInTemplates, functionCallsInTemplates, forbiddenFallbacks, forbiddenTypeCasts, doxIndexIntegrity, noDomainIdFallbacks, strictDomainParamTypes, noInlineTypeImports, noInlineLiteralUnions, magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName, noLiteralBooleanType, noInlineAnonymousObjectType, noFloatingPromises, noLeakedGlobalState, missingInteractiveId, sassTraps,
-  noImportantOnTransforms, noImportantOnFilters, noRawJsonImportsOutsideData, noSassAtImport, overscrollBehaviorLock,
+  viewport, gpuGaps, legacyDates, hardcodedTimezone, nodePrefix, esmExtensions, tsIgnore, timersPromises, explicitResource, zIndexAudit, zIndexConstantDeclaration, manualAnimations, emptyVueTransitions, manualTimersFrontend, zeroTimerLogic, noPlaywrightWaitForTimeout, jsonStringifyInWatch, intersectionObserverRoot, dbInTemplates, functionCallsInTemplates, forbiddenFallbacks, forbiddenTypeCasts, doxIndexIntegrity, noDomainIdFallbacks, strictDomainParamTypes, noInlineTypeImports, noInlineLiteralUnions, magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName, noLiteralBooleanType, noInlineAnonymousObjectType, noFloatingPromises, noLeakedGlobalState, missingInteractiveId, sassTraps,
+  noImportantOnTransforms, noImportantOnFilters, noRawJsonImportsOutsideData, noSassAtImport,
   noLayoutAnimationInGsap, namedTimerConstants
 };
 

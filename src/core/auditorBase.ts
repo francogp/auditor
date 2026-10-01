@@ -83,12 +83,11 @@ export const CANONICAL_SCANNABLE_ROOTS = [
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
 
 export function getEffectiveScannableRoots(config = getAuditConfig()): readonly string[] {
-  const codeRoots = config.paths?.codeRoots;
-  if (codeRoots && codeRoots.length > 0) {
-    const testRoots = config.paths?.testRoots ?? [];
-    return Array.from(new Set([...codeRoots, ...testRoots]));
-  }
-  return CANONICAL_SCANNABLE_ROOTS;
+  const codeRoots = config.paths?.codeRoots ?? ['src', 'scripts'];
+  const testRoots = config.paths?.testRoots ?? ['tests'];
+  const integrationRoots = config.paths?.integrationRoots ?? [];
+  const e2eRoots = config.paths?.e2eRoots ?? [];
+  return Array.from(new Set([...codeRoots, ...testRoots, ...integrationRoots, ...e2eRoots]));
 }
 
 /**

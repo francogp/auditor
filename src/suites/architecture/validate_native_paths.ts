@@ -33,13 +33,15 @@ import {
   isPathIgnored,
   loadFallowIgnorePatterns,
   collectRepositoryFiles,
+  getEffectiveScannableRoots,
   FileScanAuditor,
   BaseAuditor
 } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns };
+export { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns, getEffectiveScannableRoots };
 
 export type NativePathRuleId =
   | 'unsafe-path-concat'
@@ -367,8 +369,9 @@ export function scanFileForNativePathViolations(filePath: string, content: strin
 export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResult {
   assertSafePathComponent(targetDir);
   const extraIgnorePatterns = loadFallowIgnorePatterns(targetDir);
-  const canonicalRoots = ['scripts', 'src', 'database', 'tests', 'supabase'] as const;
-  const rootsToScan = canonicalRoots
+  const config = getAuditConfig(targetDir);
+  const scannableRoots = getEffectiveScannableRoots(config);
+  const rootsToScan = scannableRoots
     .map(r => path.resolve(targetDir, r))
     .filter(p => fs.existsSync(p));
 
@@ -408,7 +411,9 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
 }
 
 export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
-  constructor() {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
       id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
@@ -427,7 +432,8 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
         'untrusted-url-fetch': 'Llamada HTTP sin sanitizar',
         'hardcoded-slash-path': 'Separador de ruta hardcodeado'
       },
-      roots: ['scripts', 'src', 'database', 'tests', 'supabase']
+      roots: effectiveRoots,
+      projectRoot
     });
   }
 

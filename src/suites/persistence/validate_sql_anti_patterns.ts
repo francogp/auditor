@@ -16,8 +16,8 @@
  *      Detects camelCase keys in object literals passed to `.insert()`, `.update()`, or `.upsert()`
  *      on database tables in `src/`, requiring strictly `snake_case` column keys.
  *   5. Uncoordinated Save Storage Bypass (`storage-uncoordinated-save-bypass`):
- *      Detects direct `localStorage.setItem` calls mutating game saves outside the authorized
- *      `SaveCoordinator` / `saveActionHelpers` architecture.
+ *      Detects direct `localStorage.setItem` calls mutating state outside the authorized
+ *      persistence architecture.
  *
  * Escape Hatches:
  *   `-- sql-ok`, `// sql-ok`, `-- plpgsql-ok`, `-- rls-ok`, `// db-ok`, `// storage-ok`
@@ -51,7 +51,17 @@ export const SQL_ANTI_PATTERN_RULES: readonly SqlAntiPatternRuleId[] = [
   'storage-uncoordinated-save-bypass'
 ] as const;
 
-const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.(?:team|box)\[\d+\]|(?:team|box)\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{(?:team|box),\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.(?:team|box)\[\d+\])/i;
+export function getPositionalJsonMutationRegex(): RegExp {
+  const config = getAuditConfig();
+  const cols = config.persistence?.positionalArrayColumns;
+  if (cols && cols.length > 0) {
+    const colGroup = cols.join('|');
+    return new RegExp(`(?:\\$\\.(?:${colGroup})\\[\\d+\\]|(?:${colGroup})\\s*->\\s*\\d+|jsonb_set\\([^,]+,\\s*'\\{(?:${colGroup}),\\s*\\d+\\}'|json_extract\\([^,]+,\\s*['"]\\$\\.(?:${colGroup})\\[\\d+\\])`, 'i');
+  }
+  return /(?:\$\.[a-zA-Z0-9_]+\[\d+\]|[a-zA-Z0-9_]+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{[a-zA-Z0-9_]+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.[a-zA-Z0-9_]+\[\d+\])/i;
+}
+
+export const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.[a-zA-Z0-9_]+\[\d+\]|[a-zA-Z0-9_]+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{[a-zA-Z0-9_]+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.[a-zA-Z0-9_]+\[\d+\])/i;
 const CAMEL_CASE_KEY_REGEX = /^[a-z]+[A-Z][a-zA-Z0-9]*$/;
 
 export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
@@ -64,8 +74,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     projectRoot: string = process.cwd(),
     customSaveKeyPrefixes?: readonly string[]
   ) {
-    const config = getAuditConfig();
-    const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'supabase/migrations';
+    const config = getAuditConfig(projectRoot);
+    const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'migrations';
     const srcRoots = config.paths.srcRoots || ['src'];
 
     super({
@@ -80,7 +90,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         'sql-plpgsql-declared-variables': 'Variable PL/pgSQL sin declarar',
         'sql-rls-policy-grant-integrity': 'Permiso GRANT faltante en RLS',
         'db-payload-snake-case': 'Propiedad sin snake_case en BD',
-        'storage-uncoordinated-save-bypass': 'Bypass de SaveCoordinator'
+        'storage-uncoordinated-save-bypass': 'Bypass de persistencia segura'
       },
       roots: [migrationsDirRel, ...srcRoots],
       allowedExtensions: new Set(['.sql', '.ts', '.vue']),
@@ -93,7 +103,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   }
 
   public override runAudit(): void {
-    const config = getAuditConfig();
+    const config = getAuditConfig(this.projectRoot);
     if (config.persistence?.engine === 'none') {
       this.context.logStep(1, 1, 'Persistencia desactivada explícitamente en audit.config.ts (persistence.engine: "none"). Omitiendo.');
       this.context.setMetric('Engine', 'none (omitted)');
@@ -124,7 +134,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     }
 
     // 2. Scan TypeScript and Vue code in src/
-    const srcFiles = this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
+    const srcRoots = config.paths.srcRoots || ['src'];
+    const srcFiles = this.context.collectFiles([...srcRoots], new Set(['.ts', '.vue']));
     for (const file of srcFiles) {
       const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
       try {
@@ -148,7 +159,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       if (!lineText) continue;
 
       // Rule 1: sql-no-positional-arrays
-      if (POSITIONAL_JSON_MUTATION_REGEX.test(lineText) && !this.isLineIgnored(lineText, ['sql-ok'])) {
+      const positionalRegex = getPositionalJsonMutationRegex();
+      if (positionalRegex.test(lineText) && !this.isLineIgnored(lineText, ['sql-ok'])) {
         this.addViolation({
           ruleId: 'sql-no-positional-arrays',
           severity: 'error',
@@ -290,7 +302,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
             severity: 'error',
             file: relPath,
             line: i + 1,
-            message: `Direct localStorage write to state bypasses SafeStorage architecture.`,
+            message: `Direct localStorage write to state bypasses authorized persistence architecture.`,
             context: lineText.trim()
           });
         }

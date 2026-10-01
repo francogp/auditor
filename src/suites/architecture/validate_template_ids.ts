@@ -56,7 +56,12 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
   private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   private readonly requireInputIds: boolean;
 
-  constructor(roots: readonly string[] = ['src'], options?: { requireInputIds?: boolean }) {
+  constructor(roots?: readonly string[], options?: { requireInputIds?: boolean }, projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views'])
+    ];
     super({
       id: 'validate_template_ids',
       name: 'Template Static ID Uniqueness & Collision Validator',
@@ -69,10 +74,11 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
         'template-shared-static-id': 'ID compartido entre componentes',
         'template-missing-input-id': 'Control sin ID único'
       },
-      roots,
-      allowedExtensions: new Set(['.vue'])
+      roots: effectiveRoots,
+      allowedExtensions: new Set(['.vue']),
+      projectRoot
     });
-    this.requireInputIds = options?.requireInputIds ?? getAuditConfig().templates?.requireInputIds ?? false;
+    this.requireInputIds = options?.requireInputIds ?? config.templates?.requireInputIds ?? false;
   }
 
   protected override scanFile(relPath: string, content: string): void {

@@ -13,6 +13,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, CANONICAL_IGNORE_DIRS } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import { runCssChecker } from '../../analyzers/cssAnalyzer.ts';
 
 enableCompileCache();
@@ -29,7 +30,8 @@ export const CSS_DUPLICATES_RULES: readonly CssDuplicatesRuleId[] = [
 export class CssDuplicatesAuditor extends BaseAuditor<CssDuplicatesRuleId> {
   private readonly targetDir: string;
 
-  constructor(targetDir: string = '.') {
+  constructor(targetDir: string = '.', projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
     super({
       id: 'validate_css_duplicates',
       name: 'CSS Duplication Validator',
@@ -41,7 +43,8 @@ export class CssDuplicatesAuditor extends BaseAuditor<CssDuplicatesRuleId> {
         'css-duplicate-rules': 'Reglas duplicadas en estilos',
         'css-checker-missing': 'Herramienta css-checker ausente'
       },
-      roots: ['src']
+      roots: config.paths.srcRoots ?? ['src'],
+      projectRoot
     });
     this.targetDir = targetDir;
   }

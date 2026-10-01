@@ -20,6 +20,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -33,7 +34,13 @@ export const REACTIVE_LEAK_RULES: readonly ReactiveLeakRuleId[] = [
 ] as const;
 
 export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
-  constructor(roots: readonly string[] = ['src/components', 'src/views', 'src/composables'], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views']),
+      ...(config.paths.composablesRoots ?? ['src/composables'])
+    ];
     super({
       id: 'validate_reactive_leaks',
       name: 'Reactive & DOM Event Leak Auditor',
@@ -46,7 +53,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
         'interval-leak': 'setInterval sin limpiar'
       },
       requiresAst: true,
-      roots,
+      roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
       projectRoot
     });

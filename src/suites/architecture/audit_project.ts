@@ -29,7 +29,7 @@ import { runCssChecker, CSS_ANALYZER_DESCRIPTOR } from '../../analyzers/cssAnaly
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxAnalyzer.ts';
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
-import { loadAuditConfig, getAuditConfig } from '../../core/auditConfig.ts';
+import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -70,8 +70,7 @@ async function auditFile(
     config.sassTraps,
     config.noImportantOnTransforms,
     config.noImportantOnFilters,
-    config.noSassAtImport,
-    config.overscrollBehaviorLock
+    config.noSassAtImport
   ];
   const STYLE_RULES: AuditRule[] = activeConfigRules
     ? ALL_STYLE_RULES.filter(r => activeConfigRules.has(r))
@@ -292,16 +291,29 @@ async function checkZIndexConsistency(fix: boolean): Promise<string[]> {
   if (config.styles?.zLayersEnabled === false) {
     return [];
   }
-  const configuredPath = config.styles?.zLayersScssFile
-    ? path.resolve(process.cwd(), config.styles.zLayersScssFile)
+  const rawTarget = config.styles?.zLayersScssFile ?? config.styles?.baseScssFile;
+  const configuredPath = rawTarget
+    ? path.resolve(process.cwd(), rawTarget)
     : undefined;
-  const directPath = path.resolve(process.cwd(), 'src/styles/_base.scss');
-  const corePath = path.resolve(process.cwd(), 'src/styles/core/_base.scss');
-  const scssPath = configuredPath || (existsSync(directPath) ? directPath : (existsSync(corePath) ? corePath : ''));
+  let scssPath = configuredPath && existsSync(configuredPath) ? configuredPath : '';
+  if (!scssPath) {
+    const stylesRoots = config.paths?.stylesRoots ?? ['src/styles'];
+    const candidates: string[] = [];
+    for (const r of stylesRoots) {
+      candidates.push(
+        path.resolve(process.cwd(), r, '_base.scss'),
+        path.resolve(process.cwd(), r, 'core/_base.scss'),
+        path.resolve(process.cwd(), r, 'base.scss'),
+        path.resolve(process.cwd(), r, 'main.scss'),
+        path.resolve(process.cwd(), r, 'index.scss')
+      );
+    }
+    scssPath = candidates.find(c => existsSync(c)) || '';
+  }
 
   if (!scssPath || !existsSync(scssPath)) {
     return [
-      "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si el proyecto no utiliza capas Z de SCSS."
+      "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' o 'styles.baseScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si el proyecto no utiliza capas Z de SCSS."
     ];
   }
   try {
@@ -338,7 +350,7 @@ async function checkZIndexConsistency(fix: boolean): Promise<string[]> {
     }
     return errors;
   } catch (e) {
-    return [`Error leyendo _base.scss: ${e}`];
+    return [`Error leyendo archivo SCSS (${path.basename(scssPath)}): ${e}`];
   }
 }
 
@@ -621,14 +633,26 @@ function isNonProductionPath(filePath: string): boolean {
   ) {
     return true;
   }
-  return (
-    norm.startsWith('scripts/') ||
-    norm.startsWith('tests/') ||
-    norm.startsWith('database/') ||
-    norm.startsWith('supabase/') ||
-    norm.startsWith('packages/') ||
-    norm.startsWith('scratch/')
-  );
+  const config = getAuditConfig();
+  if (isTestPath(norm) || isScriptPath(norm, config)) {
+    return true;
+  }
+  if (norm.startsWith('scratch/') || norm.startsWith('packages/')) {
+    return true;
+  }
+  if (config.paths.migrationsDir && norm.startsWith(config.paths.migrationsDir.replace(/\\/g, '/'))) {
+    return true;
+  }
+  if (config.persistence?.supabaseDir && norm.startsWith(config.persistence.supabaseDir.replace(/\\/g, '/'))) {
+    return true;
+  }
+  if (config.persistence?.allowedDatabaseDirs?.some(d => {
+    const clean = d.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    return norm === clean || norm.startsWith(`${clean}/`) || norm.includes(`/${clean}/`);
+  })) {
+    return true;
+  }
+  return false;
 }
 
 function addComplexityFinding(f: FallowFinding, violations: Violation[]): void {
@@ -1168,15 +1192,30 @@ async function main() {
   } else {
     // 1. Consistency Check (z-index)
     if (isZIndexActive) {
-      logProgress(styleText('cyan', '[1/6] 🎨 Verificando paridad de z-index (visuals.ts <-> _base.scss)...'));
+      logProgress(styleText('cyan', '[1/6] 🎨 Verificando paridad de capas Z (TypeScript <-> SCSS)...'));
       const syncErrors = await checkZIndexConsistency(!!values.fix);
       const syncViolations: Violation[] = [];
       if (syncErrors.length > 0) {
-        logProgress(styleText('magenta', `\n[SYNC] Desincronización detectada entre visuals.ts y _base.scss:`));
+        logProgress(styleText('magenta', `\n[SYNC] Desincronización detectada en paridad de Z-Layers:`));
         syncErrors.forEach(e => logProgress(styleText('yellow', `  -> ${e}`)));
-        const directPath = path.resolve(process.cwd(), 'src/styles/_base.scss');
-        const corePath = path.resolve(process.cwd(), 'src/styles/core/_base.scss');
-        const targetFile = existsSync(directPath) ? directPath : corePath;
+        const configStyles = getAuditConfig().styles;
+        const rawTarget = configStyles?.zLayersScssFile ?? configStyles?.baseScssFile;
+        const configuredPath = rawTarget ? path.resolve(process.cwd(), rawTarget) : undefined;
+        let targetFile = configuredPath && existsSync(configuredPath) ? configuredPath : '';
+        if (!targetFile) {
+          const stylesRoots = getAuditConfig().paths?.stylesRoots ?? ['src/styles'];
+          const candidates: string[] = [];
+          for (const r of stylesRoots) {
+            candidates.push(
+              path.resolve(process.cwd(), r, '_base.scss'),
+              path.resolve(process.cwd(), r, 'core/_base.scss'),
+              path.resolve(process.cwd(), r, 'base.scss'),
+              path.resolve(process.cwd(), r, 'main.scss'),
+              path.resolve(process.cwd(), r, 'index.scss')
+            );
+          }
+          targetFile = candidates.find(c => existsSync(c)) || (configuredPath || 'audit.config.ts');
+        }
         for (const err of syncErrors) {
           syncViolations.push({
             file: targetFile,

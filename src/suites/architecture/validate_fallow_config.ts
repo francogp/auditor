@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -35,6 +36,20 @@ export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-empty-export-list',
   'fallow-duplicate-entry'
 ] as const;
+
+export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
+  const config = getAuditConfig(projectRoot);
+  const globs: string[] = [];
+  const compRoots = config.paths.componentsRoots ?? ['src/components'];
+  const viewRoots = config.paths.viewsRoots ?? ['src/views'];
+  for (const c of compRoots) {
+    globs.push(`${c}/**/*.vue`, `${c}/**`);
+  }
+  for (const v of viewRoots) {
+    globs.push(`${v}/**/*.vue`, `${v}/**`);
+  }
+  return globs;
+}
 
 export const BANNED_ENTRY_GLOBS = [
   'src/components/**/*.vue',
@@ -142,10 +157,11 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     }
 
     this.context.logStep(2, 3, 'Validando puntos de entrada (entry) contra globs prohibidos...');
+    const bannedGlobs = getBannedEntryGlobs(this.projectRoot);
     if (Array.isArray(config.entry)) {
       for (let i = 0; i < config.entry.length; i++) {
         const pattern = config.entry[i]!;
-        for (const banned of BANNED_ENTRY_GLOBS) {
+        for (const banned of bannedGlobs) {
           if (pattern === banned || pattern.startsWith(banned.replace(/\*.*$/, ''))) {
             this.addViolation({
               ruleId: 'fallow-banned-entry-glob',

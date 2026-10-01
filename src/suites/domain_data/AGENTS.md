@@ -10,6 +10,8 @@ Architecture & Tooling Engineers.
 
 - **Domain-Type-First**: Finite entity sets must use nominal branded types or typed union constants rather than naked `string`.
 - **Dynamic Domain Stems Derivation**: `validate_domain_types.ts` derives all allowed domain identifiers and param stems dynamically from `config.domain.finiteDomainTypes`, retaining zero hardcoded domain nouns in `@francogp/auditor`.
+- **Dynamic Domain Token Exemption**: `validate_domain_types.ts` derives case-normalization exempt tokens from `config.domain.caseNormalizationExemptTokens` alongside standard web/UI tokens, eliminating hardcoded game or billing dictionaries.
+- **Configurable Store Setter Prefixes**: Store setter action validation checks `config.domain.allowedStoreSetterPrefixes` dynamically.
 - **O(1) Efficiency**: Linear searches (`.includes()`, `find()`) in catalogs and cyclic object iterations are banned in favor of `Set.has()` and `Map.get()`.
 
 ## Key Files

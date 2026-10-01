@@ -27,6 +27,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -47,10 +48,15 @@ const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
 const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
 const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[a-zA-Z0-9_-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[a-zA-Z0-9_-]+="[^"\n]*"[a-zA-Z0-9_$]/;
-const DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\.[a-zA-Z0-9_]+\s*\(/g;
+export const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\.[a-zA-Z0-9_]+\s*\(/g;
 
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
-  constructor() {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views'])
+    ];
     super({
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
@@ -64,8 +70,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         'vue-template-quote-escaping': 'Comillas sin escapar en template',
         'no-data-provider-in-template': 'Data provider en template'
       },
-      roots: ['src/components', 'src/views'],
-      allowedExtensions: new Set(['.vue'])
+      roots: effectiveRoots,
+      allowedExtensions: new Set(['.vue']),
+      projectRoot
     });
   }
 
@@ -100,7 +107,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         severity: 'error',
         file: relPath,
         line,
-        message: `Options API export default detected. Facturación 2.0 mandates Vue 3 Composition API with '<script setup lang="ts">'.`,
+        message: `Options API export default detected. Project mandates Vue 3 Composition API with '<script setup lang="ts">'.`,
         context: lineContent.trim()
       });
     }
@@ -198,9 +205,15 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     const templateContent = templateMatch[0];
     const templateStartIndex = templateMatch.index ?? 0;
 
+    const config = getAuditConfig(this.projectRoot);
+    const customPatterns = config.templates?.forbiddenTemplateCallPatterns;
+    const regex = customPatterns && customPatterns.length > 0
+      ? new RegExp(`\\{\\{[^}]*\\b(?:${customPatterns.join('|')})`, 'g')
+      : DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX;
+
     this.scanRegexMatches(
       templateContent,
-      DATA_PROVIDER_IN_TEMPLATE_REGEX,
+      regex,
       relPath,
       'no-data-provider-in-template',
       ['template-ok', 'sfc-ok'],

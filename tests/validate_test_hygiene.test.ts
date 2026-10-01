@@ -16,6 +16,7 @@ import {
   TestHygieneAuditor,
   TEST_HYGIENE_RULES
 } from '../src/suites/architecture/validate_test_hygiene.ts';
+import { setAuditConfig, resetAuditConfig, DEFAULT_AUDIT_CONFIG } from '../src/core/auditConfig.ts';
 import type { ViolationInput } from '../src/core/auditorBase.ts';
 import type { TestHygieneRuleId } from '../src/suites/architecture/validate_test_hygiene.ts';
 
@@ -35,10 +36,21 @@ class TestableTestHygieneAuditor extends TestHygieneAuditor {
 describe('TestHygieneAuditor', () => {
   beforeEach(() => {
     process.env.AUDIT_SUBPROCESS = 'true';
+    setAuditConfig({
+      ...DEFAULT_AUDIT_CONFIG,
+      persistence: {
+        ...DEFAULT_AUDIT_CONFIG.persistence,
+        forbiddenMockModules: ['@/logic/db/supabase']
+      },
+      e2e: {
+        idLocatorsOnly: true
+      }
+    });
   });
 
   afterEach(() => {
     delete process.env.AUDIT_SUBPROCESS;
+    resetAuditConfig();
   });
 
   describe('Metadata & Configuration', () => {

@@ -17,11 +17,24 @@ export interface AuditPathsConfig {
   readonly migrationsDir: string;
   readonly scriptsRoots: readonly string[];
   readonly codeRoots: readonly string[];
+  readonly cliRoots?: readonly string[];
   readonly dataRoots?: readonly string[];
   readonly constantsRoots?: readonly string[];
+  readonly componentsRoots?: readonly string[];
+  readonly viewsRoots?: readonly string[];
+  readonly storesRoots?: readonly string[];
+  readonly composablesRoots?: readonly string[];
+  readonly typesRoots?: readonly string[];
+  readonly stylesRoots?: readonly string[];
+  readonly logicRoots?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+  readonly includeTestsInCodeAudit?: boolean;
+  readonly minTestFileLines?: number;
   readonly ignoreGlobs?: readonly string[];
   readonly ignoredDirs?: readonly string[];
   readonly ignoredPatterns?: readonly string[];
+  readonly testFilePatterns?: readonly string[];
+  readonly testFragmentationWhitelist?: readonly string[];
 }
 
 export interface AuditPersistenceConfig {
@@ -29,8 +42,14 @@ export interface AuditPersistenceConfig {
   readonly schemaQualified: boolean;
   readonly authorizedSaveFiles?: readonly string[];
   readonly saveKeyPrefixes?: readonly string[];
+  readonly forbiddenMockModules?: readonly string[];
+  readonly positionalArrayColumns?: readonly string[];
+  readonly allowedDatabaseDirs?: readonly string[];
+  readonly allowedDatabaseFiles?: readonly string[];
   readonly supabaseDir?: string;
   readonly dockerContainer?: string;
+  readonly allowedHosts?: readonly string[];
+  readonly prohibitedTemplateIdentifiers?: readonly string[];
 }
 
 export interface O1CatalogPatternConfig {
@@ -41,13 +60,18 @@ export interface O1CatalogPatternConfig {
 }
 
 export interface AuditDomainConfig {
+  readonly enabled?: boolean;
   readonly timezoneVariable?: string;
   readonly timezoneHelperModule?: string;
+  readonly loggerModule?: string;
   readonly zLayersFile?: string;
   readonly finiteDomainTypes?: readonly string[];
   readonly infraIdWhitelist?: readonly string[];
   readonly fallbackIdPatterns?: readonly string[];
   readonly o1CatalogPatterns?: readonly O1CatalogPatternConfig[];
+  readonly caseNormalizationExemptTokens?: readonly string[];
+  readonly allowedStoreSetterPrefixes?: readonly string[];
+  readonly allowedNumericConstantPrefixes?: readonly string[];
 }
 
 export interface CustomAuditFamilyConfig {
@@ -60,6 +84,9 @@ export interface CustomAuditFamilyConfig {
 
 export interface AuditTemplatesConfig {
   readonly requireInputIds?: boolean;
+  readonly tooltipComponents?: readonly string[];
+  readonly forbiddenTemplateCallPatterns?: readonly string[];
+  readonly safeTemplateFunctions?: readonly string[];
 }
 
 export interface AuditStylesConfig {
@@ -67,6 +94,20 @@ export interface AuditStylesConfig {
   readonly canonicalButtonVariants?: readonly string[];
   readonly zLayersEnabled?: boolean;
   readonly zLayersScssFile?: string;
+  readonly baseScssFile?: string;
+  readonly zLayersTsFile?: string;
+  readonly zLayers?: Record<string, number>;
+  readonly lineHeightOverlapCheck?: boolean;
+  readonly heavyEffectPaths?: readonly string[];
+  readonly buttonGovernance?: {
+    readonly enabled: boolean;
+    readonly buttonsScssFile?: string;
+    readonly canonicalVariants?: readonly string[];
+  };
+}
+
+export interface AuditE2eConfig {
+  readonly idLocatorsOnly?: boolean;
 }
 
 export interface ChunkBudgetConfig {
@@ -86,10 +127,28 @@ export interface AuditBundleConfig {
   readonly budgets?: readonly ChunkBudgetConfig[];
   readonly duplicateModuleThresholdBytes?: number;
   readonly topModulesLimit?: number;
+  readonly forbiddenUiImports?: readonly { readonly module: string; readonly reason: string }[];
 }
 
 export interface AuditAgentPluginConfig {
   readonly enabled?: boolean;
+}
+
+export interface AuditAnimationConfig {
+  readonly customTimerFunctions?: readonly string[];
+}
+
+export interface AuditConstantsConfig {
+  readonly ignoredNames?: readonly string[];
+  readonly exemptMagicNumbers?: readonly number[];
+}
+
+export interface AuditDocumentationConfig {
+  readonly knownValidAbstractPaths?: readonly string[];
+}
+
+export interface AuditPiniaConfig {
+  readonly authorizedMutationFiles?: readonly string[];
 }
 
 export interface AuditEngineConfig {
@@ -101,6 +160,11 @@ export interface AuditEngineConfig {
   readonly styles?: AuditStylesConfig;
   readonly bundle?: AuditBundleConfig;
   readonly agentPlugin?: AuditAgentPluginConfig;
+  readonly animation?: AuditAnimationConfig;
+  readonly constants?: AuditConstantsConfig;
+  readonly documentation?: AuditDocumentationConfig;
+  readonly pinia?: AuditPiniaConfig;
+  readonly e2e?: AuditE2eConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
@@ -125,8 +189,18 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     migrationsDir: 'supabase/migrations',
     scriptsRoots: ['scripts'],
     codeRoots: ['src', 'scripts'],
+    cliRoots: ['src/cli'],
     dataRoots: ['src/data'],
     constantsRoots: ['src/constants'],
+    componentsRoots: ['src/components'],
+    viewsRoots: ['src/views'],
+    storesRoots: ['src/stores'],
+    composablesRoots: ['src/composables'],
+    typesRoots: ['src/types'],
+    stylesRoots: ['src/styles'],
+    logicRoots: ['src/logic'],
+    exemptFiles: [],
+    includeTestsInCodeAudit: false,
     ignoreGlobs: [],
     ignoredDirs: [],
     ignoredPatterns: []
@@ -151,7 +225,8 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   },
   styles: {
     globalUtilityClasses: [],
-    canonicalButtonVariants: []
+    canonicalButtonVariants: [],
+    heavyEffectPaths: []
   },
   bundle: {
     statsFile: 'scratch/bundle_stats.html',
@@ -187,26 +262,48 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     name: config.name,
     paths: {
       ...DEFAULT_AUDIT_CONFIG.paths,
-      ...(config.paths ?? {})
+      ...(config.paths ?? {}),
+      cliRoots: config.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots,
+      testFilePatterns: config.paths?.testFilePatterns ?? [],
+      testFragmentationWhitelist: config.paths?.testFragmentationWhitelist ?? []
     },
     persistence: {
       ...DEFAULT_AUDIT_CONFIG.persistence,
-      ...(config.persistence ?? {})
+      ...(config.persistence ?? {}),
+      forbiddenMockModules: config.persistence?.forbiddenMockModules ?? [],
+      positionalArrayColumns: config.persistence?.positionalArrayColumns ?? [],
+      allowedDatabaseDirs: config.persistence?.allowedDatabaseDirs ?? [],
+      allowedDatabaseFiles: config.persistence?.allowedDatabaseFiles ?? [],
+      allowedHosts: config.persistence?.allowedHosts ?? ['localhost', '127.0.0.1'],
+      prohibitedTemplateIdentifiers: config.persistence?.prohibitedTemplateIdentifiers ?? []
     },
     domain: {
       ...DEFAULT_AUDIT_CONFIG.domain,
       ...(config.domain ?? {}),
-      o1CatalogPatterns: (config.domain?.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? []
+      enabled: config.domain?.enabled ?? true,
+      o1CatalogPatterns: (config.domain?.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? [],
+      caseNormalizationExemptTokens: config.domain?.caseNormalizationExemptTokens ?? [],
+      allowedStoreSetterPrefixes: config.domain?.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'],
+      allowedNumericConstantPrefixes: config.domain?.allowedNumericConstantPrefixes ?? []
     },
     templates: {
       ...DEFAULT_AUDIT_CONFIG.templates,
-      ...(config.templates ?? {})
+      ...(config.templates ?? {}),
+      tooltipComponents: config.templates?.tooltipComponents ?? [],
+      forbiddenTemplateCallPatterns: config.templates?.forbiddenTemplateCallPatterns ?? [],
+      safeTemplateFunctions: config.templates?.safeTemplateFunctions ?? []
     },
     styles: {
       globalUtilityClasses: config.styles?.globalUtilityClasses ?? [],
       canonicalButtonVariants: config.styles?.canonicalButtonVariants ?? [],
       zLayersEnabled: config.styles?.zLayersEnabled,
-      zLayersScssFile: config.styles?.zLayersScssFile
+      zLayersScssFile: config.styles?.zLayersScssFile,
+      baseScssFile: config.styles?.baseScssFile ?? config.styles?.zLayersScssFile,
+      zLayersTsFile: config.styles?.zLayersTsFile,
+      zLayers: config.styles?.zLayers,
+      lineHeightOverlapCheck: config.styles?.lineHeightOverlapCheck ?? true,
+      heavyEffectPaths: config.styles?.heavyEffectPaths ?? [],
+      buttonGovernance: config.styles?.buttonGovernance
     },
     bundle: {
       enabled: config.bundle?.enabled,
@@ -217,10 +314,27 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
       maxClientChunkErrorBytes: config.bundle?.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
       budgets: (config.bundle?.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
       duplicateModuleThresholdBytes: config.bundle?.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
-      topModulesLimit: config.bundle?.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit
+      topModulesLimit: config.bundle?.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit,
+      forbiddenUiImports: (config.bundle?.forbiddenUiImports as readonly { readonly module: string; readonly reason: string }[] | undefined) ?? []
     },
     agentPlugin: {
       enabled: config.agentPlugin?.enabled ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
+    },
+    animation: {
+      customTimerFunctions: config.animation?.customTimerFunctions ?? []
+    },
+    constants: {
+      ignoredNames: config.constants?.ignoredNames ?? [],
+      exemptMagicNumbers: config.constants?.exemptMagicNumbers ?? []
+    },
+    documentation: {
+      knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? []
+    },
+    pinia: {
+      authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
+    },
+    e2e: {
+      idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false
     },
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
@@ -304,8 +418,33 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
 /**
  * Returns current configuration or default if not yet loaded.
  */
-export function getAuditConfig(): AuditEngineConfig {
+export function getAuditConfig(projectRoot: string = process.cwd()): AuditEngineConfig {
+  if (cachedConfig && (!cachedProjectRoot || cachedProjectRoot === projectRoot)) {
+    return cachedConfig;
+  }
+
+  const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
+  if (fs.existsSync(jsonConfigPath)) {
+    try {
+      const content = fs.readFileSync(jsonConfigPath, 'utf-8');
+      const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
+      cachedConfig = defineAuditConfig(parsed);
+      cachedProjectRoot = projectRoot;
+      return cachedConfig;
+    } catch {
+      // fallback
+    }
+  }
+
   return cachedConfig ?? DEFAULT_AUDIT_CONFIG;
+}
+
+/**
+ * Manually sets the active configuration in memory (useful for tests or custom runners).
+ */
+export function setAuditConfig(config: AuditEngineConfig, projectRoot: string = process.cwd()): void {
+  cachedConfig = config;
+  cachedProjectRoot = projectRoot;
 }
 
 /**
@@ -330,6 +469,11 @@ export function isTestPath(filePath: string): boolean {
   }
 
   const config = getAuditConfig();
+  const customTestPatterns = config?.paths?.testFilePatterns ?? [];
+  if (customTestPatterns.some(pat => base.includes(pat.toLowerCase()))) {
+    return true;
+  }
+
   const configuredRoots = [
     ...(config.paths.testRoots ?? []),
     ...(config.paths.e2eRoots ?? []),
@@ -392,4 +536,84 @@ export function isConstantsPath(filePath: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
+ */
+export function isExemptFile(filePath: string, config = getAuditConfig()): boolean {
+  if (!filePath) return false;
+  const norm = filePath.split('\\').join('/').toLowerCase();
+  const exemptFiles = config?.paths?.exemptFiles ?? [];
+  return exemptFiles.some(f => {
+    const clean = f.replace(/^\/+|\/+$/g, '').toLowerCase();
+    return norm === clean || norm.endsWith('/' + clean);
+  });
+}
+
+/**
+ * Determines whether a file path belongs to codeRoots configured for general code audits,
+ * dynamically respecting whether test directories are included or excluded.
+ */
+export function isInCodeRoots(filePath: string, config = getAuditConfig()): boolean {
+  if (!filePath) return false;
+  const norm = filePath.split('\\').join('/').toLowerCase();
+  if (norm.includes('node_modules')) return false;
+
+  const codeRoots = config?.paths?.codeRoots ?? ['src', 'scripts'];
+  const inRoots = codeRoots.some(root => {
+    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
+    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+  });
+
+  if (!inRoots) return false;
+
+  // When includeTestsInCodeAudit is true, or codeRoots explicitly includes a testRoot, tests ARE audited!
+  const includesTests = config?.paths?.includeTestsInCodeAudit === true ||
+    (config?.paths?.testRoots ?? []).some(tr => codeRoots.includes(tr));
+
+  if (!includesTests && isTestPath(filePath)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Checks whether a file path belongs to scriptsRoots.
+ */
+export function isScriptPath(filePath: string, config = getAuditConfig()): boolean {
+  if (!filePath) return false;
+  const norm = filePath.split('\\').join('/').toLowerCase();
+  const scriptsRoots = config?.paths?.scriptsRoots ?? ['scripts'];
+  return scriptsRoots.some(root => {
+    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
+    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+  });
+}
+
+/**
+ * Checks whether a file path belongs to srcRoots.
+ */
+export function isSrcPath(filePath: string, config = getAuditConfig()): boolean {
+  if (!filePath) return false;
+  const norm = filePath.split('\\').join('/').toLowerCase();
+  const srcRoots = config?.paths?.srcRoots ?? ['src'];
+  return srcRoots.some(root => {
+    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
+    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+  });
+}
+
+/**
+ * Checks whether a file path belongs to cliRoots.
+ */
+export function isCliPath(filePath: string, config = getAuditConfig()): boolean {
+  if (!filePath) return false;
+  const norm = filePath.split('\\').join('/').toLowerCase();
+  const cliRoots = config?.paths?.cliRoots ?? ['src/cli'];
+  return cliRoots.some(root => {
+    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
+    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
+  });
 }

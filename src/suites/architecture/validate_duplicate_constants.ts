@@ -11,10 +11,10 @@
  *   npm run validate:duplicate-constants
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import { detectDuplicateConstants } from '../../analyzers/constantAnalyzer.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 
@@ -30,13 +30,10 @@ export const DUPLICATE_CONSTANTS_RULES: readonly DuplicateConstantsRuleId[] = [
 ] as const;
 
 export class DuplicateConstantsAuditor extends BaseAuditor<DuplicateConstantsRuleId> {
-  constructor(options: { projectRoot?: string } = {}) {
-    const effectiveRoot = options.projectRoot
-      ?? (fs.existsSync(path.resolve(process.cwd(), 'src/logic'))
-        ? process.cwd()
-        : (fs.existsSync(path.resolve(process.cwd(), '../..', 'src/logic'))
-          ? path.resolve(process.cwd(), '../..')
-          : process.cwd()));
+  constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = options.roots ?? config.paths.srcRoots ?? ['src'];
 
     super({
       id: 'validate_duplicate_constants',
@@ -50,16 +47,16 @@ export class DuplicateConstantsAuditor extends BaseAuditor<DuplicateConstantsRul
         'duplicate-constant-divergent': 'Constante dispar entre módulos'
       },
       requiresAst: true,
-      roots: ['src'],
+      roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
-      projectRoot: effectiveRoot
+      projectRoot
     });
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
     this.context.logStep(1, 1, 'Analizando declaraciones de constantes con AST...');
 
-    const relFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
+    const relFiles = await this.context.collectFiles(this.roots, this.allowedExtensions);
     const absFiles = relFiles
       .filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'))
       .map(f => path.resolve(this.projectRoot, f));

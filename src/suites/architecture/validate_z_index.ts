@@ -54,20 +54,23 @@ export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
     if (scssPath) {
       this.scssPath = scssPath;
       this.isExplicit = true;
-    } else if (config.styles?.zLayersScssFile) {
-      this.scssPath = path.resolve(this.projectRoot, config.styles.zLayersScssFile);
+    } else if (config.styles?.zLayersScssFile ?? config.styles?.baseScssFile) {
+      this.scssPath = path.resolve(this.projectRoot, (config.styles.zLayersScssFile ?? config.styles.baseScssFile)!);
       this.isExplicit = true;
     } else {
       this.isExplicit = false;
-      const corePath = path.resolve(this.projectRoot, 'src/styles/core/_base.scss');
-      const rootPath = path.resolve(this.projectRoot, 'src/styles/_base.scss');
-      if (fsSync.existsSync(corePath)) {
-        this.scssPath = corePath;
-      } else if (fsSync.existsSync(rootPath)) {
-        this.scssPath = rootPath;
-      } else {
-        this.scssPath = undefined;
+      const stylesRoots = config.paths?.stylesRoots ?? ['src/styles'];
+      const candidates: string[] = [];
+      for (const r of stylesRoots) {
+        candidates.push(
+          path.resolve(this.projectRoot, r, '_base.scss'),
+          path.resolve(this.projectRoot, r, 'core/_base.scss'),
+          path.resolve(this.projectRoot, r, 'base.scss'),
+          path.resolve(this.projectRoot, r, 'main.scss'),
+          path.resolve(this.projectRoot, r, 'index.scss')
+        );
       }
+      this.scssPath = candidates.find(c => fsSync.existsSync(c));
     }
   }
 

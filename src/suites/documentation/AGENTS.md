@@ -12,6 +12,8 @@ Architecture & Tooling Engineers.
 - **Zero Broken Links**: Relative links in Markdown documentation must point to valid files on disk.
 - **Anchored Personal Machine Paths Detection**: Personal machine environment path regexes in `validate_markdown_links.ts` must strictly detect absolute root user directories (`/home/<user>`, `C:\Users\<user>`, `/Users/<user>`) and must not match benign relative directory names (such as `./users/`).
 - **Comprehensive Documentation Scan Coverage**: Both `validate_markdown_links.ts` and `validate_markdown_code_references.ts` actively scan `docs/`, `README.md`, `AGENTS.md`, `src/`, `tests/`, and `.agents/skills`.
+- **Dynamic Markdown Scan Roots**: `validate_markdown_code_references.ts` and `validate_markdown_links.ts` dynamically resolve database paths (`migrationsDir` or `supabase`) only when configured in `config.persistence`, avoiding hardcoded directory assumptions.
+- **Abstract Documentation Reference Recognition**: `validate_markdown_code_references.ts` recognizes custom abstract reference paths declared in `config.documentation.knownValidAbstractPaths` to prevent false positives on virtual documentation links.
 - **Npm Script Exclusivity**: Documented operational commands must correspond to defined `package.json` scripts.
 
 ## Key Files

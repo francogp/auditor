@@ -3,13 +3,13 @@
  *
  * VUE COMPONENT STYLE LINKAGE & SCSS ORPHAN AUDITOR (Node.js 26+ Native)
  *
- * Enforces component-level style governance across the Facturación 2.0 codebase:
+ * Enforces component-level style governance across the codebase:
  *   1. Broken style link verification: All `<style src="...">` in `.vue` files
  *      and `@use`/`@import`/`@forward` must resolve to existent files on disk.
  *   2. Missing style linkage verification: Every `.vue` component with custom
  *      template classes must have an associated `<style>` block or explicit link.
- *   3. SCSS orphan detection: All stylesheets in `src/styles/components/` must be
- *      actively linked or imported in the dependency graph rooted at `src/styles/_index.scss`
+ *   3. SCSS orphan detection: All component stylesheets must be
+ *      actively linked or imported in the dependency graph rooted at main SCSS entries
  *      or directly inside Vue components.
  *
  * Usage:
@@ -70,16 +70,18 @@ const DEFAULT_CANONICAL_BUTTON_VARIANTS = new Set([ // runtime-set: Fast O(1) me
 
 function getEffectiveCanonicalButtonVariants(): ReadonlySet<string> {
   const config = getAuditConfig();
-  const configured = config.styles?.canonicalButtonVariants ?? [];
-  return new Set([...DEFAULT_CANONICAL_BUTTON_VARIANTS, ...configured]);
+  const configured = config.styles?.buttonGovernance?.canonicalVariants ?? config.styles?.canonicalButtonVariants;
+  if (configured) {
+    return new Set(configured);
+  }
+  return DEFAULT_CANONICAL_BUTTON_VARIANTS;
 }
 
 const DEFAULT_GLOBAL_UTILITY_CLASSES = new Set([ // runtime-set: Fast O(1) membership lookup set
-  'pixelated', 'allow-aliasing', 'clickable', 'flex', 'hidden', 'active', 'disabled', 'legacy-ui',
-  'legacy-panel', 'legacy-confirm-btn', 'retro-btn', 'pulse', 'gold', 'silver', 'bronze',
+  'clickable', 'flex', 'hidden', 'active', 'disabled',
   'w-full', 'h-full', 'truncate', 'pointer-events-none', 'pointer-events-auto', 'select-none',
-  'custom-scrollbar', 'empty-state', 'scrollable-content', 'modal-footer', 'm-type-tag', 'emoji',
-  'tabular-nums', 'metric-value', 'currency-amount'
+  'custom-scrollbar', 'empty-state', 'scrollable-content', 'modal-footer', 'emoji',
+  'tabular-nums'
 ]);
 
 function getEffectiveGlobalUtilityClasses(): ReadonlySet<string> {
@@ -128,13 +130,14 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
   private vueCount = 0;
   private scssCount = 0;
 
-  constructor(options: { projectRoot?: string } = {}) {
-    const effectiveRoot = options.projectRoot
-      ?? (fs.existsSync(path.resolve(process.cwd(), 'src/components'))
-        ? process.cwd()
-        : (fs.existsSync(path.resolve(process.cwd(), '../..', 'src/components'))
-          ? path.resolve(process.cwd(), '../..')
-          : process.cwd()));
+  constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
+    const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const effectiveRoots = options.roots ?? [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views']),
+      ...(config.paths.stylesRoots ?? ['src/styles'])
+    ];
 
     super({
       id: 'validate_component_styles',
@@ -150,7 +153,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         'orphaned-scss': 'Archivo SCSS huérfano sin uso',
         'ad-hoc-button-styles': 'Clase de botón fuera de estándar'
       },
-      roots: ['src'],
+      roots: effectiveRoots,
       projectRoot: effectiveRoot
     });
   }
@@ -168,9 +171,11 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
   }
 
   public override runAudit(): void {
-    const srcDir = path.join(this.projectRoot, 'src');
-    const vueFiles = this.context.collectFiles(['src'], new Set(['.vue']));
-    const scssFiles = this.context.collectFiles(['src'], new Set(['.scss']));
+    const config = getAuditConfig(this.projectRoot);
+    const srcRoots = config.paths.srcRoots ?? ['src'];
+    const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
+    const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));
+    const scssFiles = this.context.collectFiles(this.roots, new Set(['.scss']));
 
     this.vueCount = vueFiles.length;
     this.scssCount = scssFiles.length;
@@ -196,10 +201,19 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
       }
     };
 
-    // 1. Seed root SCSS graph (src/styles/_index.scss, main styles)
-    const rootScss = path.join(srcDir, 'styles', '_index.scss');
-    if (fs.existsSync(rootScss)) {
-      trackScssFile(rootScss);
+    // 1. Seed root SCSS graph
+    const stylesRoots = config.paths.stylesRoots ?? ['src/styles'];
+    for (const sRoot of stylesRoots) {
+      const candidates = [
+        path.join(this.projectRoot, sRoot, '_index.scss'),
+        path.join(this.projectRoot, sRoot, 'index.scss'),
+        path.join(this.projectRoot, sRoot, 'main.scss')
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          trackScssFile(cand);
+        }
+      }
     }
 
     // 2. Audit Vue components
@@ -275,50 +289,55 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         return /\bsrc=["']/.test(attrs) || body.length > 0;
       });
 
-      // Check for illegal ad-hoc button style overrides in <style> block (Mandate 23)
-      for (const sm of styleMatches) {
-        const styleBody = sm[2] ?? '';
-        const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
-        if (btnSelectorMatch) {
-          const v: ComponentStyleViolation = {
-            file: relPath,
-            type: 'ad_hoc_button_styles',
-            message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Todos los estilos de botón deben gobernarse exclusivamente en src/styles/_buttons.scss (Mandato 23).`
-          };
-          this.collectedViolations.push(v);
-          this.addViolation({
-            ruleId: 'ad-hoc-button-styles',
-            severity: 'error',
-            file: relPath,
-            line: 1,
-            message: v.message,
-            context: btnSelectorMatch[1]!
-          });
+      // Check for illegal ad-hoc button style overrides in <style> block and non-canonical variants
+      const isButtonGovActive = config.styles?.buttonGovernance?.enabled === true || Boolean(config.styles?.canonicalButtonVariants?.length);
+      if (isButtonGovActive) {
+        for (const sm of styleMatches) {
+          const styleBody = sm[2] ?? '';
+          const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
+          if (btnSelectorMatch) {
+            const v: ComponentStyleViolation = {
+              file: relPath,
+              type: 'ad_hoc_button_styles',
+              message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Todos los estilos de botón deben gobernarse de forma centralizada.`
+            };
+            this.collectedViolations.push(v);
+            this.addViolation({
+              ruleId: 'ad-hoc-button-styles',
+              severity: 'error',
+              file: relPath,
+              line: 1,
+              message: v.message,
+              context: btnSelectorMatch[1]!
+            });
+          }
         }
-      }
 
-      // Check for non-canonical button variant classes in templates (Mandate 23)
-      const canonicalButtonVariants = getEffectiveCanonicalButtonVariants();
-      const allClassMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
-      for (const cm of allClassMatches) {
-        const clsList = cm[1]!.split(/\s+/).filter(Boolean);
-        if (clsList.includes('btn')) {
-          for (const c of clsList) {
-            if (c.startsWith('btn-') && !canonicalButtonVariants.has(c)) {
-              const v: ComponentStyleViolation = {
-                file: relPath,
-                type: 'ad_hoc_button_styles',
-                message: `Clase de botón no canónica "${c}" detectada. Solo se permiten variantes canónicas (${Array.from(canonicalButtonVariants).join(', ')}) según Mandato 23.`
-              };
-              this.collectedViolations.push(v);
-              this.addViolation({
-                ruleId: 'ad-hoc-button-styles',
-                severity: 'error',
-                file: relPath,
-                line: 1,
-                message: v.message,
-                context: c
-              });
+        // Check for non-canonical button variant classes in templates
+        const canonicalButtonVariants = getEffectiveCanonicalButtonVariants();
+        if (canonicalButtonVariants.size > 0) {
+          const allClassMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
+          for (const cm of allClassMatches) {
+            const clsList = cm[1]!.split(/\s+/).filter(Boolean);
+            if (clsList.includes('btn')) {
+              for (const c of clsList) {
+                if (c.startsWith('btn-') && !canonicalButtonVariants.has(c)) {
+                  const v: ComponentStyleViolation = {
+                    file: relPath,
+                    type: 'ad_hoc_button_styles',
+                    message: `Clase de botón no canónica "${c}" detectada. Solo se permiten variantes canónicas configuradas (${Array.from(canonicalButtonVariants).join(', ')}).`
+                  };
+                  this.collectedViolations.push(v);
+                  this.addViolation({
+                    ruleId: 'ad-hoc-button-styles',
+                    severity: 'error',
+                    file: relPath,
+                    line: 1,
+                    message: v.message,
+                    context: c
+                  });
+                }
+              }
             }
           }
         }
@@ -391,9 +410,9 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
       }
     }
 
-    // 3. Detect orphaned SCSS files in src/styles/components/
-    const componentScssDir = path.join(srcDir, 'styles', 'components');
-    const componentScssFiles = scssFiles.filter(f => f.startsWith(componentScssDir));
+    // 3. Detect orphaned SCSS files in component styles directories
+    const componentScssDirs = stylesRoots.map(sr => path.resolve(this.projectRoot, sr, 'components'));
+    const componentScssFiles = scssFiles.filter(f => componentScssDirs.some(dir => f.startsWith(dir)));
 
     for (const file of componentScssFiles) {
       const normalized = path.normalize(file);
@@ -413,35 +432,6 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
           line: 1,
           message: v.message,
           context: relPath
-        });
-      }
-    }
-
-    // 4. Verify button stylesheet integrity (_buttons.scss anti-clipping & uniform borders)
-    const buttonsScssPath = path.join(srcDir, 'styles', '_buttons.scss');
-    if (fs.existsSync(buttonsScssPath)) {
-      const btnContent = fs.readFileSync(buttonsScssPath, 'utf-8');
-      const relButtons = path.relative(this.projectRoot, buttonsScssPath).replace(/\\/g, '/');
-
-      if (btnContent.includes('border-bottom-color')) {
-        this.addViolation({
-          ruleId: 'ad-hoc-button-styles',
-          severity: 'error',
-          file: relButtons,
-          line: 1,
-          message: 'Uso prohibido de "border-bottom-color" en botones. Todos los botones deben tener borde perimetral 360° continuo y uniforme para evitar que se corten en la zona inferior.',
-          context: 'border-bottom-color'
-        });
-      }
-
-      if (/inset\s+0\s+-[0-9]+px/i.test(btnContent)) {
-        this.addViolation({
-          ruleId: 'ad-hoc-button-styles',
-          severity: 'error',
-          file: relButtons,
-          line: 1,
-          message: 'Uso prohibido de sombra inset negativa vertical en botones. Oscurece el borde inferior simulando un corte visual.',
-          context: 'inset 0 -Npx'
         });
       }
     }

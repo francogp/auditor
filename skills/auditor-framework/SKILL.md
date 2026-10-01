@@ -31,32 +31,50 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
      - `paths.ignoredDirs`: Host-specific third-party or backup folders to skip globally.
      - `paths.ignoredPatterns`: Specific file paths or patterns (e.g. giant SQL migrations or generated data) to skip from standard code scans.
      - `paths.ignoreGlobs`: Glob patterns to exclude.
+     - `paths.testFragmentationWhitelist`: Large test files or suites exempt from max test file size limit.
+     - `paths.cliRoots`: CLI and tool root directories permitted to emit console output without logging wrappers.
+     - `templates.safeTemplateFunctions`: Project-specific functions safe to invoke inside Vue templates.
+     - `styles.baseScssFile`: Base SCSS file for global resets and overscroll locks.
+     - `bundle.forbiddenUiImports`: Heavy backend modules or drivers barred from UI layers.
+     - `animation.customTimerFunctions`: Additional timer function names recognized in UI animations.
+     - `constants.ignoredNames`: Constant identifier names ignored during duplicate detection.
+     - `constants.exemptMagicNumbers`: Numeric literals exempt from magic numbers validation.
+     - `documentation.knownValidAbstractPaths`: Abstract docs paths recognized as valid.
+     - `pinia.authorizedMutationFiles`: Files authorized for direct pinia state mutations outside store actions.
      - `domain.fallbackIdPatterns`: Domain-specific catalog ID patterns to disallow fallbacks on.
+     - `persistence.allowedDatabaseFiles`: Database generator and schema files exempt from domain type checks.
+     - `domain.infraIdWhitelist`: Host-specific infrastructure or external entity IDs (e.g. `cardId`, `slotId`, `assetId`, `serverId`) exempt from domain union rules.
      - `isTestPath(filePath)`: Dynamically checks `testRoots`, `e2eRoots`, and `integrationRoots` from configuration.
-5. **Config-Driven Path Ignored Engine (`isPathIgnored`)**:
+     - `isCliPath(filePath)`: Dynamically checks `cliRoots` from configuration.
+5. **Mandatory GSAP UI Animation Governance & `gsapSleep` Standard**:
+   - GSAP animation enforcement rules (`manualAnimations`, `manualTimersFrontend`, `noLayoutAnimationInGsap`) are strictly mandatory and non-downgradable (`severity: 'error'`).
+   - `manualTimersFrontend` scopes timer checks strictly to UI components and views (`.vue` or within `componentsRoots`/`viewsRoots`), barring uncoordinated timers (`setTimeout`, `setInterval`) in UI workflows.
+   - `gsapSleep` and `delayedCall` are established, universal framework standards for UI delays and animation timing across all projects, ensuring deterministic test acceleration (scaling with `gsap.globalTimeline.timeScale(100)` during Playwright runs).
+   - Additional custom timer functions can be registered dynamically via `config.animation.customTimerFunctions`.
+6. **Config-Driven Path Ignored Engine (`isPathIgnored`)**:
    - `isPathIgnored(relPath)` in `auditorBase.ts` unifies `CANONICAL_IGNORE_DIRS` + `config.paths.ignoredDirs` + `config.paths.ignoredPatterns` + `config.paths.ignoreGlobs`.
    - Supports bidirectional leaf and path matching, ensuring both full relative paths and base directory scans in `fs.glob` respect configured ignores.
    - Any sub-auditor discovering or filtering files (`getFilesToAudit`, `FileScanAuditor`, `BaseAuditor`) MUST use `isPathIgnored(p)`.
-6. **Concurrent Execution & Completion-Ordered Output Model**:
+7. **Concurrent Execution & Completion-Ordered Output Model**:
    - `npm run audit` executes suites concurrently across a pool of background workers (sized to CPU parallelism).
    - Console progress lines (`[ 01/54 | 2% ]`) stream in the order that suites **FINISH** (`coordinator.onTaskComplete`), NOT in the order of task discovery.
    - Heavy suites that take longer (such as full-codebase regex or Fallow intelligence) will complete and log towards the end of the run (e.g. `[ 54/54 | 100% ]`).
-7. **Shared AST Engine & Zero Duplicate Parse Mandate (`SharedAstContext`)**:
+8. **Shared AST Engine & Zero Duplicate Parse Mandate (`SharedAstContext`)**:
    - Whenever a sub-auditor performs TypeScript AST analysis or inspects Vue SFC `<script>` blocks, it MUST declare `requiresAst: true` in its constructor configuration (`BaseAuditor` or `FileScanAuditor`).
    - Sub-auditors MUST NEVER instantiate isolated AST parsers or call `ts.createProgram` / `ts.createSourceFile` inside ad-hoc file loops.
    - Sub-auditors consume the centralized `astContext: SharedAstContext` passed to `runAudit(astContext?: SharedAstContext)` or receive the pre-compiled `sourceFile?: ts.SourceFile` directly in `FileScanAuditor.scanFile(relPath, content, sourceFile)`.
    - The master orchestrator (`audit_full.ts`) initializes and preheats `SharedAstContext` **before any tasks run**, providing lazy AST parsing on demand.
-8. **Prohibition of Ad-Hoc File Walkers**:
+9. **Prohibition of Ad-Hoc File Walkers**:
    - Sub-auditors MUST NEVER implement custom recursive directory traversals (`fs.readdir` loops, `getAllFiles`, `getAllVueFiles`, `getFilesRecursively`, `walkSourceFiles`, `walkFiles`, `walkDir`, `collectMarkdownFiles`).
    - File discovery MUST use the centralized, cached, and ignore-aware scanner: `this.context.collectFiles(roots, extensions)` or `collectRepositoryFiles()`.
-9. **Unified Dual Output Standard (`StandardAuditResult`)**:
-   - **Console (stdout)**: Emits formatted progress lines (`🔍 [X/N]`) followed by clean visual Box-Drawing tables (`[ ✅ PASS ]`, `[ ❌ FAIL ]`, `[ ⚠️ WARN ]`), runtimes in ms, and domain metrics via `@francogp/auditor`.
-   - **Scratch Disk (`scratch/audits/`)**: ALWAYS saves 100% complete structured JSON conforming to `StandardAuditResult` to `scratch/audits/<family>/<id>.json` (and `scratch/audits/latest_audit.json` for global runs).
-10. **Zero Double-Reporting Anti-Pattern**:
+10. **Unified Dual Output Standard (`StandardAuditResult`)**:
+    - **Console (stdout)**: Emits formatted progress lines (`🔍 [X/N]`) followed by clean visual Box-Drawing tables (`[ ✅ PASS ]`, `[ ❌ FAIL ]`, `[ ⚠️ WARN ]`), runtimes in ms, and domain metrics via `@francogp/auditor`.
+    - **Scratch Disk (`scratch/audits/`)**: ALWAYS saves 100% complete structured JSON conforming to `StandardAuditResult` to `scratch/audits/<family>/<id>.json` (and `scratch/audits/latest_audit.json` for global runs).
+11. **Zero Double-Reporting Anti-Pattern**:
     - NEVER pass string arrays (`errors`, `warnings`) to `context.finish(...)` if violations were already registered with `this.addViolation(...)` or `context.addError()`. Doing so causes duplicate violation listings in the terminal summary table.
-11. **Zero Runtime Data Auto-Heal in Tooling**:
+12. **Zero Runtime Data Auto-Heal in Tooling**:
     - Auditors verify structural and data integrity. They must never silently patch, mock, or auto-heal corrupt data or invalid structures. Failures must be detected loudly with clear, actionable context.
-12. **Mandatory Modular Identity & Human-Friendly Description Mandate (Package + Pure Message, Max 50 chars)**:
+13. **Mandatory Modular Identity & Human-Friendly Description Mandate (Package + Pure Message, Max 50 chars)**:
     - Every sub-auditor MUST declare via inheritance:
       - `id: string`: Unique canonical auditor ID (e.g. `validate_my_feature`).
       - `name: string`: Formal suite name (e.g. `My Feature Validator`).
@@ -67,35 +85,35 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
       - `BaseAuditor.formatRuleDescription(ruleId, rawDescription)` dynamically joins both parts as `${packageName}: ${ruleDescription}`.
       - The composed description `${packageName}: ${ruleDescription}` MUST be `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) so that in 80-column terminal tables (column width 52), every row displays cleanly without any `...` truncation.
     - Raw unexplained slugs without human context in console output are strictly forbidden.
-13. **Absolute Prohibition of Homebrew SLOC Counters Mandate**:
+14. **Absolute Prohibition of Homebrew SLOC Counters Mandate**:
     - Sub-auditors must NEVER implement manual line-counting loops, regex line filters, or ad-hoc SLOC checkers (`checkSloc`, line counting loops).
     - Fallow is the Single Source of Truth (SSoT) for all AST metrics, cognitive and cyclomatic complexity, function unit size, maintainability, dead code, and duplication detection across the codebase.
-14. **Human-Friendly Descriptions & Category Breakdown Mandate (Zero Code Slugs & Zero Family Grouping)**:
+15. **Human-Friendly Descriptions & Category Breakdown Mandate (Zero Code Slugs & Zero Family Grouping)**:
     - The master audit orchestrator (`npm run audit`) and warnings reporter (`npm run audit:warnings`) MUST render results desglosados strictly by category/rule in an official Box-Drawing table.
     - The table MUST display **100% human-friendly Spanish descriptions** (`finding.ruleDescription` or `suite.description`) defined via inheritance in `BaseAuditor` (`ruleDescriptions: Record<TRuleId, string>`). Displaying raw code slugs, identifiers, or technical keys (e.g. displaying `icon-missing-asset` instead of `'Ícono no encontrado en catálogo de assets'`) is **STRICTLY FORBIDDEN**.
     - Following the table, they MUST output ONLY an illustrative sample of the last 5 errors (`❌ Muestra de errores detectados (últimos 5 de N)`).
     - Listing the full set of warnings or dumping all errors in console output is **STRICTLY FORBIDDEN**.
     - Grouping console results under opaque "FAMILIAS" headers is permanently eradicated. Full machine-readable findings reside in `scratch/audits/latest_audit.json`.
-15. **Single Source of Truth Directory Ignore Mandate (`CANONICAL_IGNORE_DIRS` + `getEffectiveIgnoreDirs`)**:
+16. **Single Source of Truth Directory Ignore Mandate (`CANONICAL_IGNORE_DIRS` + `getEffectiveIgnoreDirs`)**:
     - Sub-auditors and maintenance scripts MUST NEVER declare local ignore sets (`const IGNORE_DIRS`, `const SKIP_DIRS`, `const SKIP_NAMES`, `const SKIP_SUBDIRECTORIES`).
     - Directory ignores are strictly governed by `CANONICAL_IGNORE_DIRS` in `@francogp/auditor`, combined with `getEffectiveIgnoreDirs()` which dynamically includes `config.paths.ignoredDirs`.
     - Documentation auditors that need to inspect documentation trees must configure `unignoreDirs: ['docs', '.agents']` instead of maintaining custom walkers.
     - Sub-auditors supporting unit-test sandboxes (`tempDir`) must forward `projectRoot: effectiveRoot` via `AuditorOptions` into `super({...})` to guarantee isolation from the live project repository.
-16. **Mandatory Audit Metadata & Anti-Staleness Header Mandate (`AuditRunMetadata`)**:
+17. **Mandatory Audit Metadata & Anti-Staleness Header Mandate (`AuditRunMetadata`)**:
     - The master orchestrator (`src/cli/audit_full.ts`) MUST embed an explicit `meta: AuditRunMetadata` header into `scratch/audits/latest_audit.json` and `scratch/audits/latest_summary.json` containing: `isFullAudit`, `runMode`, `preset`, `timestamp`, `totalDiscoveredSuites`, `executedSuiteCount`, `executedSuites`, and `omittedSuites`.
     - Partial audit runs (such as `npm run audit:md`, `preset=lint`, or single suite executions) update `scratch/audits/latest_audit.json` with `isFullAudit: false` and populate `omittedSuites`.
     - **Strict 5-Minute Staleness Policy (`MAX_AUDIT_STALENESS_MS = 5 * 60 * 1000`)**: If more than 5 minutes have elapsed since `meta.timestamp`, the audit file is considered OBSOLETE. Any tool, script, or AI agent reading `latest_audit.json` MUST reject it with Exit Code 1, forcing a fresh run (`npm run audit`) to prevent decisions based on stale code data.
     - **Zero Tolerated Misleading Reports**: Downstream scripts consuming audit results (`report_complexity.ts`, `report_fallow.ts`, `report_findings.ts`) MUST validate this metadata. If a required suite was omitted, if the report is older than 5 minutes, or if a global report is requested on a partial run, the script MUST fail fast with Exit Code 1 (`assertAuditorExecuted(...)`).
-17. **Fallow 100% Error Severity & Zero-Warning Mandate**:
+18. **Fallow 100% Error Severity & Zero-Warning Mandate**:
     - Sub-auditors, architecture runners, and plugins integrating Fallow (such as `audit_project.ts` or standalone Fallow inspectors) MUST map ALL Fallow findings to `severity: 'error'`.
     - Downgrading any Fallow finding to `severity: 'warning'` to mask technical debt or bypass audit gates is **STRICTLY PROHIBITED**.
-18. **Static Security Single Source of Truth (Fallow CWE vs ESLint Syntax)**:
+19. **Static Security Single Source of Truth (Fallow CWE vs ESLint Syntax)**:
     - Codebase vulnerability analysis (CWE) is strictly and exclusively delegated to **Fallow** (`fallow security`).
     - Using `eslint-plugin-security` in ESLint configurations is **STRICTLY PROHIBITED**. ESLint must focus exclusively on ECMAScript/TypeScript syntax correctness, style, and Vue SFC integrity. Sub-auditors analyzing AST or traversing files are legitimate development operations and must never be encumbered by blunt regex-based linter false positives.
-19. **Standard Living Specification Engines Over Handcrafted Regex Mandate**:
+20. **Standard Living Specification Engines Over Handcrafted Regex Mandate**:
     - When validating web standards, markup hygiene, accessibility, or obsolete HTML5 elements/attributes, the auditor framework and linters MUST NOT implement handcrafted manual regular expressions or arbitrary AST pattern lists (e.g. in ESLint).
     - Sub-auditors MUST delegate to authoritative, actively maintained specification engines (`html-validate` with `html-validate-vue`) that embody the W3C / WHATWG Living Standard, bridging their output into canonical `AuditFinding[]` objects.
-20. **Child Process Stream Isolation & Ephemeral Scratch Output Mandate**:
+21. **Child Process Stream Isolation & Ephemeral Scratch Output Mandate**:
     - Sub-auditors invoking external CLI tools or linters (`html-validate`, `vue-tsc`, `fallow`) via child processes (`spawnSync`) MUST NEVER rely on piping large JSON payloads across standard output (`stdout`), as Node.js process exits can truncate unbuffered output streams.
     - Tools supporting direct file output MUST write raw JSON to an isolated ephemeral file in `scratch/audits/<family>/` (e.g. `-f json=scratch/audits/architecture/html-validate-raw.json`) and parse it cleanly from disk.
 
@@ -104,21 +122,43 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
 ### 1. Generic Built-In Suites (`src/suites/`)
-38 domain-agnostic suites discovered automatically across 4 canonical families:
-- `architecture/`: AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`)
-- `domain_data/`: O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `audit.config.ts`)
-- `persistence/`: SQL anti-patterns, schema-qualification checks
-- `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards
+36 domain-agnostic suites discovered automatically across 4 canonical families:
+- `architecture/` (28 suites + shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
+- `domain_data/` (2 suites): O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `audit.config.ts`)
+- `persistence/` (1 suite): SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
+- `documentation/` (5 suites): Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards, markdown lint, code references
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `audit.config.ts`
 All domain-specific rules unique to host applications (e.g. specialized domain entities, state machines, business workflows, custom SQLite schemas) reside in `scripts/auditors/` (or designated project folders) and extend `BaseAuditor` imported from `@francogp/auditor`.
 
 Configured at root in `audit.config.ts`:
 - `paths.migrationsDir`: `'database/migrations'`
+- `paths.testFilePatterns`: `['.spec.', '.test.', '.simulation.']` (Dynamic test file recognition)
+- `paths.testFragmentationWhitelist`: `['src/large-feature.ts']` (Files exempt from test fragmentation limits)
 - `paths.e2eRoots`: `['tests/e2e']`
 - `paths.ignoredDirs`: `['external', 'backup_legacy_code', 'fixtures']`
 - `paths.ignoredPatterns`: `['src/generated/migrations_data.ts']`
-- `persistence.engine`: `'hybrid'`
+- `persistence.engine`: `'hybrid' | 'supabase' | 'sqlite' | 'postgres' | 'none'`
+- `persistence.prohibitedTemplateIdentifiers`: `['supabase', 'db', 'sqlite']` (Identifiers barred from Vue `<template>`)
+- `persistence.authorizedSaveFiles`: `['src/logic/utils/saveCoordinator.ts']` (Files authorized for save keys)
+- `persistence.allowedHosts`: `['supabase.co', 'localhost', '127.0.0.1']` (SSRF allowlist for `safeFetch`)
+- `styles.zLayers`: Direct numeric scale `{ BASE: 0, MODAL: 11000, ... }`
+- `styles.zLayersTsFile`: `'src/logic/constants/visuals.ts'` (TypeScript Z_LAYERS definition)
+- `styles.zLayersScssFile`: `'src/styles/_base.scss'` (SCSS variables mapping)
+- `styles.baseScssFile`: `'src/styles/_base.scss'` (Base SCSS file for global resets and overscroll locks)
+- `styles.lineHeightOverlapCheck`: `boolean` (Anti-zero line-height verification)
+- `bundle.exemptChunkPrefixes`: `['worker-vendor-pkmn', 'worker-game-data']` (Exempt client chunks)
+- `bundle.forbiddenUiImports`: `[{ module: 'xlsx', reason: 'Parser pesado' }]` (Heavy modules barred in UI)
+- `templates.safeTemplateFunctions`: `['formatMoney', 'translate']` (Functions safe in templates)
+- `templates.forbiddenTemplateCallPatterns`: Heavy classes/helpers barred from template calls
+- `animation.customTimerFunctions`: `['requestDelayedFrame']` (Custom timer functions recognized in UI)
+- `constants.ignoredNames`: `['TAX_DEFAULT_ROUNDING']` (Constants ignored in duplicate detection)
+- `constants.exemptMagicNumbers`: `[21, 10.5, 27]` (Numeric literals exempt from magic numbers check)
+- `documentation.knownValidAbstractPaths`: `['@docs/architecture/fiscal-engine.md']` (Abstract valid docs paths)
+- `pinia.authorizedMutationFiles`: `['src/logic/coordinators/sessionCoordinator.ts']` (Authorized store mutation files)
+- `domain.caseNormalizationExemptTokens`: `['rpg', 'pvp', 'cuit', 'dni', ...]` (Tokens exempt from lowercasing)
+- `domain.allowedStoreSetterPrefixes`: `['set', 'update', 'equip', 'assign']` (Pinia store action prefixes)
+- `domain.allowedNumericConstantPrefixes`: `['GEN_', 'ISO_', 'UTF_8', 'RGB_', ...]` (Constant naming exceptions)
 - `domain.finiteDomainTypes`: `['UserId', 'InvoiceId', 'RoleId', 'CustomerId', ...]`
 - `domain.fallbackIdPatterns`: `['userId', 'invoiceId', 'roleId', 'customerId', ...]`
 - `extensions`: [Host project custom plugins in `scripts/auditors/`]
@@ -433,4 +473,19 @@ Fallow is integrated into `@francogp/auditor` (`audit_project.ts` and `report_fa
    - Converting informational statistics (`large_functions` or `targets`) into fatal auditor errors is strictly prohibited; doing so forces unnatural micro-fragmentation of clear, declarative functions.
 3. **Module Sizing Protocol**:
    - Modules and components should be decomposed when their **cognitive load** or responsibilities grow unwieldy (Single Responsibility Principle), not by counting lines.
+
+---
+
+## 📚 References & Host Integration Blueprints
+
+The following reference manuals and configuration blueprints are maintained in `references/`:
+
+- [`references/setup-extension-guide.md`](./references/setup-extension-guide.md): Architecture and plugin guides for extending `setup-linux.sh` and `setup-windows.ps1` in host projects.
+- [`references/blueprints.md`](./references/blueprints.md): Overview of configuration blueprints and mandatory explicit subsystem configuration.
+- [`references/audit.config.facturacion2.example.ts`](./references/audit.config.facturacion2.example.ts): Reference `audit.config.ts` for Facturación 2.0 (Supabase, fiscal domain types, strict rules).
+- [`references/audit.config.pokevicio.example.ts`](./references/audit.config.pokevicio.example.ts): Reference `audit.config.ts` for Poké Vicio (hybrid persistence, Web Workers chunk exemptions, combat domain types, custom families, local extensions).
+- [`references/extensions/validate_button_governance.extension.ts`](./references/extensions/validate_button_governance.extension.ts): Reference extension blueprint for button governance and anti-clipping (Facturación 2.0).
+- [`references/extensions/validate_render_performance.extension.ts`](./references/extensions/validate_render_performance.extension.ts): Reference extension blueprint for GPU render hygiene and atmospheric overlays.
+- [`references/plugins/`](./references/plugins/): Sample setup plugins for Docker database containers and local SSL certificates with `mkcert` (Bash & PowerShell).
+
 

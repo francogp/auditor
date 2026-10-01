@@ -19,6 +19,7 @@ import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -32,16 +33,33 @@ const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 60000 as const;
 const DEFAULT_ERROR_LINE = 1 as const;
 
-export const MARKDOWN_IGNORE_GLOBS = [
+export const DEFAULT_MARKDOWN_IGNORE_GLOBS = [
   'node_modules/**',
   '.git/**',
   'dist/**',
   'dev-dist/**',
-  'supabase/**',
   'scratch/**',
-  'test-results/**',
-  'scripts/e2e/results/**'
+  'test-results/**'
 ] as const;
+
+export function getMarkdownIgnoreGlobs(projectRoot?: string): readonly string[] {
+  const config = getAuditConfig(projectRoot);
+  const globs: string[] = [...DEFAULT_MARKDOWN_IGNORE_GLOBS];
+  if (config.paths?.ignoreGlobs) {
+    globs.push(...config.paths.ignoreGlobs);
+  }
+  if (config.paths?.e2eRoots) {
+    for (const r of config.paths.e2eRoots) {
+      globs.push(`${r}/results/**`);
+    }
+  }
+  if (config.persistence?.supabaseDir) {
+    globs.push(`${config.persistence.supabaseDir}/**`);
+  }
+  return Array.from(new Set(globs));
+}
+
+export const MARKDOWN_IGNORE_GLOBS = DEFAULT_MARKDOWN_IGNORE_GLOBS;
 
 export interface RawMarkdownLintIssue {
   fileName?: string;
@@ -142,7 +160,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     const binPath = resolveMarkdownLintBin(this.projectRoot);
     const args: string[] = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
 
-    for (const pattern of MARKDOWN_IGNORE_GLOBS) {
+    for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
       args.push('--ignore', pattern);
     }
     args.push('--json');

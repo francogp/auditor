@@ -2,7 +2,7 @@
 
 > **Motor autónomo de análisis estático, auditoría de arquitectura, empaquetado de skills para agentes de IA y gobierno de calidad de código para proyectos Node.js 26+ nativos (`--permission`, `--experimental-strip-types`).**
 
-Provee el framework abstracto `BaseAuditor` y `FileScanAuditor`, un runner streaming concurrente de alta velocidad, renderizado terminal estandarizado en tablas Box-Drawing (80 columnas fijas, visual width alineado con emojis y fila mandatoria `TOTAL CONSOLIDADO`), más de 37 suites de análisis integradas, **distribución nativa de 43 skills y reglas para agentes de IA de Antigravity**, **herramientas de análisis centralizadas (SSoT)** y un **sistema agnóstico de gobierno de entornos multiplataforma (Linux/Windows) con arquitectura de plugins extensibles y cero hardcoding**.
+Provee el framework abstracto `BaseAuditor` y `FileScanAuditor`, un runner streaming concurrente de alta velocidad, renderizado terminal estandarizado en tablas Box-Drawing (80 columnas fijas, visual width alineado con emojis y fila mandatoria `TOTAL CONSOLIDADO`), 36 suites de análisis genéricas integradas, **distribución nativa de 43 skills y reglas para agentes de IA de Antigravity**, **herramientas de análisis centralizadas (SSoT)** y un **sistema agnóstico de gobierno de entornos multiplataforma (Linux/Windows) con arquitectura de plugins extensibles y cero hardcoding**.
 
 ---
 
@@ -133,7 +133,7 @@ npx auditor
 npm run audit
 ```
 
-- Muestra una barra de progreso paso a paso en streaming (`🔍 [1/37]`).
+- Muestra una barra de progreso paso a paso en streaming (`🔍 [1/36]`).
 - Imprime la tabla consolidada en terminal con diseño Box-Drawing de 80 columnas fijas y fila `TOTAL CONSOLIDADO`.
 - Persiste el informe estructurado completo en `scratch/audits/latest_audit.json`.
 
@@ -448,10 +448,25 @@ export default defineAuditConfig({
   },
   styles: {
     globalUtilityClasses: ['app-button-primary'],
+    baseScssFile: 'src/styles/_base.scss',
     zLayersScssFile: 'src/styles/_base.scss'
   },
   templates: {
-    requireInputIds: false
+    requireInputIds: false,
+    safeTemplateFunctions: ['formatMoney', 'translate']
+  },
+  animation: {
+    customTimerFunctions: ['requestDelayedFrame']
+  },
+  constants: {
+    ignoredNames: ['TAX_DEFAULT_ROUNDING'],
+    exemptMagicNumbers: [21, 10.5, 27]
+  },
+  documentation: {
+    knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md']
+  },
+  pinia: {
+    authorizedMutationFiles: ['src/logic/coordinators/sessionCoordinator.ts']
   },
   agentPlugin: {
     enabled: true // false si el proyecto no utiliza el plugin de IA
@@ -475,7 +490,7 @@ export default defineAuditConfig({
 > **Mandato de Configuración Explícita Obligatoria (Cero Omisiones Silenciosas)**:
 > Todo proyecto consumidor debe configurar de manera explícita cada subsistema del auditor en `audit.config.ts`, declarando si se utiliza o si se ignora (por ejemplo, `bundle: { enabled: false }`, `styles: { zLayersEnabled: false }` o `persistence: { engine: 'none' }`). Los sub-auditores **nunca deben omitir silenciosamente** verificaciones ante falta de configuración o ausencia de archivos; si un subsistema no está configurado, la auditoría fallará con un error explícito. Esto asegura que al incorporar nuevas suites al motor, los proyectos dependientes sean notificados inmediatamente en lugar de pasar en falso positivo.
 >
-> **Blueprints Reales de Ejemplo**: Para consultar configuraciones completas de producción (como Supabase con motor fiscal o aplicaciones híbridas SQLite + Supabase con Web Workers y extensiones FSM), revisa [`docs/blueprints.md`](./docs/blueprints.md) y los archivos de ejemplo en [`docs/`](./docs/).
+> **Blueprints Reales de Ejemplo**: Para consultar configuraciones completas de producción (como Supabase con motor fiscal o aplicaciones híbridas SQLite + Supabase con Web Workers y extensiones FSM), revisa [`blueprints.md`](./.agents/skills/auditor-framework/references/blueprints.md) y los archivos de ejemplo en [`.agents/skills/auditor-framework/references/`](./.agents/skills/auditor-framework/references/).
 
 ---
 
@@ -627,13 +642,14 @@ Si tu proyecto utiliza una versión previa local (`packages/auditor`) o el paque
 6. **Cumple el Mandato de Configuración Explícita Obligatoria**:
    Asegúrate de que tu `audit.config.ts` declare explícitamente todos los subsistemas (`persistence`, `bundle`, `styles`, `templates`, `agentPlugin`), ya sea configurándolos con sus valores o desactivándolos con `enabled: false` o `engine: 'none'`. La auditoría fallará de inmediato si falta algún subsistema.
 
-### 12.1 Blueprints de Configuración para Proyectos Anfitriones
+### 12.1 Blueprints de Configuración y Extensión de Setup para Proyectos Anfitriones
 
-Para facilitar la migración de proyectos reales a `@francogp/auditor`, el directorio [`docs/`](./docs/) contiene la documentación y los archivos de configuración completos y validados:
+Para facilitar la migración de proyectos reales a `@francogp/auditor`, el directorio de referencias de la skill [`.agents/skills/auditor-framework/references/`](./.agents/skills/auditor-framework/references/) contiene la documentación y los archivos de configuración completos y validados:
 
-- 📖 **Guía Completa**: [`docs/blueprints.md`](./docs/blueprints.md) — Explicación de invariantes, subsistemas obligatorios y extensiones.
-- ⚡ **Facturación 2.0 (CEVT)**: [`docs/audit.config.facturacion2.example.ts`](./docs/audit.config.facturacion2.example.ts) — Blueprint con backend Supabase, tipado de dominio fiscal (`TariffId`, etc.) y sub-auditores de extensión.
-- 🎮 **Poké Vicio (PokeBorrador)**: [`docs/audit.config.pokevicio.example.ts`](./docs/audit.config.pokevicio.example.ts) — Blueprint con persistencia híbrida (SQLite + Supabase), Web Workers exentos de bundle budget, familias personalizadas (`fsm`, `assets`) y 19 sub-auditores de extensión.
+- 📖 **Guía de Blueprints**: [`references/blueprints.md`](./.agents/skills/auditor-framework/references/blueprints.md) — Explicación de invariantes, subsistemas obligatorios y extensiones.
+- 🛠️ **Guía de Extensión de Setup**: [`references/setup-extension-guide.md`](./.agents/skills/auditor-framework/references/setup-extension-guide.md) — Arquitectura de plugins en Linux/macOS y Windows (`scripts/setup/plugins/`) y gancho `env:post-setup`.
+- ⚡ **Facturación 2.0 (CEVT)**: [`references/audit.config.facturacion2.example.ts`](./.agents/skills/auditor-framework/references/audit.config.facturacion2.example.ts) — Blueprint con backend Supabase, tipado de dominio fiscal (`TariffId`, etc.) y sub-auditores de extensión.
+- 🎮 **Poké Vicio (PokeBorrador)**: [`references/audit.config.pokevicio.example.ts`](./.agents/skills/auditor-framework/references/audit.config.pokevicio.example.ts) — Blueprint con persistencia híbrida (SQLite + Supabase), Web Workers exentos de bundle budget, familias personalizadas (`fsm`, `assets`) y sub-auditores de extensión (incluyendo `validate_render_performance.ts`).
 
 ---
 

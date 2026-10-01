@@ -23,7 +23,7 @@ import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, isTestPath } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -38,19 +38,20 @@ export const BUNDLE_BUDGET_RULES: readonly BundleBudgetRuleId[] = [
   'bundle-chunk-size'
 ] as const;
 
-const FORBIDDEN_VALUE_IMPORTS_UI = [
-  { module: 'postgres', reason: 'El driver nativo de PostgreSQL pertenece exclusivamente al backend/scripts, no al cliente.' },
-  { module: 'node:sqlite', reason: 'El módulo node:sqlite es exclusivo de Node.js, incompatible con navegadores web.' },
+export const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI: readonly { module: string; reason: string }[] = [
+  { module: 'postgres', reason: 'Driver PostgreSQL backend no debe importarse en UI layers (src/components, src/views, src/stores).' },
+  { module: 'node:sqlite', reason: 'Driver SQLite nativo no debe importarse en UI layers.' },
   { module: '@playwright/test', reason: 'Librería de pruebas E2E no debe importarse en código de producción de src/.' },
   { module: 'vitest', reason: 'El framework de pruebas no debe importarse en código de producción de src/.' }
-] as const;
+];
 
-const FORBIDDEN_PATH_SEGMENTS = ['/tests/', '/scripts/'] as const;
-const UI_DIRS = ['src/components', 'src/views', 'src/stores'] as const;
+export function getForbiddenValueImportsUI(projectRoot?: string): readonly { module: string; reason: string }[] {
+  const config = getAuditConfig(projectRoot);
+  const custom = config.bundle?.forbiddenUiImports ?? [];
+  return [...DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI, ...custom];
+}
 
-const EXEMPT_CHUNK_PREFIXES = [
-  'db-migrations-data'
-] as const;
+export const FORBIDDEN_VALUE_IMPORTS_UI = DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI;
 
 const MAX_CLIENT_CHUNK_WARN_BYTES = 1200 * 1024; // 1.2 MB uncompressed
 const MAX_CLIENT_CHUNK_ERROR_BYTES = 2000 * 1024; // 2.0 MB uncompressed
@@ -75,17 +76,30 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
-    const config = getAuditConfig();
+    const config = getAuditConfig(this.projectRoot);
     if (config.bundle?.enabled === false) {
       this.context.logStep(1, 1, 'Auditoría de presupuestos de bundle omitida (bundle.enabled: false).');
       this.context.setMetric('Bundle Status', 'Disabled');
       return;
     }
 
-    const allFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue', '.js']));
+    const effectiveUiDirs = [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views']),
+      ...(config.paths.storesRoots ?? ['src/stores'])
+    ];
+    const forbiddenSegments = [
+      ...(config.paths.testRoots?.map(r => `/${r}/`) ?? ['/tests/']),
+      ...(config.paths.scriptsRoots?.map(r => `/${r}/`) ?? ['/scripts/'])
+    ];
+
+    const effectiveForbiddenUiImports = getForbiddenValueImportsUI(this.projectRoot);
+
+    const srcRoots = config.paths.srcRoots ?? ['src'];
+    const allFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));
     const candidateFiles = allFiles.filter(f => {
       const base = path.basename(f);
-      return !base.includes('.spec.') && !base.includes('.test.') && !base.includes('.simulation.') && !base.endsWith('.d.ts');
+      return !isTestPath(f) && !base.endsWith('.d.ts');
     });
 
     const astEngine = astContext ?? new SharedAstContext();
@@ -104,7 +118,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       const sourceFile = astEngine.getSourceFile(fullPath, content);
       if (!sourceFile.text.trim()) continue;
 
-      const isUiLayer = UI_DIRS.some(d => norm.startsWith(d));
+      const isUiLayer = effectiveUiDirs.some(d => norm.startsWith(d));
       const fullLines = content.split('\n');
 
       ts.forEachChild(sourceFile, (node) => {
@@ -130,7 +144,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
           if (lineText.includes('// bundle-leak-ok:')) return;
 
           // 1. Runtime code leak from tests or scripts
-          for (const seg of FORBIDDEN_PATH_SEGMENTS) {
+          for (const seg of forbiddenSegments) {
             if (importPath.includes(seg) || importPath.startsWith(`..${seg}`)) {
               this.addViolation({
                 ruleId: 'bundle-runtime-leak',
@@ -145,7 +159,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
 
           // 2. Heavy dependency leak in UI layers
           if (isUiLayer) {
-            for (const forbidden of FORBIDDEN_VALUE_IMPORTS_UI) {
+            for (const forbidden of effectiveForbiddenUiImports) {
               if (importPath === forbidden.module || importPath.startsWith(`${forbidden.module}/`)) {
                 this.addViolation({
                   ruleId: 'bundle-heavy-import',
@@ -162,17 +176,14 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       });
     }
 
-    // 3. Audit dist/assets compiled chunks if dist/assets exists
-    const distAssetsDir = path.resolve(this.projectRoot, 'dist/assets');
+    // 3. Audit dist/assets compiled chunks if dist assets dir exists
+    const distAssetsDir = path.resolve(this.projectRoot, config.bundle?.distDir ?? 'dist/assets');
     let chunksAudited = 0;
     if (fs.existsSync(distAssetsDir)) {
-      this.context.logStep(2, 2, 'Checking compiled chunk sizes in dist/assets...');
+      this.context.logStep(2, 2, `Checking compiled chunk sizes in ${config.bundle?.distDir ?? 'dist/assets'}...`);
       const assets = fs.readdirSync(distAssetsDir);
-      const bundleConfig = getAuditConfig().bundle;
-      const exemptPrefixes = [
-        ...EXEMPT_CHUNK_PREFIXES,
-        ...(bundleConfig?.exemptChunkPrefixes ?? [])
-      ];
+      const bundleConfig = config.bundle;
+      const exemptPrefixes = bundleConfig?.exemptChunkPrefixes ?? [];
       const maxWarnBytes = bundleConfig?.maxClientChunkWarnBytes ?? MAX_CLIENT_CHUNK_WARN_BYTES;
       const maxErrorBytes = bundleConfig?.maxClientChunkErrorBytes ?? MAX_CLIENT_CHUNK_ERROR_BYTES;
 

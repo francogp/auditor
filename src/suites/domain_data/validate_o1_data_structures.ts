@@ -16,7 +16,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, isTestPath } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -27,14 +27,7 @@ export const DEFAULT_O1_CATALOG_PATTERNS: Array<{
   pattern: RegExp;
   alternative: string;
   definingFile: string;
-}> = [
-  {
-    name: 'OFFICIAL_SERVERS',
-    pattern: /\bOFFICIAL_SERVERS\.(?:find|filter|some|findLast)\s*\(/g,
-    alternative: 'OFFICIAL_SERVERS_BY_ID[serverId]',
-    definingFile: 'src/data/system/official_servers.ts'
-  }
-];
+}> = [];
 
 export function getResolvedO1CatalogPatterns(): Array<{
   name: string;
@@ -177,7 +170,9 @@ export function scanFileForO1Issues(
 }
 
 export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
-  constructor(roots: readonly string[] = ['src']) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? config.paths.codeRoots ?? ['src'];
     super({
       id: 'validate_o1_data_structures',
       name: 'O(1) Data Structure & Performance Auditor',
@@ -192,13 +187,19 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
         'o1-json-clone': 'Clonado con JSON.parse(stringify)',
         'o1-redundant-spread-return': 'Retorno redundante con spread'
       },
-      roots,
-      allowedExtensions: new Set(['.ts', '.vue'])
+      roots: effectiveRoots,
+      allowedExtensions: new Set(['.ts', '.vue']),
+      projectRoot
     });
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    if (relPath.includes('.spec.') || relPath.includes('.test.') || relPath.startsWith('tests/') || relPath.endsWith('validate_o1_data_structures.ts')) {
+    const config = getAuditConfig(this.projectRoot);
+    const isTest = isTestPath(relPath);
+    if (isTest && !config.paths.includeTestsInCodeAudit) {
+      return;
+    }
+    if (relPath.endsWith('validate_o1_data_structures.ts')) {
       return;
     }
 

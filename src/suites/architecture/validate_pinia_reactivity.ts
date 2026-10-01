@@ -22,6 +22,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -34,12 +35,24 @@ export const PINIA_REACTIVITY_RULES: readonly PiniaReactivityRuleId[] = [
   'no-direct-state-mutation-outside-actions'
 ] as const;
 
-const AUTHORIZED_STATE_MUTATION_FILES = new Set<string>([
-  // Authorized state coordinators if any
-]);
+export const DEFAULT_AUTHORIZED_STATE_MUTATION_FILES: readonly string[] = [];
+
+export function getAuthorizedStateMutationFiles(projectRoot?: string): ReadonlySet<string> {
+  const config = getAuditConfig(projectRoot);
+  const fromPersistence = config.persistence?.authorizedSaveFiles ?? [];
+  const fromPinia = config.pinia?.authorizedMutationFiles ?? [];
+  return new Set([...DEFAULT_AUTHORIZED_STATE_MUTATION_FILES, ...fromPersistence, ...fromPinia]);
+}
+
+export const AUTHORIZED_STATE_MUTATION_FILES: ReadonlySet<string> = new Set(DEFAULT_AUTHORIZED_STATE_MUTATION_FILES);
 
 export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleId> {
-  constructor(roots: readonly string[] = ['src'], projectRoot?: string) {
+  private readonly storesRoots: readonly string[];
+  private readonly authorizedStateMutationFiles: ReadonlySet<string>;
+
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
     super({
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',
@@ -51,11 +64,13 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
         'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',
         'no-direct-state-mutation-outside-actions': 'Mutación directa de $state'
       },
-      roots,
+      roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.ts']),
       requiresAst: true,
       projectRoot
     });
+    this.storesRoots = config.paths.storesRoots ?? ['src/stores'];
+    this.authorizedStateMutationFiles = getAuthorizedStateMutationFiles(projectRoot);
   }
 
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
@@ -66,8 +81,11 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       return;
     }
 
-    const isStoreFile = normalizedPath.startsWith('src/stores/');
-    const isAuthorized = AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);
+    const isStoreFile = this.storesRoots.some(root => {
+      const normalizedRoot = root.replace(/\\/g, '/').replace(/\/+$/, '') + '/';
+      return normalizedPath.startsWith(normalizedRoot);
+    });
+    const isAuthorized = this.authorizedStateMutationFiles.has(normalizedPath) || AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);
 
     const sf = sourceFile ?? ts.createSourceFile(
       path.basename(relPath),

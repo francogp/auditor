@@ -139,4 +139,57 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
       expect(msg).toContain('Mandato de Configuración Explícita');
     }
   });
+
+  it('properly preserves and merges new de-hardcoded configuration options', () => {
+    const config = defineAuditConfig({
+      name: 'Advanced Custom Config Project',
+      paths: {
+        testFragmentationWhitelist: ['src/large-feature.ts'],
+        cliRoots: ['src/cli', 'src/tools']
+      },
+      templates: {
+        requireInputIds: true,
+        safeTemplateFunctions: ['formatMoney', 'customTranslate']
+      },
+      styles: {
+        zLayersEnabled: true,
+        baseScssFile: 'src/custom-styles/_base.scss'
+      },
+      bundle: {
+        enabled: true,
+        forbiddenUiImports: [{ module: 'heavy-lib', reason: 'Too heavy for frontend' }]
+      },
+      animation: {
+        customTimerFunctions: ['scheduleFrame', 'rafWait']
+      },
+      constants: {
+        ignoredNames: ['MY_MAGIC_FLAG'],
+        exemptMagicNumbers: [42, 100]
+      },
+      documentation: {
+        knownValidAbstractPaths: ['@docs/special-path']
+      },
+      pinia: {
+        authorizedMutationFiles: ['src/stores/specialStore.ts']
+      },
+      persistence: {
+        engine: 'sqlite'
+      },
+      agentPlugin: {
+        enabled: false
+      }
+    });
+
+    expect(config.paths.testFragmentationWhitelist).toEqual(['src/large-feature.ts']);
+    expect(config.paths.cliRoots).toEqual(['src/cli', 'src/tools']);
+    expect(config.templates?.safeTemplateFunctions).toEqual(['formatMoney', 'customTranslate']);
+    expect(config.styles?.baseScssFile).toBe('src/custom-styles/_base.scss');
+    expect(config.bundle?.forbiddenUiImports).toEqual([{ module: 'heavy-lib', reason: 'Too heavy for frontend' }]);
+    expect(config.animation?.customTimerFunctions).toEqual(['scheduleFrame', 'rafWait']);
+    expect(config.constants?.ignoredNames).toEqual(['MY_MAGIC_FLAG']);
+    expect(config.constants?.exemptMagicNumbers).toEqual([42, 100]);
+    expect(config.documentation?.knownValidAbstractPaths).toEqual(['@docs/special-path']);
+    expect(config.pinia?.authorizedMutationFiles).toEqual(['src/stores/specialStore.ts']);
+  });
 });
+

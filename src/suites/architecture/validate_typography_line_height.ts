@@ -3,7 +3,7 @@
  *
  * TYPOGRAPHY LINE-HEIGHT & INTERLINEAR SPACING AUDITOR (Node.js 26+ Native)
  *
- * Enforces safe multiline line-height across Facturación 2.0 typography:
+ * Enforces safe multiline line-height across design system typography:
  *   Anti-Zero Line-Height (`line-height-overlap`): Detects text classes, headings, titles,
  *   descriptions, and multiline labels that declare 'line-height: 1' or 'line-height: 0'.
  *   Fonts with line-height <= 1 collide and overlap vertically when text wraps.
@@ -21,6 +21,7 @@ import {
   FileScanAuditor,
   BaseAuditor
 } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -80,7 +81,9 @@ function isEmojiFontContext(lines: readonly string[], currentIndex: number): boo
 export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleId> {
   private totalRulesChecked = 0;
 
-  constructor(roots: readonly string[] = ['src'], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? config.paths?.srcRoots ?? ['src'];
     super({
       id: 'validate_typography_line_height',
       name: 'Typography Line-Height & Interlinear Spacing Validator',
@@ -91,13 +94,15 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
       ruleDescriptions: {
         'line-height-overlap': 'Colisión de line-height'
       },
-      roots,
+      roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css']),
       projectRoot
     });
   }
 
   protected override scanFile(relPath: string, content: string): void {
+    const config = getAuditConfig(this.projectRoot);
+    if (config.styles?.lineHeightOverlapCheck === false) return;
     const styleBlocks = extractStyleBlocks(relPath, content);
 
     for (const block of styleBlocks) {

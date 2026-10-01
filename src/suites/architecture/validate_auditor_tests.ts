@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { discoverAuditors } from '../../cli/auditScanner.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -99,21 +100,22 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
 
     this.context.logStep(2, 2, `Verificando tests unitarios para ${tasks.length} suites...`);
 
+    const config = getAuditConfig(this.projectRoot);
+    const testRoots = config.paths.testRoots ?? ['tests'];
+
     for (const task of tasks) {
       totalAuditorsChecked++;
       const baseName = task.id;
 
-      const candidateRelPaths = task.isBuiltin === false
-        ? [
-            `tests/node/auditors/${baseName}.test.ts`,
-            `tests/${baseName}.test.ts`,
-            `tests/unit/auditors/${baseName}.test.ts`
-          ]
-        : [
-            `tests/${baseName}.test.ts`,
-            `packages/auditor/tests/${baseName}.test.ts`,
-            `tests/node/auditors/${baseName}.test.ts`
-          ];
+      const candidateRelPaths: string[] = [];
+      for (const tr of testRoots) {
+        const cleanTr = tr.replace(/^\/+|\/+$/g, '');
+        candidateRelPaths.push(`${cleanTr}/${baseName}.test.ts`);
+        candidateRelPaths.push(`${cleanTr}/node/auditors/${baseName}.test.ts`);
+        candidateRelPaths.push(`${cleanTr}/unit/auditors/${baseName}.test.ts`);
+        candidateRelPaths.push(`${cleanTr}/auditors/${baseName}.test.ts`);
+      }
+      candidateRelPaths.push(`packages/auditor/tests/${baseName}.test.ts`);
 
       let testFileAbs: string | null = null;
       let testFileRel: string = candidateRelPaths[0]!;

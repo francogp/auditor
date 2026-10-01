@@ -28,6 +28,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -54,29 +55,66 @@ export interface MarkdownCodeViolation {
   readonly context: string;
 }
 
-const DEFAULT_SCAN_DIRECTORIES = [
+export const DEFAULT_SCAN_DIRECTORIES = [
   '.agents/skills',
   'AGENTS.md',
   'README.md',
   'docs',
   'src',
   'tests',
-  'scripts',
-  'supabase'
+  'scripts'
 ] as const;
 
+export function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoots?: readonly string[]): readonly string[] {
+  if (explicitRoots && explicitRoots.length > 0) return explicitRoots;
+  const config = getAuditConfig(projectRoot);
+  const dirs = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
+  if (config.paths?.srcRoots) dirs.push(...config.paths.srcRoots);
+  else dirs.push('src');
+  if (config.paths?.testRoots) dirs.push(...config.paths.testRoots);
+  else dirs.push('tests');
+  if (config.paths?.scriptsRoots) dirs.push(...config.paths.scriptsRoots);
+  else dirs.push('scripts');
 
-/** Known dynamic, placeholder, or ephemeral path patterns that are valid architectural concepts */
-const KNOWN_VALID_ABSTRACT_PATHS = new Set([
-  'supabase/migrations',
-  'supabase/studio',
+  if (config.persistence?.engine !== 'none') {
+    if (config.paths?.migrationsDir) {
+      dirs.push(config.paths.migrationsDir);
+    } else if (config.persistence?.engine === 'supabase') {
+      dirs.push('supabase');
+    }
+  }
+  return dirs;
+}
+
+
+export const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS = [
   'scripts/tests',
   'scripts/.cache/',
   'scripts/setup/plugins/',
   'scripts/setup/plugins/01_deploy_env.sh',
   'scripts/setup/plugins/01_deploy_env.ps1',
   'scripts/auditors/'
-]);
+] as const;
+
+export function getKnownValidAbstractPaths(projectRoot?: string): ReadonlySet<string> {
+  const config = getAuditConfig(projectRoot);
+  const paths = new Set<string>(DEFAULT_KNOWN_VALID_ABSTRACT_PATHS);
+  if (config.paths?.migrationsDir) {
+    paths.add(config.paths.migrationsDir);
+  }
+  if (config.persistence?.supabaseDir) {
+    paths.add(`${config.persistence.supabaseDir}/migrations`);
+    paths.add(`${config.persistence.supabaseDir}/studio`);
+  }
+  if (config.documentation?.knownValidAbstractPaths) {
+    for (const p of config.documentation.knownValidAbstractPaths) {
+      paths.add(p);
+    }
+  }
+  return paths;
+}
+
+export const KNOWN_VALID_ABSTRACT_PATHS = new Set(DEFAULT_KNOWN_VALID_ABSTRACT_PATHS);
 
 /** English nouns or syntax descriptors following "npm run" in documentation prose to skip */
 const IGNORED_SCRIPT_WORDS = new Set([
@@ -169,8 +207,9 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
   private readonly scanRoots: readonly string[];
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
 
-  constructor(scanRoots: readonly string[] = DEFAULT_SCAN_DIRECTORIES, rootDir?: string) {
+  constructor(scanRoots?: readonly string[], rootDir?: string) {
     const effectiveRoot = rootDir || process.cwd();
+    const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
     super({
       id: 'validate_markdown_code_references',
       name: 'Markdown Code References Validator',
@@ -185,14 +224,18 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
         'markdown-broken-skill-ref': 'Referencia a skill inexistente',
         'markdown-case-mismatch': 'Casing incorrecto en ruta'
       },
-      roots: scanRoots,
+      roots: effectiveScanRoots,
       allowedExtensions: new Set(['.md']),
-      extraIgnorePatterns: ['supabase/docker/**', 'supabase/generated/**', 'coverage/**'],
+      extraIgnorePatterns: [
+        'coverage/**',
+        ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []),
+        ...(getAuditConfig(effectiveRoot).paths.ignoredPatterns ?? [])
+      ],
       unignoreDirs: ['.agents'],
       projectRoot: effectiveRoot
     });
     this.rootDir = effectiveRoot;
-    this.scanRoots = scanRoots;
+    this.scanRoots = effectiveScanRoots;
     this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
   }
 
@@ -209,6 +252,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
     }
 
     // Discover skills
+    const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
     const allSkills = new Set<string>();
     const skillsDir = path.join(this.rootDir, '.agents/skills');
     if (fs.existsSync(skillsDir)) {
@@ -325,7 +369,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
               continue;
             }
 
-            if (KNOWN_VALID_ABSTRACT_PATHS.has(candidate)) {
+            if (knownValidAbstractPaths.has(candidate)) {
               continue;
             }
 

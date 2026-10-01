@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
 
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
@@ -134,10 +135,11 @@ function reportDupes(top: number, json: boolean): void {
 function reportSecurity(top: number, json: boolean): void {
   const data = runFallowCommand('security');
   const rawFindings = (data?.security_findings as Array<{ path?: string; line?: number; cwe?: number; kind?: string; evidence?: string }>) || [];
+  const config = getAuditConfig();
 
   const findings = rawFindings.filter(f => {
     const norm = (f.path || '').replace(/\\/g, '/');
-    return norm.startsWith('src/');
+    return isInCodeRoots(norm, config);
   });
 
   if (json) {
@@ -145,10 +147,10 @@ function reportSecurity(top: number, json: boolean): void {
     return;
   }
 
-  console.log('\n' + renderBanner('SEGURIDAD Y VULNERABILIDADES CWE (FALLOW)', `Hallazgos en src/: ${findings.length}`));
+  console.log('\n' + renderBanner('SEGURIDAD Y VULNERABILIDADES CWE (FALLOW)', `Hallazgos en código fuente: ${findings.length}`));
 
   if (findings.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! 0 vulnerabilidades de seguridad CWE detectadas en src/.\n'));
+    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! 0 vulnerabilidades de seguridad CWE detectadas en código fuente.\n'));
     return;
   }
 
@@ -548,7 +550,8 @@ function reportAllSummary(json: boolean): void {
 }
 
 function executeComplexityReport(jsonOutput: boolean): void {
-  const compScript = path.resolve(process.cwd(), 'packages/auditor/src/cli/report_complexity.ts');
+  const currentDir = import.meta.filename ? path.dirname(import.meta.filename) : path.resolve(process.cwd(), 'src/cli');
+  const compScript = path.resolve(currentDir, 'report_complexity.ts');
   execSync(`node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? 'json' : ''}`, { stdio: 'inherit' });
 }
 

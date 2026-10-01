@@ -11,7 +11,7 @@
  *      In `.vue` templates, all `<img>` elements must provide an `alt` or `:alt` attribute.
  *   3. Icon Button Accessible Label (`icon-button-accessible-label`):
  *      Buttons that contain only icons and no textual content must provide an `aria-label`,
- *      a `title`, or be wrapped in a tooltip (`PVTooltip`).
+ *      a `title`, or be wrapped in a tooltip component.
  *
  * Escape Hatches:
  *   `// a11y-ok: <reason>`, `<!-- a11y-ok: <reason> -->`
@@ -25,6 +25,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -40,7 +41,12 @@ export const MOBILE_ACCESSIBILITY_RULES: readonly MobileAccessibilityRuleId[] = 
 ] as const;
 
 export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(projectRoot: string = process.cwd(), roots?: readonly string[]) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? [
+      ...(config.paths.componentsRoots ?? ['src/components']),
+      ...(config.paths.viewsRoots ?? ['src/views'])
+    ];
     super({
       id: 'validate_mobile_accessibility',
       name: 'Mobile & Web Accessibility Auditor',
@@ -53,6 +59,7 @@ export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityR
         'img-alt-required': 'Imagen sin atributo alt',
         'icon-button-accessible-label': 'Botón sin aria-label'
       },
+      roots: effectiveRoots,
       projectRoot
     });
   }
@@ -61,7 +68,7 @@ export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityR
     // 1. Check index.html viewport
     await this.auditIndexViewport();
 
-    // 2. Check Vue templates in src/components and src/views
+    // 2. Check Vue templates in scannable roots
     await this.auditVueTemplates();
   }
 
@@ -89,10 +96,7 @@ export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityR
   }
 
   private async auditVueTemplates(): Promise<void> {
-    const vueFiles = [
-      ...this.context.collectFiles(['src/components'], new Set(['.vue'])),
-      ...this.context.collectFiles(['src/views'], new Set(['.vue']))
-    ];
+    const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));
 
     for (const file of vueFiles) {
       this.filesScannedCount++;
@@ -159,9 +163,15 @@ export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityR
       const hasIcon = /<(?:i|svg|span)\b[^>]*(?:fa-|icon|material-icons)/i.test(innerHtml);
 
       if (strippedText.length === 0 && hasIcon) {
-        // Check if wrapped in PVTooltip or tooltip in context
+        // Check if wrapped in a tooltip component (e.g. PVTooltip, Tooltip, or configured tooltipComponents)
         const contextBefore = template.slice(Math.max(0, match.index - 80), match.index);
-        if (/PVTooltip\b/i.test(contextBefore)) {
+        const config = getAuditConfig(this.projectRoot);
+        const configuredTooltips = config.templates?.tooltipComponents ?? [];
+        const isTooltipWrapped =
+          /[a-zA-Z0-9_]*Tooltip\b/i.test(contextBefore) ||
+          configuredTooltips.some(t => contextBefore.includes(t));
+
+        if (isTooltipWrapped) {
           continue;
         }
 
@@ -178,7 +188,7 @@ export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityR
           severity: 'error',
           file: relFile,
           line,
-          message: `Icon-only button has no accessible label. Add 'aria-label', 'title', or wrap with 'PVTooltip'.`,
+          message: `Icon-only button has no accessible label. Add 'aria-label', 'title', or wrap with a tooltip component.`,
           context: match[0].slice(0, 100)
         });
       }

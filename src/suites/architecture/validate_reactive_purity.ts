@@ -19,6 +19,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -42,7 +43,12 @@ const IMPURE_CALL_PATTERNS = [
 ] as const;
 
 export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
-  constructor(roots: readonly string[] = ['src/stores', 'src/composables']) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? [
+      ...(config.paths.storesRoots ?? ['src/stores']),
+      ...(config.paths.composablesRoots ?? ['src/composables'])
+    ];
     super({
       id: 'validate_reactive_purity',
       name: 'Reactive Computed Purity Auditor',
@@ -54,8 +60,9 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
         'computed-state-mutation': 'Mutación de estado prohibida',
         'computed-side-effect': 'Efecto secundario prohibido'
       },
-      roots,
-      allowedExtensions: new Set(['.ts', '.vue'])
+      roots: effectiveRoots,
+      allowedExtensions: new Set(['.ts', '.vue']),
+      projectRoot
     });
   }
 

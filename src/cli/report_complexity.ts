@@ -7,6 +7,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { getAuditConfig } from '../core/auditConfig.ts';
 
 interface ComplexityFinding {
   name: string;
@@ -18,6 +19,21 @@ interface ComplexityFinding {
   total: number;
   exceeded: string;
   layer: string;
+}
+
+function extractLayerFromPath(relPath: string): string {
+  const config = getAuditConfig();
+  const codeRoots = config.paths?.codeRoots ?? ['src', 'scripts'];
+  for (const root of codeRoots) {
+    const cleanRoot = root.replace(/^\/+|\/+$/g, '') + '/';
+    if (relPath.startsWith(cleanRoot)) {
+      const rest = relPath.slice(cleanRoot.length);
+      const subSegments = rest.split('/');
+      return subSegments[0] || 'root';
+    }
+  }
+  const segments = relPath.split('/');
+  return (segments.length > 1 && segments[0]) ? segments[0] : 'root';
 }
 
 const DEFAULT_TOP_LIMIT = 20;
@@ -96,8 +112,7 @@ function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Arr
   for (const lf of rawLarge) {
     const filePath = lf.path ?? '';
     const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
-    const segments = relPath.startsWith('src/') ? relPath.split('/') : relPath.replace(/^ui-demo\//, '').split('/');
-    const layer = (segments.length > 1 && segments[1]) ? segments[1] : 'root';
+    const layer = extractLayerFromPath(relPath);
     const key = `${relPath}:${lf.line}:${lf.name}`;
 
     findingsMap.set(key, {
@@ -117,8 +132,7 @@ function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Arr
   for (const f of rawFindings) {
     const filePath = f.path ?? '';
     const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
-    const segments = relPath.startsWith('src/') ? relPath.split('/') : relPath.replace(/^ui-demo\//, '').split('/');
-    const layer = (segments.length > 1 && segments[1]) ? segments[1] : 'root';
+    const layer = extractLayerFromPath(relPath);
     const cog = f.cognitive || 0;
     const cyc = f.cyclomatic || 0;
     const lines = f.line_count || 0;

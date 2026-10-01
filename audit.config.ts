@@ -7,6 +7,7 @@ export default defineAuditConfig({
     testRoots: ['tests'],
     scriptsRoots: ['scripts'],
     codeRoots: ['src'],
+    cliRoots: ['src/cli', 'src/core', 'src/suites', 'src/analyzers'],
     ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**', '.agents/**'],
     ignoredDirs: ['skills', '.agents']
   },
@@ -15,6 +16,7 @@ export default defineAuditConfig({
     schemaQualified: false
   },
   domain: {
+    enabled: false,
     finiteDomainTypes: [],
     infraIdWhitelist: []
   },

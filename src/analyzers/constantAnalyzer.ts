@@ -10,7 +10,7 @@ import ts from 'typescript';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
-import { isDataPath } from '../core/auditConfig.ts';
+import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath } from '../core/auditConfig.ts';
 
 export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'duplicate-constants',
@@ -19,7 +19,7 @@ export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   aliases: ['duplicate-constants', 'constants', 'constantes', 'constantes-duplicadas']
 };
 
-export const IGNORED_CONSTANT_NAMES: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+export const DEFAULT_IGNORED_CONSTANT_NAMES = [
   'ID', 'NAME', 'TYPE', 'KEY', 'INDEX', 'COUNT', 'DEFAULT', 'SIZE', 'MAX', 'MIN',
   'VAL', 'VALUE', 'ITEM', 'STATE', 'MODE', 'TAG', 'URL', 'PATH', 'ERR', 'ERROR',
   'MSG', 'DATA', 'INFO', 'OPTIONS', 'CONFIG', 'RESULT', 'RES', 'REQ', 'STATUS',
@@ -28,7 +28,15 @@ export const IGNORED_CONSTANT_NAMES: ReadonlySet<string> = new Set([ // runtime-
   'COLOR', 'THEME', 'STYLE', 'PROPS', 'EMITS', 'MAP', 'LIST', 'ITEMS', 'ACTIONS',
   'TYPES', 'KEYS', 'VALUES', 'ROLES', 'MODALS', 'VIEWS', 'COMPONENTS', 'STORE',
   'SCHEMA', 'KEY_CODES', 'REF', 'COMPOSABLE', 'PROVIDE', 'INJECT', 'SLOTS', 'SLOT'
-]);
+] as const;
+
+export function getEffectiveIgnoredConstantNames(projectRoot?: string): ReadonlySet<string> {
+  const config = getAuditConfig(projectRoot);
+  const custom = config.constants?.ignoredNames ?? [];
+  return new Set([...DEFAULT_IGNORED_CONSTANT_NAMES, ...custom]);
+}
+
+export const IGNORED_CONSTANT_NAMES: ReadonlySet<string> = new Set(DEFAULT_IGNORED_CONSTANT_NAMES);
 
 interface ConstDecl {
   name: string;
@@ -43,9 +51,11 @@ interface ConstDecl {
  */
 export function extractConstantsFromSource(
   sourceFile: ts.SourceFile,
-  filePath: string
+  filePath: string,
+  ignoredNames?: ReadonlySet<string>
 ): ConstDecl[] {
   const decls: ConstDecl[] = [];
+  const effectiveIgnored = ignoredNames ?? IGNORED_CONSTANT_NAMES;
 
   for (const statement of sourceFile.statements) {
     if (ts.isVariableStatement(statement)) {
@@ -57,7 +67,7 @@ export function extractConstantsFromSource(
         if (ts.isIdentifier(decl.name)) {
           const constName = decl.name.text;
           if (constName.length < 4) continue;
-          if (IGNORED_CONSTANT_NAMES.has(constName)) continue;
+          if (effectiveIgnored.has(constName)) continue;
           if (!/^[A-Z0-9_]+$/.test(constName)) continue;
 
           const line = sourceFile.getLineAndCharacterOfPosition(decl.getStart(sourceFile)).line + 1;
@@ -87,16 +97,21 @@ export async function detectDuplicateConstants(
   const declarations = new Map<string, ConstDecl[]>();
   const astEngine = astContext ?? new SharedAstContext();
 
+  const config = getAuditConfig(projectRoot);
+  const targetConstantsDir = config.paths.constantsRoots?.[0] ?? 'un módulo compartido de constantes';
+  const effectiveIgnored = getEffectiveIgnoredConstantNames(projectRoot);
+
   for (const filePath of files) {
     const isUnderRoot = !path.isAbsolute(filePath) || !path.relative(projectRoot, filePath).startsWith('..');
     const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
     if (
       (isUnderRoot && isPathIgnored(rel)) ||
       isDataPath(rel) ||
-      rel.includes('tests') ||
-      rel.includes('scripts') ||
-      rel.includes('src/suites') ||
-      rel.includes('src/cli')
+      !isInCodeRoots(rel, config) ||
+      isScriptPath(rel, config) ||
+      isExemptFile(rel, config) ||
+      rel.startsWith('src/suites/') ||
+      rel.startsWith('src/cli/')
     ) {
       continue;
     }
@@ -112,7 +127,7 @@ export async function detectDuplicateConstants(
     if (!content.includes('const ')) continue;
 
     const sourceFile = astEngine.getSourceFile(filePath, content);
-    const constDecls = extractConstantsFromSource(sourceFile, filePath);
+    const constDecls = extractConstantsFromSource(sourceFile, filePath, effectiveIgnored);
 
     for (const decl of constDecls) {
       if (!declarations.has(decl.name)) {
@@ -163,7 +178,7 @@ export async function detectDuplicateConstants(
           violations.push({
             file: decl.file,
             line: decl.line,
-            message: `Constante duplicada '${constName}' con valor idéntico declarada en múltiples módulos (${fileList}). DEBE modularizarse obligatoriamente en src/logic/constants/ para su reutilización.`,
+            message: `Constante duplicada '${constName}' con valor idéntico declarada en múltiples módulos (${fileList}). DEBE modularizarse obligatoriamente en ${targetConstantsDir} para su reutilización.`,
             context: constName,
             severity: 'error',
             fixable: false,

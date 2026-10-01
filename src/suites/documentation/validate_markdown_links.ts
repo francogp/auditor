@@ -22,6 +22,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, collectRepositoryFiles } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -73,13 +74,31 @@ export const DEFAULT_SCAN_DIRECTORIES = [
   'docs',
   'src',
   'tests',
-  'scripts',
-  'supabase',
+  'scripts'
 ] as const;
 
+export function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoots?: readonly string[]): readonly string[] {
+  if (explicitRoots && explicitRoots.length > 0) return explicitRoots;
+  const config = getAuditConfig(projectRoot);
+  const dirs = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
+  if (config.paths?.srcRoots) dirs.push(...config.paths.srcRoots);
+  else dirs.push('src');
+  if (config.paths?.testRoots) dirs.push(...config.paths.testRoots);
+  else dirs.push('tests');
+  if (config.paths?.scriptsRoots) dirs.push(...config.paths.scriptsRoots);
+  else dirs.push('scripts');
+
+  if (config.persistence?.engine !== 'none') {
+    if (config.paths?.migrationsDir) {
+      dirs.push(config.paths.migrationsDir);
+    } else if (config.persistence?.supabaseDir) {
+      dirs.push(config.persistence.supabaseDir);
+    }
+  }
+  return dirs;
+}
+
 export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = [
-  'supabase/docker/**',
-  'supabase/generated/**',
   'coverage/**'
 ] as const;
 
@@ -313,7 +332,7 @@ export function checkMarkdownLinksInContent(
  */
 export function auditMarkdownLinks(options: MarkdownLinkAuditOptions = {}): MarkdownLinkAuditResult {
   const root = options.rootDir ?? DEFAULT_ROOT;
-  const scanDirs = options.scanPaths ?? DEFAULT_SCAN_DIRECTORIES;
+  const scanDirs = options.scanPaths ?? resolveMarkdownScanDirectories(root);
   const extraIgnores = options.extraIgnorePatterns ?? DEFAULT_MARKDOWN_IGNORE_PATTERNS;
 
   const fileSet = new Set<string>();
@@ -344,7 +363,9 @@ export function auditMarkdownLinks(options: MarkdownLinkAuditOptions = {}): Mark
 export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
   private readonly scanRoots: readonly string[];
 
-  constructor(scanRoots: readonly string[] = DEFAULT_SCAN_DIRECTORIES, projectRoot?: string) {
+  constructor(scanRoots?: readonly string[], projectRoot?: string) {
+    const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
+    const config = getAuditConfig(projectRoot);
     super({
       id: 'validate_markdown_links',
       name: 'Markdown & DOX Relative Links Auditor',
@@ -358,13 +379,17 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
         'markdown-stale-environment-path': 'Referencia a entorno obsoleto',
         'markdown-gitignored-target': 'Enlace a ruta ignorada en git',
       },
-      roots: scanRoots,
+      roots: effectiveScanRoots,
       allowedExtensions: new Set(['.md']),
-      extraIgnorePatterns: DEFAULT_MARKDOWN_IGNORE_PATTERNS,
+      extraIgnorePatterns: [
+        ...DEFAULT_MARKDOWN_IGNORE_PATTERNS,
+        ...(config.paths.ignoreGlobs ?? []),
+        ...(config.paths.ignoredPatterns ?? [])
+      ],
       unignoreDirs: ['.agents'],
       projectRoot,
     });
-    this.scanRoots = scanRoots;
+    this.scanRoots = effectiveScanRoots;
   }
 
   public override async runAudit(): Promise<void> {

@@ -33,7 +33,7 @@ enableCompileCache();
 // ─── Config ──────────────────────────────────────────────────────────────────
 const ROOT = process.cwd();
 const EXTENSIONS = new Set(['.ts', '.vue']); // runtime-set: Fast O(1) membership lookup set
-const TEST_PATH_MARKERS = ['tests/', '.test.', '.spec.', 'scripts/e2e/'] as const;
+export const DEFAULT_TEST_PATH_MARKERS = ['.test.', '.spec.'] as const;
 const ESCAPE_HATCHES = ['domain-ok', 'string-ok', 'open-record', 'runtime-set', 'runtime-map', 'no-domain', 'lib-duplicate-ok', 'result-ok'] as const;
 
 // ─── Patterns ────────────────────────────────────────────────────────────────
@@ -118,11 +118,24 @@ function isCommentLine(line: string): boolean {
 }
 
 function isTestFile(file: string): boolean {
-  return TEST_PATH_MARKERS.some(marker => file.includes(marker));
+  const config = getAuditConfig();
+  if (config.paths.includeTestsInCodeAudit) return false;
+  if (DEFAULT_TEST_PATH_MARKERS.some(marker => file.includes(marker))) return true;
+  const testRoots = [
+    ...(config.paths.testRoots ?? ['tests']),
+    ...(config.paths.e2eRoots ?? ['tests/e2e']),
+    ...(config.paths.integrationRoots ?? [])
+  ].map(r => r.replace(/^\.?\//, '').replace(/\/+$/, '') + '/');
+  return testRoots.some(r => file.includes(r));
 }
 
 function isContractFile(file: string): boolean {
-  return file.includes('/types/') || file.includes('/data/') || file.endsWith('.d.ts');
+  const config = getAuditConfig();
+  const contractRoots = [
+    ...(config.paths.typesRoots ?? ['src/types']),
+    ...(config.paths.dataRoots ?? ['src/data'])
+  ];
+  return contractRoots.some(r => file.includes(r.replace(/^\.?\//, ''))) || file.includes('/types/') || file.includes('/data/') || file.endsWith('.d.ts');
 }
 
 function isAmbientDeclarationFile(file: string): boolean {
@@ -309,10 +322,12 @@ export async function auditFile(filePath: string): Promise<Finding[]> {
     (_match, line, file) => {
       if (isAmbientDeclarationFile(file) || isTestFile(file)) return false;
       if (line.includes('// state-ok: State setter allows clearing domain reference') || line.includes('// domain-ok: Open dynamic text or non-domain string payload')) return false;
-      // Exclude interface/type object properties (which legitimately hold nullable state like heldItem: ItemId | null)
+      // Exclude interface/type object properties (which legitimately hold nullable state)
       if (line.trim().endsWith(';') && !line.includes('(') && !line.includes('=>') && !line.includes('function')) return false;
-      // Allow store state setters (e.g., set* or unequip actions in stores)
-      if (/\b(?:set[A-Z]\w*|update[A-Z]\w*|equip[A-Z]\w*|clear[A-Z]\w*)\b/.test(line)) return false;
+      // Allow store state setters (e.g., set*, update*, clear* actions in stores)
+      const allowedSetters = getAuditConfig().domain?.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'];
+      const setterRegex = new RegExp(`\\b(?:${allowedSetters.join('|')})[A-Z]\\w*\\b`);
+      if (setterRegex.test(line)) return false;
       return true;
     },
     true
@@ -391,8 +406,13 @@ export async function auditFile(filePath: string): Promise<Finding[]> {
       if (/\.(?:includes|startsWith|endsWith|indexOf)\s*\(/.test(line) || /\b(?:search|query|filter|input)\b/i.test(line)) return false;
       // Filter out template literals used for UI formatting (`${...toUpperCase()}`)
       if (/`[^`]*\$\{[^}]*\.(?:toLowerCase|toUpperCase)\(\)\}[^`]*`/.test(line)) return false;
-      // Filter out UI presentation variables
-      if (/\b(?:title|label|name|text|description|rewardLabel|rewardVal|statusText|unequipped|captureDateFormatted|requiredClass|requiredFaction|stat|nature|heldItem|weather|slotId|phase|genderVal|current|activeRegion|mech|leader|cat|nat|typeFocus|c|d|p|t|clean|to|sessionMode|moRequired|value|choiceMove|faction)\.(?:toLowerCase|toUpperCase)\(\)/.test(line)) return false;
+      // Filter out UI presentation variables and configured exempt tokens
+      const config = getAuditConfig();
+      const baseUiTokens = ['title', 'label', 'name', 'text', 'description', 'message', 'query', 'search', 'input', 'key', 'status', 'value', 'clean', 'to', 'current'];
+      const customTokens = config.domain?.caseNormalizationExemptTokens ?? [];
+      const exemptTokens = Array.from(new Set([...baseUiTokens, ...customTokens]));
+      const exemptRegex = new RegExp(`\\b(?:${exemptTokens.join('|')})\\.(?:toLowerCase|toUpperCase)\\(\\)`);
+      if (exemptRegex.test(line)) return false;
       return true;
     }
   ));
@@ -870,15 +890,24 @@ export function extractProjectCanonicalDomains(
   const P_CANONICAL_ARRAY = /\bexport\s+const\s+([A-Za-z0-9_]+)\s*(?::\s*[^=]+)?=\s*\[\s*['"`]([\s\S]*?)\]\s+as\s+const/g;
   const P_CANONICAL_TYPE = /\bexport\s+type\s+([A-Za-z0-9_]+)\s*=\s*\(?((?:['"`][a-zA-Z0-9_-]+['"`]\s*\|\s*)+['"`][a-zA-Z0-9_-]+['"`])\)?/g;
 
-  // Prioritize files in src/types/ and src/data/, then src/logic/
-  const sortedFiles = [...files].sort((a, b) => {
-    const scoreA = (a.file.startsWith('src/types/') ? 3 : 0) + (a.file.startsWith('src/data/') ? 2 : 0) + (a.file.startsWith('src/logic/') ? 1 : 0);
-    const scoreB = (b.file.startsWith('src/types/') ? 3 : 0) + (b.file.startsWith('src/data/') ? 2 : 0) + (b.file.startsWith('src/logic/') ? 1 : 0);
-    return scoreB - scoreA;
-  });
+  // Prioritize files in typesRoots and dataRoots, then logicRoots
+  const config = getAuditConfig();
+  const typesRoots = config.paths.typesRoots ?? ['src/types'];
+  const dataRoots = config.paths.dataRoots ?? ['src/data'];
+  const logicRoots = config.paths.logicRoots ?? ['src/logic'];
+  const srcRoots = config.paths.srcRoots ?? ['src'];
+
+  const getFileScore = (file: string) => {
+    if (typesRoots.some(r => file.startsWith(r))) return 3;
+    if (dataRoots.some(r => file.startsWith(r))) return 2;
+    if (logicRoots.some(r => file.startsWith(r))) return 1;
+    return 0;
+  };
+
+  const sortedFiles = [...files].sort((a, b) => getFileScore(b.file) - getFileScore(a.file));
 
   for (const { file, content } of sortedFiles) {
-    if (isTestFile(file) || file.endsWith('.d.ts') || !file.startsWith('src/')) continue;
+    if (isTestFile(file) || file.endsWith('.d.ts') || !srcRoots.some(r => file.startsWith(r))) continue;
     const lines = content.split('\n');
 
     // 1. Exported array with as const
@@ -1006,8 +1035,10 @@ export function detectProjectDomainDuplicatesAndSubsets(
     };
   }
 
+  const config = getAuditConfig();
+  const srcRoots = config.paths.srcRoots ?? ['src'];
   for (const { file, content } of files) {
-    if (isTestFile(file) || file.endsWith('.d.ts') || !file.startsWith('src/')) continue;
+    if (isTestFile(file) || file.endsWith('.d.ts') || !srcRoots.some(r => file.startsWith(r))) continue;
     const lines = content.split('\n');
 
     // 1. Check array declarations
@@ -1097,8 +1128,13 @@ export const DOMAIN_TYPES_RULES: readonly DomainTypesRuleId[] = [
 ] as const;
 
 export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
-  constructor() {
-    const config = getAuditConfig();
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const config = getAuditConfig(projectRoot);
+    const effectiveRoots = roots ?? (
+      config.paths.includeTestsInCodeAudit
+        ? [...(config.paths.codeRoots ?? ['src', 'scripts']), ...(config.paths.testRoots ?? ['tests'])]
+        : (config.paths.codeRoots ?? ['src', 'scripts'])
+    );
     super({
       id: 'validate_domain_types',
       name: 'Domain Types Integrity Audit',
@@ -1109,13 +1145,20 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
       ruleDescriptions: {
         'domain-type-violation': 'String crudo en vez de tipo de dominio'
       },
-      roots: config.paths.codeRoots ?? ['src', 'scripts'],
+      roots: effectiveRoots,
       allowedExtensions: EXTENSIONS,
-      extraIgnorePatterns: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**']
+      extraIgnorePatterns: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**'],
+      projectRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
+    const config = getAuditConfig(this.projectRoot);
+    if (config.domain?.enabled === false) {
+      this.context.logStep(1, 1, 'Domain audit disabled in configuration, skipping...');
+      return;
+    }
+
     this.context.logStep(1, 2, 'Extracting library domain types and scanning files...');
     const allFindings: Finding[] = [];
     const scannedFiles: Array<{ file: string; content: string }> = [];

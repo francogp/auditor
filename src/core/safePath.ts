@@ -7,6 +7,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
+import { getAuditConfig } from './auditConfig.ts';
 
 const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
 
@@ -72,13 +73,15 @@ export async function safeReadFile(filePath: string, encoding: BufferEncoding = 
 /**
  * Performs a safe fetch request verifying host against an allowlist (SSRF CWE-918).
  */
-export async function safeFetch(rawUrl: string, options?: RequestInit, allowedHosts: readonly string[] = ['supabase.co', 'localhost', '127.0.0.1']): Promise<Response> {
+export async function safeFetch(rawUrl: string, options?: RequestInit, allowedHosts?: readonly string[]): Promise<Response> {
+  const config = getAuditConfig();
+  const hosts = allowedHosts ?? config?.persistence?.allowedHosts ?? ['localhost', '127.0.0.1'];
   const parsed = new URL(rawUrl);
   if (parsed.protocol !== 'https:') {
     throw new Error(`Security Violation CWE-SSRF: Non-HTTPS protocol '${parsed.protocol}' rejected`);
   }
   const host = parsed.hostname.toLowerCase(); // string-ok: Internal string formatting or DOM token identifier
-  const isAllowed = allowedHosts.some(h => host === h || host.endsWith(`.${h}`));
+  const isAllowed = hosts.some(h => host === h || host.endsWith(`.${h}`));
   if (!isAllowed) {
     throw new Error(`Security Violation CWE-SSRF: Host '${host}' is not in allowed hosts list`);
   }
