@@ -1,0 +1,199 @@
+/**
+ * packages/auditor/tests/validate_auditor_tests.test.ts
+ *
+ * Dedicated unit test suite for AuditorTestsAuditor:
+ * - Detects missing test file for an auditor (missing-auditor-test)
+ * - Detects untested declared rules (untested-auditor-rule)
+ * - Detects missing clean execution verification (missing-clean-auditor-test)
+ * - Verifies rule extraction helper (extractSuiteDeclaredRules)
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {
+  AuditorTestsAuditor,
+  AUDITOR_TEST_RULES,
+  extractSuiteDeclaredRules
+} from '../src/suites/architecture/validate_auditor_tests.ts';
+
+describe('AuditorTestsAuditor', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    process.env.AUDIT_SUBPROCESS = 'true';
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-tests-test-'));
+  });
+
+  afterEach(async () => {
+    delete process.env.AUDIT_SUBPROCESS;
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  describe('Metadata & Configuration', () => {
+    it('declares all canonical rules in AUDITOR_TEST_RULES', () => {
+      expect(AUDITOR_TEST_RULES).toContain('missing-auditor-test');
+      expect(AUDITOR_TEST_RULES).toContain('untested-auditor-rule');
+      expect(AUDITOR_TEST_RULES).toContain('missing-clean-auditor-test');
+    });
+
+    it('initializes with correct id and family', () => {
+      const auditor = new AuditorTestsAuditor();
+      expect(auditor.id).toBe('validate_auditor_tests');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.name).toBe('Auditor Test Existence & Completeness Validator');
+    });
+  });
+
+  describe('extractSuiteDeclaredRules', () => {
+    it('extracts rules from export const RULES array', () => {
+      const source = `
+        export const FOO_RULES: readonly string[] = ['rule-a', 'rule-b'] as const;
+      `;
+      const rules = extractSuiteDeclaredRules(source);
+      expect(rules).toContain('rule-a');
+      expect(rules).toContain('rule-b');
+    });
+
+    it('extracts rules from ruleDescriptions map', () => {
+      const source = `
+        super({
+          id: 'val_foo',
+          ruleDescriptions: {
+            'custom-rule-1': 'Description 1',
+            'custom-rule-2': 'Description 2'
+          }
+        });
+      `;
+      const rules = extractSuiteDeclaredRules(source);
+      expect(rules).toContain('custom-rule-1');
+      expect(rules).toContain('custom-rule-2');
+    });
+  });
+
+  describe('Violation Detection in Sandbox', () => {
+    it('detects missing test file for an auditor (missing-auditor-test)', async () => {
+      // Create mock packages/auditor/src/suites/architecture/validate_dummy.ts
+      const suiteDir = path.join(tempDir, 'packages', 'auditor', 'src', 'suites', 'architecture');
+      await fs.mkdir(suiteDir, { recursive: true });
+      await fs.writeFile(
+        path.join(suiteDir, 'validate_dummy.ts'),
+        `
+        import { BaseAuditor } from '../../core/auditorBase.ts';
+        export const DUMMY_RULES = ['dummy-rule'] as const;
+        export class DummyAuditor extends BaseAuditor<string> {
+          constructor() {
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+          }
+          public override async runAudit() {}
+        }
+        `,
+        'utf-8'
+      );
+
+      // Create dummy audit.config.ts in sandbox root
+      await fs.writeFile(
+        path.join(tempDir, 'audit.config.ts'),
+        `export default { paths: {}, persistence: {}, domain: {}, extensions: [] };`,
+        'utf-8'
+      );
+
+      // Do NOT create packages/auditor/tests/validate_dummy.test.ts
+      const auditor = new AuditorTestsAuditor(tempDir);
+
+      const result = await auditor.execute();
+      const missingViolation = result.findings.find(f => f.ruleId === 'missing-auditor-test' && f.context === 'validate_dummy');
+      expect(missingViolation).toBeDefined();
+      expect(missingViolation?.severity).toBe('error');
+    });
+
+    it('detects untested declared rule in test file (untested-auditor-rule)', async () => {
+      const suiteDir = path.join(tempDir, 'packages', 'auditor', 'src', 'suites', 'architecture');
+      const testDir = path.join(tempDir, 'packages', 'auditor', 'tests');
+      await fs.mkdir(suiteDir, { recursive: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(suiteDir, 'validate_dummy.ts'),
+        `
+        import { BaseAuditor } from '../../core/auditorBase.ts';
+        export const DUMMY_RULES = ['covered-rule', 'untested-rule'] as const;
+        export class DummyAuditor extends BaseAuditor<string> {
+          constructor() {
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+          }
+          public override async runAudit() {}
+        }
+        `,
+        'utf-8'
+      );
+
+      // Test only mentions 'covered-rule' and has clean verification
+      await fs.writeFile(
+        path.join(testDir, 'validate_dummy.test.ts'),
+        `
+        import { describe, it, expect } from 'vitest';
+        describe('DummyAuditor', () => {
+          it('tests covered-rule', () => {
+            const rule = 'covered-rule';
+            expect(rule).toBe('covered-rule');
+            expect(result.summary.errors).toBe(0);
+          });
+        });
+        `,
+        'utf-8'
+      );
+
+      const auditor = new AuditorTestsAuditor(tempDir);
+
+      const result = await auditor.execute();
+      const untestedViolation = result.findings.find(f => f.ruleId === 'untested-auditor-rule' && f.context === 'untested-rule');
+      expect(untestedViolation).toBeDefined();
+      expect(untestedViolation?.severity).toBe('error');
+    });
+
+    it('detects missing clean execution verification (missing-clean-auditor-test)', async () => {
+      const suiteDir = path.join(tempDir, 'packages', 'auditor', 'src', 'suites', 'architecture');
+      const testDir = path.join(tempDir, 'packages', 'auditor', 'tests');
+      await fs.mkdir(suiteDir, { recursive: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(suiteDir, 'validate_dummy.ts'),
+        `
+        import { BaseAuditor } from '../../core/auditorBase.ts';
+        export const DUMMY_RULES = ['my-rule'] as const;
+        export class DummyAuditor extends BaseAuditor<string> {
+          constructor() {
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+          }
+          public override async runAudit() {}
+        }
+        `,
+        'utf-8'
+      );
+
+      // Mentions 'my-rule' but has NO clean pass check
+      await fs.writeFile(
+        path.join(testDir, 'validate_dummy.test.ts'),
+        `
+        import { describe, it, expect } from 'vitest';
+        describe('DummyAuditor', () => {
+          it('checks my-rule', () => {
+            expect('my-rule').toBe('my-rule');
+          });
+        });
+        `,
+        'utf-8'
+      );
+
+      const auditor = new AuditorTestsAuditor(tempDir);
+
+      const result = await auditor.execute();
+      const errClean = result.findings.find(f => f.ruleId === 'missing-clean-auditor-test' && f.context === 'validate_dummy');
+      expect(errClean).toBeDefined();
+      expect(errClean?.severity).toBe('error');
+    });
+  });
+});

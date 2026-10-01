@@ -1,0 +1,9 @@
+{
+  "name": "auditor-framework",
+  "displayName": "FGP Auditor Framework",
+  "version": "1.0.0",
+  "description": "Motor de auditoría de arquitectura, análisis estático y gobierno de calidad de código para proyectos Node.js",
+  "author": {
+    "name": "Franco Gastón Pellegrini"
+  }
+}

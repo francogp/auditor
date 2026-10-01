@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build and Cache
+dist/
+.vite/
+.vitest-cache/
+coverage/
+
+# Scratch & Temporary Audits
+scratch/
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
