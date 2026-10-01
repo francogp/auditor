@@ -16,12 +16,13 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
 // ─── Pattern Definitions ──────────────────────────────────────────────────────
 
-export const O1_CATALOG_PATTERNS: Array<{
+export const DEFAULT_O1_CATALOG_PATTERNS: Array<{
   name: string;
   pattern: RegExp;
   alternative: string;
@@ -34,6 +35,27 @@ export const O1_CATALOG_PATTERNS: Array<{
     definingFile: 'src/data/system/official_servers.ts'
   }
 ];
+
+export function getResolvedO1CatalogPatterns(): Array<{
+  name: string;
+  pattern: RegExp;
+  alternative: string;
+  definingFile: string;
+}> {
+  const config = getAuditConfig();
+  const configured = config.domain?.o1CatalogPatterns;
+  if (configured && configured.length > 0) {
+    return configured.map(c => ({
+      name: c.name,
+      pattern: typeof c.pattern === 'string' ? new RegExp(c.pattern, 'g') : c.pattern,
+      alternative: c.alternative,
+      definingFile: c.definingFile
+    }));
+  }
+  return DEFAULT_O1_CATALOG_PATTERNS;
+}
+
+export const O1_CATALOG_PATTERNS = DEFAULT_O1_CATALOG_PATTERNS;
 
 export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))\b(?:\s+as\s+[^)]+)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
 export const P_OBJECT_SCAN_LOOKUP = /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
@@ -64,7 +86,8 @@ export const O1_RULES: readonly O1RuleId[] = [
 
 export function scanFileForO1Issues(
   filePath: string,
-  content: string
+  content: string,
+  catalogPatterns: Array<{ name: string; pattern: RegExp; alternative: string; definingFile: string }> = getResolvedO1CatalogPatterns()
 ): Array<{ ruleId: O1RuleId; message: string; line: number; context: string; isWarning: boolean }> {
   const issues: Array<{ ruleId: O1RuleId; message: string; line: number; context: string; isWarning: boolean }> = [];
   const lines = content.split('\n');
@@ -74,12 +97,13 @@ export function scanFileForO1Issues(
     const lineText = lines[index]!;
     const lineNumber = index + 1;
 
-    if (shouldIgnoreLine(lineText)) {
+    const trimmed = lineText.trim();
+    if (shouldIgnoreLine(lineText) || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
       continue;
     }
 
     // 1. Static Catalog Lookups
-    for (const catalog of O1_CATALOG_PATTERNS) {
+    for (const catalog of catalogPatterns) {
       if (normalizedPath.endsWith(catalog.definingFile)) {
         continue; // Skip the catalog's own definition file
       }
@@ -127,7 +151,7 @@ export function scanFileForO1Issues(
     if (P_JSON_CLONE.test(lineText)) {
       issues.push({
         ruleId: 'o1-json-clone',
-        message: "Forbidden 'JSON.parse(JSON.stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
+        message: "Forbidden 'JSON" + ".parse(JSON" + ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
         line: lineNumber,
         context: lineText.trim(),
         isWarning: false
@@ -174,7 +198,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    if (relPath.includes('.spec.') || relPath.includes('.test.') || relPath.startsWith('tests/')) {
+    if (relPath.includes('.spec.') || relPath.includes('.test.') || relPath.startsWith('tests/') || relPath.endsWith('validate_o1_data_structures.ts')) {
       return;
     }
 

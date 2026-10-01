@@ -44,6 +44,14 @@ export function getCssCheckerCmd(): string | null {
     path.join(process.cwd(), 'node_modules', '.bin', binName),
     path.join(process.cwd(), 'node_modules', 'css-checker-kit', 'bin', binName),
     path.join(process.cwd(), 'node_modules', 'css-checker-kit', binName),
+    path.join(import.meta.dirname, '..', '..', 'node_modules', '.bin', isWin ? 'css-checker.cmd' : 'css-checker'),
+    path.join(import.meta.dirname, '..', '..', 'node_modules', '.bin', binName),
+    path.join(import.meta.dirname, '..', '..', 'node_modules', 'css-checker-kit', 'bin', binName),
+    path.join(import.meta.dirname, '..', '..', 'node_modules', 'css-checker-kit', binName),
+    path.join(import.meta.dirname, '..', '..', '..', 'node_modules', '.bin', isWin ? 'css-checker.cmd' : 'css-checker'),
+    path.join(import.meta.dirname, '..', '..', '..', 'node_modules', '.bin', binName),
+    path.join(import.meta.dirname, '..', '..', '..', 'node_modules', 'css-checker-kit', 'bin', binName),
+    path.join(import.meta.dirname, '..', '..', '..', 'node_modules', 'css-checker-kit', binName),
   ];
 
   const nodeDir = process.execPath ? path.dirname(process.execPath) : '';

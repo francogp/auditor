@@ -105,6 +105,27 @@ export function parseHtmlValidateResults(input: string | object[], cwd: string =
   return findings;
 }
 
+function resolveHtmlValidateBin(projectRoot: string): string {
+  const candidates = [
+    path.resolve(projectRoot, 'node_modules/html-validate/bin/html-validate.mjs'),
+    path.resolve(import.meta.dirname, '../../node_modules/html-validate/bin/html-validate.mjs'),
+    path.resolve(import.meta.dirname, '../../../node_modules/html-validate/bin/html-validate.mjs'),
+    path.resolve(import.meta.dirname, '../../../../node_modules/html-validate/bin/html-validate.mjs')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0]!;
+}
+
+function resolveHtmlValidateConfig(projectRoot: string): string {
+  const hostConfig = path.resolve(projectRoot, '.htmlvalidate.json');
+  if (fs.existsSync(hostConfig)) return hostConfig;
+  const packageConfig = path.resolve(import.meta.dirname, '../../../.htmlvalidate.json');
+  if (fs.existsSync(packageConfig)) return packageConfig;
+  return '.htmlvalidate.json';
+}
+
 export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
   constructor() {
     super({
@@ -124,11 +145,27 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     const isFixMode = process.argv.includes('fix') || process.argv.includes('--fix') || Boolean((this.context.values as Record<string, unknown>).fix);
     this.context.logStep(1, 2, `Ejecutando html-validate (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
 
-    const binPath = path.resolve(this.projectRoot, 'node_modules/html-validate/bin/html-validate.mjs');
+    const binPath = resolveHtmlValidateBin(this.projectRoot);
+    const configFile = resolveHtmlValidateConfig(this.projectRoot);
     const reportFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/html-validate-raw.json');
     fs.mkdirSync(path.dirname(reportFile), { recursive: true });
 
-    const args: string[] = ['-c', '.htmlvalidate.json', '--ext', 'html,vue', '-f', `json=${reportFile}`, 'src', 'index.html'];
+    const targets: string[] = [];
+    const srcDir = path.resolve(this.projectRoot, 'src');
+    if (fs.existsSync(srcDir)) {
+      targets.push('src');
+    }
+    const indexHtml = path.resolve(this.projectRoot, 'index.html');
+    if (fs.existsSync(indexHtml)) {
+      targets.push('index.html');
+    }
+
+    if (targets.length === 0) {
+      this.context.logStep(1, 1, 'No se encontraron archivos HTML/Vue para html-validate. Omitiendo.');
+      return;
+    }
+
+    const args: string[] = ['-c', configFile, '--ext', 'html,vue', '-f', `json=${reportFile}`, ...targets];
 
     if (isFixMode) {
       args.push('--fix');

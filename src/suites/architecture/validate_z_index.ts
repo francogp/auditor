@@ -16,6 +16,7 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import { Z_LAYERS } from './audit_rules.ts';
 
 enableCompileCache();
@@ -32,7 +33,8 @@ export const Z_INDEX_RULES: readonly ZIndexRuleId[] = [
 ] as const;
 
 export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
-  private readonly scssPath: string;
+  private readonly scssPath?: string;
+  private readonly isExplicit: boolean;
 
   constructor(scssPath?: string) {
     super({
@@ -47,12 +49,47 @@ export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
         'z-index-read-error': 'Z-Index: Error al leer estilos base'
       }
     });
-    const corePath = path.resolve(process.cwd(), 'src/styles/core/_base.scss');
-    const rootPath = path.resolve(process.cwd(), 'src/styles/_base.scss');
-    this.scssPath = scssPath || (fsSync.existsSync(corePath) ? corePath : rootPath);
+
+    const config = getAuditConfig();
+    if (scssPath) {
+      this.scssPath = scssPath;
+      this.isExplicit = true;
+    } else if (config.styles?.zLayersScssFile) {
+      this.scssPath = path.resolve(this.projectRoot, config.styles.zLayersScssFile);
+      this.isExplicit = true;
+    } else {
+      this.isExplicit = false;
+      const corePath = path.resolve(this.projectRoot, 'src/styles/core/_base.scss');
+      const rootPath = path.resolve(this.projectRoot, 'src/styles/_base.scss');
+      if (fsSync.existsSync(corePath)) {
+        this.scssPath = corePath;
+      } else if (fsSync.existsSync(rootPath)) {
+        this.scssPath = rootPath;
+      } else {
+        this.scssPath = undefined;
+      }
+    }
   }
 
   public override async runAudit(): Promise<void> {
+    const config = getAuditConfig();
+    if (!this.isExplicit && config.styles?.zLayersEnabled === false) {
+      this.context.logStep(1, 1, 'Z-Layers deshabilitadas explícitamente en audit.config.ts (styles.zLayersEnabled: false). Omitiendo.');
+      return;
+    }
+
+    if (!this.scssPath) {
+      this.addViolation({
+        ruleId: 'z-index-read-error',
+        severity: 'error',
+        file: 'audit.config.ts',
+        line: 1,
+        message: "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
+        context: 'audit.config.ts'
+      });
+      return;
+    }
+
     const isFixMode = process.argv.includes('fix') || process.argv.includes('--fix');
     this.context.logStep(1, 1, 'Verificando paridad de variables Z-Index en _base.scss...');
 

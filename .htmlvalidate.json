@@ -1,0 +1,31 @@
+{
+  "elements": [
+    "html5"
+  ],
+  "plugins": [
+    "html-validate-vue"
+  ],
+  "extends": [
+    "html-validate:recommended",
+    "html-validate-vue:recommended"
+  ],
+  "transform": {
+    "^.*\\.vue$": "html-validate-vue"
+  },
+  "rules": {
+    "no-deprecated-attr": "error",
+    "deprecated": "error",
+    "element-permitted-content": "error",
+    "element-required-attributes": "error",
+    "attribute-allowed-values": "error",
+    "element-case": "off",
+    "element-name": "off",
+    "no-inline-style": "off",
+    "text-content": "off",
+    "void-style": "off",
+    "no-implicit-button-type": "off",
+    "prefer-native-element": "off",
+    "unique-landmark": "off",
+    "wcag/h63": "off"
+  }
+}

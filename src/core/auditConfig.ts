@@ -33,6 +33,13 @@ export interface AuditPersistenceConfig {
   readonly dockerContainer?: string;
 }
 
+export interface O1CatalogPatternConfig {
+  readonly name: string;
+  readonly pattern: string;
+  readonly alternative: string;
+  readonly definingFile: string;
+}
+
 export interface AuditDomainConfig {
   readonly timezoneVariable?: string;
   readonly timezoneHelperModule?: string;
@@ -40,6 +47,7 @@ export interface AuditDomainConfig {
   readonly finiteDomainTypes?: readonly string[];
   readonly infraIdWhitelist?: readonly string[];
   readonly fallbackIdPatterns?: readonly string[];
+  readonly o1CatalogPatterns?: readonly O1CatalogPatternConfig[];
 }
 
 export interface CustomAuditFamilyConfig {
@@ -57,6 +65,8 @@ export interface AuditTemplatesConfig {
 export interface AuditStylesConfig {
   readonly globalUtilityClasses?: readonly string[];
   readonly canonicalButtonVariants?: readonly string[];
+  readonly zLayersEnabled?: boolean;
+  readonly zLayersScssFile?: string;
 }
 
 export interface ChunkBudgetConfig {
@@ -127,7 +137,8 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     timezoneVariable: 'APP_TIMEZONE',
     finiteDomainTypes: [],
     infraIdWhitelist: [],
-    fallbackIdPatterns: []
+    fallbackIdPatterns: [],
+    o1CatalogPatterns: []
   },
   templates: {
     requireInputIds: false
@@ -166,7 +177,8 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     },
     domain: {
       ...DEFAULT_AUDIT_CONFIG.domain,
-      ...(config.domain ?? {})
+      ...(config.domain ?? {}),
+      o1CatalogPatterns: (config.domain?.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? []
     },
     templates: {
       ...DEFAULT_AUDIT_CONFIG.templates,
@@ -174,7 +186,9 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     },
     styles: {
       globalUtilityClasses: config.styles?.globalUtilityClasses ?? [],
-      canonicalButtonVariants: config.styles?.canonicalButtonVariants ?? []
+      canonicalButtonVariants: config.styles?.canonicalButtonVariants ?? [],
+      zLayersEnabled: config.styles?.zLayersEnabled,
+      zLayersScssFile: config.styles?.zLayersScssFile
     },
     bundle: {
       enabled: config.bundle?.enabled,

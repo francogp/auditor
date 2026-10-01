@@ -1,3 +1,7 @@
+#!/usr/bin/env -S node --experimental-strip-types
+/**
+ * src/cli/report_fallow.ts
+ */
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';

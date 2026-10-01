@@ -13,6 +13,7 @@
  */
 
 import path from 'node:path';
+import fsSync from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
@@ -103,10 +104,36 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 2, 'Ejecutando verificación estricta de tipos (vue-tsc --noEmit)...');
+    const vueTscPath = path.resolve(this.projectRoot, 'node_modules/vue-tsc/bin/vue-tsc.js');
+    const tscCandidates = [
+      path.resolve(this.projectRoot, 'node_modules/typescript/bin/tsc'),
+      path.resolve(import.meta.dirname, '../../../node_modules/typescript/bin/tsc'),
+      path.resolve(import.meta.dirname, '../../../../typescript/bin/tsc')
+    ];
 
-    const binPath = path.resolve(this.projectRoot, 'node_modules/vue-tsc/bin/vue-tsc.js');
-    const proc = spawnSync('node', [binPath, '--noEmit'], {
+    let binPath: string | null = fsSync.existsSync(vueTscPath) ? vueTscPath : null;
+    let toolName = 'vue-tsc';
+
+    if (!binPath) {
+      for (const cand of tscCandidates) {
+        if (fsSync.existsSync(cand)) {
+          binPath = cand;
+          toolName = 'tsc';
+          break;
+        }
+      }
+    }
+
+    if (!binPath) {
+      binPath = 'tsc';
+      toolName = 'tsc';
+    }
+
+    this.context.logStep(1, 2, `Ejecutando verificación estricta de tipos (${toolName} --noEmit)...`);
+
+    const spawnArgs = binPath === 'tsc' ? ['--noEmit'] : [binPath, '--noEmit'];
+    const spawnCmd = binPath === 'tsc' ? 'tsc' : 'node';
+    const proc = spawnSync(spawnCmd, spawnArgs, {
       cwd: this.projectRoot,
       encoding: 'utf-8',
       maxBuffer: MAX_BUFFER_BYTES,

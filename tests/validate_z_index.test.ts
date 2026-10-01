@@ -70,4 +70,13 @@ describe('ZIndexAuditor', () => {
     expect(readError).toBeDefined();
     expect(readError?.severity).toBe('error');
   });
+
+  it('skips gracefully when explicitly disabled with styles.zLayersEnabled: false', async () => {
+    const auditor = new ZIndexAuditor();
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
 });
+

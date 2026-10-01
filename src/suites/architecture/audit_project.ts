@@ -29,7 +29,7 @@ import { runCssChecker, CSS_ANALYZER_DESCRIPTOR } from '../../analyzers/cssAnaly
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxAnalyzer.ts';
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
-import { loadAuditConfig } from '../../core/auditConfig.ts';
+import { loadAuditConfig, getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -288,9 +288,22 @@ function extractAllBlocks(content: string, tag: string): VueBlock[] {
 }
 
 async function checkZIndexConsistency(fix: boolean): Promise<string[]> {
+  const config = getAuditConfig();
+  if (config.styles?.zLayersEnabled === false) {
+    return [];
+  }
+  const configuredPath = config.styles?.zLayersScssFile
+    ? path.resolve(process.cwd(), config.styles.zLayersScssFile)
+    : undefined;
   const directPath = path.resolve(process.cwd(), 'src/styles/_base.scss');
   const corePath = path.resolve(process.cwd(), 'src/styles/core/_base.scss');
-  const scssPath = existsSync(directPath) ? directPath : corePath;
+  const scssPath = configuredPath || (existsSync(directPath) ? directPath : (existsSync(corePath) ? corePath : ''));
+
+  if (!scssPath || !existsSync(scssPath)) {
+    return [
+      "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si el proyecto no utiliza capas Z de SCSS."
+    ];
+  }
   try {
     let scssContent = await fs.readFile(scssPath, 'utf-8');
     let modified = false;
@@ -1115,7 +1128,7 @@ async function main() {
 
   // Query descriptors dynamically from their source modules only when explicitly requested
   const hasSpecificRules = selectedRules.size > 0;
-  const isZIndexActive = !hasSpecificRules || matchesRule(Z_INDEX_CONSISTENCY_DESCRIPTOR, selectedRules);
+  const isZIndexActive = (!hasSpecificRules || matchesRule(Z_INDEX_CONSISTENCY_DESCRIPTOR, selectedRules)) && getAuditConfig().styles?.zLayersEnabled !== false;
   const isDoxActive = !hasSpecificRules || matchesRule(DOX_ANALYZER_DESCRIPTOR, selectedRules);
   const isFallowDupesActive = !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS.dupes, selectedRules);
   const isFallowSecurityActive = !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS.security, selectedRules);

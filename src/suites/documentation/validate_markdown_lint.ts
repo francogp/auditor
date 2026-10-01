@@ -13,6 +13,7 @@
  *   npm run lint:md
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
@@ -105,6 +106,19 @@ export function parseMarkdownLintIssues(input: string | object[], cwd: string = 
   return findings;
 }
 
+function resolveMarkdownLintBin(projectRoot: string): string {
+  const candidates = [
+    path.resolve(projectRoot, 'node_modules/markdownlint-cli/markdownlint.js'),
+    path.resolve(import.meta.dirname, '../../node_modules/markdownlint-cli/markdownlint.js'),
+    path.resolve(import.meta.dirname, '../../../node_modules/markdownlint-cli/markdownlint.js'),
+    path.resolve(import.meta.dirname, '../../../../node_modules/markdownlint-cli/markdownlint.js')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0]!;
+}
+
 export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
   constructor(projectRoot?: string) {
     super({
@@ -125,7 +139,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     const isFixMode = process.argv.includes('fix') || process.argv.includes('--fix') || Boolean((this.context.values as Record<string, unknown>).fix);
     this.context.logStep(1, 2, `Ejecutando markdownlint (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
 
-    const binPath = path.resolve(this.projectRoot, 'node_modules/markdownlint-cli/markdownlint.js');
+    const binPath = resolveMarkdownLintBin(this.projectRoot);
     const args: string[] = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
 
     for (const pattern of MARKDOWN_IGNORE_GLOBS) {

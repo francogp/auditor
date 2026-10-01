@@ -21,6 +21,9 @@ export default defineAuditConfig({
   bundle: {
     enabled: false
   },
+  styles: {
+    zLayersEnabled: false
+  },
   presets: {
     commit: [
       'validate_dox_integrity',

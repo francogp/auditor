@@ -10,6 +10,7 @@ import ts from 'typescript';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
+import { isDataPath } from '../core/auditConfig.ts';
 
 export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'duplicate-constants',
@@ -90,11 +91,11 @@ export async function detectDuplicateConstants(
     const rel = path.relative(process.cwd(), filePath).split(path.sep).join(path.posix.sep);
     if (
       (isUnderCwd && isPathIgnored(rel)) ||
+      isDataPath(rel) ||
       rel.includes('tests') ||
       rel.includes('scripts') ||
       rel.includes('src/suites') ||
-      rel.includes('src/cli') ||
-      rel.includes('official_servers.ts')
+      rel.includes('src/cli')
     ) {
       continue;
     }
