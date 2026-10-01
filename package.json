@@ -32,6 +32,7 @@
     "test:watch": "vitest",
     "audit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
     "init-agent": "node --experimental-strip-types src/cli/init_agent.ts",
+    "validate:agent-plugin": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_agent_plugin.ts",
     "sync:env": "node --experimental-strip-types src/cli/sync_env_scripts.ts",
     "env:setup": "node --experimental-strip-types src/cli/setup_env.ts",
     "typecheck": "tsc --noEmit"
