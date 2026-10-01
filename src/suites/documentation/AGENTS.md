@@ -10,6 +10,8 @@ Architecture & Tooling Engineers.
 
 - **DOX Hierarchy**: Every code directory must have an `AGENTS.md` registered in its parent's `Child DOX Index`.
 - **Zero Broken Links**: Relative links in Markdown documentation must point to valid files on disk.
+- **Anchored Personal Machine Paths Detection**: Personal machine environment path regexes in `validate_markdown_links.ts` must strictly detect absolute root user directories (`/home/<user>`, `C:\Users\<user>`, `/Users/<user>`) and must not match benign relative directory names (such as `./users/`).
+- **Comprehensive Documentation Scan Coverage**: Both `validate_markdown_links.ts` and `validate_markdown_code_references.ts` actively scan `docs/`, `README.md`, `AGENTS.md`, `src/`, `tests/`, and `.agents/skills`.
 - **Npm Script Exclusivity**: Documented operational commands must correspond to defined `package.json` scripts.
 
 ## Key Files

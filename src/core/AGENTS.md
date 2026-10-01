@@ -11,6 +11,7 @@ Architecture & Tooling Engineers.
 - **Base Class Inheritance**: All sub-auditors across the system must inherit from `BaseAuditor` or `FileScanAuditor`.
 - **Unified Terminal Rendering**: Output formatting must utilize `unifiedTheme` utilities (`renderBanner`, `renderBoxTable`, `formatStatusBadge`, `getVisualWidth`) within 80-column limits.
 - **Config Single Source of Truth**: All dynamic thresholds, custom paths, and extensions are loaded via `auditConfig.ts`.
+- **Mandatory Explicit Configuration & Zero Silent Skips (`assertAuditConfigComplete`)**: Host projects consuming `@francogp/auditor` MUST explicitly declare all required subsystems (`persistence`, `bundle`, `styles`, `templates`, `agentPlugin`) in `audit.config.ts`, declaring either active configuration options or explicit deactivation (`enabled: false` or `engine: 'none'`). Sub-auditors and entrypoints MUST NEVER silently bypass checks due to missing files or missing configuration.
 - **Configurable Bundle Auditing for Non-Web Packages (`bundle.enabled: false`)**: `AuditBundleConfig` in `auditConfig.ts` must expose `readonly enabled?: boolean`. Sub-auditors and the `auditor-bundle` CLI check `bundleConfig?.enabled === false` and exit 0 cleanly with an informational notice, avoiding false-positive gate failures in non-bundled packages or standalone CLI engines.
 - **Permission Boundaries**: File operations adhere to Node.js 26 `--permission` flags with paths verified via `permissionGuard.ts` and `safePath.ts`.
 

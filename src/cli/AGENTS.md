@@ -8,6 +8,7 @@ Architecture & Tooling Engineers.
 
 ## Local Contracts
 
+- **Configuration Pre-Flight Validation**: All CLI orchestrators (`audit_full.ts`, `audit_for_commit.ts`, `audit_bundle.ts`) MUST execute `assertAuditConfigComplete(config)` immediately after loading `audit.config.ts`, failing fast with exit code 1 if any mandatory subsystem is omitted.
 - **Streaming Execution**: The master orchestrator streams step-by-step progress and writes full structured output to `scratch/audits/latest_audit.json`.
 - **Exit Code Integrity**: Any suite error exits with code 1; passing audits exit with code 0.
 - **Differential Pre-Commit Gate**: `audit_for_commit.ts` inspects Git diffs against target base branch (`origin/main`) and enforces zero new warnings or errors.

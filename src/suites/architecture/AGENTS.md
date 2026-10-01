@@ -8,6 +8,8 @@ Architecture & Tooling Engineers.
 
 ## Local Contracts
 
+- **Domain-Agnostic Core Rules**: Architectural and style rules in `@francogp/auditor` MUST NOT contain hardcoded host domain terminology (such as billing identifiers, Pokémon Showdown entities, or specific vendor database roots). Domain identification patterns and fallback ID patterns derive dynamically from `config.domain`.
+- **Dynamic Persistence Mock Detection**: Forbidden integration mock targets in `validate_test_hygiene.ts` derive dynamically based on `config.persistence.engine` (`supabase`, `sqlite`, `hybrid`).
 - **Zero Untested Rules**: Every rule ID declared across these suites is verified with positive and negative test cases.
 - **Living Standard Engines**: HTML standards validation delegates to `html-validate` instead of ad-hoc regex.
 - **Strict Fallow Error Severity**: All Fallow-derived findings are treated strictly as `severity: 'error'`.
