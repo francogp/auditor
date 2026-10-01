@@ -151,6 +151,9 @@ export function collectMarkdownFiles(
   );
 }
 
+/** Regex detecting personal machine absolute paths (e.g. /home/user, /Users/user, C:\Users\user) */
+const STALE_ENV_PATH_REGEX = /(?:file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![a-zA-Z0-9_.]))\/(?:home|Users)\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+)/;
+
 /**
  * Parses all markdown links in a file and returns broken references or illegal paths.
  */
@@ -176,7 +179,6 @@ export function checkMarkdownLinksInContent(
     rawUrl = rawUrl.replace(/^[`'"]+|[`'"]+$/g, '');
 
     // Check for personal machine environment paths in link URL or text
-    const STALE_ENV_PATH_REGEX = /(?:\/home\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+|\/Users\/[a-zA-Z0-9_-]+)/i;
     if (
       STALE_ENV_PATH_REGEX.test(rawUrl) ||
       STALE_ENV_PATH_REGEX.test(linkText)
@@ -280,8 +282,7 @@ export function checkMarkdownLinksInContent(
     if (brokenLinks.some(b => b.line === lineNum)) continue;
 
     const textWithoutInlineCode = lineText.replace(/`[^`\n]+`/g, '');
-
-    if (/(?:\/home\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+|\/Users\/[a-zA-Z0-9_-]+)/i.test(textWithoutInlineCode)) {
+    if (STALE_ENV_PATH_REGEX.test(textWithoutInlineCode)) {
       brokenLinks.push({
         sourceFile: relSourceFile,
         linkText: '',
