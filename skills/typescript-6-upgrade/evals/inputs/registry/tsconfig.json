@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2021"],
+    "strict": true,
+    "baseUrl": ".",
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

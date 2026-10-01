@@ -43,6 +43,8 @@
   "bin": {
     "auditor": "./src/cli/audit_full.ts",
     "auditor-commit": "./src/cli/audit_for_commit.ts",
+    "auditor-bundle": "./src/cli/audit_bundle.ts",
+    "auditor-report-findings": "./src/cli/report_findings.ts",
     "auditor-init-agent": "./src/cli/init_agent.ts",
     "auditor-sync-env": "./src/cli/sync_env_scripts.ts",
     "auditor-check-env": "./src/cli/check_environment.ts",
@@ -53,13 +55,26 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
-    "init-agent": "node --experimental-strip-types src/cli/init_agent.ts",
+    "audit:for-commit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_for_commit.ts",
+    "audit:bundle": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/audit_bundle.ts",
+    "audit:md": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=md",
+    "audit:findings": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts",
+    "validate:dox-integrity": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/documentation/validate_dox_integrity.ts",
     "validate:agent-plugin": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_agent_plugin.ts",
+    "init-agent": "node --experimental-strip-types src/cli/init_agent.ts",
     "sync:env": "node --experimental-strip-types src/cli/sync_env_scripts.ts",
     "env:setup": "node --experimental-strip-types src/cli/setup_env.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "audit:fallow": "fallow health --score"
   },
   "dependencies": {
+    "css-checker-kit": "^0.4.2",
+    "fallow": "^3.28.0",
+    "html-validate": "^11.16.1",
+    "html-validate-vue": "^9.3.1",
+    "markdownlint-cli": "^0.49.1",
+    "rollup-plugin-visualizer": "^7.1.1",
     "typescript": "^6.0.3"
   },
   "devDependencies": {

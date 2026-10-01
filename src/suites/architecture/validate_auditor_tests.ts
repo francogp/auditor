@@ -94,28 +94,24 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
 
     for (const task of tasks) {
       totalAuditorsChecked++;
-      const isPlugin = !task.scriptPath.startsWith('packages/auditor/src/suites');
       const baseName = task.id;
 
-      const primaryTestRel = isPlugin
-        ? `tests/node/auditors/${baseName}.test.ts`
-        : `packages/auditor/tests/${baseName}.test.ts`;
-      const fallbackTestRel = isPlugin
-        ? `packages/auditor/tests/${baseName}.test.ts`
-        : `tests/node/auditors/${baseName}.test.ts`;
-
-      const primaryAbs = path.resolve(this.projectRoot, primaryTestRel);
-      const fallbackAbs = path.resolve(this.projectRoot, fallbackTestRel);
+      const candidateRelPaths = [
+        `tests/${baseName}.test.ts`,
+        `packages/auditor/tests/${baseName}.test.ts`,
+        `tests/node/auditors/${baseName}.test.ts`
+      ];
 
       let testFileAbs: string | null = null;
-      let testFileRel: string = primaryTestRel;
+      let testFileRel: string = candidateRelPaths[0]!;
 
-      if (fs.existsSync(primaryAbs)) {
-        testFileAbs = primaryAbs;
-        testFileRel = primaryTestRel;
-      } else if (fs.existsSync(fallbackAbs)) {
-        testFileAbs = fallbackAbs;
-        testFileRel = fallbackTestRel;
+      for (const rel of candidateRelPaths) {
+        const abs = path.resolve(this.projectRoot, rel);
+        if (fs.existsSync(abs)) {
+          testFileAbs = abs;
+          testFileRel = rel;
+          break;
+        }
       }
 
       if (!testFileAbs) {
@@ -124,7 +120,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
           severity: 'error',
           file: task.scriptPath,
           line: 1,
-          message: `El sub-auditor '${task.id}' no posee un archivo de prueba dedicado. Se esperaba '${primaryTestRel}'.`,
+          message: `El sub-auditor '${task.id}' no posee un archivo de prueba dedicado. Se esperaba '${testFileRel}'.`,
           context: task.id
         });
         continue;

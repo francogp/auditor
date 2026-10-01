@@ -1,0 +1,28 @@
+{
+  "$schema": "https://fallow.tools/schema/config.json",
+  "entry": [
+    "src/index.ts",
+    "src/cli/*.ts",
+    "src/core/*.ts",
+    "src/plugin/*.ts",
+    "src/analyzers/*.ts",
+    "src/suites/**/*.ts",
+    "audit.config.ts"
+  ],
+  "ignorePatterns": [
+    "skills/**",
+    ".agents/**",
+    "scratch/**",
+    "dist/**",
+    "tests/**"
+  ],
+  "ignoreDependencies": [
+    "css-checker-kit",
+    "fallow",
+    "html-validate",
+    "html-validate-vue",
+    "markdownlint-cli",
+    "rollup-plugin-visualizer",
+    "typescript"
+  ]
+}

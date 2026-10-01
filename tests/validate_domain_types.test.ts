@@ -84,7 +84,7 @@ describe('DomainTypesAuditor', () => {
       expect(findings.some(f => f.pattern.includes('Type assertion `as any`'))).toBe(true);
     });
 
-    it('allows non-domain string payloads when annotated with // domain-ok', async () => {
+    it('allows non-domain string payloads when annotated with domain-ok comment', async () => {
       const filePath = path.join(scratchDir, 'escaped.ts');
       fs.writeFileSync(filePath, "const title = getTitle(); // domain-ok: Open dynamic text or non-domain string payload\n", 'utf-8');
       const findings = await auditFile(filePath);

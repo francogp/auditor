@@ -92,6 +92,8 @@ export async function detectDuplicateConstants(
       (isUnderCwd && isPathIgnored(rel)) ||
       rel.includes('tests') ||
       rel.includes('scripts') ||
+      rel.includes('src/suites') ||
+      rel.includes('src/cli') ||
       rel.includes('official_servers.ts')
     ) {
       continue;

@@ -110,7 +110,7 @@ describe('O1DataStructuresAuditor', () => {
       expect(issue).toBeDefined();
     });
 
-    it('allows exceptions with // o1-ok or // linear-search-ok', () => {
+    it('allows exceptions with o1-ok or linear-search-ok escape hatches', () => {
       const code = `
         const copy = JSON.parse(JSON.stringify(original)); // o1-ok: Benchmarking deep clone
         const hasId = TARIFF_IDS.includes(id); // linear-search-ok: Small array of 2 elements

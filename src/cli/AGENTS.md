@@ -1,0 +1,32 @@
+# Purpose
+
+Command-line interfaces, orchestrators, and developer reporting tools for `@francogp/auditor`. Provides the full audit runner (`audit_full.ts`), pre-commit differential audit (`audit_for_commit.ts`), production bundle visualizer analyzer (`audit_bundle.ts`), findings query reporters, and environment setup scripts.
+
+## Ownership
+
+Architecture & Tooling Engineers.
+
+## Local Contracts
+
+- **Streaming Execution**: The master orchestrator streams step-by-step progress and writes full structured output to `scratch/audits/latest_audit.json`.
+- **Exit Code Integrity**: Any suite error exits with code 1; passing audits exit with code 0.
+- **Differential Pre-Commit Gate**: `audit_for_commit.ts` inspects Git diffs against target base branch (`origin/main`) and enforces zero new warnings or errors.
+- **Bundle Analysis**: `audit_bundle.ts` validates client assets against chunk size budgets and detects duplicate module bloat.
+
+## Key Files
+
+- [`audit_bundle.ts`](./audit_bundle.ts): Bundle budget and duplicate module analyzer parsing `rollup-plugin-visualizer` treemaps.
+- [`audit_for_commit.ts`](./audit_for_commit.ts): Pre-commit differential auditor gatekeeper.
+- [`audit_full.ts`](./audit_full.ts): Master auditor orchestrator executing discovered suites.
+- [`auditScanner.ts`](./auditScanner.ts): Automatic suite discovery and filtering engine.
+- [`check_environment.ts`](./check_environment.ts): Runtime and tooling environment validator.
+- [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin registrator.
+- [`report_complexity.ts`](./report_complexity.ts): Cyclomatic and cognitive complexity reporter.
+- [`report_fallow.ts`](./report_fallow.ts): Consolidated Fallow static analysis reporter.
+- [`report_findings.ts`](./report_findings.ts): Interactive query tool for inspecting audit findings.
+- [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
+- [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
+
+## Child DOX Index
+
+- _This directory contains CLI entrypoint executables with no subdirectories._

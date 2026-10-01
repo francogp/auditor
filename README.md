@@ -9,7 +9,7 @@ Provee el framework abstracto `BaseAuditor`, un runner streaming concurrente de 
 ## 📑 Tabla de Contenidos
 
 1. [Inicio Rápido & Setup de Entorno Local](#1-inicio-rápido--setup-de-entorno-local)
-2. [Tutorial: Instalación en Proyectos Host (PokeBorrador, facturacion2, etc.)](#2-tutorial-instalación-en-proyectos-host)
+2. [Tutorial: Instalación en Proyectos Host](#2-tutorial-instalación-en-proyectos-host)
 3. [Tutorial: Ejecución y Flujos de Auditoría](#3-tutorial-ejecución-y-flujos-de-auditoría)
 4. [Tutorial: Integración con Agentes de IA (Antigravity Plugin & Skill)](#4-tutorial-integración-con-agentes-de-ia-antigravity)
 5. [Tutorial: Gobierno de Entorno Multiplataforma & Plugins](#5-tutorial-gobierno-de-entorno-multiplataforma--plugins)
@@ -26,12 +26,14 @@ Provee el framework abstracto `BaseAuditor`, un runner streaming concurrente de 
 
 Si estás desarrollando directamente dentro del repositorio `@francogp/auditor`:
 
-### En Linux / macOS:
+### En Linux / macOS
+
 ```bash
 ./setup-linux.sh
 ```
 
-### En Windows (PowerShell con permisos de ejecución):
+### En Windows (PowerShell con permisos de ejecución)
+
 ```powershell
 .\setup-windows.ps1
 ```
@@ -44,9 +46,10 @@ Si estás desarrollando directamente dentro del repositorio `@francogp/auditor`:
 
 ## 2. Tutorial: Instalación en Proyectos Host
 
-Puedes instalar `@francogp/auditor` en cualquier proyecto (`PokeBorrador`, `facturacion2`, etc.) como dependencia directa desde GitHub o como enlace local.
+Puedes instalar `@francogp/auditor` en cualquier proyecto consumidor (aplicaciones web, APIs, monorrepos) como dependencia directa o paquete npm.
 
 ### Opción A: Instalación desde GitHub (Recomendada para CI/CD y GitHub Pages)
+
 Agrega a las `devDependencies` de tu `package.json`:
 
 ```json
@@ -58,6 +61,7 @@ Agrega a las `devDependencies` de tu `package.json`:
 ```
 
 Luego instala las dependencias:
+
 ```bash
 npm install
 ```
@@ -66,6 +70,7 @@ npm install
 > Al ser un repositorio público en GitHub, GitHub Actions en entornos como GitHub Pages ejecutará `npm ci` o `npm install` clonando la librería automáticamente vía HTTPS sin requerir tokens, SSH keys ni secretos en el repositorio.
 
 ### Opción B: Enlace Local (Durante desarrollo simultáneo)
+
 ```json
 {
   "devDependencies": {
@@ -74,7 +79,8 @@ npm install
 }
 ```
 
-### Configuración recomendada de scripts en el `package.json` del Host:
+### Configuración recomendada de scripts en el `package.json` del Host
+
 ```json
 {
   "scripts": {
@@ -88,11 +94,27 @@ npm install
 }
 ```
 
+### Gestión Centralizada de Herramientas (SSoT) y Cero Duplicación
+
+`@francogp/auditor` actúa como la **Single Source of Truth** de dependencias de análisis estático y compilación. Incluye y fija internamente:
+
+- **`fallow`**: Inteligencia de código, complejidad ciclomática/cognitiva, duplicaciones y seguridad CWE.
+- **`html-validate`** y **`html-validate-vue`**: Estándares W3C/WHATWG Living Standard en templates.
+- **`typescript`**: Compilador y typechecker nominal.
+- **`markdownlint-cli`**: Linter de higiene y consistencia en documentación.
+- **`css-checker-kit`**: Auditor de duplicación de reglas y selectores CSS/SCSS.
+- **`rollup-plugin-visualizer`**: Generación de treemaps interactivos para presupuestos de bundles.
+
+> [!IMPORTANT]
+> **No dupliques estas herramientas en el host**:
+> Los proyectos consumidores (`facturacion2`, `PokeBorrador`, etc.) **no deben declarar** estas librerías en sus propios `devDependencies`. Al ejecutar `npm update @francogp/auditor`, el proyecto host actualiza automáticamente el motor y las herramientas de análisis al unísono sin alterar su `package.json`.
+
 ---
 
 ## 3. Tutorial: Ejecución y Flujos de Auditoría
 
 ### 3.1. Auditoría Completa del Proyecto
+
 Ejecuta todas las suites genéricas y las extensiones registradas en `audit.config.ts`:
 
 ```bash
@@ -106,6 +128,7 @@ npm run audit
 - Persiste el informe estructurado completo en `scratch/audits/latest_audit.json`.
 
 ### 3.2. Modo Auto-Fix (Corrección Automática)
+
 Muchas suites (como registro de plugins, higiene de Markdown, o formatos automáticos) admiten corrección automática:
 
 ```bash
@@ -115,6 +138,7 @@ npm run audit:fix
 ```
 
 ### 3.3. Filtrar por Familia o Suite Específica
+
 Si deseas ejecutar únicamente las auditorías de arquitectura o documentación:
 
 ```bash
@@ -127,6 +151,7 @@ npx auditor --suite=validate_agent_plugin
 ```
 
 ### 3.4. Auditoría para Pre-Commit Seguro (`auditor-commit`)
+
 Valida que tu trabajo local esté limpio antes de hacer commit o push contra `origin/main`:
 
 ```bash
@@ -144,11 +169,13 @@ npm run audit:commit
 ## 4. Tutorial: Integración con Agentes de IA (Antigravity)
 
 `@francogp/auditor` se distribuye como un **Plugin Oficial de Antigravity**. Incluye:
+
 - **Skill Oficial**: [`skills/auditor-framework/SKILL.md`](skills/auditor-framework/SKILL.md)
 - **Plantillas Oficiales**: [`skills/auditor-framework/assets/templates/`](skills/auditor-framework/assets/templates/)
 - **Reglas Arquitecturales**: [`rules/AGENTS.md`](rules/AGENTS.md)
 
 ### 4.1. Habilitar el Skill en tu Proyecto Host
+
 En la raíz de tu proyecto host, ejecuta:
 
 ```bash
@@ -156,11 +183,13 @@ npx auditor-init-agent
 ```
 
 Este comando:
+
 1. Localiza o crea la carpeta `.agents/` en el proyecto host.
 2. Registra la entrada `"node_modules/@francogp/auditor"` en `.agents/plugins.json`.
 3. Inmediatamente, cualquier agente de IA que trabaje en el proyecto host descubrirá y activará automáticamente el skill `auditor-framework` y las directrices de `rules/AGENTS.md`.
 
 ### 4.2. Detección Automática de Olvidos (`validate_agent_plugin`)
+
 El auditor incluye una suite integrada que verifica si el proyecto host olvidó correr `npx auditor-init-agent`. Si falta el registro, la auditoría fallará con un mensaje guiado:
 
 ```text
@@ -175,6 +204,7 @@ El auditor incluye una suite integrada que verifica si el proyecto host olvidó 
 El auditor actúa como **Single Source of Truth (SSoT)** para el entorno de desarrollo en Linux, macOS y Windows, garantizando **cero hardcoding** y compatibilidad multi-proyecto.
 
 ### 5.1. Sincronizar los Scripts Canónicos al Host
+
 Para adoptar el sistema de setup en un proyecto consumidor:
 
 ```bash
@@ -182,15 +212,19 @@ npx auditor-sync-env
 ```
 
 Esto:
+
 - Copia [`setup-linux.sh`](setup-linux.sh) y [`setup-windows.ps1`](setup-windows.ps1) actualizados a la raíz del host.
 - Crea el directorio de extensiones en `scripts/setup/plugins/`.
 
 ### 5.2. Invariante de Piso Mínimo de Versión (Node / NPM)
+
 Los proyectos consumidores **no pueden solicitar versiones de Node.js o npm inferiores a las requeridas por el auditor**:
+
 - La cota mínima se define dinámicamente en el `package.json` del auditor (ej. `node: ">=26.10.0"`, `npm: ">=12.0.0"`).
 - `npx auditor-check-env` (configurado en el gancho `preinstall` del host) verifica antes de cualquier `npm install` que el entorno cumpla o supere la versión requerida.
 
 ### 5.3. Agregar Plugins Específicos de tu Proyecto
+
 Los scripts de setup del auditor son 100% genéricos. Para agregar tareas propias de tu proyecto (configurar base de datos, generar certificados locales, copiar variables de entorno):
 
 1. **Vía Archivos de Plugin**:
@@ -201,6 +235,7 @@ Los scripts de setup del auditor son 100% genéricos. Para agregar tareas propia
 
 2. **Vía Gancho de NPM (`env:post-setup`)**:
    En el `package.json` del host:
+
    ```json
    {
      "scripts": {
@@ -208,6 +243,7 @@ Los scripts de setup del auditor son 100% genéricos. Para agregar tareas propia
      }
    }
    ```
+
    Si existe, el setup invocará este comando automáticamente al concluir.
 
 ---
@@ -217,6 +253,7 @@ Los scripts de setup del auditor son 100% genéricos. Para agregar tareas propia
 Puedes crear auditores específicos para tu aplicación dentro de `scripts/auditors/` o en un directorio dedicado.
 
 ### 6.1. Sub-Auditor Basado en Archivos (`FileScanAuditor`)
+
 Usa `FileScanAuditor` cuando tu regla deba analizar archivos individuales con expresiones regulares o análisis léxico:
 
 ```typescript
@@ -262,6 +299,7 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
 ```
 
 ### 6.2. Sub-Auditor Global de Alto Rendimiento (`BaseAuditor`)
+
 Usa `BaseAuditor` cuando necesites escanear todo el árbol de directorios, interactuar con herramientas externas o procesar estructuras globales:
 
 ```typescript
@@ -291,6 +329,7 @@ export class BundleLimitsAuditor extends BaseAuditor<'bundle-size-exceeded'> {
 ```
 
 ### 6.3. Análisis de AST Compartido (`SharedAstContext`)
+
 Si necesitas analizar código TypeScript/JavaScript a nivel de Árbol de Sintaxis Abstracta (AST), usa `SharedAstContext` provisto por el framework para no re-parsear archivos:
 
 ```typescript
@@ -347,10 +386,12 @@ export default defineAuditConfig({
 ## 8. Tutorial: Testing Hermético de Sub-Auditores con Vitest
 
 Todas las pruebas unitarias de los sub-auditores deben cumplir los contratos de diseño del framework:
+
 1. **Zero Live Repository Scanning**: Nunca ejecutes `auditor.execute()` sobre `process.cwd()` en tests unitarios. Usa snippets aislados con `testScanFile` o sandboxes con `fs.mkdtemp`.
 2. **Verificación Negativa (Clean Path)**: Cada suite debe probar que un código válido produce `0` errores y estado `passed`.
 
-### Ejemplo de Test Unitario Canónico:
+### Ejemplo de Test Unitario Canónico
+
 ```typescript
 // tests/validate_no_inline_sql.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -405,7 +446,9 @@ describe('NoInlineSqlAuditor', () => {
 ## 9. Tutorial: Reportes, Métricas e Inspección de Hallazgos
 
 ### 9.1. Salida en Terminal (UnifiedTheme Box-Drawing)
+
 El motor formatea todas las tablas con reglas estrictas de renderizado:
+
 - Ancho estándar de **80 columnas**.
 - Medición visual precisa (`getVisualWidth`) para caracteres de doble ancho y emojis (evitando descuadres visuales).
 - Inclusión mandatoria de la fila **`TOTAL CONSOLIDADO`** al final de cada reporte.
@@ -425,7 +468,9 @@ El motor formatea todas las tablas con reglas estrictas de renderizado:
 ```
 
 ### 9.2. Reporte JSON Estructurado
+
 Cada ejecución genera `scratch/audits/latest_audit.json`:
+
 - Metadatos de ejecución (tiempo total, fecha, plataforma).
 - Desglose por sub-auditor y por familia.
 - Array de hallazgos tipados con archivo, línea, columna, regla, mensaje y contexto del snippet afectado.

@@ -1,0 +1,26 @@
+{
+  "skill_name": "typescript-6-upgrade",
+  "evals": [
+    {
+      "id": 0,
+      "name": "temporal-date-migration",
+      "prompt": "Upgrade this Vite + React project to TypeScript 6 and switch my date handling over to the new Temporal API. The countdown logic is in src/lib/countdown.ts.",
+      "expected_output": "TypeScript bumped to 6.0.x, tsconfig lib includes ESNext, countdown.ts rewritten to use Temporal (PlainDate/Duration), and a mention that running it needs Node 26 or a polyfill since this is runnable code.",
+      "files": ["inputs/temporal/countdown.ts", "inputs/temporal/tsconfig.json", "inputs/temporal/package.json"]
+    },
+    {
+      "id": 1,
+      "name": "subpath-imports-and-map-upsert",
+      "prompt": "Use TypeScript 6's new features to clean up src/utils/registry.ts - it's got a bunch of ../../../ imports and a gross has/set/get map pattern.",
+      "expected_output": "Relative imports converted to #/ subpath imports with BOTH the package.json imports field and tsconfig paths added with moduleResolution bundler/nodenext, and the has/set/get pattern replaced with Map.getOrInsert().",
+      "files": ["inputs/registry/registry.ts", "inputs/registry/tsconfig.json", "inputs/registry/package.json"]
+    },
+    {
+      "id": 2,
+      "name": "regexp-escape-search-highlight",
+      "prompt": "Add a search highlighter to my app that takes user input and highlights matches. Use the latest TypeScript 6 stuff to do it safely.",
+      "expected_output": "A highlighter that builds the RegExp with RegExp.escape() on the user input, with reasoning about why escaping matters (special chars like dots/parens), and tsconfig lib including ESNext.",
+      "files": ["inputs/highlight/tsconfig.json", "inputs/highlight/package.json"]
+    }
+  ]
+}

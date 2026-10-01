@@ -70,7 +70,11 @@ const KNOWN_VALID_ABSTRACT_PATHS = new Set([
   'supabase/migrations',
   'supabase/studio',
   'scripts/tests',
-  'scripts/.cache/'
+  'scripts/.cache/',
+  'scripts/setup/plugins/',
+  'scripts/setup/plugins/01_deploy_env.sh',
+  'scripts/setup/plugins/01_deploy_env.ps1',
+  'scripts/auditors/'
 ]);
 
 /** English nouns or syntax descriptors following "npm run" in documentation prose to skip */
@@ -97,37 +101,6 @@ const STANDARD_FILES_TO_SKIP = new Set([
   'Dockerfile', 'docker-compose.yml', '.gitignore', '.eslintrc.cjs'
 ]);
 
-const VENDOR_SKILLS = new Set([
-  'fallow',
-  'fallow-review',
-  'mcp-builder',
-  'vue-best-practices',
-  'vue-debug-guides',
-  'vue-pinia-best-practices',
-  'vue-router-best-practices',
-  'vue-testing-best-practices',
-  'vueuse-functions',
-  'gsap-core',
-  'gsap-frameworks',
-  'gsap-performance',
-  'gsap-plugins',
-  'gsap-scrolltrigger',
-  'gsap-timeline',
-  'gsap-utils',
-  'skill-creator',
-  'ponytail',
-  'ponytail-audit',
-  'ponytail-debt',
-  'ponytail-gain',
-  'ponytail-review',
-  'tdd',
-  'valibot',
-  'vulnerability-scanner',
-  'red-team-tactics',
-  'web-design-guidelines',
-  'architecture',
-  'frontend-design'
-]);
 
 const BUILTIN_SKILLS = new Set([
   'a11y-debugging', 'agy-customizations', 'antigravity-guide', 'chrome-devtools',
@@ -258,29 +231,33 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       const cleanContent = stripCodeBlocks(rawContent);
       const lines = cleanContent.split('\n');
 
+      const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
         const lineNum = i + 1;
 
-        // 1. Check npm run commands
-        const npmRegex = /npm run ([a-zA-Z0-9_:-]+)/g;
-        let npmMatch: RegExpExecArray | null;
-        while ((npmMatch = npmRegex.exec(line)) !== null) {
-          const scriptName = npmMatch[1]!.trim();
-          referencesChecked++;
+        // 1. Check npm run commands (only in project docs; skill manuals document external/consumer workflows)
+        if (!isSkillDoc) {
+          const npmRegex = /npm run ([a-zA-Z0-9_:-]+)/g;
+          let npmMatch: RegExpExecArray | null;
+          while ((npmMatch = npmRegex.exec(line)) !== null) {
+            const scriptName = npmMatch[1]!.trim();
+            referencesChecked++;
 
-          if (scriptName.endsWith(':')) continue;
-          if (IGNORED_SCRIPT_WORDS.has(scriptName.toLowerCase())) continue;
+            if (scriptName.endsWith(':')) continue;
+            if (IGNORED_SCRIPT_WORDS.has(scriptName.toLowerCase())) continue;
 
-          if (!registeredScripts.has(scriptName)) {
-            this.addViolation({
-              ruleId: 'markdown-unregistered-npm-script',
-              severity: 'error',
-              file: relPath,
-              line: lineNum,
-              message: `Comando "npm run ${scriptName}" no está registrado en package.json.scripts`,
-              context: `npm run ${scriptName}`
-            });
+            if (!registeredScripts.has(scriptName)) {
+              this.addViolation({
+                ruleId: 'markdown-unregistered-npm-script',
+                severity: 'error',
+                file: relPath,
+                line: lineNum,
+                message: `Comando "npm run ${scriptName}" no está registrado en package.json.scripts`,
+                context: `npm run ${scriptName}`
+              });
+            }
           }
         }
 
@@ -324,8 +301,8 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
         }
 
         // 4. Check source path references (src/..., scripts/..., supabase/..., tests/...)
-        const isVendorSkill = relPath.startsWith('.agents/skills/') && VENDOR_SKILLS.has(relPath.split('/')[2] || '');
-        if (!isVendorSkill) {
+        // (Skill manuals describe abstract example paths for consumer projects, not this repo's internal code)
+        if (!isSkillDoc) {
           const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
           let pathMatch: RegExpExecArray | null;
           while ((pathMatch = pathRegex.exec(line)) !== null) {

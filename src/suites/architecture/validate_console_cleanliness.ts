@@ -64,8 +64,15 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
     // 1. Audit debugger statements (all files)
     this.auditDebugger(normalizedPath, content);
 
-    // 2. Audit raw console.log (exempt files excluded)
-    if (!EXEMPT_LOGGING_FILES.has(normalizedPath)) {
+    // 2. Audit raw console.log (exempt files, CLI tools, and terminal/auditor engine modules excluded)
+    const isCliOrTerminalOutput =
+      normalizedPath.startsWith('src/cli/') ||
+      normalizedPath.startsWith('src/core/') ||
+      normalizedPath.startsWith('src/suites/') ||
+      normalizedPath.startsWith('src/analyzers/') ||
+      normalizedPath.startsWith('scripts/');
+
+    if (!EXEMPT_LOGGING_FILES.has(normalizedPath) && !isCliOrTerminalOutput) {
       this.auditConsoleLog(normalizedPath, content);
     }
   }
@@ -77,6 +84,14 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
     while ((match = regex.exec(content)) !== null) {
       const line = this.getLineNumber(content, match.index);
       const lineContent = this.getLineAt(content, line);
+      const trimmed = lineContent.trim();
+
+      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+        continue;
+      }
+      if (/['"`][^'"`]*\bdebugger\b[^'"`]*['"`]/.test(lineContent)) {
+        continue;
+      }
 
       if (this.hasEscapeHatch(lineContent, ['debugger-ok', 'console-ok'])) {
         continue;

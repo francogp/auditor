@@ -59,10 +59,23 @@ export interface AuditStylesConfig {
   readonly canonicalButtonVariants?: readonly string[];
 }
 
+export interface ChunkBudgetConfig {
+  readonly name: string;
+  readonly prefix?: string;
+  readonly matcher?: string;
+  readonly limitBytes: number;
+}
+
 export interface AuditBundleConfig {
+  readonly enabled?: boolean;
+  readonly statsFile?: string;
+  readonly distDir?: string;
   readonly exemptChunkPrefixes?: readonly string[];
   readonly maxClientChunkWarnBytes?: number;
   readonly maxClientChunkErrorBytes?: number;
+  readonly budgets?: readonly ChunkBudgetConfig[];
+  readonly duplicateModuleThresholdBytes?: number;
+  readonly topModulesLimit?: number;
 }
 
 export interface AuditEngineConfig {
@@ -124,9 +137,14 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     canonicalButtonVariants: []
   },
   bundle: {
+    statsFile: 'scratch/bundle_stats.html',
+    distDir: 'dist/assets',
     exemptChunkPrefixes: [],
     maxClientChunkWarnBytes: 1200 * 1024,
-    maxClientChunkErrorBytes: 2000 * 1024
+    maxClientChunkErrorBytes: 2000 * 1024,
+    budgets: [],
+    duplicateModuleThresholdBytes: 500 * 1024,
+    topModulesLimit: 15
   },
   customFamilies: [],
   extensions: [],
@@ -159,9 +177,15 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
       canonicalButtonVariants: config.styles?.canonicalButtonVariants ?? []
     },
     bundle: {
+      enabled: config.bundle?.enabled,
+      statsFile: config.bundle?.statsFile ?? DEFAULT_AUDIT_CONFIG.bundle?.statsFile,
+      distDir: config.bundle?.distDir ?? DEFAULT_AUDIT_CONFIG.bundle?.distDir,
       exemptChunkPrefixes: config.bundle?.exemptChunkPrefixes ?? [],
       maxClientChunkWarnBytes: config.bundle?.maxClientChunkWarnBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkWarnBytes,
-      maxClientChunkErrorBytes: config.bundle?.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes
+      maxClientChunkErrorBytes: config.bundle?.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
+      budgets: (config.bundle?.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
+      duplicateModuleThresholdBytes: config.bundle?.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
+      topModulesLimit: config.bundle?.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit
     },
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],

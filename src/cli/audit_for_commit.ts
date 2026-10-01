@@ -18,7 +18,7 @@
 import { spawnSync, execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { styleText } from 'node:util';
+import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import os from 'node:os';
 
@@ -28,6 +28,7 @@ import { renderBanner } from '../core/unifiedTheme.ts';
 import { discoverAuditors } from './auditScanner.ts';
 import { executeAuditorStreaming } from '../core/streamingRunner.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
+import { loadAuditConfig } from '../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -206,9 +207,30 @@ async function runOriginEslint(filePath: string, content: string): Promise<Viola
 }
 
 async function main() {
+  const config = await loadAuditConfig();
+  const args = process.argv.slice(2);
+  const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : a);
+
+  const { values } = parseArgs({
+    args: normalized,
+    options: {
+      preset: { type: 'string' },
+      family: { type: 'string' },
+      task: { type: 'string' },
+      suites: { type: 'string' }
+    },
+    strict: false
+  });
+
+  const presetArg = typeof values.preset === 'string' ? values.preset : undefined;
+  const effectivePreset = presetArg || (config.presets?.commit ? 'commit' : undefined);
+  const familyArg = typeof values.family === 'string' ? values.family : undefined;
+  const taskArg = typeof values.task === 'string' ? values.task : undefined;
+  const suitesArg = typeof values.suites === 'string' ? values.suites.split(',') : undefined;
+
   console.log(renderBanner(
-    'FACTURACIÓN 2.0 - WARNINGS DIFF & PRE-COMMIT GATEKEEPER',
-    'Comparador contra origin/main: Exige 0 errores en proyecto y 0 warnings nuevos'
+    `${config.name.toUpperCase()} - WARNINGS DIFF & PRE-COMMIT GATEKEEPER`,
+    effectivePreset ? `Preset: ${effectivePreset.toUpperCase()} | Exige 0 errores en proyecto y 0 warnings nuevos` : 'Exige 0 errores en proyecto y 0 warnings nuevos'
   ));
   
   const modifiedFiles = await getModifiedFiles();
@@ -225,8 +247,13 @@ async function main() {
     console.log('');
   }
 
-  // Ejecutar dinámicamente el 100% de sub-auditores descubiertos en scripts/auditors/ (incluye validate_eslint y validate_type_check)
-  const discoveredTasks = await discoverAuditors();
+  // Ejecutar dinámicamente los sub-auditores descubiertos (con soporte para presets de commit y CLI)
+  const discoveredTasks = await discoverAuditors({
+    preset: effectivePreset,
+    family: familyArg,
+    task: taskArg,
+    suites: suitesArg
+  });
   const availableCpus = os.availableParallelism ? os.availableParallelism() : os.cpus().length;
   const concurrencyLimit = Math.max(MIN_CONCURRENCY, Math.floor(availableCpus / CPU_CORE_DIVISOR));
   const workerCount = Math.min(concurrencyLimit, discoveredTasks.length);

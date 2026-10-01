@@ -1,0 +1,11 @@
+{
+  "name": "search-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.0"
+  }
+}

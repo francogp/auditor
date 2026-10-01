@@ -22,6 +22,7 @@ Architecture & Tooling Engineers.
 - **Configurable Bundle Chunk Exemptions (`config.bundle.exemptChunkPrefixes`)**: The bundle budget auditor (`validate_bundle_budget`) strictly checks production chunks in `dist/assets/` against main-thread client limits (max 2 MB error, 1.2 MB warning). Heavy Web Worker chunks running in background threads (e.g. `worker-vendor-pkmn-*`) or isolated static data modules MUST NOT be hardcoded inside `@francogp/auditor`. Instead, host projects configure legitimate background worker prefixes dynamically in root `audit.config.ts` via `bundle.exemptChunkPrefixes`.
 - **Standard Living Specification Engines Over Handcrafted Regex Mandate**: When validating web standards, markup hygiene, accessibility, or obsolete HTML5 elements/attributes, the auditor framework and linters MUST NOT implement handcrafted manual regular expressions or arbitrary AST pattern lists (e.g. in ESLint). Sub-auditors MUST delegate to authoritative, actively maintained specification engines (`html-validate` with `html-validate-vue`) that embody the W3C / WHATWG Living Standard, bridging their output into canonical `AuditFinding[]` objects.
 - **Child Process Stream Isolation & Ephemeral Scratch Output Mandate**: Sub-auditors invoking external CLI tools or linters (`html-validate`, `vue-tsc`, `fallow`) via child processes (`spawnSync`) MUST NEVER rely on piping large JSON payloads across standard output (`stdout`), as Node.js process exits can truncate unbuffered output streams. Instead, tools supporting direct file output MUST write raw JSON to an isolated ephemeral file in `scratch/audits/<family>/` (e.g. `-f json=scratch/audits/architecture/html-validate-raw.json`) and parse it cleanly from disk.
+- **Canonical Tool Package Fallow Governance (`.fallowrc.json`)**: Tool packages distributing standalone CLI tools and AI skills must maintain a root `.fallowrc.json` declaring `entry` points, `ignorePatterns` (`skills/**`, `.agents/**`, `scratch/**`, `dist/**`, `tests/**`), and `ignoreDependencies` (for peer/CLI tools such as `css-checker-kit`, `fallow`, `html-validate`, `html-validate-vue`, `markdownlint-cli`, `rollup-plugin-visualizer`, `typescript`). This guarantees unskewed maintainability analysis (>= 90 score) while preserving strict zero-tolerance fallow gating.
 
 ## Key Files
 
@@ -34,4 +35,6 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
-- _This package contains internal source subdirectories (`src/`, `tests/`) governed by package-level contracts._
+- [`rules/AGENTS.md`](./rules/AGENTS.md): Antigravity plugin rules and guidelines for host projects.
+- [`src/AGENTS.md`](./src/AGENTS.md): Framework source code index (core, CLI, analyzers, suites, plugin).
+- [`tests/AGENTS.md`](./tests/AGENTS.md): Vitest unit test suites and hermetic verification tests.

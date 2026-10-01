@@ -54,6 +54,7 @@ export const ALWAYS_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-set:
 /** Additional directories ignored during code scanning (documentation/skills and static assets) */
 export const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
   '.agents',
+  'skills',
   'public',
   'packages',
   'docs'
@@ -91,6 +92,7 @@ export function assertSafePathComponent(component: string): void {
   }
 }
 
+
 /**
  * Loads directory ignore patterns from .fallowrc.json if present.
  */
@@ -123,10 +125,23 @@ export function isPathIgnored(
   const configIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs;
   const hasConfigIgnored = Boolean(configIgnoredDirs && configIgnoredDirs.length > 0);
 
+  let hasUnignoredAncestor = false;
+
   for (const seg of segments) {
-    const isIgnored = CANONICAL_IGNORE_DIRS.has(seg) || (hasConfigIgnored && configIgnoredDirs!.includes(seg));
-    if (isIgnored && !unignoreSet.has(seg)) {
+    if (ALWAYS_IGNORE_DIRS.has(seg)) {
       return true;
+    }
+
+    if (unignoreSet.has(seg)) {
+      hasUnignoredAncestor = true;
+      continue;
+    }
+
+    if (!hasUnignoredAncestor) {
+      const isIgnored = CODE_ONLY_IGNORE_DIRS.has(seg) || (hasConfigIgnored && configIgnoredDirs!.includes(seg));
+      if (isIgnored) {
+        return true;
+      }
     }
   }
 
