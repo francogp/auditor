@@ -124,5 +124,18 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('skips gracefully when explicitly disabled with agentPlugin.enabled: false', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'audit.config.json'),
+        JSON.stringify({ name: 'disabled-plugin-app', agentPlugin: { enabled: false } }),
+        'utf8'
+      );
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 });

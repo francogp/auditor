@@ -28,7 +28,7 @@ import { renderBanner } from '../core/unifiedTheme.ts';
 import { discoverAuditors } from './auditScanner.ts';
 import { executeAuditorStreaming } from '../core/streamingRunner.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
-import { loadAuditConfig } from '../core/auditConfig.ts';
+import { loadAuditConfig, assertAuditConfigComplete } from '../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -208,6 +208,7 @@ async function runOriginEslint(filePath: string, content: string): Promise<Viola
 
 async function main() {
   const config = await loadAuditConfig();
+  assertAuditConfigComplete(config);
   const args = process.argv.slice(2);
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : a);
 

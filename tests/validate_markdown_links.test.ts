@@ -79,8 +79,8 @@ describe('MarkdownLinkAuditor', () => {
     it('detects stale legacy environment references (markdown-stale-environment-path)', () => {
       const markdown = `
         # Legacy Path Warning
-        Refer to [Old Repo](https://github.com/test/PokeBorrador) or path /home/franco/projects.
-        Also check PokeBorrador in plaintext.
+        Refer to [Old Repo](https://github.com/test/repo) or path /home/franco/projects.
+        Also check /Users/Franco/documents in plaintext.
       `;
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);

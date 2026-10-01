@@ -80,17 +80,18 @@ export function extractConstantsFromSource(
 
 export async function detectDuplicateConstants(
   files: string[],
-  astContext?: SharedAstContext
+  astContext?: SharedAstContext,
+  projectRoot = process.cwd()
 ): Promise<Violation[]> {
   const violations: Violation[] = [];
   const declarations = new Map<string, ConstDecl[]>();
   const astEngine = astContext ?? new SharedAstContext();
 
   for (const filePath of files) {
-    const isUnderCwd = !path.isAbsolute(filePath) || !path.relative(process.cwd(), filePath).startsWith('..');
-    const rel = path.relative(process.cwd(), filePath).split(path.sep).join(path.posix.sep);
+    const isUnderRoot = !path.isAbsolute(filePath) || !path.relative(projectRoot, filePath).startsWith('..');
+    const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
     if (
-      (isUnderCwd && isPathIgnored(rel)) ||
+      (isUnderRoot && isPathIgnored(rel)) ||
       isDataPath(rel) ||
       rel.includes('tests') ||
       rel.includes('scripts') ||

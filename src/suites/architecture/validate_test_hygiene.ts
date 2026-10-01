@@ -52,9 +52,23 @@ export const TEST_HYGIENE_RULES: readonly TestHygieneRuleId[] = [
 ] as const;
 
 // Core subsystems forbidden from being mocked in tests/integration/
-const FORBIDDEN_INTEGRATION_MOCK_TARGETS = [
-  '@/logic/db/supabase'
-];
+export function getForbiddenIntegrationMockTargets(): readonly string[] {
+  const config = getAuditConfig();
+  const engine = config.persistence?.engine;
+  if (engine === 'supabase') {
+    return ['@/logic/db/supabase'];
+  }
+  if (engine === 'sqlite') {
+    return ['@/logic/db/sqlite', '@/logic/db/database'];
+  }
+  if (engine === 'hybrid') {
+    return ['@/logic/db/supabase', '@/logic/db/sqlite', '@/logic/db/database'];
+  }
+  if (engine === 'postgres') {
+    return ['@/logic/db/postgres', '@/logic/db/database'];
+  }
+  return [];
+}
 
 const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /(?::has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=)/;
 const FORCE_CLICK_REGEX = /\.(?:click|dblclick)\s*\(\s*\{[^}]*\bforce\s*:\s*true/;
@@ -123,7 +137,8 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
 
       if (this.isLineIgnored(lineContent, ['mock-ok'])) continue;
 
-      for (const forbidden of FORBIDDEN_INTEGRATION_MOCK_TARGETS) {
+      const forbiddenTargets = getForbiddenIntegrationMockTargets();
+      for (const forbidden of forbiddenTargets) {
         if (target === forbidden || target.endsWith(forbidden.replace(/^@\//, '/'))) {
           this.addViolation({
             ruleId: 'no-tautological-integration-mocks',

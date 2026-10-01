@@ -285,8 +285,24 @@ export const hardcodedTimezone: AuditRule = {
   fixable: false
 };
 
+export function getDomainIdFallbackRegex(): RegExp {
+  const config = getAuditConfig();
+  const patterns = config?.domain?.fallbackIdPatterns && config.domain.fallbackIdPatterns.length > 0
+    ? config.domain.fallbackIdPatterns
+    : ['[a-zA-Z0-9_]*[iI]d', 'type', 'status', 'category', 'mode', 'kind'];
+  const joined = patterns.join('|');
+  return new RegExp(
+    `(?:${joined})\\s*(?:=|:)\\s*.*(?:\\?|\\|\\||\\?\\?)\\s*['"]['"]|` +
+    `\\b(?:${joined})\\s*(?:\\|\\||\\?\\?)\\s*[^,\\n;)]*\\b(?:name|description|title)\\b|` +
+    `\\b(?:name|description|title)\\s*(?:\\|\\||\\?\\?)\\s*[^,\\n;)]*\\b(?:${joined})\\b`,
+    'g'
+  );
+}
+
 export const noDomainIdFallbacks: AuditRule = {
-  regex: /(?:tariffId|formulaId|conceptId|voltageCategoryId|taxRateType|serverId|heldItem|item|species|ability|move)\s*(?:=|:)\s*.*(?:\?|\|\||\?\?)\s*['"]['"]|\b(?:tariffId|formulaId|conceptId|voltageCategoryId|taxRateType|serverId|id|species|ability|move|item|moveId|itemId|speciesId|abilityId)\s*(?:\|\||\?\?)\s*[^,\n;)]*\b(?:name|description|moveName|itemName|speciesName|abilityName)\b|\b(?:name|moveName|itemName|speciesName|abilityName)\s*(?:\|\||\?\?)\s*[^,\n;)]*\b(?:id|species|ability|move|item|moveId|itemId|speciesId|abilityId)\b|toID\s*\([^)]*(?:\|\||\?\?)[^)]*\)/g,
+  get regex() {
+    return getDomainIdFallbackRegex();
+  },
   message: "FALLBACK SILENCIOSO EN ID DE DOMINIO / NOMBRE DETECTADO. Queda estrictamente prohibido usar fallbacks silenciosos (|| '', ?? '', .id || .name) para identificadores de dominio. Debe usarse una función de validación estricta que lance un error explícito (Fail Loud) si el ID falta o es inválido.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
@@ -623,7 +639,7 @@ export const zIndexConstantDeclaration: AuditRule = {
 };
 
 export const forbiddenFallbacks: AuditRule = {
-  regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([a-zA-Z0-9_$]+)\.(?:tariffId|formulaId|conceptId|species|name|id)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|species|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b|\.catch\(\s*(?:\([^)]*\)|[a-zA-Z0-9_$]+)?\s*=>\s*(?:true|false|null|undefined|\{\}|""|''|\[\])\s*\)/g,
+  regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([a-zA-Z0-9_$]+)\.(?:[a-zA-Z0-9_]*[iI]d|id|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b|\.catch\(\s*(?:\([^)]*\)|[a-zA-Z0-9_$]+)?\s*=>\s*(?:true|false|null|undefined|\{\}|""|''|\[\])\s*\)/g,
   message: (match: string) => `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio, usar descripciones como fallback de ID, o silenciar promesas con .catch(() => false/null/{}/void). Se debe fallar ruidosamente con throw new Error().`,
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
@@ -1144,7 +1160,9 @@ export const noRawJsonImportsOutsideData: AuditRule = {
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return true;
     const norm = normalizeFilePath(filePath);
-    return !norm.startsWith('src/data/') && !norm.startsWith('scripts/') && !norm.startsWith('tests/') && !norm.startsWith('supabase/');
+    const codeRoots = getAuditConfig()?.paths?.codeRoots ?? ['src', 'scripts'];
+    const isExcluded = norm.startsWith('src/data/') || norm.startsWith('scripts/') || norm.startsWith('tests/') || codeRoots.some(r => r !== 'src' && norm.startsWith(r + '/'));
+    return !isExcluded;
   }
 };
 
@@ -1173,8 +1191,15 @@ export const overscrollBehaviorLock: AuditRule = {
   fixable: false,
   check: (content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
+    const config = getAuditConfig();
+    if (config.styles?.zLayersEnabled === false) return false;
     const norm = normalizeFilePath(filePath);
-    if (!norm.endsWith('src/styles/core/_base.scss') && !norm.endsWith('src/styles/_base.scss')) return false;
+    const configuredScss = config.styles?.zLayersScssFile ? normalizeFilePath(config.styles.zLayersScssFile) : null;
+    if (configuredScss) {
+      if (!norm.endsWith(configuredScss)) return false;
+    } else {
+      if (!norm.endsWith('src/styles/core/_base.scss') && !norm.endsWith('src/styles/_base.scss')) return false;
+    }
     return !content.includes('overscroll-behavior: none !important;');
   }
 };
@@ -1222,21 +1247,6 @@ export const noLayoutAnimationInGsap: AuditRule = {
   fixable: false
 };
 
-export const noHardcodedShowdownGen: AuditRule = {
-  id: 'noHardcodedShowdownGen',
-  name: 'No Hardcoded Showdown Generation',
-  category: 'Showdown Parity',
-  regex: /\b(?:Dex|dex)\.forGen\(\s*([1-8])\s*\)/g,
-  message: (match: string) => `Generación Showdown hardcodeada detectada: '${match}'. Utiliza la constante canónica ACTIVE_GENERATION (9) desde '@/data/system/constants'.`,
-  severity: 'error',
-  fixable: false,
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return true;
-    const norm = normalizeFilePath(filePath);
-    return !norm.includes('constants.ts') && (norm.endsWith('.ts') || norm.endsWith('.js') || norm.endsWith('.vue'));
-  }
-};
-
 export const namedTimerConstants: AuditRule = {
   id: 'namedTimerConstants',
   name: 'Named GSAP Delay Constants',
@@ -1269,7 +1279,7 @@ export const namedTimerConstants: AuditRule = {
 
 export const auditRulesConfig = {
   viewport, gpuGaps, legacyDates, hardcodedTimezone, nodePrefix, esmExtensions, tsIgnore, timersPromises, explicitResource, zIndexAudit, zIndexConstantDeclaration, manualAnimations, emptyVueTransitions, manualTimersFrontend, zeroTimerLogic, zeroTimerBattleLogic, zeroTimerCalculationLogic, noPlaywrightWaitForTimeout, jsonStringifyInWatch, intersectionObserverRoot, dbInTemplates, functionCallsInTemplates, forbiddenFallbacks, forbiddenTypeCasts, doxIndexIntegrity, noDomainIdFallbacks, strictDomainParamTypes, noInlineTypeImports, noInlineLiteralUnions, magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName, noLiteralBooleanType, noInlineAnonymousObjectType, noFloatingPromises, noLeakedGlobalState, missingInteractiveId, sassTraps,
-  noImportantOnTransforms, noImportantOnFilters, noHardcodedShowdownGen, noRawJsonImportsOutsideData, noSassAtImport, overscrollBehaviorLock,
+  noImportantOnTransforms, noImportantOnFilters, noRawJsonImportsOutsideData, noSassAtImport, overscrollBehaviorLock,
   noLayoutAnimationInGsap, namedTimerConstants
 };
 

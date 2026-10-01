@@ -189,7 +189,8 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
           fast: isFast,
           timeoutMs: getTimeoutForTask(filename),
           order: familyMeta.order,
-          requiresAst: AST_DEPENDENT_SUITES.has(id)
+          requiresAst: AST_DEPENDENT_SUITES.has(id),
+          isBuiltin: true
         });
       }
     }
@@ -247,7 +248,8 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
           fast: isFast,
           timeoutMs: getTimeoutForTask(filename),
           order: familyMeta.order,
-          requiresAst: AST_DEPENDENT_SUITES.has(id)
+          requiresAst: AST_DEPENDENT_SUITES.has(id),
+          isBuiltin: false
         });
       }
     }

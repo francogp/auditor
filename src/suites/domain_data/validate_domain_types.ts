@@ -76,9 +76,7 @@ const P_PARAM_DOMAIN_ID_NULLABLE = /\b([A-Za-z0-9_]{2,}[iI]d)\s*:\s*(?:[A-Z]\w*I
 const P_DOMAIN_TYPE_NULLABLE = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=[^;\n]*\|\s*(?:null|undefined)\b/g;
 const P_DOUBLE_CAST_DOMAIN_ID = /\bas\s+(?:unknown|any)\s+as\s+[A-Z]\w*Id\b/g;
 const BASE_UNKNOWN_PARAM_TERMS = [
-  'tariff', 'voltage', 'rate', 'step', 'formula', 'tax', 'charge', 'invoice',
-  'client', 'user', 'customer', 'status', 'category', 'mode', 'kind', 'type',
-  'period', 'reading', 'pokemon', 'species', 'move', 'ability', 'item', 'spawn'
+  'client', 'user', 'customer', 'status', 'category', 'mode', 'kind', 'type', 'period'
 ] as const;
 
 function getParamUnknownOrAnyRegex(): RegExp {
@@ -267,9 +265,9 @@ export async function auditFile(filePath: string): Promise<Finding[]> {
       const targetName = match[2];
       if (!aliasName || !targetName || aliasName === targetName) return false;
       if (/^(?:true|false|null|undefined|NaN|Infinity|\d+)$/.test(targetName)) return false;
-      const defaultIgnored = ['dbJson', 'metadataJson', 'rawJson', 'tariffsJson', 'db'];
+      const defaultIgnored = ['dbJson', 'metadataJson', 'rawJson', 'db'];
       const whitelist = getAuditConfig().domain.infraIdWhitelist ?? [];
-      if (defaultIgnored.includes(targetName) || whitelist.includes(targetName)) return false;
+      if (defaultIgnored.includes(targetName) || targetName.endsWith('Json') || whitelist.includes(targetName)) return false;
       return true;
     }
   ));

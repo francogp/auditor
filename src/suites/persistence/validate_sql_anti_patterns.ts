@@ -93,6 +93,13 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   }
 
   public override runAudit(): void {
+    const config = getAuditConfig();
+    if (config.persistence?.engine === 'none') {
+      this.context.logStep(1, 1, 'Persistencia desactivada explícitamente en audit.config.ts (persistence.engine: "none"). Omitiendo.');
+      this.context.setMetric('Engine', 'none (omitted)');
+      return;
+    }
+
     const migrationsDir = path.resolve(this.projectRoot, this.configuredMigrationsDir);
     const sqlMigrations: { relPath: string; content: string }[] = [];
 

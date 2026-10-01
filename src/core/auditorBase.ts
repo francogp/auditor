@@ -78,10 +78,18 @@ export const SCANNABLE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.js', 
 export const CANONICAL_SCANNABLE_ROOTS = [
   'scripts',
   'src',
-  'tests',
-  'supabase'
+  'tests'
 ] as const;
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
+
+export function getEffectiveScannableRoots(config = getAuditConfig()): readonly string[] {
+  const codeRoots = config.paths?.codeRoots;
+  if (codeRoots && codeRoots.length > 0) {
+    const testRoots = config.paths?.testRoots ?? [];
+    return Array.from(new Set([...codeRoots, ...testRoots]));
+  }
+  return CANONICAL_SCANNABLE_ROOTS;
+}
 
 /**
  * Validates that a path component is safe against path traversal.
@@ -122,8 +130,9 @@ export function isPathIgnored(
   const segments = normalized.split('/');
   const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
 
-  const configIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs;
-  const hasConfigIgnored = Boolean(configIgnoredDirs && configIgnoredDirs.length > 0);
+  const rawConfigIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs ?? [];
+  const configIgnoredDirs = rawConfigIgnoredDirs.map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''));
+  const hasConfigIgnored = configIgnoredDirs.length > 0;
 
   let hasUnignoredAncestor = false;
 
@@ -138,7 +147,7 @@ export function isPathIgnored(
     }
 
     if (!hasUnignoredAncestor) {
-      const isIgnored = CODE_ONLY_IGNORE_DIRS.has(seg) || (hasConfigIgnored && configIgnoredDirs!.includes(seg));
+      const isIgnored = CODE_ONLY_IGNORE_DIRS.has(seg) || (hasConfigIgnored && configIgnoredDirs.some(d => d === seg || normalized === d || normalized.startsWith(d + '/') || normalized.includes('/' + d + '/')));
       if (isIgnored) {
         return true;
       }
@@ -294,7 +303,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     ignorePatterns: combinedIgnores,
     unignoreDirs,
     isPathIgnored: (relPath: string) => isPathIgnored(relPath, combinedIgnores, unignoreDirs),
-    collectFiles: (roots: readonly string[] = CANONICAL_SCANNABLE_ROOTS, allowedExtensions = SCANNABLE_EXTENSIONS) => {
+    collectFiles: (roots: readonly string[] = getEffectiveScannableRoots(), allowedExtensions = SCANNABLE_EXTENSIONS) => {
       const all: string[] = []; // no-domain: Non-domain utility collection or data structure
       for (const root of roots) {
         const fullRoot = path.resolve(projectRoot, root);
@@ -492,7 +501,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
     this.family = options.family;
     this.ruleIds = options.ruleIds ?? [];
     this.ruleDescriptions = options.ruleDescriptions;
-    this.roots = options.roots ?? CANONICAL_SCANNABLE_ROOTS;
+    this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
     this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
     this.unignoreDirs = options.unignoreDirs ?? [];
@@ -612,7 +621,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
   public abstract runAudit(astContext?: SharedAstContext): Promise<void> | void;
 
   public async execute(astContext?: SharedAstContext): Promise<StandardAuditResult> {
-    await loadAuditConfig();
+    await loadAuditConfig(this.projectRoot);
     await this.context.checkFiles();
     let effectiveAst = astContext;
     if (!effectiveAst && this.requiresAst) {

@@ -78,12 +78,19 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 2, 'Descubriendo sub-auditores y extensiones registradas...');
-    const suitesDir = path.join(this.projectRoot, 'packages/auditor/src/suites');
-    const discoveryOptions = fs.existsSync(suitesDir) && this.projectRoot !== process.cwd()
+    const hasLocalSuites = fs.existsSync(path.join(this.projectRoot, 'src/suites')) || fs.existsSync(path.join(this.projectRoot, 'packages/auditor/src/suites'));
+    const isHostProject = fs.existsSync(path.join(this.projectRoot, 'scripts/auditors')) || !hasLocalSuites;
+
+    const suitesDir = fs.existsSync(path.join(this.projectRoot, 'src/suites'))
+      ? path.join(this.projectRoot, 'src/suites')
+      : path.join(this.projectRoot, 'packages/auditor/src/suites');
+    const discoveryOptions = hasLocalSuites && !isHostProject
       ? { baseDir: suitesDir }
       : {};
-    const tasks = await discoverAuditors(discoveryOptions);
+    const allTasks = await discoverAuditors(discoveryOptions);
+    const tasks = isHostProject
+      ? allTasks.filter(t => t.isBuiltin === false)
+      : allTasks.filter(t => t.isBuiltin !== false);
 
     let totalAuditorsChecked = 0;
     let auditorsWithDedicatedTests = 0;
@@ -96,11 +103,17 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       totalAuditorsChecked++;
       const baseName = task.id;
 
-      const candidateRelPaths = [
-        `tests/${baseName}.test.ts`,
-        `packages/auditor/tests/${baseName}.test.ts`,
-        `tests/node/auditors/${baseName}.test.ts`
-      ];
+      const candidateRelPaths = task.isBuiltin === false
+        ? [
+            `tests/node/auditors/${baseName}.test.ts`,
+            `tests/${baseName}.test.ts`,
+            `tests/unit/auditors/${baseName}.test.ts`
+          ]
+        : [
+            `tests/${baseName}.test.ts`,
+            `packages/auditor/tests/${baseName}.test.ts`,
+            `tests/node/auditors/${baseName}.test.ts`
+          ];
 
       let testFileAbs: string | null = null;
       let testFileRel: string = candidateRelPaths[0]!;
@@ -129,7 +142,11 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       auditorsWithDedicatedTests++;
 
       // Check rule coverage and clean execution
-      const suiteAbs = path.resolve(this.projectRoot, task.scriptPath);
+      const suiteAbs = path.isAbsolute(task.scriptPath)
+        ? task.scriptPath
+        : (fs.existsSync(path.resolve(this.projectRoot, task.scriptPath))
+            ? path.resolve(this.projectRoot, task.scriptPath)
+            : path.resolve(task.scriptPath));
       if (!fs.existsSync(suiteAbs)) continue;
 
       const suiteSource = fs.readFileSync(suiteAbs, 'utf-8');

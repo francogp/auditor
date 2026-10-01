@@ -45,10 +45,7 @@ export const MIN_TEST_FILE_LINES = 60;
  * Whitelist of legitimately standalone runners, process wrappers, container benchmarks,
  * and isolated Vue SFC view mounting specs that are exempt from the 60-line floor.
  */
-export const TEST_FRAGMENTATION_WHITELIST: ReadonlySet<string> = new Set([
-  'tests/unit/LoginView.test.ts',
-  'tests/node/billing_contracts.test.ts',
-]);
+export const TEST_FRAGMENTATION_WHITELIST: ReadonlySet<string> = new Set([]);
 
 export interface TestSuiteDistribution {
   micro: number;       // < 60 lines

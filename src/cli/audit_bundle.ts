@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { enableCompileCache } from 'node:module';
-import { loadAuditConfig, getAuditConfig, type ChunkBudgetConfig } from '../core/auditConfig.ts';
+import { loadAuditConfig, getAuditConfig, assertAuditConfigComplete, type ChunkBudgetConfig } from '../core/auditConfig.ts';
 import { renderBanner, renderBoxTable, formatStatusBadge, type TableColumn } from '../core/unifiedTheme.ts';
 
 enableCompileCache();
@@ -251,6 +251,7 @@ export async function executeCli(): Promise<void> {
 
   await loadAuditConfig(projectRoot);
   const config = getAuditConfig();
+  assertAuditConfigComplete(config);
   const bundleConfig = config.bundle;
 
   if (bundleConfig?.enabled === false) {

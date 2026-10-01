@@ -24,6 +24,12 @@ export default defineAuditConfig({
   styles: {
     zLayersEnabled: false
   },
+  templates: {
+    requireInputIds: false
+  },
+  agentPlugin: {
+    enabled: true
+  },
   presets: {
     commit: [
       'validate_dox_integrity',

@@ -66,7 +66,7 @@ export class DuplicateConstantsAuditor extends BaseAuditor<DuplicateConstantsRul
 
     this.filesScannedCount = absFiles.length;
 
-    const rawViolations = await detectDuplicateConstants(absFiles, astContext);
+    const rawViolations = await detectDuplicateConstants(absFiles, astContext, this.projectRoot);
 
     for (const v of rawViolations) {
       const isIdentical = v.message.includes('idéntico');

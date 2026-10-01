@@ -174,10 +174,11 @@ export function checkMarkdownLinksInContent(
     // Clean wrapping backticks or quotes in rawUrl if present
     rawUrl = rawUrl.replace(/^[`'"]+|[`'"]+$/g, '');
 
-    // Check for stale environment references in link URL or text
+    // Check for personal machine environment paths in link URL or text
+    const STALE_ENV_PATH_REGEX = /(?:\/home\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+|\/Users\/[a-zA-Z0-9_-]+)/i;
     if (
-      /(?:PokeBorrador|\/home\/franco|Users[\\/]Franco)/i.test(rawUrl) ||
-      /(?:PokeBorrador|\/home\/franco|Users[\\/]Franco)/i.test(linkText)
+      STALE_ENV_PATH_REGEX.test(rawUrl) ||
+      STALE_ENV_PATH_REGEX.test(linkText)
     ) {
       linksChecked++;
       brokenLinks.push({
@@ -279,7 +280,7 @@ export function checkMarkdownLinksInContent(
 
     const textWithoutInlineCode = lineText.replace(/`[^`\n]+`/g, '');
 
-    if (/(?:PokeBorrador|\/home\/franco|Users[\\/]Franco)/i.test(textWithoutInlineCode)) {
+    if (/(?:\/home\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+|\/Users\/[a-zA-Z0-9_-]+)/i.test(textWithoutInlineCode)) {
       brokenLinks.push({
         sourceFile: relSourceFile,
         linkText: '',

@@ -453,6 +453,9 @@ export default defineAuditConfig({
   templates: {
     requireInputIds: false
   },
+  agentPlugin: {
+    enabled: true // false si el proyecto no utiliza el plugin de IA
+  },
   customFamilies: [
     {
       key: 'billing',
@@ -618,6 +621,9 @@ Si tu proyecto utiliza una versión previa local (`packages/auditor`) o el paque
    ```bash
    npx auditor-init-agent
    ```
+
+6. **Cumple el Mandato de Configuración Explícita Obligatoria**:
+   Asegúrate de que tu `audit.config.ts` declare explícitamente todos los subsistemas (`persistence`, `bundle`, `styles`, `templates`, `agentPlugin`), ya sea configurándolos con sus valores o desactivándolos con `enabled: false` o `engine: 'none'`. La auditoría fallará de inmediato si falta algún subsistema.
 
 ---
 

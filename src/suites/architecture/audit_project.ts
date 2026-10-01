@@ -566,7 +566,13 @@ function runFallow(command: string, extraArgs: string[] = []): Violation[] {
   let parsedSuccessfully = false;
   try {
     const args = ['--format', 'json', ...extraArgs]; // no-domain: Non-domain utility collection or data structure
-    const fallowBin = path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+    const candidates = [
+      path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow'),
+      path.resolve(import.meta.dirname, '../../node_modules/fallow/bin/fallow'),
+      path.resolve(import.meta.dirname, '../../../node_modules/fallow/bin/fallow'),
+      path.resolve(import.meta.dirname, '../../../../node_modules/fallow/bin/fallow')
+    ];
+    const fallowBin = candidates.find(c => existsSync(c)) || candidates[0]!;
     const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
     const stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 50 * 1024 * 1024, timeout: 45000, killSignal: 'SIGKILL' });
     const jsonStart = stdout.indexOf('{');

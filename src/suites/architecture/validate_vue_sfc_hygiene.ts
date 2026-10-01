@@ -47,7 +47,7 @@ const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
 const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
 const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[a-zA-Z0-9_-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[a-zA-Z0-9_-]+="[^"\n]*"[a-zA-Z0-9_$]/;
-const DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:tariffDataProvider|dataProvider)\.[a-zA-Z0-9_]+\s*\(/g;
+const DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\.[a-zA-Z0-9_]+\s*\(/g;
 
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   constructor() {

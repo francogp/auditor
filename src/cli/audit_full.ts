@@ -26,7 +26,7 @@ import {
   resolveFamilyMetadata,
   getActiveFamilies
 } from '../core/auditContract.ts';
-import { loadAuditConfig } from '../core/auditConfig.ts';
+import { loadAuditConfig, assertAuditConfigComplete } from '../core/auditConfig.ts';
 import {
   renderBanner,
   renderConsolidatedFooter,
@@ -49,6 +49,7 @@ async function runMasterAudit() {
   process.env.AUDIT_SUBPROCESS = 'true';
   const startTime = performance.now();
   const config = await loadAuditConfig();
+  assertAuditConfigComplete(config);
   const activeFamilies = getActiveFamilies(config.customFamilies);
   const args = process.argv.slice(2);
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (['errors-only', 'fix', 'all'].includes(a) ? `--${a}` : a));

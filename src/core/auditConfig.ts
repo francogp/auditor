@@ -88,6 +88,10 @@ export interface AuditBundleConfig {
   readonly topModulesLimit?: number;
 }
 
+export interface AuditAgentPluginConfig {
+  readonly enabled?: boolean;
+}
+
 export interface AuditEngineConfig {
   readonly name: string;
   readonly paths: AuditPathsConfig;
@@ -96,9 +100,11 @@ export interface AuditEngineConfig {
   readonly templates?: AuditTemplatesConfig;
   readonly styles?: AuditStylesConfig;
   readonly bundle?: AuditBundleConfig;
+  readonly agentPlugin?: AuditAgentPluginConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
+  readonly _declaredSubsystems?: ReadonlySet<string>;
 }
 
 export type DeepPartial<T> = {
@@ -157,14 +163,26 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     duplicateModuleThresholdBytes: 500 * 1024,
     topModulesLimit: 15
   },
+  agentPlugin: {
+    enabled: true
+  },
   customFamilies: [],
   extensions: [],
   presets: {}
 };
 
 let cachedConfig: AuditEngineConfig | null = null;
+let cachedProjectRoot: string | null = null;
 
 export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
+  const declared = new Set<string>();
+  if (config.persistence !== undefined) declared.add('persistence');
+  if (config.domain !== undefined) declared.add('domain');
+  if (config.styles !== undefined) declared.add('styles');
+  if (config.templates !== undefined) declared.add('templates');
+  if (config.bundle !== undefined) declared.add('bundle');
+  if (config.agentPlugin !== undefined) declared.add('agentPlugin');
+
   return {
     name: config.name,
     paths: {
@@ -201,17 +219,53 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
       duplicateModuleThresholdBytes: config.bundle?.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
       topModulesLimit: config.bundle?.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit
     },
+    agentPlugin: {
+      enabled: config.agentPlugin?.enabled ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
+    },
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
-    presets: config.presets ?? {}
+    presets: config.presets ?? {},
+    _declaredSubsystems: declared
   };
+}
+
+/**
+ * Validates that all required subsystems are explicitly declared in audit.config.ts.
+ * Enforces the "Mandato de Configuración Explícita y Cero Omisiones Silenciosas".
+ */
+export function assertAuditConfigComplete(config: AuditEngineConfig): void {
+  const missing: string[] = [];
+
+  if (!config._declaredSubsystems?.has('persistence') || !config.persistence?.engine) {
+    missing.push("  - 'persistence': Debe declarar explícitamente 'persistence: { engine: \"supabase\" | \"sqlite\" | \"postgres\" | \"hybrid\" | \"none\" }'.");
+  }
+  if (!config._declaredSubsystems?.has('bundle') || config.bundle?.enabled === undefined) {
+    missing.push("  - 'bundle': Debe declarar explícitamente 'bundle: { enabled: true }' (con 'exemptChunkPrefixes' si aplica) o 'bundle: { enabled: false }'.");
+  }
+  if (!config._declaredSubsystems?.has('styles') || (config.styles?.zLayersEnabled === undefined && !config.styles?.zLayersScssFile && (!config.styles?.globalUtilityClasses || config.styles.globalUtilityClasses.length === 0))) {
+    missing.push("  - 'styles': Debe declarar explícitamente 'styles: { zLayersEnabled: true, zLayersScssFile: \"...\" }' o 'styles: { zLayersEnabled: false }'.");
+  }
+  if (!config._declaredSubsystems?.has('templates') || config.templates?.requireInputIds === undefined) {
+    missing.push("  - 'templates': Debe declarar explícitamente 'templates: { requireInputIds: false }' o 'templates: { requireInputIds: true }'.");
+  }
+  if (!config._declaredSubsystems?.has('agentPlugin') || config.agentPlugin?.enabled === undefined) {
+    missing.push("  - 'agentPlugin': Debe declarar explícitamente 'agentPlugin: { enabled: true }' o 'agentPlugin: { enabled: false }'.");
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `[AuditConfig] Configuración obligatoria incompleta en audit.config.ts (Mandato de Configuración Explícita y Cero Omisiones Silenciosas):\n` +
+      missing.join('\n') +
+      `\n\nTodos los subsistemas deben estar explícitamente configurados (activos o ignorados con enabled: false o engine: 'none').`
+    );
+  }
 }
 
 /**
  * Synchronously loads audit.config.ts or audit.config.json if possible, or falls back to defaults.
  */
 export async function loadAuditConfig(projectRoot: string = process.cwd()): Promise<AuditEngineConfig> {
-  if (cachedConfig) return cachedConfig;
+  if (cachedConfig && cachedProjectRoot === projectRoot) return cachedConfig;
 
   const configPath = path.resolve(projectRoot, 'audit.config.ts');
   const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
@@ -222,6 +276,7 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
       const mod = (await import(fileUrl)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
       if (mod.default) {
         cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
+        cachedProjectRoot = projectRoot;
         return cachedConfig;
       }
     } catch (err: unknown) {
@@ -233,6 +288,7 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
       const content = fs.readFileSync(jsonConfigPath, 'utf-8');
       const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
       cachedConfig = defineAuditConfig(parsed);
+      cachedProjectRoot = projectRoot;
       return cachedConfig;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -241,6 +297,7 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
   }
 
   cachedConfig = DEFAULT_AUDIT_CONFIG;
+  cachedProjectRoot = projectRoot;
   return cachedConfig;
 }
 
@@ -256,6 +313,7 @@ export function getAuditConfig(): AuditEngineConfig {
  */
 export function resetAuditConfig(): void {
   cachedConfig = null;
+  cachedProjectRoot = null;
 }
 
 /**

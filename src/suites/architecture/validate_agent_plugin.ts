@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
+import { getAuditConfig, loadAuditConfig } from '../../core/auditConfig.ts';
 import { initAgentSkill } from '../../cli/init_agent.ts';
 
 enableCompileCache();
@@ -60,6 +61,15 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       }
     }
 
+    const config = this.projectRoot !== process.cwd()
+      ? await loadAuditConfig(this.projectRoot)
+      : getAuditConfig();
+    if (config.agentPlugin?.enabled === false) {
+      this.context.logStep(1, 1, 'Validación de plugin para agentes omitida (agentPlugin.enabled: false).');
+      this.context.setMetric('Agent Plugin Status', 'Disabled');
+      return;
+    }
+
     const pluginsJsonPath = path.join(this.projectRoot, '.agents/plugins.json');
     let isRegistered = false;
 
@@ -69,7 +79,10 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         const data = JSON.parse(raw) as { entries?: Array<{ path: string }> };
         if (Array.isArray(data.entries)) {
           isRegistered = data.entries.some(
-            e => e.path === 'node_modules/@francogp/auditor' || e.path.endsWith('@francogp/auditor')
+            e => e.path === 'node_modules/@francogp/auditor' ||
+                 e.path.endsWith('@francogp/auditor') ||
+                 e.path === './packages/auditor' ||
+                 e.path === 'packages/auditor'
           );
         }
       } catch {

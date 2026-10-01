@@ -75,6 +75,13 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
+    const config = getAuditConfig();
+    if (config.bundle?.enabled === false) {
+      this.context.logStep(1, 1, 'Auditoría de presupuestos de bundle omitida (bundle.enabled: false).');
+      this.context.setMetric('Bundle Status', 'Disabled');
+      return;
+    }
+
     const allFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue', '.js']));
     const candidateFiles = allFiles.filter(f => {
       const base = path.basename(f);
