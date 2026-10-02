@@ -334,7 +334,8 @@ function tryLoadJsonConfig(jsonConfigPath, projectRoot, logWarning = false) {
 export async function loadAuditConfig(projectRoot = process.cwd()) {
     if (cachedConfig && cachedProjectRoot === projectRoot)
         return cachedConfig;
-    const configPath = path.resolve(projectRoot, 'audit.config.ts');
+    const customConfig = process.env.AUDIT_CONFIG;
+    const configPath = customConfig ? path.resolve(projectRoot, customConfig) : path.resolve(projectRoot, 'audit.config.ts');
     const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
     if (fs.existsSync(configPath)) {
         try {
