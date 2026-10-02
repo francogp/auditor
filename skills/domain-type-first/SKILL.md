@@ -70,8 +70,8 @@ Before writing or modifying ANY TypeScript code in `src/` or `scripts/`, mentall
 ✅ const species = requireEntityId(raw); // Loud failure at trust boundary
 
 // 7. Secondary property / display name fallbacks
-❌ const id = poke.id || poke.name || '';
-✅ const id = poke.id; // Pure canonical ID; display name is resolved via helper
+❌ const id = entity.id || entity.name || '';
+✅ const id = entity.id; // Pure canonical ID; display name is resolved via helper
 
 // 8. Dummy initializations in domain branching
 ❌ let winnerSide = '' as SideID;
@@ -117,9 +117,9 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 
 ## Absolute Prohibition on Silent Domain ID & Name Fallbacks (`noDomainIdFallbacks` / `noDomainNameFallbacks`)
 
-- **Domain-Type-First Principle**: Identifiers for domain entities (`ItemId`, `EntityId`, `AbilityId`, `ActionId`, `TrainerClassId`, etc.) MUST NEVER have silent runtime fallback defaults (e.g. `item = rawItem || ''`, `species = poke.species ?? ''`, `id: raw.id || raw.name`, `toID(x || y)`).
+- **Domain-Type-First Principle**: Identifiers for domain entities (`ItemId`, `EntityId`, `AbilityId`, `ActionId`, `TrainerClassId`, etc.) MUST NEVER have silent runtime fallback defaults (e.g. `item = rawItem || ''`, `species = entity.species ?? ''`, `id: raw.id || raw.name`, `toID(x || y)`).
 - **Fail Loud & Fast Mandate**: If an ID is missing, malformed, or does not exist in the domain set, the system MUST throw an explicit, descriptive error immediately (e.g. via `requireItemId(x)`, `requireEntityId(x)`).
-- **Canonical ID Mandate**: Every domain entity MUST be resolved, validated, and evaluated STRICTLY via its canonical `id`. It is forbidden to fall back to secondary fields or names (`toID(m.id || m.name)`, `p.species || p.name`, `p.id || p.name`, `move.id || move.name`).
+- **Canonical ID Mandate**: Every domain entity MUST be resolved, validated, and evaluated STRICTLY via its canonical `id`. It is forbidden to fall back to secondary fields or names (`toID(m.id || m.name)`, `item.category || item.name`, `entity.id || entity.name`, `action.id || action.name`).
 - **UI Localization Boundary**: For presentation in UI labels/buttons, Spanish translations must be resolved via standard domain mapping helpers (e.g. `getItemName(id)`, `getAbilityName(id)`). The underlying data structures, payloads, and state properties must remain strictly typed domain IDs.
 - **Audit Rules Enforcement**: Enforced automatically by `noDomainIdFallbacks` and `noDomainNameFallbacks` in `src/suites/architecture/audit_rules.ts`.
 

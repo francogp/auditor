@@ -1,10 +1,10 @@
 /**
- * scripts/auditors/extensions/validate_overscroll_lock.extension.ts
+ * skills/auditor/references/extensions/validate_overscroll_lock.extension.ts
  *
- * POKÉ VICIO (POKEBORRADOR) OVERSCROLL LOCK EXTENSION AUDITOR (Node.js 26+ Native)
+ * MOBILE VIEWPORT & OVERSCROLL LOCK EXTENSION AUDITOR (Node.js 26+ Native)
  *
  * Extracted from @francogp/auditor core as a host-specific mobile game extension.
- * Enforces Poké Vicio mobile viewport lock:
+ * Enforces mobile viewport lock:
  *   - Verifies that the base stylesheet (e.g. 'src/styles/core/_base.scss') declares
  *     'overscroll-behavior: none !important;' on 'html, body' to prevent accidental
  *     pull-to-refresh and swipe-navigation gestures on mobile canvas/touch screens.

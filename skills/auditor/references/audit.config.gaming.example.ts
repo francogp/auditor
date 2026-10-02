@@ -1,7 +1,7 @@
 /**
- * .agents/skills/auditor-framework/references/audit.config.pokevicio.example.ts
+ * skills/auditor/references/audit.config.gaming.example.ts
  *
- * Audit configuration example for Poké Vicio (PokeBorrador).
+ * Audit configuration example for a Gaming / Turn-Based Battle App.
  * Complex web application with hybrid persistence (SQLite + Supabase),
  * heavy Web Workers exempt from main-thread budget, custom audit families, and
  * local host extension sub-auditors (including render_performance).
@@ -14,7 +14,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
   // Human-readable project name displayed in terminal reports and Box-Drawing headers
-  name: 'Poké Vicio',
+  name: 'Turn-Based Battle Game',
 
   paths: {
     srcRoots: ['src'], // Root directories containing application production code
@@ -24,7 +24,7 @@ export default defineAuditConfig({
     migrationsDir: 'database/migrations', // Directory containing SQL migration scripts
     scriptsRoots: ['scripts'], // Support, compilation, and game emulation scripts directory
     codeRoots: ['src', 'scripts', 'database'], // Consolidated directories subject to static code audits
-    dataRoots: ['src/data'], // Massive game catalogs (Pokémon, moves, items) exempt from LOC/complexity limits but strongly typed
+    dataRoots: ['src/data'], // Massive game catalogs (creatures, moves, items) exempt from LOC/complexity limits but strongly typed
     constantsRoots: ['src/logic/constants', 'src/constants'], // Global constants and immutable master tables directories
     componentsRoots: ['src/components'], // Visual UI components (Vue SFC .vue files)
     viewsRoots: ['src/views'], // Screen views and game battle scenarios (Vue Router)
@@ -38,7 +38,7 @@ export default defineAuditConfig({
     includeTestsInCodeAudit: false, // Determines whether test files are audited under production code rules (false avoids false positives)
     testFragmentationWhitelist: ['src/logic/battle/battleEngine.ts'], // High-complexity modules formally permitted to fragment test suites
     ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**', '.tsbuildinfo/**'], // Universal glob ignore patterns for static tools and file scanning
-    ignoredDirs: ['external', 'showdown', 'backup_legacy_code', 'test aventura'], // Folders entirely excluded from auditor analysis and traversal
+    ignoredDirs: ['external', 'legacy_sim', 'backup_legacy_code', 'test_sandbox'], // Folders entirely excluded from auditor analysis and traversal
     ignoredPatterns: ['src/logic/db/migrations_data.ts'] // Specific path patterns exempt from particular scans
   },
 
@@ -51,7 +51,7 @@ export default defineAuditConfig({
       'src/logic/utils/saveCoordinator.ts', // Module authorized to coordinate save operations
       'src/logic/utils/saveActionHelpers.ts' // Authorized helpers for save action serialization
     ],
-    saveKeyPrefixes: ['pokemon_local_save_', 'pvs_sandbox_save'], // Mandatory prefixes on local storage keys to isolate saves
+    saveKeyPrefixes: ['game_local_save_', 'sandbox_save'], // Mandatory prefixes on local storage keys to isolate saves
     positionalArrayColumns: ['team', 'box'], // Database columns storing arrays ordered by position (team slots and boxes)
     allowedDatabaseDirs: ['backups', 'migrations', 'schemas', 'snapshots'], // Authorized subdirectories within persistence directory
     allowedDatabaseFiles: ['AGENTS.md', '.gitkeep', 'seed.sql'] // Authorized files at persistence root without triggering orphan alerts
@@ -86,7 +86,7 @@ export default defineAuditConfig({
       MAX: 100000, // General maximum limit for standard layers
       CRITICAL: 999999 // Critical layer reserved for system fatal errors and crash screens
     },
-    globalUtilityClasses: ['pv-button-retro'], // Global CSS utility classes authorized as exceptions to strict BEM
+    globalUtilityClasses: ['btn-game-retro'], // Global CSS utility classes authorized as exceptions to strict BEM
     heavyEffectPaths: ['src/styles/weather', 'src/styles/atmosphere'] // Style modules with authorized heavy CSS directives (weather, atmospheric effects)
   },
 
@@ -95,10 +95,10 @@ export default defineAuditConfig({
     maxClientChunkWarnBytes: 1500 * 1024, // Warning threshold for client chunks (1.5 MB)
     maxClientChunkErrorBytes: 2500 * 1024, // Critical error threshold for client chunks (2.5 MB)
     exemptChunkPrefixes: [
-      'worker-vendor-pkmn', // Web Worker for Pokémon simulation engine decoupled from main thread
+      'worker-vendor-sim', // Web Worker for battle simulation engine decoupled from main thread
       'worker-game-data', // Web Worker for loading and querying heavy game data
-      'vendor-pkmn-sim', // Heavy dynamically loaded battle simulator
-      'game-data-pokemon', // On-demand loaded game data chunk
+      'vendor-sim', // Heavy dynamically loaded battle simulator
+      'game-data-entities', // On-demand loaded game data chunk
       'vendor-randoms' // Complex pseudo-random number generator for battles
     ],
     budgets: [
@@ -112,8 +112,8 @@ export default defineAuditConfig({
 
   templates: {
     requireInputIds: false, // Does not require mandatory IDs on all interactive elements
-    tooltipComponents: ['Tooltip', 'PVTooltip'], // Registered tooltip components recognized by template auditor
-    safeTemplateFunctions: ['t', 'getItemSprite', 'getPokemonSprite'], // Safe and pure functions permitted in Vue templates
+    tooltipComponents: ['Tooltip', 'GameTooltip'], // Registered tooltip components recognized by template auditor
+    safeTemplateFunctions: ['t', 'getItemSprite', 'getCreatureSprite'], // Safe and pure functions permitted in Vue templates
     forbiddenTemplateCallPatterns: ['(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\\.[a-zA-Z0-9_]+\\s*\\('] // Forbidden call patterns preventing infinite re-render loops
   },
 
@@ -122,9 +122,9 @@ export default defineAuditConfig({
   },
 
   constants: {
-    ignoredNames: ['DEFAULT_DEX_GENERATION', 'INITIAL_MONEY'], // Global constants exempt from duplicate analysis
+    ignoredNames: ['DEFAULT_GENERATION', 'INITIAL_COINS'], // Global constants exempt from duplicate analysis
     allowedNumericPrefixes: ['GEN_', 'ISO_', 'BASE_'], // Permitted prefixes for numeric constants
-    exemptMagicNumbers: [151, 251, 386, 493] // Canonical Pokémon generation counts exempt from magic number alerts
+    exemptMagicNumbers: [100, 200, 300, 500] // Canonical generation limits exempt from magic number alerts
   },
 
   documentation: {
@@ -157,19 +157,19 @@ export default defineAuditConfig({
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
     zLayersFile: 'src/logic/constants/visuals.ts', // Path to canonical TypeScript z-index layers file for domain parity verification
-    caseNormalizationExemptTokens: ['rpg', 'pvp', 'pve', 'fsm', 'dex', 'hp', 'atk', 'def', 'spa', 'spd', 'spe', 'iv', 'ev'], // Battle acronyms and terms exempt from casing warnings
+    caseNormalizationExemptTokens: ['rpg', 'pvp', 'pve', 'fsm', 'dex', 'hp', 'atk', 'def', 'spe', 'exp'], // Battle acronyms and terms exempt from casing warnings
     allowedStoreSetterPrefixes: ['set', 'update', 'equip'], // Authorized semantic prefixes for Pinia store mutator methods
     allowedNumericConstantPrefixes: [
       'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_',
       'GEN1_', 'GEN2_', 'GEN3_', 'GEN4_', 'GEN5_', 'GEN6_', 'GEN7_', 'GEN8_', 'GEN9_'
-    ], // Authorized prefixes in numeric constant identifiers (including Pokémon generations)
+    ], // Authorized prefixes in numeric constant identifiers
     finiteDomainTypes: [
-      'PokemonId', // Canonical Pokémon species identifier
+      'CreatureId', // Canonical creature species identifier
       'MoveId', // Canonical move identifier
       'AbilityId', // Canonical ability identifier
       'ItemId', // Canonical item identifier
       'NatureId', // Canonical nature identifier
-      'Type', // Elemental type of Pokémon/move
+      'Type', // Elemental type of creature/move
       'BattleStatus', // Altered battle status (paralysis, poison, etc.)
       'Weather', // Active weather on battlefield
       'Terrain', // Active terrain on battlefield
@@ -193,12 +193,10 @@ export default defineAuditConfig({
       'asset_id',
       'uuid',
       'roomId',
-      'nationalId',
-      'national_id',
-      'nationalDexId',
-      'national_dex_id',
-      'dexId',
-      'dex_id',
+      'indexId',
+      'index_id',
+      'catalogId',
+      'catalog_id',
       'catId',
       'cat_id',
       'shadowId',
@@ -284,14 +282,14 @@ export default defineAuditConfig({
     './scripts/auditors/domain_data/validate_abilities.ts', // Validates referential integrity and typing of abilities catalog
     './scripts/auditors/domain_data/validate_items.ts', // Validates data integrity and prices of items catalog
     './scripts/auditors/domain_data/validate_moves.ts', // Validates types, powers, and effects of moves catalog
-    './scripts/auditors/domain_data/validate_pokemon.ts', // Validates base stats and types of Pokémon species catalog
-    './scripts/auditors/domain_data/validate_spanish_ids.ts', // Ensures domain identifiers preserve technical English naming
-    './scripts/auditors/domain_data/validate_spawns_whitelist.ts', // Validates encounter generation tables against official Pokédex
+    './scripts/auditors/domain_data/validate_creatures.ts', // Validates base stats and types of creature species catalog
+    './scripts/auditors/domain_data/validate_technical_ids.ts', // Ensures domain identifiers preserve technical English naming
+    './scripts/auditors/domain_data/validate_spawns_whitelist.ts', // Validates encounter generation tables against canonical catalog
     './scripts/auditors/fsm/validate_combat_invariants.ts', // Verifies combat turn transitions preserve mathematical invariants
     './scripts/auditors/fsm/validate_fsm_diagrams.ts', // Checks parity between combat state diagrams and executable code
     './scripts/auditors/fsm/validate_fsm_flow_parity.ts', // Validates flow parity across decision, animation, and resolution phases
     './scripts/auditors/fsm/validate_fsm_implementation.ts', // Audits finite state machine (FSM) implementation
-    './scripts/auditors/fsm/validate_showdown_parity.ts', // Verifies consistency of battle mechanics against Pokémon Showdown standard
+    './scripts/auditors/fsm/validate_sim_parity.ts', // Verifies consistency of battle mechanics against reference simulator
     './scripts/auditors/persistence/validate_save_persistence_parity.ts', // Validates serialization and deserialization parity of save games
     './scripts/auditors/persistence/validate_schema_parity.ts', // Ensures complete parity between SQLite and Supabase database schemas
     './scripts/auditors/persistence/validate_sql_migrations.ts' // Verifies idempotency, reversibility, and syntax in SQL migrations

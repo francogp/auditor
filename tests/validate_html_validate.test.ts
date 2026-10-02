@@ -76,7 +76,7 @@ describe('HtmlValidateAuditor & parseHtmlValidateResults', () => {
 
     it('parses JSON string output with npm notice and node warning noise', () => {
       const jsonStr = `
-        npm notice run facturacion2@2.0.0 npx
+        npm notice run my-app@1.0.0 npx
         (node:1234) ExperimentalWarning: CommonJS is not recommended
         [
           {

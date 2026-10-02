@@ -4,7 +4,7 @@
  *
  * Antigravity Agent Plugin Registrator (Node.js 26+ Native)
  * Automatically registers @francogp/auditor in .agents/plugins.json of the host project
- * so Antigravity AI agents instantly discover the official auditor-framework skill and rules.
+ * so Antigravity AI agents instantly discover the official auditor skill and rules.
  */
 export interface InitAgentOptions {
     targetDir?: string;

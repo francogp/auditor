@@ -2,7 +2,7 @@
 
 > **Motor autónomo de análisis estático, auditoría de arquitectura, empaquetado de skills para agentes de IA y gobierno de calidad de código para proyectos Node.js 26+ nativos (`--permission`, `--experimental-strip-types`).**
 
-Provee el framework abstracto `BaseAuditor` y `FileScanAuditor`, un runner streaming concurrente de alta velocidad, renderizado terminal estandarizado en tablas Box-Drawing (80 columnas fijas, visual width alineado con emojis y fila mandatoria `TOTAL CONSOLIDADO`), 36 suites de análisis genéricas integradas, **distribución nativa de 43 skills y reglas para agentes de IA de Antigravity**, **herramientas de análisis centralizadas (SSoT)** y un **sistema agnóstico de gobierno de entornos multiplataforma (Linux/Windows) con arquitectura de plugins extensibles y cero hardcoding**.
+Provee el framework abstracto `BaseAuditor` y `FileScanAuditor`, un runner streaming concurrente de alta velocidad, renderizado terminal estandarizado en tablas Box-Drawing (80 columnas fijas, visual width alineado con emojis y fila mandatoria `TOTAL CONSOLIDADO`), 36 suites de análisis genéricas integradas, **distribución nativa de 43 skills para agentes de IA de Antigravity**, **herramientas de análisis centralizadas (SSoT)** y un **sistema agnóstico de gobierno de entornos multiplataforma (Linux/Windows) con arquitectura de plugins extensibles y cero hardcoding**.
 
 ---
 
@@ -117,7 +117,7 @@ npm install
 
 > [!IMPORTANT]
 > **Elimina dependencias redundantes en el host**:
-> Los proyectos consumidores (`facturacion2`, `PokeBorrador`, etc.) **no deben declarar** estas librerías en sus propios `devDependencies`. Al ejecutar `npm update @francogp/auditor`, todos los proyectos dependientes reciben las versiones actualizadas de estas herramientas de forma unificada.
+> Los proyectos consumidores (aplicaciones web, servicios backend, etc.) **no deben declarar** estas librerías en sus propios `devDependencies`. Al ejecutar `npm update @francogp/auditor`, todos los proyectos dependientes reciben las versiones actualizadas de estas herramientas de forma unificada.
 
 ---
 
@@ -211,7 +211,7 @@ Este comando:
 
 1. Localiza o crea la carpeta `.agents/` en el proyecto host.
 2. Registra la entrada `"node_modules/@francogp/auditor"` en `.agents/plugins.json`.
-3. Inmediatamente, cualquier agente de IA de Antigravity descubrirá y activará automáticamente las 43 skills y las directrices de `rules/AGENTS.md`.
+3. Inmediatamente, cualquier agente de IA de Antigravity descubrirá y activará automáticamente las 43 skills y las directrices de `AGENTS.md`.
 
 ### 6.2. Catálogo de Skills Empaquetadas y Correspondencia con Sub-Auditores
 
@@ -219,7 +219,7 @@ Cada sub-auditor tiene una o más skills compañeras que enseñan al agente de I
 
 | Familia de Auditorías | Sub-Auditores Clave | Skills de IA Vinculadas |
 | :--- | :--- | :--- |
-| **Framework & Calidad** | `validate_auditor_framework`, `validate_auditor_tests` | `auditor-framework`, `clean-code`, `tdd`, `testing-patterns` |
+| **Framework & Calidad** | `validate_auditor_framework`, `validate_auditor_tests` | `auditor`, `clean-code`, `tdd`, `testing-patterns` |
 | **Arquitectura & Tipos** | `validate_domain_types`, `validate_o1_data_structures`, `validate_duplicate_constants` | `architecture`, `domain-type-first`, `clean-code`, `improve-codebase-architecture` |
 | **Vue & Reactividad** | `validate_pinia_reactivity`, `validate_reactive_leaks`, `validate_reactive_purity`, `validate_vue_sfc_hygiene` | `vue-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vue-debug-guides`, `create-adaptable-composable`, `vueuse-functions` |
 | **UI, Animaciones & CSS** | `validate_component_styles`, `validate_css_duplicates`, `validate_z_index`, `validate_typography_line_height` | `frontend-design`, `web-design-guidelines`, `gsap-core`, `gsap-plugins`, `gsap-timeline`, `gsap-scrolltrigger`, `gsap-frameworks`, `gsap-utils`, `gsap-performance` |
@@ -490,7 +490,7 @@ export default defineAuditConfig({
 > **Mandato de Configuración Explícita Obligatoria (Cero Omisiones Silenciosas)**:
 > Todo proyecto consumidor debe configurar de manera explícita cada subsistema del auditor en `audit.config.ts`, declarando si se utiliza o si se ignora (por ejemplo, `bundle: { enabled: false }`, `styles: { zLayersEnabled: false }` o `persistence: { engine: 'none' }`). Los sub-auditores **nunca deben omitir silenciosamente** verificaciones ante falta de configuración o ausencia de archivos; si un subsistema no está configurado, la auditoría fallará con un error explícito. Esto asegura que al incorporar nuevas suites al motor, los proyectos dependientes sean notificados inmediatamente en lugar de pasar en falso positivo.
 >
-> **Blueprints Reales de Ejemplo**: Para consultar configuraciones completas de producción (como Supabase con motor fiscal o aplicaciones híbridas SQLite + Supabase con Web Workers y extensiones FSM), revisa [`blueprints.md`](./.agents/skills/auditor-framework/references/blueprints.md) y los archivos de ejemplo en [`.agents/skills/auditor-framework/references/`](./.agents/skills/auditor-framework/references/).
+> **Blueprints Reales de Ejemplo**: Para consultar configuraciones completas de producción (como arquitecturas empresariales con backend Supabase o aplicaciones interactivas con persistencia híbrida SQLite + Supabase y Web Workers), revisa [`blueprints.md`](./skills/auditor/references/blueprints.md) y los archivos de ejemplo en [`skills/auditor/references/`](./skills/auditor/references/).
 
 ---
 
@@ -644,12 +644,12 @@ Si tu proyecto utiliza una versión previa local (`packages/auditor`) o el paque
 
 ### 12.1 Blueprints de Configuración y Extensión de Setup para Proyectos Anfitriones
 
-Para facilitar la migración de proyectos reales a `@francogp/auditor`, el directorio de referencias de la skill [`.agents/skills/auditor-framework/references/`](./.agents/skills/auditor-framework/references/) contiene la documentación y los archivos de configuración completos y validados:
+Para facilitar la migración de proyectos reales a `@francogp/auditor`, el directorio de referencias de la skill [`skills/auditor/references/`](./skills/auditor/references/) contiene la documentación y los archivos de configuración completos y validados:
 
-- 📖 **Guía de Blueprints**: [`references/blueprints.md`](./.agents/skills/auditor-framework/references/blueprints.md) — Explicación de invariantes, subsistemas obligatorios y extensiones.
-- 🛠️ **Guía de Extensión de Setup**: [`references/setup-extension-guide.md`](./.agents/skills/auditor-framework/references/setup-extension-guide.md) — Arquitectura de plugins en Linux/macOS y Windows (`scripts/setup/plugins/`) y gancho `env:post-setup`.
-- ⚡ **Facturación 2.0 (CEVT)**: [`references/audit.config.facturacion2.example.ts`](./.agents/skills/auditor-framework/references/audit.config.facturacion2.example.ts) — Blueprint con backend Supabase, tipado de dominio fiscal (`TariffId`, etc.) y sub-auditores de extensión.
-- 🎮 **Poké Vicio (PokeBorrador)**: [`references/audit.config.pokevicio.example.ts`](./.agents/skills/auditor-framework/references/audit.config.pokevicio.example.ts) — Blueprint con persistencia híbrida (SQLite + Supabase), Web Workers exentos de bundle budget, familias personalizadas (`fsm`, `assets`) y sub-auditores de extensión (incluyendo `validate_render_performance.ts`).
+- 📖 **Guía de Blueprints**: [`references/blueprints.md`](./skills/auditor/references/blueprints.md) — Explicación de invariantes, subsistemas obligatorios y extensiones.
+- 🛠️ **Guía de Extensión de Setup**: [`references/setup-extension-guide.md`](./skills/auditor/references/setup-extension-guide.md) — Arquitectura de plugins en Linux/macOS y Windows (`scripts/setup/plugins/`) y gancho `env:post-setup`.
+- ⚡ **Arquitectura Empresarial**: [`references/audit.config.enterprise.example.ts`](./skills/auditor/references/audit.config.enterprise.example.ts) — Blueprint con backend Supabase, tipado estricto de dominio y sub-auditores de extensión.
+- 🎮 **Arquitectura Interactiva / Gaming**: [`references/audit.config.gaming.example.ts`](./skills/auditor/references/audit.config.gaming.example.ts) — Blueprint con persistencia híbrida (SQLite + Supabase), Web Workers exentos de bundle budget, familias personalizadas y sub-auditores de extensión.
 
 ---
 

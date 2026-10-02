@@ -1,6 +1,6 @@
 # Host Installation, NPM Updates & Dependency Governance (`@francogp/auditor`)
 
-This reference details the canonical architecture and workflow for installing, updating, and consuming `@francogp/auditor` as a standard GitHub npm dependency in consumer host applications (such as `facturacion2`, `PokeBorrador`, etc.).
+This reference details the canonical architecture and workflow for installing, updating, and consuming `@francogp/auditor` as a standard GitHub npm dependency in consumer host applications (such as standalone web apps, monorepos, and CLI tooling packages).
 
 ---
 
@@ -24,7 +24,7 @@ npm install github:francogp/auditor
     ]
   }
   ```
-  This is committed once in the host repository. It allows Antigravity to dynamically discover all official skills (`skills/*`) and rules (`rules/AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree.
+  This is committed once in the host repository. It allows Antigravity to dynamically discover all official skills (`skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree.
 
 ---
 
@@ -44,7 +44,7 @@ Under the hood, `auditor-update`:
 1. Executes `npm update @francogp/auditor` to resolve the latest commit and update `package-lock.json`.
 2. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
 3. Renders a Box-Drawing verification table confirming successful synchronization.
-4. All bundled skills (`skills/*`) and agent rules (`rules/AGENTS.md`) located in `node_modules/@francogp/auditor` are instantly updated on disk. Because the host's `.agents/plugins.json` already points to `node_modules/@francogp/auditor`, Antigravity immediately discovers the latest skills without needing manual copy operations.
+4. All bundled skills (`skills/*`) and agent rules (`AGENTS.md`) located in `node_modules/@francogp/auditor` are instantly updated on disk. Because the host's `.agents/plugins.json` already points to `node_modules/@francogp/auditor`, Antigravity immediately discovers the latest skills without needing manual copy operations.
 5. Commit the updated `package-lock.json` to lock the audited version for the entire team and CI.
 
 ---

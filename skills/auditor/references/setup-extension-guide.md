@@ -98,7 +98,7 @@ The base setup script executes `npm run env:post-setup --if-present` upon comple
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONTAINER_NAME="facturacion-postgres"
+CONTAINER_NAME="app-postgres"
 IMAGE="postgres:16-alpine"
 DB_PORT="5432"
 
@@ -120,7 +120,7 @@ else
   docker run -d \
     --name "$CONTAINER_NAME" \
     -e POSTGRES_PASSWORD=postgres \
-    -e POSTGRES_DB=facturacion \
+    -e POSTGRES_DB=app_db \
     -p "${DB_PORT}:5432" \
     "$IMAGE" >/dev/null
   echo "  ✅ Container $CONTAINER_NAME created and listening on port $DB_PORT."
@@ -132,7 +132,7 @@ fi
 # Requires -Version 5.1
 $ErrorActionPreference = 'Stop'
 
-$containerName = "facturacion-postgres"
+$containerName = "app-postgres"
 $image = "postgres:16-alpine"
 $dbPort = "5432"
 
@@ -161,7 +161,7 @@ Write-Host "  🚀 Creating and starting new container $containerName..." -Foreg
 docker run -d `
   --name $containerName `
   -e POSTGRES_PASSWORD=postgres `
-  -e POSTGRES_DB=facturacion `
+  -e POSTGRES_DB=app_db `
   -p "${dbPort}:5432" `
   $image | Out-Null
 

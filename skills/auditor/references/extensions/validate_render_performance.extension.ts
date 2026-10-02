@@ -1,7 +1,7 @@
 /**
- * .agents/skills/auditor-framework/references/extensions/validate_render_performance.extension.ts
+ * skills/auditor/references/extensions/validate_render_performance.extension.ts
  *
- * HOST EXTENSION BLUEPRINT: RENDER & GPU PERFORMANCE HYGIENE AUDITOR (PokeBorrador)
+ * HOST EXTENSION BLUEPRINT: RENDER & GPU PERFORMANCE HYGIENE AUDITOR
  *
  * Enforces static GPU rendering hygiene and animation standards across weather/atmosphere surfaces:
  *   1. Prohibits 'mix-blend-mode' on continuous weather overlays, atmosphere layers,

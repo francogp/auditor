@@ -43,7 +43,7 @@ describe('MarkdownCodeReferencesAuditor', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('instantiates with correct metadata conforming to auditor-framework', () => {
+  it('instantiates with correct metadata conforming to auditor', () => {
     const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
     expect(auditor.id).toBe('validate_markdown_code_references');
     expect(auditor.family).toBe('documentation');
@@ -288,10 +288,11 @@ Temporary artifacts are placed in \`scratch/bundle_stats.html\`.
   it('recognizes skills distributed with @francogp/auditor package and node_modules', async () => {
     // Simulate library distribution in node_modules/@francogp/auditor/skills
     await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/domain-type-first'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/auditor'), { recursive: true });
 
     const mdContent = `
 # Skill References from Framework
-Refer to @/domain-type-first and @/auditor-framework.
+Refer to @/domain-type-first and @/auditor.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 

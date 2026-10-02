@@ -30,34 +30,34 @@ Any omitted subsystem will trigger an immediate runtime failure (`assertAuditCon
 
 TypeScript reference configuration blueprints are available in this directory:
 
-- [`audit.config.facturacion2.example.ts`](./audit.config.facturacion2.example.ts): Reference configuration blueprint for Facturación 2.0.
-- [`audit.config.pokevicio.example.ts`](./audit.config.pokevicio.example.ts): Reference configuration blueprint for Poké Vicio.
+- [`audit.config.enterprise.example.ts`](./audit.config.enterprise.example.ts): Reference configuration blueprint for Enterprise applications.
+- [`audit.config.gaming.example.ts`](./audit.config.gaming.example.ts): Reference configuration blueprint for Interactive / Gaming applications.
 - [`setup-extension-guide.md`](./setup-extension-guide.md): Environment setup script architecture and extension guide for Linux and Windows.
-- [`extensions/validate_button_governance.extension.ts`](./extensions/validate_button_governance.extension.ts): Extension blueprint for button governance and anti-clipping standards (Facturación 2.0).
-- [`extensions/validate_render_performance.extension.ts`](./extensions/validate_render_performance.extension.ts): Extension blueprint for GPU render and atmosphere hygiene (Poké Vicio).
-- [`extensions/validate_overscroll_lock.extension.ts`](./extensions/validate_overscroll_lock.extension.ts): Extension blueprint for mobile touch overscroll containment (Poké Vicio).
+- [`extensions/validate_button_governance.extension.ts`](./extensions/validate_button_governance.extension.ts): Extension blueprint for button governance and anti-clipping standards.
+- [`extensions/validate_render_performance.extension.ts`](./extensions/validate_render_performance.extension.ts): Extension blueprint for GPU render and atmosphere hygiene.
+- [`extensions/validate_overscroll_lock.extension.ts`](./extensions/validate_overscroll_lock.extension.ts): Extension blueprint for mobile touch overscroll containment.
 
 ---
 
-## 1. Facturación 2.0 (CEVT) — Supabase, Billing Engine & Host Extensions
+## 1. Enterprise Architecture (Supabase, Domain Contracts & Extensions)
 
-- **Reference File**: [`audit.config.facturacion2.example.ts`](./audit.config.facturacion2.example.ts)
+- **Reference File**: [`audit.config.enterprise.example.ts`](./audit.config.enterprise.example.ts)
 - **Key Characteristics**:
   - Supabase persistence engine (`persistence.engine: 'supabase'`) with schema-qualified query verification (`schemaQualified: true`).
   - Z-layers defined in `src/styles/_base.scss`.
   - Active bundle auditing for emitted production assets in `dist/assets`.
-  - Explicit definition of fiscal domain types (`TariffId`, `VoltageCategory`, `TaxRateType`, `ServerId`, `BillingStatus`, `ConsumptionStepId`, `RoundingModeType`).
+  - Explicit definition of business domain types (`TariffId`, `VoltageCategory`, `TaxRateType`, `ServerId`, `BillingStatus`, `ConsumptionStepId`, `RoundingModeType`).
   - Strict pattern matching to prevent loose string fallbacks (`tariffId`, `formulaId`, `stepId`, etc.).
   - 2 local host extension auditors (`validate_script_hardcoding.ts`, `validate_emoji_typography.ts`).
 
 ---
 
-## 2. Poké Vicio (PokeBorrador) — Hybrid Engine, FSM & Background Workers
+## 2. Gaming & Interactive Architecture (Hybrid Persistence, FSM & Workers)
 
-- **Reference File**: [`audit.config.pokevicio.example.ts`](./audit.config.pokevicio.example.ts)
+- **Reference File**: [`audit.config.gaming.example.ts`](./audit.config.gaming.example.ts)
 - **Key Characteristics**:
   - Hybrid SQLite + Supabase persistence (`persistence.engine: 'hybrid'`) with authorized save coordinator modules (`saveCoordinator.ts`, `saveActionHelpers.ts`).
-  - Exemption of heavy Web Worker bundles and simulation data modules (`worker-vendor-pkmn`, `worker-game-data`, `vendor-pkmn-sim`, etc.) from main-thread limits via `bundle.exemptChunkPrefixes`.
-  - Battle engine domain types and turn invariants (`PokemonId`, `MoveId`, `AbilityId`, `ItemId`, `FsmState`, etc.).
+  - Exemption of heavy Web Worker bundles and simulation data modules (`worker-vendor-sim`, `worker-game-data`, `vendor-sim`, etc.) from main-thread limits via `bundle.exemptChunkPrefixes`.
+  - Battle engine domain types and turn invariants (`CreatureId`, `MoveId`, `AbilityId`, `ItemId`, `FsmState`, etc.).
   - Custom audit families: `fsm` (Finite State Machine & Turn Invariants) and `assets` (Game Assets & Sprite Integrity).
-  - 21 local host extension sub-auditors in `scripts/auditors/` (including `validate_render_performance.ts` and `validate_overscroll_lock.ts`).
+  - Local host extension sub-auditors in `scripts/auditors/` (including `validate_render_performance.ts` and `validate_overscroll_lock.ts`).

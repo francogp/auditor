@@ -25,7 +25,7 @@ describe('DuplicateConstantsAuditor', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('instantiates cleanly with AST requirement conforming to auditor-framework', () => {
+  it('instantiates cleanly with AST requirement conforming to auditor', () => {
     const auditor = new DuplicateConstantsAuditor();
     expect(auditor.id).toBe('validate_duplicate_constants');
     expect(auditor.family).toBe('architecture');

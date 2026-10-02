@@ -1,8 +1,8 @@
 /**
- * .agents/skills/auditor-framework/references/audit.config.facturacion2.example.ts
+ * skills/auditor/references/audit.config.enterprise.example.ts
  *
- * Audit configuration example for Facturación 2.0 (CEVT).
- * Web application with Supabase backend, strict fiscal calculation rules,
+ * Audit configuration example for an Enterprise Billing Portal.
+ * Web application with Supabase backend, strict calculation rules,
  * script hardcoding extensions, and domain-type-first contracts.
  *
  * This file serves as a COMPLETE EDUCATIONAL REFERENCE configuration,
@@ -13,7 +13,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
   // Human-readable project name displayed in terminal reports and Box-Drawing headers
-  name: 'Facturación 2.0 (CEVT)',
+  name: 'Enterprise Billing Portal',
 
   paths: {
     srcRoots: ['src'], // Root directories containing application production code
@@ -45,7 +45,7 @@ export default defineAuditConfig({
     prohibitedTemplateIdentifiers: ['supabase'], // Prohibits accessing database instances directly from .vue templates
     allowedHosts: ['supabase.co', 'localhost', '127.0.0.1'], // Explicitly authorized domains and network endpoints for client connections
     authorizedSaveFiles: [], // Specific modules authorized to perform direct persistence in local storage
-    saveKeyPrefixes: ['facturacion_local_save_'], // Mandatory prefix on local storage keys to ensure isolation and traceability
+    saveKeyPrefixes: ['billing_local_save_'], // Mandatory prefix on local storage keys to ensure isolation and traceability
     forbiddenMockModules: ['@/logic/db/*'] // Data or persistence modules whose mocking is prohibited in integration tests to preserve fidelity
   },
 
@@ -146,7 +146,7 @@ export default defineAuditConfig({
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
     loggerModule: 'src/logic/utils/logger.ts', // Canonical structured logging module replacing direct console.log/error calls
     zLayersFile: 'src/logic/constants/visuals.ts', // Path to canonical TypeScript z-index layers file for domain parity verification
-    caseNormalizationExemptTokens: ['cevt', 'cuit', 'dni', 'iva', 'afip', 'kw', 'kwh', 'v', 'a'], // Acronyms and units exempt from casing warnings
+    caseNormalizationExemptTokens: ['iso', 'cuit', 'dni', 'vat', 'kw', 'kwh', 'v', 'a'], // Acronyms and units exempt from casing warnings
     allowedStoreSetterPrefixes: ['set', 'update', 'assign'], // Authorized semantic prefixes for Pinia store mutator methods
     allowedNumericConstantPrefixes: [
       'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'

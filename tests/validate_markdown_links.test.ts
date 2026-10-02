@@ -1,10 +1,10 @@
 /**
- * packages/auditor/tests/validate_markdown_links.test.ts
+ * tests/validate_markdown_links.test.ts
  *
  * Dedicated unit test suite for MarkdownLinkAuditor & checkMarkdownLinksInContent:
  * - Detects broken relative links (markdown-broken-relative-link)
  * - Detects prohibited absolute paths and file:// URLs (markdown-absolute-path)
- * - Detects stale environment paths like PokeBorrador or /home/franco (markdown-stale-environment-path)
+ * - Detects stale environment paths like /home/user or /Users/user (markdown-stale-environment-path)
  * - Detects links to git-ignored targets (markdown-gitignored-target)
  * - Verifies clean execution (0 errors, passed status)
  */
@@ -135,7 +135,7 @@ describe('MarkdownLinkAuditor', () => {
         # Valid Links
         - External: [Documentation](https://nodejs.org)
         - Anchor: [Back to top](#valid-links)
-        - Mail: [Contact](mailto:test@cevt.ar)
+        - Mail: [Contact](mailto:test@example.com)
 
         \`\`\`markdown
         [This is inside code block](./does_not_matter_if_missing.md)

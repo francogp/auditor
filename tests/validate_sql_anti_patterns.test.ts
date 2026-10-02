@@ -130,7 +130,7 @@ describe('SqlAntiPatternsAuditor', () => {
       const auditor = new TestableAuditor();
       const code = `
         await supabase.from('users').insert({
-          userEmail: 'admin@cevt.ar',
+          userEmail: 'admin@example.com',
           fullName: 'Admin User'
         });
       `;
@@ -146,7 +146,7 @@ describe('SqlAntiPatternsAuditor', () => {
     it('detects uncoordinated localStorage save bypasses (storage-uncoordinated-save-bypass)', () => {
       class TestableAuditor extends SqlAntiPatternsAuditor {
         constructor() {
-          super('supabase/migrations', scratchDir, ['facturacion_local_save_']);
+          super('supabase/migrations', scratchDir, ['app_local_save_']);
         }
         public testScanTypeScript(relPath: string, content: string): void {
           this.scanTypeScriptFile(relPath, content);
@@ -155,7 +155,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       const auditor = new TestableAuditor();
       const code = `
-        localStorage.setItem('facturacion_local_save_data', JSON.stringify({}));
+        localStorage.setItem('app_local_save_data', JSON.stringify({}));
       `;
       const issues: string[] = [];
       auditor.addViolation = (v) => {

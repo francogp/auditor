@@ -4,7 +4,7 @@
  *
  * Antigravity Agent Plugin Registrator (Node.js 26+ Native)
  * Automatically registers @francogp/auditor in .agents/plugins.json of the host project
- * so Antigravity AI agents instantly discover the official auditor-framework skill and rules.
+ * so Antigravity AI agents instantly discover the official auditor skill and rules.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,8 +60,7 @@ if (isMainModule(import.meta.url)) {
     if (result.success) {
         console.log(`✅ ${result.message}`);
         console.log('\nEl agente Antigravity ahora tiene acceso nativo a:');
-        console.log('  - Skill: auditor-framework');
-        console.log('  - Reglas: rules/AGENTS.md\n');
+        console.log('  - Skills: auditor y skills bundled de @francogp/auditor\n');
     }
     else {
         console.error(`❌ Error al registrar plugin: ${result.message}`);

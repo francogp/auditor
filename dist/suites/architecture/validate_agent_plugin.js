@@ -25,7 +25,8 @@ function isSelfProviderProject(projectRoot) {
         const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8'));
         if (pkgData.name === '@francogp/auditor') {
             const hasPluginJson = fs.existsSync(path.join(projectRoot, 'plugin.json'));
-            const hasSkillMd = fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
+            const hasSkillMd = fs.existsSync(path.join(projectRoot, 'skills/auditor/SKILL.md')) ||
+                fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
             return hasPluginJson && hasSkillMd;
         }
     }

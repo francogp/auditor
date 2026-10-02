@@ -1,9 +1,9 @@
 ---
-name: auditor-framework
+name: auditor
 description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, or whenever the user asks to UPDATE OR UPGRADE the auditor package (e.g. 'actualizar auditor', 'actualizame el auditor', 'update auditor', 'actualizar paquete auditor', 'actualizar dependencias de auditor', 'update @francogp/auditor', 'auditor:update', 'npx auditor-update', 'auditor-version', 'version de auditor'), or mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `audit.config.ts`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run audit', 'npm run audit:findings', 'npm run audit:complexity', 'npm run audit:fallow:*', 'npm run audit:lint'). When updating the auditor in host projects, agents MUST use 'npx auditor-update' or 'npm run auditor:update' and 'npx auditor-version -v'. STRICTLY FORBIDDEN to use ad-hoc node -e scripts, git clone into /tmp, or git log inside node_modules; ALWAYS use the framework's native CLI tools. Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
 ---
 
-# Auditor Framework: Governance, Architecture & Maintenance
+# Auditor: Architecture, Verification & Governance Engine
 
 This skill defines the immutable standard and architectural contract for creating, administering, refactoring, and maintaining all sub-auditors, reporting scripts, and the `@francogp/auditor` engine across the repository.
 
@@ -153,6 +153,31 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - **`dist/` (Mandatory for all compilations & production builds)**: Universal, mandatory directory across ALL projects for all compiled outputs, production bundles, generated JS/CSS assets (`dist/assets/`), and packaged library outputs.
       - Every project MUST declare `dist/` in `.gitignore`.
       - Production build artifacts, source maps, and bundle chunks must reside strictly within `dist/` and must never pollute source code trees.
+30. **Mandatory Explicit Configuration & Zero Silent Skips**:
+    - Host projects using the auditor MUST explicitly declare in `audit.config.ts` whether each subsystem is active (with valid parameters) or ignored (e.g. `bundle: { enabled: false }`, `styles: { zLayersEnabled: false }`, `persistence: { engine: 'none' }`).
+    - Sub-auditors MUST NEVER silently bypass checks due to missing files or missing configuration; if a subsystem is unconfigured, the auditor MUST fail with an explicit configuration error.
+31. **Cross-Platform Native Build Tools Discovery (`validate_build_tools`, `cssAnalyzer`)**:
+    - Native build binaries (such as `css-checker` from `css-checker-kit`) must be discovered by querying `getCssCheckerCmd` across all cross-platform candidate locations: local `node_modules/.bin`, package-local bin dirs, the active Node executable directory (`process.execPath` / `nodeDir`), npm prefix (`npm config get prefix`), user bin paths (`~/.local/bin`, `%APPDATA%/npm`), and system `$PATH`. Sub-auditors verifying native build tooling MUST NEVER restrict Node directory checks to Windows or duplicate lookup logic.
+32. **Data Catalog Complexity Exemption (`paths.dataRoots`)**:
+    - Files inside `paths.dataRoots` (constant catalogs and tabular mini-databases) are exempted from function complexity and LOC alerts in `audit_project.ts` via `isComplexityExemptPath`, while preserving 100% of domain type checks, O(1) structures, and Fallow dead-code analysis.
+33. **Canonical Tool Package Fallow Governance (`.fallowrc.json`)**:
+    - Tool packages distributing standalone CLI tools and AI skills must maintain a root `.fallowrc.json` declaring `entry` points, `ignorePatterns` (`skills/**`, `.agents/**`, `scratch/**`, `dist/**`, `tests/**`), and `ignoreDependencies` (for peer/CLI tools such as `css-checker-kit`, `fallow`, `html-validate`, `html-validate-vue`, `markdownlint-cli`, `rollup-plugin-visualizer`, `typescript`). This guarantees unskewed maintainability analysis (>= 90 score) while preserving strict zero-tolerance fallow gating.
+34. **Zero Live Host Mutation & Hermetic Sandbox Verification**:
+    - Verification of `@francogp/auditor` across consumer host projects MUST be conducted exclusively in isolated ephemeral git worktrees (e.g. `/tmp/<project>-sandbox`) with deliberate fault injection, guaranteeing zero mutation or drift in the real host repositories.
+35. **Mandatory English for All Repository Files, Skills, Documentation & Examples**:
+    - All files inside the repository (source code, TypeScript definitions, tests, skills under `skills/**`, references under `skills/*/references/**`, documentation, blueprints, configuration examples, and `.md` files) MUST ALWAYS be written strictly and exclusively in English with zero language mixing. Writing any skill, skill documentation, reference guide, or code example in Spanish or mixing languages is strictly prohibited.
+    - *Sole Exception: Interactive terminal tables and human-readable CLI audit rule descriptions (`ruleDescriptions` in sub-auditors) are declared in Spanish by deliberate UX design for the local developer console.*
+36. **Mandatory Safe-Commit Protocol & Absolute Prohibition on Manual Git Commit/Push**:
+    - Executing manual `git commit`, `git tag`, or `git push` directly in the shell without running the certified `/safe-commit` workflow is STRICTLY FORBIDDEN across the entire repository. Every change, bug fix, release, or version bump MUST execute all phases of `/safe-commit` sequentially.
+    - In Phase 1 (Step 1.4), agents MUST explicitly analyze version diffs and consult the user via `ask_question` regarding the recommended SemVer bump (`major`, `minor`, `patch`) or maintaining the current version, NEVER unilaterally bumping versions or tagging releases without prior explicit user approval.
+37. **Strict Single Build & Atomic Tagging Mandate**:
+    - In `/safe-commit`, version bump decisions occur in Phase 1 (Step 1.4) to guarantee that Phase 2 compiles the target version exactly once (`Strict Single Build Mandate`). When bumped, annotated Git tags (`v<version>`) are created atomically with the commit and pushed with `--follow-tags`.
+38. **Universal Standard Build Script Mandate (`npm run build`)**:
+    - The `@francogp/auditor` engine and consumer projects MUST strictly use the universal standard npm convention `npm run build` (`"build": "tsc -p tsconfig.build.json && chmod +x dist/cli/*.js"`) for compiling and emitting distribution artifacts into `dist/`. Inventing arbitrary non-standard script names is strictly forbidden across the framework. Compiling distribution artifacts and executing architectural verification suites MUST remain strictly decoupled into distinct commands (`npm run build` vs `npm run audit`).
+39. **Public Package Anonymity & Zero Host Leakage Mandate**:
+    - Standalone tooling packages, exported AI skills (`skills/**`), reference blueprints (`skills/*/references/**`), test fixtures, and public documentation MUST NEVER mention or leak private host project names, repository slugs, database schemas, or proprietary business domains. Reference blueprints and examples MUST strictly use generic, domain-neutral archetypes (e.g. `enterprise.example.ts`, `gaming.example.ts`, `app-postgres`, `app_db`, `test@example.com`).
+40. **Host AGENTS.md Independence Mandate**:
+    - `@francogp/auditor` distributes AI skills (`skills/*`), CLI binaries, and setup scripts, but MUST NEVER distribute, generate, or force a global `AGENTS.md` onto external consumer host projects. Consumer host projects maintain their own independent, domain-specific `AGENTS.md` hierarchy. The root `AGENTS.md` in `@francogp/auditor` governs exclusively the core auditor engine repository.
 
 ---
 
@@ -188,7 +213,7 @@ Configured at root in `audit.config.ts`:
 - `bundle.maxClientChunkWarnBytes`: Max client chunk size warning threshold in bytes (e.g. `1200 * 1024`)
 - `bundle.maxClientChunkErrorBytes`: Max client chunk size error threshold in bytes (e.g. `2000 * 1024`)
 - `bundle.budgets`: Per-chunk regex pattern matchers and budget limits (`[{ pattern: 'vendor', maxBytes: 2000 * 1024 }]`)
-- `bundle.exemptChunkPrefixes`: `['worker-vendor-pkmn', 'worker-game-data']` (Exempt client chunks)
+- `bundle.exemptChunkPrefixes`: `['worker-vendor-sim', 'worker-game-data']` (Exempt client chunks)
 - `bundle.forbiddenUiImports`: `[{ module: 'xlsx', reason: 'Parser pesado' }]` (Heavy modules barred in UI)
 - `security.enabled`: `boolean` (Enables or disables static Fallow CWE security analysis)
 - `templates.safeTemplateFunctions`: `['formatMoney', 'translate']` (Functions safe in templates)
@@ -199,7 +224,7 @@ Configured at root in `audit.config.ts`:
 - `constants.exemptMagicNumbers`: `[21, 10.5, 27]` (Numeric literals exempt from magic numbers check)
 - `documentation.knownValidAbstractPaths`: `['@docs/architecture/fiscal-engine.md']` (Abstract valid docs paths)
 - `pinia.authorizedMutationFiles`: `['src/logic/coordinators/sessionCoordinator.ts']` (Authorized store mutation files)
-- `domain.caseNormalizationExemptTokens`: `['rpg', 'pvp', 'cuit', 'dni', ...]` (Tokens exempt from lowercasing)
+- `domain.caseNormalizationExemptTokens`: `['iso', 'vat', 'cuit', 'dni', ...]` (Tokens exempt from lowercasing)
 - `domain.allowedStoreSetterPrefixes`: `['set', 'update', 'equip', 'assign']` (Pinia store action prefixes)
 - `domain.allowedNumericConstantPrefixes`: `['GEN_', 'ISO_', 'UTF_8', 'RGB_', ...]` (Constant naming exceptions)
 - `domain.finiteDomainTypes`: `['UserId', 'InvoiceId', 'RoleId', 'CustomerId', ...]`
@@ -238,7 +263,7 @@ Pre-formatted, production-ready templates conforming to all project standards ar
 `@francogp/auditor` is consumed across host projects as a native GitHub npm package (`github:francogp/auditor`).
 
 - **Auditor Updates (`npx auditor-update` / `npm run auditor:update`)**: Pull latest upstream changes strictly via the official native CLI binary `npx auditor-update` (or `npm run auditor:update`). This hermetically updates the package, checks the stamped build version (`npx auditor-version -v`), and renders a verified Box-Drawing summary.
-  - **Absolute Prohibition on Ad-Hoc Scripts & Cloning**: Running `node -e` scripts, `git clone` into `/tmp`, searching `git log` inside `node_modules`, or using manual ad-hoc scripts is STRICTLY FORBIDDEN. Bundled skills (`skills/*`) and agent rules (`rules/AGENTS.md`) are updated automatically via host `.agents/plugins.json` pointing to `node_modules/@francogp/auditor`.
+  - **Absolute Prohibition on Ad-Hoc Scripts & Cloning**: Running `node -e` scripts, `git clone` into `/tmp`, searching `git log` inside `node_modules`, or using manual ad-hoc scripts is STRICTLY FORBIDDEN. Bundled skills (`skills/*`) and agent rules (`AGENTS.md`) are updated automatically via host `.agents/plugins.json` pointing to `node_modules/@francogp/auditor`.
 - **Hermetic CI**: Use standard `npm ci` for deterministic, zero-drift pipeline execution.
 - **Binary Inheritance**: Host `package.json` scripts map directly to exported binaries (`auditor`, `auditor-commit`, `auditor-findings`, etc.) without duplicating framework scripts.
 - **Deploy Builds & CI Pipelines (`--skip-similar`)**: When host applications run the auditor during `build` (e.g. `"build": "auditor --skip-similar && vite build"`) or in GitHub Pages workflows, they MUST use `--skip-similar` (or `AUDIT_SKIP_SIMILAR=1`). This ignores the Fallow similar-code AI embedding suite without altering `audit.config.ts`, avoiding heavy model downloads and timeouts while executing 100% of architectural, lint, type, and style suites.
@@ -326,9 +351,9 @@ The following reference manuals and configuration blueprints are maintained in `
 - [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md): Complete reference manual for interactive findings reporting and CLI diagnostic options.
 - [`references/setup-extension-guide.md`](./references/setup-extension-guide.md): Architecture and plugin guides for extending `setup-linux.sh` and `setup-windows.ps1` in host projects.
 - [`references/blueprints.md`](./references/blueprints.md): Overview of configuration blueprints and mandatory explicit subsystem configuration.
-- [`references/audit.config.facturacion2.example.ts`](./references/audit.config.facturacion2.example.ts): Reference `audit.config.ts` for Facturación 2.0 (Supabase, fiscal domain types, strict rules).
-- [`references/audit.config.pokevicio.example.ts`](./references/audit.config.pokevicio.example.ts): Reference `audit.config.ts` for Poké Vicio (hybrid persistence, Web Workers chunk exemptions, combat domain types, custom families, local extensions).
-- [`references/extensions/validate_button_governance.extension.ts`](./references/extensions/validate_button_governance.extension.ts): Reference extension blueprint for button governance and anti-clipping (Facturación 2.0).
+- [`references/audit.config.enterprise.example.ts`](./references/audit.config.enterprise.example.ts): Reference `audit.config.ts` for Enterprise applications (Supabase backend, strict domain types, explicit rules).
+- [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts): Reference `audit.config.ts` for Interactive / Gaming applications (hybrid persistence, Web Workers chunk exemptions, custom families, local extensions).
+- [`references/extensions/validate_button_governance.extension.ts`](./references/extensions/validate_button_governance.extension.ts): Reference extension blueprint for design system button governance and anti-clipping.
 - [`references/extensions/validate_render_performance.extension.ts`](./references/extensions/validate_render_performance.extension.ts): Reference extension blueprint for GPU render hygiene and atmospheric overlays.
 - [`references/plugins/`](./references/plugins/): Sample setup plugins for Docker database containers and local SSL certificates with `mkcert` (Bash & PowerShell).
 
