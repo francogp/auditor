@@ -139,7 +139,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
   1. Top-level type aliases: `type Foo = 'M' | 'F' | 'N';` (FORBIDDEN — use `GenderName`).
   2. Literal constant arrays: `const GENDERS = ['M', 'F', 'N'] as const;` (FORBIDDEN — use `GenderName`).
   3. Interface and object properties, including mixed primitive unions: `interface Bar { gender?: 'N' | 'M' | 'F' | number; }` (FORBIDDEN — use `gender?: GenderName | number;`).
-- **Dynamic Auditor Indexing**: The auditor `packages/auditor/src/suites/domain_data/validate_domain_types.ts` dynamically indexes all exported union types from `node_modules/` `.d.ts` files at runtime and enforces zero duplicate definitions across top-level types, constants, and interface properties.
+- **Dynamic Auditor Indexing**: The domain auditor `validate_domain_types` (from `@francogp/auditor`) dynamically indexes all exported union types from `node_modules/` `.d.ts` files at runtime and enforces zero duplicate definitions across top-level types, constants, and interface properties.
 
 ## Absolute Prohibition on Redundant 1:1 Type & Value Aliases (`noRedundantAliases`)
 
@@ -150,7 +150,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 
 ## Dynamic AST Domain Collection Auditing & Zero Hardcoding (`noRedundantDomainCollections`)
 
-- **Dynamic Harvesting**: The domain auditor (`packages/auditor/src/suites/domain_data/validate_domain_types.ts`) dynamically extracts canonical exported domain collections (`as const` arrays) from `src/types/` and `src/data/` at audit time using TypeScript AST traversal.
+- **Dynamic Harvesting**: The domain auditor `validate_domain_types` (from `@francogp/auditor`) dynamically extracts canonical exported domain collections (`as const` arrays) from `src/types/` and `src/data/` at audit time using TypeScript AST traversal.
 - **Zero-Hardcoding Mandate**: Auditors must never hardcode domain names or literals (e.g. `'hp'`, `'atk'`) to detect duplication. All comparisons are performed dynamically against harvested domain sets.
 - **Exact Duplicates & Redundant Subsets**: The auditor scans all array literals in `src/` and `scripts/` and reports blocking errors for:
   1. Exact duplicate collections ($A = D$) where an array literal reproduces an existing canonical domain array.
@@ -329,7 +329,7 @@ function processBattleEvent(payload: BattleDamagePayload): void {
 - **Vue SFC Compiler Standard**: `<script setup>` is strictly scoped to the component template/runtime and CANNOT contain ES module exports (`export const`, `export type`, `export interface`, `export function`, `export default`).
 - **Shared Contracts Extraction**: If any type, interface, or constant needs to be shared across multiple components or tests, it MUST be extracted to a companion `.ts` module (e.g. `src/components/.../*Types.ts` or `src/types/...`).
 - **Local Types Unexported**: Types, interfaces, and filter tuples that are only used within that specific SFC must remain unexported (without the `export` keyword) and use the `_` prefix for local filter arrays (`const _FILTER_MODES = ['all', ...DOMAINS] as const;`).
-- **Auditor Enforcement**: The auditor `packages/auditor/src/suites/domain_data/validate_domain_types.ts` scans all `.vue` files and immediately flags any `export` inside `<script setup>` as a blocking `ERROR`.
+- **Auditor Enforcement**: The auditor `validate_domain_types` (from `@francogp/auditor`) scans all `.vue` files and immediately flags any `export` inside `<script setup>` as a blocking `ERROR`.
 ## Nominal Branded Types for Domain IDs (`Brand<T, B>`)
 
 - **Nominal Safety Mandate**: Finite domain identifiers (`EntityId`, `ItemId`, `ActionId`) SHOULD be defined as Nominal Branded Types using `Brand<T, B>` from `@/types/system/branding` to prevent accidental assignability across distinct domains.
@@ -463,7 +463,7 @@ Do not use these for finite domains:
 - `new Map<string, ...>(...)` to represent a domain map.
 - Type assertions such as `as DomainId`, `as unknown as Record<...>`, `(OBJ as Record<string, T>)[key]`, `(ARRAY as readonly string[]).includes(...)`, or `as any` to force values into domain contracts or bypass index/inclusion checks during lookup.
 - **Tuple Inclusion Cast Prohibition**: Casting tuple constants (e.g. `(REPLAY_SEATS as readonly string[]).includes(val)`) in business logic to bypass TypeScript's tuple inclusion check is STRICTLY FORBIDDEN. Annotate parameters with the domain union type directly (e.g. `val: ReplaySeat`) or encapsulate the check inside a dedicated `isDomainId` type guard.
-- **Ad-Hoc String Literal Union Prohibition**: Defining or casting string literal unions inline (e.g. `as 'p1' | 'p2'`, `: 'p1' | 'p2'`, `as 'player' | 'enemy'`) instead of consuming canonical domain types (e.g. `SideID`) is STRICTLY FORBIDDEN. The `validate:domain-types` auditor flags all such occurrences as ERRORs. Whenever a finite domain union is needed, consume or define a named canonical domain type alias exported from `@pkmn/sim` or domain contracts.
+- **Ad-Hoc String Literal Union Prohibition**: Defining or casting string literal unions inline (e.g. `as 'p1' | 'p2'`, `: 'p1' | 'p2'`, `as 'player' | 'enemy'`) instead of consuming canonical domain types (e.g. `SideID`) is STRICTLY FORBIDDEN. The `validate_domain_types` auditor flags all such occurrences as ERRORs. Whenever a finite domain union is needed, consume or define a named canonical domain type alias exported from `@pkmn/sim` or domain contracts.
 - **Helper Cast Wrappers / Anti-Cheat Prohibition**: Creating helper functions, arrow getters, or composables (e.g. `const toEntity = (d: unknown) => d as unknown as entity // domain-ok`) solely to wrap and conceal double type assertions is STRICTLY FORBIDDEN. Refactor the underlying types using Discriminated Unions (e.g. `type Listing = { type: 'entity'; data: entity } | { type: 'item'; data: Item }`) so TypeScript infers types naturally without any casts.
 - **Multi-Domain Dispatcher Cast Prohibition**: Creating centralized asset, data, or view resolvers that accept open `(category, id: string | number)` shapes without strict function overloads mapped to their domain unions (`ItemId`, `EntityId`, `RouteId`, `RoleId`).
 
@@ -526,7 +526,7 @@ Examples:
 
 ## Audit Workflow & Command Reference
 
-The canonical domain type auditor is `packages/auditor/src/suites/domain_data/validate_domain_types.ts`. It scans both `src/` and `scripts/` directories automatically.
+The canonical domain type auditor is `validate_domain_types` from `@francogp/auditor` (`src/suites/domain_data/validate_domain_types.ts`). It scans both `src/` and `scripts/` directories automatically.
 
 ### Running the Domain Type Auditor
 
@@ -534,11 +534,11 @@ The canonical domain type auditor is `packages/auditor/src/suites/domain_data/va
 # Standard in-depth audit across src/ and scripts/
 npm run validate:domain-types
 
-# Compact summary mode (shows only violation count breakdowns)
-npm run validate:domain-types:summary
+# Full domain data suite audit
+npm run audit:family:domain
 
-# Save structured audit report to a file
-npm run validate:domain-types:report
+# Inspect domain findings in Box-Drawing tables
+npm run audit:findings category=validate_domain_types
 ```
 
 ### Full Verification Pipeline
@@ -570,5 +570,5 @@ When reporting work to the user:
 
 - Name the canonical domain types introduced or reused.
 - Mention any generator templates audited or changed.
-- Report `validate:domain-types` results.
+- Report `validate_domain_types` audit results.
 - If strict typing exposes `vue-tsc`/lint errors, describe them as real migration work rather than weakening the domain.

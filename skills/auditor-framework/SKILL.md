@@ -437,11 +437,16 @@ if (isMainModule(import.meta.url)) {
 
 ---
 
-## ⚡ Integrating with `package.json`
+## 🚀 Host Installation, Updates & Governance (`@francogp/auditor`)
 
-Host extensions declared in `audit.config.ts` are automatically loaded by the audit engine. For quick in-development execution, they can be invoked via `npm run audit -- --rule=validate_<topic>` or registered in `package.json`.
+`@francogp/auditor` is consumed across host projects as a native GitHub npm package (`github:francogp/auditor`).
 
-Because `@francogp/auditor` auto-discovers all built-in suites in `src/suites/` and loads extensions from `audit.config.ts`, **no manual registration in runner files is needed**. Running `npm run audit` will automatically discover and execute all suites.
+- **Installation & Lockfile**: Run standard `npm install github:francogp/auditor` to pin the exact commit in `package-lock.json`. Pre-compiled binaries (`dist/`) are tracked in git for zero-build-latency execution.
+- **Auditor Updates**: Pull latest upstream changes strictly via standard native npm: `npm update @francogp/auditor` (or `npm install @francogp/auditor@github:francogp/auditor`). Zero ad-hoc clone/copy scripts. Bundled skills (`skills/*`) and agent rules (`rules/AGENTS.md`) are updated automatically via host `.agents/plugins.json` pointing to `node_modules/@francogp/auditor`.
+- **Hermetic CI**: Use standard `npm ci` for deterministic, zero-drift pipeline execution.
+- **Binary Inheritance**: Host `package.json` scripts map directly to exported binaries (`auditor`, `auditor-commit`, `auditor-findings`, etc.) without duplicating framework scripts.
+
+📘 **Detailed Guide & Canonical Config**: See [host-package-governance.md](references/host-package-governance.md) for full instructions, CI setups, and `package.json` blueprint.
 
 ---
 

@@ -38,7 +38,7 @@ export default defineAuditConfig({
     includeTestsInCodeAudit: false, // Determina si los archivos de prueba se auditan con las reglas de código productivo (false previene falsos positivos)
     testFragmentationWhitelist: ['src/logic/battle/battleEngine.ts'], // Módulos de alta complejidad autorizados formalmente a fragmentar sus suites de prueba
     ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**', '.tsbuildinfo/**'], // Patrones glob de exclusión universal para herramientas estáticas y escaneo
-    ignoredDirs: ['external', 'showdown', 'backup_legacy_code', 'test aventura', 'auditor_fault_suite'], // Carpetas excluidas en su totalidad del análisis y recorrido del auditor (incluye auditor_fault_suite para aislar la suite de fallos hermética)
+    ignoredDirs: ['external', 'showdown', 'backup_legacy_code', 'test aventura'], // Carpetas excluidas en su totalidad del análisis y recorrido del auditor
     ignoredPatterns: ['src/logic/db/migrations_data.ts'] // Patrones de rutas específicas exentas de escaneos particulares
   },
 

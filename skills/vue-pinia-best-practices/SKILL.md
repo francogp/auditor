@@ -26,6 +26,6 @@ Pinia best practices, common gotchas, and state management patterns.
   1. Direct state mutations (`state.foo = bar`, `this.foo = bar`, `ref.value = bar`).
   2. Calling persistence triggers (`scheduleSave()`, `saveCoordinator.markDirty()`).
   3. Calling async dispatchers or mutating actions (`store.mutate()`, `router.push()`).
-- **Enforcement**: Governed by the AST auditor `validate_reactive_purity.ts` (`npm run validate:reactive-purity`). Violations cause audit failure.
+- **Enforcement**: Governed by the AST auditor `validate_reactive_purity` from `@francogp/auditor` (`npm run validate:reactive-purity` or `npm run audit`). Violations cause audit failure.
 - **Pattern**: If state initialization or regeneration is needed (e.g. daily resets, mission backfills), place it inside an explicit action or initialization routine (e.g. `checkDailyReset()`, `initialize()`), never inside a getter evaluation.
 

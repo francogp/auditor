@@ -68,7 +68,7 @@ If the bug touched persistence, database migrations, or SQL schemas:
 1. Confirm the reproduction test runs and passes GREEN against Supabase PostgREST models.
 2. Validate SQL migration syntax and schema integrity:
    ```bash
-   npm run validate:sql
+   npm run audit:family:persistence
    ```
 
 ### Step 2: UI & Component Interaction Verification
