@@ -43,6 +43,11 @@ export function getMarkdownIgnoreGlobs(projectRoot) {
             globs.push(`${r}/results/**`);
         }
     }
+    if (config.paths?.ignoredDirs) {
+        for (const d of config.paths.ignoredDirs) {
+            globs.push(`${d}/**`);
+        }
+    }
     if (config.persistence?.supabaseDir) {
         globs.push(`${config.persistence.supabaseDir}/**`);
     }
