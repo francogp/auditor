@@ -10,7 +10,60 @@
  */
 
 import { spawn } from 'node:child_process';
+import { styleText } from 'node:util';
 import { type AuditTaskDefinition } from './auditContract.ts';
+
+export interface TaskStreamProgressParams {
+  taskName: string;
+  taskId: string;
+  subLines: readonly string[];
+  durationMs: number;
+  isSuccess: boolean;
+  hasWarnings?: boolean;
+}
+
+export class TaskStreamCoordinator {
+  private completedCount = 0;
+  private readonly totalTasks: number;
+  private readonly indent: string;
+  private printLock: Promise<void> = Promise.resolve();
+
+  constructor(totalTasks: number, options?: { indent?: string }) {
+    this.totalTasks = totalTasks;
+    this.indent = options?.indent ?? '  ';
+  }
+
+  public async onTaskComplete(params: TaskStreamProgressParams): Promise<void> {
+    const previousLock = this.printLock;
+    let releaseLock: () => void = () => {};
+    this.printLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+
+    try {
+      this.completedCount++;
+      const pct = Math.round((this.completedCount / this.totalTasks) * 100);
+      const stepStr = String(this.completedCount).padStart(2, '0');
+      const totalStr = String(this.totalTasks).padStart(2, '0');
+      const pctStr = `${pct}%`.padStart(4, ' ');
+
+      const statusBadge = params.isSuccess
+        ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
+        : styleText('red', '❌');
+
+      console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ⚙️  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
+
+      const subIndent = `${this.indent}   `;
+      for (const line of params.subLines) {
+        console.log(`${subIndent}${styleText('dim', '│')}  ${styleText('dim', line)}`);
+      }
+    } finally {
+      releaseLock();
+    }
+  }
+}
 
 export function isNodeInternalWarning(line: string): boolean {
   return line.includes('[PERM0001]') ||
@@ -21,6 +74,31 @@ export function isNodeInternalWarning(line: string): boolean {
     line.includes('DeprecationWarning: Passing args') ||
     line.includes('trace-warnings') ||
     line.includes('experimental-strip-types');
+}
+
+const DEFAULT_RUNNER_TIMEOUT_MS = 60000;
+const SIGKILL_ESCALATION_DELAY_MS = 2000;
+const PROGRESS_LINE_REGEX = /^(?:[🎨📘🔍⏳✨🧩💾📊✅❌\-[0-9]|🛡️|⚙️|⚠️|Paso|Progreso|Sub-|Loading|Found)/iu;
+
+function splitChunkIntoLines(buffer: string, chunk: string): { lines: string[]; remainder: string } {
+  const combined = buffer + chunk;
+  const lines = combined.split('\n');
+  const remainder = lines.pop() || '';
+  return { lines, remainder };
+}
+
+function emitStreamLines(
+  lines: readonly string[],
+  predicate: (trimmed: string) => boolean,
+  callback?: (line: string) => void
+): void {
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || isNodeInternalWarning(trimmed)) continue;
+    if (predicate(trimmed)) {
+      callback?.(trimmed);
+    }
+  }
 }
 
 export interface ExecutedTaskOutput {
@@ -53,57 +131,43 @@ export function executeAuditorStreaming(
       }
     });
 
-    const timeoutLimit = task.timeoutMs ?? 60000;
+    const timeoutLimit = task.timeoutMs ?? DEFAULT_RUNNER_TIMEOUT_MS;
     const timer = setTimeout(() => {
       timedOut = true;
       try {
         child.kill('SIGTERM');
         setTimeout(() => {
-          try { child.kill('SIGKILL'); } catch { /* ignore */ }
-        }, 2000);
-      } catch { /* ignore */ }
+          try { child.kill('SIGKILL'); } catch { /* catch-ok: ignore kill failure on already exited child */ }
+        }, SIGKILL_ESCALATION_DELAY_MS);
+      } catch { /* catch-ok: ignore kill failure on already exited child */ }
     }, timeoutLimit);
 
-    function processIncomingLines(chunk: string, isErr: boolean) {
-      if (isErr) {
-        stderrBuffer += chunk;
-        stderrLineBuffer += chunk;
-        const lines = stderrLineBuffer.split('\n');
-        stderrLineBuffer = lines.pop() || '';
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || isNodeInternalWarning(trimmed)) continue;
-          onSubProgress?.(trimmed);
-        }
-      } else {
-        stdoutBuffer += chunk;
-        stdoutLineBuffer += chunk;
-        const lines = stdoutLineBuffer.split('\n');
-        stdoutLineBuffer = lines.pop() || '';
-        const progressRe = /^(?:[🎨📘🔍⏳✨🧩💾📊✅❌\-[0-9]|🛡️|⚙️|⚠️|Paso|Progreso|Sub-|Loading|Found)/iu;
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || isNodeInternalWarning(trimmed)) continue;
-          if (progressRe.test(trimmed)) {
-            onSubProgress?.(trimmed);
-          }
-        }
-      }
+    function processStderrChunk(chunk: string): void {
+      stderrBuffer += chunk;
+      const { lines, remainder } = splitChunkIntoLines(stderrLineBuffer, chunk);
+      stderrLineBuffer = remainder;
+      emitStreamLines(lines, () => true, onSubProgress);
+    }
+
+    function processStdoutChunk(chunk: string): void {
+      stdoutBuffer += chunk;
+      const { lines, remainder } = splitChunkIntoLines(stdoutLineBuffer, chunk);
+      stdoutLineBuffer = remainder;
+      emitStreamLines(lines, (trimmed) => PROGRESS_LINE_REGEX.test(trimmed), onSubProgress);
     }
 
     child.stdout?.setEncoding('utf-8');
-    child.stdout?.on('data', (chunk: string) => processIncomingLines(chunk, false));
+    child.stdout?.on('data', processStdoutChunk);
 
     child.stderr?.setEncoding('utf-8');
-    child.stderr?.on('data', (chunk: string) => processIncomingLines(chunk, true));
+    child.stderr?.on('data', processStderrChunk);
 
     child.on('close', (code) => {
       clearTimeout(timer);
-      const progressRe = /^(?:[🎨📘🔍⏳✨🧩💾📊✅❌\-[0-9]|🛡️|⚙️|⚠️|Paso|Progreso|Sub-|Loading|Found)/iu;
       if (stderrLineBuffer.trim() && !isNodeInternalWarning(stderrLineBuffer.trim())) {
         onSubProgress?.(stderrLineBuffer.trim());
       }
-      if (stdoutLineBuffer.trim() && !isNodeInternalWarning(stdoutLineBuffer.trim()) && progressRe.test(stdoutLineBuffer.trim())) {
+      if (stdoutLineBuffer.trim() && !isNodeInternalWarning(stdoutLineBuffer.trim()) && PROGRESS_LINE_REGEX.test(stdoutLineBuffer.trim())) {
         onSubProgress?.(stdoutLineBuffer.trim());
       }
       const durationMs = Math.round(performance.now() - taskStart);

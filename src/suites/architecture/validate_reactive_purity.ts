@@ -42,6 +42,27 @@ const IMPURE_CALL_PATTERNS = [
   'window.location'
 ] as const;
 
+function extractGetterFromObjectLiteral(expr: ts.ObjectLiteralExpression, sf: ts.SourceFile): ts.Node | null {
+  for (const prop of expr.properties) {
+    if (ts.isPropertyAssignment(prop) && prop.name.getText(sf) === 'get') {
+      if (ts.isArrowFunction(prop.initializer) || ts.isFunctionExpression(prop.initializer)) {
+        return prop.initializer.body;
+      }
+    }
+  }
+  return null;
+}
+
+function extractComputedGetterBody(firstArg: ts.Node, sf: ts.SourceFile): ts.Node | null {
+  if (ts.isArrowFunction(firstArg) || ts.isFunctionExpression(firstArg)) {
+    return firstArg.body;
+  }
+  if (ts.isObjectLiteralExpression(firstArg)) {
+    return extractGetterFromObjectLiteral(firstArg, sf);
+  }
+  return null;
+}
+
 export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
@@ -66,6 +87,25 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
     });
   }
 
+  private checkComputedCall(
+    node: ts.Node,
+    sf: ts.SourceFile,
+    relPath: string,
+    content: string,
+    offsetLine: number
+  ): void {
+    if (!ts.isCallExpression(node)) return;
+    if (node.expression.getText(sf) !== 'computed' || node.arguments.length === 0) return;
+
+    const firstArg = node.arguments[0];
+    if (!firstArg) return;
+
+    const getterBody = extractComputedGetterBody(firstArg, sf);
+    if (getterBody) {
+      this.inspectGetterBody(getterBody, sf, relPath, content, offsetLine);
+    }
+  }
+
   protected override scanFile(relPath: string, content: string): void {
     if (!content.includes('computed')) return;
 
@@ -75,34 +115,34 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
     const sf = ts.createSourceFile(path.basename(relPath), scriptContent, ts.ScriptTarget.Latest, true);
 
     const visit = (node: ts.Node) => {
-      if (ts.isCallExpression(node)) {
-        const calleeText = node.expression.getText(sf);
-        if (calleeText === 'computed' && node.arguments.length > 0) {
-          const firstArg = node.arguments[0];
-          if (!firstArg) return;
-
-          let getterBody: ts.Node | null = null;
-          if (ts.isArrowFunction(firstArg) || ts.isFunctionExpression(firstArg)) {
-            getterBody = firstArg.body;
-          } else if (ts.isObjectLiteralExpression(firstArg)) {
-            for (const prop of firstArg.properties) {
-              if (ts.isPropertyAssignment(prop) && prop.name.getText(sf) === 'get') {
-                if (ts.isArrowFunction(prop.initializer) || ts.isFunctionExpression(prop.initializer)) {
-                  getterBody = prop.initializer.body;
-                }
-              }
-            }
-          }
-
-          if (getterBody) {
-            this.inspectGetterBody(getterBody, sf, relPath, content, offsetLine);
-          }
-        }
-      }
+      this.checkComputedCall(node, sf, relPath, content, offsetLine);
       ts.forEachChild(node, visit);
     };
 
     visit(sf);
+  }
+
+  private reportComputedViolation(
+    node: ts.Node,
+    sourceFile: ts.SourceFile,
+    relPath: string,
+    fullContent: string,
+    lineOffset: number,
+    ruleId: ReactivePurityRuleId,
+    message: string
+  ): void {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    const realLine = line + lineOffset + 1;
+    if (!this.hasPuritySuppression(fullContent, realLine - 1)) {
+      this.addViolation({
+        ruleId,
+        severity: 'error',
+        file: relPath,
+        line: realLine,
+        message,
+        context: node.getText(sourceFile)
+      });
+    }
   }
 
   private inspectGetterBody(
@@ -126,18 +166,15 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
             leftText.includes('Store.');
 
           if (isReactiveMutation) {
-            const { line } = sourceFile.getLineAndCharacterOfPosition(child.getStart(sourceFile));
-            const realLine = line + lineOffset + 1;
-            if (!this.hasPuritySuppression(fullContent, realLine - 1)) {
-              this.addViolation({
-                ruleId: 'computed-state-mutation',
-                severity: 'error',
-                file: relPath,
-                line: realLine,
-                message: `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`,
-                context: child.getText(sourceFile)
-              });
-            }
+            this.reportComputedViolation(
+              child,
+              sourceFile,
+              relPath,
+              fullContent,
+              lineOffset,
+              'computed-state-mutation',
+              `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`
+            );
           }
         }
       }
@@ -147,18 +184,15 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
         const callText = child.expression.getText(sourceFile);
         const isImpureCall = IMPURE_CALL_PATTERNS.some(pat => callText.includes(pat));
         if (isImpureCall) {
-          const { line } = sourceFile.getLineAndCharacterOfPosition(child.getStart(sourceFile));
-          const realLine = line + lineOffset + 1;
-          if (!this.hasPuritySuppression(fullContent, realLine - 1)) {
-            this.addViolation({
-              ruleId: 'computed-side-effect',
-              severity: 'error',
-              file: relPath,
-              line: realLine,
-              message: `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`,
-              context: child.getText(sourceFile)
-            });
-          }
+          this.reportComputedViolation(
+            child,
+            sourceFile,
+            relPath,
+            fullContent,
+            lineOffset,
+            'computed-side-effect',
+            `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`
+          );
         }
       }
 
@@ -191,6 +225,4 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new ReactivePurityAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ReactivePurityAuditor());

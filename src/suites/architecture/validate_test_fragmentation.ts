@@ -41,6 +41,9 @@ export const TEST_FRAGMENTATION_RULES: readonly TestFragmentationRuleId[] = [
 ] as const;
 
 export const MIN_TEST_FILE_LINES = 60;
+export const DISTRIBUTION_SMALL_MAX_LINES = 300;
+export const DISTRIBUTION_TARGET_MAX_LINES = 800;
+export const DISTRIBUTION_OVERSIZED_MIN_LINES = 1200;
 
 /**
  * Whitelist of legitimately standalone runners, process wrappers, container benchmarks,
@@ -119,11 +122,11 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
 
     if (this.minTestLines > 0 && lineCount < this.minTestLines) {
       this.distribution.micro++;
-    } else if (lineCount < 300) {
+    } else if (lineCount < DISTRIBUTION_SMALL_MAX_LINES) {
       this.distribution.small++;
-    } else if (lineCount <= 800) {
+    } else if (lineCount <= DISTRIBUTION_TARGET_MAX_LINES) {
       this.distribution.target++;
-    } else if (lineCount > 1200) {
+    } else if (lineCount > DISTRIBUTION_OVERSIZED_MIN_LINES) {
       this.distribution.oversized++;
     } else {
       this.distribution.other++;
@@ -224,6 +227,4 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new TestFragmentationAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new TestFragmentationAuditor());

@@ -7,6 +7,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { styleText } from 'node:util';
+import type { AuditFinding } from './auditContract.ts';
 
 export interface ValidationSummary {
   title: string;
@@ -70,4 +71,138 @@ export async function writeReportFile(outputPathArg: string, summary: Validation
 
   await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
   console.log(styleText('cyan', `\n✨ Reporte completo escrito en: ${outputPathArg}`));
+}
+
+/**
+ * Parses raw JSON output containing an array, stripping Node.js permission and runtime noise.
+ */
+export function parseJsonArrayOutput<T = unknown>(
+  input: string | object[],
+  options?: { throwOnError?: boolean; toolName?: string }
+): T[] {
+  if (!input) return [];
+  if (Array.isArray(input)) return input as T[];
+  if (typeof input !== 'string') return [];
+
+  const cleanedLines = input
+    .split('\n')
+    .filter((line) => !line.startsWith('(node:') && !line.startsWith('(Use `node') && !line.includes('SecurityWarning') && !line.startsWith('[PERM') && !line.startsWith('npm notice'));
+  const trimmed = cleanedLines.join('\n').trim();
+  if (!trimmed) return [];
+  const startIdx = trimmed.indexOf('[');
+  const endIdx = trimmed.lastIndexOf(']');
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return [];
+
+  try {
+    return JSON.parse(trimmed.substring(startIdx, endIdx + 1)) as T[];
+  } catch (err) {
+    if (options?.throwOnError) {
+      const toolSuffix = options.toolName ? ` de ${options.toolName}` : '';
+      throw new Error(`Error al procesar salida JSON${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
+    return [];
+  }
+}
+
+/**
+ * Normalizes any absolute or relative path to a clean POSIX relative path from CWD.
+ */
+export function normalizePosixPath(filePath: string, cwd: string = process.cwd()): string {
+  if (!filePath) return '';
+  const resolved = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
+  return resolved.split(path.sep).join(path.posix.sep);
+}
+
+/**
+ * Parses raw JSON output containing an object, handling stdout strings or execSync error objects.
+ */
+export function parseJsonObjectOutput<T = Record<string, unknown>>(input: unknown): T | null {
+  if (!input) return null;
+  let str = '';
+  if (typeof input === 'string') {
+    str = input;
+  } else if (Buffer.isBuffer(input)) {
+    str = input.toString('utf-8');
+  } else if (typeof input === 'object' && input !== null && 'stdout' in input) {
+    const rawStdout = (input as { stdout?: unknown }).stdout;
+    if (typeof rawStdout === 'string') {
+      str = rawStdout;
+    } else if (Buffer.isBuffer(rawStdout)) {
+      str = rawStdout.toString('utf-8');
+    }
+  }
+
+  const jsonStart = str.indexOf('{');
+  const jsonEnd = str.lastIndexOf('}');
+  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) return null;
+
+  try {
+    return JSON.parse(str.substring(jsonStart, jsonEnd + 1)) as T;
+  } catch {
+    // catch-ok: Ignore parse errors on fallback
+    return null;
+  }
+}
+
+export interface RawLintMessage {
+  ruleId?: string;
+  message?: string;
+  line?: number;
+  column?: number;
+}
+
+export interface RawLintFileReport {
+  filePath?: string;
+  messages?: RawLintMessage[];
+  errorCount?: number;
+  warningCount?: number;
+}
+
+export interface ParseLintFindingsOptions {
+  cwd?: string;
+  suiteId: string;
+  suiteName: string;
+  ruleId: string;
+  ruleDescription: string;
+  defaultRuleName?: string;
+  defaultMessage?: string;
+}
+
+/**
+ * Parses raw JSON output or an array of file reports from standard linters (ESLint, HTML-Validate)
+ * into canonical AuditFindings, elevating both warnings and errors to severity: 'error' (Zero-Warning Policy).
+ */
+export function parseLintResultsToFindings(
+  input: string | object[],
+  options: ParseLintFindingsOptions
+): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  if (!input) return findings;
+
+  const rawList = parseJsonArrayOutput<RawLintFileReport>(input);
+  const cwd = options.cwd || process.cwd();
+
+  for (const fileReport of rawList) {
+    const cleanFile = normalizePosixPath(fileReport.filePath || '', cwd);
+    if (!fileReport.messages || fileReport.messages.length === 0) continue;
+
+    for (const msg of fileReport.messages) {
+      const rule = msg.ruleId || options.defaultRuleName || options.ruleId;
+      const text = msg.message || options.defaultMessage || 'Lint issue';
+
+      findings.push({
+        suiteId: options.suiteId,
+        suiteName: options.suiteName,
+        ruleId: options.ruleId,
+        ruleDescription: options.ruleDescription,
+        severity: 'error',
+        file: cleanFile,
+        line: msg.line || 1,
+        context: rule,
+        message: `[${rule}] ${text}`
+      });
+    }
+  }
+
+  return findings;
 }

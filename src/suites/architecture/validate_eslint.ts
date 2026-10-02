@@ -15,10 +15,11 @@
  */
 
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { executeNodeCli } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
+import { parseLintResultsToFindings, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
 
 enableCompileCache();
 
@@ -30,79 +31,24 @@ export const ESLINT_RULES: readonly EslintRuleId[] = [
 
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 120000 as const;
-const DEFAULT_ERROR_LINE = 1 as const;
 
-export interface RawEslintMessage {
-  ruleId?: string | null;
-  severity?: number;
-  message?: string;
-  line?: number;
-  column?: number;
-}
-
-export interface RawEslintFileReport {
-  filePath?: string;
-  messages?: RawEslintMessage[];
-  errorCount?: number;
-  warningCount?: number;
-}
+export type RawEslintMessage = RawLintMessage;
+export type RawEslintFileReport = RawLintFileReport;
 
 /**
  * Parses raw JSON output or an array of file reports from ESLint into canonical AuditFindings.
  * Elevates both warnings (severity 1) and errors (severity 2) to severity: 'error' (Zero-Warning Policy).
  */
 export function parseEslintResults(input: string | object[], cwd: string = process.cwd()): AuditFinding[] {
-  const findings: AuditFinding[] = []; // no-domain: Non-domain utility collection or data structure
-  if (!input) return findings;
-
-  let rawList: RawEslintFileReport[] = []; // no-domain: Non-domain utility collection or data structure
-  if (typeof input === 'string') {
-    const cleanedLines = input
-      .split('\n')
-      .filter((line) => !line.startsWith('(node:') && !line.startsWith('(Use `node') && !line.includes('SecurityWarning') && !line.startsWith('[PERM'));
-    const trimmed = cleanedLines.join('\n').trim();
-    if (!trimmed) return findings;
-    const startIdx = trimmed.indexOf('[');
-    const endIdx = trimmed.lastIndexOf(']');
-    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return findings;
-
-    try {
-      rawList = JSON.parse(trimmed.substring(startIdx, endIdx + 1)) as RawEslintFileReport[];
-    } catch {
-      return findings;
-    }
-  } else if (Array.isArray(input)) {
-    rawList = input as RawEslintFileReport[];
-  }
-
-  for (const fileReport of rawList) {
-    const rawFile = fileReport.filePath || '';
-    if (!fileReport.messages || fileReport.messages.length === 0) continue;
-
-    const resolvedPath = path.isAbsolute(rawFile)
-      ? path.relative(cwd, rawFile)
-      : rawFile;
-    const cleanFile = resolvedPath.split(path.sep).join(path.posix.sep);
-
-    for (const msg of fileReport.messages) {
-      const rule = msg.ruleId || 'eslint';
-      const text = msg.message || 'ESLint violation';
-
-      findings.push({
-        suiteId: 'validate_eslint',
-        suiteName: 'ESLint Code Hygiene Validator',
-        ruleId: 'eslint-violation',
-        ruleDescription: 'Error de sintaxis o regla',
-        severity: 'error',
-        file: cleanFile,
-        line: msg.line || DEFAULT_ERROR_LINE,
-        context: rule,
-        message: `[${rule}] ${text}`
-      });
-    }
-  }
-
-  return findings;
+  return parseLintResultsToFindings(input, {
+    cwd,
+    suiteId: 'validate_eslint',
+    suiteName: 'ESLint Code Hygiene Validator',
+    ruleId: 'eslint-violation',
+    ruleDescription: 'Error de sintaxis o regla',
+    defaultRuleName: 'eslint',
+    defaultMessage: 'ESLint violation'
+  });
 }
 
 export class EslintAuditor extends BaseAuditor<EslintRuleId> {
@@ -121,7 +67,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    const isFixMode = process.argv.includes('fix') || process.argv.includes('--fix') || Boolean((this.context.values as Record<string, unknown>).fix);
+    const isFixMode = this.isFixModeRequested();
     this.context.logStep(1, 2, `Ejecutando ESLint (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
 
     const binPath = path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
@@ -131,34 +77,16 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       args.push('--fix');
     }
 
-    const proc = spawnSync('node', [
-      '--disable-warning=PERM0001',
-      '--disable-warning=PERM0002',
-      '--disable-warning=ExperimentalWarning',
-      binPath,
-      ...args
-    ], {
+    const combinedOutput = executeNodeCli(binPath, args, {
       cwd: this.projectRoot,
-      encoding: 'utf-8',
       maxBuffer: MAX_BUFFER_BYTES,
       timeout: EXECUTION_TIMEOUT_MS
     });
-
-    const combinedOutput = `${proc.stdout || ''}\n${proc.stderr || ''}`;
     const findings = parseEslintResults(combinedOutput, this.projectRoot);
 
     this.context.logStep(2, 2, `Procesando violaciones de ESLint (${findings.length} problemas)...`);
 
-    for (const finding of findings) {
-      this.addViolation({
-        ruleId: 'eslint-violation',
-        severity: 'error',
-        file: finding.file || '',
-        line: finding.line || DEFAULT_ERROR_LINE,
-        context: finding.context || 'eslint',
-        message: finding.message
-      });
-    }
+    this.importAuditFindings(findings, 'eslint-violation', 'eslint');
 
     this.filesScannedCount = 1;
     this.context.setMetric('eslint_violations', findings.length);
@@ -167,6 +95,4 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new EslintAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new EslintAuditor());

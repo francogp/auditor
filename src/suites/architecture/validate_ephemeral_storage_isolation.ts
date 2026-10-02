@@ -58,6 +58,11 @@ export function getEffectiveSourceRoots(projectRoot?: string): readonly string[]
 const FORBIDDEN_DIR_NAMES = new Set(['temp', 'tmp', '.temp', '.tmp', 'ephemeral', 'scratch']);
 const FORBIDDEN_DIR_PREFIXES = ['temp_', 'tmp_'];
 
+function isForbiddenDirName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return FORBIDDEN_DIR_NAMES.has(lower) || FORBIDDEN_DIR_PREFIXES.some(prefix => lower.startsWith(prefix));
+}
+
 const DEFAULT_ALLOWED_DATABASE_DIRS = new Set(['backups', 'migrations', 'schemas']);
 const DEFAULT_ALLOWED_DATABASE_FILES = new Set(['AGENTS.md', '.gitkeep']);
 
@@ -69,6 +74,35 @@ export interface EphemeralStorageIsolationAuditorOptions {
   roots?: readonly string[];
   allowedDatabaseDirs?: ReadonlySet<string>;
   allowedDatabaseFiles?: ReadonlySet<string>;
+}
+
+function isSelfReferentialFile(relPath: string): boolean {
+  return (
+    relPath.endsWith('validate_ephemeral_storage_isolation.ts') ||
+    relPath.endsWith('validate_ephemeral_storage_isolation.test.ts')
+  );
+}
+
+function scanLinesForEphemeralRefs(
+  lines: readonly string[],
+  relPath: string,
+  auditor: EphemeralStorageIsolationAuditor
+): void {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] || '';
+    if (auditor.isLineIgnored(line, ['scratch-ok', 'temp-ok'])) continue;
+
+    if (FORBIDDEN_CODE_REF_REGEX.test(line)) {
+      auditor.addViolation({
+        ruleId: 'ephemeral-no-source-temp-references',
+        severity: 'error',
+        file: relPath,
+        line: i + 1,
+        message: `Forbidden reference to ephemeral path inside source code tree. All temporary databases, test simulation exports, and scratch artifacts must reside strictly inside 'scratch/'.`,
+        context: line.trim()
+      });
+    }
+  }
 }
 
 export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStorageRuleId> {
@@ -128,69 +162,71 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
     }
   }
 
+  private checkDatabaseDirectoryEntry(entry: fs.Dirent): void {
+    if (entry.isDirectory()) {
+      if (!this.allowedDatabaseDirs.has(entry.name)) {
+        this.addViolation({
+          ruleId: 'ephemeral-no-source-temp-dirs',
+          severity: 'error',
+          file: `database/${entry.name}`,
+          line: 1,
+          message: `Forbidden directory 'database/${entry.name}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/database/'.`,
+          context: `database/${entry.name}`
+        });
+      }
+    } else if (entry.isFile() && !entry.name.startsWith('.') && !this.allowedDatabaseFiles.has(entry.name)) {
+      this.addViolation({
+        ruleId: 'ephemeral-no-source-temp-dirs',
+        severity: 'error',
+        file: `database/${entry.name}`,
+        line: 1,
+        message: `Forbidden file 'database/${entry.name}' detected under database root. Ephemeral files must reside in 'scratch/database/'.`,
+        context: `database/${entry.name}`
+      });
+    }
+  }
+
+  private checkSubDirectory(entry: fs.Dirent, currentDir: string, rootName: string): void {
+    if (!entry.isDirectory() || entry.name === 'node_modules' || entry.name === '.git') {
+      return;
+    }
+
+    const subPath = path.join(currentDir, entry.name);
+    const relSubPath = path.relative(this.projectRoot, subPath).split(path.sep).join(path.posix.sep);
+
+    if (isForbiddenDirName(entry.name)) {
+      this.addViolation({
+        ruleId: 'ephemeral-no-source-temp-dirs',
+        severity: 'error',
+        file: relSubPath,
+        line: 1,
+        message: `Forbidden ephemeral directory '${relSubPath}' detected in source tree. All temporary artifacts, test dumps, and caches must reside strictly in 'scratch/'.`,
+        context: relSubPath
+      });
+    }
+
+    this.walkAndCheckDirectory(subPath, rootName);
+  }
+
   private walkAndCheckDirectory(currentDir: string, rootName: string): void {
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(currentDir, { withFileTypes: true });
     } catch {
+      // catch-ok: Directory may be inaccessible or deleted during traversal
       return;
     }
 
     const relToRoot = path.relative(this.projectRoot, currentDir).split(path.sep).join(path.posix.sep);
 
-    // Strict validation for database root if present
     if (rootName === 'database' && relToRoot === 'database') {
       for (const entry of entries) {
-        if (entry.isDirectory()) {
-          if (!this.allowedDatabaseDirs.has(entry.name)) {
-            this.addViolation({
-              ruleId: 'ephemeral-no-source-temp-dirs',
-              severity: 'error',
-              file: `database/${entry.name}`,
-              line: 1,
-              message: `Forbidden directory 'database/${entry.name}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/database/'.`,
-              context: `database/${entry.name}`
-            });
-          }
-        } else if (entry.isFile()) {
-          if (!entry.name.startsWith('.') && !this.allowedDatabaseFiles.has(entry.name)) {
-            this.addViolation({
-              ruleId: 'ephemeral-no-source-temp-dirs',
-              severity: 'error',
-              file: `database/${entry.name}`,
-              line: 1,
-              message: `Forbidden file 'database/${entry.name}' detected under database root. Ephemeral files must reside in 'scratch/database/'.`,
-              context: `database/${entry.name}`
-            });
-          }
-        }
+        this.checkDatabaseDirectoryEntry(entry);
       }
     }
 
-    // Generic recursive check across all source directories
     for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (entry.name === 'node_modules' || entry.name === '.git') continue;
-
-      const subPath = path.join(currentDir, entry.name);
-      const relSubPath = path.relative(this.projectRoot, subPath).split(path.sep).join(path.posix.sep);
-
-      const isForbiddenName =
-        FORBIDDEN_DIR_NAMES.has(entry.name.toLowerCase()) ||
-        FORBIDDEN_DIR_PREFIXES.some(prefix => entry.name.toLowerCase().startsWith(prefix));
-
-      if (isForbiddenName) {
-        this.addViolation({
-          ruleId: 'ephemeral-no-source-temp-dirs',
-          severity: 'error',
-          file: relSubPath,
-          line: 1,
-          message: `Forbidden ephemeral directory '${relSubPath}' detected in source tree. All temporary artifacts, test dumps, and caches must reside strictly in 'scratch/'.`,
-          context: relSubPath
-        });
-      }
-
-      this.walkAndCheckDirectory(subPath, rootName);
+      this.checkSubDirectory(entry, currentDir, rootName);
     }
   }
 
@@ -221,7 +257,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
         }
       }
     } catch {
-      // Ignore read errors
+      // catch-ok: Ignore read errors
     }
   }
 
@@ -234,39 +270,17 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
 
     for (const filePath of scannableFiles) {
       const relPath = path.relative(this.projectRoot, filePath).split(path.sep).join(path.posix.sep);
-
-      // Skip this auditor and its unit test to prevent self-referential false positives
-      if (
-        relPath.endsWith('validate_ephemeral_storage_isolation.ts') ||
-        relPath.endsWith('validate_ephemeral_storage_isolation.test.ts')
-      ) {
-        continue;
-      }
+      if (isSelfReferentialFile(relPath)) continue;
 
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
         this.filesScannedCount++;
 
         if (content.includes('/temp') || content.includes('/tmp')) {
-          const lines = content.split('\n');
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i] || '';
-            if (this.isLineIgnored(line, ['scratch-ok', 'temp-ok'])) continue;
-
-            if (FORBIDDEN_CODE_REF_REGEX.test(line)) {
-              this.addViolation({
-                ruleId: 'ephemeral-no-source-temp-references',
-                severity: 'error',
-                file: relPath,
-                line: i + 1,
-                message: `Forbidden reference to ephemeral path inside source code tree. All temporary databases, test simulation exports, and scratch artifacts must reside strictly inside 'scratch/'.`,
-                context: line.trim()
-              });
-            }
-          }
+          scanLinesForEphemeralRefs(content.split('\n'), relPath, this);
         }
       } catch {
-        // Ignore read errors
+        // catch-ok: Ignore read errors
       }
     }
   }

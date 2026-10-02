@@ -24,18 +24,19 @@ import {
   type AuditRunMode,
   type ConsolidatedAuditReport,
   resolveFamilyMetadata,
-  getActiveFamilies
+  getActiveFamilies,
+  groupResultsByFamily
 } from '../core/auditContract.ts';
-import { loadAuditConfig, assertAuditConfigComplete } from '../core/auditConfig.ts';
+import { loadAuditConfig, assertAuditConfigComplete, type AuditEngineConfig } from '../core/auditConfig.ts';
 import {
   renderBanner,
   renderConsolidatedFooter,
   renderMarkdownReport,
-  renderBoxTable,
-  type TableColumn
+  renderFindingsBreakdownTable,
+  renderSampleFindings
 } from '../core/unifiedTheme.ts';
 import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
-import { executeAuditorStreaming, isNodeInternalWarning } from '../core/streamingRunner.ts';
+import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from '../core/streamingRunner.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { BaseAuditor } from '../core/auditorBase.ts';
 
@@ -44,13 +45,68 @@ enableCompileCache();
 const CPU_CORE_DIVISOR = 2 as const;
 const MIN_CONCURRENCY = 1 as const;
 const DECIMAL_RADIX = 10 as const;
+const DEFAULT_SUBPROCESS_TIMEOUT_MS = 60000 as const;
 
-async function runMasterAudit() {
-  process.env.AUDIT_SUBPROCESS = 'true';
-  const startTime = performance.now();
-  const config = await loadAuditConfig();
-  assertAuditConfigComplete(config);
-  const activeFamilies = getActiveFamilies(config.customFamilies);
+interface AuditFullCliOptions {
+  values: Record<string, unknown>;
+  positionals: string[];
+  targetFamily: string | undefined;
+  formattedRules: string;
+  targetPreset: AuditPresetName | undefined;
+  targetSuites: string[] | undefined;
+  concurrencyLimit: number;
+}
+
+function resolveTargetFamily(
+  familyOption: unknown,
+  positionals: readonly string[],
+  activeFamilies: readonly string[]
+): string | undefined {
+  const positionalFamily = positionals.find(p => (activeFamilies as readonly string[]).includes(p));
+  return (familyOption as string | undefined) || positionalFamily;
+}
+
+function resolveFormattedRules(values: Record<string, unknown>, positionals: readonly string[]): string {
+  const rawRuleArgs: string[] = [];
+  if (values.rule) {
+    const list = Array.isArray(values.rule) ? values.rule : [values.rule];
+    for (const item of list) rawRuleArgs.push(String(item));
+  }
+  if (values.rules) {
+    const list = Array.isArray(values.rules) ? values.rules : [values.rules];
+    for (const item of list) rawRuleArgs.push(String(item));
+  }
+  for (const pos of positionals) {
+    if (pos.toLowerCase() === 'dox' || pos.includes(',')) {
+      rawRuleArgs.push(pos);
+    }
+  }
+  return rawRuleArgs.join(',');
+}
+
+function resolveTargetSuites(values: Record<string, unknown>): string[] | undefined {
+  if (values.suites) {
+    return String(values.suites).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (values.tasks) {
+    return String(values.tasks).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (typeof values.task === 'string' && values.task.includes(',')) {
+    return String(values.task).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+function resolveConcurrencyLimit(concurrencyValue: unknown): number {
+  const availableCpus = os.availableParallelism ? os.availableParallelism() : os.cpus().length;
+  const defaultConcurrency = Math.max(MIN_CONCURRENCY, Math.floor(availableCpus / CPU_CORE_DIVISOR));
+  if (concurrencyValue) {
+    return Math.max(MIN_CONCURRENCY, Number.parseInt(concurrencyValue as string, DECIMAL_RADIX) || defaultConcurrency);
+  }
+  return defaultConcurrency;
+}
+
+function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliOptions {
   const args = process.argv.slice(2);
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (['errors-only', 'fix', 'all'].includes(a) ? `--${a}` : a));
 
@@ -76,315 +132,197 @@ async function runMasterAudit() {
     strict: false
   });
 
-  const positionalFamily = positionals.find(p => (activeFamilies as readonly string[]).includes(p)); // domain-ok: Open dynamic text or non-domain string payload
-  const targetFamily = values.family || positionalFamily;
+  return {
+    values,
+    positionals,
+    targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
+    formattedRules: resolveFormattedRules(values, positionals),
+    targetPreset: values.preset as AuditPresetName | undefined,
+    targetSuites: resolveTargetSuites(values),
+    concurrencyLimit: resolveConcurrencyLimit(values.concurrency)
+  };
+}
 
-  const rawRuleArgs: string[] = []; // no-domain: Non-domain utility collection or data structure
-  if (values.rule) {
-    if (Array.isArray(values.rule)) {
-      for (const item of values.rule) rawRuleArgs.push(String(item));
-    } else {
-      rawRuleArgs.push(String(values.rule));
-    }
-  }
-  if (values.rules) {
-    if (Array.isArray(values.rules)) {
-      for (const item of values.rules) rawRuleArgs.push(String(item));
-    } else {
-      rawRuleArgs.push(String(values.rules));
-    }
-  }
-  for (const pos of positionals) {
-    if (pos.toLowerCase() === 'dox' || pos.includes(',')) { // string-ok: Internal string formatting or DOM token identifier
-      rawRuleArgs.push(pos);
-    }
-  }
-  const formattedRules = rawRuleArgs.join(',');
 
-  // 1. Prepare clean scratch/audits directory structure
-  const scratchAuditsDir = path.resolve(process.cwd(), 'scratch/audits');
-  await fs.mkdir(scratchAuditsDir, { recursive: true });
-  for (const family of activeFamilies) {
-    await fs.mkdir(path.join(scratchAuditsDir, family), { recursive: true });
-  }
+function determineRunMode(
+  targetPreset?: AuditPresetName,
+  targetSuites?: string[],
+  taskArg?: unknown,
+  targetFamily?: string
+): AuditRunMode {
+  if (targetPreset) return 'preset';
+  if (targetSuites && targetSuites.length > 1) return 'suites';
+  if (taskArg || (targetSuites && targetSuites.length === 1)) return 'single';
+  if (targetFamily) return 'family';
+  return 'full';
+}
 
-  // 2. Auto-discover all auditor tasks dynamically from scripts/auditors/
-  const allAvailableTasks = await discoverAuditors();
-  const targetPreset = values.preset as AuditPresetName | undefined;
-  let targetSuites: string[] | undefined = undefined; // no-domain: Non-domain utility collection or data structure
-  if (values.suites) {
-    targetSuites = String(values.suites).split(',').map(s => s.trim()).filter(Boolean);
-  } else if (values.tasks) {
-    targetSuites = String(values.tasks).split(',').map(s => s.trim()).filter(Boolean);
-  } else if (typeof values.task === 'string' && values.task.includes(',')) {
-    targetSuites = String(values.task).split(',').map(s => s.trim()).filter(Boolean);
-  }
+function buildTaskArgs(task: AuditTaskDefinition, values: Record<string, unknown>, formattedRules: string): string[] {
+  const taskArgs = [...task.args];
+  if (values['errors-only'] && !taskArgs.includes('--errors-only')) taskArgs.push('--errors-only');
+  if (formattedRules && !taskArgs.includes('--rule')) taskArgs.push('--rule', formattedRules);
+  if (values.top && !taskArgs.includes('--top')) taskArgs.push('--top', values.top as string);
+  if (values['changed-since'] && !taskArgs.includes('--changed-since')) taskArgs.push('--changed-since', values['changed-since'] as string);
+  if (values.fix && !taskArgs.includes('fix')) taskArgs.push('fix');
+  return taskArgs;
+}
 
-  const tasksToRun = await discoverAuditors({
-    family: targetFamily as string | undefined,
-    task: targetSuites ? undefined : (values.task as string | undefined),
-    suites: targetSuites,
-    preset: targetPreset
-  });
-
-  const executedSuiteIds = tasksToRun.map(t => t.id);
-  const allSuiteIds = allAvailableTasks.map(t => t.id);
-  const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
-  const isFullAudit = tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
-
-  let runMode: AuditRunMode = 'full';
-  if (targetPreset) {
-    runMode = 'preset';
-  } else if (targetSuites && targetSuites.length > 1) {
-    runMode = 'suites';
-  } else if (values.task || (targetSuites && targetSuites.length === 1)) {
-    runMode = 'single';
-  } else if (targetFamily) {
-    runMode = 'family';
-  }
-
-  // Sort tasks by canonical family order
-  tasksToRun.sort((a, b) => {
-    const orderA = (a.order ?? 99);
-    const orderB = (b.order ?? 99);
-    if (orderA !== orderB) return orderA - orderB;
-    return a.id.localeCompare(b.id);
-  });
-
-  const subtitleDetails: string[] = [`Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`]; // no-domain: Non-domain utility collection or data structure
-  if (targetPreset) subtitleDetails.push(`Preset: ${targetPreset.toUpperCase()}`);
-  if (values.family) subtitleDetails.push(`Familia: ${String(values.family).toUpperCase()}`);
-  if (!isFullAudit) subtitleDetails.push('Modo: PARCIAL ⚠️');
-
-  const bannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
-  console.log(renderBanner(
-    bannerTitle,
-    subtitleDetails.join('  |  ')
-  ));
-
-  if (tasksToRun.length === 0) {
-    console.log(styleText('yellow', '⚠️ No se encontraron auditores que coincidan con los filtros especificados.'));
-    process.exit(0);
-  }
-
-  const availableCpus = os.availableParallelism ? os.availableParallelism() : os.cpus().length;
-  const defaultConcurrency = Math.max(MIN_CONCURRENCY, Math.floor(availableCpus / CPU_CORE_DIVISOR));
-  const concurrencyLimit = values.concurrency
-    ? Math.max(MIN_CONCURRENCY, Number.parseInt(values.concurrency as string, DECIMAL_RADIX) || defaultConcurrency)
-    : defaultConcurrency;
-
-  const astTasks = tasksToRun.filter(t => t.requiresAst);
-  let sharedAstContext: SharedAstContext | undefined;
-  if (astTasks.length > 0) {
-    console.log(styleText('cyan', `🧠 [AST Engine] Detectados ${astTasks.length} sub-auditor(es) que requieren AST. Inicializando contexto AST compartido...\n`));
-    sharedAstContext = new SharedAstContext();
-  }
-
-  console.log(styleText('bold', `⏳ Progreso de ejecución de suites (Concurrencia: ${concurrencyLimit} workers):\n`));
-
-  class AuditStreamCoordinator {
-    private completedCount = 0;
-    private readonly totalTasks: number;
-    private printLock: Promise<void> = Promise.resolve();
-
-    constructor(totalTasks: number) {
-      this.totalTasks = totalTasks;
-    }
-
-    public async onTaskComplete(
-      task: AuditTaskDefinition,
-      subLines: string[],
-      durationMs: number,
-      result: StandardAuditResult
-    ): Promise<void> {
-      const previousLock = this.printLock;
-      let releaseLock: () => void = () => {};
-      this.printLock = new Promise<void>((resolve) => {
-        releaseLock = resolve;
-      });
-
-      await previousLock;
-
-      try {
-        this.completedCount++;
-        const pct = Math.round((this.completedCount / this.totalTasks) * 100);
-        const stepStr = String(this.completedCount).padStart(2, '0');
-        const totalStr = String(this.totalTasks).padStart(2, '0');
-        const pctStr = `${String(pct).padStart(3, ' ')}%`;
-
-        const statusBadge = result.status === 'passed'
-          ? ((result.summary?.warnings ?? 0) > 0 ? styleText('yellow', '⚠️') : styleText('green', '✅'))
-          : styleText('red', '❌');
-
-        console.log(`  ${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ⚙️  ${styleText('cyan', task.name)} ${styleText('dim', `(${task.id})`)}... ${statusBadge} ${styleText('dim', `${durationMs}ms`)}`);
-
-        for (const line of subLines) {
-          console.log(`     ${styleText('dim', '│')}  ${styleText('dim', line)}`);
-        }
-      } finally {
-        releaseLock();
+async function executeTaskInProcess(
+  task: AuditTaskDefinition,
+  sharedAstContext: SharedAstContext
+): Promise<{ result: StandardAuditResult; durationMs: number } | null> {
+  const taskStart = performance.now();
+  try {
+    const fullScriptPath = path.resolve(process.cwd(), task.scriptPath);
+    const mod = await import(fullScriptPath);
+    let AuditorClass: (new () => BaseAuditor) | undefined;
+    for (const val of Object.values(mod)) {
+      if (typeof val === 'function' && val.prototype instanceof BaseAuditor) {
+        AuditorClass = val as new () => BaseAuditor;
+        break;
       }
     }
+    if (AuditorClass) {
+      const auditor = new AuditorClass();
+      const result = await auditor.execute(sharedAstContext);
+      const durationMs = Math.round(performance.now() - taskStart);
+      result.durationMs = durationMs;
+      return { result, durationMs };
+    }
+  } catch {
+    // catch-ok: Fallback to streaming execution if in-process execution fails
+  }
+  return null;
+}
+
+async function tryReadTaskResult(
+  taskJsonPath: string,
+  stdout: string,
+  durationMs: number
+): Promise<StandardAuditResult | null> {
+  try {
+    const fileContent = await fs.readFile(taskJsonPath, 'utf-8');
+    const parsed = JSON.parse(fileContent) as StandardAuditResult;
+    parsed.durationMs = durationMs;
+    return parsed;
+  } catch {
+    // catch-ok: fallback to parsing JSON from stdout
   }
 
-  const coordinator = new AuditStreamCoordinator(tasksToRun.length);
-
-  async function executeSingleTask(task: AuditTaskDefinition): Promise<StandardAuditResult> {
-    const taskArgs = [...task.args];
-    if (values['errors-only'] && !taskArgs.includes('--errors-only')) taskArgs.push('--errors-only');
-    if (formattedRules && !taskArgs.includes('--rule')) taskArgs.push('--rule', formattedRules);
-    if (values.top && !taskArgs.includes('--top')) taskArgs.push('--top', values.top as string);
-    if (values['changed-since'] && !taskArgs.includes('--changed-since')) taskArgs.push('--changed-since', values['changed-since'] as string);
-    if (values.fix && !taskArgs.includes('fix')) taskArgs.push('fix');
-
-    const subLines: string[] = []; // no-domain: Non-domain utility collection or data structure
-    let parsedResult: StandardAuditResult | null = null;
-    let taskDuration = 0;
-
-    if (task.requiresAst && sharedAstContext) {
-      const taskStart = performance.now();
-      try {
-        const fullScriptPath = path.resolve(process.cwd(), task.scriptPath);
-        const mod = await import(fullScriptPath);
-        let AuditorClass: (new () => BaseAuditor) | undefined;
-        for (const val of Object.values(mod)) {
-          if (typeof val === 'function' && val.prototype instanceof BaseAuditor) {
-            AuditorClass = val as new () => BaseAuditor;
-            break;
-          }
-        }
-        if (AuditorClass) {
-          const auditor = new AuditorClass();
-          parsedResult = await auditor.execute(sharedAstContext);
-          taskDuration = Math.round(performance.now() - taskStart);
-          parsedResult.durationMs = taskDuration;
-        }
-      } catch (_err) {
-        // Fallback to streaming execution if in-process execution fails
+  if (stdout) {
+    try {
+      const raw = stdout.trim();
+      const firstBrace = raw.indexOf('{');
+      const lastBrace = raw.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1)) as StandardAuditResult;
+        parsed.durationMs = durationMs;
+        return parsed;
       }
-    }
-
-    if (!parsedResult) {
-      const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => {
-        subLines.push(subLine);
-      });
-      taskDuration = proc.durationMs;
-      const taskJsonPath = path.join(scratchAuditsDir, task.family, `${task.id}.json`);
-
-      try {
-        const fileContent = await fs.readFile(taskJsonPath, 'utf-8');
-        parsedResult = JSON.parse(fileContent) as StandardAuditResult;
-        parsedResult.durationMs = taskDuration;
-      } catch {
-      if (proc.stdout) {
-        try {
-          const raw = proc.stdout.trim();
-          const firstBrace = raw.indexOf('{');
-          const lastBrace = raw.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            parsedResult = JSON.parse(raw.substring(firstBrace, lastBrace + 1)) as StandardAuditResult;
-          }
-        } catch {
-          // Handled below
-        }
-      }
-    }
-
-    if (!parsedResult) {
-      const isSuccess = !proc.timedOut && proc.status === 0;
-      const findings: AuditFinding[] = [];
-
-      let errorMsg: string;
-      if (proc.timedOut) {
-        errorMsg = `Timeout excedido (${task.timeoutMs ?? 60000}ms) en la ejecución de la suite.`;
-      } else {
-        const cleanStderr = proc.stderr
-          .split('\n')
-          .filter(l => !isNodeInternalWarning(l.trim()) && l.trim().length > 0)
-          .join('\n')
-          .trim();
-        const cleanStdout = proc.stdout
-          .split('\n')
-          .filter(l => !isNodeInternalWarning(l.trim()) && l.trim().length > 0)
-          .join('\n')
-          .trim();
-        errorMsg = cleanStderr || cleanStdout || `Código de salida ${proc.status}`;
-      }
-
-      if (!isSuccess) {
-        findings.push({
-          severity: 'error',
-          message: errorMsg,
-          file: task.scriptPath
-        });
-      }
-
-      parsedResult = {
-        id: task.id,
-        name: task.name,
-        description: task.description || task.name,
-        family: task.family,
-        status: isSuccess ? 'passed' : 'failed',
-        durationMs: taskDuration,
-        metrics: {},
-        findings,
-        summary: {
-          errors: isSuccess ? 0 : 1,
-          warnings: 0,
-          info: 0
-        }
-      };
+    } catch {
+      // catch-ok: stdout does not contain valid JSON payload
     }
   }
 
-  const currentResult: StandardAuditResult = parsedResult;
-    if (!currentResult.summary) {
-      const errCount = currentResult.findings?.filter(f => f.severity === 'error').length ?? (currentResult.status === 'failed' ? 1 : 0);
-      const warnCount = currentResult.findings?.filter(f => f.severity === 'warning').length ?? 0;
-      currentResult.summary = {
-        errors: errCount,
-        warnings: warnCount,
-        info: 0
-      };
-    }
+  return null;
+}
 
-    await coordinator.onTaskComplete(task, subLines, taskDuration, currentResult);
-    return currentResult;
+function extractSubprocessErrorMessage(
+  proc: { status: number | null; stdout: string; stderr: string; timedOut: boolean },
+  timeoutMs: number = DEFAULT_SUBPROCESS_TIMEOUT_MS
+): string {
+  if (proc.timedOut) {
+    return `Timeout excedido (${timeoutMs}ms) en la ejecución de la suite.`;
+  }
+  const cleanStderr = proc.stderr
+    .split('\n')
+    .filter(l => !isNodeInternalWarning(l.trim()) && l.trim().length > 0)
+    .join('\n')
+    .trim();
+  const cleanStdout = proc.stdout
+    .split('\n')
+    .filter(l => !isNodeInternalWarning(l.trim()) && l.trim().length > 0)
+    .join('\n')
+    .trim();
+  return cleanStderr || cleanStdout || `Código de salida ${proc.status}`;
+}
+
+async function parseSubprocessOutput(
+  task: AuditTaskDefinition,
+  proc: { status: number | null; stdout: string; stderr: string; timedOut: boolean; durationMs: number },
+  scratchAuditsDir: string
+): Promise<StandardAuditResult> {
+  const taskJsonPath = path.join(scratchAuditsDir, task.family, `${task.id}.json`);
+  const parsed = await tryReadTaskResult(taskJsonPath, proc.stdout, proc.durationMs);
+  if (parsed) {
+    return parsed;
   }
 
-  const results: StandardAuditResult[] = new Array(tasksToRun.length);
+  const isSuccess = !proc.timedOut && proc.status === 0;
+  const findings: AuditFinding[] = [];
+
+  if (!isSuccess) {
+    const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? 60000);
+    findings.push({
+      severity: 'error',
+      message: errorMsg,
+      file: task.scriptPath
+    });
+  }
+
+  return {
+    id: task.id,
+    name: task.name,
+    description: task.description || task.name,
+    family: task.family,
+    status: isSuccess ? 'passed' : 'failed',
+    durationMs: proc.durationMs,
+    metrics: {},
+    findings,
+    summary: {
+      errors: isSuccess ? 0 : 1,
+      warnings: 0,
+      info: 0
+    }
+  };
+}
+
+async function runAuditWorkers(
+  tasks: AuditTaskDefinition[],
+  concurrency: number,
+  taskExecutor: (task: AuditTaskDefinition) => Promise<StandardAuditResult>
+): Promise<StandardAuditResult[]> {
+  const results: StandardAuditResult[] = new Array(tasks.length);
   let nextTaskIndex = 0;
 
   async function worker(): Promise<void> {
-    while (nextTaskIndex < tasksToRun.length) {
+    while (nextTaskIndex < tasks.length) {
       const idx = nextTaskIndex++;
-      results[idx] = await executeSingleTask(tasksToRun[idx]!);
+      results[idx] = await taskExecutor(tasks[idx]!);
     }
   }
 
-  const workerCount = Math.min(concurrencyLimit, tasksToRun.length);
+  const workerCount = Math.min(concurrency, tasks.length);
   const workers = Array.from({ length: workerCount }, () => worker());
   await Promise.all(workers);
+  return results;
+}
 
-  const totalDuration = Math.round(performance.now() - startTime);
-  const totalErrors = results.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
-  const totalWarnings = results.reduce((acc, r) => acc + (r.summary?.warnings ?? 0), 0);
-  const suitesPassed = results.filter(r => r.status === 'passed' && (r.summary?.errors ?? 0) === 0).length;
-  const anyFailed = totalErrors > 0 || suitesPassed < results.length;
+interface MasterReportContext {
+  results: StandardAuditResult[];
+  tasksToRun: AuditTaskDefinition[];
+  allAvailableTasks: AuditTaskDefinition[];
+  omittedSuiteIds: string[];
+  totalDuration: number;
+  config: AuditEngineConfig;
+  activeFamilies: readonly AuditFamily[];
+  cliOptions: AuditFullCliOptions;
+  runMode: AuditRunMode;
+  scratchAuditsDir: string;
+}
 
-  // Group results by family for visual presentation and JSON report
-  const byFamily = new Map<AuditFamily, StandardAuditResult[]>();
-  for (const f of activeFamilies) {
-    byFamily.set(f, []);
-  }
-  for (const r of results) {
-    if (!byFamily.has(r.family)) byFamily.set(r.family, []);
-    byFamily.get(r.family)!.push(r);
-  }
-
-  // 2. Breakdown by Type of Error / Warning
+function computeAuditCategoryCounts(results: readonly StandardAuditResult[]): Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]> {
   const categoryCounts = new Map<string, { errors: number; warnings: number; findings: AuditFinding[] }>();
-
   for (const suite of results) {
     for (const finding of (suite.findings || [])) {
       const catKey = finding.ruleDescription || suite.description || finding.ruleId || suite.name;
@@ -392,106 +330,55 @@ async function runMasterAudit() {
         categoryCounts.set(catKey, { errors: 0, warnings: 0, findings: [] });
       }
       const entry = categoryCounts.get(catKey)!;
-      if (finding.severity === 'error') {
-        entry.errors++;
-      } else {
-        entry.warnings++;
-      }
+      if (finding.severity === 'error') entry.errors++;
+      else entry.warnings++;
       entry.findings.push(finding);
     }
   }
 
-  const sortedCategories = Array.from(categoryCounts.entries()).sort((a, b) => {
-    const totalB = b[1].errors * 1000 + b[1].warnings;
-    const totalA = a[1].errors * 1000 + a[1].warnings;
-    return totalB - totalA;
+  return Array.from(categoryCounts.entries()).sort((a, b) => {
+    return (b[1].errors * 1000 + b[1].warnings) - (a[1].errors * 1000 + a[1].warnings);
   });
+}
 
+function printFindingsSummary(
+  results: readonly StandardAuditResult[],
+  sortedCategories: Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]>
+): void {
   if (sortedCategories.length === 0) {
     console.log('\n' + styleText(['bold', 'green'], `✨ 100% de las suites aprobadas (${results.length}/${results.length}) sin errores ni advertencias.`));
   } else {
     console.log('\n' + styleText('bold', '📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA:\n'));
-
-    interface BreakdownRow {
-      category: string;
-      errors: string;
-      warnings: string;
-    }
-
-    const breakdownCols: readonly TableColumn<BreakdownRow>[] = [
-      { header: 'TIPO DE INCIDENCIA / REGLA', width: 52, align: 'left', key: 'category' },
-      { header: 'ERRORES', width: 9, align: 'right', key: 'errors' },
-      { header: 'WARNINGS', width: 9, align: 'right', key: 'warnings' }
-    ];
-
-    const breakdownRows: BreakdownRow[] = sortedCategories.map(([catName, data]) => ({
-      category: catName,
-      errors: data.errors > 0 ? styleText('red', String(data.errors)) : styleText('dim', '0'),
-      warnings: data.warnings > 0 ? styleText('yellow', String(data.warnings)) : styleText('dim', '0')
-    }));
-
-    const totalErrors = sortedCategories.reduce((acc, [_, data]) => acc + data.errors, 0);
-    const totalWarnings = sortedCategories.reduce((acc, [_, data]) => acc + data.warnings, 0);
-
-    const footerRow: BreakdownRow = {
-      category: styleText('bold', 'TOTAL CONSOLIDADO'),
-      errors: totalErrors > 0 ? styleText(['bold', 'red'], String(totalErrors)) : styleText('dim', '0'),
-      warnings: totalWarnings > 0 ? styleText(['bold', 'yellow'], String(totalWarnings)) : styleText('dim', '0')
-    };
-
-    console.log(renderBoxTable(breakdownCols, breakdownRows, { footerRows: [footerRow] }));
-
-    const allErrors: AuditFinding[] = [];
-    for (const suite of results) {
-      for (const finding of (suite.findings || [])) {
-        if (finding.severity === 'error') {
-          allErrors.push(finding);
-        }
-      }
-    }
-
+    console.log(renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA'));
+    const allErrors = results.flatMap(suite => (suite.findings || []).filter(f => f.severity === 'error'));
     if (allErrors.length > 0) {
-      const sampleErrors = allErrors.slice(-5);
-      console.log(`\n❌ Muestra de errores detectados (últimos ${sampleErrors.length} de ${allErrors.length}):\n`);
-      sampleErrors.forEach((f, idx) => {
-        const fileLoc = f.file ? `${path.relative(process.cwd(), f.file)}${f.line !== undefined ? `:${f.line}` : ''}` : 'General';
-        const cleanMsg = f.message.replace(/^Sugerencia de calidad \(Fallow\):\s*/i, '');
-        const normalizedRuleDesc = (f.ruleDescription || '').replace(/^Fallow:\s*/i, '').trim().toLowerCase();
-        const ruleTag = f.ruleDescription && !cleanMsg.toLowerCase().includes(normalizedRuleDesc)
-          ? `[${f.ruleDescription}] `
-          : (f.ruleDescription?.startsWith('Fallow:') ? '[Fallow] ' : (f.ruleId ? `[${f.ruleId}] ` : ''));
-        console.log(`  ${idx + 1}. ${fileLoc}: ${ruleTag}${cleanMsg}`);
-      });
-      console.log('');
+      console.log(renderSampleFindings(allErrors, 5));
     }
   }
+}
 
-  // 3. Consolidated Footer
-  console.log(renderConsolidatedFooter(
-    results.length,
-    suitesPassed,
-    totalErrors,
-    totalWarnings,
-    totalDuration
-  ));
-
-  // 4. Always save complete machine-readable report to scratch/audits/
+function buildConsolidatedReport(params: {
+  ctx: MasterReportContext;
+  totalErrors: number;
+  totalWarnings: number;
+  suitesPassed: number;
+  anyFailed: boolean;
+  isFullAudit: boolean;
+  byFamily: Map<AuditFamily, StandardAuditResult[]>;
+}): { meta: AuditRunMetadata; consolidatedReport: ConsolidatedAuditReport } {
+  const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily } = params;
   const meta: AuditRunMetadata = {
     version: '2.0.0',
     timestamp: Temporal.Now.instant().toString(),
     isFullAudit,
-    runMode,
-    preset: targetPreset ?? null,
-    targetFamily: (targetFamily as string) ?? null,
-    totalDiscoveredSuites: allAvailableTasks.length,
-    executedSuiteCount: tasksToRun.length,
-    executedSuites: executedSuiteIds,
-    omittedSuites: omittedSuiteIds,
-    environment: {
-      nodeVersion: process.version,
-      platform: process.platform,
-      cwd: process.cwd()
-    }
+    runMode: ctx.runMode,
+    preset: ctx.cliOptions.targetPreset ?? null,
+    targetFamily: (ctx.cliOptions.targetFamily as string) ?? null,
+    totalDiscoveredSuites: ctx.allAvailableTasks.length,
+    executedSuiteCount: ctx.tasksToRun.length,
+    executedSuites: ctx.tasksToRun.map(t => t.id),
+    omittedSuites: ctx.omittedSuiteIds,
+    environment: { nodeVersion: process.version, platform: process.platform, cwd: process.cwd() }
   };
 
   const consolidatedReport: ConsolidatedAuditReport = {
@@ -501,22 +388,67 @@ async function runMasterAudit() {
       totalViolations: totalErrors + totalWarnings,
       errors: totalErrors,
       warnings: totalWarnings,
-      suitesTotal: results.length,
+      suitesTotal: ctx.results.length,
       suitesPassed,
-      suitesFailed: results.length - suitesPassed,
-      durationMs: totalDuration
+      suitesFailed: ctx.results.length - suitesPassed,
+      durationMs: ctx.totalDuration
     },
     families: Object.fromEntries(
-      activeFamilies.map(f => [
+      ctx.activeFamilies.map(f => [
         f,
-        {
-          title: resolveFamilyMetadata(f, config.customFamilies).title,
-          suites: byFamily.get(f) ?? []
-        }
+        { title: resolveFamilyMetadata(f, ctx.config.customFamilies).title, suites: byFamily.get(f) ?? [] }
       ])
     ) as Record<AuditFamily, { title: string; suites: StandardAuditResult[] }>,
-    allFindings: results.flatMap(r => r.findings)
+    allFindings: ctx.results.flatMap(r => r.findings)
   };
+
+  return { meta, consolidatedReport };
+}
+
+async function exportCustomOutputReport(
+  cliOptions: AuditFullCliOptions,
+  consolidatedReport: ConsolidatedAuditReport,
+  results: readonly StandardAuditResult[],
+  suitesPassed: number,
+  totalDuration: number
+): Promise<void> {
+  if (!cliOptions.values.output) return;
+  const outputPath = path.resolve(process.cwd(), cliOptions.values.output as string);
+  if (outputPath.endsWith('.json')) {
+    await fs.writeFile(outputPath, JSON.stringify(consolidatedReport, null, 2), 'utf-8');
+  } else if (outputPath.endsWith('.md')) {
+    const md = renderMarkdownReport(results as StandardAuditResult[], suitesPassed, totalDuration);
+    await fs.writeFile(outputPath, md, 'utf-8');
+  } else {
+    const lines = results.map(r => `[${r.status.toUpperCase()}] ${r.name} (${r.durationMs}ms) - Errors: ${r.summary.errors}, Warnings: ${r.summary.warnings}`);
+    await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
+  }
+  console.log(styleText('cyan', `✨ Reporte exportado en: ${cliOptions.values.output}\n`));
+}
+
+async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean> {
+  const { results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration, activeFamilies, cliOptions, scratchAuditsDir } = ctx;
+  const totalErrors = results.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
+  const totalWarnings = results.reduce((acc, r) => acc + (r.summary?.warnings ?? 0), 0);
+  const suitesPassed = results.filter(r => r.status === 'passed' && (r.summary?.errors ?? 0) === 0).length;
+  const anyFailed = totalErrors > 0 || suitesPassed < results.length;
+  const isFullAudit = tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
+
+  const byFamily = groupResultsByFamily(results, activeFamilies);
+  const sortedCategories = computeAuditCategoryCounts(results);
+
+  printFindingsSummary(results, sortedCategories);
+  console.log(renderConsolidatedFooter(results.length, suitesPassed, totalErrors, totalWarnings, totalDuration));
+
+  const { meta, consolidatedReport } = buildConsolidatedReport({
+    ctx,
+    totalErrors,
+    totalWarnings,
+    suitesPassed,
+    anyFailed,
+    isFullAudit,
+    byFamily
+  });
 
   const latestAuditPath = path.join(scratchAuditsDir, 'latest_audit.json');
   const latestSummaryPath = path.join(scratchAuditsDir, 'latest_summary.json');
@@ -527,14 +459,8 @@ async function runMasterAudit() {
     status: consolidatedReport.status,
     summary: consolidatedReport.summary,
     suites: results.map(r => ({
-      id: r.id,
-      name: r.name,
-      family: r.family,
-      status: r.status,
-      durationMs: r.durationMs,
-      metrics: r.metrics,
-      errors: r.summary.errors,
-      warnings: r.summary.warnings
+      id: r.id, name: r.name, family: r.family, status: r.status, durationMs: r.durationMs,
+      metrics: r.metrics, errors: r.summary.errors, warnings: r.summary.warnings
     }))
   }, null, 2), 'utf-8');
 
@@ -547,20 +473,113 @@ async function runMasterAudit() {
   console.log(styleText('dim', `💾 Reporte detallado para IA / herramientas disponible en:`));
   console.log(styleText('cyan', `   📄 ${path.relative(process.cwd(), latestAuditPath)}\n`));
 
-  // 5. Export report if --output is specified
-  if (values.output) {
-    const outputPath = path.resolve(process.cwd(), values.output as string);
-    if (outputPath.endsWith('.json')) {
-      await fs.writeFile(outputPath, JSON.stringify(consolidatedReport, null, 2), 'utf-8');
-    } else if (outputPath.endsWith('.md')) {
-      const md = renderMarkdownReport(results, suitesPassed, totalDuration);
-      await fs.writeFile(outputPath, md, 'utf-8');
-    } else {
-      const lines = results.map(r => `[${r.status.toUpperCase()}] ${r.name} (${r.durationMs}ms) - Errors: ${r.summary.errors}, Warnings: ${r.summary.warnings}`);
-      await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
-    }
-    console.log(styleText('cyan', `✨ Reporte exportado en: ${values.output}\n`));
+  await exportCustomOutputReport(cliOptions, consolidatedReport, results, suitesPassed, totalDuration);
+
+  return anyFailed;
+}
+
+async function runMasterAudit() {
+  process.env.AUDIT_SUBPROCESS = 'true';
+  const startTime = performance.now();
+  const config = await loadAuditConfig();
+  assertAuditConfigComplete(config);
+  const activeFamilies = getActiveFamilies(config.customFamilies);
+  const cliOptions = parseAuditFullCliArgs(activeFamilies);
+
+  const scratchAuditsDir = path.resolve(process.cwd(), 'scratch/audits');
+  await fs.mkdir(scratchAuditsDir, { recursive: true });
+  for (const family of activeFamilies) {
+    await fs.mkdir(path.join(scratchAuditsDir, family), { recursive: true });
   }
+
+  const allAvailableTasks = await discoverAuditors();
+  const tasksToRun = await discoverAuditors({
+    family: cliOptions.targetFamily,
+    task: cliOptions.targetSuites ? undefined : (cliOptions.values.task as string | undefined),
+    suites: cliOptions.targetSuites,
+    preset: cliOptions.targetPreset
+  });
+
+  const executedSuiteIds = tasksToRun.map(t => t.id);
+  const allSuiteIds = allAvailableTasks.map(t => t.id);
+  const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
+  const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
+
+  tasksToRun.sort((a, b) => {
+    const orderA = (a.order ?? 99);
+    const orderB = (b.order ?? 99);
+    if (orderA !== orderB) return orderA - orderB;
+    return a.id.localeCompare(b.id);
+  });
+
+  const subtitleDetails: string[] = [`Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`];
+  if (cliOptions.targetPreset) subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
+  if (cliOptions.values.family) subtitleDetails.push(`Familia: ${String(cliOptions.values.family).toUpperCase()}`);
+  if (tasksToRun.length !== allAvailableTasks.length || omittedSuiteIds.length > 0) subtitleDetails.push('Modo: PARCIAL ⚠️');
+
+  const bannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
+  console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
+
+  if (tasksToRun.length === 0) {
+    console.log(styleText('yellow', '⚠️ No se encontraron auditores que coincidan con los filtros especificados.'));
+    process.exit(0);
+  }
+
+  const astTasks = tasksToRun.filter(t => t.requiresAst);
+  let sharedAstContext: SharedAstContext | undefined;
+  if (astTasks.length > 0) {
+    console.log(styleText('cyan', `🧠 [AST Engine] Detectados ${astTasks.length} sub-auditor(es) que requieren AST. Inicializando contexto AST compartido...\n`));
+    sharedAstContext = new SharedAstContext();
+  }
+
+  console.log(styleText('bold', `⏳ Progreso de ejecución de suites (Concurrencia: ${cliOptions.concurrencyLimit} workers):\n`));
+  const coordinator = new TaskStreamCoordinator(tasksToRun.length, { indent: '  ' });
+
+  async function executeSingleTask(task: AuditTaskDefinition): Promise<StandardAuditResult> {
+    const taskArgs = buildTaskArgs(task, cliOptions.values, cliOptions.formattedRules);
+    const subLines: string[] = [];
+    let parsedResult: StandardAuditResult | null = null;
+    let taskDuration = 0;
+
+    if (task.requiresAst && sharedAstContext) {
+      const inProcess = await executeTaskInProcess(task, sharedAstContext);
+      if (inProcess) {
+        parsedResult = inProcess.result;
+        taskDuration = inProcess.durationMs;
+      }
+    }
+
+    if (!parsedResult) {
+      const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
+      taskDuration = proc.durationMs;
+      parsedResult = await parseSubprocessOutput(task, proc, scratchAuditsDir);
+    }
+
+    const currentResult: StandardAuditResult = parsedResult;
+    if (!currentResult.summary) {
+      const errCount = currentResult.findings?.filter(f => f.severity === 'error').length ?? (currentResult.status === 'failed' ? 1 : 0);
+      const warnCount = currentResult.findings?.filter(f => f.severity === 'warning').length ?? 0;
+      currentResult.summary = { errors: errCount, warnings: warnCount, info: 0 };
+    }
+
+    await coordinator.onTaskComplete({
+      taskName: task.name,
+      taskId: task.id,
+      subLines,
+      durationMs: taskDuration,
+      isSuccess: currentResult.status === 'passed',
+      hasWarnings: (currentResult.summary?.warnings ?? 0) > 0
+    });
+    return currentResult;
+  }
+
+  const results = await runAuditWorkers(tasksToRun, cliOptions.concurrencyLimit, executeSingleTask);
+  const totalDuration = Math.round(performance.now() - startTime);
+
+  const anyFailed = await renderAndPersistMasterReport({
+    results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration,
+    config, activeFamilies, cliOptions, runMode, scratchAuditsDir
+  });
 
   if (anyFailed) {
     process.exit(1);

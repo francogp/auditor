@@ -21,10 +21,13 @@ Architecture & Tooling Engineers.
 - [`audit_full.ts`](./audit_full.ts): Master auditor orchestrator executing discovered suites.
 - [`auditScanner.ts`](./auditScanner.ts): Automatic suite discovery and filtering engine.
 - [`check_environment.ts`](./check_environment.ts): Runtime and tooling environment validator.
+- [`cliUtils.ts`](./cliUtils.ts): Shared utilities for CLI tools and entrypoint detection.
 - [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin registrator.
 - [`report_complexity.ts`](./report_complexity.ts): Cyclomatic and cognitive complexity reporter.
 - [`report_fallow.ts`](./report_fallow.ts): Consolidated Fallow static analysis reporter.
 - [`report_findings.ts`](./report_findings.ts): Interactive query tool for inspecting audit findings.
+- [`report_review.ts`](./report_review.ts): Differential architectural review tool leveraging Fallow code-review graphs.
+- [`report_similar_code.ts`](./report_similar_code.ts): Box-drawing report tool for Fallow semantic and structural similar-code candidates.
 - [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
 

@@ -195,5 +195,86 @@ describe('AuditorTestsAuditor', () => {
       expect(errClean).toBeDefined();
       expect(errClean?.severity).toBe('error');
     });
+
+    it('detects missing test file for an extension in scripts/auditors/ (missing-auditor-test)', async () => {
+      const extDir = path.join(tempDir, 'scripts', 'auditors', 'architecture');
+      await fs.mkdir(extDir, { recursive: true });
+      await fs.writeFile(
+        path.join(extDir, 'validate_custom_ext.ts'),
+        `
+        import { BaseAuditor } from '../../packages/auditor/src/core/auditorBase.ts';
+        export const CUSTOM_RULES = ['custom-rule'] as const;
+        export class CustomExtAuditor extends BaseAuditor<string> {
+          constructor() {
+            super({ id: 'validate_custom_ext', name: 'Custom', description: 'Desc', family: 'architecture', ruleIds: CUSTOM_RULES });
+          }
+          public override async runAudit() {}
+        }
+        `,
+        'utf-8'
+      );
+
+      await fs.writeFile(
+        path.join(tempDir, 'audit.config.ts'),
+        `export default { paths: {}, persistence: {}, domain: {}, extensions: [] };`,
+        'utf-8'
+      );
+
+      const auditor = new AuditorTestsAuditor(tempDir);
+      const result = await auditor.execute();
+      const missingViolation = result.findings.find(f => f.ruleId === 'missing-auditor-test' && f.context === 'validate_custom_ext');
+      expect(missingViolation).toBeDefined();
+      expect(missingViolation?.severity).toBe('error');
+    });
+
+    it('passes with zero errors when all auditors have complete dedicated tests (clean path)', async () => {
+      const suiteDir = path.join(tempDir, 'packages', 'auditor', 'src', 'suites', 'architecture');
+      const testDir = path.join(tempDir, 'packages', 'auditor', 'tests');
+      await fs.mkdir(suiteDir, { recursive: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(suiteDir, 'validate_dummy.ts'),
+        `
+        import { BaseAuditor } from '../../core/auditorBase.ts';
+        export const DUMMY_RULES = ['my-rule'] as const;
+        export class DummyAuditor extends BaseAuditor<string> {
+          constructor() {
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+          }
+          public override async runAudit() {}
+        }
+        `,
+        'utf-8'
+      );
+
+      await fs.writeFile(
+        path.join(testDir, 'validate_dummy.test.ts'),
+        `
+        import { describe, it, expect } from 'vitest';
+        describe('DummyAuditor', () => {
+          it('checks my-rule and verifies clean execution', () => {
+            const rule = 'my-rule';
+            expect(rule).toBe('my-rule');
+            expect(result.summary.errors).toBe(0);
+            expect(result.status).toBe('passed');
+          });
+        });
+        `,
+        'utf-8'
+      );
+
+      await fs.writeFile(
+        path.join(tempDir, 'audit.config.ts'),
+        `export default { paths: {}, persistence: {}, domain: {}, extensions: [] };`,
+        'utf-8'
+      );
+
+      const auditor = new AuditorTestsAuditor(tempDir);
+      const result = await auditor.execute();
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 });
+

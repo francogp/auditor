@@ -23,6 +23,9 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, collectRepositoryFiles } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { resolveMarkdownScanDirectories, stripCodeBlocks } from './validate_markdown_code_references.ts';
+
+export { stripCodeBlocks };
 
 enableCompileCache();
 
@@ -67,36 +70,10 @@ export interface MarkdownLinkAuditOptions {
 
 const DEFAULT_ROOT = path.resolve(import.meta.dirname, '../../..');
 
-export const DEFAULT_SCAN_DIRECTORIES = [
-  '.agents/skills',
-  'AGENTS.md',
-  'README.md',
-  'docs',
-  'src',
-  'tests',
-  'scripts'
-] as const;
-
-export function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoots?: readonly string[]): readonly string[] {
-  if (explicitRoots && explicitRoots.length > 0) return explicitRoots;
-  const config = getAuditConfig(projectRoot);
-  const dirs = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
-  if (config.paths?.srcRoots) dirs.push(...config.paths.srcRoots);
-  else dirs.push('src');
-  if (config.paths?.testRoots) dirs.push(...config.paths.testRoots);
-  else dirs.push('tests');
-  if (config.paths?.scriptsRoots) dirs.push(...config.paths.scriptsRoots);
-  else dirs.push('scripts');
-
-  if (config.persistence?.engine !== 'none') {
-    if (config.paths?.migrationsDir) {
-      dirs.push(config.paths.migrationsDir);
-    } else if (config.persistence?.supabaseDir) {
-      dirs.push(config.persistence.supabaseDir);
-    }
-  }
-  return dirs;
-}
+export {
+  DEFAULT_SCAN_DIRECTORIES,
+  resolveMarkdownScanDirectories
+} from './validate_markdown_code_references.ts';
 
 export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = [
   'coverage/**'
@@ -123,7 +100,7 @@ export function getGitIgnoredPaths(rootDir: string): Set<string> {
       paths.add(path.resolve(rootDir, trimmed));
     }
   } catch {
-    // no .gitignore found
+    // catch-ok: no .gitignore found
   }
   gitIgnoredPathsCache = paths;
   return paths;
@@ -134,16 +111,6 @@ export function clearGitIgnoredPathsCache(): void {
   gitIgnoreMatcherInstance = null;
 }
 
-/**
- * Strips fenced code blocks so markdown examples inside ``` blocks are not parsed as active links.
- * Preserves line numbers by inserting empty lines.
- * Crucially DOES NOT strip inline code backticks, allowing links like [`/skill`](url) to retain their text.
- */
-export function stripCodeBlocks(markdown: string): string {
-  return markdown.replace(/```[\s\S]*?```/g, match => {
-    return '\n'.repeat((match.match(/\n/g) || []).length);
-  });
-}
 
 /**
  * Collects all relevant markdown files (.md) recursively.
@@ -173,37 +140,77 @@ export function collectMarkdownFiles(
 /** Regex detecting personal machine absolute paths (e.g. /home/user, /Users/user, C:\Users\user) */
 const STALE_ENV_PATH_REGEX = /(?:file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![a-zA-Z0-9_.]))\/(?:home|Users)\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+)/;
 
-/**
- * Parses all markdown links in a file and returns broken references or illegal paths.
- */
-export function checkMarkdownLinksInContent(
-  content: string,
-  filePath: string,
-  rootDir: string,
-): { linksChecked: number; brokenLinks: BrokenMarkdownLink[] } {
-  const cleanContent = stripCodeBlocks(content);
-  // Match [link text](rawUrl) where link text can be anything (including backticks)
-  const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
-  const brokenLinks: BrokenMarkdownLink[] = [];
-  let linksChecked = 0;
-  let match: RegExpExecArray | null;
-  const relSourceFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
+function isExternalOrAnchorLink(rawUrl: string): boolean {
+  return (
+    rawUrl.startsWith('http://') ||
+    rawUrl.startsWith('https://') ||
+    rawUrl.startsWith('mailto:') ||
+    rawUrl.startsWith('conversation://') ||
+    rawUrl.startsWith('#')
+  );
+}
 
-  while ((match = linkRegex.exec(cleanContent)) !== null) {
-    const linkText = match[1]!.trim();
-    let rawUrl = match[2]!.trim();
-    const line = cleanContent.slice(0, match.index).split('\n').length;
+function checkTargetExistence(params: {
+  rawUrl: string;
+  linkText: string;
+  line: number;
+  relSourceFile: string;
+  filePath: string;
+  rootDir: string;
+}): BrokenMarkdownLink | null {
+  const [rawUrlPath] = params.rawUrl.split('#');
+  let urlPath = rawUrlPath ?? '';
+  try {
+    urlPath = decodeURIComponent(urlPath);
+  } catch {
+    // catch-ok: keep raw if decode fails
+  }
 
-    // Clean wrapping backticks or quotes in rawUrl if present
-    rawUrl = rawUrl.replace(/^[`'"]+|[`'"]+$/g, '');
+  const resolvedTarget = urlPath.length > 0 ? path.resolve(path.dirname(params.filePath), urlPath) : params.filePath;
+  const resolvedRelPath = path.relative(params.rootDir, resolvedTarget).replace(/\\/g, '/');
 
-    // Check for personal machine environment paths in link URL or text
-    if (
-      STALE_ENV_PATH_REGEX.test(rawUrl) ||
-      STALE_ENV_PATH_REGEX.test(linkText)
-    ) {
-      linksChecked++;
-      brokenLinks.push({
+  const matcher = getGitIgnoreMatcher(params.rootDir);
+  if (matcher.isIgnored(resolvedTarget)) {
+    return {
+      sourceFile: params.relSourceFile,
+      linkText: params.linkText,
+      rawUrl: params.rawUrl,
+      resolvedPath: resolvedRelPath,
+      error: `Target path is ignored by git (.gitignore) and will not exist in clean checkouts or CI: "${resolvedRelPath}"`,
+      ruleId: 'markdown-gitignored-target',
+      line: params.line,
+    };
+  }
+
+  if (!fs.existsSync(resolvedTarget)) {
+    return {
+      sourceFile: params.relSourceFile,
+      linkText: params.linkText,
+      rawUrl: params.rawUrl,
+      resolvedPath: resolvedRelPath,
+      error: `Target path does not exist on disk: "${resolvedRelPath}"`,
+      ruleId: 'markdown-broken-relative-link',
+      line: params.line,
+    };
+  }
+
+  return null;
+}
+
+function checkSingleMarkdownLink(params: {
+  linkText: string;
+  rawUrl: string;
+  line: number;
+  relSourceFile: string;
+  filePath: string;
+  rootDir: string;
+}): { checked: boolean; brokenLink?: BrokenMarkdownLink } {
+  const { linkText, rawUrl, line, relSourceFile } = params;
+
+  if (STALE_ENV_PATH_REGEX.test(rawUrl) || STALE_ENV_PATH_REGEX.test(linkText)) {
+    return {
+      checked: true,
+      brokenLink: {
         sourceFile: relSourceFile,
         linkText,
         rawUrl,
@@ -211,21 +218,21 @@ export function checkMarkdownLinksInContent(
         error: `Stale legacy environment path detected: "${rawUrl}" (RULE: No references to legacy repository or personal machine paths)`,
         ruleId: 'markdown-stale-environment-path',
         line,
-      });
-      continue;
-    }
+      }
+    };
+  }
 
-    // Check for prohibited absolute paths or file:// URLs
-    const isAbsolutePath =
-      rawUrl.startsWith('file://') ||
-      rawUrl.startsWith('/') ||
-      rawUrl.startsWith('\\') ||
-      /^[a-zA-Z]:/.test(rawUrl) ||
-      path.isAbsolute(rawUrl);
+  const isAbsolutePath =
+    rawUrl.startsWith('file://') ||
+    rawUrl.startsWith('/') ||
+    rawUrl.startsWith('\\') ||
+    /^[a-zA-Z]:/.test(rawUrl) ||
+    path.isAbsolute(rawUrl);
 
-    if (isAbsolutePath) {
-      linksChecked++;
-      brokenLinks.push({
+  if (isAbsolutePath) {
+    return {
+      checked: true,
+      brokenLink: {
         sourceFile: relSourceFile,
         linkText,
         rawUrl,
@@ -233,76 +240,36 @@ export function checkMarkdownLinksInContent(
         error: `Forbidden absolute path or file:// URL: "${rawUrl}" (RULE: Use relative paths exclusively)`,
         ruleId: 'markdown-absolute-path',
         line,
-      });
-      continue;
-    }
-
-    // Skip external protocols and specialized schemes
-    if (
-      rawUrl.startsWith('http://') ||
-      rawUrl.startsWith('https://') ||
-      rawUrl.startsWith('mailto:') ||
-      rawUrl.startsWith('conversation://') ||
-      rawUrl.startsWith('#')
-    ) {
-      continue;
-    }
-
-    linksChecked++;
-    const [rawUrlPath] = rawUrl.split('#');
-    let urlPath = rawUrlPath ?? '';
-    try {
-      urlPath = decodeURIComponent(urlPath);
-    } catch {
-      // keep raw if decode fails
-    }
-
-    const resolvedTarget =
-      urlPath.length > 0 ? path.resolve(path.dirname(filePath), urlPath) : filePath;
-
-    const resolvedRelPath = path.relative(rootDir, resolvedTarget).replace(/\\/g, '/');
-
-    // Check if target path is gitignored (.gitignore)
-    const matcher = getGitIgnoreMatcher(rootDir);
-    const isGitIgnored = matcher.isIgnored(resolvedTarget);
-
-    if (isGitIgnored) {
-      brokenLinks.push({
-        sourceFile: relSourceFile,
-        linkText,
-        rawUrl,
-        resolvedPath: resolvedRelPath,
-        error: `Target path is ignored by git (.gitignore) and will not exist in clean checkouts or CI: "${resolvedRelPath}"`,
-        ruleId: 'markdown-gitignored-target',
-        line,
-      });
-      continue;
-    }
-
-    // Check if target file or directory exists on disk
-    if (!fs.existsSync(resolvedTarget)) {
-      brokenLinks.push({
-        sourceFile: relSourceFile,
-        linkText,
-        rawUrl,
-        resolvedPath: resolvedRelPath,
-        error: `Target path does not exist on disk: "${resolvedRelPath}"`,
-        ruleId: 'markdown-broken-relative-link',
-        line,
-      });
-    }
+      }
+    };
   }
 
-  // Scan unescaped text outside code blocks for standalone stale paths or file:// references
-  const lines = cleanContent.split('\n');
+  if (isExternalOrAnchorLink(rawUrl)) {
+    return { checked: false };
+  }
+
+  const targetViolation = checkTargetExistence(params);
+  return {
+    checked: true,
+    brokenLink: targetViolation ?? undefined
+  };
+}
+
+function checkStandaloneTextViolations(
+  lines: readonly string[],
+  relSourceFile: string,
+  brokenLines: ReadonlySet<number>
+): BrokenMarkdownLink[] {
+  const textViolations: BrokenMarkdownLink[] = [];
+
   for (let i = 0; i < lines.length; i++) {
     const lineText = lines[i]!;
     const lineNum = i + 1;
-    if (brokenLinks.some(b => b.line === lineNum)) continue;
+    if (brokenLines.has(lineNum)) continue;
 
     const textWithoutInlineCode = lineText.replace(/`[^`\n]+`/g, '');
     if (STALE_ENV_PATH_REGEX.test(textWithoutInlineCode)) {
-      brokenLinks.push({
+      textViolations.push({
         sourceFile: relSourceFile,
         linkText: '',
         rawUrl: lineText.trim(),
@@ -312,7 +279,7 @@ export function checkMarkdownLinksInContent(
         line: lineNum,
       });
     } else if (/file:\/\/\/[^\s)]+/i.test(textWithoutInlineCode)) {
-      brokenLinks.push({
+      textViolations.push({
         sourceFile: relSourceFile,
         linkText: '',
         rawUrl: lineText.trim(),
@@ -323,6 +290,51 @@ export function checkMarkdownLinksInContent(
       });
     }
   }
+
+  return textViolations;
+}
+
+/**
+ * Parses all markdown links in a file and returns broken references or illegal paths.
+ */
+export function checkMarkdownLinksInContent(
+  content: string,
+  filePath: string,
+  rootDir: string,
+): { linksChecked: number; brokenLinks: BrokenMarkdownLink[] } {
+  const cleanContent = stripCodeBlocks(content);
+  const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+  const brokenLinks: BrokenMarkdownLink[] = [];
+  let linksChecked = 0;
+  let match: RegExpExecArray | null;
+  const relSourceFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
+
+  while ((match = linkRegex.exec(cleanContent)) !== null) {
+    const linkText = match[1]!.trim();
+    const rawUrl = match[2]!.trim().replace(/^[`'"]+|[`'"]+$/g, '');
+    const line = cleanContent.slice(0, match.index).split('\n').length;
+
+    const result = checkSingleMarkdownLink({
+      linkText,
+      rawUrl,
+      line,
+      relSourceFile,
+      filePath,
+      rootDir
+    });
+    if (result.checked) linksChecked++;
+    if (result.brokenLink) brokenLinks.push(result.brokenLink);
+  }
+
+  const brokenLines = new Set(
+    brokenLinks.map(b => b.line).filter((l): l is number => l !== undefined)
+  );
+  const standaloneViolations = checkStandaloneTextViolations(
+    cleanContent.split('\n'),
+    relSourceFile,
+    brokenLines
+  );
+  brokenLinks.push(...standaloneViolations);
 
   return { linksChecked, brokenLinks };
 }
@@ -420,6 +432,4 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new MarkdownLinkAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownLinkAuditor());

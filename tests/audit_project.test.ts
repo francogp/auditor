@@ -14,6 +14,11 @@ import {
   mapFallowJson,
   getViolationCategory
 } from '../src/suites/architecture/audit_project.ts';
+import {
+  setAuditConfig,
+  defineAuditConfig,
+  resetAuditConfig
+} from '../src/core/auditConfig.ts';
 
 describe('ProjectArchitectureAuditor & Fallow Integration', () => {
   let tempDir: string;
@@ -25,6 +30,7 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
 
   afterEach(async () => {
     delete process.env.AUDIT_SUBPROCESS;
+    resetAuditConfig();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
@@ -175,6 +181,75 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       expect(impV).toBeDefined();
       expect(impV!.severity).toBe('error');
       expect(getViolationCategory(impV!)).toBe('Fallow: Imports no resueltos');
+    });
+
+    it('maps workspace diagnostics as error severity while skipping unconfigured notices', () => {
+      const data = {
+        workspace_diagnostics: [
+          { path: 'src/bad.ts', kind: 'source-parse-degraded', message: 'Failed to parse cleanly' },
+          { path: '.', kind: 'boundaries-not-configured', message: 'Ignored notice' }
+        ]
+      };
+      const violations = mapFallowJson('dead-code', data);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]!.severity).toBe('error');
+      expect(violations[0]!.ruleId).toBe('fallow-workspace-diagnostic');
+      expect(violations[0]!.message).toContain('source-parse-degraded');
+      expect(getViolationCategory(violations[0]!)).toBe('Fallow: Diagnóstico de workspace');
+    });
+
+    it('enforces refactoring targets when config.fallow.enforceTargets is true', () => {
+      setAuditConfig(defineAuditConfig({
+        name: 'Targets Enforced Project',
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false },
+        fallow: {
+          enabled: true,
+          enforceTargets: true,
+          maxTargetPriority: 'critical'
+        }
+      }));
+
+      const data = {
+        targets: [
+          { path: 'src/critical.ts', priority: 35.0, recommendation: 'Split 1400 LOC file' },
+          { path: 'src/low.ts', priority: 12.0, recommendation: 'Minor split' }
+        ]
+      };
+
+      const violations = mapFallowJson('dead-code', data);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]!.severity).toBe('error');
+      expect(violations[0]!.ruleId).toBe('fallow-refactoring-targets');
+      expect(violations[0]!.message).toContain('Split 1400 LOC file');
+      expect(getViolationCategory(violations[0]!)).toBe('Fallow: Objetivo de refactor');
+    });
+
+    it('ignores refactoring targets when config.fallow.enforceTargets is false', () => {
+      setAuditConfig(defineAuditConfig({
+        name: 'Targets Ignored Project',
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false },
+        fallow: {
+          enabled: true,
+          enforceTargets: false
+        }
+      }));
+
+      const data = {
+        targets: [
+          { path: 'src/critical.ts', priority: 50.0, recommendation: 'Split 2000 LOC file' }
+        ]
+      };
+
+      const violations = mapFallowJson('dead-code', data);
+      expect(violations).toHaveLength(0);
     });
   });
 

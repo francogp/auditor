@@ -19,6 +19,8 @@ Architecture & Tooling Engineers.
 - [`audit_bundle.test.ts`](./audit_bundle.test.ts): Tests for `audit_bundle.ts` treemap parsing and budget enforcement.
 - [`audit_for_commit.test.ts`](./audit_for_commit.test.ts): Tests for differential pre-commit gate.
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
+- [`cli_utils.test.ts`](./cli_utils.test.ts): Unit tests for CLI entrypoint detection and utilities.
+- [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.
 
 ## Child DOX Index
 

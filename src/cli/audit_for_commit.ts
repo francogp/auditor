@@ -23,12 +23,13 @@ import { enableCompileCache } from 'node:module';
 import os from 'node:os';
 
 import { type AuditSeverity } from '../suites/architecture/audit_rules.ts';
-import { type StandardAuditResult } from '../core/auditContract.ts';
+import { type StandardAuditResult, type AuditTaskDefinition, type AuditFinding } from '../core/auditContract.ts';
 import { renderBanner } from '../core/unifiedTheme.ts';
 import { discoverAuditors } from './auditScanner.ts';
-import { executeAuditorStreaming } from '../core/streamingRunner.ts';
+import { executeAuditorStreaming, TaskStreamCoordinator } from '../core/streamingRunner.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
-import { loadAuditConfig, assertAuditConfigComplete } from '../core/auditConfig.ts';
+import { loadAuditConfig, assertAuditConfigComplete, type AuditEngineConfig } from '../core/auditConfig.ts';
+import { isMainModule } from './cliUtils.ts';
 
 enableCompileCache();
 
@@ -128,7 +129,7 @@ async function getModifiedFiles(): Promise<Set<string>> {
     try {
       execSync('git fetch origin main --timeout=5', { stdio: 'ignore' });
     } catch {
-      // Usar referencia local existente si falla o no hay conexión
+      // catch-ok: Usar referencia local existente si falla o no hay conexión
     }
 
     const diffOutput = execSync('git diff --name-only origin/main', { encoding: 'utf-8' });
@@ -201,14 +202,19 @@ async function runOriginEslint(filePath: string, content: string): Promise<Viola
       }
     }
   } catch {
-    // Ignorar fallos de eslint en el origen
+    // catch-ok: Ignorar fallos de eslint en el origen
   }
   return violations;
 }
 
-async function main() {
-  const config = await loadAuditConfig();
-  assertAuditConfigComplete(config);
+interface CommitCliArgs {
+  effectivePreset?: string;
+  familyArg?: string;
+  taskArg?: string;
+  suitesArg?: string[];
+}
+
+function parseCommitCliArgs(config: AuditEngineConfig): CommitCliArgs {
   const args = process.argv.slice(2);
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : a);
 
@@ -229,158 +235,135 @@ async function main() {
   const taskArg = typeof values.task === 'string' ? values.task : undefined;
   const suitesArg = typeof values.suites === 'string' ? values.suites.split(',') : undefined;
 
-  console.log(renderBanner(
-    `${config.name.toUpperCase()} - WARNINGS DIFF & PRE-COMMIT GATEKEEPER`,
-    effectivePreset ? `Preset: ${effectivePreset.toUpperCase()} | Exige 0 errores en proyecto y 0 warnings nuevos` : 'Exige 0 errores en proyecto y 0 warnings nuevos'
-  ));
-  
-  const modifiedFiles = await getModifiedFiles();
+  return { effectivePreset, familyArg, taskArg, suitesArg };
+}
+
+function printModifiedFiles(modifiedFiles: ReadonlySet<string>): void {
   console.log(styleText('bold', '📁 Archivos modificados detectados:'));
   if (modifiedFiles.size === 0) {
     console.log(styleText('green', '  ✔ Cero archivos fuente modificados comparados con origin/main.\n'));
-  } else {
-    const MAX_SAMPLE_FILES = 8;
-    const sample = Array.from(modifiedFiles).slice(0, MAX_SAMPLE_FILES);
-    sample.forEach(f => console.log(`  - ${styleText('cyan', f)}`));
-    if (modifiedFiles.size > MAX_SAMPLE_FILES) {
-      console.log(styleText('dim', `  ... y ${modifiedFiles.size - MAX_SAMPLE_FILES} archivos más`));
-    }
-    console.log('');
+    return;
   }
+  const MAX_SAMPLE_FILES = 8;
+  const sample = Array.from(modifiedFiles).slice(0, MAX_SAMPLE_FILES);
+  sample.forEach(f => console.log(`  - ${styleText('cyan', f)}`));
+  if (modifiedFiles.size > MAX_SAMPLE_FILES) {
+    console.log(styleText('dim', `  ... y ${modifiedFiles.size - MAX_SAMPLE_FILES} archivos más`));
+  }
+  console.log('');
+}
 
-  // Ejecutar dinámicamente los sub-auditores descubiertos (con soporte para presets de commit y CLI)
-  const discoveredTasks = await discoverAuditors({
-    preset: effectivePreset,
-    family: familyArg,
-    task: taskArg,
-    suites: suitesArg
+function mapFindingToViolation(finding: AuditFinding, task: AuditTaskDefinition): Violation | null {
+  if (finding.severity === 'info') return null;
+  const targetFile = finding.file ? path.relative(process.cwd(), finding.file) : '';
+  if (!targetFile && finding.severity === 'warning') return null;
+
+  return {
+    file: targetFile || task.scriptPath,
+    line: finding.line || 1,
+    message: finding.message,
+    context: finding.context || task.name,
+    severity: finding.severity,
+    ruleId: finding.ruleId || task.id,
+    ruleDescription: finding.ruleDescription,
+    suiteId: task.id,
+    suiteName: task.name
+  };
+}
+
+function buildTimeoutViolation(task: AuditTaskDefinition): Violation {
+  return {
+    file: task.scriptPath,
+    line: 1,
+    message: `Timeout excedido (${task.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms) en ejecución de la suite.`,
+    context: task.name,
+    severity: 'error',
+    ruleId: task.id,
+    suiteId: task.id,
+    suiteName: task.name
+  };
+}
+
+async function parseTaskFindings(
+  task: AuditTaskDefinition,
+  proc: { timedOut?: boolean }
+): Promise<{ localViolations: Violation[]; findingsSummary?: { errors: number; warnings: number } }> {
+  const localViolations: Violation[] = [];
+  const jsonPath = path.resolve(process.cwd(), 'scratch/audits', task.family, `${task.id}.json`);
+  let findingsSummary: { errors: number; warnings: number } | undefined;
+
+  try {
+    const data = await fs.readFile(jsonPath, 'utf-8');
+    const parsed = JSON.parse(data) as StandardAuditResult;
+    findingsSummary = {
+      errors: parsed.summary?.errors ?? 0,
+      warnings: parsed.summary?.warnings ?? 0
+    };
+
+    for (const finding of parsed.findings || []) {
+      const v = mapFindingToViolation(finding, task);
+      if (v) localViolations.push(v);
+    }
+  } catch {
+    // catch-ok: non-existent task output
+    if (proc.timedOut) {
+      localViolations.push(buildTimeoutViolation(task));
+    }
+  }
+  return { localViolations, findingsSummary };
+}
+
+async function executeSingleCommitTask(
+  task: AuditTaskDefinition,
+  coordinator: TaskStreamCoordinator
+): Promise<Violation[]> {
+  const subLines: string[] = [];
+  const proc = await executeAuditorStreaming(task, task.args, (subLine) => {
+    subLines.push(subLine);
   });
+
+  const { localViolations, findingsSummary } = await parseTaskFindings(task, proc);
+  const isSuccess = localViolations.filter(v => v.severity === 'error').length === 0;
+
+  await coordinator.onTaskComplete({
+    taskName: task.name,
+    taskId: task.id,
+    subLines,
+    durationMs: proc.durationMs,
+    isSuccess,
+    hasWarnings: (findingsSummary?.warnings ?? 0) > 0
+  });
+
+  return localViolations;
+}
+
+async function runCommitAuditorTasks(discoveredTasks: AuditTaskDefinition[]): Promise<Violation[]> {
   const availableCpus = os.availableParallelism ? os.availableParallelism() : os.cpus().length;
   const concurrencyLimit = Math.max(MIN_CONCURRENCY, Math.floor(availableCpus / CPU_CORE_DIVISOR));
   const workerCount = Math.min(concurrencyLimit, discoveredTasks.length);
 
   console.log(styleText('bold', `⏳ Progreso de ejecución de suites (Concurrencia: ${workerCount} workers):\n`));
 
-  class CommitStreamCoordinator {
-    private completedCount = 0;
-    private readonly totalTasks: number;
-    private printLock: Promise<void> = Promise.resolve();
-
-    constructor(totalTasks: number) {
-      this.totalTasks = totalTasks;
-    }
-
-    public async onTaskComplete(
-      taskName: string,
-      taskId: string,
-      subLines: string[],
-      durationMs: number,
-      isSuccess: boolean,
-      findingsSummary?: { errors: number; warnings: number }
-    ): Promise<void> {
-      const previousLock = this.printLock;
-      let releaseLock: () => void = () => {};
-      this.printLock = new Promise<void>((resolve) => {
-        releaseLock = resolve;
-      });
-
-      await previousLock;
-
-      try {
-        this.completedCount++;
-        const stepStr = String(this.completedCount).padStart(2, '0');
-        const totalStr = String(this.totalTasks).padStart(2, '0');
-        const pct = Math.round((this.completedCount / this.totalTasks) * 100);
-        const pctStr = `${pct}%`.padStart(4, ' ');
-
-        const statusBadge = isSuccess
-          ? ((findingsSummary?.warnings ?? 0) > 0 ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
-          : styleText('red', '❌');
-
-        console.log(`     ${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ⚙️  ${styleText('cyan', taskName)} ${styleText('dim', `(${taskId})`)}... ${statusBadge} ${styleText('dim', `${durationMs}ms`)}`);
-
-        for (const line of subLines) {
-          console.log(`        ${styleText('dim', '│')}  ${styleText('dim', line)}`);
-        }
-      } finally {
-        releaseLock();
-      }
-    }
-  }
-
-  const coordinator = new CommitStreamCoordinator(discoveredTasks.length);
+  const coordinator = new TaskStreamCoordinator(discoveredTasks.length, { indent: '     ' });
   const taskViolations: Violation[][] = new Array(discoveredTasks.length);
   let nextTaskIndex = 0;
-
-  async function executeTask(taskIndex: number): Promise<void> {
-    const task = discoveredTasks[taskIndex]!;
-    const subLines: string[] = []; // no-domain: Non-domain utility collection or data structure
-    const proc = await executeAuditorStreaming(task, task.args, (subLine) => {
-      subLines.push(subLine);
-    });
-
-    const localViolations: Violation[] = [];
-    const jsonPath = path.resolve(process.cwd(), 'scratch/audits', task.family, `${task.id}.json`);
-    let findingsSummary: { errors: number; warnings: number } | undefined;
-
-    try {
-      const data = await fs.readFile(jsonPath, 'utf-8');
-      const parsed = JSON.parse(data) as StandardAuditResult;
-      findingsSummary = {
-        errors: parsed.summary?.errors ?? 0,
-        warnings: parsed.summary?.warnings ?? 0
-      };
-
-      for (const finding of parsed.findings || []) {
-        if (finding.severity === 'info') continue;
-        const targetFile = finding.file ? path.relative(process.cwd(), finding.file) : '';
-        if (!targetFile && finding.severity === 'warning') continue;
-
-        localViolations.push({
-          file: targetFile || task.scriptPath,
-          line: finding.line || 1,
-          message: finding.message,
-          context: finding.context || task.name,
-          severity: finding.severity,
-          ruleId: finding.ruleId || task.id,
-          ruleDescription: finding.ruleDescription,
-          suiteId: task.id,
-          suiteName: task.name
-        });
-      }
-    } catch {
-      if (proc.timedOut) {
-        localViolations.push({
-          file: task.scriptPath,
-          line: 1,
-          message: `Timeout excedido (${task.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms) en ejecución de la suite.`,
-          context: task.name,
-          severity: 'error',
-          ruleId: task.id,
-          suiteId: task.id,
-          suiteName: task.name
-        });
-      }
-    }
-
-    const isSuccess = localViolations.filter(v => v.severity === 'error').length === 0;
-    await coordinator.onTaskComplete(task.name, task.id, subLines, proc.durationMs, isSuccess, findingsSummary);
-    taskViolations[taskIndex] = localViolations;
-  }
 
   async function worker(): Promise<void> {
     while (nextTaskIndex < discoveredTasks.length) {
       const idx = nextTaskIndex++;
-      await executeTask(idx);
+      taskViolations[idx] = await executeSingleCommitTask(discoveredTasks[idx]!, coordinator);
     }
   }
 
   const workers = Array.from({ length: workerCount }, () => worker());
   await Promise.all(workers);
+  return taskViolations.flat();
+}
 
-  const allViolations = taskViolations.flat();
-
-  // Separar en errores (globales) y warnings (filtrados por modificados)
+function partitionViolations(
+  allViolations: Violation[],
+  modifiedFiles: ReadonlySet<string>
+): { projectErrors: Violation[]; warningsByFile: Record<string, Violation[]> } {
   const projectErrors: Violation[] = [];
   const warningsByFile: Record<string, Violation[]> = {};
 
@@ -399,14 +382,19 @@ async function main() {
       list.push(violation);
     }
   }
+  return { projectErrors, warningsByFile };
+}
 
+async function collectFileWarnings(
+  warningsByFile: Record<string, Violation[]>
+): Promise<{ newWarnings: Violation[]; legacyWarnings: Violation[] }> {
   const finalWarnings: Violation[] = [];
 
   for (const file of Object.keys(warningsByFile)) {
     const localFileWarnings = warningsByFile[file]!;
     const originContent = await getOriginFileContent(file);
     let originEslint: Violation[] = [];
-    
+
     if (originContent !== null) {
       const hasEslint = localFileWarnings.some(w => !isSubAuditorRule(w.ruleId));
       if (hasEslint) {
@@ -420,31 +408,28 @@ async function main() {
 
   const newWarnings = finalWarnings.filter(v => v.isNew);
   const legacyWarnings = finalWarnings.filter(v => !v.isNew);
+  return { newWarnings, legacyWarnings };
+}
 
-  // Escribir reporte JSON y TXT bajo scratch/ y scratch/audits/
+async function persistCommitReports(reportData: {
+  analyzedModifiedFiles: string[];
+  summary: { projectErrors: number; newWarnings: number; legacyWarnings: number; status: string };
+  errors: Violation[];
+  newWarnings: Violation[];
+  legacyWarnings: Violation[];
+}): Promise<void> {
   await fs.mkdir('scratch/audits', { recursive: true });
-  
-  const reportData = {
-    analyzedModifiedFiles: Array.from(modifiedFiles),
-    summary: {
-      projectErrors: projectErrors.length,
-      newWarnings: newWarnings.length,
-      legacyWarnings: legacyWarnings.length,
-      status: projectErrors.length === 0 && newWarnings.length === 0 ? 'passed' : 'failed'
-    },
-    errors: projectErrors,
-    newWarnings,
-    legacyWarnings
-  };
-
-  const reportJsonPath = 'scratch/warnings_diff_report.json';
-  const latestAuditDiffPath = 'scratch/audits/latest_warnings_diff.json';
   const jsonReportString = JSON.stringify(reportData, null, 2);
+  await fs.writeFile('scratch/warnings_diff_report.json', jsonReportString, 'utf-8');
+  await fs.writeFile('scratch/audits/latest_warnings_diff.json', jsonReportString, 'utf-8');
+}
 
-  await fs.writeFile(reportJsonPath, jsonReportString, 'utf-8');
-  await fs.writeFile(latestAuditDiffPath, jsonReportString, 'utf-8');
-
-  // Imprimir reporte visual y Box-Drawing consolidado
+function renderCommitResults(
+  projectErrors: Violation[],
+  newWarnings: Violation[],
+  legacyWarnings: Violation[]
+): boolean {
+  const latestAuditDiffPath = 'scratch/audits/latest_warnings_diff.json';
   console.log(styleText('bold', '\n📊 RESULTADOS DE COMPARACIÓN (PRE-COMMIT GATEKEEPER):'));
   console.log('  ────────────────────────────────────────────────────────────────────────');
 
@@ -479,25 +464,64 @@ async function main() {
   }
 
   console.log('  ────────────────────────────────────────────────────────────────────────');
+  return projectErrors.length === 0 && newWarnings.length === 0;
+}
 
-  const isSuccess = projectErrors.length === 0 && newWarnings.length === 0;
+async function main() {
+  const config = await loadAuditConfig();
+  assertAuditConfigComplete(config);
+  const { effectivePreset, familyArg, taskArg, suitesArg } = parseCommitCliArgs(config);
 
+  console.log(renderBanner(
+    `${config.name.toUpperCase()} - WARNINGS DIFF & PRE-COMMIT GATEKEEPER`,
+    effectivePreset ? `Preset: ${effectivePreset.toUpperCase()} | Exige 0 errores en proyecto y 0 warnings nuevos` : 'Exige 0 errores en proyecto y 0 warnings nuevos'
+  ));
+
+  const modifiedFiles = await getModifiedFiles();
+  printModifiedFiles(modifiedFiles);
+
+  const discoveredTasks = await discoverAuditors({
+    preset: effectivePreset,
+    family: familyArg,
+    task: taskArg,
+    suites: suitesArg
+  });
+
+  const allViolations = await runCommitAuditorTasks(discoveredTasks);
+  const { projectErrors, warningsByFile } = partitionViolations(allViolations, modifiedFiles);
+  const { newWarnings, legacyWarnings } = await collectFileWarnings(warningsByFile);
+
+  await persistCommitReports({
+    analyzedModifiedFiles: Array.from(modifiedFiles),
+    summary: {
+      projectErrors: projectErrors.length,
+      newWarnings: newWarnings.length,
+      legacyWarnings: legacyWarnings.length,
+      status: projectErrors.length === 0 && newWarnings.length === 0 ? 'passed' : 'failed'
+    },
+    errors: projectErrors,
+    newWarnings,
+    legacyWarnings
+  });
+
+  const isSuccess = renderCommitResults(projectErrors, newWarnings, legacyWarnings);
   if (isSuccess) {
     console.log(styleText('bold', styleText('green', '\n✨ ¡GATEKEEPER APROBADO! Repositorio 100% limpio y listo para safe-commit.\n')));
-    console.log(styleText('dim', `💾 Reporte guardado en: ${latestAuditDiffPath}\n`));
+    console.log(styleText('dim', '💾 Reporte guardado en: scratch/audits/latest_warnings_diff.json\n'));
     process.exit(0);
   } else {
     console.error(styleText('bold', styleText('red', `\n🚨 GATEKEEPER BLOQUEADO: Se encontraron ${projectErrors.length} errores y ${newWarnings.length} advertencias nuevas.\n`)));
-    console.log(styleText('dim', `💾 Reporte guardado en: ${latestAuditDiffPath}\n`));
+    console.log(styleText('dim', '💾 Reporte guardado en: scratch/audits/latest_warnings_diff.json\n'));
     process.exit(1);
   }
 }
 
 // Solo ejecutar main si se corre directamente
-if (process.argv[1] && (process.argv[1].endsWith('audit_for_commit.ts') || process.argv[1].endsWith('audit_for_commit.js') || process.argv[1].endsWith('audit_warnings_diff.ts'))) {
+if (isMainModule(import.meta.url)) {
   main().catch((err: unknown) => {
     const msg = err instanceof Error ? (err as Error).message : String(err);
     console.error(styleText('red', `💥 Error fatal en audit_for_commit: ${msg}`));
     process.exit(1);
   });
 }
+

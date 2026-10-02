@@ -64,6 +64,31 @@ export function getPositionalJsonMutationRegex(): RegExp {
 export const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.[a-zA-Z0-9_]+\[\d+\]|[a-zA-Z0-9_]+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{[a-zA-Z0-9_]+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.[a-zA-Z0-9_]+\[\d+\])/i;
 const CAMEL_CASE_KEY_REGEX = /^[a-z]+[A-Z][a-zA-Z0-9]*$/;
 
+function parseDeclaredPlpgsqlVariables(blockBody: string): Set<string> {
+  const declaredVars = new Set<string>();
+  const declareMatch = blockBody.match(/\bDECLARE\b([\s\S]*?)\bBEGIN\b/i);
+  if (!declareMatch || !declareMatch[1]) {
+    return declaredVars;
+  }
+  for (const dLine of declareMatch[1].split('\n')) {
+    const trimmed = dLine.trim();
+    if (!trimmed || trimmed.startsWith('--')) continue;
+    const varMatch = trimmed.match(/^([a-zA-Z0-9_]+)\s+/);
+    if (varMatch && varMatch[1] && varMatch[1].toLowerCase() !== 'constant') {
+      declaredVars.add(varMatch[1].toLowerCase());
+    }
+  }
+  return declaredVars;
+}
+
+function isIntegerRangeLoop(executionBody: string, matchIndex: number): boolean {
+  const nextLoopIdx = executionBody.indexOf('LOOP', matchIndex);
+  const loopSlice = nextLoopIdx !== -1
+    ? executionBody.slice(matchIndex, nextLoopIdx)
+    : executionBody.slice(matchIndex, matchIndex + 120);
+  return /\.\./.test(loopSlice);
+}
+
 export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private readonly configuredMigrationsDir: string;
   private readonly authorizedSaveFiles: ReadonlySet<string>;
@@ -111,30 +136,35 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     }
 
     const migrationsDir = path.resolve(this.projectRoot, this.configuredMigrationsDir);
+    const sqlMigrations = this.collectAndScanMigrations(migrationsDir);
+    this.scanSourceFiles(config.paths.srcRoots || ['src']);
+    this.scanRlsPolicyIntegrity(sqlMigrations);
+  }
+
+  private collectAndScanMigrations(migrationsDir: string): { relPath: string; content: string }[] {
     const sqlMigrations: { relPath: string; content: string }[] = [];
+    if (!fs.existsSync(migrationsDir)) return sqlMigrations;
 
-    // 1. Scan SQL migrations
-    if (fs.existsSync(migrationsDir)) {
-      const entries = fs.readdirSync(migrationsDir);
-      for (const entry of entries) {
-        if (!entry.endsWith('.sql')) continue;
-        const fullPath = path.join(migrationsDir, entry);
-        const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-        if (this.context.isPathIgnored(relPath)) continue;
+    const entries = fs.readdirSync(migrationsDir);
+    for (const entry of entries) {
+      if (!entry.endsWith('.sql')) continue;
+      const fullPath = path.join(migrationsDir, entry);
+      const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+      if (this.context.isPathIgnored(relPath)) continue;
 
-        try {
-          const content = fs.readFileSync(fullPath, 'utf-8');
-          this.filesScannedCount++;
-          sqlMigrations.push({ relPath, content });
-          this.scanSqlFile(relPath, content);
-        } catch {
-          // Ignore read errors
-        }
+      try {
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        this.filesScannedCount++;
+        sqlMigrations.push({ relPath, content });
+        this.scanSqlFile(relPath, content);
+      } catch {
+        // catch-ok: Ignore read errors
       }
     }
+    return sqlMigrations;
+  }
 
-    // 2. Scan TypeScript and Vue code in src/
-    const srcRoots = config.paths.srcRoots || ['src'];
+  private scanSourceFiles(srcRoots: readonly string[]): void {
     const srcFiles = this.context.collectFiles([...srcRoots], new Set(['.ts', '.vue']));
     for (const file of srcFiles) {
       const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
@@ -143,12 +173,9 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         this.filesScannedCount++;
         this.scanTypeScriptFile(relPath, content);
       } catch {
-        // Ignore read errors
+        // catch-ok: Ignore read errors
       }
     }
-
-    // 3. Scan cross-migration RLS policy integrity
-    this.scanRlsPolicyIntegrity(sqlMigrations);
   }
 
   private scanSqlFile(relPath: string, content: string): void {
@@ -176,6 +203,35 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     this.scanPlpgsqlUndeclaredVariables(relPath, content);
   }
 
+  private checkPlpgsqlLoops(
+    executionBody: string,
+    context: { funcName: string; blockOffset: number; beginIndex: number; declaredVars: Set<string>; relPath: string; content: string }
+  ): void {
+    const forLoopRegex = /\bFOR\s+([a-zA-Z0-9_]+)\s+IN\b/gi;
+    let loopMatch: RegExpExecArray | null;
+
+    while ((loopMatch = forLoopRegex.exec(executionBody)) !== null) {
+      const loopVar = loopMatch[1];
+      if (!loopVar || isIntegerRangeLoop(executionBody, loopMatch.index)) continue;
+      if (context.declaredVars.has(loopVar.toLowerCase())) continue;
+
+      const absolutePos = context.blockOffset + context.beginIndex + loopMatch.index;
+      const line = context.content.slice(0, absolutePos).split('\n').length;
+      const lineContent = context.content.split('\n')[line - 1] || '';
+
+      if (!this.isLineIgnored(lineContent, ['plpgsql-ok', 'sql-ok'])) {
+        this.addViolation({
+          ruleId: 'sql-plpgsql-declared-variables',
+          severity: 'error',
+          file: context.relPath,
+          line,
+          message: `Undeclared PL/pgSQL loop variable '${loopVar}' in function/block '${context.funcName}'. Variables must be declared in DECLARE block.`,
+          context: lineContent.trim()
+        });
+      }
+    }
+  }
+
   private scanPlpgsqlUndeclaredVariables(relPath: string, content: string): void {
     const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)[\s\S]+?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
     let blockMatch: RegExpExecArray | null;
@@ -184,67 +240,28 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       const funcName = blockMatch[1] || 'anonymous_do_block';
       const blockBody = blockMatch[2];
       if (!blockBody) continue;
-      const blockOffset = blockMatch.index;
-
-      const declareMatch = blockBody.match(/\bDECLARE\b([\s\S]*?)\bBEGIN\b/i);
-      const declaredVars = new Set<string>();
-
-      if (declareMatch && declareMatch[1]) {
-        const declareLines = declareMatch[1].split('\n');
-        for (const dLine of declareLines) {
-          const trimmed = dLine.trim();
-          if (!trimmed || trimmed.startsWith('--')) continue;
-          const varMatch = trimmed.match(/^([a-zA-Z0-9_]+)\s+/);
-          if (varMatch && varMatch[1]) {
-            const varName = varMatch[1].toLowerCase();
-            if (!['constant'].includes(varName)) {
-              declaredVars.add(varName);
-            }
-          }
-        }
-      }
 
       const beginIndex = blockBody.search(/\bBEGIN\b/i);
       if (beginIndex === -1) continue;
 
+      const declaredVars = parseDeclaredPlpgsqlVariables(blockBody);
       const executionBody = blockBody.slice(beginIndex);
-      const forLoopRegex = /\bFOR\s+([a-zA-Z0-9_]+)\s+IN\b/gi;
-      let loopMatch: RegExpExecArray | null;
-
-      while ((loopMatch = forLoopRegex.exec(executionBody)) !== null) {
-        const loopVar = loopMatch[1];
-        if (!loopVar) continue;
-        const nextLoopIdx = executionBody.indexOf('LOOP', loopMatch.index);
-        const loopSlice = nextLoopIdx !== -1 ? executionBody.slice(loopMatch.index, nextLoopIdx) : executionBody.slice(loopMatch.index, loopMatch.index + 120);
-        if (/\.\./.test(loopSlice)) {
-          // Integer range loop (e.g. FOR j IN 0..N-1 LOOP): PostgreSQL implicitly declares loopVar as local integer
-          continue;
-        }
-
-        if (!declaredVars.has(loopVar.toLowerCase())) {
-          const absolutePos = blockOffset + beginIndex + loopMatch.index;
-          const line = content.slice(0, absolutePos).split('\n').length;
-          const lineContent = content.split('\n')[line - 1] || '';
-
-          if (!this.isLineIgnored(lineContent, ['plpgsql-ok', 'sql-ok'])) {
-            this.addViolation({
-              ruleId: 'sql-plpgsql-declared-variables',
-              severity: 'error',
-              file: relPath,
-              line,
-              message: `Undeclared PL/pgSQL loop variable '${loopVar}' in function/block '${funcName}'. Variables must be declared in DECLARE block.`,
-              context: lineContent.trim()
-            });
-          }
-        }
-      }
+      this.checkPlpgsqlLoops(executionBody, {
+        funcName,
+        blockOffset: blockMatch.index,
+        beginIndex,
+        declaredVars,
+        relPath,
+        content
+      });
     }
   }
 
-  private scanRlsPolicyIntegrity(migrations: readonly { relPath: string; content: string }[]): void {
+  private collectRlsMigrations(
+    migrations: readonly { relPath: string; content: string }[]
+  ): { rlsTables: Map<string, { relPath: string; line: number; lineContent: string }>; tablesWithPolicies: Set<string> } {
     const rlsTables = new Map<string, { relPath: string; line: number; lineContent: string }>();
     const tablesWithPolicies = new Set<string>();
-
     const enableRlsRegex = /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY\s*;/gi;
     const createPolicyRegex = /CREATE\s+POLICY\s+.*?\s+ON\s+(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)\b/gi;
 
@@ -268,6 +285,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       }
     }
 
+    return { rlsTables, tablesWithPolicies };
+  }
+
+  private scanRlsPolicyIntegrity(migrations: readonly { relPath: string; content: string }[]): void {
+    const { rlsTables, tablesWithPolicies } = this.collectRlsMigrations(migrations);
+
     for (const [table, loc] of rlsTables.entries()) {
       if (!tablesWithPolicies.has(table)) {
         this.addViolation({
@@ -285,29 +308,48 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   protected scanTypeScriptFile(relPath: string, content: string): void {
     const lines = content.split('\n');
 
-    // Rule 5: storage-uncoordinated-save-bypass
     if (!this.authorizedSaveFiles.has(relPath) && this.saveKeyPrefixes.length > 0) {
-      for (let i = 0; i < lines.length; i++) {
-        const lineText = lines[i];
-        if (!lineText) continue;
-        const hasUncoordinatedSave = this.saveKeyPrefixes.some(
-          prefix =>
-            lineText.includes(`localStorage.setItem('${prefix}`) ||
-            lineText.includes(`localStorage.setItem("${prefix}`) ||
-            lineText.includes(`localStorage.setItem(\`${prefix}`)
-        );
-        if (hasUncoordinatedSave && !this.isLineIgnored(lineText, ['storage-ok'])) {
-          this.addViolation({
-            ruleId: 'storage-uncoordinated-save-bypass',
-            severity: 'error',
-            file: relPath,
-            line: i + 1,
-            message: `Direct localStorage write to state bypasses authorized persistence architecture.`,
-            context: lineText.trim()
-          });
-        }
-      }
+      scanUncoordinatedStorageWrites({
+        relPath,
+        lines,
+        saveKeyPrefixes: this.saveKeyPrefixes,
+        auditor: this
+      });
     }
+
+    scanDbPayloadKeys({
+      relPath,
+      content,
+      lines,
+      auditor: this
+    });
+  }
+}
+
+function updateStringLiteralState(char: string, prevChar: string, inString: string | null): string | null {
+  if (inString) {
+    return (char === inString && prevChar !== '\\') ? null : inString;
+  }
+  if (char === "'" || char === '"' || char === '`') {
+    return char;
+  }
+  return null;
+}
+
+function updateBraceDepth(char: string, depth: number): number {
+  if (char === '{' || char === '[') return depth + 1;
+  if (char === '}' || char === ']') return depth - 1;
+  return depth;
+}
+
+function extractKeyMatch(raw: string, index: number): { key: string; advance: number } | null {
+  const rest = raw.slice(index);
+  const m = rest.match(/^([a-zA-Z0-9_]+)\s*:/);
+  if (m && m[1]) {
+    return { key: m[1], advance: m[0].length - 1 };
+  }
+  return null;
+}
 
 function extractTopLevelKeys(raw: string): { key: string; index: number }[] {
   const results: { key: string; index: number }[] = [];
@@ -318,34 +360,25 @@ function extractTopLevelKeys(raw: string): { key: string; index: number }[] {
 
   for (let i = 0; i < raw.length; i++) {
     const char = raw[i]!;
-    const prev = i > 0 ? raw[i - 1] : '';
+    const prev = i > 0 ? (raw[i - 1] ?? '') : '';
 
-    if (inString) {
-      if (char === inString && prev !== '\\') inString = null;
+    const nextStringState = updateStringLiteralState(char, prev, inString);
+    if (inString || nextStringState !== null) {
+      inString = nextStringState;
       continue;
     }
 
-    if (char === "'" || char === '"' || char === '`') {
-      inString = char;
-      continue;
-    }
-
-    if (char === '{' || char === '[') {
-      depth++;
-      continue;
-    }
-
-    if (char === '}' || char === ']') {
-      depth--;
+    const nextDepth = updateBraceDepth(char, depth);
+    if (nextDepth !== depth) {
+      depth = nextDepth;
       continue;
     }
 
     if (depth === targetDepth) {
-      const rest = raw.slice(i);
-      const m = rest.match(/^([a-zA-Z0-9_]+)\s*:/);
-      if (m && m[1]) {
-        results.push({ key: m[1], index: i });
-        i += m[0].length - 1;
+      const match = extractKeyMatch(raw, i);
+      if (match) {
+        results.push({ key: match.key, index: i });
+        i += match.advance;
       }
     }
   }
@@ -353,36 +386,68 @@ function extractTopLevelKeys(raw: string): { key: string; index: number }[] {
   return results;
 }
 
-    // Rule 4: db-payload-snake-case
-    const dbWriteRegex = /\.(?:insert|update|upsert)\s*\(\s*(\[[^\]]*\]|\{[^}]*\})/g;
-    let writeMatch: RegExpExecArray | null;
+function scanUncoordinatedStorageWrites(params: {
+  relPath: string;
+  lines: readonly string[];
+  saveKeyPrefixes: readonly string[];
+  auditor: SqlAntiPatternsAuditor;
+}): void {
+  for (let i = 0; i < params.lines.length; i++) {
+    const lineText = params.lines[i];
+    if (!lineText) continue;
+    const hasUncoordinatedSave = params.saveKeyPrefixes.some(
+      prefix =>
+        lineText.includes(`localStorage.setItem('${prefix}`) ||
+        lineText.includes(`localStorage.setItem("${prefix}`) ||
+        lineText.includes(`localStorage.setItem(\`${prefix}`)
+    );
+    if (hasUncoordinatedSave && !params.auditor.isLineIgnored(lineText, ['storage-ok'])) {
+      params.auditor.addViolation({
+        ruleId: 'storage-uncoordinated-save-bypass',
+        severity: 'error',
+        file: params.relPath,
+        line: i + 1,
+        message: `Direct localStorage write to state bypasses authorized persistence architecture.`,
+        context: lineText.trim()
+      });
+    }
+  }
+}
 
-    while ((writeMatch = dbWriteRegex.exec(content)) !== null) {
-      const rawPayload = writeMatch[1]!;
-      const matchOffset = writeMatch.index;
-      const lineNumber = content.slice(0, matchOffset).split('\n').length;
-      const lineText = lines[lineNumber - 1] || '';
+function scanDbPayloadKeys(params: {
+  relPath: string;
+  content: string;
+  lines: readonly string[];
+  auditor: SqlAntiPatternsAuditor;
+}): void {
+  const dbWriteRegex = /\.(?:insert|update|upsert)\s*\(\s*(\[[^\]]*\]|\{[^}]*\})/g;
+  let writeMatch: RegExpExecArray | null;
 
-      if (this.isLineIgnored(lineText, ['db-ok'])) continue;
+  while ((writeMatch = dbWriteRegex.exec(params.content)) !== null) {
+    const rawPayload = writeMatch[1]!;
+    const matchOffset = writeMatch.index;
+    const lineNumber = params.content.slice(0, matchOffset).split('\n').length;
+    const lineText = params.lines[lineNumber - 1] || '';
 
-      const topLevelKeys = extractTopLevelKeys(rawPayload);
+    if (params.auditor.isLineIgnored(lineText, ['db-ok'])) continue;
 
-      for (const { key, index: keyOffset } of topLevelKeys) {
-        if (CAMEL_CASE_KEY_REGEX.test(key) && key !== 'toString' && key !== 'valueOf') {
-          const propOffset = matchOffset + keyOffset;
-          const propLine = content.slice(0, propOffset).split('\n').length;
-          const propLineText = lines[propLine - 1] || '';
+    const topLevelKeys = extractTopLevelKeys(rawPayload);
 
-          if (!this.isLineIgnored(propLineText, ['db-ok'])) {
-            this.addViolation({
-              ruleId: 'db-payload-snake-case',
-              severity: 'error',
-              file: relPath,
-              line: propLine,
-              message: `Database payload key '${key}' is camelCase. Database schema strictly mandates snake_case column names.`,
-              context: propLineText.trim()
-            });
-          }
+    for (const { key, index: keyOffset } of topLevelKeys) {
+      if (CAMEL_CASE_KEY_REGEX.test(key) && key !== 'toString' && key !== 'valueOf') {
+        const propOffset = matchOffset + keyOffset;
+        const propLine = params.content.slice(0, propOffset).split('\n').length;
+        const propLineText = params.lines[propLine - 1] || '';
+
+        if (!params.auditor.isLineIgnored(propLineText, ['db-ok'])) {
+          params.auditor.addViolation({
+            ruleId: 'db-payload-snake-case',
+            severity: 'error',
+            file: params.relPath,
+            line: propLine,
+            message: `Database payload key '${key}' is camelCase. Database schema strictly mandates snake_case column names.`,
+            context: propLineText.trim()
+          });
         }
       }
     }
@@ -390,6 +455,4 @@ function extractTopLevelKeys(raw: string): { key: string; index: number }[] {
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new SqlAntiPatternsAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new SqlAntiPatternsAuditor());

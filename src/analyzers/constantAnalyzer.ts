@@ -46,6 +46,60 @@ interface ConstDecl {
   isExported: boolean;
 }
 
+function isValidConstantIdentifier(name: string, ignoredNames: ReadonlySet<string>): boolean {
+  if (name.length < 4) return false;
+  if (ignoredNames.has(name)) return false;
+  return /^[A-Z0-9_]+$/.test(name);
+}
+
+function processVariableDeclaration(
+  decl: ts.VariableDeclaration,
+  sourceFile: ts.SourceFile,
+  filePath: string,
+  isExported: boolean,
+  ignoredNames: ReadonlySet<string>
+): ConstDecl | null {
+  if (!ts.isIdentifier(decl.name)) return null;
+
+  const constName = decl.name.text;
+  if (!isValidConstantIdentifier(constName, ignoredNames)) return null;
+
+  const line = sourceFile.getLineAndCharacterOfPosition(decl.getStart(sourceFile)).line + 1;
+  const rawValue = decl.initializer ? decl.initializer.getText(sourceFile).trim() : '';
+
+  return {
+    name: constName,
+    file: filePath,
+    line,
+    valueStr: rawValue,
+    isExported
+  };
+}
+
+function extractConstantsFromStatement(
+  statement: ts.Statement,
+  sourceFile: ts.SourceFile,
+  filePath: string,
+  ignoredNames: ReadonlySet<string>
+): ConstDecl[] {
+  if (!ts.isVariableStatement(statement)) return [];
+
+  const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
+  if (!isConst) return [];
+
+  const isExported = !!statement.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+  const decls: ConstDecl[] = [];
+
+  for (const decl of statement.declarationList.declarations) {
+    const constDecl = processVariableDeclaration(decl, sourceFile, filePath, isExported, ignoredNames);
+    if (constDecl) {
+      decls.push(constDecl);
+    }
+  }
+
+  return decls;
+}
+
 /**
  * Extracts top-level const declarations using TypeScript AST.
  */
@@ -58,34 +112,117 @@ export function extractConstantsFromSource(
   const effectiveIgnored = ignoredNames ?? IGNORED_CONSTANT_NAMES;
 
   for (const statement of sourceFile.statements) {
-    if (ts.isVariableStatement(statement)) {
-      const isExported = !!statement.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
-      const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
-      if (!isConst) continue;
-
-      for (const decl of statement.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name)) {
-          const constName = decl.name.text;
-          if (constName.length < 4) continue;
-          if (effectiveIgnored.has(constName)) continue;
-          if (!/^[A-Z0-9_]+$/.test(constName)) continue;
-
-          const line = sourceFile.getLineAndCharacterOfPosition(decl.getStart(sourceFile)).line + 1;
-          const rawValue = decl.initializer ? decl.initializer.getText(sourceFile).trim() : '';
-
-          decls.push({
-            name: constName,
-            file: filePath,
-            line,
-            valueStr: rawValue,
-            isExported
-          });
-        }
-      }
-    }
+    decls.push(...extractConstantsFromStatement(statement, sourceFile, filePath, effectiveIgnored));
   }
 
   return decls;
+}
+
+function isConstantAuditCandidate(filePath: string, projectRoot: string, config: ReturnType<typeof getAuditConfig>): boolean {
+  const isUnderRoot = !path.isAbsolute(filePath) || !path.relative(projectRoot, filePath).startsWith('..');
+  const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
+  if (isUnderRoot && isPathIgnored(rel)) return false;
+  if (isDataPath(rel)) return false;
+  if (!isInCodeRoots(rel, config)) return false;
+  if (isScriptPath(rel, config)) return false;
+  if (isExemptFile(rel, config)) return false;
+  if (rel.startsWith('src/suites/') || rel.startsWith('src/cli/')) return false;
+  return true;
+}
+
+async function collectFileConstants(
+  filePath: string,
+  astEngine: SharedAstContext,
+  effectiveIgnored: ReadonlySet<string>,
+  declarations: Map<string, ConstDecl[]>
+): Promise<void> {
+  let content: string;
+  try {
+    content = await fs.readFile(filePath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  // Fast string pre-filter to skip files with no const declarations
+  if (!content.includes('const ')) return;
+
+  const sourceFile = astEngine.getSourceFile(filePath, content);
+  const constDecls = extractConstantsFromSource(sourceFile, filePath, effectiveIgnored);
+
+  for (const decl of constDecls) {
+    if (!declarations.has(decl.name)) {
+      declarations.set(decl.name, []);
+    }
+    declarations.get(decl.name)!.push(decl);
+  }
+}
+
+async function checkIsCrossImported(
+  constName: string,
+  uniqueFiles: readonly string[],
+  fileContentCache: Map<string, string>
+): Promise<boolean> {
+  const importRegex = new RegExp(`import\\s+[^;]*\\b${constName}\\b`);
+
+  for (let i = 0; i < uniqueFiles.length; i++) {
+    for (let j = i + 1; j < uniqueFiles.length; j++) {
+      const fileA = uniqueFiles[i]!;
+      const fileB = uniqueFiles[j]!;
+
+      let contentA = fileContentCache.get(fileA);
+      if (contentA === undefined) {
+        contentA = await fs.readFile(fileA, 'utf-8').catch(() => '');
+        fileContentCache.set(fileA, contentA);
+      }
+      let contentB = fileContentCache.get(fileB);
+      if (contentB === undefined) {
+        contentB = await fs.readFile(fileB, 'utf-8').catch(() => '');
+        fileContentCache.set(fileB, contentB);
+      }
+
+      if (importRegex.test(contentA) || importRegex.test(contentB)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function createConstantViolations(
+  constName: string,
+  decls: readonly ConstDecl[],
+  uniqueFiles: readonly string[],
+  targetConstantsDir: string
+): Violation[] {
+  const normalizedValueA = decls[0]!.valueStr.replace(/\s+/g, '');
+  const hasIdenticalValues = decls.every(d => d.valueStr.replace(/\s+/g, '') === normalizedValueA);
+  const fileList = uniqueFiles.map(f => path.relative(process.cwd(), f)).join(', ');
+
+  const violations: Violation[] = [];
+  if (hasIdenticalValues) {
+    for (const decl of decls) {
+      violations.push({
+        file: decl.file,
+        line: decl.line,
+        message: `Constante duplicada '${constName}' con valor idéntico declarada en múltiples módulos (${fileList}). DEBE modularizarse obligatoriamente en ${targetConstantsDir} para su reutilización.`,
+        context: constName,
+        severity: 'error',
+        fixable: false,
+      });
+    }
+  } else {
+    for (const decl of decls) {
+      violations.push({
+        file: decl.file,
+        line: decl.line,
+        message: `Constante '${constName}' declarada con valores diferentes en múltiples módulos (${fileList}). Revisa si es un posible bug o si se debe unificar/renombrar según su subdominio.`,
+        context: constName,
+        severity: 'error',
+        fixable: false,
+      });
+    }
+  }
+  return violations;
 }
 
 export async function detectDuplicateConstants(
@@ -93,7 +230,6 @@ export async function detectDuplicateConstants(
   astContext?: SharedAstContext,
   projectRoot = process.cwd()
 ): Promise<Violation[]> {
-  const violations: Violation[] = [];
   const declarations = new Map<string, ConstDecl[]>();
   const astEngine = astContext ?? new SharedAstContext();
 
@@ -102,100 +238,20 @@ export async function detectDuplicateConstants(
   const effectiveIgnored = getEffectiveIgnoredConstantNames(projectRoot);
 
   for (const filePath of files) {
-    const isUnderRoot = !path.isAbsolute(filePath) || !path.relative(projectRoot, filePath).startsWith('..');
-    const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
-    if (
-      (isUnderRoot && isPathIgnored(rel)) ||
-      isDataPath(rel) ||
-      !isInCodeRoots(rel, config) ||
-      isScriptPath(rel, config) ||
-      isExemptFile(rel, config) ||
-      rel.startsWith('src/suites/') ||
-      rel.startsWith('src/cli/')
-    ) {
-      continue;
-    }
-
-    let content: string;
-    try {
-      content = await fs.readFile(filePath, 'utf-8');
-    } catch {
-      continue;
-    }
-
-    // Fast string pre-filter to skip files with no const declarations
-    if (!content.includes('const ')) continue;
-
-    const sourceFile = astEngine.getSourceFile(filePath, content);
-    const constDecls = extractConstantsFromSource(sourceFile, filePath, effectiveIgnored);
-
-    for (const decl of constDecls) {
-      if (!declarations.has(decl.name)) {
-        declarations.set(decl.name, []);
-      }
-      declarations.get(decl.name)!.push(decl);
-    }
+    if (!isConstantAuditCandidate(filePath, projectRoot, config)) continue;
+    await collectFileConstants(filePath, astEngine, effectiveIgnored, declarations);
   }
 
   const fileContentCache = new Map<string, string>();
+  const violations: Violation[] = [];
 
   for (const [constName, decls] of declarations.entries()) {
     const uniqueFiles = Array.from(new Set(decls.map(d => d.file)));
     if (uniqueFiles.length <= 1) continue;
 
-    let isCrossImported = false;
-    for (let i = 0; i < uniqueFiles.length; i++) {
-      for (let j = i + 1; j < uniqueFiles.length; j++) {
-        const fileA = uniqueFiles[i]!;
-        const fileB = uniqueFiles[j]!;
-
-        let contentA = fileContentCache.get(fileA);
-        if (contentA === undefined) {
-          contentA = await fs.readFile(fileA, 'utf-8').catch(() => '');
-          fileContentCache.set(fileA, contentA);
-        }
-        let contentB = fileContentCache.get(fileB);
-        if (contentB === undefined) {
-          contentB = await fs.readFile(fileB, 'utf-8').catch(() => '');
-          fileContentCache.set(fileB, contentB);
-        }
-
-        const importRegex = new RegExp(`import\\s+[^;]*\\b${constName}\\b`);
-        if (importRegex.test(contentA) || importRegex.test(contentB)) {
-          isCrossImported = true;
-          break;
-        }
-      }
-      if (isCrossImported) break;
-    }
-    const normalizedValueA = decls[0]!.valueStr.replace(/\s+/g, '');
-    const hasIdenticalValues = decls.every(d => d.valueStr.replace(/\s+/g, '') === normalizedValueA);
-    const fileList = uniqueFiles.map(f => path.relative(process.cwd(), f)).join(', ');
-
+    const isCrossImported = await checkIsCrossImported(constName, uniqueFiles, fileContentCache);
     if (!isCrossImported) {
-      if (hasIdenticalValues) {
-        for (const decl of decls) {
-          violations.push({
-            file: decl.file,
-            line: decl.line,
-            message: `Constante duplicada '${constName}' con valor idéntico declarada en múltiples módulos (${fileList}). DEBE modularizarse obligatoriamente en ${targetConstantsDir} para su reutilización.`,
-            context: constName,
-            severity: 'error',
-            fixable: false,
-          });
-        }
-      } else {
-        for (const decl of decls) {
-          violations.push({
-            file: decl.file,
-            line: decl.line,
-            message: `Constante '${constName}' declarada con valores diferentes en múltiples módulos (${fileList}). Revisa si es un posible bug o si se debe unificar/renombrar según su subdominio.`,
-            context: constName,
-            severity: 'error',
-            fixable: false,
-          });
-        }
-      }
+      violations.push(...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir));
     }
   }
 

@@ -20,7 +20,6 @@
  *   npm run validate:markdown-syntax
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
@@ -42,6 +41,12 @@ const FORBIDDEN_DOC_COMMAND_REGEX = /\b(?:node\s+scripts\/|npx\s+tsx\s+scripts\/
 const TABLE_SEPARATOR_REGEX = /^\s*\|(?:\s*[:-]+[-| :]*)\|\s*$/;
 const TABLE_ROW_REGEX = /^\s*\|.+?\|\s*$/;
 
+function isTablePrecededProperly(prevLine: string): boolean {
+  if (prevLine === '') return true;
+  if (prevLine.startsWith('#') || prevLine.startsWith('<!--')) return true;
+  return TABLE_ROW_REGEX.test(prevLine);
+}
+
 export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId> {
   constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     super({
@@ -62,6 +67,45 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
     });
   }
 
+  private checkNpmScriptViolation(line: string, trimmed: string, lineNum: number, relPath: string): void {
+    const match = FORBIDDEN_DOC_COMMAND_REGEX.exec(line);
+    if (!match) return;
+
+    this.addViolation({
+      ruleId: 'npm-script-exclusivity-in-docs',
+      severity: 'error',
+      file: relPath,
+      line: lineNum,
+      message: `Direct script execution '${match[0].trim()}' in documentation. Mandate requires NPM script Single Source of Truth ('npm run <script>').`,
+      context: trimmed
+    });
+  }
+
+  private checkTablePrecedingBlankLine(
+    lines: readonly string[],
+    index: number,
+    trimmed: string,
+    relPath: string
+  ): void {
+    if (index === 0) return;
+    const nextLine = lines[index + 1]?.trim() || '';
+    if (!TABLE_ROW_REGEX.test(trimmed) || index + 1 >= lines.length || !TABLE_SEPARATOR_REGEX.test(nextLine)) {
+      return;
+    }
+
+    const prevLine = lines[index - 1]?.trim() || '';
+    if (!isTablePrecededProperly(prevLine)) {
+      this.addViolation({
+        ruleId: 'markdown-table-preceding-blank-line',
+        severity: 'warning',
+        file: relPath,
+        line: index + 1,
+        message: 'Markdown table header must be preceded by a blank empty line for standard GFM compliance.',
+        context: trimmed
+      });
+    }
+  }
+
   protected override scanFile(relPath: string, content: string): void {
     const lines = content.split('\n');
     let inFencedCodeBlock = false;
@@ -78,48 +122,14 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
 
       if (this.isLineIgnored(line, ['doc-ok', 'npm-ok', 'table-ok', 'markdown-ok'])) continue;
 
-      // Rule 1: npm-script-exclusivity-in-docs
       if (inFencedCodeBlock) {
-        const match = FORBIDDEN_DOC_COMMAND_REGEX.exec(line);
-        if (match) {
-          this.addViolation({
-            ruleId: 'npm-script-exclusivity-in-docs',
-            severity: 'error',
-            file: relPath,
-            line: i + 1,
-            message: `Direct script execution '${match[0].trim()}' in documentation. Mandate requires NPM script Single Source of Truth ('npm run <script>').`,
-            context: trimmed
-          });
-        }
+        this.checkNpmScriptViolation(line, trimmed, i + 1, relPath);
       } else {
-        // Rule 2: markdown-table-preceding-blank-line
-        const nextLine = lines[i + 1]?.trim() || '';
-        if (TABLE_ROW_REGEX.test(trimmed) && i + 1 < lines.length && TABLE_SEPARATOR_REGEX.test(nextLine)) {
-          if (i > 0) {
-            const prevLine = lines[i - 1]?.trim() || '';
-            const isPrevBlank = prevLine === '';
-            const isPrevHeading = prevLine.startsWith('#');
-            const isPrevHtmlComment = prevLine.startsWith('<!--');
-            const isPrevTable = TABLE_ROW_REGEX.test(prevLine);
-
-            if (!isPrevBlank && !isPrevHeading && !isPrevHtmlComment && !isPrevTable) {
-              this.addViolation({
-                ruleId: 'markdown-table-preceding-blank-line',
-                severity: 'warning',
-                file: relPath,
-                line: i + 1,
-                message: `Markdown table header must be preceded by a blank empty line for standard GFM compliance.`,
-                context: trimmed
-              });
-            }
-          }
-        }
+        this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath);
       }
     }
   }
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new MarkdownSyntaxAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownSyntaxAuditor());

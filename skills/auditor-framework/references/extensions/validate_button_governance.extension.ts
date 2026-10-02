@@ -19,8 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, type ViolationInput } from '@francogp/auditor/base';
-import { getAuditConfig } from '@francogp/auditor/config';
+import { BaseAuditor, getAuditConfig, isMainModule } from '@francogp/auditor';
 
 export type ButtonGovernanceRuleId =
   | 'ad-hoc-button-styles'
@@ -139,4 +138,9 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       }
     }
   }
+}
+
+// Canonical CLI Entrypoint
+if (isMainModule(import.meta.url)) {
+  await BaseAuditor.runCli(new ButtonGovernanceAuditor());
 }

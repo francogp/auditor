@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
+import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 
 interface ComplexityFinding {
   name: string;
@@ -73,7 +74,12 @@ interface FallowHealthRaw {
 
 function runFallowHealth(): FallowHealthRaw {
   try {
-    const fallowBin = path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+    const candidates = [
+      path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow'),
+      path.resolve(import.meta.dirname, '../../node_modules/fallow/bin/fallow'),
+      path.resolve(import.meta.dirname, '../../../node_modules/fallow/bin/fallow')
+    ];
+    const fallowBin = candidates.find(c => fs.existsSync(c)) || candidates[0]!;
     if (!fs.existsSync(fallowBin)) return {};
     const cmd = `node "${fallowBin}" health --format json`;
     const stdout = execSync(cmd, {
@@ -83,32 +89,17 @@ function runFallowHealth(): FallowHealthRaw {
       timeout: 30000,
       killSignal: 'SIGKILL'
     });
-    const jsonStart = stdout.indexOf('{');
-    if (jsonStart !== -1) {
-      return JSON.parse(stdout.substring(jsonStart)) as FallowHealthRaw;
-    }
+    return parseJsonObjectOutput<FallowHealthRaw>(stdout) ?? {};
   } catch (e: unknown) {
-    const err = e as { stdout?: Buffer | string };
-    if (err.stdout) {
-      const stdoutStr = typeof err.stdout === 'string' ? err.stdout : err.stdout.toString('utf8');
-      const jsonStart = stdoutStr.indexOf('{');
-      if (jsonStart !== -1) {
-        try {
-          return JSON.parse(stdoutStr.substring(jsonStart)) as FallowHealthRaw;
-        } catch {
-          // Ignore
-        }
-      }
-    }
+    return parseJsonObjectOutput<FallowHealthRaw>(e) ?? {};
   }
-  return {};
 }
 
-function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Array<{ path: string; priority: number; recommendation: string; category: string }>; maintainability: number } {
-  const healthData = runFallowHealth();
-  const findingsMap = new Map<string, ComplexityFinding>();
-
-  const rawLarge = healthData.large_functions || [];
+function ingestLargeFunctions(
+  rawLarge: readonly NonNullable<FallowHealthRaw['large_functions']>[number][] | undefined,
+  findingsMap: Map<string, ComplexityFinding>
+): void {
+  if (!rawLarge) return;
   for (const lf of rawLarge) {
     const filePath = lf.path ?? '';
     const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
@@ -127,8 +118,13 @@ function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Arr
       layer
     });
   }
+}
 
-  const rawFindings = healthData.findings || [];
+function ingestComplexityFindings(
+  rawFindings: readonly NonNullable<FallowHealthRaw['findings']>[number][] | undefined,
+  findingsMap: Map<string, ComplexityFinding>
+): void {
+  if (!rawFindings) return;
   for (const f of rawFindings) {
     const filePath = f.path ?? '';
     const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
@@ -159,15 +155,69 @@ function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Arr
       });
     }
   }
+}
 
-  const findings = Array.from(findingsMap.values());
-  findings.sort((a, b) => {
-    // Priorizar funciones con alta complejidad cognitiva/ciclomática y gran tamaño
+function parseAuditFindingContext(context?: string): { name: string; cog: number; cyc: number; lines: number } {
+  const match = (context || '').match(/^([^\s(]+)\s*\(cog:\s*(\d+),\s*cyc:\s*(\d+),\s*(\d+)\s*lines\)/);
+  return {
+    name: match?.[1] || '<función>',
+    cog: match?.[2] ? parseInt(match[2], RADIX_DECIMAL) : 0,
+    cyc: match?.[3] ? parseInt(match[3], RADIX_DECIMAL) : 0,
+    lines: match?.[4] ? parseInt(match[4], RADIX_DECIMAL) : 0
+  };
+}
+
+function ingestFallbackAuditFindings(findingsMap: Map<string, ComplexityFinding>): void {
+  if (findingsMap.size > 0) return;
+  const latestPath = path.resolve(process.cwd(), 'scratch/audits/latest_audit.json');
+  if (!fs.existsSync(latestPath)) return;
+
+  try {
+    const auditData = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
+    const compFindings = (auditData.allFindings || []).filter((f: { ruleId?: string }) => f.ruleId === 'fallow-complexity');
+    for (const cf of compFindings) {
+      const filePath = cf.file || '';
+      const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      const layer = extractLayerFromPath(relPath);
+      const line = cf.line || 1;
+      const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);
+      const key = `${relPath}:${line}:${name}`;
+
+      findingsMap.set(key, {
+        name,
+        file: relPath,
+        line,
+        lines,
+        cog,
+        cyc,
+        total: cog + cyc,
+        exceeded: 'complexity',
+        layer
+      });
+    }
+  } catch {
+    // catch-ok: Ignore parse errors on audit fallback
+  }
+}
+
+function sortComplexityFindings(findings: ComplexityFinding[]): ComplexityFinding[] {
+  return findings.sort((a, b) => {
     if (a.total > 0 && b.total === 0) return -1;
     if (a.total === 0 && b.total > 0) return 1;
     if (b.lines !== a.lines) return b.lines - a.lines;
     return b.total - a.total;
   });
+}
+
+function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Array<{ path: string; priority: number; recommendation: string; category: string }>; maintainability: number } {
+  const healthData = runFallowHealth();
+  const findingsMap = new Map<string, ComplexityFinding>();
+
+  ingestLargeFunctions(healthData.large_functions, findingsMap);
+  ingestComplexityFindings(healthData.findings, findingsMap);
+  ingestFallbackAuditFindings(findingsMap);
+
+  const findings = sortComplexityFindings(Array.from(findingsMap.values()));
 
   return {
     findings,

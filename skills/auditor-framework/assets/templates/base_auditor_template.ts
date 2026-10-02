@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '@francogp/auditor';
+import { BaseAuditor, isMainModule } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -68,6 +68,6 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 }
 
 // Canonical CLI Entrypoint for standalone and dynamic execution
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new MyCompositeAuditor());
 }

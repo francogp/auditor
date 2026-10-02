@@ -26,7 +26,6 @@
  *   npm run validate:test-hygiene
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
@@ -208,6 +207,4 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new TestHygieneAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new TestHygieneAuditor());

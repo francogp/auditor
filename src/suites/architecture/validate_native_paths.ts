@@ -35,7 +35,8 @@ import {
   collectRepositoryFiles,
   getEffectiveScannableRoots,
   FileScanAuditor,
-  BaseAuditor
+  BaseAuditor,
+  assertSafePathComponent
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
@@ -73,13 +74,31 @@ const PATH_SINK_METHOD_REGEX = /\bpath\.(?:resolve|join)\s*\(/;
 
 const PATH_VAR_ASSIGN_REGEX = /(?:const|let|var)\s+([a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root)[a-zA-Z0-9_]*)\s*=\s*(.*)/i;
 
-/**
- * Validates that a path component is safe against path traversal.
- */
-function assertSafePathComponent(component: string): void {
-  if (component.includes('..')) {
-    throw new Error(`Path traversal attempt detected in path component: ${component}`);
+
+function updateArgParenDepth(char: string, depth: number): number {
+  if (char === '(' || char === '[' || char === '{') return depth + 1;
+  if (char === ')' || char === ']' || char === '}') return depth - 1;
+  return depth;
+}
+
+function handleEscapeAndString(char: string, state: { inString: string | null; escape: boolean }): boolean {
+  if (state.escape) {
+    state.escape = false;
+    return true;
   }
+  if (char === '\\') {
+    state.escape = true;
+    return true;
+  }
+  if (state.inString) {
+    if (char === state.inString) state.inString = null;
+    return true;
+  }
+  if (char === "'" || char === '"' || char === '`') {
+    state.inString = char;
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -87,37 +106,14 @@ function assertSafePathComponent(component: string): void {
  */
 function extractFirstArgument(callArgsText: string): string {
   let depth = 0;
-  let inString: string | null = null;
-  let escape = false;
+  const state = { inString: null as string | null, escape: false };
 
   for (let i = 0; i < callArgsText.length; i++) {
-    const char = callArgsText[i];
-    if (escape) {
-      escape = false;
+    const char = callArgsText[i]!;
+    if (handleEscapeAndString(char, state)) {
       continue;
     }
-    if (char === '\\') {
-      escape = true;
-      continue;
-    }
-    if (inString) {
-      if (char === inString) {
-        inString = null;
-      }
-      continue;
-    }
-    if (char === "'" || char === '"' || char === '`') {
-      inString = char;
-      continue;
-    }
-    if (char === '(' || char === '[' || char === '{') {
-      depth++;
-      continue;
-    }
-    if (char === ')' || char === ']' || char === '}') {
-      depth--;
-      continue;
-    }
+    depth = updateArgParenDepth(char, depth);
     if (char === ',' && depth === 0) {
       return callArgsText.slice(0, i).trim();
     }
@@ -154,209 +150,242 @@ function isNonPathString(str: string): boolean {
 /**
  * Scans a file content for path integrity and security violations.
  */
+function checkFsSinkConcat(rawLine: string, trimmed: string, filePath: string, lineNum: number): NativePathViolation | null {
+  if (!FS_SINK_METHOD_REGEX.test(rawLine)) return null;
+
+  const fsCallMatch = rawLine.match(FS_SINK_METHOD_REGEX);
+  if (!fsCallMatch) return null;
+
+  const afterCall = rawLine.slice(rawLine.indexOf(fsCallMatch[0]) + fsCallMatch[0].length);
+  const pathArg = extractFirstArgument(afterCall);
+
+  const hasTemplateWithSlash = /`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`|`[^`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
+  const hasConcatWithSlash = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]|['"][^'"]+[/\\]['"]\s*\+/.test(pathArg);
+
+  if ((hasTemplateWithSlash || hasConcatWithSlash) && !isNonPathString(pathArg)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'unsafe-path-concat',
+      message: `Concatenación insegura de ruta en llamada al sistema de archivos ('${fsCallMatch[0]}...'). Usa 'path.join()' o 'path.resolve()' en lugar de template literals o operadores '+' con separadores directos.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
+  return null;
+}
+
+function checkPathVarAssignConcat(rawLine: string, trimmed: string, filePath: string, lineNum: number): NativePathViolation | null {
+  if (FS_SINK_METHOD_REGEX.test(rawLine)) return null;
+  const assignMatch = rawLine.match(PATH_VAR_ASSIGN_REGEX);
+  if (!assignMatch) return null;
+
+  const rhs = assignMatch[2]?.replace(/;$/, '').trim() || '';
+  const hasTemplateSlash = /^`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`$|^`[^`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
+  const hasBinaryConcat = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]/.test(rhs);
+
+  if ((hasTemplateSlash || hasBinaryConcat) && !isNonPathString(rhs)) {
+    if (!rhs.includes('console.') && !rhs.includes('logger.') && !rhs.startsWith('`http') && !rhs.startsWith('`data:')) {
+      return {
+        file: filePath,
+        line: lineNum,
+        ruleId: 'unsafe-path-concat',
+        message: `Asignación de variable de ruta '${assignMatch[1]}' mediante concatenación directa o template literal. Usa 'path.join()' o 'path.resolve()'.`,
+        context: trimmed,
+        severity: 'error'
+      };
+    }
+  }
+  return null;
+}
+
+function checkUnsafePathConcat(rawLine: string, trimmed: string, filePath: string, lineNum: number): NativePathViolation | null {
+  const fsViolation = checkFsSinkConcat(rawLine, trimmed, filePath, lineNum);
+  if (fsViolation) return fsViolation;
+
+  if (/\bpath\.(?:join|resolve)\s*\(\s*`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`/.test(rawLine)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'unsafe-path-concat',
+      message: `Template literal con separadores de ruta dentro de 'path.join/resolve'. Pasa los segmentos como argumentos separados a 'path.join(a, b)'.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
+
+  return checkPathVarAssignConcat(rawLine, trimmed, filePath, lineNum);
+}
+
+function isEnvArgvSanitized(rawLine: string, lines: readonly string[], i: number): boolean {
+  return (
+    rawLine.includes('sanitizePath(') ||
+    rawLine.includes('assertSafePathComponent(') ||
+    (i > 0 && lines[i - 1]?.includes('assertSafePathComponent(') === true) ||
+    (i > 1 && lines[i - 2]?.includes('assertSafePathComponent(') === true) ||
+    rawLine.includes('.replace(') ||
+    rawLine.includes('path.basename(') ||
+    rawLine.includes('path.dirname(') ||
+    rawLine.includes('cleanAppData') ||
+    rawLine.includes('cleanPath') ||
+    rawLine.includes(".includes('..')") ||
+    (i > 0 && lines[i - 1]?.includes(".includes('..')") === true)
+  );
+}
+
+function checkUnsanitizedEnvArgv(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number,
+  lines: readonly string[],
+  i: number
+): NativePathViolation | null {
+  if (!FS_SINK_METHOD_REGEX.test(rawLine) && !PATH_SINK_METHOD_REGEX.test(rawLine)) {
+    return null;
+  }
+  const hasRawEnv = /\bprocess\.env\.[a-zA-Z0-9_]+\b/.test(rawLine);
+  const hasRawArgv = /\bprocess\.argv\[[^\]]+\]/.test(rawLine);
+
+  if ((hasRawEnv || hasRawArgv) && !isEnvArgvSanitized(rawLine, lines, i)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'unsanitized-env-argv-path',
+      message: `Variable 'process.env' o 'process.argv' pasada directamente a una función de path/filesystem sin sanitizar contra path traversal (CWE-22). Aplica 'assertSafePathComponent()', 'sanitizePath()', o sanitización de caracteres.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
+  return null;
+}
+
+function checkUntrustedUrlFetch(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number,
+  content: string
+): NativePathViolation | null {
+  const fetchMatch = rawLine.match(/\b(?:await\s+)?fetch\s*\(\s*([a-zA-Z0-9_$.]+)/);
+  if (!fetchMatch || !fetchMatch[1]) return null;
+
+  const arg = fetchMatch[1];
+  const isSafeArg =
+    arg.startsWith("'") ||
+    arg.startsWith('"') ||
+    arg.startsWith('`') ||
+    arg.endsWith('.href') ||
+    arg.endsWith('.toString()') ||
+    arg === 'safeDevUrl' ||
+    rawLine.includes('safeFetch(');
+
+  if (isSafeArg) return null;
+
+  const hasLocalUrlValidation =
+    content.includes('new URL(') &&
+    (content.includes('.hostname') || content.includes('.origin') || content.includes('.protocol'));
+
+  if (!hasLocalUrlValidation) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'untrusted-url-fetch',
+      message: `Llamada dinámica a 'fetch(${arg})' sin validación de URL ni origen/host (CWE-918 SSRF). Convierte a 'new URL()' y valida hostname/origin, o usa 'safeFetch()'.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
+  return null;
+}
+
+function checkHardcodedSlashPath(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number
+): NativePathViolation | null {
+  if (/\.(?:lastIndexOf|indexOf)\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/.test(rawLine)) {
+    if (!rawLine.includes("'//'") && !rawLine.includes('"//"')) {
+      return {
+        file: filePath,
+        line: lineNum,
+        ruleId: 'hardcoded-slash-path',
+        message: `Búsqueda manual de separador backslash ('\\\\') en ruta. Rompe compatibilidad POSIX/Linux. Usa 'path.dirname()', 'path.basename()', o 'path.sep'.`,
+        context: trimmed,
+        severity: 'error'
+      };
+    }
+  }
+
+  if (/(['"`])([a-zA-Z]:(?:\\\\|\/)[^'"`\n]+)\1/.test(rawLine)) {
+    if (!rawLine.includes('// no-domain: Non-domain utility collection or data structure') && !rawLine.includes('// test-ok') && !rawLine.includes('// cross-platform-ok')) {
+      return {
+        file: filePath,
+        line: lineNum,
+        ruleId: 'hardcoded-slash-path',
+        message: `Ruta absoluta con letra de unidad Windows ('C:\\' o 'C:/') detectada en código. Usa rutas relativas o 'path.resolve()'.`,
+        context: trimmed,
+        severity: 'error'
+      };
+    }
+  }
+
+  if (/\b([a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root)[a-zA-Z0-9_]*)\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
+    if (!rawLine.includes('.split(path.sep)') && !rawLine.includes('.replace(') && !rawLine.includes('.join(')) {
+      return {
+        file: filePath,
+        line: lineNum,
+        ruleId: 'hardcoded-slash-path',
+        message: `Operación '.split(\\'\\\\\\')' directa en variable de ruta '${rawLine}'. Usa 'path.split(path.sep)' o normaliza previamente con 'path.posix.sep'.`,
+        context: trimmed,
+        severity: 'error'
+      };
+    }
+  }
+
+  return null;
+}
+
+function isIgnoredOrCommentLine(rawLine: string, trimmed: string, prevLine?: string): boolean {
+  if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*') || trimmed.startsWith('<!--')) {
+    return true;
+  }
+  return ESCAPE_HATCH_REGEX.test(rawLine) || (!!prevLine && ESCAPE_HATCH_REGEX.test(prevLine));
+}
+
+function evaluateLineNativePathViolations(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number,
+  lines: readonly string[],
+  lineIndex: number,
+  content: string
+): NativePathViolation | null {
+  return (
+    checkUnsafePathConcat(rawLine, trimmed, filePath, lineNum) ||
+    checkUnsanitizedEnvArgv(rawLine, trimmed, filePath, lineNum, lines, lineIndex) ||
+    checkUntrustedUrlFetch(rawLine, trimmed, filePath, lineNum, content) ||
+    checkHardcodedSlashPath(rawLine, trimmed, filePath, lineNum)
+  );
+}
+
 export function scanFileForNativePathViolations(filePath: string, content: string): NativePathViolation[] {
   const violations: NativePathViolation[] = [];
   const lines = content.split(/\r?\n/);
 
   for (let i = 0; i < lines.length; i++) {
-    const lineNum = i + 1;
     const rawLine = lines[i]!;
     const trimmed = rawLine.trim();
 
-    // Skip empty lines and comment-only lines
-    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*') || trimmed.startsWith('<!--')) {
+    if (isIgnoredOrCommentLine(rawLine, trimmed, lines[i - 1])) {
       continue;
     }
 
-    // Check escape hatch on this line or previous line
-    if (ESCAPE_HATCH_REGEX.test(rawLine)) {
-      continue;
-    }
-    if (i > 0 && lines[i - 1] && ESCAPE_HATCH_REGEX.test(lines[i - 1]!)) {
-      continue;
-    }
-
-    // ─── 1. Check: Unsafe Path Concatenation (`unsafe-path-concat`) ───────────────
-    // 1A. Filesystem method called with template literal containing slashes or binary string concat in 1st argument (the path argument)
-    if (FS_SINK_METHOD_REGEX.test(rawLine)) {
-      const fsCallMatch = rawLine.match(FS_SINK_METHOD_REGEX);
-      if (fsCallMatch) {
-        const afterCall = rawLine.slice(rawLine.indexOf(fsCallMatch[0]) + fsCallMatch[0].length);
-        const pathArg = extractFirstArgument(afterCall);
-
-        // Template literal with slashes and interpolated expressions
-        const hasTemplateWithSlash = /`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`|`[^`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
-        // Binary string concatenation with slashes
-        const hasConcatWithSlash = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]|['"][^'"]+[/\\]['"]\s*\+/.test(pathArg);
-
-        if ((hasTemplateWithSlash || hasConcatWithSlash) && !isNonPathString(pathArg)) {
-          violations.push({
-            file: filePath,
-            line: lineNum,
-            ruleId: 'unsafe-path-concat',
-            message: `Concatenación insegura de ruta en llamada al sistema de archivos ('${fsCallMatch[0]}...'). Usa 'path.join()' o 'path.resolve()' en lugar de template literals o operadores '+' con separadores directos.`,
-            context: trimmed,
-            severity: 'error'
-          });
-          continue;
-        }
-      }
-    }
-
-    // 1B. Redundant path joining with internal template literals: path.join(`${a}/${b}`)
-    if (/\bpath\.(?:join|resolve)\s*\(\s*`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`/.test(rawLine)) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'unsafe-path-concat',
-        message: `Template literal con separadores de ruta dentro de 'path.join/resolve'. Pasa los segmentos como argumentos separados a 'path.join(a, b)'.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
-
-    // 1C. Path variable assignments constructing paths via template literals or concat
-    const assignMatch = rawLine.match(PATH_VAR_ASSIGN_REGEX);
-    if (assignMatch && !FS_SINK_METHOD_REGEX.test(rawLine)) {
-      const rhs = assignMatch[2]?.replace(/;$/, '').trim() || '';
-      
-      // Check if RHS is a template literal with slashes and variable interpolation
-      const hasTemplateSlash = /^`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`$|^`[^`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
-      const hasBinaryConcat = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]/.test(rhs);
-
-      if ((hasTemplateSlash || hasBinaryConcat) && !isNonPathString(rhs)) {
-        // Exclude common non-path patterns like log messages, ratios, or URL constructions
-        if (!rhs.includes('console.') && !rhs.includes('logger.') && !rhs.startsWith('`http') && !rhs.startsWith('`data:')) {
-          violations.push({
-            file: filePath,
-            line: lineNum,
-            ruleId: 'unsafe-path-concat',
-            message: `Asignación de variable de ruta '${assignMatch[1]}' mediante concatenación directa o template literal. Usa 'path.join()' o 'path.resolve()'.`,
-            context: trimmed,
-            severity: 'error'
-          });
-          continue;
-        }
-      }
-    }
-
-    // ─── 2. Check: Unsanitized Env / Argv in Path Sinks (`unsanitized-env-argv-path`) ─
-    if (FS_SINK_METHOD_REGEX.test(rawLine) || PATH_SINK_METHOD_REGEX.test(rawLine)) {
-      const hasRawEnv = /\bprocess\.env\.[a-zA-Z0-9_]+\b/.test(rawLine);
-      const hasRawArgv = /\bprocess\.argv\[[^\]]+\]/.test(rawLine);
-
-      if (hasRawEnv || hasRawArgv) {
-        // Check if sanitization exists on the expression, line, or previous check
-        const isSanitized =
-          rawLine.includes('sanitizePath(') ||
-          rawLine.includes('assertSafePathComponent(') ||
-          (i > 0 && lines[i - 1]?.includes('assertSafePathComponent(')) ||
-          (i > 1 && lines[i - 2]?.includes('assertSafePathComponent(')) ||
-          rawLine.includes('.replace(') ||
-          rawLine.includes('path.basename(') ||
-          rawLine.includes('path.dirname(') ||
-          rawLine.includes('cleanAppData') ||
-          rawLine.includes('cleanPath') ||
-          rawLine.includes(".includes('..')") ||
-          (i > 0 && lines[i - 1]?.includes(".includes('..')"));
-
-        if (!isSanitized) {
-          violations.push({
-            file: filePath,
-            line: lineNum,
-            ruleId: 'unsanitized-env-argv-path',
-            message: `Variable 'process.env' o 'process.argv' pasada directamente a una función de path/filesystem sin sanitizar contra path traversal (CWE-22). Aplica 'assertSafePathComponent()', 'sanitizePath()', o sanitización de caracteres.`,
-            context: trimmed,
-            severity: 'error'
-          });
-          continue;
-        }
-      }
-    }
-
-    // ─── 3. Check: Untrusted URL Fetching (`untrusted-url-fetch`) ───────────────────
-    if (/\b(?:await\s+)?fetch\s*\(\s*([a-zA-Z0-9_$.]+)/.test(rawLine)) {
-      const fetchMatch = rawLine.match(/\b(?:await\s+)?fetch\s*\(\s*([a-zA-Z0-9_$.]+)/);
-      if (fetchMatch && fetchMatch[1]) {
-        const arg = fetchMatch[1];
-        // Safe if argument is a string literal starting with ' or " or `
-        // or a property of a URL object like .href or .toString()
-        const isSafeArg =
-          arg.startsWith("'") ||
-          arg.startsWith('"') ||
-          arg.startsWith('`') ||
-          arg.endsWith('.href') ||
-          arg.endsWith('.toString()') ||
-          arg === 'safeDevUrl' ||
-          rawLine.includes('safeFetch(');
-
-        if (!isSafeArg) {
-          // Check if function or block parses new URL(...) or checks host/origin
-          const hasLocalUrlValidation =
-            content.includes('new URL(') &&
-            (content.includes('.hostname') || content.includes('.origin') || content.includes('.protocol'));
-
-          if (!hasLocalUrlValidation) {
-            violations.push({
-              file: filePath,
-              line: lineNum,
-              ruleId: 'untrusted-url-fetch',
-              message: `Llamada dinámica a 'fetch(${arg})' sin validación de URL ni origen/host (CWE-918 SSRF). Convierte a 'new URL()' y valida hostname/origin, o usa 'safeFetch()'.`,
-              context: trimmed,
-              severity: 'error'
-            });
-            continue;
-          }
-        }
-      }
-    }
-
-    // ─── 4. Check: Platform-Incompatible Path Operations (`hardcoded-slash-path`) ──
-    // 4A. lastIndexOf or indexOf with raw backslash for path manipulation
-    if (/\.(?:lastIndexOf|indexOf)\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/.test(rawLine)) {
-      // Exclude comment string searches (e.g. indexOf('//'))
-      if (!rawLine.includes("'//'") && !rawLine.includes('"//"')) {
-        violations.push({
-          file: filePath,
-          line: lineNum,
-          ruleId: 'hardcoded-slash-path',
-          message: `Búsqueda manual de separador backslash ('\\\\') en ruta. Rompe compatibilidad POSIX/Linux. Usa 'path.dirname()', 'path.basename()', o 'path.sep'.`,
-          context: trimmed,
-          severity: 'error'
-        });
-        continue;
-      }
-    }
-
-    // 4B. Hardcoded absolute Windows drive letters in string literals: 'C:\\...' or 'C:/...'
-    if (/(['"`])([a-zA-Z]:(?:\\\\|\/)[^'"`\n]+)\1/.test(rawLine)) {
-      if (!rawLine.includes('// no-domain: Non-domain utility collection or data structure') && !rawLine.includes('// test-ok') && !rawLine.includes('// cross-platform-ok')) {
-        violations.push({
-          file: filePath,
-          line: lineNum,
-          ruleId: 'hardcoded-slash-path',
-          message: `Ruta absoluta con letra de unidad Windows ('C:\\' o 'C:/') detectada en código. Usa rutas relativas o 'path.resolve()'.`,
-          context: trimmed,
-          severity: 'error'
-        });
-        continue;
-      }
-    }
-
-    // 4C. Hardcoded .split('\\') on path variables without POSIX support
-    if (/\b([a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root)[a-zA-Z0-9_]*)\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
-      if (!rawLine.includes('.split(path.sep)') && !rawLine.includes('.replace(') && !rawLine.includes('.join(')) {
-        violations.push({
-          file: filePath,
-          line: lineNum,
-          ruleId: 'hardcoded-slash-path',
-          message: `Operación '.split(\\'\\\\\\')' directa en variable de ruta '${rawLine}'. Usa 'path.split(path.sep)' o normaliza previamente con 'path.posix.sep'.`,
-          context: trimmed,
-          severity: 'error'
-        });
-        continue;
-      }
+    const violation = evaluateLineNativePathViolations(rawLine, trimmed, filePath, i + 1, lines, i, content);
+    if (violation) {
+      violations.push(violation);
     }
   }
 
@@ -398,7 +427,7 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
         countsByRule[v.ruleId] = (countsByRule[v.ruleId] || 0) + 1;
       }
     } catch {
-      // Ignore read errors on locked files
+      // catch-ok: Ignore read errors on locked files
     }
   }
 
@@ -446,6 +475,4 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new NativePathsAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new NativePathsAuditor());

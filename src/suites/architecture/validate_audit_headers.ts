@@ -80,119 +80,103 @@ const BANNED_STYLE_SUPPRESSION_REGEX = /\/\/\s*(style-inherited|style-ok)\b/i;
 const STANDALONE_ESCAPE_HATCHES_REGEX = /^\s*\/\/\s*(domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok)\b\s*$/i;
 const UNJUSTIFIED_ESCAPE_HATCH_REGEX = /\/\/\s*(domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok|uuid-ok|infra-id-ok|spanish-ok|open-record|runtime-set|runtime-map|lib-duplicate-ok|fallback-ok)\b(?!\s*:\s*\S+)/i;
 
-/**
- * Scans file contents for illegal suppression headers or file-level ignores.
- */
-export function scanFileForIllegalHeaders(filePath: string, content: string): HeaderViolation[] {
-  const violations: HeaderViolation[] = [];
-  const lines = content.split(/\r?\n/);
+function checkLineForIllegalHeaders(filePath: string, rawLine: string, lineNum: number): HeaderViolation | null {
+  const trimmed = rawLine.trim();
 
-  for (let i = 0; i < lines.length; i++) {
-    const lineNum = i + 1;
-    const rawLine = lines[i]!;
-    const trimmed = rawLine.trim();
+  // 1. Check for // fallow-ignore-file starting the comment line
+  if (FALLOW_IGNORE_FILE_REGEX.test(rawLine)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'file-level-fallow-ignore',
+      message: `Cabecera ilegal 'fallow-ignore-file' detectada. Está ESTRICTAMENTE PROHIBIDO silenciar auditorías para archivos completos. Resuelve el problema en el código o excluye el directorio a nivel de configuración global.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // 1. Check for // fallow-ignore-file starting the comment line
-    if (FALLOW_IGNORE_FILE_REGEX.test(rawLine)) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'file-level-fallow-ignore',
-        message: `Cabecera ilegal 'fallow-ignore-file' detectada. Está ESTRICTAMENTE PROHIBIDO silenciar auditorías para archivos completos. Resuelve el problema en el código o excluye el directorio a nivel de configuración global.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
+  // 2. Check for @ts-nocheck, @ts-ignore, @ts-expect-error starting the comment line
+  if (TS_SUPPRESSION_REGEX.test(rawLine)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'banned-ts-suppression',
+      message: `Supresión de TypeScript detectada ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibido por la política 'Zero-Ignore'.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // 2. Check for @ts-nocheck, @ts-ignore, @ts-expect-error starting the comment line
-    if (TS_SUPPRESSION_REGEX.test(rawLine)) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'banned-ts-suppression',
-        message: `Supresión de TypeScript detectada ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibido por la política 'Zero-Ignore'.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
+  // 3. Check for file-level / block-level /* eslint-disable */
+  if (ESLINT_DISABLE_BLOCK_REGEX.test(rawLine)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'file-level-eslint-disable',
+      message: `Bloque '/* eslint-disable */' a nivel de archivo detectado. Usa 'eslint-disable-next-line' acotado a la línea específica únicamente cuando esté estrictamente justificado.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // 3. Check for file-level / block-level /* eslint-disable */
-    if (ESLINT_DISABLE_BLOCK_REGEX.test(rawLine)) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'file-level-eslint-disable',
-        message: `Bloque '/* eslint-disable */' a nivel de archivo detectado. Usa 'eslint-disable-next-line' acotado a la línea específica únicamente cuando esté estrictamente justificado.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
+  // Check for template-level <!-- eslint-disable -->
+  if (ESLINT_DISABLE_TEMPLATE_REGEX.test(rawLine)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'file-level-eslint-disable',
+      message: `Directiva '<!-- eslint-disable -->' a nivel de template detectada. Evita deshabilitar reglas en templates enteros.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // Check for template-level <!-- eslint-disable -->
-    if (ESLINT_DISABLE_TEMPLATE_REGEX.test(rawLine)) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'file-level-eslint-disable',
-        message: `Directiva '<!-- eslint-disable -->' a nivel de template detectada. Evita deshabilitar reglas en templates enteros.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
+  // 4. Check for banned magic number suppression directives
+  const bannedMagicMatch = rawLine.match(BANNED_MAGIC_SUPPRESSION_REGEX);
+  if (bannedMagicMatch) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'banned-magic-suppression',
+      message: `Directiva de escape prohibida '// ${bannedMagicMatch[1]}' detectada. La política de Zero Magic Numbers exige declarar constantes descriptivas ('as const') sin excepciones.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // 4. Check for banned magic number suppression directives
-    const bannedMagicMatch = rawLine.match(BANNED_MAGIC_SUPPRESSION_REGEX);
-    if (bannedMagicMatch) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'banned-magic-suppression',
-        message: `Directiva de escape prohibida '// ${bannedMagicMatch[1]}' detectada. La política de Zero Magic Numbers exige declarar constantes descriptivas ('as const') sin excepciones.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
+  // 5. Check for banned style inheritance/suppression directives
+  const bannedStyleMatch = rawLine.match(BANNED_STYLE_SUPPRESSION_REGEX);
+  if (bannedStyleMatch) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'banned-style-suppression',
+      message: `Directiva de escape prohibida '// ${bannedStyleMatch[1]}' detectada. Los estilos scoped de Vue 3 no penetran a componentes hijos; está estrictamente prohibido usar comentarios de herencia simulada de estilos. Cada componente con clases debe vincular o declarar sus estilos explícitamente.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // 5. Check for banned style inheritance/suppression directives
-    const bannedStyleMatch = rawLine.match(BANNED_STYLE_SUPPRESSION_REGEX);
-    if (bannedStyleMatch) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'banned-style-suppression',
-        message: `Directiva de escape prohibida '// ${bannedStyleMatch[1]}' detectada. Los estilos scoped de Vue 3 no penetran a componentes hijos; está estrictamente prohibido usar comentarios de herencia simulada de estilos. Cada componente con clases debe vincular o declarar sus estilos explícitamente.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
+  // 6. Check for standalone escape hatches in header lines
+  if (lineNum <= MAX_HEADER_LINES_CHECK && STANDALONE_ESCAPE_HATCHES_REGEX.test(rawLine)) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'header-auditor-escape',
+      message: `Anotación de escape '${trimmed}' usada indebidamente como cabecera de archivo. Las anotaciones de escape deben añadirse únicamente al final de sentencias de código activas.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
 
-    // 6. Check for standalone escape hatches in header lines
-    if (lineNum <= MAX_HEADER_LINES_CHECK && STANDALONE_ESCAPE_HATCHES_REGEX.test(rawLine)) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'header-auditor-escape',
-        message: `Anotación de escape '${trimmed}' usada indebidamente como cabecera de archivo. Las anotaciones de escape deben añadirse únicamente al final de sentencias de código activas.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
-    }
-
-    // 7. Check for ANY unjustified escape hatch without mandatory ': <motivo>'
-    const unjustifiedMatch = rawLine.match(UNJUSTIFIED_ESCAPE_HATCH_REGEX);
-    if (unjustifiedMatch) {
-      violations.push({
-        file: filePath,
-        line: lineNum,
-        ruleId: 'unjustified-escape-hatch',
-        message: `[GUÍA DE ESCAPE HATCHES / IGNORES JUSTIFICADOS] Escape hatch '// ${unjustifiedMatch[1]}' sin justificación técnica obligatoria.
+  // 7. Check for ANY unjustified escape hatch without mandatory ': <motivo>'
+  const unjustifiedMatch = rawLine.match(UNJUSTIFIED_ESCAPE_HATCH_REGEX);
+  if (unjustifiedMatch) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'unjustified-escape-hatch',
+      message: `[GUÍA DE ESCAPE HATCHES / IGNORES JUSTIFICADOS] Escape hatch '// ${unjustifiedMatch[1]}' sin justificación técnica obligatoria.
    📚 FORMATO CANÓNICO REQUERIDO: '// ${unjustifiedMatch[1]}: <motivo técnico detallado>'
    💡 EJEMPLOS VÁLIDOS SEGÚN EL CASO:
       - // domain-ok: Texto dinámico de UI, mensajes de chat o cadenas narrativas
@@ -202,10 +186,25 @@ export function scanFileForIllegalHeaders(filePath: string, content: string): He
       - // runtime-set: Set O(1) de validación rápida de identificadores
       - // spanish-ok: Etiqueta o texto de interfaz en español
    ⚠️ PROHIBICIÓN: Nunca uses ignores genéricos ni los uses para ocultar errores de tipado en entidades del sistema.`,
-        context: trimmed,
-        severity: 'error'
-      });
-      continue;
+      context: trimmed,
+      severity: 'error'
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Scans file contents for illegal suppression headers or file-level ignores.
+ */
+export function scanFileForIllegalHeaders(filePath: string, content: string): HeaderViolation[] {
+  const violations: HeaderViolation[] = [];
+  const lines = content.split(/\r?\n/);
+
+  for (let i = 0; i < lines.length; i++) {
+    const violation = checkLineForIllegalHeaders(filePath, lines[i]!, i + 1);
+    if (violation) {
+      violations.push(violation);
     }
   }
 
@@ -279,7 +278,7 @@ export function auditAuditHeaders(targetDir = process.cwd()): AuditHeadersResult
       auditor['filesScannedCount']++;
       auditor['scanFile'](relPath, content);
     } catch {
-      // Ignore read errors
+      // catch-ok: Ignore read errors
     }
   }
 

@@ -52,7 +52,82 @@ interface IdOccurrence {
   context: string;
 }
 
+interface TemplateScanContext {
+  content: string;
+  lines: string[];
+  templateContent: string;
+  templateStartOffset: number;
+  relPath: string;
+  auditor: TemplateIdAuditor;
+  globalIdMap: Map<string, IdOccurrence[]>;
+}
+
+function scanTemplateStaticIds(ctx: TemplateScanContext): void {
+  const intraMap = new Map<string, IdOccurrence>();
+  let match: RegExpExecArray | null;
+  STATIC_ID_REGEX.lastIndex = 0;
+
+  while ((match = STATIC_ID_REGEX.exec(ctx.templateContent)) !== null) {
+    const id = match[1];
+    if (!id) continue;
+
+    const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + match.index);
+    if (info.isIgnored) continue;
+
+    const occurrence: IdOccurrence = {
+      file: ctx.relPath,
+      line: info.lineNumber,
+      context: info.lineContent.trim()
+    };
+
+    if (!intraMap.has(id)) {
+      intraMap.set(id, occurrence);
+    } else {
+      const first = intraMap.get(id)!;
+      ctx.auditor.addViolation({
+        ruleId: 'template-duplicate-static-id',
+        severity: 'error',
+        file: ctx.relPath,
+        line: info.lineNumber,
+        message: `Duplicate static id '${id}' found within the same component template (previously defined at line ${first.line}).`,
+        context: info.lineContent.trim()
+      });
+    }
+
+    if (!ctx.globalIdMap.has(id)) {
+      ctx.globalIdMap.set(id, [occurrence]);
+    } else {
+      ctx.globalIdMap.get(id)!.push(occurrence);
+    }
+  }
+}
+
+function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
+  let formMatch: RegExpExecArray | null;
+  FORM_CONTROL_REGEX.lastIndex = 0;
+  while ((formMatch = FORM_CONTROL_REGEX.exec(ctx.templateContent)) !== null) {
+    const tagType = formMatch[1] ?? 'input';
+    const tagFull = formMatch[0];
+    const hasId = /\b(?::)?id\s*=\s*["'][^"'\s>]+["']/i.test(tagFull);
+
+    const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + formMatch.index);
+    if (info.isIgnored) continue;
+
+    if (!hasId) {
+      ctx.auditor.addViolation({
+        ruleId: 'template-missing-input-id',
+        severity: 'error',
+        file: ctx.relPath,
+        line: info.lineNumber,
+        message: `Control de formulario <${tagType}> carece de atributo id para automatización con Playwright y accesibilidad.`,
+        context: info.lineContent.trim()
+      });
+    }
+  }
+}
+
 export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
+
   private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   private readonly requireInputIds: boolean;
 
@@ -81,113 +156,67 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
     this.requireInputIds = options?.requireInputIds ?? config.templates?.requireInputIds ?? false;
   }
 
+  public getMatchLineInfo(content: string, lines: string[], offset: number): { lineNumber: number; lineContent: string; isIgnored: boolean } {
+    const lineNumber = content.slice(0, offset).split('\n').length;
+    const lineContent = lines[lineNumber - 1] || '';
+    const isIgnored = this.isLineIgnored(lineContent, ['id-ok', 'template-ok']);
+    return { lineNumber, lineContent, isIgnored };
+  }
+
   protected override scanFile(relPath: string, content: string): void {
     const templateMatch = content.match(/<template\b[^>]*>([\s\S]*?)<\/template>/i);
-    if (!templateMatch) return;
+    if (!templateMatch || !templateMatch[1]) return;
 
-    const templateContent = templateMatch[1];
-    if (!templateContent) return;
+    const ctx: TemplateScanContext = {
+      content,
+      lines: content.split('\n'),
+      templateContent: templateMatch[1],
+      templateStartOffset: templateMatch.index ?? 0,
+      relPath,
+      auditor: this,
+      globalIdMap: this.globalIdMap
+    };
 
-    const templateStartOffset = templateMatch.index ?? 0;
-    const lines = content.split('\n');
+    scanTemplateStaticIds(ctx);
 
-    const intraMap = new Map<string, IdOccurrence>();
-    let match: RegExpExecArray | null;
-    STATIC_ID_REGEX.lastIndex = 0;
-
-    while ((match = STATIC_ID_REGEX.exec(templateContent)) !== null) {
-      const id = match[1];
-      if (!id) continue;
-
-      const absoluteOffset = templateStartOffset + match.index;
-      const lineNumber = content.slice(0, absoluteOffset).split('\n').length;
-      const lineContent = lines[lineNumber - 1] || '';
-
-      if (this.isLineIgnored(lineContent, ['id-ok', 'template-ok'])) continue;
-
-      const occurrence: IdOccurrence = {
-        file: relPath,
-        line: lineNumber,
-        context: lineContent.trim()
-      };
-
-      if (!intraMap.has(id)) {
-        intraMap.set(id, occurrence);
-      } else {
-        const first = intraMap.get(id)!;
-        this.addViolation({
-          ruleId: 'template-duplicate-static-id',
-          severity: 'error',
-          file: relPath,
-          line: lineNumber,
-          message: `Duplicate static id '${id}' found within the same component template (previously defined at line ${first.line}).`,
-          context: lineContent.trim()
-        });
-      }
-
-      if (!this.globalIdMap.has(id)) {
-        this.globalIdMap.set(id, [occurrence]);
-      } else {
-        this.globalIdMap.get(id)!.push(occurrence);
-      }
-    }
-
-    // 3. Mandatory ID on form controls (<input>, <select>, <textarea>) if enabled in audit.config.ts
     if (this.requireInputIds) {
-      let formMatch: RegExpExecArray | null;
-      FORM_CONTROL_REGEX.lastIndex = 0;
-      while ((formMatch = FORM_CONTROL_REGEX.exec(templateContent)) !== null) {
-        const tagType = formMatch[1] ?? 'input';
-        const tagFull = formMatch[0];
-        const hasId = /\b(?::)?id\s*=\s*["'][^"'\s>]+["']/i.test(tagFull);
+      scanTemplateFormControlIds(ctx);
+    }
+  }
 
-        const absoluteOffset = templateStartOffset + formMatch.index;
-        const lineNumber = content.slice(0, absoluteOffset).split('\n').length;
-        const lineContent = lines[lineNumber - 1] || '';
 
-        if (this.isLineIgnored(lineContent, ['id-ok', 'template-ok'])) continue;
+  private checkSingleIdCollisions(
+    id: string,
+    occs: readonly IdOccurrence[]
+  ): void {
+    const distinctFiles = Array.from(new Set(occs.map(o => o.file)));
+    if (distinctFiles.length <= 1) return;
 
-        if (!hasId) {
-          this.addViolation({
-            ruleId: 'template-missing-input-id',
-            severity: 'error',
-            file: relPath,
-            line: lineNumber,
-            message: `Control de formulario <${tagType}> carece de atributo id para automatización con Playwright y accesibilidad.`,
-            context: lineContent.trim()
-          });
-        }
+    const firstOcc = occs[0];
+    const fileSummary = distinctFiles.slice(0, 3).map(f => path.basename(f)).join(', ') + (distinctFiles.length > 3 ? '...' : '');
+
+    for (let i = 1; i < occs.length; i++) {
+      const occ = occs[i];
+      if (occ && firstOcc && occ.file !== firstOcc.file) {
+        this.addViolation({
+          ruleId: 'template-shared-static-id',
+          severity: 'error',
+          file: occ.file,
+          line: occ.line,
+          message: `Static id '${id}' is shared across multiple components (${fileSummary}). Prefix with component name to avoid E2E locator collisions.`,
+          context: occ.context
+        });
       }
     }
   }
 
   public override async runAudit(): Promise<void> {
     await super.runAudit();
-
-    // Cross-component collision check
     for (const [id, occs] of this.globalIdMap.entries()) {
-      const distinctFiles = Array.from(new Set(occs.map(o => o.file)));
-      if (distinctFiles.length > 1) {
-        const firstOcc = occs[0];
-        for (let i = 1; i < occs.length; i++) {
-          const occ = occs[i];
-          if (occ && firstOcc && occ.file !== firstOcc.file) {
-            this.addViolation({
-              ruleId: 'template-shared-static-id',
-              severity: 'error',
-              file: occ.file,
-              line: occ.line,
-              message: `Static id '${id}' is shared across multiple components (${distinctFiles.slice(0, 3).map(f => path.basename(f)).join(', ')}${distinctFiles.length > 3 ? '...' : ''}). Prefix with component name to avoid E2E locator collisions.`,
-              context: occ.context
-            });
-          }
-        }
-      }
+      this.checkSingleIdCollisions(id, occs);
     }
   }
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new TemplateIdAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new TemplateIdAuditor());

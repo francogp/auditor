@@ -9,16 +9,18 @@ Este documento contiene los modelos de configuración completos, validados y agn
 Todo proyecto que utilice `@francogp/auditor` debe declarar explícitamente todos los subsistemas del motor en su `audit.config.ts`:
 
 1. `persistence`: Motor de base de datos (`'supabase'`, `'sqlite'`, `'hybrid'`, `'postgres'`, `'custom'` o `'none'`). Configura `prohibitedTemplateIdentifiers`, `authorizedSaveFiles` y `allowedHosts` según la infraestructura.
-2. `bundle`: Presupuestos de tamaño de bundle (`enabled: true` con opciones o `enabled: false`). Chunks de Web Worker o módulos de simulación se declaran en `exemptChunkPrefixes`. Imports de valor prohibidos en UI se extienden en `forbiddenUiImports`.
-3. `styles`: Z-layers (`zLayersEnabled: boolean`, escala directa en `zLayers`, archivo SCSS en `zLayersScssFile`, archivo TS en `zLayersTsFile`), archivo SCSS base (`baseScssFile`), verificación interlineal (`lineHeightOverlapCheck: boolean`) y clases de utilidad.
-4. `templates`: Requisitos de validación de templates HTML/Vue (`requireInputIds: boolean`, funciones seguras permitidas en templates `safeTemplateFunctions?: string[]`, patrones prohibidos en render loop `forbiddenTemplateCallPatterns?: string[]`).
-5. `animation`: Gobernanza de animaciones GSAP obligatoria. `gsapSleep` y `delayedCall` son estándares del framework para la UI; temporizadores personalizados adicionales se declaran en `customTimerFunctions?: string[]`.
-6. `constants`: Nombres de constantes ignorados en duplicados (`ignoredNames?: string[]`) y números mágicos exentos (`exemptMagicNumbers?: number[]`).
-7. `documentation`: Rutas abstractas válidas en referencias de código (`knownValidAbstractPaths?: string[]`).
-8. `pinia`: Archivos autorizados para mutaciones de stores fuera de acciones (`authorizedMutationFiles?: string[]`).
-9. `paths`: Rutas del código y lista blanca de fragmentación de tests (`testFragmentationWhitelist?: string[]`).
-10. `domain`: Tipos finitos (`finiteDomainTypes`), whitelists de infra IDs (`infraIdWhitelist`), tokens exentos de normalización (`caseNormalizationExemptTokens`), prefijos de setters de store (`allowedStoreSetterPrefixes`) y prefijos numéricos de constantes (`allowedNumericConstantPrefixes`).
-11. `agentPlugin`: Integración del plugin de agentes de IA (`enabled: boolean`).
+2. `bundle`: Presupuestos y límites de chunks del bundle (`enabled: true` con `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets` o `enabled: false`). Chunks de Web Worker o módulos de simulación se declaran en `exemptChunkPrefixes`. Imports de valor prohibidos en UI se extienden en `forbiddenUiImports`.
+3. `fallow.security` (o `security`): Gating de análisis de vulnerabilidades Fallow CWE (`enabled: boolean`). Permite desactivar alertas en herramientas de línea de comandos puras.
+4. `styles`: Z-layers (`zLayersEnabled: boolean`, escala directa en `zLayers`, archivo SCSS en `zLayersScssFile`, archivo TS en `zLayersTsFile`), archivo SCSS base (`baseScssFile`), verificación interlineal (`lineHeightOverlapCheck: boolean`) y clases de utilidad.
+5. `templates`: Requisitos de validación de templates HTML/Vue (`requireInputIds: boolean`, funciones seguras permitidas en templates `safeTemplateFunctions?: string[]`, patrones prohibidos en render loop `forbiddenTemplateCallPatterns?: string[]`).
+6. `animation`: Gobernanza de animaciones GSAP obligatoria. `gsapSleep` y `delayedCall` son estándares del framework para la UI; temporizadores personalizados adicionales se declaran en `customTimerFunctions?: string[]`.
+7. `constants`: Nombres de constantes ignorados en duplicados (`ignoredNames?: string[]`), prefijos numéricos permitidos (`allowedNumericPrefixes?: string[]`) y números mágicos exentos (`exemptMagicNumbers?: number[]`).
+8. `documentation`: Rutas abstractas válidas en referencias de código (`knownValidAbstractPaths?: string[]`).
+9. `pinia`: Archivos autorizados para mutaciones de stores fuera de acciones (`authorizedMutationFiles?: string[]`).
+10. `paths`: Rutas del código, raíces CLI (`cliRoots?: string[]`) y lista blanca de fragmentación de tests (`testFragmentationWhitelist?: string[]`).
+11. `domain`: Tipos finitos (`finiteDomainTypes`), whitelists de infra IDs (`infraIdWhitelist`), tokens exentos de normalización (`caseNormalizationExemptTokens`), prefijos de setters de store (`allowedStoreSetterPrefixes`) y prefijos numéricos de constantes (`allowedNumericConstantPrefixes`).
+12. `agentPlugin`: Integración del plugin de agentes de IA (`enabled: boolean`).
+13. `fallow`: Inteligencia estática profunda, seguridad y similaridad semántica (`enabled: boolean`, `security?: { enabled: boolean }`, `enforceTargets?: boolean`, `maxTargetPriority?: 'critical' | 'high' | 'all'`, `similarCode?: { enabled?: boolean, threshold?: number, ignoreSameFile?: boolean }`).
 
 Cualquier subsistema omitido provocará un fallo inmediato en tiempo de ejecución (`assertAuditConfigComplete`) para alertar al desarrollador sobre configuraciones desactualizadas o incompletas tras actualizaciones del motor.
 

@@ -12,11 +12,9 @@
  */
 
 import fs from 'node:fs/promises';
-import fsSync from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, resolveZLayersScssPath } from '../../core/auditConfig.ts';
 import { Z_LAYERS } from './audit_rules.ts';
 
 enableCompileCache();
@@ -31,6 +29,101 @@ export const Z_INDEX_RULES: readonly ZIndexRuleId[] = [
   'z-index-mismatch',
   'z-index-read-error'
 ] as const;
+
+export interface ZIndexAuditViolation {
+  ruleId: 'z-index-missing-var' | 'z-index-mismatch';
+  message: string;
+  context: string;
+}
+
+export interface ZIndexAuditResult {
+  scssContent: string;
+  modified: boolean;
+  errors: string[];
+  violations: ZIndexAuditViolation[];
+}
+
+function checkOrFixMissingVar(
+  varName: string,
+  value: number,
+  content: string,
+  isFixMode: boolean,
+  errors: string[],
+  violations: ZIndexAuditViolation[]
+): { updatedContent: string; wasModified: boolean } {
+  const msg = `Falta variable CSS '${varName}' (debe ser ${value})`;
+  errors.push(msg);
+
+  if (isFixMode && content.includes(':root {')) {
+    return {
+      updatedContent: content.replace(/}\s*$/, `  ${varName}: ${value};\n}\n`),
+      wasModified: true
+    };
+  }
+
+  violations.push({ ruleId: 'z-index-missing-var', message: msg, context: varName });
+  return { updatedContent: content, wasModified: false };
+}
+
+function checkOrFixMismatchVar(
+  varName: string,
+  value: number,
+  parsedValue: number,
+  matchStr: string,
+  regex: RegExp,
+  content: string,
+  isFixMode: boolean,
+  errors: string[],
+  violations: ZIndexAuditViolation[]
+): { updatedContent: string; wasModified: boolean } {
+  if (parsedValue === value) {
+    return { updatedContent: content, wasModified: false };
+  }
+
+  const msg = `Desincronización en '${varName}': TS=${value}, SCSS=${matchStr}`;
+  errors.push(msg);
+
+  if (isFixMode) {
+    return {
+      updatedContent: content.replace(regex, `${varName}: ${value}`),
+      wasModified: true
+    };
+  }
+
+  violations.push({ ruleId: 'z-index-mismatch', message: msg, context: `${varName}: ${matchStr}` });
+  return { updatedContent: content, wasModified: false };
+}
+
+export function auditZIndexParity(
+  scssContent: string,
+  isFixMode: boolean,
+  layers: Record<string, number> = Z_LAYERS
+): ZIndexAuditResult {
+  let content = scssContent;
+  let modified = false;
+  const errors: string[] = [];
+  const violations: ZIndexAuditViolation[] = [];
+
+  for (const [key, value] of Object.entries(layers)) {
+    const dashedKey = key.toLowerCase().replace(/_/g, '-');
+    const varName = `--z-${dashedKey}`;
+    const regex = new RegExp(`${varName}\\s*:\\s*(-?\\d+)\\b`);
+    const match = content.match(regex);
+
+    if (!match) {
+      const res = checkOrFixMissingVar(varName, value, content, isFixMode, errors, violations);
+      content = res.updatedContent;
+      if (res.wasModified) modified = true;
+    } else {
+      const parsed = parseInt(match[1]!, 10);
+      const res = checkOrFixMismatchVar(varName, value, parsed, match[1]!, regex, content, isFixMode, errors, violations);
+      content = res.updatedContent;
+      if (res.wasModified) modified = true;
+    }
+  }
+
+  return { scssContent: content, modified, errors, violations };
+}
 
 export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
   private readonly scssPath?: string;
@@ -54,23 +147,9 @@ export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
     if (scssPath) {
       this.scssPath = scssPath;
       this.isExplicit = true;
-    } else if (config.styles?.zLayersScssFile ?? config.styles?.baseScssFile) {
-      this.scssPath = path.resolve(this.projectRoot, (config.styles.zLayersScssFile ?? config.styles.baseScssFile)!);
-      this.isExplicit = true;
     } else {
-      this.isExplicit = false;
-      const stylesRoots = config.paths?.stylesRoots ?? ['src/styles'];
-      const candidates: string[] = [];
-      for (const r of stylesRoots) {
-        candidates.push(
-          path.resolve(this.projectRoot, r, '_base.scss'),
-          path.resolve(this.projectRoot, r, 'core/_base.scss'),
-          path.resolve(this.projectRoot, r, 'base.scss'),
-          path.resolve(this.projectRoot, r, 'main.scss'),
-          path.resolve(this.projectRoot, r, 'index.scss')
-        );
-      }
-      this.scssPath = candidates.find(c => fsSync.existsSync(c));
+      this.scssPath = resolveZLayersScssPath(this.projectRoot);
+      this.isExplicit = !!(config.styles?.zLayersScssFile ?? config.styles?.baseScssFile);
     }
   }
 
@@ -93,7 +172,7 @@ export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
       return;
     }
 
-    const isFixMode = process.argv.includes('fix') || process.argv.includes('--fix');
+    const isFixMode = this.isFixModeRequested();
     this.context.logStep(1, 1, 'Verificando paridad de variables Z-Index en _base.scss...');
 
     let scssContent: string;
@@ -112,62 +191,26 @@ export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
       return;
     }
 
-    let modified = false;
-    let checkedCount = 0;
-
-    for (const [key, value] of Object.entries(Z_LAYERS)) {
-      checkedCount++;
-      const dashedKey = key.toLowerCase().replace(/_/g, '-');
-      const varName = `--z-${dashedKey}`;
-      const regex = new RegExp(`${varName}\\s*:\\s*(-?\\d+)\\b`);
-      const match = scssContent.match(regex);
-
-      if (!match) {
-        if (isFixMode && scssContent.includes(':root {')) {
-          scssContent = scssContent.replace(/}\s*$/, `  ${varName}: ${value};\n}\n`);
-          modified = true;
-        } else {
-          this.addViolation({
-            ruleId: 'z-index-missing-var',
-            severity: 'error',
-            file: this.scssPath,
-            line: 1,
-            message: `Falta variable CSS '${varName}' (debe ser ${value})`,
-            context: varName
-          });
-        }
-      } else {
-        const parsed = parseInt(match[1]!, 10);
-        if (parsed !== value) {
-          if (isFixMode) {
-            scssContent = scssContent.replace(regex, `${varName}: ${value}`);
-            modified = true;
-          } else {
-            this.addViolation({
-              ruleId: 'z-index-mismatch',
-              severity: 'error',
-              file: this.scssPath,
-              line: 1,
-              message: `Desincronización en '${varName}': TS=${value}, SCSS=${match[1]}`,
-              context: `${varName}: ${match[1]}`
-            });
-          }
-        }
-      }
+    const result = auditZIndexParity(scssContent, isFixMode, Z_LAYERS);
+    for (const v of result.violations) {
+      this.addViolation({
+        ruleId: v.ruleId,
+        severity: 'error',
+        file: this.scssPath,
+        line: 1,
+        message: v.message,
+        context: v.context
+      });
     }
 
-    if (isFixMode && modified) {
-      await fs.writeFile(this.scssPath, scssContent, 'utf-8');
+    if (isFixMode && result.modified) {
+      await fs.writeFile(this.scssPath, result.scssContent, 'utf-8');
     }
 
-    this.context.setMetric('Total Layers Checked', checkedCount);
-    this.context.setMetric('Status', modified ? 'Auto-fixed' : 'Synced');
+    this.context.setMetric('Total Layers Checked', Object.keys(Z_LAYERS).length);
+    this.context.setMetric('Status', result.modified ? 'Auto-fixed' : 'Synced');
   }
 }
 
-if (process.argv[1] && (
-  process.argv[1].endsWith('validate_z_index.ts') ||
-  (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename)
-)) {
-  await BaseAuditor.runCli(new ZIndexAuditor());
-}
+// Canonical CLI Entrypoint
+await BaseAuditor.runCliIfMain(import.meta.url, new ZIndexAuditor());

@@ -86,7 +86,6 @@ export function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoo
   return dirs;
 }
 
-
 export const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS = [
   'scripts/tests',
   'scripts/.cache/',
@@ -140,17 +139,55 @@ const STANDARD_FILES_TO_SKIP = new Set([
   'Dockerfile', 'docker-compose.yml', '.gitignore', '.eslintrc.cjs'
 ]);
 
-
 const BUILTIN_SKILLS = new Set([
   'a11y-debugging', 'agy-customizations', 'antigravity-guide', 'chrome-devtools',
   'chrome-extensions', 'debug-optimize-lcp', 'generative_ui', 'memory-leak-debugging',
   'migrate-workflows', 'modern-web-guidance', 'troubleshooting'
 ]);
 
-function stripCodeBlocks(markdown: string): string {
+export function stripCodeBlocks(markdown: string): string {
   return markdown.replace(/```[\s\S]*?```/g, match => {
     return '\n'.repeat((match.match(/\n/g) || []).length);
   });
+}
+
+const CANDIDATE_EXTENSIONS = ['.ts', '.vue', '.d.ts', '.json', '.sql', '.scss', '.css', '.md'] as const;
+
+function findCaseInsensitiveEntry(entries: readonly string[], seg: string, isLast: boolean): string | undefined {
+  const directMatch = entries.find(e => e.toLowerCase() === seg.toLowerCase());
+  if (directMatch) return directMatch;
+  if (!isLast) return undefined;
+
+  for (const ext of CANDIDATE_EXTENSIONS) {
+    const extMatch = entries.find(e => e.toLowerCase() === (seg + ext).toLowerCase());
+    if (extMatch) return extMatch;
+  }
+  return undefined;
+}
+
+function hasExactMatchWithExtension(entries: readonly string[], seg: string): boolean {
+  return CANDIDATE_EXTENSIONS.some(ext => entries.includes(seg + ext));
+}
+
+function resolveSegmentCasing(
+  entries: readonly string[],
+  seg: string,
+  isLast: boolean
+): { exists: boolean; exactMatch: boolean; actualCasing?: string } {
+  if (entries.includes(seg)) {
+    return { exists: true, exactMatch: true };
+  }
+
+  const foundEntry = findCaseInsensitiveEntry(entries, seg, isLast);
+  if (foundEntry) {
+    return { exists: true, exactMatch: false, actualCasing: foundEntry };
+  }
+
+  if (isLast && hasExactMatchWithExtension(entries, seg)) {
+    return { exists: true, exactMatch: true };
+  }
+
+  return { exists: false, exactMatch: false };
 }
 
 export function checkExactCase(
@@ -164,42 +201,294 @@ export function checkExactCase(
     const seg = segments[idx]!;
     if (!fs.existsSync(current)) return { exists: false, exactMatch: false };
     const entries = fs.readdirSync(current);
-
-    if (entries.includes(seg)) {
-      current = path.join(current, seg);
-      continue;
-    }
-
     const isLast = idx === segments.length - 1;
-    let foundEntry: string | undefined;
 
-    foundEntry = entries.find(e => e.toLowerCase() === seg.toLowerCase());
-
-    if (!foundEntry && isLast) {
-      const exts = ['.ts', '.vue', '.d.ts', '.json', '.sql', '.scss', '.css', '.md'];
-      for (const ext of exts) {
-        foundEntry = entries.find(e => e.toLowerCase() === (seg + ext).toLowerCase());
-        if (foundEntry) break;
-      }
+    const result = resolveSegmentCasing(entries, seg, isLast);
+    if (!result.exists || !result.exactMatch) {
+      return result;
     }
 
-    if (foundEntry) {
-      return { exists: true, exactMatch: false, actualCasing: foundEntry };
-    }
-
-    if (isLast) {
-      const exts = ['.ts', '.vue', '.d.ts', '.json', '.sql', '.scss', '.css', '.md'];
-      for (const ext of exts) {
-        if (entries.includes(seg + ext)) {
-          return { exists: true, exactMatch: true };
-        }
-      }
-    }
-
-    return { exists: false, exactMatch: false };
+    current = path.join(current, seg);
   }
 
   return { exists: true, exactMatch: true };
+}
+
+function loadRegisteredScripts(rootDir: string): Set<string> {
+  const pkgPath = path.resolve(rootDir, 'package.json');
+  try {
+    const pkgContent = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    return new Set(Object.keys(pkgContent.scripts || {}));
+  } catch {
+    // catch-ok: missing or invalid package.json
+    return new Set();
+  }
+}
+
+function discoverRegisteredSkills(rootDir: string): Set<string> {
+  const allSkills = new Set<string>();
+  const skillsDir = path.join(rootDir, '.agents/skills');
+  if (fs.existsSync(skillsDir)) {
+    for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) allSkills.add(entry.name);
+    }
+  }
+  return allSkills;
+}
+
+function checkNpmRunCommands(
+  line: string,
+  lineNum: number,
+  relPath: string,
+  registeredScripts: ReadonlySet<string>,
+  auditor: MarkdownCodeReferencesAuditor
+): number {
+  let checked = 0;
+  const npmRegex = /npm run ([a-zA-Z0-9_:-]+)/g;
+  let npmMatch: RegExpExecArray | null;
+  while ((npmMatch = npmRegex.exec(line)) !== null) {
+    const scriptName = npmMatch[1]!.trim();
+    checked++;
+    if (scriptName.endsWith(':')) continue;
+    if (IGNORED_SCRIPT_WORDS.has(scriptName.toLowerCase())) continue;
+
+    if (!registeredScripts.has(scriptName)) {
+      auditor.addViolation({
+        ruleId: 'markdown-unregistered-npm-script',
+        severity: 'error',
+        file: relPath,
+        line: lineNum,
+        message: `Comando "npm run ${scriptName}" no está registrado en package.json.scripts`,
+        context: `npm run ${scriptName}`
+      });
+    }
+  }
+  return checked;
+}
+
+function checkHardcodedRuntimeVersions(
+  line: string,
+  lineNum: number,
+  relPath: string,
+  auditor: MarkdownCodeReferencesAuditor
+): number {
+  const versionRegex = /(?:Node(?:\.js)?\s*(?:>=|>|v)?\s*26\.[0-9]+|npm\s*(?:>=|>|v)?\s*12\.[0-9]+)/i;
+  const versionMatch = versionRegex.exec(line);
+  if (!versionMatch) return 0;
+
+  auditor.addViolation({
+    ruleId: 'markdown-hardcoded-runtime-version',
+    severity: 'error',
+    file: relPath,
+    line: lineNum,
+    message: `Versión runtime hardcodeada detectada: "${versionMatch[0]}". Debe referenciar package.json (engines) y .nvmrc`,
+    context: versionMatch[0]
+  });
+  return 1;
+}
+
+function checkSkillReferences(
+  line: string,
+  lineNum: number,
+  relPath: string,
+  allSkills: ReadonlySet<string>,
+  auditor: MarkdownCodeReferencesAuditor
+): number {
+  let checked = 0;
+  const skillRefRegex = /@\/([a-zA-Z0-9_-]+)/g;
+  let skillMatch: RegExpExecArray | null;
+  while ((skillMatch = skillRefRegex.exec(line)) !== null) {
+    const candidate = skillMatch[1]!;
+    const fullRef = skillMatch[0];
+    const nextChar = line[skillMatch.index + fullRef.length];
+    if (nextChar === '/') continue;
+    if (KNOWN_PATH_ALIASES.has(candidate)) continue;
+
+    checked++;
+    const isRegistered = allSkills.has(candidate) || BUILTIN_SKILLS.has(candidate);
+    if (!isRegistered) {
+      auditor.addViolation({
+        ruleId: 'markdown-broken-skill-ref',
+        severity: 'error',
+        file: relPath,
+        line: lineNum,
+        message: `Referencia a skill inexistente: "@/${candidate}". El skill no existe en .agents/skills ni en skills integrados`,
+        context: `@/${candidate}`
+      });
+    }
+  }
+  return checked;
+}
+
+function isCandidateAbstractPattern(candidate: string): boolean {
+  return (
+    candidate.includes('*') ||
+    candidate.includes('...') ||
+    candidate.includes('<') ||
+    candidate.includes('YYYYMMDD') ||
+    candidate.includes('case_xxx') ||
+    candidate.includes('_xxx') ||
+    candidate.includes('my_') ||
+    candidate.includes('myData') ||
+    candidate.endsWith('_') ||
+    (candidate.endsWith('/') && candidate.split('/').length <= 2)
+  );
+}
+
+function validateSingleSourceRef(
+  candidate: string,
+  lineNum: number,
+  relPath: string,
+  filePath: string,
+  rootDir: string,
+  gitIgnoreMatcher: GitIgnoreMatcher,
+  knownValidAbstractPaths: ReadonlySet<string>,
+  auditor: MarkdownCodeReferencesAuditor
+): void {
+  if (isCandidateAbstractPattern(candidate) || knownValidAbstractPaths.has(candidate)) {
+    return;
+  }
+  if (gitIgnoreMatcher.isIgnored(candidate) || gitIgnoreMatcher.isIgnored(path.resolve(rootDir, candidate))) {
+    return;
+  }
+
+  const caseCheck = checkExactCase(rootDir, candidate);
+  if (!caseCheck.exists) {
+    const localCaseCheck = checkExactCase(path.dirname(filePath), candidate);
+    if (!localCaseCheck.exists) {
+      auditor.addViolation({
+        ruleId: 'markdown-broken-source-ref',
+        severity: 'error',
+        file: relPath,
+        line: lineNum,
+        message: `Ruta de código referenciada no existe en disco: "${candidate}"`,
+        context: candidate
+      });
+    } else if (!localCaseCheck.exactMatch) {
+      auditor.addViolation({
+        ruleId: 'markdown-case-mismatch',
+        severity: 'error',
+        file: relPath,
+        line: lineNum,
+        message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${localCaseCheck.actualCasing}" (Linux ext4)`,
+        context: candidate
+      });
+    }
+  } else if (!caseCheck.exactMatch) {
+    auditor.addViolation({
+      ruleId: 'markdown-case-mismatch',
+      severity: 'error',
+      file: relPath,
+      line: lineNum,
+      message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${caseCheck.actualCasing}" (Linux ext4)`,
+      context: candidate
+    });
+  }
+}
+
+function checkSourcePathReferences(
+  line: string,
+  lineNum: number,
+  relPath: string,
+  filePath: string,
+  rootDir: string,
+  gitIgnoreMatcher: GitIgnoreMatcher,
+  knownValidAbstractPaths: ReadonlySet<string>,
+  auditor: MarkdownCodeReferencesAuditor
+): number {
+  let checked = 0;
+  const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
+  let pathMatch: RegExpExecArray | null;
+  while ((pathMatch = pathRegex.exec(line)) !== null) {
+    const candidate = pathMatch[1]!.replace(/[.,:;)\]`'"]+$/, '').split('#')[0]!;
+    checked++;
+    validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir, gitIgnoreMatcher, knownValidAbstractPaths, auditor);
+  }
+  return checked;
+}
+
+function checkAgentsMdBulletDeclaration(
+  line: string,
+  lineNum: number,
+  relPath: string,
+  fileDir: string,
+  rootDir: string,
+  gitIgnoreMatcher: GitIgnoreMatcher,
+  seenViolations: Set<string>,
+  auditor: MarkdownCodeReferencesAuditor
+): number {
+  const bulletFileRegex = /^\s*-\s*`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-)/;
+  const bm = bulletFileRegex.exec(line);
+  if (!bm) return 0;
+
+  const token = bm[1]!;
+  const tokenPath = path.resolve(fileDir, token);
+  if (STANDARD_FILES_TO_SKIP.has(token) || gitIgnoreMatcher.isIgnored(tokenPath)) {
+    return 0;
+  }
+
+  const localCheck = checkExactCase(fileDir, token);
+  const violationKey = `${relPath}:${lineNum}:${token}`;
+  if (!localCheck.exists && !seenViolations.has(violationKey)) {
+    seenViolations.add(violationKey);
+    auditor.addViolation({
+      ruleId: 'markdown-broken-source-ref',
+      severity: 'error',
+      file: relPath,
+      line: lineNum,
+      message: `Archivo declarado en lista de contratos locales no existe en "${path.relative(rootDir, fileDir)}": "${token}"`,
+      context: token
+    });
+  } else if (!localCheck.exactMatch && !seenViolations.has(violationKey)) {
+    seenViolations.add(violationKey);
+    auditor.addViolation({
+      ruleId: 'markdown-case-mismatch',
+      severity: 'error',
+      file: relPath,
+      line: lineNum,
+      message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${localCheck.actualCasing}" (Linux ext4)`,
+      context: token
+    });
+  }
+  return 1;
+}
+
+function checkAgentsMdInlineTokens(
+  line: string,
+  lineNum: number,
+  relPath: string,
+  fileDir: string,
+  dirEntries: readonly string[],
+  gitIgnoreMatcher: GitIgnoreMatcher,
+  seenViolations: Set<string>,
+  auditor: MarkdownCodeReferencesAuditor
+): number {
+  let checked = 0;
+  const inlineTokenRegex = /`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-|\)|$)/g;
+  let itm: RegExpExecArray | null;
+  while ((itm = inlineTokenRegex.exec(line)) !== null) {
+    const token = itm[1]!;
+    const tokenPath = path.resolve(fileDir, token);
+    if (STANDARD_FILES_TO_SKIP.has(token) || gitIgnoreMatcher.isIgnored(tokenPath)) continue;
+
+    const foundCase = dirEntries.find(e => e.toLowerCase() === token.toLowerCase());
+    if (foundCase && foundCase !== token) {
+      checked++;
+      const violationKey = `${relPath}:${lineNum}:${token}`;
+      if (!seenViolations.has(violationKey)) {
+        seenViolations.add(violationKey);
+        auditor.addViolation({
+          ruleId: 'markdown-case-mismatch',
+          severity: 'error',
+          file: relPath,
+          line: lineNum,
+          message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${foundCase}" (Linux ext4)`,
+          context: token
+        });
+      }
+    }
+  }
+  return checked;
 }
 
 export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeReferenceRuleId> {
@@ -239,27 +528,57 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
     this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
   }
 
+  private scanMarkdownFile(
+    filePath: string,
+    registeredScripts: ReadonlySet<string>,
+    allSkills: ReadonlySet<string>,
+    knownValidAbstractPaths: ReadonlySet<string>,
+    seenViolations: Set<string>
+  ): number {
+    const relPath = path.relative(this.rootDir, filePath).replace(/\\/g, '/');
+    const rawContent = fs.readFileSync(filePath, 'utf8');
+    const cleanContent = stripCodeBlocks(rawContent);
+    const lines = cleanContent.split('\n');
+    const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
+
+    const fileDir = path.dirname(filePath);
+    let dirEntries: string[] = [];
+    if (relPath.endsWith('AGENTS.md')) {
+      try {
+        dirEntries = fs.readdirSync(fileDir);
+      } catch {
+        // catch-ok: unreadable directory
+        dirEntries = [];
+      }
+    }
+
+    let checked = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const lineNum = i + 1;
+
+      if (!isSkillDoc) {
+        checked += checkNpmRunCommands(line, lineNum, relPath, registeredScripts, this);
+        checked += checkSourcePathReferences(line, lineNum, relPath, filePath, this.rootDir, this.gitIgnoreMatcher, knownValidAbstractPaths, this);
+      }
+
+      checked += checkHardcodedRuntimeVersions(line, lineNum, relPath, this);
+      checked += checkSkillReferences(line, lineNum, relPath, allSkills, this);
+
+      if (relPath.endsWith('AGENTS.md')) {
+        checked += checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, this.rootDir, this.gitIgnoreMatcher, seenViolations, this);
+        checked += checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, this.gitIgnoreMatcher, seenViolations, this);
+      }
+    }
+    return checked;
+  }
+
   public override async runAudit(): Promise<void> {
     this.context.logStep(1, 2, 'Cargando scripts de package.json y descubriendo archivos Markdown...');
 
-    const pkgPath = path.resolve(this.rootDir, 'package.json');
-    let registeredScripts: Set<string>;
-    try {
-      const pkgContent = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-      registeredScripts = new Set(Object.keys(pkgContent.scripts || {}));
-    } catch {
-      registeredScripts = new Set();
-    }
-
-    // Discover skills
+    const registeredScripts = loadRegisteredScripts(this.rootDir);
     const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
-    const allSkills = new Set<string>();
-    const skillsDir = path.join(this.rootDir, '.agents/skills');
-    if (fs.existsSync(skillsDir)) {
-      for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
-        if (entry.isDirectory()) allSkills.add(entry.name);
-      }
-    }
+    const allSkills = discoverRegisteredSkills(this.rootDir);
 
     const mdFiles = this.collectMarkdownFiles();
     this.filesScannedCount = mdFiles.length;
@@ -267,230 +586,16 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
     this.context.logStep(2, 2, `Verificando referencias de código en ${mdFiles.length} archivos Markdown...`);
 
     let referencesChecked = 0;
-
     const seenViolations = new Set<string>();
 
     for (const filePath of mdFiles) {
-      const relPath = path.relative(this.rootDir, filePath).replace(/\\/g, '/');
-      const rawContent = fs.readFileSync(filePath, 'utf8');
-      const cleanContent = stripCodeBlocks(rawContent);
-      const lines = cleanContent.split('\n');
-
-      const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
-        const lineNum = i + 1;
-
-        // 1. Check npm run commands (only in project docs; skill manuals document external/consumer workflows)
-        if (!isSkillDoc) {
-          const npmRegex = /npm run ([a-zA-Z0-9_:-]+)/g;
-          let npmMatch: RegExpExecArray | null;
-          while ((npmMatch = npmRegex.exec(line)) !== null) {
-            const scriptName = npmMatch[1]!.trim();
-            referencesChecked++;
-
-            if (scriptName.endsWith(':')) continue;
-            if (IGNORED_SCRIPT_WORDS.has(scriptName.toLowerCase())) continue;
-
-            if (!registeredScripts.has(scriptName)) {
-              this.addViolation({
-                ruleId: 'markdown-unregistered-npm-script',
-                severity: 'error',
-                file: relPath,
-                line: lineNum,
-                message: `Comando "npm run ${scriptName}" no está registrado en package.json.scripts`,
-                context: `npm run ${scriptName}`
-              });
-            }
-          }
-        }
-
-        // 2. Check hardcoded runtime versions (Node >= 26.x, npm >= 12.x)
-        const versionRegex = /(?:Node(?:\.js)?\s*(?:>=|>|v)?\s*26\.[0-9]+|npm\s*(?:>=|>|v)?\s*12\.[0-9]+)/i;
-        const versionMatch = versionRegex.exec(line);
-        if (versionMatch) {
-          referencesChecked++;
-          this.addViolation({
-            ruleId: 'markdown-hardcoded-runtime-version',
-            severity: 'error',
-            file: relPath,
-            line: lineNum,
-            message: `Versión runtime hardcodeada detectada: "${versionMatch[0]}". Debe referenciar package.json (engines) y .nvmrc`,
-            context: versionMatch[0]
-          });
-        }
-
-        // 3. Check skill references (@/skill-name)
-        const skillRefRegex = /@\/([a-zA-Z0-9_-]+)/g;
-        let skillMatch: RegExpExecArray | null;
-        while ((skillMatch = skillRefRegex.exec(line)) !== null) {
-          const candidate = skillMatch[1]!;
-          const fullRef = skillMatch[0];
-          const nextChar = line[skillMatch.index + fullRef.length];
-          if (nextChar === '/') continue;
-          if (KNOWN_PATH_ALIASES.has(candidate)) continue;
-
-          referencesChecked++;
-          const isRegistered = allSkills.has(candidate) || BUILTIN_SKILLS.has(candidate);
-          if (!isRegistered) {
-            this.addViolation({
-              ruleId: 'markdown-broken-skill-ref',
-              severity: 'error',
-              file: relPath,
-              line: lineNum,
-              message: `Referencia a skill inexistente: "@/${candidate}". El skill no existe en .agents/skills ni en skills integrados`,
-              context: `@/${candidate}`
-            });
-          }
-        }
-
-        // 4. Check source path references (src/..., scripts/..., supabase/..., tests/...)
-        // (Skill manuals describe abstract example paths for consumer projects, not this repo's internal code)
-        if (!isSkillDoc) {
-          const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
-          let pathMatch: RegExpExecArray | null;
-          while ((pathMatch = pathRegex.exec(line)) !== null) {
-            const candidate = pathMatch[1]!.replace(/[.,:;)\]`'"]+$/, '').split('#')[0]!;
-            referencesChecked++;
-
-            if (
-              candidate.includes('*') ||
-              candidate.includes('...') ||
-              candidate.includes('<') ||
-              candidate.includes('YYYYMMDD') ||
-              candidate.includes('case_xxx') ||
-              candidate.includes('_xxx') ||
-              candidate.includes('my_') ||
-              candidate.includes('myData') ||
-              candidate.endsWith('_') ||
-              (candidate.endsWith('/') && candidate.split('/').length <= 2)
-            ) {
-              continue;
-            }
-
-            if (knownValidAbstractPaths.has(candidate)) {
-              continue;
-            }
-
-            // Check if ignored dynamically by .gitignore (e.g. scratch/, dist/, etc.)
-            if (
-              this.gitIgnoreMatcher.isIgnored(candidate) ||
-              this.gitIgnoreMatcher.isIgnored(path.resolve(this.rootDir, candidate))
-            ) {
-              continue;
-            }
-
-            const caseCheck = checkExactCase(this.rootDir, candidate);
-            if (!caseCheck.exists) {
-              const localCaseCheck = checkExactCase(path.dirname(filePath), candidate);
-              if (!localCaseCheck.exists) {
-                this.addViolation({
-                  ruleId: 'markdown-broken-source-ref',
-                  severity: 'error',
-                  file: relPath,
-                  line: lineNum,
-                  message: `Ruta de código referenciada no existe en disco: "${candidate}"`,
-                  context: candidate
-                });
-              } else if (!localCaseCheck.exactMatch) {
-                this.addViolation({
-                  ruleId: 'markdown-case-mismatch',
-                  severity: 'error',
-                  file: relPath,
-                  line: lineNum,
-                  message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${localCaseCheck.actualCasing}" (Linux ext4)`,
-                  context: candidate
-                });
-              }
-            } else if (!caseCheck.exactMatch) {
-              this.addViolation({
-                ruleId: 'markdown-case-mismatch',
-                severity: 'error',
-                file: relPath,
-                line: lineNum,
-                message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${caseCheck.actualCasing}" (Linux ext4)`,
-                context: candidate
-              });
-            }
-          }
-        }
-
-        // 5. In AGENTS.md, check local file declarations in bullet points: - `foo.ext`:
-        if (relPath.endsWith('AGENTS.md')) {
-          const fileDir = path.dirname(filePath);
-          let dirEntries: string[];
-          try {
-            dirEntries = fs.readdirSync(fileDir);
-          } catch {
-            dirEntries = [];
-          }
-
-          // 5a. Check bullet point declarations: - `filename.ext`:
-          const bulletFileRegex = /^\s*-\s*`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-)/;
-          const bm = bulletFileRegex.exec(line);
-          if (bm) {
-            const token = bm[1]!;
-            const tokenPath = path.resolve(fileDir, token);
-            if (!STANDARD_FILES_TO_SKIP.has(token) && !this.gitIgnoreMatcher.isIgnored(tokenPath)) {
-              referencesChecked++;
-              const localCheck = checkExactCase(fileDir, token);
-              const violationKey = `${relPath}:${lineNum}:${token}`;
-              if (!localCheck.exists) {
-                if (!seenViolations.has(violationKey)) {
-                  seenViolations.add(violationKey);
-                  this.addViolation({
-                    ruleId: 'markdown-broken-source-ref',
-                    severity: 'error',
-                    file: relPath,
-                    line: lineNum,
-                    message: `Archivo declarado en lista de contratos locales no existe en "${path.relative(this.rootDir, fileDir)}": "${token}"`,
-                    context: token
-                  });
-                }
-              } else if (!localCheck.exactMatch) {
-                if (!seenViolations.has(violationKey)) {
-                  seenViolations.add(violationKey);
-                  this.addViolation({
-                    ruleId: 'markdown-case-mismatch',
-                    severity: 'error',
-                    file: relPath,
-                    line: lineNum,
-                    message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${localCheck.actualCasing}" (Linux ext4)`,
-                    context: token
-                  });
-                }
-              }
-            }
-          }
-
-          // 5b. Any inline file mention in AGENTS.md that matches an existing local file with DIFFERENT casing
-          const inlineTokenRegex = /`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-|\)|$)/g;
-          let itm: RegExpExecArray | null;
-          while ((itm = inlineTokenRegex.exec(line)) !== null) {
-            const token = itm[1]!;
-            const tokenPath = path.resolve(fileDir, token);
-            if (STANDARD_FILES_TO_SKIP.has(token) || this.gitIgnoreMatcher.isIgnored(tokenPath)) continue;
-
-            const foundCase = dirEntries.find(e => e.toLowerCase() === token.toLowerCase());
-            if (foundCase && foundCase !== token) {
-              referencesChecked++;
-              const violationKey = `${relPath}:${lineNum}:${token}`;
-              if (!seenViolations.has(violationKey)) {
-                seenViolations.add(violationKey);
-                this.addViolation({
-                  ruleId: 'markdown-case-mismatch',
-                  severity: 'error',
-                  file: relPath,
-                  line: lineNum,
-                  message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${foundCase}" (Linux ext4)`,
-                  context: token
-                });
-              }
-            }
-          }
-        }
-      }
+      referencesChecked += this.scanMarkdownFile(
+        filePath,
+        registeredScripts,
+        allSkills,
+        knownValidAbstractPaths,
+        seenViolations
+      );
     }
 
     this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);
@@ -503,6 +608,4 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new MarkdownCodeReferencesAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownCodeReferencesAuditor());

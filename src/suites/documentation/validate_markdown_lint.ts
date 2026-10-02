@@ -13,13 +13,12 @@
  *   npm run lint:md
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { parseJsonArrayOutput, normalizePosixPath } from '../../core/reportUtils.ts';
 
 enableCompileCache();
 
@@ -74,35 +73,16 @@ export interface RawMarkdownLintIssue {
  * Parses raw JSON output or an array of issues from markdownlint into canonical AuditFindings.
  */
 export function parseMarkdownLintIssues(input: string | object[], cwd: string = process.cwd()): AuditFinding[] {
-  const findings: AuditFinding[] = []; // no-domain: Non-domain utility collection or data structure
+  const findings: AuditFinding[] = [];
   if (!input) return findings;
 
-  let rawList: RawMarkdownLintIssue[] = []; // no-domain: Non-domain utility collection or data structure
-  if (typeof input === 'string') {
-    const cleanedLines = input
-      .split('\n')
-      .filter((line) => !line.startsWith('(node:') && !line.startsWith('(Use `node') && !line.includes('SecurityWarning') && !line.startsWith('[PERM'));
-    const trimmed = cleanedLines.join('\n').trim();
-    if (!trimmed) return findings;
-    const startIdx = trimmed.indexOf('[');
-    const endIdx = trimmed.lastIndexOf(']');
-    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return findings;
-
-    try {
-      rawList = JSON.parse(trimmed.substring(startIdx, endIdx + 1)) as RawMarkdownLintIssue[];
-    } catch (err: unknown) {
-      throw new Error(`Error al procesar salida JSON de markdownlint: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
-    }
-  } else if (Array.isArray(input)) {
-    rawList = input as RawMarkdownLintIssue[];
-  }
+  const rawList = parseJsonArrayOutput<RawMarkdownLintIssue>(input, {
+    throwOnError: true,
+    toolName: 'markdownlint'
+  });
 
   for (const issue of rawList) {
-    const rawFile = issue.fileName || '';
-    const resolvedPath = path.isAbsolute(rawFile)
-      ? path.relative(cwd, rawFile)
-      : rawFile;
-    const cleanFile = resolvedPath.split(path.sep).join(path.posix.sep);
+    const cleanFile = normalizePosixPath(issue.fileName || '', cwd);
 
     const ruleCode = Array.isArray(issue.ruleNames) ? issue.ruleNames.join('/') : 'MD';
     const detail = issue.errorDetail ? ` (${issue.errorDetail})` : '';
@@ -124,19 +104,6 @@ export function parseMarkdownLintIssues(input: string | object[], cwd: string = 
   return findings;
 }
 
-function resolveMarkdownLintBin(projectRoot: string): string {
-  const candidates = [
-    path.resolve(projectRoot, 'node_modules/markdownlint-cli/markdownlint.js'),
-    path.resolve(import.meta.dirname, '../../node_modules/markdownlint-cli/markdownlint.js'),
-    path.resolve(import.meta.dirname, '../../../node_modules/markdownlint-cli/markdownlint.js'),
-    path.resolve(import.meta.dirname, '../../../../node_modules/markdownlint-cli/markdownlint.js')
-  ];
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
-  }
-  return candidates[0]!;
-}
-
 export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
   constructor(projectRoot?: string) {
     super({
@@ -154,10 +121,10 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    const isFixMode = process.argv.includes('fix') || process.argv.includes('--fix') || Boolean((this.context.values as Record<string, unknown>).fix);
+    const isFixMode = this.isFixModeRequested();
     this.context.logStep(1, 2, `Ejecutando markdownlint (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
 
-    const binPath = resolveMarkdownLintBin(this.projectRoot);
+    const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
     const args: string[] = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
 
     for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
@@ -168,32 +135,16 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       args.push('--fix');
     }
 
-    const proc = spawnSync(
-      'node',
-      ['--disable-warning=PERM0001', '--disable-warning=PERM0002', '--disable-warning=ExperimentalWarning', binPath, ...args],
-      {
-        cwd: this.projectRoot,
-        encoding: 'utf-8',
-        maxBuffer: MAX_BUFFER_BYTES,
-        timeout: EXECUTION_TIMEOUT_MS
-      }
-    );
-
-    const combinedOutput = `${proc.stdout || ''}\n${proc.stderr || ''}`;
+    const combinedOutput = executeNodeCli(binPath, args, {
+      cwd: this.projectRoot,
+      maxBuffer: MAX_BUFFER_BYTES,
+      timeout: EXECUTION_TIMEOUT_MS
+    });
     const findings = parseMarkdownLintIssues(combinedOutput, this.projectRoot);
 
     this.context.logStep(2, 2, `Procesando resultados de markdownlint (${findings.length} incidencias)...`);
 
-    for (const finding of findings) {
-      this.addViolation({
-        ruleId: 'markdownlint-issue',
-        severity: 'error',
-        file: finding.file || '',
-        line: finding.line || DEFAULT_ERROR_LINE,
-        context: finding.context || 'markdownlint',
-        message: finding.message
-      });
-    }
+    this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
 
     this.filesScannedCount = 1;
     this.context.setMetric('markdown_violations', findings.length);
@@ -202,6 +153,4 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new MarkdownLintAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownLintAuditor());

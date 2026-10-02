@@ -23,7 +23,12 @@ const DEFAULT_TIMEOUT_MS = 60000;
 const HEAVY_TIMEOUT_MS = 180000; // 3 minutes for full repo AST / DB migration validation
 
 function getTimeoutForTask(filename: string): number {
-  if (filename.includes('audit_project') || filename.includes('validate_type_check') || filename.includes('validate_eslint')) {
+  if (
+    filename.includes('audit_project') ||
+    filename.includes('validate_type_check') ||
+    filename.includes('validate_eslint') ||
+    filename.includes('validate_similar_code')
+  ) {
     return HEAVY_TIMEOUT_MS;
   }
   return DEFAULT_TIMEOUT_MS;
@@ -103,21 +108,59 @@ function formatTaskTitle(filename: string): string {
     .join(' ');
 }
 
-export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<AuditTaskDefinition[]> {
-  const config = await loadAuditConfig();
-  const activeFamilies = getActiveFamilies(config.customFamilies);
-  const builtInDir = BUILTIN_SUITES_DIR;
-  const discovered: AuditTaskDefinition[] = [];
+function createAuditTaskDefinition(
+  fullPath: string,
+  filename: string,
+  family: AuditFamily,
+  config: Awaited<ReturnType<typeof loadAuditConfig>>,
+  options: DiscoveryOptions,
+  isBuiltin: boolean,
+  targetSuiteIds: Set<string> | null
+): AuditTaskDefinition | null {
+  const id = filename;
+  const isFast = family === 'architecture' || filename.includes('domain_types');
 
-  const combinedPresets = {
-    ...AUDIT_PRESETS,
-    ...(config.presets ?? {})
+  if (targetSuiteIds && !targetSuiteIds.has(id)) return null;
+  if (options.family && options.family !== family) return null;
+  if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) return null;
+  if (options.fastOnly && !isFast) return null;
+
+  const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+  const taskPermissions = getPermissionsForTask(filename);
+  const taskArgs = [...taskPermissions, relScriptPath, '--json'];
+
+  if (isBuiltin && id === 'audit_project') {
+    if (options.preset === 'lint') {
+      taskArgs.push('--rule', 'fallow');
+    } else if (options.preset === 'md') {
+      taskArgs.push('--rule', 'dox');
+    }
+  }
+
+  const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
+
+  return {
+    id,
+    name: formatTaskTitle(filename),
+    family,
+    scriptPath: relScriptPath,
+    command: 'node',
+    args: taskArgs,
+    fast: isFast,
+    timeoutMs: getTimeoutForTask(filename),
+    order: familyMeta.order,
+    requiresAst: AST_DEPENDENT_SUITES.has(id),
+    isBuiltin
   };
+}
 
-  // Resolve target suites from options.suites, options.task (comma-separated), or options.preset
+function resolveTargetSuiteIds(
+  options: DiscoveryOptions,
+  combinedPresets: Record<string, readonly string[]>
+): Set<string> | null {
   let targetSuiteIds: Set<string> | null = null;
   if (options.preset && options.preset in combinedPresets) {
-    targetSuiteIds = new Set(combinedPresets[options.preset as keyof typeof combinedPresets]);
+    targetSuiteIds = new Set(combinedPresets[options.preset]);
   }
   if (options.suites && options.suites.length > 0) {
     targetSuiteIds = new Set([...(targetSuiteIds ?? []), ...options.suites]);
@@ -125,137 +168,163 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
     const list = options.task.split(',').map(s => s.trim()).filter(Boolean);
     targetSuiteIds = new Set([...(targetSuiteIds ?? []), ...list]);
   }
+  return targetSuiteIds;
+}
 
-  async function scanDirectory(currentDir: string, rootDir: string) {
-    let entries: string[]; // no-domain: Non-domain utility collection or data structure
-    try {
-      entries = await fs.readdir(currentDir);
-    } catch {
-      return;
-    }
+function inferFamilyFromRelPath(relPath: string, activeFamilies: readonly AuditFamily[]): AuditFamily {
+  const segments = relPath.split('/');
+  const firstSegment = segments[0];
+  if (segments.length > 1 && firstSegment && (activeFamilies as readonly string[]).includes(firstSegment)) {
+    return firstSegment as AuditFamily;
+  }
+  return 'architecture';
+}
 
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry);
-      const stat = await fs.stat(fullPath);
+function isIgnoredFileEntry(entry: string): boolean {
+  if (entry.startsWith('_') || !entry.endsWith('.ts')) return true;
+  return entry.includes('.spec.') || entry.includes('.test.') || entry.startsWith('report_') || entry === 'audit_rules.ts';
+}
 
-      if (stat.isDirectory()) {
-        if (!entry.startsWith('_') && entry !== 'node_modules' && entry !== 'lib') {
-          await scanDirectory(fullPath, rootDir);
-        }
-      } else if (stat.isFile() && entry.endsWith('.ts') && !entry.startsWith('_')) {
-        // Skip unit tests, spec files, developer reporting tools, or rule definition modules
-        if (entry.includes('.spec.') || entry.includes('.test.') || entry.startsWith('report_') || entry === 'audit_rules.ts') continue;
+interface DirectoryScanParams {
+  currentDir: string;
+  rootDir: string;
+  config: Awaited<ReturnType<typeof loadAuditConfig>>;
+  options: DiscoveryOptions;
+  activeFamilies: readonly AuditFamily[];
+  targetSuiteIds: Set<string> | null;
+  discovered: AuditTaskDefinition[];
+}
 
-        // Relative path from rootDir to infer family
-        const relPath = path.relative(rootDir, fullPath).replace(/\\/g, '/');
-        const segments = relPath.split('/');
-        
-        let family: AuditFamily = 'architecture';
-        const firstSegment = segments[0];
-        if (segments.length > 1 && firstSegment && (activeFamilies as readonly string[]).includes(firstSegment)) {
-          family = firstSegment as AuditFamily;
-        }
+async function scanSuiteDirectory(params: DirectoryScanParams): Promise<void> {
+  let entries: string[]; // no-domain: Non-domain utility collection or data structure
+  try {
+    entries = await fs.readdir(params.currentDir);
+  } catch {
+    // catch-ok: directory may not exist or not be accessible in custom options
+    return;
+  }
 
-        const filename = path.basename(entry, '.ts');
-        const id = filename;
-        const name = formatTaskTitle(filename);
-        const isFast = family === 'architecture' || filename.includes('domain_types');
+  for (const entry of entries) {
+    const fullPath = path.join(params.currentDir, entry);
+    const stat = await fs.stat(fullPath);
 
-        // Check if filter matches
-        if (targetSuiteIds && !targetSuiteIds.has(id)) continue;
-        if (options.family && options.family !== family) continue;
-        if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) continue;
-        if (options.fastOnly && !isFast) continue;
-
-        const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-        const taskPermissions = getPermissionsForTask(filename);
-        const taskArgs = [...taskPermissions, relScriptPath, '--json'];
-
-        if (options.preset === 'lint' && id === 'audit_project') {
-          taskArgs.push('--rule', 'fallow');
-        } else if (options.preset === 'md' && id === 'audit_project') {
-          taskArgs.push('--rule', 'dox');
-        }
-
-        const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
-
-        discovered.push({
-          id,
-          name,
-          family,
-          scriptPath: relScriptPath,
-          command: 'node',
-          args: taskArgs,
-          fast: isFast,
-          timeoutMs: getTimeoutForTask(filename),
-          order: familyMeta.order,
-          requiresAst: AST_DEPENDENT_SUITES.has(id),
-          isBuiltin: true
-        });
+    if (stat.isDirectory()) {
+      if (!entry.startsWith('_') && entry !== 'node_modules' && entry !== 'lib') {
+        await scanSuiteDirectory({ ...params, currentDir: fullPath });
       }
+    } else if (stat.isFile() && !isIgnoredFileEntry(entry)) {
+      const relPath = path.relative(params.rootDir, fullPath).replace(/\\/g, '/');
+      const family = inferFamilyFromRelPath(relPath, params.activeFamilies);
+      const filename = path.basename(entry, '.ts');
+      const task = createAuditTaskDefinition(
+        fullPath,
+        filename,
+        family,
+        params.config,
+        params.options,
+        true,
+        params.targetSuiteIds
+      );
+      if (task) params.discovered.push(task);
     }
   }
+}
 
-  // 1. Scan directory: either explicit baseDir or built-in suites
-  if (options.baseDir) {
-    await scanDirectory(options.baseDir, options.baseDir);
-  } else {
-    await scanDirectory(builtInDir, builtInDir);
+interface ExtensionScanParams {
+  extensions: readonly string[];
+  config: Awaited<ReturnType<typeof loadAuditConfig>>;
+  options: DiscoveryOptions;
+  activeFamilies: readonly AuditFamily[];
+  targetSuiteIds: Set<string> | null;
+  discovered: AuditTaskDefinition[];
+}
+
+function detectExtensionFamily(extPath: string, activeFamilies: readonly AuditFamily[]): AuditFamily {
+  const normalized = extPath.replace(/\\/g, '/');
+  for (const fam of activeFamilies) {
+    if (normalized.includes(`/${fam}/`)) {
+      return fam;
+    }
   }
+  return 'domain_data';
+}
 
-  // 2. Discover and register external extensions from audit.config.ts
+function scanSingleExtensionFile(fullPath: string, extPath: string, params: ExtensionScanParams): void {
+  const filename = path.basename(extPath, '.ts');
+  const family = detectExtensionFamily(extPath, params.activeFamilies);
+
+  const task = createAuditTaskDefinition(
+    fullPath,
+    filename,
+    family,
+    params.config,
+    params.options,
+    false,
+    params.targetSuiteIds
+  );
+  if (task) params.discovered.push(task);
+}
+
+async function scanConfigExtensionEntry(extPath: string, params: ExtensionScanParams): Promise<void> {
+  const fullPath = path.resolve(process.cwd(), extPath);
+  if (!fsSync.existsSync(fullPath)) return;
+  const stat = await fs.stat(fullPath);
+
+  if (stat.isDirectory()) {
+    await scanSuiteDirectory({
+      currentDir: fullPath,
+      rootDir: fullPath,
+      config: params.config,
+      options: params.options,
+      activeFamilies: params.activeFamilies,
+      targetSuiteIds: params.targetSuiteIds,
+      discovered: params.discovered
+    });
+  } else if (stat.isFile() && extPath.endsWith('.ts')) {
+    scanSingleExtensionFile(fullPath, extPath, params);
+  }
+}
+
+async function scanConfigExtensions(params: ExtensionScanParams): Promise<void> {
+  for (const extPath of params.extensions) {
+    await scanConfigExtensionEntry(extPath, params);
+  }
+}
+
+export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<AuditTaskDefinition[]> {
+  const config = await loadAuditConfig();
+  const activeFamilies = getActiveFamilies(config.customFamilies);
+  const discovered: AuditTaskDefinition[] = [];
+
+  const combinedPresets = {
+    ...AUDIT_PRESETS,
+    ...(config.presets ?? {})
+  };
+
+  const targetSuiteIds = resolveTargetSuiteIds(options, combinedPresets);
+  const scanDir = options.baseDir ?? BUILTIN_SUITES_DIR;
+
+  await scanSuiteDirectory({
+    currentDir: scanDir,
+    rootDir: scanDir,
+    config,
+    options,
+    activeFamilies,
+    targetSuiteIds,
+    discovered
+  });
+
   if (!options.baseDir && config.extensions && config.extensions.length > 0) {
-    for (const extPath of config.extensions) {
-      const fullPath = path.resolve(process.cwd(), extPath);
-      if (!fsSync.existsSync(fullPath)) continue;
-      const stat = await fs.stat(fullPath);
-      if (stat.isDirectory()) {
-        await scanDirectory(fullPath, fullPath);
-      } else if (stat.isFile() && extPath.endsWith('.ts')) {
-        const filename = path.basename(extPath, '.ts');
-        const id = filename;
-        const name = formatTaskTitle(filename);
-
-        const normalized = extPath.replace(/\\/g, '/');
-        let family: AuditFamily = 'domain_data';
-        for (const fam of activeFamilies) {
-          if (normalized.includes(`/${fam}/`)) {
-            family = fam;
-            break;
-          }
-        }
-
-        const isFast = family === 'architecture' || filename.includes('domain_types');
-
-        if (targetSuiteIds && !targetSuiteIds.has(id)) continue;
-        if (options.family && options.family !== family) continue;
-        if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) continue;
-        if (options.fastOnly && !isFast) continue;
-
-        const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-        const taskPermissions = getPermissionsForTask(filename);
-        const taskArgs = [...taskPermissions, relScriptPath, '--json'];
-
-        const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
-
-        discovered.push({
-          id,
-          name,
-          family,
-          scriptPath: relScriptPath,
-          command: 'node',
-          args: taskArgs,
-          fast: isFast,
-          timeoutMs: getTimeoutForTask(filename),
-          order: familyMeta.order,
-          requiresAst: AST_DEPENDENT_SUITES.has(id),
-          isBuiltin: false
-        });
-      }
-    }
+    await scanConfigExtensions({
+      extensions: config.extensions,
+      config,
+      options,
+      activeFamilies,
+      targetSuiteIds,
+      discovered
+    });
   }
 
-  // Sort discovered tasks deterministically by family order, then by filename
   discovered.sort((a, b) => {
     const familyDiff = (a.order ?? 99) - (b.order ?? 99);
     if (familyDiff !== 0) return familyDiff;
@@ -264,3 +333,4 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
 
   return discovered;
 }
+

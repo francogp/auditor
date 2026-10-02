@@ -23,7 +23,6 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_error_suppression.ts
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -92,20 +91,36 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
     this.auditCatchNarrowing(relPath, content);
   }
 
-  private auditEmptyCatch(relPath: string, content: string): void {
+  private forEachNonCommentMatch(
+    content: string,
+    regexTemplate: RegExp,
+    callback: (match: RegExpExecArray, line: number, lineContent: string) => void
+  ): void {
+    const regex = new RegExp(regexTemplate.source, regexTemplate.flags);
     let match: RegExpExecArray | null;
-    const regex = new RegExp(EMPTY_CATCH_REGEX.source, EMPTY_CATCH_REGEX.flags);
-
     while ((match = regex.exec(content)) !== null) {
+      const line = this.getLineNumber(content, match.index);
+      const lineContent = this.getLineAt(content, line);
+      const trimmed = lineContent.trim();
+      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+        continue;
+      }
+      callback(match, line, lineContent);
+    }
+  }
+
+  private auditEmptyCatch(relPath: string, content: string): void {
+    this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, lineContent) => {
       const innerContent = match[1] ?? '';
       const strippedComments = innerContent.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
 
       if (strippedComments.length === 0) {
-        const line = this.getLineNumber(content, match.index);
-        const lineContent = this.getLineAt(content, line);
-
-        if (this.hasEscapeHatch(lineContent, ['catch-ok', 'error-ok'])) {
-          continue;
+        if (
+          this.hasEscapeHatch(lineContent, ['catch-ok', 'error-ok']) ||
+          this.hasEscapeHatch(match[0], ['catch-ok', 'error-ok']) ||
+          this.hasEscapeHatch(innerContent, ['catch-ok', 'error-ok'])
+        ) {
+          return;
         }
 
         this.addViolation({
@@ -117,19 +132,16 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
           context: match[0].slice(0, 100)
         });
       }
-    }
+    });
   }
 
   private auditSilentPromiseCatch(relPath: string, content: string): void {
-    let match: RegExpExecArray | null;
-    const regex = new RegExp(SILENT_PROMISE_CATCH_REGEX.source, SILENT_PROMISE_CATCH_REGEX.flags);
-
-    while ((match = regex.exec(content)) !== null) {
-      const line = this.getLineNumber(content, match.index);
-      const lineContent = this.getLineAt(content, line);
-
-      if (this.hasEscapeHatch(lineContent, ['catch-ok', 'error-ok'])) {
-        continue;
+    this.forEachNonCommentMatch(content, SILENT_PROMISE_CATCH_REGEX, (match, line, lineContent) => {
+      if (
+        this.hasEscapeHatch(lineContent, ['catch-ok', 'error-ok']) ||
+        this.hasEscapeHatch(match[0], ['catch-ok', 'error-ok'])
+      ) {
+        return;
       }
 
       this.addViolation({
@@ -140,24 +152,17 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
         message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
         context: match[0].slice(0, 100)
       });
-    }
+    });
   }
 
   private auditSchemaFallbacks(relPath: string, content: string): void {
-    // Only check schemas, storage, and models
     if (!relPath.includes('schema') && !relPath.includes('models') && !relPath.includes('storage')) {
       return;
     }
 
-    let match: RegExpExecArray | null;
-    const regex = new RegExp(VALIBOT_FALLBACK_REGEX.source, VALIBOT_FALLBACK_REGEX.flags);
-
-    while ((match = regex.exec(content)) !== null) {
-      const line = this.getLineNumber(content, match.index);
-      const lineContent = this.getLineAt(content, line);
-
+    this.forEachNonCommentMatch(content, VALIBOT_FALLBACK_REGEX, (_match, line, lineContent) => {
       if (this.hasEscapeHatch(lineContent, ['fallback-ok', 'schema-ok'])) {
-        continue;
+        return;
       }
 
       this.addViolation({
@@ -168,7 +173,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
         message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
         context: lineContent.trim()
       });
-    }
+    });
   }
 
   private auditCatchNarrowing(relPath: string, content: string): void {
@@ -207,6 +212,4 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
 }
 
 // Standalone execution support
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new ErrorSuppressionAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ErrorSuppressionAuditor());

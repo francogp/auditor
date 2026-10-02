@@ -7,9 +7,36 @@ import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
+import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
+
+const VALID_CATEGORY_ALIASES = new Set([
+  'dupes', 'duplicates', 'security', 'cwe', 'dead-code', 'deadcode', 'unused',
+  'complexity', 'circular', 'exports', 'orphans', 'boundaries', 'architecture', 'boundary', 'all'
+]);
+
+function parsePositionalOption(pos: string, currentCategory: string): { category?: string; top?: number; json?: boolean } {
+  if (pos.startsWith('category=')) {
+    return { category: pos.split('=')[1]?.toLowerCase() || '' };
+  }
+  if (pos.startsWith('top=')) {
+    const rawTop = pos.split('=')[1] || '20';
+    const top = rawTop === 'all' ? Number.MAX_SAFE_INTEGER : (parseInt(rawTop, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT);
+    return { top };
+  }
+  if (pos === 'json') {
+    return { json: true };
+  }
+  if (!currentCategory) {
+    const cleanPos = pos.toLowerCase();
+    if (VALID_CATEGORY_ALIASES.has(cleanPos)) {
+      return { category: cleanPos };
+    }
+  }
+  return {};
+}
 
 function parseCommandLineArgs() {
   const { values, positionals } = parseArgs({
@@ -27,19 +54,10 @@ function parseCommandLineArgs() {
   let jsonOutput = Boolean(values.json);
 
   for (const pos of positionals) {
-    if (pos.startsWith('category=')) {
-      category = pos.split('=')[1]?.toLowerCase() || ''; // domain-ok: Open dynamic text or non-domain string payload
-    } else if (pos.startsWith('top=')) {
-      const rawTop = pos.split('=')[1] || '20';
-      top = rawTop === 'all' ? Number.MAX_SAFE_INTEGER : (parseInt(rawTop, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT);
-    } else if (pos === 'json') {
-      jsonOutput = true;
-    } else if (!category) {
-      const cleanPos = pos.toLowerCase(); // domain-ok: Open dynamic text or non-domain string payload
-      if (['dupes', 'duplicates', 'security', 'cwe', 'dead-code', 'deadcode', 'unused', 'complexity', 'circular', 'exports', 'orphans', 'boundaries', 'architecture', 'boundary', 'all'].includes(cleanPos)) {
-        category = cleanPos;
-      }
-    }
+    const parsed = parsePositionalOption(pos, category);
+    if (parsed.category !== undefined) category = parsed.category;
+    if (parsed.top !== undefined) top = parsed.top;
+    if (parsed.json !== undefined) jsonOutput = parsed.json;
   }
 
   return {
@@ -61,30 +79,15 @@ function runFallowCommand(command: string, extraArgs: string[] = []): Record<str
       timeout: 45000,
       killSignal: 'SIGKILL'
     });
-    const jsonStart = stdout.indexOf('{');
-    if (jsonStart !== -1) {
-      return JSON.parse(stdout.substring(jsonStart)) as Record<string, unknown>; // open-record: Generic key-value data dictionary container
-    }
+    return parseJsonObjectOutput<Record<string, unknown>>(stdout);
   } catch (e: unknown) {
-    const err = e as { stdout?: Buffer | string };
-    if (err.stdout) {
-      const stdoutStr = typeof err.stdout === 'string' ? err.stdout : err.stdout.toString('utf8');
-      const jsonStart = stdoutStr.indexOf('{');
-      if (jsonStart !== -1) {
-        try {
-          return JSON.parse(stdoutStr.substring(jsonStart)) as Record<string, unknown>; // open-record: Generic key-value data dictionary container
-        } catch {
-          // Ignore parse errors on fallback
-        }
-      }
-    }
+    return parseJsonObjectOutput<Record<string, unknown>>(e);
   }
-  return null;
 }
 
 function reportDupes(top: number, json: boolean): void {
   const data = runFallowCommand('dupes');
-  const groups = (data?.clone_groups as Array<{ duplicated_tokens?: number; instances?: Array<{ path?: string; file?: string; line?: number; start_line?: number }> }>) || [];
+  const groups = (data?.clone_groups as Array<{ duplicated_tokens?: number; token_count?: number; instances?: Array<{ path?: string; file?: string; line?: number; start_line?: number }> }>) || [];
 
   if (json) {
     console.log(JSON.stringify({ totalGroups: groups.length, groups: groups.slice(0, top) }, null, 2));
@@ -115,7 +118,7 @@ function reportDupes(top: number, json: boolean): void {
   ];
 
   const dupeRows: DupeRow[] = groups.slice(0, top).map((g, idx) => {
-    const tokens = g.duplicated_tokens || 0;
+    const tokens = g.token_count || g.duplicated_tokens || 0;
     const instances = g.instances || [];
     const isTriplicate = instances.length >= 3;
     const typeLabel = isTriplicate ? styleText('yellow', 'TRIPLICADO ⚠️') : styleText('cyan', 'DUPLICADO');
@@ -181,168 +184,251 @@ function reportSecurity(top: number, json: boolean): void {
   console.log('');
 }
 
-function reportDeadCode(top: number, json: boolean): void {
-  const data = runFallowCommand('dead-code');
-  const unusedFiles = (data?.unused_files as Array<{ path: string }>) || [];
-  const unusedExports = (data?.unused_exports as Array<{ path: string; line: number; export_name: string }>) || [];
-  const unusedDeps = (data?.unused_dependencies as Array<{ package_name: string }>) || [];
-  const circular = (data?.circular_dependencies as Array<{ path?: string; cycle?: string[]; files?: string[] }>) || [];
-  const unusedStoreMembers = (data?.unused_store_members as Array<{ path: string; parent_name: string; member_name: string; line: number }>) || [];
-  const unusedClassMembers = (data?.unused_class_members as Array<{ path: string; parent_name: string; member_name: string; line: number }>) || [];
-  const unusedTypes = (data?.unused_types as Array<{ path: string; export_name: string; line: number }>) || [];
-  const unusedEmits = (data?.unused_component_emits as Array<{ path: string; component_name: string; emit_name: string; line: number }>) || [];
-  const unlistedDeps = (data?.unlisted_dependencies as Array<{ package_name: string; imported_from?: Array<{ path: string; line: number }> }>) || [];
-  const duplicateExports = (data?.duplicate_exports as Array<{ export_name: string; locations?: Array<{ path: string; line: number }> }>) || [];
-  const boundaryViolations = (data?.boundary_violations as Array<{ from_path?: string; to_path?: string; from_zone?: string; to_zone?: string; import_specifier?: string; line?: number }>) || [];
-  const unusedProps = (data?.unused_component_props as Array<{ path: string; component_name: string; prop_name: string; line: number }>) || [];
-  const unrenderedComponents = (data?.unrendered_components as Array<{ path: string; component_name: string; line: number }>) || [];
-  const unprovidedInjects = (data?.unprovided_injects as Array<{ path: string; inject_key: string; line: number }>) || [];
+interface FallowCycleItem {
+  path?: string;
+  cycle?: string[];
+  files?: string[];
+}
 
-  const totalGranular = unusedFiles.length + unusedExports.length + unusedDeps.length + circular.length +
-    unusedStoreMembers.length + unusedClassMembers.length + unusedTypes.length +
-    unusedEmits.length + unlistedDeps.length + duplicateExports.length +
-    boundaryViolations.length + unusedProps.length + unrenderedComponents.length + unprovidedInjects.length;
+function formatCycleString(c: FallowCycleItem): string {
+  const filesList = (Array.isArray(c.files) && c.files.length > 0) ? c.files : (Array.isArray(c.cycle) ? c.cycle : []);
+  return filesList.length > 0 ? filesList.join(' → ') : (c.path || '');
+}
 
-  if (json) {
-    console.log(JSON.stringify({
-      totalIssues: totalGranular,
-      unusedFilesCount: unusedFiles.length,
-      unusedExportsCount: unusedExports.length,
-      unusedDepsCount: unusedDeps.length,
-      circularDepsCount: circular.length,
-      unusedStoreMembersCount: unusedStoreMembers.length,
-      unusedClassMembersCount: unusedClassMembers.length,
-      unusedTypesCount: unusedTypes.length,
-      unusedEmitsCount: unusedEmits.length,
-      unlistedDepsCount: unlistedDeps.length,
-      duplicateExportsCount: duplicateExports.length,
-      boundaryViolationsCount: boundaryViolations.length,
-      unusedPropsCount: unusedProps.length,
-      unrenderedComponentsCount: unrenderedComponents.length,
-      unprovidedInjectsCount: unprovidedInjects.length,
-      unusedFiles: unusedFiles.slice(0, top),
-      unusedExports: unusedExports.slice(0, top),
-      unusedStoreMembers: unusedStoreMembers.slice(0, top),
-      unusedClassMembers: unusedClassMembers.slice(0, top),
-      unusedTypes: unusedTypes.slice(0, top),
-      unusedEmits: unusedEmits.slice(0, top),
-      unlistedDeps: unlistedDeps.slice(0, top),
-      duplicateExports: duplicateExports.slice(0, top),
-      boundaryViolations,
-      unusedProps: unusedProps.slice(0, top),
-      unrenderedComponents: unrenderedComponents.slice(0, top),
-      unprovidedInjects: unprovidedInjects.slice(0, top),
-      unusedDeps,
-      circular
-    }, null, 2));
-    return;
-  }
+function printCircularCycles(circular: readonly FallowCycleItem[]): void {
+  circular.forEach((c, idx) => {
+    console.log(`  [${idx + 1}] ${formatCycleString(c)}`);
+  });
+}
 
-  console.log('\n' + renderBanner('CÓDIGO MUERTO Y DEPENDENCIAS (FALLOW)', `Total de incidencias: ${totalGranular}`));
+interface DeadCodeReportData {
+  unusedFiles: Array<{ path: string }>;
+  unusedExports: Array<{ path: string; line: number; export_name: string }>;
+  unusedDeps: Array<{ package_name: string }>;
+  circular: Array<FallowCycleItem>;
+  unusedStoreMembers: Array<{ path: string; parent_name: string; member_name: string; line: number }>;
+  unusedClassMembers: Array<{ path: string; parent_name: string; member_name: string; line: number }>;
+  unusedTypes: Array<{ path: string; export_name: string; line: number }>;
+  unusedEmits: Array<{ path: string; component_name: string; emit_name: string; line: number }>;
+  unlistedDeps: Array<{ package_name: string; imported_from?: Array<{ path: string; line: number }> }>;
+  duplicateExports: Array<{ export_name: string; locations?: Array<{ path: string; line: number }> }>;
+  boundaryViolations: Array<{ from_path?: string; to_path?: string; from_zone?: string; to_zone?: string; import_specifier?: string; line?: number }>;
+  unusedProps: Array<{ path: string; component_name: string; prop_name: string; line: number }>;
+  unrenderedComponents: Array<{ path: string; component_name: string; line: number }>;
+  unprovidedInjects: Array<{ path: string; inject_key: string; line: number }>;
+  unresolvedImports: Array<{ path: string; specifier: string; line: number }>;
+  totalGranular: number;
+}
 
-  interface DeadCodeSummaryRow {
-    category: string;
-    count: string;
-    status: string;
-  }
+function getArrayField<T>(data: Record<string, unknown> | null, field: string): T[] {
+  if (!data) return [];
+  const val = data[field];
+  return Array.isArray(val) ? (val as T[]) : [];
+}
 
+function parseDeadCodeStructural(data: Record<string, unknown> | null) {
+  return {
+    unusedFiles: getArrayField<{ path: string }>(data, 'unused_files'),
+    unusedExports: getArrayField<{ path: string; line: number; export_name: string }>(data, 'unused_exports'),
+    unusedDeps: getArrayField<{ package_name: string }>(data, 'unused_dependencies'),
+    circular: getArrayField<FallowCycleItem>(data, 'circular_dependencies'),
+    boundaryViolations: getArrayField<{ from_path?: string; to_path?: string; from_zone?: string; to_zone?: string; import_specifier?: string; line?: number }>(data, 'boundary_violations'),
+    unresolvedImports: getArrayField<{ path: string; specifier: string; line: number }>(data, 'unresolved_imports')
+  };
+}
+
+function parseDeadCodeComponent(data: Record<string, unknown> | null) {
+  return {
+    unusedStoreMembers: getArrayField<{ path: string; parent_name: string; member_name: string; line: number }>(data, 'unused_store_members'),
+    unusedClassMembers: getArrayField<{ path: string; parent_name: string; member_name: string; line: number }>(data, 'unused_class_members'),
+    unusedTypes: getArrayField<{ path: string; export_name: string; line: number }>(data, 'unused_types'),
+    unusedEmits: getArrayField<{ path: string; component_name: string; emit_name: string; line: number }>(data, 'unused_component_emits'),
+    unlistedDeps: getArrayField<{ package_name: string; imported_from?: Array<{ path: string; line: number }> }>(data, 'unlisted_dependencies'),
+    duplicateExports: getArrayField<{ export_name: string; locations?: Array<{ path: string; line: number }> }>(data, 'duplicate_exports'),
+    unusedProps: getArrayField<{ path: string; component_name: string; prop_name: string; line: number }>(data, 'unused_component_props'),
+    unrenderedComponents: getArrayField<{ path: string; component_name: string; line: number }>(data, 'unrendered_components'),
+    unprovidedInjects: getArrayField<{ path: string; inject_key: string; line: number }>(data, 'unprovided_injects')
+  };
+}
+
+function parseDeadCodeReportData(data: Record<string, unknown> | null): DeadCodeReportData {
+  const structural = parseDeadCodeStructural(data);
+  const component = parseDeadCodeComponent(data);
+
+  const totalGranular =
+    structural.unusedFiles.length +
+    structural.unusedExports.length +
+    structural.unusedDeps.length +
+    structural.circular.length +
+    structural.boundaryViolations.length +
+    component.unusedStoreMembers.length +
+    component.unusedClassMembers.length +
+    component.unusedTypes.length +
+    component.unusedEmits.length +
+    component.unlistedDeps.length +
+    component.duplicateExports.length +
+    component.unusedProps.length +
+    component.unrenderedComponents.length +
+    component.unprovidedInjects.length;
+
+  return {
+    ...structural,
+    ...component,
+    totalGranular
+  };
+}
+
+function renderDeadCodeJson(report: DeadCodeReportData, top: number): void {
+  console.log(JSON.stringify({
+    totalIssues: report.totalGranular,
+    unusedFilesCount: report.unusedFiles.length,
+    unusedExportsCount: report.unusedExports.length,
+    unusedDepsCount: report.unusedDeps.length,
+    circularDepsCount: report.circular.length,
+    unusedStoreMembersCount: report.unusedStoreMembers.length,
+    unusedClassMembersCount: report.unusedClassMembers.length,
+    unusedTypesCount: report.unusedTypes.length,
+    unusedEmitsCount: report.unusedEmits.length,
+    unlistedDepsCount: report.unlistedDeps.length,
+    duplicateExportsCount: report.duplicateExports.length,
+    boundaryViolationsCount: report.boundaryViolations.length,
+    unusedPropsCount: report.unusedProps.length,
+    unrenderedComponentsCount: report.unrenderedComponents.length,
+    unprovidedInjectsCount: report.unprovidedInjects.length,
+    unusedFiles: report.unusedFiles.slice(0, top),
+    unusedExports: report.unusedExports.slice(0, top),
+    unusedStoreMembers: report.unusedStoreMembers.slice(0, top),
+    unusedClassMembers: report.unusedClassMembers.slice(0, top),
+    unusedTypes: report.unusedTypes.slice(0, top),
+    unusedEmits: report.unusedEmits.slice(0, top),
+    unlistedDeps: report.unlistedDeps.slice(0, top),
+    duplicateExports: report.duplicateExports.slice(0, top),
+    boundaryViolations: report.boundaryViolations,
+    unusedProps: report.unusedProps.slice(0, top),
+    unrenderedComponents: report.unrenderedComponents.slice(0, top),
+    unprovidedInjects: report.unprovidedInjects.slice(0, top),
+    unusedDeps: report.unusedDeps,
+    circular: report.circular
+  }, null, 2));
+}
+
+interface DeadCodeSummaryRow {
+  category: string;
+  count: string;
+  status: string;
+}
+
+function renderDeadCodeSummaryTable(report: DeadCodeReportData): void {
   const deadCodeCols: readonly TableColumn<DeadCodeSummaryRow>[] = [
     { header: 'CATEGORÍA / TIPO DE HALLAZGO', width: 49, align: 'left', key: 'category' },
     { header: 'INCIDENCIAS', width: 13, align: 'right', key: 'count' },
     { header: 'ESTADO', width: 8, align: 'center', key: 'status' }
   ];
 
-  const unresolvedImports = (data?.unresolved_imports as Array<{ path: string; specifier: string; line: number }>) || [];
-
   const deadCodeRows: DeadCodeSummaryRow[] = [
-    { category: 'Dependencias circulares', count: String(circular.length), status: circular.length === 0 ? '✅' : '❌' },
-    { category: 'Límites arquitectónicos', count: String(boundaryViolations.length), status: boundaryViolations.length === 0 ? '✅' : '❌' },
-    { category: 'Archivos huérfanos', count: String(unusedFiles.length), status: unusedFiles.length === 0 ? '✅' : '❌' },
-    { category: 'Imports no resueltos', count: String(unresolvedImports.length), status: unresolvedImports.length === 0 ? '✅' : '⚠️' },
-    { category: 'Dependencias no usadas', count: String(unusedDeps.length), status: unusedDeps.length === 0 ? '✅' : '⚠️' },
-    { category: 'Exports de valor no usados', count: String(unusedExports.length), status: unusedExports.length === 0 ? '✅' : '⚠️' },
-    { category: 'Miembros de Store no usados', count: String(unusedStoreMembers.length), status: unusedStoreMembers.length === 0 ? '✅' : '⚠️' },
-    { category: 'Miembros de Clase no usados', count: String(unusedClassMembers.length), status: unusedClassMembers.length === 0 ? '✅' : '⚠️' },
-    { category: 'Tipos exportados no usados', count: String(unusedTypes.length), status: unusedTypes.length === 0 ? '✅' : '⚠️' },
-    { category: 'Dependencias no listadas', count: String(unlistedDeps.length), status: unlistedDeps.length === 0 ? '✅' : '⚠️' },
-    { category: 'Exports duplicados', count: String(duplicateExports.length), status: duplicateExports.length === 0 ? '✅' : '⚠️' },
-    { category: 'Emits de componentes (Vue)', count: String(unusedEmits.length), status: unusedEmits.length === 0 ? '✅' : '⚠️' },
-    { category: 'Props no usados (Vue SFC)', count: String(unusedProps.length), status: unusedProps.length === 0 ? '✅' : '⚠️' },
-    { category: 'Componentes no renderizados', count: String(unrenderedComponents.length), status: unrenderedComponents.length === 0 ? '✅' : '⚠️' },
-    { category: 'Inyecciones no provistas', count: String(unprovidedInjects.length), status: unprovidedInjects.length === 0 ? '✅' : '⚠️' }
+    { category: 'Dependencias circulares', count: String(report.circular.length), status: report.circular.length === 0 ? '✅' : '❌' },
+    { category: 'Límites arquitectónicos', count: String(report.boundaryViolations.length), status: report.boundaryViolations.length === 0 ? '✅' : '❌' },
+    { category: 'Archivos huérfanos', count: String(report.unusedFiles.length), status: report.unusedFiles.length === 0 ? '✅' : '❌' },
+    { category: 'Imports no resueltos', count: String(report.unresolvedImports.length), status: report.unresolvedImports.length === 0 ? '✅' : '⚠️' },
+    { category: 'Dependencias no usadas', count: String(report.unusedDeps.length), status: report.unusedDeps.length === 0 ? '✅' : '⚠️' },
+    { category: 'Exports de valor no usados', count: String(report.unusedExports.length), status: report.unusedExports.length === 0 ? '✅' : '⚠️' },
+    { category: 'Miembros de Store no usados', count: String(report.unusedStoreMembers.length), status: report.unusedStoreMembers.length === 0 ? '✅' : '⚠️' },
+    { category: 'Miembros de Clase no usados', count: String(report.unusedClassMembers.length), status: report.unusedClassMembers.length === 0 ? '✅' : '⚠️' },
+    { category: 'Tipos exportados no usados', count: String(report.unusedTypes.length), status: report.unusedTypes.length === 0 ? '✅' : '⚠️' },
+    { category: 'Dependencias no listadas', count: String(report.unlistedDeps.length), status: report.unlistedDeps.length === 0 ? '✅' : '⚠️' },
+    { category: 'Exports duplicados', count: String(report.duplicateExports.length), status: report.duplicateExports.length === 0 ? '✅' : '⚠️' },
+    { category: 'Emits de componentes (Vue)', count: String(report.unusedEmits.length), status: report.unusedEmits.length === 0 ? '✅' : '⚠️' },
+    { category: 'Props no usados (Vue SFC)', count: String(report.unusedProps.length), status: report.unusedProps.length === 0 ? '✅' : '⚠️' },
+    { category: 'Componentes no renderizados', count: String(report.unrenderedComponents.length), status: report.unrenderedComponents.length === 0 ? '✅' : '⚠️' },
+    { category: 'Inyecciones no provistas', count: String(report.unprovidedInjects.length), status: report.unprovidedInjects.length === 0 ? '✅' : '⚠️' }
   ];
 
   console.log('\n' + renderBoxTable(deadCodeCols, deadCodeRows));
+}
 
-  if (boundaryViolations.length > 0) {
+function printDeadCodeStructural(report: DeadCodeReportData, top: number): void {
+  if (report.boundaryViolations.length > 0) {
     console.log('\n🚨 Violaciones de Límites Arquitectónicos:');
-    boundaryViolations.forEach((b, idx) => {
+    report.boundaryViolations.forEach((b, idx) => {
       console.log(`  [${idx + 1}] '${b.from_zone}' -> '${b.to_zone}' en ${b.from_path}:${b.line}`);
       console.log(`       Import: ${b.import_specifier || b.to_path}`);
     });
   }
 
-  if (circular.length > 0) {
+  if (report.circular.length > 0) {
     console.log('\n🔄 Dependencias Circulares Críticas:');
-    circular.forEach((c, idx) => {
-      const filesList = (Array.isArray(c.files) && c.files.length > 0) ? c.files : (Array.isArray(c.cycle) ? c.cycle : []);
-      const cycleStr = filesList.length > 0 ? filesList.join(' → ') : (c.path || '');
-      console.log(`  [${idx + 1}] ${cycleStr}`);
-    });
+    printCircularCycles(report.circular);
   }
 
-  if (unusedFiles.length > 0) {
-    console.log(`\n🗑️ Archivos Huérfanos (${unusedFiles.length}):`);
-    unusedFiles.slice(0, top).forEach((f, idx) => console.log(`  [${idx + 1}] ${f.path}`));
+  if (report.unusedFiles.length > 0) {
+    console.log(`\n🗑️ Archivos Huérfanos (${report.unusedFiles.length}):`);
+    report.unusedFiles.slice(0, top).forEach((f, idx) => console.log(`  [${idx + 1}] ${f.path}`));
   }
 
-  if (unusedDeps.length > 0) {
-    console.log(`\n📦 Dependencias de package.json no usadas (${unusedDeps.length}):`);
-    unusedDeps.forEach(d => console.log(`  • ${d.package_name}`));
+  if (report.unusedDeps.length > 0) {
+    console.log(`\n📦 Dependencias de package.json no usadas (${report.unusedDeps.length}):`);
+    report.unusedDeps.forEach(d => console.log(`  • ${d.package_name}`));
   }
 
-  if (duplicateExports.length > 0) {
-    console.log(`\n📤 Exports Duplicados (${duplicateExports.length}):`);
-    duplicateExports.forEach((d, idx) => {
+  if (report.duplicateExports.length > 0) {
+    console.log(`\n📤 Exports Duplicados (${report.duplicateExports.length}):`);
+    report.duplicateExports.forEach((d, idx) => {
       const locs = d.locations?.map(l => `${l.path}:${l.line}`).join(', ') || '';
       console.log(`  [${idx + 1}] '${d.export_name}' en: ${locs}`);
     });
   }
 
-  if (unlistedDeps.length > 0) {
-    console.log(`\n📦 Dependencias No Listadas en package.json (${unlistedDeps.length}):`);
-    unlistedDeps.forEach((d, idx) => {
+  if (report.unlistedDeps.length > 0) {
+    console.log(`\n📦 Dependencias No Listadas en package.json (${report.unlistedDeps.length}):`);
+    report.unlistedDeps.forEach((d, idx) => {
       const firstLoc = d.imported_from?.[0] ? ` (importada en ${d.imported_from[0].path}:${d.imported_from[0].line})` : '';
       console.log(`  [${idx + 1}] '${d.package_name}'${firstLoc}`);
     });
   }
+}
 
-  if (unusedEmits.length > 0) {
-    console.log(`\n🔔 Emits de Componente No Usados (${unusedEmits.length}):`);
-    unusedEmits.forEach((e, idx) => {
+function printDeadCodeSymbols(report: DeadCodeReportData, top: number): void {
+  if (report.unusedEmits.length > 0) {
+    console.log(`\n🔔 Emits de Componente No Usados (${report.unusedEmits.length}):`);
+    report.unusedEmits.forEach((e, idx) => {
       console.log(`  [${idx + 1}] ${e.path}:${e.line} -> '${e.component_name}' emit '${e.emit_name}'`);
     });
   }
 
-  if (unusedStoreMembers.length > 0) {
-    console.log(`\n🏬 Top Miembros de Store No Usados (${Math.min(top, unusedStoreMembers.length)} de ${unusedStoreMembers.length}):`);
-    unusedStoreMembers.slice(0, top).forEach((sm, idx) => console.log(`  [${idx + 1}] ${sm.path}:${sm.line} -> ${sm.parent_name}.${sm.member_name}`));
+  if (report.unusedStoreMembers.length > 0) {
+    console.log(`\n🏬 Top Miembros de Store No Usados (${Math.min(top, report.unusedStoreMembers.length)} de ${report.unusedStoreMembers.length}):`);
+    report.unusedStoreMembers.slice(0, top).forEach((sm, idx) => console.log(`  [${idx + 1}] ${sm.path}:${sm.line} -> ${sm.parent_name}.${sm.member_name}`));
   }
 
-  if (unusedClassMembers.length > 0) {
-    console.log(`\n🏛️ Top Miembros de Clase No Usados (${Math.min(top, unusedClassMembers.length)} de ${unusedClassMembers.length}):`);
-    unusedClassMembers.slice(0, top).forEach((cm, idx) => console.log(`  [${idx + 1}] ${cm.path}:${cm.line} -> ${cm.parent_name}.${cm.member_name}`));
+  if (report.unusedClassMembers.length > 0) {
+    console.log(`\n🏛️ Top Miembros de Clase No Usados (${Math.min(top, report.unusedClassMembers.length)} de ${report.unusedClassMembers.length}):`);
+    report.unusedClassMembers.slice(0, top).forEach((cm, idx) => console.log(`  [${idx + 1}] ${cm.path}:${cm.line} -> ${cm.parent_name}.${cm.member_name}`));
   }
 
-  if (unusedTypes.length > 0) {
-    console.log(`\n🏷️ Top Tipos Exportados No Usados (${Math.min(top, unusedTypes.length)} de ${unusedTypes.length}):`);
-    unusedTypes.slice(0, top).forEach((ut, idx) => console.log(`  [${idx + 1}] ${ut.path}:${ut.line} -> type '${ut.export_name}'`));
+  if (report.unusedTypes.length > 0) {
+    console.log(`\n🏷️ Top Tipos Exportados No Usados (${Math.min(top, report.unusedTypes.length)} de ${report.unusedTypes.length}):`);
+    report.unusedTypes.slice(0, top).forEach((ut, idx) => console.log(`  [${idx + 1}] ${ut.path}:${ut.line} -> type '${ut.export_name}'`));
   }
 
-  if (unusedExports.length > 0) {
-    console.log(`\n📤 Top Exports de Valor No Usados (${Math.min(top, unusedExports.length)} de ${unusedExports.length}):`);
-    unusedExports.slice(0, top).forEach((x, idx) => console.log(`  [${idx + 1}] ${x.path}:${x.line} -> export '${x.export_name}'`));
+  if (report.unusedExports.length > 0) {
+    console.log(`\n📤 Top Exports de Valor No Usados (${Math.min(top, report.unusedExports.length)} de ${report.unusedExports.length}):`);
+    report.unusedExports.slice(0, top).forEach((x, idx) => console.log(`  [${idx + 1}] ${x.path}:${x.line} -> export '${x.export_name}'`));
   }
+}
+
+function reportDeadCode(top: number, json: boolean): void {
+  const data = runFallowCommand('dead-code');
+  const report = parseDeadCodeReportData(data);
+
+  if (json) {
+    renderDeadCodeJson(report, top);
+    return;
+  }
+
+  console.log('\n' + renderBanner('CÓDIGO MUERTO Y DEPENDENCIAS (FALLOW)', `Total de incidencias: ${report.totalGranular}`));
+  renderDeadCodeSummaryTable(report);
+  printDeadCodeStructural(report, top);
+  printDeadCodeSymbols(report, top);
   console.log('');
 }
 
@@ -363,11 +449,7 @@ function reportCircular(json: boolean): void {
   }
 
   console.log('\n🔄 Ciclos Detectados:\n');
-  circular.forEach((c, idx) => {
-    const filesList = (Array.isArray(c.files) && c.files.length > 0) ? c.files : (Array.isArray(c.cycle) ? c.cycle : []);
-    const cycleStr = filesList.length > 0 ? filesList.join(' → ') : (c.path || '');
-    console.log(`  [${idx + 1}] ${cycleStr}`);
-  });
+  printCircularCycles(circular);
   console.log('');
 }
 
@@ -452,60 +534,117 @@ function reportBoundaries(json: boolean): void {
   console.log('');
 }
 
-function reportAllSummary(json: boolean): void {
-  const healthData = runFallowCommand('health');
-  const deadCodeData = runFallowCommand('dead-code');
+interface FallowSummaryMetrics {
+  maintainability: number;
+  totalWarnings: number;
+  complexityCount: number;
+  largeCount: number;
+  targetsCount: number;
+  hotspotsCount: number;
+  circularCount: number;
+  boundaryCount: number;
+  unusedFilesCount: number;
+  unusedExportsCount: number;
+  unresolvedImportsCount: number;
+  unusedDepsCount: number;
+  dupeGroupsCount: number;
+  securityCount: number;
+}
+
+function countArrayItems(record: Record<string, unknown> | null, key: string): number {
+  if (!record) return 0;
+  const val = record[key];
+  return Array.isArray(val) ? val.length : 0;
+}
+
+function extractHealthMetrics(healthData: Record<string, unknown> | null): {
+  maintainability: number;
+  complexityCount: number;
+  largeCount: number;
+  targetsCount: number;
+  hotspotsCount: number;
+} {
+  const summaryObj = (healthData && typeof healthData.summary === 'object' && healthData.summary !== null)
+    ? healthData.summary as Record<string, number>
+    : null;
+  const maintainability = summaryObj?.average_maintainability ?? summaryObj?.maintainability_index ?? 0;
+  return {
+    maintainability,
+    complexityCount: countArrayItems(healthData, 'findings'),
+    largeCount: countArrayItems(healthData, 'large_functions'),
+    targetsCount: countArrayItems(healthData, 'targets'),
+    hotspotsCount: countArrayItems(healthData, 'hotspots')
+  };
+}
+
+function extractDeadCodeMetrics(deadCodeData: Record<string, unknown> | null): {
+  circularCount: number;
+  boundaryCount: number;
+  unusedFilesCount: number;
+  unusedExportsCount: number;
+  unresolvedImportsCount: number;
+  unusedDepsCount: number;
+} {
+  const unusedDeps = countArrayItems(deadCodeData, 'unused_dependencies') + countArrayItems(deadCodeData, 'unused_dev_dependencies');
+  return {
+    circularCount: countArrayItems(deadCodeData, 'circular_dependencies'),
+    boundaryCount: countArrayItems(deadCodeData, 'boundary_violations'),
+    unusedFilesCount: countArrayItems(deadCodeData, 'unused_files'),
+    unusedExportsCount: countArrayItems(deadCodeData, 'unused_exports'),
+    unresolvedImportsCount: countArrayItems(deadCodeData, 'unresolved_imports'),
+    unusedDepsCount: unusedDeps
+  };
+}
+
+function collectSummaryMetrics(): FallowSummaryMetrics {
+  const health = extractHealthMetrics(runFallowCommand('health'));
+  const deadCode = extractDeadCodeMetrics(runFallowCommand('dead-code'));
   const dupesData = runFallowCommand('dupes');
   const securityData = runFallowCommand('security');
-
-  const summaryObj = healthData?.summary as { average_maintainability?: number; maintainability_index?: number } | undefined;
-  const maintainability = summaryObj?.average_maintainability ?? summaryObj?.maintainability_index ?? 0;
-  const complexityCount = (healthData?.findings as Array<unknown>)?.length ?? 0;
-  const largeCount = (healthData?.large_functions as Array<unknown>)?.length ?? 0;
-  const targetsCount = (healthData?.targets as Array<unknown>)?.length ?? 0;
-  const hotspotsCount = (healthData?.hotspots as Array<unknown>)?.length ?? 0;
-
-  const circularCount = (deadCodeData?.circular_dependencies as Array<unknown>)?.length ?? 0;
-  const boundaryCount = (deadCodeData?.boundary_violations as Array<unknown>)?.length ?? 0;
-  const unusedFilesCount = (deadCodeData?.unused_files as Array<unknown>)?.length ?? 0;
-  const unusedExportsCount = (deadCodeData?.unused_exports as Array<unknown>)?.length ?? 0;
-  const unresolvedImportsCount = (deadCodeData?.unresolved_imports as Array<unknown>)?.length ?? 0;
-  const unusedDepsCount = ((deadCodeData?.unused_dependencies as Array<unknown>)?.length ?? 0) + ((deadCodeData?.unused_dev_dependencies as Array<unknown>)?.length ?? 0);
 
   const dupeGroupsCount = (dupesData?.clone_groups as Array<unknown>)?.length ?? 0;
   const securityCount = (securityData?.security_findings as Array<unknown>)?.length ?? 0;
 
-  const totalWarnings = complexityCount + largeCount + targetsCount + unusedFilesCount + unusedExportsCount + unresolvedImportsCount + unusedDepsCount + dupeGroupsCount + securityCount;
+  const totalWarnings = health.complexityCount + health.largeCount + health.targetsCount + deadCode.unusedFilesCount + deadCode.unusedExportsCount + deadCode.unresolvedImportsCount + deadCode.unusedDepsCount + dupeGroupsCount + securityCount;
 
-  if (json) {
-    console.log(JSON.stringify({
-      maintainability,
-      totalQualityIndicators: totalWarnings,
-      health: {
-        complexityHotspots: complexityCount,
-        largeFunctions: largeCount,
-        refactoringTargets: targetsCount,
-        churnHotspots: hotspotsCount
-      },
-      deadCode: {
-        circularDependencies: circularCount,
-        boundaryViolations: boundaryCount,
-        unusedFiles: unusedFilesCount,
-        unusedExports: unusedExportsCount,
-        unresolvedImports: unresolvedImportsCount,
-        unusedDependencies: unusedDepsCount
-      },
-      dupes: {
-        cloneGroups: dupeGroupsCount
-      },
-      security: {
-        findings: securityCount
-      }
-    }, null, 2));
-    return;
-  }
+  return {
+    ...health,
+    ...deadCode,
+    dupeGroupsCount,
+    securityCount,
+    totalWarnings
+  };
+}
 
-  const maintStr = maintainability > 0 ? `${maintainability.toFixed(1)} / 100` : '-';
+function printJsonSummary(m: FallowSummaryMetrics): void {
+  console.log(JSON.stringify({
+    maintainability: m.maintainability,
+    totalQualityIndicators: m.totalWarnings,
+    health: {
+      complexityHotspots: m.complexityCount,
+      largeFunctions: m.largeCount,
+      refactoringTargets: m.targetsCount,
+      churnHotspots: m.hotspotsCount
+    },
+    deadCode: {
+      circularDependencies: m.circularCount,
+      boundaryViolations: m.boundaryCount,
+      unusedFiles: m.unusedFilesCount,
+      unusedExports: m.unusedExportsCount,
+      unresolvedImports: m.unresolvedImportsCount,
+      unusedDependencies: m.unusedDepsCount
+    },
+    dupes: {
+      cloneGroups: m.dupeGroupsCount
+    },
+    security: {
+      findings: m.securityCount
+    }
+  }, null, 2));
+}
+
+function printTableSummary(m: FallowSummaryMetrics): void {
+  const maintStr = m.maintainability > 0 ? `${m.maintainability.toFixed(1)} / 100` : '-';
   console.log('\n' + renderBanner('DASHBOARD DE INTELIGENCIA DE CÓDIGO (FALLOW)', `Índice de Mantenibilidad: ${maintStr}`));
 
   interface SummaryRow {
@@ -520,18 +659,18 @@ function reportAllSummary(json: boolean): void {
 
   const sumRows: SummaryRow[] = [
     { metric: 'Índice de mantenibilidad del código (Fallow)', value: maintStr },
-    { metric: 'Funciones con alta complejidad (cognitiva/ciclomática)', value: String(complexityCount) },
-    { metric: 'Funciones de gran tamaño (>60 LOC)', value: String(largeCount) },
-    { metric: 'Archivos con alta rotación / churn hotspots', value: String(hotspotsCount) },
-    { metric: 'Objetivos de refactorización recomendados', value: String(targetsCount) },
-    { metric: 'Archivos huérfanos / no alcanzados', value: String(unusedFilesCount) },
-    { metric: 'Exportaciones de valor no usadas', value: String(unusedExportsCount) },
-    { metric: 'Imports no resueltos', value: String(unresolvedImportsCount) },
-    { metric: 'Dependencias de package.json no usadas', value: String(unusedDepsCount) },
-    { metric: 'Dependencias circulares críticas', value: String(circularCount) },
-    { metric: 'Violaciones de límites arquitectónicos', value: String(boundaryCount) },
-    { metric: 'Bloques de código duplicados / clonados', value: String(dupeGroupsCount) },
-    { metric: 'Candidatos de seguridad (CWE en src/)', value: String(securityCount) }
+    { metric: 'Funciones con alta complejidad (cognitiva/ciclomática)', value: String(m.complexityCount) },
+    { metric: 'Funciones de gran tamaño (>60 LOC)', value: String(m.largeCount) },
+    { metric: 'Archivos con alta rotación / churn hotspots', value: String(m.hotspotsCount) },
+    { metric: 'Objetivos de refactorización recomendados', value: String(m.targetsCount) },
+    { metric: 'Archivos huérfanos / no alcanzados', value: String(m.unusedFilesCount) },
+    { metric: 'Exportaciones de valor no usadas', value: String(m.unusedExportsCount) },
+    { metric: 'Imports no resueltos', value: String(m.unresolvedImportsCount) },
+    { metric: 'Dependencias de package.json no usadas', value: String(m.unusedDepsCount) },
+    { metric: 'Dependencias circulares críticas', value: String(m.circularCount) },
+    { metric: 'Violaciones de límites arquitectónicos', value: String(m.boundaryCount) },
+    { metric: 'Bloques de código duplicados / clonados', value: String(m.dupeGroupsCount) },
+    { metric: 'Candidatos de seguridad (CWE en src/)', value: String(m.securityCount) }
   ];
 
   console.log('\n' + renderBoxTable(sumCols, sumRows));
@@ -548,6 +687,16 @@ function reportAllSummary(json: boolean): void {
   console.log('  • npm run audit                    → Suite de auditoría unificada');
   console.log('─────────────────────────────────────────────────────────────────────────────\n');
 }
+
+function reportAllSummary(json: boolean): void {
+  const metrics = collectSummaryMetrics();
+  if (json) {
+    printJsonSummary(metrics);
+  } else {
+    printTableSummary(metrics);
+  }
+}
+
 
 function executeComplexityReport(jsonOutput: boolean): void {
   const currentDir = import.meta.filename ? path.dirname(import.meta.filename) : path.resolve(process.cwd(), 'src/cli');

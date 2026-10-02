@@ -24,5 +24,8 @@
     "markdownlint-cli",
     "rollup-plugin-visualizer",
     "typescript"
-  ]
+  ],
+  "health": {
+    "maxCrap": 0
+  }
 }

@@ -21,7 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
 
 enableCompileCache();
 
@@ -53,7 +54,7 @@ export interface ComponentStyleAuditResult {
   readonly passed: boolean;
 }
 
-const DEFAULT_CANONICAL_BUTTON_VARIANTS = new Set([ // runtime-set: Fast O(1) membership lookup set
+const DEFAULT_CANONICAL_BUTTON_VARIANTS = new Set([
   'btn-primary',
   'btn-secondary',
   'btn-dark',
@@ -77,18 +78,6 @@ function getEffectiveCanonicalButtonVariants(): ReadonlySet<string> {
   return DEFAULT_CANONICAL_BUTTON_VARIANTS;
 }
 
-const DEFAULT_GLOBAL_UTILITY_CLASSES = new Set([ // runtime-set: Fast O(1) membership lookup set
-  'clickable', 'flex', 'hidden', 'active', 'disabled',
-  'w-full', 'h-full', 'truncate', 'pointer-events-none', 'pointer-events-auto', 'select-none',
-  'custom-scrollbar', 'empty-state', 'scrollable-content', 'modal-footer', 'emoji',
-  'tabular-nums'
-]);
-
-function getEffectiveGlobalUtilityClasses(): ReadonlySet<string> {
-  const config = getAuditConfig();
-  const configured = config.styles?.globalUtilityClasses ?? [];
-  return new Set([...DEFAULT_GLOBAL_UTILITY_CLASSES, ...configured]);
-}
 
 /**
  * Standard SASS candidate resolution
@@ -125,6 +114,292 @@ function resolveSassPath(importPath: string, fromFile: string, srcDir: string): 
   return null;
 }
 
+function isCustomCandidateClass(c: string, globalUtilityClasses: ReadonlySet<string>): boolean {
+  return (
+    !c.startsWith('var(') &&
+    !c.includes('{') &&
+    !c.includes('}') &&
+    !c.startsWith(':') &&
+    !c.includes('[') &&
+    !c.includes(']') &&
+    !c.includes('(') &&
+    !c.includes(')') &&
+    !globalUtilityClasses.has(c)
+  );
+}
+
+interface ScssTracker {
+  importedScssFiles: Set<string>;
+  trackScssFile: (filePath: string) => void;
+}
+
+function createScssTracker(srcDir: string): ScssTracker {
+  const importedScssFiles = new Set<string>();
+
+  const trackScssFile = (filePath: string): void => {
+    const normalized = path.normalize(filePath);
+    if (importedScssFiles.has(normalized)) return;
+    importedScssFiles.add(normalized);
+
+    if (fs.existsSync(normalized)) {
+      const content = fs.readFileSync(normalized, 'utf-8');
+      const matches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']/g);
+      for (const m of matches) {
+        const importTarget = m[1]!;
+        const resolved = resolveSassPath(importTarget, normalized, srcDir);
+        if (resolved) {
+          trackScssFile(resolved);
+        }
+      }
+    }
+  };
+
+  return { importedScssFiles, trackScssFile };
+}
+
+function seedRootScssGraph(
+  stylesRoots: readonly string[],
+  projectRoot: string,
+  trackScssFile: (p: string) => void
+): void {
+  for (const sRoot of stylesRoots) {
+    const candidates = [
+      path.join(projectRoot, sRoot, '_index.scss'),
+      path.join(projectRoot, sRoot, 'index.scss'),
+      path.join(projectRoot, sRoot, 'main.scss')
+    ];
+    for (const cand of candidates) {
+      if (fs.existsSync(cand)) {
+        trackScssFile(cand);
+      }
+    }
+  }
+}
+
+function auditStyleLinkage(
+  file: string,
+  relPath: string,
+  content: string,
+  srcDir: string,
+  trackScssFile: (p: string) => void,
+  auditor: ComponentStylesAuditor
+): void {
+  const scssMatches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']|src=["']([^"']+\.scss)["']/g);
+  for (const m of scssMatches) {
+    const importTarget = m[1] || m[2];
+    if (importTarget) {
+      const resolved = resolveSassPath(importTarget, file, srcDir);
+      if (resolved) trackScssFile(resolved);
+    }
+  }
+
+  const styleSrcMatch = content.match(/<style[^>]*src=["']([^"']+)["']/i);
+  if (styleSrcMatch) {
+    const srcPath = styleSrcMatch[1]!;
+    const resolved = resolveSassPath(srcPath, file, srcDir);
+    if (!resolved) {
+      auditor.recordViolation(
+        {
+          file: relPath,
+          type: 'broken_style_link',
+          message: `Style src points to non-existent file: ${srcPath}`
+        },
+        'broken-style-link',
+        styleSrcMatch[0]
+      );
+    } else {
+      trackScssFile(resolved);
+    }
+  }
+
+  if (content.includes('style-inherited')) {
+    auditor.recordViolation(
+      {
+        file: relPath,
+        type: 'banned_style_inherited',
+        message: `Directiva ilegal '// ' + 'style-inherited' detectada. Los estilos scoped en Vue 3 no penetran a componentes hijos; cada SFC debe declarar o enlazar explícitamente sus propios estilos.`
+      },
+      'banned-style-inherited',
+      'style-inherited'
+    );
+  }
+}
+
+function checkButtonStyleOverrides(
+  relPath: string,
+  styleMatches: readonly RegExpExecArray[],
+  auditor: ComponentStylesAuditor
+): void {
+  for (const sm of styleMatches) {
+    const styleBody = sm[2] ?? '';
+    const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
+    if (btnSelectorMatch) {
+      auditor.recordViolation(
+        {
+          file: relPath,
+          type: 'ad_hoc_button_styles',
+          message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Todos los estilos de botón deben gobernarse de forma centralizada.`
+        },
+        'ad-hoc-button-styles',
+        btnSelectorMatch[1]!
+      );
+    }
+  }
+}
+
+function checkCanonicalButtonClasses(
+  relPath: string,
+  content: string,
+  canonicalButtonVariants: ReadonlySet<string>,
+  auditor: ComponentStylesAuditor
+): void {
+  const allClassMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
+  for (const cm of allClassMatches) {
+    const clsList = cm[1]!.split(/\s+/).filter(Boolean);
+    if (!clsList.includes('btn')) continue;
+
+    for (const c of clsList) {
+      if (c.startsWith('btn-') && !canonicalButtonVariants.has(c)) {
+        auditor.recordViolation(
+          {
+            file: relPath,
+            type: 'ad_hoc_button_styles',
+            message: `Clase de botón no canónica "${c}" detectada. Solo se permiten variantes canónicas configuradas (${Array.from(canonicalButtonVariants).join(', ')}).`
+          },
+          'ad-hoc-button-styles',
+          c
+        );
+      }
+    }
+  }
+}
+
+function auditButtonGovernance(
+  relPath: string,
+  content: string,
+  styleMatches: readonly RegExpExecArray[],
+  config: AuditEngineConfig,
+  auditor: ComponentStylesAuditor
+): void {
+  const isButtonGovActive = config.styles?.buttonGovernance?.enabled === true || Boolean(config.styles?.canonicalButtonVariants?.length);
+  if (!isButtonGovActive) return;
+
+  checkButtonStyleOverrides(relPath, styleMatches, auditor);
+
+  const canonicalButtonVariants = getEffectiveCanonicalButtonVariants();
+  if (canonicalButtonVariants.size > 0) {
+    checkCanonicalButtonClasses(relPath, content, canonicalButtonVariants, auditor);
+  }
+}
+
+function checkHasValidStyle(styleMatches: readonly RegExpExecArray[]): boolean {
+  return styleMatches.some(sm => {
+    const attrs = sm[1] ?? '';
+    const body = (sm[2] ?? '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '')
+      .trim();
+    return /\bsrc=["']/.test(attrs) || body.length > 0;
+  });
+}
+
+function extractCustomClasses(content: string, globalUtilityClasses: ReadonlySet<string>): string[] {
+  const customClasses: string[] = [];
+  const classMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
+  for (const m of classMatches) {
+    const clsList = m[1]!.split(/\s+/).filter(Boolean);
+    for (const c of clsList) {
+      if (isCustomCandidateClass(c, globalUtilityClasses)) {
+        customClasses.push(c);
+      }
+    }
+  }
+
+  const dynamicClassMatches = content.matchAll(/(?:\s:|\bv-bind:)class=["']([^"']+)["']/g);
+  for (const dm of dynamicClassMatches) {
+    const expr = dm[1]!;
+    const strLiterals = expr.matchAll(/['`]([a-zA-Z0-9_-]+)['`]/g);
+    for (const sl of strLiterals) {
+      const c = sl[1]!;
+      if (isCustomCandidateClass(c, globalUtilityClasses)) {
+        customClasses.push(c);
+      }
+    }
+  }
+  return customClasses;
+}
+
+function auditMissingStyleTag(
+  relPath: string,
+  content: string,
+  hasValidStyle: boolean,
+  auditor: ComponentStylesAuditor
+): void {
+  if (hasValidStyle) return;
+
+  const globalUtilityClasses = getEffectiveGlobalUtilityClasses();
+  const customClasses = extractCustomClasses(content, globalUtilityClasses);
+
+  if (customClasses.length > 0) {
+    auditor.recordViolation(
+      {
+        file: relPath,
+        type: 'missing_style_tag',
+        message: `Defines ${customClasses.length} custom template classes (${customClasses.slice(0, 3).join(', ')}...) without an associated non-empty <style> block`
+      },
+      'missing-style-tag',
+      customClasses.slice(0, 3).join(', ')
+    );
+  }
+}
+
+function auditVueComponent(
+  file: string,
+  projectRoot: string,
+  srcDir: string,
+  trackScssFile: (p: string) => void,
+  config: AuditEngineConfig,
+  auditor: ComponentStylesAuditor
+): void {
+  const content = fs.readFileSync(file, 'utf-8');
+  const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
+
+  auditStyleLinkage(file, relPath, content, srcDir, trackScssFile, auditor);
+
+  const styleMatches = Array.from(content.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi));
+  auditButtonGovernance(relPath, content, styleMatches, config, auditor);
+
+  const hasValidStyle = checkHasValidStyle(styleMatches);
+  auditMissingStyleTag(relPath, content, hasValidStyle, auditor);
+}
+
+function auditOrphanedScss(
+  stylesRoots: readonly string[],
+  scssFiles: readonly string[],
+  importedScssFiles: ReadonlySet<string>,
+  projectRoot: string,
+  auditor: ComponentStylesAuditor
+): void {
+  const componentScssDirs = stylesRoots.map(sr => path.resolve(projectRoot, sr, 'components'));
+  const componentScssFiles = scssFiles.filter(f => componentScssDirs.some(dir => f.startsWith(dir)));
+
+  for (const file of componentScssFiles) {
+    const normalized = path.normalize(file);
+    if (!importedScssFiles.has(normalized)) {
+      const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
+      auditor.recordViolation(
+        {
+          file: relPath,
+          type: 'orphaned_scss',
+          message: 'SCSS component stylesheet is never imported by any Vue component or SCSS root'
+        },
+        'orphaned-scss',
+        relPath
+      );
+    }
+  }
+}
+
 export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
   private readonly collectedViolations: ComponentStyleViolation[] = [];
   private vueCount = 0;
@@ -158,6 +433,18 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     });
   }
 
+  public recordViolation(v: ComponentStyleViolation, ruleId: ComponentStyleRuleId, context: string, line = 1): void {
+    this.collectedViolations.push(v);
+    this.addViolation({
+      ruleId,
+      severity: 'error',
+      file: v.file,
+      line,
+      message: v.message,
+      context
+    });
+  }
+
   public getViolations(): readonly ComponentStyleViolation[] {
     return this.collectedViolations;
   }
@@ -181,260 +468,15 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     this.scssCount = scssFiles.length;
     this.filesScannedCount = vueFiles.length + scssFiles.length;
 
-    const importedScssFiles = new Set<string>();
-
-    const trackScssFile = (filePath: string) => {
-      const normalized = path.normalize(filePath);
-      if (importedScssFiles.has(normalized)) return;
-      importedScssFiles.add(normalized);
-
-      if (fs.existsSync(normalized)) {
-        const content = fs.readFileSync(normalized, 'utf-8');
-        const matches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']/g);
-        for (const m of matches) {
-          const importTarget = m[1]!;
-          const resolved = resolveSassPath(importTarget, normalized, srcDir);
-          if (resolved) {
-            trackScssFile(resolved);
-          }
-        }
-      }
-    };
-
-    // 1. Seed root SCSS graph
+    const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
     const stylesRoots = config.paths.stylesRoots ?? ['src/styles'];
-    for (const sRoot of stylesRoots) {
-      const candidates = [
-        path.join(this.projectRoot, sRoot, '_index.scss'),
-        path.join(this.projectRoot, sRoot, 'index.scss'),
-        path.join(this.projectRoot, sRoot, 'main.scss')
-      ];
-      for (const cand of candidates) {
-        if (fs.existsSync(cand)) {
-          trackScssFile(cand);
-        }
-      }
-    }
+    seedRootScssGraph(stylesRoots, this.projectRoot, trackScssFile);
 
-    // 2. Audit Vue components
     for (const file of vueFiles) {
-      const content = fs.readFileSync(file, 'utf-8');
-      const relPath = path.relative(this.projectRoot, file).replace(/\\/g, '/');
-
-      const styleSrcMatch = content.match(/<style[^>]*src=["']([^"']+)["']/i);
-
-      // Track all SCSS imports in Vue component
-      const scssMatches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']|src=["']([^"']+\.scss)["']/g);
-      for (const m of scssMatches) {
-        const importTarget = m[1] || m[2];
-        if (importTarget) {
-          const resolved = resolveSassPath(importTarget, file, srcDir);
-          if (resolved) {
-            trackScssFile(resolved);
-          }
-        }
-      }
-
-      // Check broken style links in <style src="...">
-      if (styleSrcMatch) {
-        const srcPath = styleSrcMatch[1]!;
-        const resolved = resolveSassPath(srcPath, file, srcDir);
-
-        if (!resolved) {
-          const v: ComponentStyleViolation = {
-            file: relPath,
-            type: 'broken_style_link',
-            message: `Style src points to non-existent file: ${srcPath}`
-          };
-          this.collectedViolations.push(v);
-          this.addViolation({
-            ruleId: 'broken-style-link',
-            severity: 'error',
-            file: relPath,
-            line: 1,
-            message: v.message,
-            context: styleSrcMatch[0]
-          });
-        } else {
-          trackScssFile(resolved);
-        }
-      }
-
-      // Check for illegal style-inherited bypass directive
-      if (content.includes('style-inherited')) {
-        const v: ComponentStyleViolation = {
-          file: relPath,
-          type: 'banned_style_inherited',
-          message: `Directiva ilegal '// ' + 'style-inherited' detectada. Los estilos scoped en Vue 3 no penetran a componentes hijos; cada SFC debe declarar o enlazar explícitamente sus propios estilos.`
-        };
-        this.collectedViolations.push(v);
-        this.addViolation({
-          ruleId: 'banned-style-inherited',
-          severity: 'error',
-          file: relPath,
-          line: 1,
-          message: v.message,
-          context: 'style-inherited'
-        });
-      }
-
-      // Check whether component has a valid (non-empty or src-linked) style block
-      const styleMatches = Array.from(content.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi));
-      const hasValidStyle = styleMatches.some(sm => {
-        const attrs = sm[1] ?? '';
-        const body = (sm[2] ?? '')
-          .replace(/\/\*[\s\S]*?\*\//g, '')
-          .replace(/\/\/[^\n]*/g, '')
-          .trim();
-        return /\bsrc=["']/.test(attrs) || body.length > 0;
-      });
-
-      // Check for illegal ad-hoc button style overrides in <style> block and non-canonical variants
-      const isButtonGovActive = config.styles?.buttonGovernance?.enabled === true || Boolean(config.styles?.canonicalButtonVariants?.length);
-      if (isButtonGovActive) {
-        for (const sm of styleMatches) {
-          const styleBody = sm[2] ?? '';
-          const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
-          if (btnSelectorMatch) {
-            const v: ComponentStyleViolation = {
-              file: relPath,
-              type: 'ad_hoc_button_styles',
-              message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Todos los estilos de botón deben gobernarse de forma centralizada.`
-            };
-            this.collectedViolations.push(v);
-            this.addViolation({
-              ruleId: 'ad-hoc-button-styles',
-              severity: 'error',
-              file: relPath,
-              line: 1,
-              message: v.message,
-              context: btnSelectorMatch[1]!
-            });
-          }
-        }
-
-        // Check for non-canonical button variant classes in templates
-        const canonicalButtonVariants = getEffectiveCanonicalButtonVariants();
-        if (canonicalButtonVariants.size > 0) {
-          const allClassMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
-          for (const cm of allClassMatches) {
-            const clsList = cm[1]!.split(/\s+/).filter(Boolean);
-            if (clsList.includes('btn')) {
-              for (const c of clsList) {
-                if (c.startsWith('btn-') && !canonicalButtonVariants.has(c)) {
-                  const v: ComponentStyleViolation = {
-                    file: relPath,
-                    type: 'ad_hoc_button_styles',
-                    message: `Clase de botón no canónica "${c}" detectada. Solo se permiten variantes canónicas configuradas (${Array.from(canonicalButtonVariants).join(', ')}).`
-                  };
-                  this.collectedViolations.push(v);
-                  this.addViolation({
-                    ruleId: 'ad-hoc-button-styles',
-                    severity: 'error',
-                    file: relPath,
-                    line: 1,
-                    message: v.message,
-                    context: c
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Check missing style tag on component defining custom template classes
-      if (!hasValidStyle) {
-        const globalUtilityClasses = getEffectiveGlobalUtilityClasses();
-        const classMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
-        const customClasses: string[] = []; // no-domain: Non-domain utility collection or data structure
-
-        for (const m of classMatches) {
-          const clsList = m[1]!.split(/\s+/).filter(Boolean);
-          for (const c of clsList) {
-            if (
-              !c.startsWith('var(') &&
-              !c.includes('{') &&
-              !c.includes('}') &&
-              !c.startsWith(':') &&
-              !c.includes('[') &&
-              !c.includes(']') &&
-              !c.includes('(') &&
-              !c.includes(')') &&
-              !globalUtilityClasses.has(c)
-            ) {
-              customClasses.push(c);
-            }
-          }
-        }
-
-        // Also harvest static string literal class tokens from dynamic :class bindings
-        const dynamicClassMatches = content.matchAll(/(?:\s:|\bv-bind:)class=["']([^"']+)["']/g);
-        for (const dm of dynamicClassMatches) {
-          const expr = dm[1]!;
-          const strLiterals = expr.matchAll(/['`]([a-zA-Z0-9_-]+)['`]/g);
-          for (const sl of strLiterals) {
-            const c = sl[1]!;
-            if (
-              !c.startsWith('var(') &&
-              !c.includes('{') &&
-              !c.includes('}') &&
-              !c.startsWith(':') &&
-              !c.includes('[') &&
-              !c.includes(']') &&
-              !c.includes('(') &&
-              !c.includes(')') &&
-              !globalUtilityClasses.has(c)
-            ) {
-              customClasses.push(c);
-            }
-          }
-        }
-
-        if (customClasses.length > 0) {
-          const v: ComponentStyleViolation = {
-            file: relPath,
-            type: 'missing_style_tag',
-            message: `Defines ${customClasses.length} custom template classes (${customClasses.slice(0, 3).join(', ')}...) without an associated non-empty <style> block`
-          };
-          this.collectedViolations.push(v);
-          this.addViolation({
-            ruleId: 'missing-style-tag',
-            severity: 'error',
-            file: relPath,
-            line: 1,
-            message: v.message,
-            context: customClasses.slice(0, 3).join(', ')
-          });
-        }
-      }
+      auditVueComponent(file, this.projectRoot, srcDir, trackScssFile, config, this);
     }
 
-    // 3. Detect orphaned SCSS files in component styles directories
-    const componentScssDirs = stylesRoots.map(sr => path.resolve(this.projectRoot, sr, 'components'));
-    const componentScssFiles = scssFiles.filter(f => componentScssDirs.some(dir => f.startsWith(dir)));
-
-    for (const file of componentScssFiles) {
-      const normalized = path.normalize(file);
-
-      if (!importedScssFiles.has(normalized)) {
-        const relPath = path.relative(this.projectRoot, file).replace(/\\/g, '/');
-        const v: ComponentStyleViolation = {
-          file: relPath,
-          type: 'orphaned_scss',
-          message: `SCSS component stylesheet is never imported by any Vue component or SCSS root`
-        };
-        this.collectedViolations.push(v);
-        this.addViolation({
-          ruleId: 'orphaned-scss',
-          severity: 'error',
-          file: relPath,
-          line: 1,
-          message: v.message,
-          context: relPath
-        });
-      }
-    }
+    auditOrphanedScss(stylesRoots, scssFiles, importedScssFiles, this.projectRoot, this);
   }
 }
 
@@ -450,6 +492,4 @@ export function auditComponentStyles(rootDir?: string): ComponentStyleAuditResul
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new ComponentStylesAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ComponentStylesAuditor());

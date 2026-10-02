@@ -26,7 +26,11 @@ Architecture & Tooling Engineers.
   - `e2e.idLocatorsOnly`: Flag to enforce ID-only Playwright locators.
   - `templates.tooltipComponents`, `templates.forbiddenTemplateCallPatterns`: Recognized tooltip names and forbidden helper call patterns in templates.
   - `templates.safeTemplateFunctions`: Functions whitelisted for execution inside Vue templates alongside framework defaults (`t`, `i18n`, `translate`, `typeof`).
+  - `bundle.maxClientChunkWarnBytes`: Maximum warning byte limit for client chunks.
+  - `bundle.maxClientChunkErrorBytes`: Maximum error byte limit for client chunks.
+  - `bundle.budgets`: Per-chunk regex pattern matchers and budget limits.
   - `bundle.forbiddenUiImports`: Custom list of forbidden runtime value imports in UI layers.
+  - `security.enabled`: Flag to enable or disable static Fallow CWE vulnerability analysis.
   - `styles.zLayers`: Direct numeric scale mapping for Z-index layers (`{ BASE: 0, MODAL: 11000, ... }`).
   - `styles.zLayersTsFile`: Path to TypeScript Z_LAYERS definition module.
   - `styles.baseScssFile`: Base SCSS stylesheet for global styling resets.
@@ -34,6 +38,7 @@ Architecture & Tooling Engineers.
   - `styles.buttonGovernance`: Configuration for button styling consistency.
   - `animation.customTimerFunctions`: Additional timer function names recognized in UI animations (alongside standard `gsapSleep` and `delayedCall`).
   - `constants.ignoredNames`: Identifiers exempt from duplicate constant detection.
+  - `constants.allowedNumericPrefixes`: Identifier prefixes exempt from numeric suffix constraints (`['GEN_', 'ISO_', 'BASE_']`).
   - `constants.exemptMagicNumbers`: Numeric literals exempt from magic numbers validation.
   - `documentation.knownValidAbstractPaths`: Abstract docs paths recognized as valid.
   - `pinia.authorizedMutationFiles`: Files authorized for direct pinia state mutations outside store actions.
@@ -41,6 +46,7 @@ Architecture & Tooling Engineers.
   - `domain.caseNormalizationExemptTokens`: Domain tokens exempt from lowercase validation (`['rpg', 'pvp', 'cuit', 'dni']`).
   - `domain.allowedStoreSetterPrefixes`: Custom Pinia store action setter prefixes (`['set', 'update', 'equip', 'assign']`).
   - `domain.allowedNumericConstantPrefixes`: Prefix exceptions for numeric constant names (`['GEN_', 'ISO_', 'RGB_']`).
+- **Linter Fix Mode Deduplication (`isFixModeRequested`)**: `BaseAuditor` exposes `isFixModeRequested()` to detect CLI fix flags (`--fix`, `fix=true`), deduplicating fix mode handling across external linter wrappers.
 - **Permission Boundaries**: File operations adhere to Node.js 26 `--permission` flags with paths verified via `permissionGuard.ts` and `safePath.ts`.
 
 ## Key Files

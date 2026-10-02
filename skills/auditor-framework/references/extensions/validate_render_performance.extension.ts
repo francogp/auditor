@@ -22,8 +22,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '@francogp/auditor';
-import { getAuditConfig } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, getAuditConfig, isMainModule } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -158,10 +157,6 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
 }
 
 // Canonical CLI Entrypoint
-if (
-  process.argv[1] &&
-  import.meta.filename &&
-  path.basename(process.argv[1]) === path.basename(import.meta.filename)
-) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new ValidateRenderPerformanceAuditor());
 }

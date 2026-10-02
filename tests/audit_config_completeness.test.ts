@@ -177,6 +177,17 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
       },
       agentPlugin: {
         enabled: false
+      },
+      fallow: {
+        enabled: true,
+        enforceTargets: true,
+        maxTargetPriority: 'high',
+        similarCode: {
+          enabled: true,
+          threshold: 0.92,
+          ignoreSameFile: true,
+          minLines: 5
+        }
       }
     });
 
@@ -190,6 +201,10 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
     expect(config.constants?.exemptMagicNumbers).toEqual([42, 100]);
     expect(config.documentation?.knownValidAbstractPaths).toEqual(['@docs/special-path']);
     expect(config.pinia?.authorizedMutationFiles).toEqual(['src/stores/specialStore.ts']);
+    expect(config.fallow?.enforceTargets).toBe(true);
+    expect(config.fallow?.maxTargetPriority).toBe('high');
+    expect(config.fallow?.similarCode?.threshold).toBe(0.92);
+    expect(config.fallow?.similarCode?.minLines).toBe(5);
   });
 });
 

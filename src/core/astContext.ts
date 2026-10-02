@@ -104,7 +104,7 @@ export class SharedAstContext {
       try {
         this.getSourceFile(file);
       } catch {
-        // Ignore read/syntax errors on inaccessible files
+        // catch-ok: Ignore read/syntax errors on inaccessible files
       }
     }
   }

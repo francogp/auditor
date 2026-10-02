@@ -25,6 +25,89 @@ export const BUILD_TOOLS_RULES: readonly BuildToolsRuleId[] = [
   'build-tools-binary-missing'
 ] as const;
 
+function attemptNpmPostinstall(): boolean {
+  try {
+    const pkgDir = 'node_modules/css-checker-kit';
+    const nodeDir = process.execPath ? path.dirname(process.execPath) : '';
+    const npmCli = nodeDir ? path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js') : '';
+
+    if (npmCli && fs.existsSync(npmCli)) {
+      if (!fs.existsSync(pkgDir)) {
+        execFileSync(process.execPath, [npmCli, 'install', '--save-dev', 'css-checker-kit', '--ignore-scripts=false'], { cwd: process.cwd() });
+      }
+      execFileSync(process.execPath, [npmCli, 'run', 'postinstall', '--ignore-scripts=false'], { cwd: pkgDir });
+    } else {
+      const npmCmd = isWin ? 'npm.cmd' : 'npm';
+      if (!fs.existsSync(pkgDir)) {
+        execFileSync(npmCmd, ['install', '--save-dev', 'css-checker-kit', '--ignore-scripts=false'], { cwd: process.cwd(), shell: isWin });
+      }
+      execFileSync(npmCmd, ['run', 'postinstall', '--ignore-scripts=false'], { cwd: pkgDir, shell: isWin });
+    }
+    return findCssCheckerBinary();
+  } catch {
+    // catch-ok: auto-build of css-checker binary via npm may fail in offline or restricted environments
+    return false;
+  }
+}
+
+function linkBinaryToNodeModules(binDest: string, binName: string): void {
+  const nodeModulesBin = path.resolve(process.cwd(), 'node_modules/.bin');
+  if (!fs.existsSync(nodeModulesBin)) return;
+
+  const symlinkPath = path.join(nodeModulesBin, binName);
+  try {
+    if (!fs.existsSync(symlinkPath)) {
+      if (isWin) {
+        fs.copyFileSync(binDest, symlinkPath);
+      } else {
+        fs.symlinkSync(path.join('..', 'css-checker-kit', 'bin', binName), symlinkPath);
+      }
+    }
+  } catch {
+    // catch-ok: ignore symlink or copy errors when creating node_modules/.bin shortcut
+  }
+}
+
+function downloadTarball(binDir: string, binName: string, releaseUrl: string): void {
+  if (isWin) {
+    const tarArchive = path.join(binDir, 'archive.tar.gz');
+    execFileSync('curl.exe', ['-fsSL', '-L', '-A', 'Mozilla/5.0', releaseUrl, '-o', tarArchive], { stdio: 'ignore' });
+    execFileSync('tar.exe', ['-xzf', tarArchive, '-C', binDir, binName], { stdio: 'ignore' });
+    if (fs.existsSync(tarArchive)) fs.unlinkSync(tarArchive);
+  } else {
+    execFileSync('sh', ['-c', `curl -fsSL -L -A "Mozilla/5.0" "${releaseUrl}" | tar -xz -C "${binDir}" ${binName}`], { stdio: 'ignore' });
+    const binDest = path.join(binDir, binName);
+    try {
+      fs.chmodSync(binDest, 0o755);
+    } catch {
+      // catch-ok: ignore chmod errors
+    }
+  }
+}
+
+function attemptDirectBinaryDownload(): boolean {
+  try {
+    const platform = isWin ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux';
+    const arch = process.arch === 'arm64' ? 'arm64' : process.arch === 'ia32' ? '386' : 'amd64';
+    const binName = isWin ? 'css-checker.exe' : 'css-checker';
+    const releaseUrl = `https://github.com/ruilisi/css-checker/releases/download/v0.4.1/css-checker_0.4.1_${platform}_${arch}.tar.gz`;
+    const binDir = path.resolve(process.cwd(), 'node_modules/css-checker-kit/bin');
+    const binDest = path.join(binDir, binName);
+
+    if (!fs.existsSync(binDir)) {
+      fs.mkdirSync(binDir, { recursive: true });
+    }
+
+    downloadTarball(binDir, binName, releaseUrl);
+    linkBinaryToNodeModules(binDest, binName);
+
+    return findCssCheckerBinary();
+  } catch {
+    // catch-ok: fallback download of css-checker binary may fail when offline or rate limited
+    return false;
+  }
+}
+
 export class BuildToolsAuditor extends BaseAuditor<BuildToolsRuleId> {
   constructor() {
     super({
@@ -45,78 +128,11 @@ export class BuildToolsAuditor extends BaseAuditor<BuildToolsRuleId> {
     this.filesScannedCount = 1;
 
     let ready = findCssCheckerBinary();
-
     if (!ready) {
-      try {
-        const pkgDir = 'node_modules/css-checker-kit';
-        const nodeDir = process.execPath ? path.dirname(process.execPath) : '';
-        const npmCli = nodeDir ? path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js') : '';
-
-        if (npmCli && fs.existsSync(npmCli)) {
-          if (!fs.existsSync(pkgDir)) {
-            execFileSync(process.execPath, [npmCli, 'install', '--save-dev', 'css-checker-kit', '--ignore-scripts=false'], { cwd: process.cwd() });
-          }
-          execFileSync(process.execPath, [npmCli, 'run', 'postinstall', '--ignore-scripts=false'], { cwd: pkgDir });
-        } else {
-          const npmCmd = isWin ? 'npm.cmd' : 'npm';
-          if (!fs.existsSync(pkgDir)) {
-            execFileSync(npmCmd, ['install', '--save-dev', 'css-checker-kit', '--ignore-scripts=false'], { cwd: process.cwd(), shell: isWin });
-          }
-          execFileSync(npmCmd, ['run', 'postinstall', '--ignore-scripts=false'], { cwd: pkgDir, shell: isWin });
-        }
-        ready = findCssCheckerBinary();
-      } catch (err) {
-        this.context.logProgress(`Auto-build of css-checker binary failed: ${err instanceof Error ? err.message : String(err)}`);
-      }
+      ready = attemptNpmPostinstall();
     }
-
     if (!ready) {
-      try {
-        const platform = isWin ? 'windows' : process.platform === 'darwin' ? 'darwin' : 'linux';
-        const arch = process.arch === 'arm64' ? 'arm64' : process.arch === 'ia32' ? '386' : 'amd64';
-        const binName = isWin ? 'css-checker.exe' : 'css-checker';
-        const releaseUrl = `https://github.com/ruilisi/css-checker/releases/download/v0.4.1/css-checker_0.4.1_${platform}_${arch}.tar.gz`;
-        const binDir = path.resolve(process.cwd(), 'node_modules/css-checker-kit/bin');
-        const binDest = path.join(binDir, binName);
-
-        if (!fs.existsSync(binDir)) {
-          fs.mkdirSync(binDir, { recursive: true });
-        }
-
-        if (isWin) {
-          const tarArchive = path.join(binDir, 'archive.tar.gz');
-          execFileSync('curl.exe', ['-fsSL', '-L', '-A', 'Mozilla/5.0', releaseUrl, '-o', tarArchive], { stdio: 'ignore' });
-          execFileSync('tar.exe', ['-xzf', tarArchive, '-C', binDir, binName], { stdio: 'ignore' });
-          if (fs.existsSync(tarArchive)) fs.unlinkSync(tarArchive);
-        } else {
-          execFileSync('sh', ['-c', `curl -fsSL -L -A "Mozilla/5.0" "${releaseUrl}" | tar -xz -C "${binDir}" ${binName}`], { stdio: 'ignore' });
-          try {
-            fs.chmodSync(binDest, 0o755);
-          } catch {
-            // ignore chmod errors
-          }
-        }
-
-        const nodeModulesBin = path.resolve(process.cwd(), 'node_modules/.bin');
-        if (fs.existsSync(nodeModulesBin)) {
-          const symlinkPath = path.join(nodeModulesBin, binName);
-          try {
-            if (!fs.existsSync(symlinkPath)) {
-              if (isWin) {
-                fs.copyFileSync(binDest, symlinkPath);
-              } else {
-                fs.symlinkSync(path.join('..', 'css-checker-kit', 'bin', binName), symlinkPath);
-              }
-            }
-          } catch {
-            // ignore symlink errors
-          }
-        }
-
-        ready = findCssCheckerBinary();
-      } catch (err) {
-        this.context.logProgress(`Fallback download of css-checker binary failed: ${err instanceof Error ? err.message : String(err)}`);
-      }
+      ready = attemptDirectBinaryDownload();
     }
 
     if (!ready) {
@@ -134,7 +150,6 @@ export class BuildToolsAuditor extends BaseAuditor<BuildToolsRuleId> {
   }
 }
 
+
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new BuildToolsAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new BuildToolsAuditor());

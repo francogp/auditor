@@ -200,6 +200,52 @@ export interface AssertAuditorOptions {
   allowStale?: boolean;
 }
 
+function assertAuditFreshness(
+  meta: ConsolidatedAuditReport['meta'],
+  consumerName: string,
+  options: AssertAuditorOptions
+): void {
+  if (options.allowStale) return;
+  const maxAge = options.maxAgeMs ?? MAX_AUDIT_STALENESS_MS;
+  try {
+    const auditInstant = Temporal.Instant.from(meta.timestamp);
+    const now = Temporal.Now.instant();
+    const elapsedMs = now.since(auditInstant).total({ unit: 'millisecond' });
+    if (elapsedMs > maxAge) {
+      const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
+      const limitMins = Math.round(maxAge / (60 * 1000));
+      throw new Error(
+        `[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). ` +
+        `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run audit' para refrescar el reporte.`
+      );
+    }
+  } catch (err) {
+    if ((err as Error).message.includes('OBSOLETO')) throw err;
+    throw new Error(
+      `[${consumerName}] scratch/audits/latest_audit.json contiene un timestamp inválido ('${meta.timestamp}'). Ejecuta 'npm run audit' para regenerarlo.`,
+      { cause: err }
+    );
+  }
+}
+
+function assertAuditSuiteExecuted(
+  meta: ConsolidatedAuditReport['meta'],
+  requiredSuiteId: string,
+  consumerName: string
+): void {
+  const wasExecuted = Array.isArray(meta.executedSuites) && meta.executedSuites.includes(requiredSuiteId);
+  const wasOmitted = Array.isArray(meta.omittedSuites) && meta.omittedSuites.includes(requiredSuiteId);
+
+  if (!wasExecuted || wasOmitted) {
+    const modeDesc = meta.runMode === 'preset' ? `preset=${meta.preset}` : (meta.runMode === 'family' ? `family=${meta.targetFamily}` : meta.runMode);
+    throw new Error(
+      `[${consumerName}] La suite requerida '${requiredSuiteId}' NO fue ejecutada en la última auditoría. ` +
+      `latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). ` +
+      `👉 DEBES ejecutar 'npm run audit' (completo) o 'npm run audit task=${requiredSuiteId}' para obtener datos válidos.`
+    );
+  }
+}
+
 /**
  * Asserts that a required auditor was executed in the consolidated audit report
  * and that the report is fresh (generated within the last 5 minutes).
@@ -219,42 +265,22 @@ export function assertAuditorExecuted(
     );
   }
 
-  const { meta } = report;
-
-  // 1. Anti-Staleness Check (Max 5 minutes)
-  if (!options.allowStale) {
-    const maxAge = options.maxAgeMs ?? MAX_AUDIT_STALENESS_MS;
-    try {
-      const auditInstant = Temporal.Instant.from(meta.timestamp);
-      const now = Temporal.Now.instant();
-      const elapsedMs = now.since(auditInstant).total({ unit: 'millisecond' });
-      if (elapsedMs > maxAge) {
-        const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
-        const limitMins = Math.round(maxAge / (60 * 1000));
-        throw new Error(
-          `[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). ` +
-          `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run audit' para refrescar el reporte.`
-        );
-      }
-    } catch (err) {
-      if ((err as Error).message.includes('OBSOLETO')) throw err;
-      throw new Error(
-        `[${consumerName}] scratch/audits/latest_audit.json contiene un timestamp inválido ('${meta.timestamp}'). Ejecuta 'npm run audit' para regenerarlo.`,
-        { cause: err }
-      );
-    }
-  }
-
-  // 2. Execution & Omission Check
-  const wasExecuted = Array.isArray(meta.executedSuites) && meta.executedSuites.includes(requiredSuiteId);
-  const wasOmitted = Array.isArray(meta.omittedSuites) && meta.omittedSuites.includes(requiredSuiteId);
-
-  if (!wasExecuted || wasOmitted) {
-    const modeDesc = meta.runMode === 'preset' ? `preset=${meta.preset}` : (meta.runMode === 'family' ? `family=${meta.targetFamily}` : meta.runMode);
-    throw new Error(
-      `[${consumerName}] La suite requerida '${requiredSuiteId}' NO fue ejecutada en la última auditoría. ` +
-      `latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). ` +
-      `👉 DEBES ejecutar 'npm run audit' (completo) o 'npm run audit task=${requiredSuiteId}' para obtener datos válidos.`
-    );
-  }
+  assertAuditFreshness(report.meta as ConsolidatedAuditReport['meta'], consumerName, options);
+  assertAuditSuiteExecuted(report.meta as ConsolidatedAuditReport['meta'], requiredSuiteId, consumerName);
 }
+
+export function groupResultsByFamily(
+  results: readonly StandardAuditResult[],
+  initialFamilies?: readonly AuditFamily[]
+): Map<AuditFamily, StandardAuditResult[]> {
+  const byFamily = new Map<AuditFamily, StandardAuditResult[]>();
+  if (initialFamilies) {
+    for (const f of initialFamilies) byFamily.set(f, []);
+  }
+  for (const r of results) {
+    if (!byFamily.has(r.family)) byFamily.set(r.family, []);
+    byFamily.get(r.family)!.push(r);
+  }
+  return byFamily;
+}
+

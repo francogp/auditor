@@ -9,7 +9,7 @@
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
+import { BaseAuditor, SharedAstContext, isMainModule } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -71,6 +71,6 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
 }
 
 // Canonical CLI Entrypoint for standalone and dynamic execution
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new MyAstAuditor());
 }

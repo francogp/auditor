@@ -12,8 +12,8 @@ import {
   type StandardAuditResult,
   type AuditFinding,
   type FamilyMetadata,
-  type AuditFamily,
-  FAMILY_METADATA
+  FAMILY_METADATA,
+  groupResultsByFamily
 } from './auditContract.ts';
 
 const TERMINAL_WIDTH = 80;
@@ -76,6 +76,15 @@ export interface TableColumn<T = Record<string, unknown>> {
   render?: (row: T) => string;
 }
 
+function formatBoxTableRow<T>(row: T, columns: readonly TableColumn<T>[]): string {
+  const cells = columns.map(c => {
+    const rawVal = c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key ?? ''] ?? '');
+    const truncated = truncateVisual(rawVal, c.width);
+    return padVisual(truncated, c.width, c.align || 'left');
+  });
+  return '│ ' + cells.join(' │ ') + ' │';
+}
+
 export function renderBoxTable<T = Record<string, unknown>>(
   columns: readonly TableColumn<T>[],
   rows: readonly T[],
@@ -99,12 +108,7 @@ export function renderBoxTable<T = Record<string, unknown>>(
     lines.push('│ ' + padVisual(styleText('dim', emptyMsg), totalInnerWidth - 2, 'center') + ' │');
   } else {
     for (const row of rows) {
-      const rowCells = columns.map(c => {
-        const rawVal = c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key ?? ''] ?? '');
-        const truncated = truncateVisual(rawVal, c.width);
-        return padVisual(truncated, c.width, c.align || 'left');
-      });
-      lines.push('│ ' + rowCells.join(' │ ') + ' │');
+      lines.push(formatBoxTableRow(row, columns));
     }
   }
 
@@ -112,12 +116,7 @@ export function renderBoxTable<T = Record<string, unknown>>(
   if (options?.footerRows && options.footerRows.length > 0) {
     lines.push('├' + columns.map(c => '─'.repeat(c.width + 2)).join('┼') + '┤');
     for (const fRow of options.footerRows) {
-      const fCells = columns.map(c => {
-        const rawVal = c.render ? c.render(fRow) : String((fRow as Record<string, unknown>)[c.key ?? ''] ?? '');
-        const truncated = truncateVisual(rawVal, c.width);
-        return padVisual(truncated, c.width, c.align || 'left');
-      });
-      lines.push('│ ' + fCells.join(' │ ') + ' │');
+      lines.push(formatBoxTableRow(fRow, columns));
     }
   }
 
@@ -125,6 +124,67 @@ export function renderBoxTable<T = Record<string, unknown>>(
   lines.push('└' + columns.map(c => '─'.repeat(c.width + 2)).join('┴') + '┘');
 
   return lines.join('\n');
+}
+
+export interface FindingCountData {
+  errors: number;
+  warnings: number;
+}
+
+export function renderFindingsBreakdownTable(
+  items: readonly [string, FindingCountData][],
+  labelHeader: string = 'TIPO DE INCIDENCIA / REGLA'
+): string {
+  interface BreakdownRow {
+    label: string;
+    errors: string;
+    warnings: string;
+  }
+
+  const cols: readonly TableColumn<BreakdownRow>[] = [
+    { header: labelHeader, width: 52, align: 'left', key: 'label' },
+    { header: 'ERRORES', width: 9, align: 'right', key: 'errors' },
+    { header: 'WARNINGS', width: 9, align: 'right', key: 'warnings' }
+  ];
+
+  const rows: BreakdownRow[] = items.map(([name, data]) => ({
+    label: name,
+    errors: data.errors > 0 ? styleText('red', String(data.errors)) : styleText('dim', '0'),
+    warnings: data.warnings > 0 ? styleText('yellow', String(data.warnings)) : styleText('dim', '0')
+  }));
+
+  const totalErrors = items.reduce((acc, [_, data]) => acc + data.errors, 0);
+  const totalWarnings = items.reduce((acc, [_, data]) => acc + data.warnings, 0);
+
+  const footerRow: BreakdownRow = {
+    label: styleText('bold', 'TOTAL CONSOLIDADO'),
+    errors: totalErrors > 0 ? styleText(['bold', 'red'], String(totalErrors)) : styleText('dim', '0'),
+    warnings: totalWarnings > 0 ? styleText(['bold', 'yellow'], String(totalWarnings)) : styleText('dim', '0')
+  };
+
+  return renderBoxTable(cols, rows, { footerRows: [footerRow] });
+}
+
+export function renderSampleFindings(
+  findings: readonly AuditFinding[],
+  limitOrAll: number | 'all' = 5
+): string {
+  if (findings.length === 0) return '';
+  const limit = limitOrAll === 'all' ? findings.length : limitOrAll;
+  const sample = limit >= findings.length ? findings : findings.slice(-limit);
+  const countLabel = limit >= findings.length ? `todos los ${sample.length}` : `últimos ${sample.length}`;
+  const header = `\n❌ Muestra de errores detectados (${countLabel} de ${findings.length}):\n`;
+  const lines = sample.map((f, idx) => {
+    const fileLoc = f.file ? `${path.relative(process.cwd(), f.file)}${f.line ? `:${f.line}` : ''}` : 'General';
+    const cleanMsg = f.message.replace(/^Sugerencia de calidad \(Fallow\):\s*/i, '');
+    const normalizedRuleDesc = (f.ruleDescription || '').replace(/^Fallow:\s*/i, '').trim().toLowerCase();
+    const ruleTag = f.ruleDescription && !cleanMsg.toLowerCase().includes(normalizedRuleDesc)
+      ? `[${f.ruleDescription}] `
+      : (f.ruleDescription?.startsWith('Fallow:') ? '[Fallow] ' : (f.ruleId ? `[${f.ruleId}] ` : ''));
+    return `  ${idx + 1}. ${fileLoc}: ${ruleTag}${cleanMsg}`;
+  });
+
+  return `${header}${lines.join('\n')}\n`;
 }
 
 export function renderBanner(title: string, subtitle?: string): string {
@@ -162,43 +222,48 @@ export function formatDuration(ms: number): string {
   return str.padStart(7);
 }
 
+const METRIC_COL_WIDTH = 16;
+
+function formatTaskMetricCol(metrics?: Record<string, string | number>): string {
+  const entries = Object.entries(metrics || {});
+  if (entries.length === 0) return ' '.repeat(METRIC_COL_WIDTH);
+
+  const [k, v] = entries[0]!;
+  const primaryMetric = `${v} ${k.split(' ')[0] ?? ''}`.trim();
+  const cleanMetric = primaryMetric.length > METRIC_COL_WIDTH
+    ? primaryMetric.slice(0, METRIC_COL_WIDTH - 1) + '…'
+    : primaryMetric;
+  return cleanMetric.padEnd(METRIC_COL_WIDTH);
+}
+
+function computeTaskBadge(status: string, errors: number, warnings: number): string {
+  if (status !== 'passed' || errors > 0) return formatStatusBadge('failed');
+  if (warnings > 0) return formatStatusBadge('warning');
+  return formatStatusBadge('passed');
+}
+
+function formatTaskCount(count: number, icon: string, color: 'red' | 'yellow'): string {
+  const text = `${count} ${icon}`.padStart(6);
+  return count > 0 ? styleText(color, text) : styleText('dim', text);
+}
+
 export function renderAuditTaskRow(res: StandardAuditResult): string {
   const errors = res.summary?.errors ?? (res.status === 'failed' ? 1 : 0);
   const warnings = res.summary?.warnings ?? 0;
-  const badge = res.status === 'passed' ? formatStatusBadge(errors > 0 ? 'failed' : (warnings > 0 ? 'warning' : 'passed')) : formatStatusBadge('failed');
+  const badge = computeTaskBadge(res.status, errors, warnings);
   const nameStr = res.name.length > 38 ? res.name.slice(0, 37) + '…' : res.name.padEnd(38);
   const durationStr = formatDuration(res.durationMs);
-
-  // Extract first primary metric string if present
-  let primaryMetric = '';
-  const entries = Object.entries(res.metrics || {});
-  if (entries.length > 0) {
-    const [k, v] = entries[0]!;
-    primaryMetric = `${v} ${k.split(' ')[0] ?? ''}`.trim();
-  }
-  const METRIC_COL_WIDTH = 16;
-  let metricStr = ' '.repeat(METRIC_COL_WIDTH);
-  if (primaryMetric) {
-    const cleanMetric = primaryMetric.length > METRIC_COL_WIDTH
-      ? primaryMetric.slice(0, METRIC_COL_WIDTH - 1) + '…'
-      : primaryMetric;
-    metricStr = cleanMetric.padEnd(METRIC_COL_WIDTH);
-  }
-
-  const errStr = errors > 0 ? styleText('red', `${errors} ❌`.padStart(6)) : styleText('dim', '0 ❌'.padStart(6));
-  const warnStr = warnings > 0 ? styleText('yellow', `${warnings} ⚠️`.padStart(6)) : styleText('dim', '0 ⚠️'.padStart(6));
+  const metricStr = formatTaskMetricCol(res.metrics);
+  const errStr = formatTaskCount(errors, '❌', 'red');
+  const warnStr = formatTaskCount(warnings, '⚠️', 'yellow');
 
   return `  ${badge} │ ${styleText('bold', nameStr)} │ ${styleText('dim', durationStr)} │ ${metricStr} │ ${errStr} │ ${warnStr}`;
 }
 
 const DEFAULT_MAX_FINDINGS_PREVIEW = 30;
 
-export function renderFindingsDetail(findings: AuditFinding[], maxLimit: number = DEFAULT_MAX_FINDINGS_PREVIEW): string {
-  if (!Array.isArray(findings) || findings.length === 0) return '';
-
-  const lines: string[] = [];
+function groupFindingsByFile(findings: readonly AuditFinding[]): Map<string, AuditFinding[]> {
   const byFile = new Map<string, AuditFinding[]>();
-
   for (const rawF of findings) {
     if (!rawF) continue;
     const f: AuditFinding = typeof rawF === 'string' ? { severity: 'error', message: rawF } : rawF;
@@ -206,6 +271,22 @@ export function renderFindingsDetail(findings: AuditFinding[], maxLimit: number 
     if (!byFile.has(fileKey)) byFile.set(fileKey, []);
     byFile.get(fileKey)!.push(f);
   }
+  return byFile;
+}
+
+function formatFindingEntry(item: AuditFinding): string {
+  const icon = item.severity === 'error' ? styleText('red', '❌ ERR ') : styleText('yellow', '⚠️ WARN');
+  const lineNum = item.line !== undefined ? `L${item.line}`.padEnd(6) : '      ';
+  const ruleTag = item.ruleId ? `[${item.ruleId}] ` : '';
+  const contextSnippet = item.context ? ` (${styleText('dim', `"${item.context}"`)})` : '';
+  return `    ${lineNum} ${icon} ${ruleTag}${item.message}${contextSnippet}`;
+}
+
+export function renderFindingsDetail(findings: AuditFinding[], maxLimit: number = DEFAULT_MAX_FINDINGS_PREVIEW): string {
+  if (!Array.isArray(findings) || findings.length === 0) return '';
+
+  const lines: string[] = [];
+  const byFile = groupFindingsByFile(findings);
 
   let shown = 0;
   for (const [file, items] of byFile) {
@@ -215,13 +296,7 @@ export function renderFindingsDetail(findings: AuditFinding[], maxLimit: number 
     for (const item of items) {
       if (shown >= maxLimit) break;
       shown++;
-
-      const icon = item.severity === 'error' ? styleText('red', '❌ ERR ') : styleText('yellow', '⚠️ WARN');
-      const lineNum = item.line !== undefined ? `L${item.line}`.padEnd(6) : '      ';
-      const ruleTag = item.ruleId ? `[${item.ruleId}] ` : '';
-      const contextSnippet = item.context ? ` (${styleText('dim', `"${item.context}"`)})` : '';
-
-      lines.push(`    ${lineNum} ${icon} ${ruleTag}${item.message}${contextSnippet}`);
+      lines.push(formatFindingEntry(item));
     }
   }
 
@@ -230,6 +305,28 @@ export function renderFindingsDetail(findings: AuditFinding[], maxLimit: number 
   }
 
   return lines.join('\n');
+}
+
+function formatSampleErrorLine(err: AuditFinding, index: number): string {
+  const fileInfo = err.file ? (err.line ? `${err.file}:${err.line}` : err.file) : 'desconocido';
+  const relPath = path.isAbsolute(fileInfo) ? path.relative(process.cwd(), fileInfo) : fileInfo;
+  const relPosixFile = relPath.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || fileInfo;
+  const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
+  const contextStr = err.context ? ` ("${err.context}")` : '';
+  return `    ${index + 1}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
+}
+
+function renderSampleErrors(errorFindings: readonly AuditFinding[]): string[] {
+  const lines: string[] = [];
+  const sampleErrors = errorFindings.slice(0, 5);
+  lines.push(styleText('bold', `\n  ❌ Muestra de errores detectados (primeros ${sampleErrors.length}):`));
+  for (let i = 0; i < sampleErrors.length; i++) {
+    lines.push(formatSampleErrorLine(sampleErrors[i]!, i));
+  }
+  if (errorFindings.length > 5) {
+    lines.push(styleText('dim', `    ... y ${errorFindings.length - 5} error(es) más (ver reporte JSON completo).`));
+  }
+  return lines;
 }
 
 export function renderConsolidatedFooter(
@@ -253,24 +350,49 @@ export function renderConsolidatedFooter(
   lines.push(`  Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`);
 
   if (errorFindings && errorFindings.length > 0) {
-    const sampleErrors = errorFindings.slice(0, 5);
-    lines.push(styleText('bold', `\n  ❌ Muestra de errores detectados (primeros ${sampleErrors.length}):`));
-    for (let i = 0; i < sampleErrors.length; i++) {
-      const err = sampleErrors[i]!;
-      const fileInfo = err.file ? (err.line ? `${err.file}:${err.line}` : err.file) : 'desconocido';
-      const relPath = path.isAbsolute(fileInfo) ? path.relative(process.cwd(), fileInfo) : fileInfo;
-      const relPosixFile = relPath.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || fileInfo;
-      const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
-      const contextStr = err.context ? ` ("${err.context}")` : '';
-      lines.push(`    ${i + 1}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`);
-    }
-    if (errorFindings.length > 5) {
-      lines.push(styleText('dim', `    ... y ${errorFindings.length - 5} error(es) más (ver reporte JSON completo).`));
-    }
+    lines.push(...renderSampleErrors(errorFindings));
   }
 
   lines.push(styleText('bold', `╚═${line}═╝\n`));
   return lines.join('\n');
+}
+
+function renderMarkdownFamilyTables(byFamily: Map<string, StandardAuditResult[]>): string {
+  let md = '';
+  for (const [familyKey, tasks] of byFamily) {
+    const meta = FAMILY_METADATA[familyKey];
+    const familyTitle = meta ? `${meta.icon} Familia ${meta.order}: ${meta.title}` : familyKey;
+    md += `## ${familyTitle}\n\n`;
+    md += `| Estado | Auditoría | Duración | Métrica Principal | Errores | Advertencias |\n`;
+    md += `| :---: | :--- | :---: | :--- | :---: | :---: |\n`;
+
+    for (const t of tasks) {
+      const icon = t.status === 'passed' && t.summary.errors === 0 ? '✅ Pass' : '❌ Fail';
+      const metricEntries = Object.entries(t.metrics);
+      const metricStr = metricEntries.length > 0 ? `${metricEntries[0]![1]} ${metricEntries[0]![0]}` : '-';
+      md += `| ${icon} | **${t.name}** | \`${t.durationMs}ms\` | ${metricStr} | ${t.summary.errors} | ${t.summary.warnings} |\n`;
+    }
+    md += '\n';
+  }
+  return md;
+}
+
+function renderMarkdownFindingsTable(allFindings: readonly any[]): string {
+  if (allFindings.length === 0) return '';
+  let md = `## 📋 Detalle de Incidencias\n\n`;
+  md += `| Severidad | Archivo | Línea | Regla | Mensaje |\n`;
+  md += `| :---: | :--- | :---: | :--- | :--- |\n`;
+  for (const f of allFindings.slice(0, 100)) {
+    const sevIcon = f.severity === 'error' ? '❌ Error' : '⚠️ Warn';
+    const filePath = f.file ? `\`${path.relative(process.cwd(), f.file)}\`` : 'Global';
+    const lineStr = f.line !== undefined ? String(f.line) : '-';
+    const ruleStr = f.ruleId ? `\`${f.ruleId}\`` : '-';
+    md += `| ${sevIcon} | ${filePath} | ${lineStr} | ${ruleStr} | ${f.message.replace(/\|/g, '\\|')} |\n`;
+  }
+  if (allFindings.length > 100) {
+    md += `\n*... y ${allFindings.length - 100} incidencias más truncadas por longitud.*\n`;
+  }
+  return md;
 }
 
 export function renderMarkdownReport(
@@ -288,46 +410,9 @@ export function renderMarkdownReport(
   md += `**Suites**: \`${suitesPassed} / ${results.length} Aprobadas\`\n`;
   md += `**Errores**: \`${totalErrors}\` | **Advertencias**: \`${totalWarnings}\`\n\n`;
 
-  // Group by family
-  const byFamily = new Map<AuditFamily, StandardAuditResult[]>(); // runtime-map: Fast O(1) keyed lookup dictionary
-  for (const r of results) {
-    if (!byFamily.has(r.family)) byFamily.set(r.family, []);
-    byFamily.get(r.family)!.push(r);
-  }
-
-  for (const [familyKey, tasks] of byFamily) {
-    const meta = FAMILY_METADATA[familyKey];
-    const familyTitle = meta ? `${meta.icon} Familia ${meta.order}: ${meta.title}` : familyKey;
-    md += `## ${familyTitle}\n\n`;
-    md += `| Estado | Auditoría | Duración | Métrica Principal | Errores | Advertencias |\n`;
-    md += `| :---: | :--- | :---: | :--- | :---: | :---: |\n`;
-
-    for (const t of tasks) {
-      const icon = t.status === 'passed' && t.summary.errors === 0 ? '✅ Pass' : '❌ Fail';
-      const metricEntries = Object.entries(t.metrics);
-      const metricStr = metricEntries.length > 0 ? `${metricEntries[0]![1]} ${metricEntries[0]![0]}` : '-';
-      md += `| ${icon} | **${t.name}** | \`${t.durationMs}ms\` | ${metricStr} | ${t.summary.errors} | ${t.summary.warnings} |\n`;
-    }
-    md += '\n';
-  }
-
-  // Findings section if any
-  const allFindings = results.flatMap(r => r.findings);
-  if (allFindings.length > 0) {
-    md += `## 📋 Detalle de Incidencias\n\n`;
-    md += `| Severidad | Archivo | Línea | Regla | Mensaje |\n`;
-    md += `| :---: | :--- | :---: | :--- | :--- |\n`;
-    for (const f of allFindings.slice(0, 100)) {
-      const sevIcon = f.severity === 'error' ? '❌ Error' : '⚠️ Warn';
-      const filePath = f.file ? `\`${path.relative(process.cwd(), f.file)}\`` : 'Global';
-      const lineStr = f.line !== undefined ? String(f.line) : '-';
-      const ruleStr = f.ruleId ? `\`${f.ruleId}\`` : '-';
-      md += `| ${sevIcon} | ${filePath} | ${lineStr} | ${ruleStr} | ${f.message.replace(/\|/g, '\\|')} |\n`;
-    }
-    if (allFindings.length > 100) {
-      md += `\n*... y ${allFindings.length - 100} incidencias más truncadas por longitud.*\n`;
-    }
-  }
+  const byFamily = groupResultsByFamily(results);
+  md += renderMarkdownFamilyTables(byFamily);
+  md += renderMarkdownFindingsTable(results.flatMap(r => r.findings));
 
   return md;
 }

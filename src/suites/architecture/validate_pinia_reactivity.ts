@@ -46,6 +46,21 @@ export function getAuthorizedStateMutationFiles(projectRoot?: string): ReadonlyS
 
 export const AUTHORIZED_STATE_MUTATION_FILES: ReadonlySet<string> = new Set(DEFAULT_AUTHORIZED_STATE_MUTATION_FILES);
 
+function isStoreCallExpression(expr: ts.Expression, sf: ts.SourceFile): boolean {
+  if (!ts.isCallExpression(expr)) return false;
+  const calleeText = expr.expression.getText(sf);
+  return /^use[A-Z]\w*Store$/.test(calleeText);
+}
+
+function isStoreDestructuring(
+  initializer: ts.Expression,
+  sf: ts.SourceFile,
+  storeVariables: ReadonlySet<string>
+): boolean {
+  if (isStoreCallExpression(initializer, sf)) return true;
+  return ts.isIdentifier(initializer) && storeVariables.has(initializer.text);
+}
+
 export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleId> {
   private readonly storesRoots: readonly string[];
   private readonly authorizedStateMutationFiles: ReadonlySet<string>;
@@ -73,6 +88,84 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     this.authorizedStateMutationFiles = getAuthorizedStateMutationFiles(projectRoot);
   }
 
+  private reportPiniaViolation(
+    node: ts.Node,
+    sf: ts.SourceFile,
+    content: string,
+    relPath: string,
+    ruleId: PiniaReactivityRuleId,
+    message: string
+  ): void {
+    const { line } = sf.getLineAndCharacterOfPosition(node.getStart());
+    const lineNum = line + 1;
+    const lineContent = this.getLineAt(content, lineNum);
+
+    if (!this.hasEscapeHatch(lineContent, ['pinia-ok', 'store-ok'])) {
+      this.addViolation({
+        ruleId,
+        severity: 'error',
+        file: relPath,
+        line: lineNum,
+        message,
+        context: lineContent.trim()
+      });
+    }
+  }
+
+  private checkStoreVariableDeclaration(
+    node: ts.VariableDeclaration,
+    sf: ts.SourceFile,
+    content: string,
+    relPath: string,
+    storeVariables: Set<string>,
+    isStoreFile: boolean
+  ): void {
+    if (!node.initializer) return;
+
+    if (ts.isIdentifier(node.name) && isStoreCallExpression(node.initializer, sf)) {
+      storeVariables.add(node.name.text);
+    }
+
+    if (!isStoreFile && ts.isObjectBindingPattern(node.name)) {
+      if (isStoreDestructuring(node.initializer, sf, storeVariables)) {
+        this.reportPiniaViolation(
+          node,
+          sf,
+          content,
+          relPath,
+          'no-store-destructuring-without-storetorefs',
+          `Direct or indirect destructuring from use...Store() detected. Destructuring directly strips reactivity from state and getters; wrap with 'storeToRefs(store)' or use '// pinia-ok: <reason>' if destructuring actions only.`
+        );
+      }
+    }
+  }
+
+  private checkStateMutation(
+    node: ts.Node,
+    sf: ts.SourceFile,
+    content: string,
+    relPath: string,
+    storeVariables: ReadonlySet<string>,
+    isAuthorized: boolean
+  ): void {
+    if (isAuthorized || !ts.isBinaryExpression(node) || node.operatorToken.kind !== ts.SyntaxKind.EqualsToken) {
+      return;
+    }
+    if (ts.isPropertyAccessExpression(node.left) && node.left.name.text === '$state') {
+      const objText = node.left.expression.getText(sf);
+      if (objText.toLowerCase().includes('store') || storeVariables.has(objText)) {
+        this.reportPiniaViolation(
+          node,
+          sf,
+          content,
+          relPath,
+          'no-direct-state-mutation-outside-actions',
+          `Direct assignment to store.$state detected. Mutating $state directly outside persistence coordinators bypasses action lifecycles. Use actions or store.$patch instead.`
+        );
+      }
+    }
+  }
+
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     const normalizedPath = relPath.replace(/\\/g, '/');
 
@@ -98,73 +191,11 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     const storeVariables = new Set<string>();
 
     const visit = (node: ts.Node) => {
-      // 1. Track variables assigned to useXxxStore(...)
-      if (ts.isVariableDeclaration(node) && node.initializer) {
-        if (ts.isIdentifier(node.name) && ts.isCallExpression(node.initializer)) {
-          const calleeText = node.initializer.expression.getText(sf);
-          if (/^use[A-Z]\w*Store$/.test(calleeText)) {
-            storeVariables.add(node.name.text);
-          }
-        }
-
-        // Case: Store Destructuring without storeToRefs
-        if (!isStoreFile && ts.isObjectBindingPattern(node.name)) {
-          let isStoreDestructuring = false;
-
-          // Direct: const { a, b } = useXxxStore(...)
-          if (ts.isCallExpression(node.initializer)) {
-            const calleeText = node.initializer.expression.getText(sf);
-            if (/^use[A-Z]\w*Store$/.test(calleeText)) {
-              isStoreDestructuring = true;
-            }
-          }
-          // Indirect: const { a, b } = storeVar
-          else if (ts.isIdentifier(node.initializer) && storeVariables.has(node.initializer.text)) {
-            isStoreDestructuring = true;
-          }
-
-          if (isStoreDestructuring) {
-            const { line } = sf.getLineAndCharacterOfPosition(node.getStart());
-            const lineNum = line + 1;
-            const lineContent = this.getLineAt(content, lineNum);
-
-            if (!this.hasEscapeHatch(lineContent, ['pinia-ok', 'store-ok'])) {
-              this.addViolation({
-                ruleId: 'no-store-destructuring-without-storetorefs',
-                severity: 'error',
-                file: relPath,
-                line: lineNum,
-                message: `Direct or indirect destructuring from use...Store() detected. Destructuring directly strips reactivity from state and getters; wrap with 'storeToRefs(store)' or use '// pinia-ok: <reason>' if destructuring actions only.`,
-                context: lineContent.trim()
-              });
-            }
-          }
-        }
+      if (ts.isVariableDeclaration(node)) {
+        this.checkStoreVariableDeclaration(node, sf, content, relPath, storeVariables, isStoreFile);
+      } else {
+        this.checkStateMutation(node, sf, content, relPath, storeVariables, isAuthorized);
       }
-
-      // 2. Direct $state mutation: store.$state = ...
-      if (!isAuthorized && ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
-        if (ts.isPropertyAccessExpression(node.left) && node.left.name.text === '$state') {
-          const objText = node.left.expression.getText(sf);
-          if (objText.toLowerCase().includes('store') || storeVariables.has(objText)) {
-            const { line } = sf.getLineAndCharacterOfPosition(node.getStart());
-            const lineNum = line + 1;
-            const lineContent = this.getLineAt(content, lineNum);
-
-            if (!this.hasEscapeHatch(lineContent, ['pinia-ok', 'store-ok'])) {
-              this.addViolation({
-                ruleId: 'no-direct-state-mutation-outside-actions',
-                severity: 'error',
-                file: relPath,
-                line: lineNum,
-                message: `Direct assignment to store.$state detected. Mutating $state directly outside persistence coordinators bypasses action lifecycles. Use actions or store.$patch instead.`,
-                context: lineContent.trim()
-              });
-            }
-          }
-        }
-      }
-
       ts.forEachChild(node, visit);
     };
 
@@ -173,6 +204,4 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
 }
 
 // Standalone execution support
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new PiniaReactivityAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new PiniaReactivityAuditor());

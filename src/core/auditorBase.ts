@@ -24,6 +24,7 @@ import {
   renderAuditTaskRow,
   renderFindingsDetail
 } from './unifiedTheme.ts';
+import { isMainModule } from '../cli/cliUtils.ts';
 import { getAuditConfig, loadAuditConfig } from './auditConfig.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
@@ -112,9 +113,73 @@ export function loadFallowIgnorePatterns(projectRoot = process.cwd()): string[] 
       return Array.isArray(data.ignorePatterns) ? data.ignorePatterns : [];
     }
   } catch {
-    // Ignore fallback
+    // catch-ok: Ignore fallback
   }
   return [];
+}
+
+function matchesDirectorySegments(
+  normalized: string,
+  segments: readonly string[],
+  unignoreSet: ReadonlySet<string>,
+  configIgnoredDirs: readonly string[]
+): boolean {
+  let hasUnignoredAncestor = false;
+  const hasConfigIgnored = configIgnoredDirs.length > 0;
+
+  for (const seg of segments) {
+    if (ALWAYS_IGNORE_DIRS.has(seg)) {
+      return true;
+    }
+
+    if (unignoreSet.has(seg)) {
+      hasUnignoredAncestor = true;
+      continue;
+    }
+
+    if (!hasUnignoredAncestor) {
+      const isIgnored =
+        CODE_ONLY_IGNORE_DIRS.has(seg) ||
+        (hasConfigIgnored &&
+          configIgnoredDirs.some(
+            d => d === seg || normalized === d || normalized.startsWith(d + '/') || normalized.includes('/' + d + '/')
+          ));
+      if (isIgnored) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function matchesSinglePattern(normalized: string, pattern: string): boolean {
+  let cleanPattern = pattern.toLowerCase();
+  const matchesAnywhere = cleanPattern.startsWith('**/');
+  if (matchesAnywhere) {
+    cleanPattern = cleanPattern.slice(3);
+  }
+  cleanPattern = cleanPattern.replace(/\/\*\*$/, '').replace(/\/\*$/, '');
+
+  if (!cleanPattern) return false;
+
+  if (matchesAnywhere) {
+    return (
+      normalized === cleanPattern ||
+      normalized.startsWith(cleanPattern + '/') ||
+      normalized.endsWith('/' + cleanPattern) ||
+      normalized.includes('/' + cleanPattern + '/') ||
+      cleanPattern.endsWith('/' + normalized)
+    );
+  }
+
+  return (
+    normalized === cleanPattern ||
+    normalized.startsWith(cleanPattern + '/') ||
+    normalized.endsWith('/' + cleanPattern) ||
+    normalized.includes('/' + cleanPattern) ||
+    cleanPattern.endsWith('/' + normalized)
+  );
 }
 
 /**
@@ -131,26 +196,9 @@ export function isPathIgnored(
 
   const rawConfigIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs ?? [];
   const configIgnoredDirs = rawConfigIgnoredDirs.map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''));
-  const hasConfigIgnored = configIgnoredDirs.length > 0;
 
-  let hasUnignoredAncestor = false;
-
-  for (const seg of segments) {
-    if (ALWAYS_IGNORE_DIRS.has(seg)) {
-      return true;
-    }
-
-    if (unignoreSet.has(seg)) {
-      hasUnignoredAncestor = true;
-      continue;
-    }
-
-    if (!hasUnignoredAncestor) {
-      const isIgnored = CODE_ONLY_IGNORE_DIRS.has(seg) || (hasConfigIgnored && configIgnoredDirs.some(d => d === seg || normalized === d || normalized.startsWith(d + '/') || normalized.includes('/' + d + '/')));
-      if (isIgnored) {
-        return true;
-      }
-    }
+  if (matchesDirectorySegments(normalized, segments, unignoreSet, configIgnoredDirs)) {
+    return true;
   }
 
   const configPatterns = getAuditConfig()?.paths?.ignoredPatterns ?? [];
@@ -158,39 +206,57 @@ export function isPathIgnored(
   const allPatterns = [...extraIgnorePatterns, ...configPatterns, ...configGlobs];
 
   for (const pattern of allPatterns) {
-    let cleanPattern = pattern.toLowerCase();
-    const matchesAnywhere = cleanPattern.startsWith('**/');
-    if (matchesAnywhere) {
-      cleanPattern = cleanPattern.slice(3);
-    }
-    cleanPattern = cleanPattern.replace(/\/\*\*$/, '').replace(/\/\*$/, '');
-
-    if (!cleanPattern) continue;
-
-    if (matchesAnywhere) {
-      if (
-        normalized === cleanPattern ||
-        normalized.startsWith(cleanPattern + '/') ||
-        normalized.endsWith('/' + cleanPattern) ||
-        normalized.includes('/' + cleanPattern + '/') ||
-        cleanPattern.endsWith('/' + normalized)
-      ) {
-        return true;
-      }
-    } else {
-      if (
-        normalized === cleanPattern ||
-        normalized.startsWith(cleanPattern + '/') ||
-        normalized.endsWith('/' + cleanPattern) ||
-        normalized.includes('/' + cleanPattern) ||
-        cleanPattern.endsWith('/' + normalized)
-      ) {
-        return true;
-      }
+    if (matchesSinglePattern(normalized, pattern)) {
+      return true;
     }
   }
 
   return false;
+}
+
+
+function collectSingleFile(
+  filePath: string,
+  projectRoot: string,
+  extraIgnorePatterns: readonly string[],
+  allowedExtensions: ReadonlySet<string>,
+  unignoreDirs: ReadonlySet<string> | readonly string[]
+): string[] {
+  const relPath = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
+  if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (allowedExtensions.has(ext)) {
+      return [filePath];
+    }
+  }
+  return [];
+}
+
+function processDirentEntry(
+  entry: nodeFs.Dirent,
+  dir: string,
+  projectRoot: string,
+  extraIgnorePatterns: readonly string[],
+  allowedExtensions: ReadonlySet<string>,
+  unignoreDirs: ReadonlySet<string> | readonly string[]
+): string[] {
+  const fullPath = path.resolve(dir, entry.name);
+  const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+  if (isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
+    return [];
+  }
+
+  if (entry.isDirectory()) {
+    return collectRepositoryFiles(fullPath, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs);
+  }
+
+  if (entry.isFile()) {
+    const ext = path.extname(entry.name).toLowerCase();
+    if (allowedExtensions.has(ext)) {
+      return [fullPath];
+    }
+  }
+  return [];
 }
 
 /**
@@ -203,43 +269,24 @@ export function collectRepositoryFiles(
   allowedExtensions: ReadonlySet<string> = SCANNABLE_EXTENSIONS,
   unignoreDirs: ReadonlySet<string> | readonly string[] = []
 ): string[] {
-  const results: string[] = []; // no-domain: Non-domain utility collection or data structure
-  if (!nodeFs.existsSync(dir)) return results;
+  if (!nodeFs.existsSync(dir)) return [];
 
   const stat = nodeFs.statSync(dir);
   if (stat.isFile()) {
-    const relPath = path.relative(projectRoot, dir).split(path.sep).join(path.posix.sep);
-    if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
-      const ext = path.extname(dir).toLowerCase();
-      if (allowedExtensions.has(ext)) {
-        results.push(dir);
-      }
-    }
-    return results;
+    return collectSingleFile(dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs);
   }
 
   let entries: nodeFs.Dirent[];
   try {
     entries = nodeFs.readdirSync(dir, { withFileTypes: true });
   } catch {
-    return results;
+    // catch-ok: directory unreadable or permission denied
+    return [];
   }
-  for (const entry of entries) {
-    const fullPath = path.resolve(dir, entry.name);
-    const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
 
-    if (entry.isDirectory()) {
-      if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
-        results.push(...collectRepositoryFiles(fullPath, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs));
-      }
-    } else if (entry.isFile()) {
-      if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
-        const ext = path.extname(entry.name).toLowerCase();
-        if (allowedExtensions.has(ext)) {
-          results.push(fullPath);
-        }
-      }
-    }
+  const results: string[] = [];
+  for (const entry of entries) {
+    results.push(...processDirentEntry(entry, dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs));
   }
   return results;
 }
@@ -274,7 +321,51 @@ export interface AuditorContext {
   finish: (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => Promise<StandardAuditResult>;
 }
 
+async function persistAuditJsonReport(
+  result: StandardAuditResult,
+  config: AuditorConfig,
+  outputOption?: string
+): Promise<string> {
+  const scratchFamilyDir = path.resolve(process.cwd(), 'scratch/audits', config.family);
+  const targetJsonPath = path.join(scratchFamilyDir, `${config.id}.json`);
+  const latestJsonPath = path.resolve(process.cwd(), 'scratch/audits', `latest_${config.id}.json`);
+
+  try {
+    await fs.mkdir(scratchFamilyDir, { recursive: true });
+    const jsonString = JSON.stringify(result, null, 2);
+    await fs.writeFile(targetJsonPath, jsonString, 'utf-8');
+    await fs.writeFile(latestJsonPath, jsonString, 'utf-8');
+
+    if (typeof outputOption === 'string' && outputOption && !outputOption.includes('..')) {
+      const outPath = path.resolve(process.cwd(), outputOption);
+      await fs.writeFile(outPath, jsonString, 'utf-8');
+    }
+  } catch {
+    // catch-ok: Ignorar errores de escritura si el comando se ejecuta en modo solo lectura (--allow-fs-read)
+  }
+
+  return targetJsonPath;
+}
+
+function renderConsoleSummary(
+  result: StandardAuditResult,
+  config: AuditorConfig,
+  targetJsonPath: string
+): void {
+  console.log(renderBanner(config.name, `Familia: ${config.family.toUpperCase()}  |  ID: ${config.id}`));
+  console.log(renderAuditTaskRow(result));
+
+  if (result.findings.length > 0) {
+    console.log(renderFindingsDetail(result.findings));
+  }
+
+  const relPath = path.relative(process.cwd(), targetJsonPath);
+  console.log(`\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`);
+  console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
+}
+
 export function setupAuditor(config: AuditorConfig): AuditorContext {
+
   const startTime = performance.now();
   const args = process.argv.slice(2);
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (['errors-only'].includes(a) ? `--${a}` : a));
@@ -343,7 +434,6 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       }
     },
     finish: async (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => {
-      // Merge legacy arrays if provided
       if (legacyErrors) {
         for (const err of legacyErrors) {
           findings.push({ severity: 'error', message: err });
@@ -354,7 +444,6 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
           findings.push({ severity: 'warning', message: warn });
         }
       }
-
       if (finalMetrics) {
         Object.assign(metrics, finalMetrics);
       }
@@ -380,45 +469,18 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         }
       };
 
-      // 1. Persist complete JSON to clean scratch directory (if write permissions are granted)
-      const scratchFamilyDir = path.resolve(process.cwd(), 'scratch/audits', config.family);
-      const targetJsonPath = path.join(scratchFamilyDir, `${config.id}.json`);
-      const latestJsonPath = path.resolve(process.cwd(), 'scratch/audits', `latest_${config.id}.json`);
+      const targetJsonPath = await persistAuditJsonReport(result, config, values.output as string | undefined);
 
-      try {
-        await fs.mkdir(scratchFamilyDir, { recursive: true });
-        const jsonString = JSON.stringify(result, null, 2);
-        await fs.writeFile(targetJsonPath, jsonString, 'utf-8');
-        await fs.writeFile(latestJsonPath, jsonString, 'utf-8');
-
-        if (typeof values.output === 'string' && values.output && !values.output.includes('..')) {
-          const outPath = path.resolve(process.cwd(), values.output);
-          await fs.writeFile(outPath, jsonString, 'utf-8');
-        }
-      } catch {
-        // Ignorar errores de escritura si el comando se ejecuta en modo solo lectura (--allow-fs-read)
-      }
-
-      // 2. ALWAYS output human summary table to console when run standalone
       if (!isSubprocess) {
-        console.log(renderBanner(config.name, `Familia: ${config.family.toUpperCase()}  |  ID: ${config.id}`));
-        console.log(renderAuditTaskRow(result));
-
-        if (findings.length > 0) {
-          console.log(renderFindingsDetail(findings));
+        renderConsoleSummary(result, config, targetJsonPath);
+        if (errorsCount > 0) {
+          process.exit(1);
         }
-
-        const relPath = path.relative(process.cwd(), targetJsonPath);
-        console.log(`\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`);
-        console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
-      }
-
-      if (!isSubprocess && errorsCount > 0) {
-        process.exit(1);
       }
 
       return result;
     }
+
   };
 }
 
@@ -456,6 +518,39 @@ export interface ViolationInput<TRuleId extends string = string> {
  * Base Object-Oriented Auditor class.
  * Centralizes violation tracking, rule counting, metrics reporting, and unified CLI execution.
  */
+function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (!options.id || options.id.trim().length === 0) {
+    throw new Error('Auditor must define an id');
+  }
+  if (!options.name || options.name.trim().length === 0) {
+    throw new Error(`Auditor [${options.id}] must define a name`);
+  }
+  if (!options.description || options.description.trim().length === 0) {
+    throw new Error(`Auditor [${options.id}] must define a human-friendly description`);
+  }
+  if (options.description.length > MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH || options.description.includes('\n')) {
+    throw new Error(
+      `Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`
+    );
+  }
+}
+
+function validateAuditorRuleDescriptions<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>,
+  formatFn: (ruleId: TRuleId, desc: string) => string
+): void {
+  if (!options.ruleDescriptions) return;
+  for (const [ruleId, desc] of Object.entries(options.ruleDescriptions)) {
+    const descText = typeof desc === 'string' ? desc : '';
+    const formatted = formatFn(ruleId as TRuleId, descText);
+    if (formatted && (formatted.length > MAX_AUDITOR_DESCRIPTION_LENGTH || formatted.includes('\n'))) {
+      throw new Error(
+        `Auditor [${options.id}] rule description for '${ruleId}' ('${formatted}') exceeds ${MAX_AUDITOR_DESCRIPTION_LENGTH} characters or contains newlines.`
+      );
+    }
+  }
+}
+
 export abstract class BaseAuditor<TRuleId extends string = string> {
   public readonly id: string;
   public readonly name: string;
@@ -477,23 +572,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
   protected filesScannedCount = 0;
 
   constructor(options: AuditorOptions<TRuleId>) {
+    validateAuditorOptions(options);
+
     this.requiresAst = options.requiresAst ?? false;
     this.packageName = options.packageName;
-    if (!options.id || options.id.trim().length === 0) {
-      throw new Error('Auditor must define an id');
-    }
-    if (!options.name || options.name.trim().length === 0) {
-      throw new Error(`Auditor [${options.id}] must define a name`);
-    }
-    if (!options.description || options.description.trim().length === 0) {
-      throw new Error(`Auditor [${options.id}] must define a human-friendly description`);
-    }
-    if (options.description.length > MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH || options.description.includes('\n')) {
-      throw new Error(
-        `Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`
-      );
-    }
-
     this.id = options.id;
     this.name = options.name;
     this.description = options.description;
@@ -507,21 +589,12 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
     this.requiredFiles = options.requiredFiles ?? [];
     this.projectRoot = options.projectRoot || process.cwd();
 
-    if (options.ruleDescriptions) {
-      for (const [ruleId, desc] of Object.entries(options.ruleDescriptions)) {
-        const descText = typeof desc === 'string' ? desc : '';
-        const formatted = this.formatRuleDescription(ruleId as TRuleId, descText);
-        if (formatted && (formatted.length > MAX_AUDITOR_DESCRIPTION_LENGTH || formatted.includes('\n'))) {
-          throw new Error(
-            `Auditor [${options.id}] rule description for '${ruleId}' ('${formatted}') exceeds ${MAX_AUDITOR_DESCRIPTION_LENGTH} characters or contains newlines.`
-          );
-        }
-      }
-    }
+    validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
 
     for (const ruleId of this.ruleIds) {
       this.countsByRule.set(ruleId, 0);
     }
+
 
     this.context = setupAuditor({
       id: this.id,
@@ -577,6 +650,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
 
   protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean {
     return hatches.some(h => line.includes(`// ${h}`) || line.includes(`/* ${h}`) || line.includes(`<!-- ${h}`));
+  }
+
+  protected isFixModeRequested(): boolean {
+    const rawValues = this.context.values as Record<string, unknown> | undefined;
+    return process.argv.includes('fix') || process.argv.includes('--fix') || Boolean(rawValues?.fix);
   }
 
   protected getLineNumber(content: string, charIndex: number): number {
@@ -645,8 +723,31 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
     });
   }
 
+  public importAuditFindings(
+    findings: readonly AuditFinding[],
+    fallbackRuleId: TRuleId,
+    fallbackContext: string = this.id
+  ): void {
+    for (const f of findings) {
+      this.addViolation({
+        ruleId: (f.ruleId as TRuleId) || fallbackRuleId,
+        severity: f.severity === 'warning' ? 'warning' : 'error',
+        file: f.file || '',
+        line: f.line || 1,
+        context: f.context || fallbackContext,
+        message: f.message
+      });
+    }
+  }
+
   public static async runCli(auditor: BaseAuditor<string>): Promise<void> {
     await auditor.execute();
+  }
+
+  public static async runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void> {
+    if (isMainModule(metaUrl)) {
+      await BaseAuditor.runCli(auditor);
+    }
   }
 }
 
@@ -673,7 +774,7 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
         const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
         await this.scanFile(relPath, content, sourceFile);
       } catch {
-        // Ignore read errors on inaccessible files
+        // catch-ok: Ignore read errors on inaccessible files
       }
     }
   }

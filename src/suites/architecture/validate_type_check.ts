@@ -34,11 +34,35 @@ const DECIMAL_RADIX = 10 as const;
 
 const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+?)(?::(?<line>\d+):(?<col>\d+)|\((?<line2>\d+),(?<col2>\d+)\))(?::\s*|\s*-\s*|\s+)(?<sev>error|warning)\s+(?<code>TS\d+):\s*(?<msg>.+)$/;
 
+function createFindingFromMatch(groups: Record<string, string>, cwd: string): AuditFinding {
+  const rawFile = groups.file ?? '';
+  const lineStr = groups.line ?? groups.line2 ?? '1';
+  const code = groups.code ?? 'TS';
+  const msg = groups.msg ?? 'TypeScript compiler error';
+
+  const resolvedPath = path.isAbsolute(rawFile)
+    ? path.relative(cwd, rawFile)
+    : rawFile;
+  const cleanFile = resolvedPath.split(path.sep).join(path.posix.sep);
+
+  return {
+    suiteId: 'validate_type_check',
+    suiteName: 'TypeScript & Vue Type Validator',
+    ruleId: 'ts-compiler-error',
+    ruleDescription: 'TypeScript: Error de compilación o tipo',
+    severity: 'error',
+    file: cleanFile,
+    line: Number.parseInt(lineStr, DECIMAL_RADIX) || DEFAULT_ERROR_LINE,
+    context: code,
+    message: msg
+  };
+}
+
 /**
  * Parses raw diagnostic output from vue-tsc / tsc into canonical AuditFindings.
  */
 export function parseTypeScriptDiagnostics(output: string, cwd: string = process.cwd()): AuditFinding[] {
-  const findings: AuditFinding[] = []; // no-domain: Non-domain utility collection or data structure
+  const findings: AuditFinding[] = [];
   if (!output || !output.trim()) return findings;
 
   const lines = output.split(/\r?\n/);
@@ -49,34 +73,12 @@ export function parseTypeScriptDiagnostics(output: string, cwd: string = process
     if (!line) continue;
 
     const match = DIAGNOSTIC_REGEX.exec(line);
-    if (match && match.groups) {
+    if (match?.groups) {
       if (currentFinding) {
         findings.push(currentFinding);
       }
-
-      const rawFile = match.groups.file ?? '';
-      const lineStr = match.groups.line ?? match.groups.line2 ?? '1';
-      const code = match.groups.code ?? 'TS';
-      const msg = match.groups.msg ?? 'TypeScript compiler error';
-
-      const resolvedPath = path.isAbsolute(rawFile)
-        ? path.relative(cwd, rawFile)
-        : rawFile;
-      const cleanFile = resolvedPath.split(path.sep).join(path.posix.sep);
-
-      currentFinding = {
-        suiteId: 'validate_type_check',
-        suiteName: 'TypeScript & Vue Type Validator',
-        ruleId: 'ts-compiler-error',
-        ruleDescription: 'TypeScript: Error de compilación o tipo',
-        severity: 'error',
-        file: cleanFile,
-        line: Number.parseInt(lineStr, DECIMAL_RADIX) || DEFAULT_ERROR_LINE,
-        context: code,
-        message: msg
-      };
+      currentFinding = createFindingFromMatch(match.groups, cwd);
     } else if (currentFinding && line.startsWith('  ')) {
-      // Continuation lines belong to the previous diagnostic message
       currentFinding.message += ` ${line.trim()}`;
     }
   }
@@ -145,16 +147,7 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
     this.context.logStep(2, 2, `Procesando diagnósticos del compilador (${findings.length} errores)...`);
 
-    for (const finding of findings) {
-      this.addViolation({
-        ruleId: 'ts-compiler-error',
-        severity: 'error',
-        file: finding.file || '',
-        line: finding.line || DEFAULT_ERROR_LINE,
-        context: finding.context || 'TS',
-        message: finding.message
-      });
-    }
+    this.importAuditFindings(findings, 'ts-compiler-error', 'TS');
 
     this.filesScannedCount = 1; // Project-level whole AST compilation
     this.context.setMetric('total_type_errors', findings.length);
@@ -162,6 +155,4 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new TypeCheckAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new TypeCheckAuditor());

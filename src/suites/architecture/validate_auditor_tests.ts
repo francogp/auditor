@@ -64,6 +64,203 @@ export function extractSuiteDeclaredRules(source: string): string[] {
   return Array.from(rules);
 }
 
+import type { AuditTaskDefinition } from '../../core/auditContract.ts';
+
+const DEFAULT_EXTENSION_TASK_TIMEOUT_MS = 60000;
+
+function isEligibleExtensionAuditorFile(name: string): boolean {
+  if (!name.endsWith('.ts') || name.startsWith('_')) return false;
+  if (name.includes('.test.') || name.includes('.spec.')) return false;
+  if (name.startsWith('report_') || name === 'audit_rules.ts') return false;
+  return true;
+}
+
+function registerExtensionAuditorFile(
+  fullPath: string,
+  entryName: string,
+  projectRoot: string,
+  tasks: AuditTaskDefinition[]
+): void {
+  if (!isEligibleExtensionAuditorFile(entryName)) return;
+  const id = path.basename(entryName, '.ts');
+  if (tasks.some(t => t.id === id)) return;
+
+  tasks.push({
+    id,
+    name: id,
+    family: 'architecture',
+    scriptPath: path.relative(projectRoot, fullPath).replace(/\\/g, '/'),
+    command: 'node',
+    args: [],
+    fast: true,
+    timeoutMs: DEFAULT_EXTENSION_TASK_TIMEOUT_MS,
+    order: 99,
+    isBuiltin: false
+  });
+}
+
+function scanExtensionAuditors(projectRoot: string, tasks: AuditTaskDefinition[]): void {
+  const scriptsAuditorsDir = path.join(projectRoot, 'scripts/auditors');
+  if (!fs.existsSync(scriptsAuditorsDir)) return;
+
+  const queue = [scriptsAuditorsDir];
+  while (queue.length > 0) {
+    const currentDir = queue.shift()!;
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        if (!entry.name.startsWith('_') && entry.name !== 'node_modules') {
+          queue.push(fullPath);
+        }
+      } else if (entry.isFile()) {
+        registerExtensionAuditorFile(fullPath, entry.name, projectRoot, tasks);
+      }
+    }
+  }
+}
+
+async function discoverAuditorTasks(projectRoot: string): Promise<AuditTaskDefinition[]> {
+  const hasLocalSuites = fs.existsSync(path.join(projectRoot, 'src/suites')) || fs.existsSync(path.join(projectRoot, 'packages/auditor/src/suites'));
+  const isHostProject = fs.existsSync(path.join(projectRoot, 'scripts/auditors')) || !hasLocalSuites;
+
+  const suitesDir = fs.existsSync(path.join(projectRoot, 'src/suites'))
+    ? path.join(projectRoot, 'src/suites')
+    : path.join(projectRoot, 'packages/auditor/src/suites');
+  const discoveryOptions = hasLocalSuites && !isHostProject
+    ? { baseDir: suitesDir }
+    : {};
+  const allTasks = await discoverAuditors(discoveryOptions);
+  const tasks = isHostProject
+    ? allTasks.filter(t => t.isBuiltin === false)
+    : allTasks.filter(t => t.isBuiltin !== false);
+
+  scanExtensionAuditors(projectRoot, tasks);
+  return tasks;
+}
+
+function findAuditorTestFile(projectRoot: string, taskId: string, testRoots: readonly string[]): { testFileAbs: string | null; testFileRel: string } {
+  const candidateRelPaths: string[] = [];
+  for (const tr of testRoots) {
+    const cleanTr = tr.replace(/^\/+|\/+$/g, '');
+    candidateRelPaths.push(`${cleanTr}/${taskId}.test.ts`);
+    candidateRelPaths.push(`${cleanTr}/node/auditors/${taskId}.test.ts`);
+    candidateRelPaths.push(`${cleanTr}/unit/auditors/${taskId}.test.ts`);
+    candidateRelPaths.push(`${cleanTr}/auditors/${taskId}.test.ts`);
+  }
+  candidateRelPaths.push(`packages/auditor/tests/${taskId}.test.ts`);
+
+  let testFileAbs: string | null = null;
+  let testFileRel: string = candidateRelPaths[0]!;
+
+  for (const rel of candidateRelPaths) {
+    const abs = path.resolve(projectRoot, rel);
+    if (fs.existsSync(abs)) {
+      testFileAbs = abs;
+      testFileRel = rel;
+      break;
+    }
+  }
+
+  return { testFileAbs, testFileRel };
+}
+
+function checkCleanVerification(testSource: string): boolean {
+  return (
+    testSource.includes('errors).toBe(0)') ||
+    testSource.includes('errors).toEqual(0)') ||
+    testSource.includes("status).toBe('passed')") ||
+    testSource.includes('violations).toHaveLength(0)') ||
+    testSource.includes('summary.errors).toBe(0)') ||
+    testSource.includes('summary.errors === 0')
+  );
+}
+
+function auditTaskRuleCoverage(params: {
+  suiteSource: string;
+  testSource: string;
+  testFileRel: string;
+  taskId: string;
+  auditor: AuditorTestsAuditor;
+}): { rulesChecked: number; rulesTested: number } {
+  let rulesChecked = 0;
+  let rulesTested = 0;
+  const declaredRules = extractSuiteDeclaredRules(params.suiteSource);
+
+  for (const rule of declaredRules) {
+    rulesChecked++;
+    const ruleRegex = new RegExp(`['"]${rule}['"]`);
+    if (ruleRegex.test(params.testSource)) {
+      rulesTested++;
+    } else {
+      params.auditor.addViolation({
+        ruleId: 'untested-auditor-rule',
+        severity: 'error',
+        file: params.testFileRel,
+        line: 1,
+        message: `El test '${params.testFileRel}' no verifica la regla '${rule}' declarada en '${params.taskId}'.`,
+        context: rule
+      });
+    }
+  }
+
+  return { rulesChecked, rulesTested };
+}
+
+function auditAuditorTask(params: {
+  task: AuditTaskDefinition;
+  projectRoot: string;
+  testRoots: readonly string[];
+  auditor: AuditorTestsAuditor;
+}): { rulesChecked: number; rulesTested: number; hasDedicatedTest: boolean } {
+  const { testFileAbs, testFileRel } = findAuditorTestFile(params.projectRoot, params.task.id, params.testRoots);
+
+  if (!testFileAbs) {
+    params.auditor.addViolation({
+      ruleId: 'missing-auditor-test',
+      severity: 'error',
+      file: params.task.scriptPath,
+      line: 1,
+      message: `El sub-auditor '${params.task.id}' no posee un archivo de prueba dedicado. Se esperaba '${testFileRel}'.`,
+      context: params.task.id
+    });
+    return { rulesChecked: 0, rulesTested: 0, hasDedicatedTest: false };
+  }
+
+  const suiteAbs = path.isAbsolute(params.task.scriptPath)
+    ? params.task.scriptPath
+    : (fs.existsSync(path.resolve(params.projectRoot, params.task.scriptPath))
+        ? path.resolve(params.projectRoot, params.task.scriptPath)
+        : path.resolve(params.task.scriptPath));
+  if (!fs.existsSync(suiteAbs)) {
+    return { rulesChecked: 0, rulesTested: 0, hasDedicatedTest: true };
+  }
+
+  const suiteSource = fs.readFileSync(suiteAbs, 'utf-8');
+  const testSource = fs.readFileSync(testFileAbs, 'utf-8');
+
+  const { rulesChecked, rulesTested } = auditTaskRuleCoverage({
+    suiteSource,
+    testSource,
+    testFileRel,
+    taskId: params.task.id,
+    auditor: params.auditor
+  });
+
+  if (!checkCleanVerification(testSource)) {
+    params.auditor.addViolation({
+      ruleId: 'missing-clean-auditor-test',
+      severity: 'error',
+      file: testFileRel,
+      line: 1,
+      message: `El test '${testFileRel}' para '${params.task.id}' no incluye verificación de ejecución limpia (cero errores).`,
+      context: params.task.id
+    });
+  }
+
+  return { rulesChecked, rulesTested, hasDedicatedTest: true };
+}
+
 export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   constructor(projectRoot: string = process.cwd()) {
     super({
@@ -79,122 +276,29 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    const hasLocalSuites = fs.existsSync(path.join(this.projectRoot, 'src/suites')) || fs.existsSync(path.join(this.projectRoot, 'packages/auditor/src/suites'));
-    const isHostProject = fs.existsSync(path.join(this.projectRoot, 'scripts/auditors')) || !hasLocalSuites;
-
-    const suitesDir = fs.existsSync(path.join(this.projectRoot, 'src/suites'))
-      ? path.join(this.projectRoot, 'src/suites')
-      : path.join(this.projectRoot, 'packages/auditor/src/suites');
-    const discoveryOptions = hasLocalSuites && !isHostProject
-      ? { baseDir: suitesDir }
-      : {};
-    const allTasks = await discoverAuditors(discoveryOptions);
-    const tasks = isHostProject
-      ? allTasks.filter(t => t.isBuiltin === false)
-      : allTasks.filter(t => t.isBuiltin !== false);
-
-    let totalAuditorsChecked = 0;
-    let auditorsWithDedicatedTests = 0;
-    let totalRulesChecked = 0;
-    let testedRulesCount = 0;
-
+    const tasks = await discoverAuditorTasks(this.projectRoot);
     this.context.logStep(2, 2, `Verificando tests unitarios para ${tasks.length} suites...`);
 
     const config = getAuditConfig(this.projectRoot);
     const testRoots = config.paths.testRoots ?? ['tests'];
 
+    let auditorsWithDedicatedTests = 0;
+    let totalRulesChecked = 0;
+    let testedRulesCount = 0;
+
     for (const task of tasks) {
-      totalAuditorsChecked++;
-      const baseName = task.id;
-
-      const candidateRelPaths: string[] = [];
-      for (const tr of testRoots) {
-        const cleanTr = tr.replace(/^\/+|\/+$/g, '');
-        candidateRelPaths.push(`${cleanTr}/${baseName}.test.ts`);
-        candidateRelPaths.push(`${cleanTr}/node/auditors/${baseName}.test.ts`);
-        candidateRelPaths.push(`${cleanTr}/unit/auditors/${baseName}.test.ts`);
-        candidateRelPaths.push(`${cleanTr}/auditors/${baseName}.test.ts`);
-      }
-      candidateRelPaths.push(`packages/auditor/tests/${baseName}.test.ts`);
-
-      let testFileAbs: string | null = null;
-      let testFileRel: string = candidateRelPaths[0]!;
-
-      for (const rel of candidateRelPaths) {
-        const abs = path.resolve(this.projectRoot, rel);
-        if (fs.existsSync(abs)) {
-          testFileAbs = abs;
-          testFileRel = rel;
-          break;
-        }
-      }
-
-      if (!testFileAbs) {
-        this.addViolation({
-          ruleId: 'missing-auditor-test',
-          severity: 'error',
-          file: task.scriptPath,
-          line: 1,
-          message: `El sub-auditor '${task.id}' no posee un archivo de prueba dedicado. Se esperaba '${testFileRel}'.`,
-          context: task.id
-        });
-        continue;
-      }
-
-      auditorsWithDedicatedTests++;
-
-      // Check rule coverage and clean execution
-      const suiteAbs = path.isAbsolute(task.scriptPath)
-        ? task.scriptPath
-        : (fs.existsSync(path.resolve(this.projectRoot, task.scriptPath))
-            ? path.resolve(this.projectRoot, task.scriptPath)
-            : path.resolve(task.scriptPath));
-      if (!fs.existsSync(suiteAbs)) continue;
-
-      const suiteSource = fs.readFileSync(suiteAbs, 'utf-8');
-      const testSource = fs.readFileSync(testFileAbs, 'utf-8');
-
-      const declaredRules = extractSuiteDeclaredRules(suiteSource);
-      for (const rule of declaredRules) {
-        totalRulesChecked++;
-        // Check if test mentions/asserts the ruleId
-        const ruleRegex = new RegExp(`['"]${rule}['"]`);
-        if (ruleRegex.test(testSource)) {
-          testedRulesCount++;
-        } else {
-          this.addViolation({
-            ruleId: 'untested-auditor-rule',
-            severity: 'error',
-            file: testFileRel,
-            line: 1,
-            message: `El test '${testFileRel}' no verifica la regla '${rule}' declarada en '${task.id}'.`,
-            context: rule
-          });
-        }
-      }
-
-      // Check clean execution test
-      const hasCleanVerification =
-        testSource.includes('errors).toBe(0)') ||
-        testSource.includes('errors).toEqual(0)') ||
-        testSource.includes("status).toBe('passed')") ||
-        testSource.includes('violations).toHaveLength(0)') ||
-        testSource.includes('summary.errors).toBe(0)') ||
-        testSource.includes('summary.errors === 0');
-
-      if (!hasCleanVerification) {
-        this.addViolation({
-          ruleId: 'missing-clean-auditor-test',
-          severity: 'error',
-          file: testFileRel,
-          line: 1,
-          message: `El test '${testFileRel}' para '${task.id}' no incluye verificación de ejecución limpia (cero errores).`,
-          context: task.id
-        });
-      }
+      const stats = auditAuditorTask({
+        task,
+        projectRoot: this.projectRoot,
+        testRoots,
+        auditor: this
+      });
+      if (stats.hasDedicatedTest) auditorsWithDedicatedTests++;
+      totalRulesChecked += stats.rulesChecked;
+      testedRulesCount += stats.rulesTested;
     }
 
-    this.context.setMetric('Auditors Checked', totalAuditorsChecked);
+    this.context.setMetric('Auditors Checked', tasks.length);
     this.context.setMetric('Tested Auditors', auditorsWithDedicatedTests);
     this.context.setMetric('Declared Rules Checked', totalRulesChecked);
     this.context.setMetric('Rules Covered in Tests', testedRulesCount);
@@ -202,6 +306,4 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new AuditorTestsAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new AuditorTestsAuditor());

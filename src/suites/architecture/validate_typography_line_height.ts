@@ -15,7 +15,6 @@
  *   npm run validate:line-height
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
@@ -78,6 +77,50 @@ function isEmojiFontContext(lines: readonly string[], currentIndex: number): boo
   return false;
 }
 
+interface SelectorFrame {
+  selector: string;
+  isIgnored: boolean;
+}
+
+function updateSelectorStack(trimmed: string, lineIgnored: boolean, selectorStack: SelectorFrame[]): void {
+  if (trimmed.includes('{')) {
+    const selectorPart = trimmed.slice(0, trimmed.indexOf('{')).trim();
+    if (selectorPart) {
+      selectorStack.push({ selector: selectorPart, isIgnored: lineIgnored });
+    }
+  }
+
+  const currentFrame = selectorStack[selectorStack.length - 1];
+  if (currentFrame && lineIgnored) {
+    currentFrame.isIgnored = true;
+  }
+}
+
+function popSelectorStack(trimmed: string, selectorStack: SelectorFrame[]): void {
+  if (trimmed.includes('}')) {
+    const closeCount = (trimmed.match(/\}/g) || []).length;
+    for (let c = 0; c < closeCount; c++) {
+      selectorStack.pop();
+    }
+  }
+}
+
+function isLineHeightOverlapCandidate(
+  trimmed: string,
+  lineIgnored: boolean,
+  selectorStack: readonly SelectorFrame[]
+): RegExpMatchArray | null {
+  const currentFrame = selectorStack[selectorStack.length - 1];
+  if (lineIgnored || (currentFrame && currentFrame.isIgnored)) {
+    return null;
+  }
+  return trimmed.match(/\bline-height\s*:\s*(0|1|0px|1px|1em|1rem)\s*(?:!important)?\s*;/i);
+}
+
+function isTextSelectorCandidate(currentSelector: string, leafSelector: string): boolean {
+  return TEXT_ELEMENT_REGEX.test(leafSelector) || currentSelector.includes('&__') || currentSelector.includes('.text');
+}
+
 export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleId> {
   private totalRulesChecked = 0;
 
@@ -100,6 +143,46 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
     });
   }
 
+  private checkBlockLine(
+    blockLines: readonly string[],
+    lineIndex: number,
+    blockStartLine: number,
+    relPath: string,
+    selectorStack: SelectorFrame[]
+  ): void {
+    const line = blockLines[lineIndex];
+    if (!line) return;
+    const trimmed = line.trim();
+
+    const lineIgnored = this.isLineIgnored(line, ['line-height-ok', 'css-ok']) ||
+                        line.includes('/* line-height-ok */') ||
+                        line.includes('// line-height-ok');
+
+    updateSelectorStack(trimmed, lineIgnored, selectorStack);
+
+    const lineHeightMatch = isLineHeightOverlapCandidate(trimmed, lineIgnored, selectorStack);
+    if (lineHeightMatch) {
+      this.totalRulesChecked++;
+      const currentSelector = selectorStack.map(f => f.selector).join(' ') || '(global scope)';
+      const leafSelector = getLeafSelector(currentSelector);
+
+      if (!ICON_ELEMENT_REGEX.test(leafSelector) && !isEmojiFontContext(blockLines, lineIndex)) {
+        if (isTextSelectorCandidate(currentSelector, leafSelector)) {
+          this.addViolation({
+            ruleId: 'line-height-overlap',
+            severity: 'error',
+            file: relPath,
+            line: blockStartLine + lineIndex,
+            message: `Dangerous '${lineHeightMatch[0]}' on text selector '${currentSelector}'. Fonts overlap when text wraps. Use 'line-height: 1.2' to '1.5' or $lh-normal.`,
+            context: trimmed
+          });
+        }
+      }
+    }
+
+    popSelectorStack(trimmed, selectorStack);
+  }
+
   protected override scanFile(relPath: string, content: string): void {
     const config = getAuditConfig(this.projectRoot);
     if (config.styles?.lineHeightOverlapCheck === false) return;
@@ -107,60 +190,10 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
 
     for (const block of styleBlocks) {
       const blockLines = block.content.split('\n');
-      const selectorStack: { selector: string; isIgnored: boolean }[] = [];
+      const selectorStack: SelectorFrame[] = [];
 
       for (let i = 0; i < blockLines.length; i++) {
-        const line = blockLines[i];
-        if (!line) continue;
-        const trimmed = line.trim();
-
-        const lineIgnored = this.isLineIgnored(line, ['line-height-ok', 'css-ok']) ||
-                            line.includes('/* line-height-ok */') ||
-                            line.includes('// line-height-ok');
-
-        if (trimmed.includes('{')) {
-          const selectorPart = trimmed.slice(0, trimmed.indexOf('{')).trim();
-          if (selectorPart) {
-            selectorStack.push({
-              selector: selectorPart,
-              isIgnored: lineIgnored
-            });
-          }
-        }
-
-        const currentFrame = selectorStack[selectorStack.length - 1];
-        if (currentFrame && lineIgnored) {
-          currentFrame.isIgnored = true;
-        }
-
-        // Rule: Anti-Zero Line-Height (line-height-overlap)
-        const lineHeightMatch = trimmed.match(/\bline-height\s*:\s*(0|1|0px|1px|1em|1rem)\s*(?:!important)?\s*;/i);
-        if (lineHeightMatch && !lineIgnored && (!currentFrame || !currentFrame.isIgnored)) {
-          this.totalRulesChecked++;
-          const currentSelector = selectorStack.map(f => f.selector).join(' ') || '(global scope)';
-          const leafSelector = getLeafSelector(currentSelector);
-
-          if (!ICON_ELEMENT_REGEX.test(leafSelector) && !isEmojiFontContext(blockLines, i)) {
-            if (TEXT_ELEMENT_REGEX.test(leafSelector) || currentSelector.includes('&__') || currentSelector.includes('.text')) {
-              const absoluteLine = block.startLine + i;
-              this.addViolation({
-                ruleId: 'line-height-overlap',
-                severity: 'error',
-                file: relPath,
-                line: absoluteLine,
-                message: `Dangerous '${lineHeightMatch[0]}' on text selector '${currentSelector}'. Fonts overlap when text wraps. Use 'line-height: 1.2' to '1.5' or $lh-normal.`,
-                context: trimmed
-              });
-            }
-          }
-        }
-
-        if (trimmed.includes('}')) {
-          const closeCount = (trimmed.match(/\}/g) || []).length;
-          for (let c = 0; c < closeCount; c++) {
-            selectorStack.pop();
-          }
-        }
+        this.checkBlockLine(blockLines, i, block.startLine, relPath, selectorStack);
       }
     }
   }
@@ -172,6 +205,4 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new TypographyLineHeightAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new TypographyLineHeightAuditor());

@@ -33,6 +33,21 @@ export const REACTIVE_LEAK_RULES: readonly ReactiveLeakRuleId[] = [
   'interval-leak'
 ] as const;
 
+function hasOnceOption(node: ts.CallExpression): boolean {
+  if (node.arguments.length < 3) return false;
+  const optionsArg = node.arguments[2];
+  if (!optionsArg || !ts.isObjectLiteralExpression(optionsArg)) return false;
+
+  for (const prop of optionsArg.properties) {
+    if (ts.isPropertyAssignment(prop) && prop.name && ts.isIdentifier(prop.name) && prop.name.text === 'once') {
+      if (prop.initializer.kind === ts.SyntaxKind.TrueKeyword) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
@@ -59,6 +74,55 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
     });
   }
 
+  private checkEventListenerLeak(
+    node: ts.CallExpression,
+    sf: ts.SourceFile,
+    relPath: string,
+    checkLineEscape: (lineNum: number) => boolean,
+    hasRemoveEventListener: boolean,
+    hasUnmountHook: boolean
+  ): void {
+    const expr = node.expression;
+    if (!ts.isPropertyAccessExpression(expr) || expr.name.text !== 'addEventListener') return;
+
+    const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+    if (checkLineEscape(line)) return;
+
+    if (!hasOnceOption(node) && !hasRemoveEventListener && !hasUnmountHook) {
+      this.addViolation({
+        ruleId: 'dom-event-leak',
+        severity: 'error',
+        file: relPath,
+        line,
+        message: 'addEventListener sin removeEventListener ni ciclo de vida onUnmounted / onScopeDispose (potencial fuga de memoria).',
+        context: node.getText(sf)
+      });
+    }
+  }
+
+  private checkIntervalLeak(
+    node: ts.CallExpression,
+    sf: ts.SourceFile,
+    relPath: string,
+    checkLineEscape: (lineNum: number) => boolean,
+    hasClearInterval: boolean
+  ): void {
+    const expr = node.expression;
+    if (!ts.isIdentifier(expr) || expr.text !== 'setInterval') return;
+
+    const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+    if (checkLineEscape(line) || hasClearInterval) return;
+
+    this.addViolation({
+      ruleId: 'interval-leak',
+      severity: 'error',
+      file: relPath,
+      line,
+      message: 'setInterval ejecutado sin clearInterval en el componente o composable.',
+      context: node.getText(sf)
+    });
+  }
+
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     // Fast string pre-filter to skip files that cannot contain reactive leaks
     if (!content.includes('addEventListener') && !content.includes('setInterval')) {
@@ -80,57 +144,9 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
 
     const visit = (node: ts.Node) => {
       if (ts.isCallExpression(node)) {
-        const expr = node.expression;
-
-        // 1. addEventListener Check
-        if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'addEventListener') {
-          const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
-
-          if (!checkLineEscape(line)) {
-            let isOnce = false;
-            if (node.arguments.length >= 3) {
-              const optionsArg = node.arguments[2];
-              if (optionsArg && ts.isObjectLiteralExpression(optionsArg)) {
-                for (const prop of optionsArg.properties) {
-                  if (ts.isPropertyAssignment(prop) && prop.name && ts.isIdentifier(prop.name) && prop.name.text === 'once') {
-                    if (prop.initializer.kind === ts.SyntaxKind.TrueKeyword) {
-                      isOnce = true;
-                    }
-                  }
-                }
-              }
-            }
-
-            if (!isOnce && !hasRemoveEventListener && !hasUnmountHook) {
-              this.addViolation({
-                ruleId: 'dom-event-leak',
-                severity: 'error',
-                file: relPath,
-                line,
-                message: 'addEventListener sin removeEventListener ni ciclo de vida onUnmounted / onScopeDispose (potencial fuga de memoria).',
-                context: node.getText(sf)
-              });
-            }
-          }
-        }
-
-        // 2. setInterval Check
-        if (ts.isIdentifier(expr) && expr.text === 'setInterval') {
-          const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
-
-          if (!checkLineEscape(line) && !hasClearInterval) {
-            this.addViolation({
-              ruleId: 'interval-leak',
-              severity: 'error',
-              file: relPath,
-              line,
-              message: 'setInterval ejecutado sin clearInterval en el componente o composable.',
-              context: node.getText(sf)
-            });
-          }
-        }
+        this.checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook);
+        this.checkIntervalLeak(node, sf, relPath, checkLineEscape, hasClearInterval);
       }
-
       ts.forEachChild(node, visit);
     };
 
@@ -158,6 +174,4 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new ReactiveLeaksAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ReactiveLeaksAuditor());

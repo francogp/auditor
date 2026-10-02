@@ -24,7 +24,6 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -167,12 +166,20 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     }
   }
 
-  private auditTemplateQuoteEscaping(relPath: string, content: string): void {
+  private extractTemplateBlock(content: string): { templateContent: string; templateStartIndex: number } | null {
     const templateMatch = content.match(/<template[\s\S]*<\/template>/);
-    if (!templateMatch) return;
+    if (!templateMatch) return null;
+    return {
+      templateContent: templateMatch[0],
+      templateStartIndex: templateMatch.index ?? 0
+    };
+  }
 
-    const templateContent = templateMatch[0];
-    const templateStartIndex = templateMatch.index ?? 0;
+  private auditTemplateQuoteEscaping(relPath: string, content: string): void {
+    const template = this.extractTemplateBlock(content);
+    if (!template) return;
+
+    const { templateContent, templateStartIndex } = template;
 
     // Scan lines for patterns like :attr="foo || "bar""
     const lines = templateContent.split('\n');
@@ -199,11 +206,10 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   }
 
   private auditDataProviderInTemplate(relPath: string, content: string): void {
-    const templateMatch = content.match(/<template[\s\S]*<\/template>/);
-    if (!templateMatch) return;
+    const template = this.extractTemplateBlock(content);
+    if (!template) return;
 
-    const templateContent = templateMatch[0];
-    const templateStartIndex = templateMatch.index ?? 0;
+    const { templateContent, templateStartIndex } = template;
 
     const config = getAuditConfig(this.projectRoot);
     const customPatterns = config.templates?.forbiddenTemplateCallPatterns;
@@ -226,6 +232,4 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
 }
 
 // Standalone execution support
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new VueSfcHygieneAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new VueSfcHygieneAuditor());

@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, isMainModule } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -65,6 +65,6 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 }
 
 // Canonical CLI Entrypoint for standalone and dynamic execution
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new MyFeatureAuditor());
 }

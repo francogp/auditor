@@ -18,6 +18,44 @@ export interface GitIgnoreRule {
   readonly regex: RegExp;
 }
 
+const REGEX_SPECIAL_CHARS = new Set(['.', '+', '^', '$', '(', ')', '[', ']', '{', '}', '|', '\\']);
+
+function parseWildcardToken(pattern: string, index: number): { token: string; advance: number } {
+  if (pattern[index + 1] === '*') {
+    if (pattern[index + 2] === '/') {
+      return { token: '(?:.*/)?', advance: 3 };
+    }
+    return { token: '.*', advance: 2 };
+  }
+  return { token: '[^/]*', advance: 1 };
+}
+
+function escapePatternChar(pattern: string, index: number): { token: string; advance: number } {
+  const char = pattern[index];
+  if (!char) return { token: '', advance: 1 };
+  if (char === '*') {
+    return parseWildcardToken(pattern, index);
+  }
+  if (char === '?') {
+    return { token: '[^/]', advance: 1 };
+  }
+  if (REGEX_SPECIAL_CHARS.has(char)) {
+    return { token: `\\${char}`, advance: 1 };
+  }
+  return { token: char, advance: 1 };
+}
+
+function convertGlobToRegexString(pattern: string): string {
+  let escaped = '';
+  let i = 0;
+  while (i < pattern.length) {
+    const { token, advance } = escapePatternChar(pattern, i);
+    escaped += token;
+    i += advance;
+  }
+  return escaped;
+}
+
 export class GitIgnoreMatcher {
   private readonly rootDir: string;
   private readonly rules: GitIgnoreRule[] = [];
@@ -76,54 +114,10 @@ export class GitIgnoreMatcher {
     }
   }
 
-  private patternToRegex(pattern: string, isDirectoryOnly: boolean, isRootRelative: boolean): RegExp {
-    let escaped = '';
-    let i = 0;
-    while (i < pattern.length) {
-      const char = pattern[i];
-      if (!char) {
-        break;
-      }
-      if (char === '*') {
-        if (pattern[i + 1] === '*') {
-          // Double wildcard **
-          if (pattern[i + 2] === '/') {
-            escaped += '(?:.*/)?';
-            i += 3;
-            continue;
-          } else {
-            escaped += '.*';
-            i += 2;
-            continue;
-          }
-        } else {
-          // Single wildcard * (matches any character except /)
-          escaped += '[^/]*';
-          i += 1;
-          continue;
-        }
-      } else if (char === '?') {
-        escaped += '[^/]';
-        i += 1;
-        continue;
-      } else if (['.', '+', '^', '$', '(', ')', '[', ']', '{', '}', '|', '\\'].includes(char)) {
-        escaped += '\\' + char;
-        i += 1;
-        continue;
-      } else {
-        escaped += char;
-        i += 1;
-      }
-    }
-
-    let regexStr = isRootRelative ? `^${escaped}` : `(?:^|/)${escaped}`;
-    if (isDirectoryOnly) {
-      regexStr += `(?:/.*)?$`;
-    } else {
-      regexStr += `(?:/.*)?$`;
-    }
-
-    return new RegExp(regexStr);
+  private patternToRegex(pattern: string, _isDirectoryOnly: boolean, isRootRelative: boolean): RegExp {
+    const escaped = convertGlobToRegexString(pattern);
+    const prefix = isRootRelative ? '^' : '(?:^|/)';
+    return new RegExp(`${prefix}${escaped}(?:/.*)?$`);
   }
 
   /**

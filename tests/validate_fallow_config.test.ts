@@ -18,7 +18,8 @@ import path from 'node:path';
 import {
   ValidateFallowConfigAuditor,
   FALLOW_CONFIG_RULES,
-  isSymbolExportedInContent
+  isSymbolExportedInContent,
+  validateFallowWorkspaceDiagnostics
 } from '../src/suites/architecture/validate_fallow_config.ts';
 
 describe('ValidateFallowConfigAuditor', () => {
@@ -45,6 +46,7 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(FALLOW_CONFIG_RULES).toContain('fallow-stale-export');
       expect(FALLOW_CONFIG_RULES).toContain('fallow-empty-export-list');
       expect(FALLOW_CONFIG_RULES).toContain('fallow-duplicate-entry');
+      expect(FALLOW_CONFIG_RULES).toContain('fallow-workspace-diagnostic');
     });
 
     it('initializes with correct id and family', () => {
@@ -155,6 +157,19 @@ describe('ValidateFallowConfigAuditor', () => {
       const result = await auditor.execute();
       const violation = result.findings.find(f => f.ruleId === 'fallow-stale-export');
       expect(violation).toBeDefined();
+    });
+
+    it('flags fallow-workspace-diagnostic when actionable workspace diagnostic is reported', async () => {
+      const auditor = new ValidateFallowConfigAuditor(scratchDir);
+      const diagnostics = [
+        { path: 'packages/core', kind: 'undeclared-workspace', message: 'Workspace packages/core is not declared in package.json' },
+        { path: '.', kind: 'boundaries-not-configured', message: 'Ignored informational notice' }
+      ];
+      validateFallowWorkspaceDiagnostics(diagnostics, auditor);
+      const result = await auditor.finishAudit();
+      expect(result.findings.length).toBe(1);
+      expect(result.findings[0]?.ruleId).toBe('fallow-workspace-diagnostic');
+      expect(result.findings[0]?.message).toContain('undeclared-workspace');
     });
   });
 

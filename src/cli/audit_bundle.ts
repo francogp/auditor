@@ -15,10 +15,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { enableCompileCache } from 'node:module';
 import { loadAuditConfig, getAuditConfig, assertAuditConfigComplete, type ChunkBudgetConfig } from '../core/auditConfig.ts';
 import { renderBanner, renderBoxTable, formatStatusBadge, type TableColumn } from '../core/unifiedTheme.ts';
+import { isMainModule } from './cliUtils.ts';
 
 enableCompileCache();
 
@@ -163,6 +163,81 @@ export function auditSingleChunk(
   };
 }
 
+interface VisualizerAuditResult {
+  topModules: readonly AggregatedModule[];
+  duplicateViolations: string[];
+  dupeErrors: number;
+}
+
+function auditVisualizerStats(
+  statsFilePath: string,
+  dupeLimitBytes: number,
+  topLimit: number
+): VisualizerAuditResult {
+  if (!fs.existsSync(statsFilePath)) {
+    return { topModules: [], duplicateViolations: [], dupeErrors: 0 };
+  }
+
+  const rawContent = fs.readFileSync(statsFilePath, 'utf8');
+  const visualizerData = parseVisualizerData(rawContent);
+  if (!visualizerData) {
+    return { topModules: [], duplicateViolations: [], dupeErrors: 0 };
+  }
+
+  const topModules = aggregateModuleSizes(visualizerData);
+  const duplicateViolations: string[] = [];
+  let dupeErrors = 0;
+
+  for (const m of topModules.slice(0, topLimit)) {
+    if (m.heavyChunkCount > 1 && m.rendered > dupeLimitBytes) {
+      dupeErrors++;
+      duplicateViolations.push(
+        `Módulo duplicado en ${m.heavyChunkCount} chunks (${(m.rendered / 1024).toFixed(1)} KB): ${m.id}`
+      );
+    }
+  }
+
+  return { topModules, duplicateViolations, dupeErrors };
+}
+
+interface CompiledChunksAuditResult {
+  chunkResults: ChunkAuditResult[];
+  chunkErrors: number;
+  chunkWarnings: number;
+}
+
+function auditCompiledChunks(
+  distAssetsDir: string,
+  exemptPrefixes: readonly string[],
+  budgets: readonly ChunkBudgetConfig[]
+): CompiledChunksAuditResult {
+  if (!fs.existsSync(distAssetsDir)) {
+    return { chunkResults: [], chunkErrors: 0, chunkWarnings: 0 };
+  }
+
+  const files = fs.readdirSync(distAssetsDir);
+  const jsFiles = files.filter(f => f.endsWith('.js') && !f.endsWith('.br') && !f.endsWith('.gz'));
+  const chunkResults: ChunkAuditResult[] = [];
+  let chunkErrors = 0;
+  let chunkWarnings = 0;
+
+  for (const f of jsFiles) {
+    if (exemptPrefixes.some(prefix => f.startsWith(prefix))) {
+      continue;
+    }
+    const fullPath = path.join(distAssetsDir, f);
+    const res = auditSingleChunk(f, fullPath, budgets);
+    chunkResults.push(res);
+    if (res.status === 'failed') {
+      chunkErrors++;
+    } else if (res.status === 'warning') {
+      chunkWarnings++;
+    }
+  }
+
+  return { chunkResults, chunkErrors, chunkWarnings };
+}
+
 export async function runBundleAudit(projectRoot: string = process.cwd()): Promise<BundleAuditSummary> {
   await loadAuditConfig(projectRoot);
   const config = getAuditConfig();
@@ -181,54 +256,18 @@ export async function runBundleAudit(projectRoot: string = process.cwd()): Promi
 
   const statsFilePath = path.resolve(projectRoot, bundleConfig?.statsFile ?? 'scratch/bundle_stats.html');
   const distAssetsDir = path.resolve(projectRoot, bundleConfig?.distDir ?? 'dist/assets');
-
-  let totalErrors = 0;
-  let totalWarnings = 0;
-  const duplicateViolations: string[] = [];
-  let topModules: readonly AggregatedModule[] = [];
-  const chunkResults: ChunkAuditResult[] = [];
-
   const dupeLimitBytes = bundleConfig?.duplicateModuleThresholdBytes ?? 500 * 1024;
   const topLimit = bundleConfig?.topModulesLimit ?? 15;
 
-  // 1. Analyze Treemap Visualizer Stats
-  if (fs.existsSync(statsFilePath)) {
-    const rawContent = fs.readFileSync(statsFilePath, 'utf8');
-    const visualizerData = parseVisualizerData(rawContent);
-    if (visualizerData) {
-      topModules = aggregateModuleSizes(visualizerData);
-      for (const m of topModules.slice(0, topLimit)) {
-        if (m.heavyChunkCount > 1 && m.rendered > dupeLimitBytes) {
-          totalErrors++;
-          duplicateViolations.push(
-            `Módulo duplicado en ${m.heavyChunkCount} chunks (${(m.rendered / 1024).toFixed(1)} KB): ${m.id}`
-          );
-        }
-      }
-    }
-  }
+  const { topModules, duplicateViolations, dupeErrors } = auditVisualizerStats(statsFilePath, dupeLimitBytes, topLimit);
+  const { chunkResults, chunkErrors, chunkWarnings } = auditCompiledChunks(
+    distAssetsDir,
+    bundleConfig?.exemptChunkPrefixes ?? [],
+    bundleConfig?.budgets ?? []
+  );
 
-  // 2. Analyze Compiled JS Chunks in dist/assets
-  if (fs.existsSync(distAssetsDir)) {
-    const files = fs.readdirSync(distAssetsDir);
-    const jsFiles = files.filter(f => f.endsWith('.js') && !f.endsWith('.br') && !f.endsWith('.gz'));
-    const exempt = bundleConfig?.exemptChunkPrefixes ?? [];
-    const budgets = bundleConfig?.budgets ?? [];
-
-    for (const f of jsFiles) {
-      if (exempt.some(prefix => f.startsWith(prefix))) {
-        continue;
-      }
-      const fullPath = path.join(distAssetsDir, f);
-      const res = auditSingleChunk(f, fullPath, budgets);
-      chunkResults.push(res);
-      if (res.status === 'failed') {
-        totalErrors++;
-      } else if (res.status === 'warning') {
-        totalWarnings++;
-      }
-    }
-  }
+  let totalErrors = dupeErrors + chunkErrors;
+  const totalWarnings = chunkWarnings;
 
   const hasArtifacts = fs.existsSync(statsFilePath) || fs.existsSync(distAssetsDir);
   if (!hasArtifacts) {
@@ -349,7 +388,7 @@ export async function executeCli(): Promise<void> {
       'utf8'
     );
   } catch {
-    // Non-fatal
+    // catch-ok: Non-fatal scratch cache write
   }
 
   if (!result.success) {
@@ -362,14 +401,6 @@ export async function executeCli(): Promise<void> {
 }
 
 // Canonical CLI Entrypoint
-const isDirectCli = process.argv[1] && (() => {
-  try {
-    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-  }
-})();
-
-if (isDirectCli) {
+if (isMainModule(import.meta.url)) {
   await executeCli();
 }

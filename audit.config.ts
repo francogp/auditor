@@ -32,6 +32,22 @@ export default defineAuditConfig({
   agentPlugin: {
     enabled: true
   },
+  fallow: {
+    enabled: true,
+    security: {
+      enabled: false // Herramienta CLI sin servidores ni endpoints de red
+    },
+    enforceTargets: false,
+    maxTargetPriority: 'critical',
+    similarCode: {
+      enabled: true,
+      threshold: 0.95,
+      ignoreSameFile: true
+    }
+  },
+  constants: {
+    allowedNumericPrefixes: ['BASE_']
+  },
   presets: {
     commit: [
       'validate_dox_integrity',

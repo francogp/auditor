@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMainModule } from './cliUtils.ts';
 
 export interface SemverVersion {
   major: number;
@@ -45,26 +46,18 @@ export function getAuditorEngines(): { node: string; npm: string } {
         return { node: data.engines.node, npm: data.engines.npm };
       }
     } catch {
-      // Fallback below
+      // catch-ok: Fallback below
     }
   }
   return { node: '>=26.10.0', npm: '>=12.0.0' };
 }
 
-export function checkEnvironment(targetDir: string = process.cwd()): boolean {
-  const hostPkgPath = path.resolve(targetDir, 'package.json');
-  if (!fs.existsSync(hostPkgPath)) {
-    console.error(`[check_environment] package.json not found in ${targetDir}`);
-    return false;
-  }
+interface HostPackageJson {
+  name?: string;
+  engines?: { node?: string; npm?: string };
+}
 
-  const hostPkg = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as {
-    name?: string;
-    engines?: { node?: string; npm?: string };
-  };
-
-  const projectName = hostPkg.name || path.basename(targetDir);
-
+function validateHostEnginesDeclaration(hostPkg: HostPackageJson, projectName: string): boolean {
   if (!hostPkg.engines?.node || !hostPkg.engines?.npm) {
     console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
     console.error('El archivo package.json debe declarar explícitamente "engines.node" y "engines.npm".');
@@ -74,7 +67,6 @@ export function checkEnvironment(targetDir: string = process.cwd()): boolean {
   const hostNodeReq = parseSemver(hostPkg.engines.node);
   const hostNpmReq = parseSemver(hostPkg.engines.npm);
 
-  // 1. Invariante: El host no puede pedir versiones inferiores a las exigidas por el auditor
   const auditorEngines = getAuditorEngines();
   const auditorNodeReq = parseSemver(auditorEngines.node);
   const auditorNpmReq = parseSemver(auditorEngines.npm);
@@ -91,7 +83,33 @@ export function checkEnvironment(targetDir: string = process.cwd()): boolean {
     return false;
   }
 
-  // 2. Comprobar entorno en ejecución
+  return true;
+}
+
+function printEnvironmentRemediation(nodeReq: string, npmReq: string, npmDetected: string): void {
+  const isWindows = process.platform === 'win32';
+  const targetNodeVer = nodeReq.replace(/[^0-9.]/g, '');
+
+  console.error(`Requisito configurado en package.json ("engines"):`);
+  console.error(`  - Node.js: \x1b[33m${nodeReq}\x1b[0m (Detectado: v${process.versions.node})`);
+  console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detectado: v${npmDetected})\n`);
+
+  console.error('\x1b[32m\x1b[1m💡 CÓMO SOLUCIONARLO SIN AFECTAR OTROS PROYECTOS:\x1b[0m');
+  console.error('Ejecuta el script de setup del proyecto para activar el entorno de forma aislada:');
+  if (isWindows) {
+    console.error('  .\\setup-windows.ps1');
+    console.error('  (o ejecuta: nvm install ' + targetNodeVer + ' && nvm use ' + targetNodeVer + ')');
+  } else {
+    console.error('  ./setup-linux.sh');
+    console.error('  (o ejecuta: nvm install ' + targetNodeVer + ' && nvm use)');
+  }
+  console.error('\nℹ️  Convivencia multi-proyecto: El proyecto lee .nvmrc localmente sin alterar tu alias default de NVM ni tus otros proyectos.\n');
+}
+
+function validateRuntimeEnvironment(hostPkg: HostPackageJson, projectName: string): boolean {
+  const hostNodeReq = parseSemver(hostPkg.engines!.node!);
+  const hostNpmReq = parseSemver(hostPkg.engines!.npm!);
+
   const currentNode = parseSemver(process.versions.node);
   const npmUserAgent = process.env.npm_config_user_agent || '';
   const npmMatch = npmUserAgent.match(/npm\/([0-9.]+)/);
@@ -101,39 +119,34 @@ export function checkEnvironment(targetDir: string = process.cwd()): boolean {
   const isCurrentNpmValid = currentNpm.major === 0 || compareVersions(currentNpm, hostNpmReq);
 
   if (!isCurrentNodeValid || !isCurrentNpmValid) {
-    const isWindows = process.platform === 'win32';
-    const targetNodeVer = hostPkg.engines.node.replace(/[^0-9.]/g, '');
-
     console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-    console.error(`Requisito configurado en package.json ("engines"):`);
-    console.error(`  - Node.js: \x1b[33m${hostPkg.engines.node}\x1b[0m (Detectado: v${process.versions.node})`);
-    console.error(`  - npm:     \x1b[33m${hostPkg.engines.npm}\x1b[0m (Detectado: v${npmMatch ? npmMatch[1] : 'desconocido'})\n`);
-
-    console.error('\x1b[32m\x1b[1m💡 CÓMO SOLUCIONARLO SIN AFECTAR OTROS PROYECTOS:\x1b[0m');
-    console.error('Ejecuta el script de setup del proyecto para activar el entorno de forma aislada:');
-    if (isWindows) {
-      console.error('  .\\setup-windows.ps1');
-      console.error('  (o ejecuta: nvm install ' + targetNodeVer + ' && nvm use ' + targetNodeVer + ')');
-    } else {
-      console.error('  ./setup-linux.sh');
-      console.error('  (o ejecuta: nvm install ' + targetNodeVer + ' && nvm use)');
-    }
-    console.error('\nℹ️  Convivencia multi-proyecto: El proyecto lee .nvmrc localmente sin alterar tu alias default de NVM ni tus otros proyectos.\n');
+    printEnvironmentRemediation(hostPkg.engines!.node!, hostPkg.engines!.npm!, npmMatch ? npmMatch[1]! : 'desconocido');
     return false;
   }
 
   return true;
 }
 
-// Ejecución directa si se invoca como CLI / preinstall
-const isDirectCli = process.argv[1] && (() => {
-  try {
-    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+export function checkEnvironment(targetDir: string = process.cwd()): boolean {
+  const hostPkgPath = path.resolve(targetDir, 'package.json');
+  if (!fs.existsSync(hostPkgPath)) {
+    console.error(`[check_environment] package.json not found in ${targetDir}`);
+    return false;
   }
-})();
-if (isDirectCli) {
+
+  const hostPkg = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as HostPackageJson;
+  const projectName = hostPkg.name || path.basename(targetDir);
+
+  if (!validateHostEnginesDeclaration(hostPkg, projectName)) {
+    return false;
+  }
+
+  return validateRuntimeEnvironment(hostPkg, projectName);
+}
+
+
+// Ejecución directa si se invoca como CLI / preinstall
+if (isMainModule(import.meta.url)) {
   const success = checkEnvironment();
   if (!success) {
     process.exit(1);

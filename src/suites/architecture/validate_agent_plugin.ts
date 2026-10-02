@@ -23,6 +23,42 @@ export const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[] = [
   'missing-agent-plugin-registration'
 ] as const;
 
+function isSelfProviderProject(projectRoot: string): boolean {
+  const hostPkgPath = path.join(projectRoot, 'package.json');
+  if (!fs.existsSync(hostPkgPath)) return false;
+  try {
+    const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as { name?: string };
+    if (pkgData.name === '@francogp/auditor') {
+      const hasPluginJson = fs.existsSync(path.join(projectRoot, 'plugin.json'));
+      const hasSkillMd = fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
+      return hasPluginJson && hasSkillMd;
+    }
+  } catch {
+    // catch-ok: Fallback to checking host registration below
+  }
+  return false;
+}
+
+function isPluginRegisteredInAgents(projectRoot: string): boolean {
+  const pluginsJsonPath = path.join(projectRoot, '.agents/plugins.json');
+  if (!fs.existsSync(pluginsJsonPath)) return false;
+  try {
+    const raw = fs.readFileSync(pluginsJsonPath, 'utf8');
+    const data = JSON.parse(raw) as { entries?: Array<{ path: string }> };
+    if (!Array.isArray(data.entries)) return false;
+    return data.entries.some(
+      e =>
+        e.path === 'node_modules/@francogp/auditor' ||
+        e.path.endsWith('@francogp/auditor') ||
+        e.path === './packages/auditor' ||
+        e.path === 'packages/auditor'
+    );
+  } catch {
+    // catch-ok: malformed or unreadable plugins.json is treated as unregistered
+    return false;
+  }
+}
+
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     super({
@@ -43,22 +79,9 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     this.context.logStep(1, 1, 'Verificando integración de plugin y skill oficial para agentes...');
     this.filesScannedCount = 1;
 
-    const hostPkgPath = path.join(this.projectRoot, 'package.json');
-    if (fs.existsSync(hostPkgPath)) {
-      try {
-        const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as { name?: string };
-        // If the project being audited is @francogp/auditor itself, it is the provider of the plugin and skill
-        if (pkgData.name === '@francogp/auditor') {
-          const hasPluginJson = fs.existsSync(path.join(this.projectRoot, 'plugin.json'));
-          const hasSkillMd = fs.existsSync(path.join(this.projectRoot, 'skills/auditor-framework/SKILL.md'));
-          if (hasPluginJson && hasSkillMd) {
-            this.context.setMetric('Agent Plugin Status', 'Provider Validated');
-            return;
-          }
-        }
-      } catch {
-        // Fallback to checking host registration below
-      }
+    if (isSelfProviderProject(this.projectRoot)) {
+      this.context.setMetric('Agent Plugin Status', 'Provider Validated');
+      return;
     }
 
     const config = this.projectRoot !== process.cwd()
@@ -70,26 +93,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       return;
     }
 
-    const pluginsJsonPath = path.join(this.projectRoot, '.agents/plugins.json');
-    let isRegistered = false;
-
-    if (fs.existsSync(pluginsJsonPath)) {
-      try {
-        const raw = fs.readFileSync(pluginsJsonPath, 'utf8');
-        const data = JSON.parse(raw) as { entries?: Array<{ path: string }> };
-        if (Array.isArray(data.entries)) {
-          isRegistered = data.entries.some(
-            e => e.path === 'node_modules/@francogp/auditor' ||
-                 e.path.endsWith('@francogp/auditor') ||
-                 e.path === './packages/auditor' ||
-                 e.path === 'packages/auditor'
-          );
-        }
-      } catch {
-        isRegistered = false;
-      }
-    }
-
+    const isRegistered = isPluginRegisteredInAgents(this.projectRoot);
     if (!isRegistered) {
       const isFixMode = process.argv.includes('--fix') || process.argv.includes('fix');
       if (isFixMode) {
@@ -117,7 +121,6 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   }
 }
 
+
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new AgentPluginAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new AgentPluginAuditor());

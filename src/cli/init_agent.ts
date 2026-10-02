@@ -9,7 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMainModule } from './cliUtils.ts';
 
 export interface InitAgentOptions {
   targetDir?: string;
@@ -69,14 +69,7 @@ export function initAgentSkill(options: InitAgentOptions = {}): { success: boole
 }
 
 // CLI entrypoint
-const isDirectCli = process.argv[1] && (() => {
-  try {
-    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-  }
-})();
-if (isDirectCli) {
+if (isMainModule(import.meta.url)) {
   const isDryRun = process.argv.includes('--dry-run');
   console.log('\n┌────────────────────────────────────────────────────────┐');
   console.log('│  🤖 Antigravity Agent Skill Registrator (@francogp/auditor) │');

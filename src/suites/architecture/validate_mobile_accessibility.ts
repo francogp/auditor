@@ -40,6 +40,23 @@ export const MOBILE_ACCESSIBILITY_RULES: readonly MobileAccessibilityRuleId[] = 
   'icon-button-accessible-label'
 ] as const;
 
+function isIconOnlyButton(attrs: string, innerHtml: string): boolean {
+  const hasAriaLabel = /\b(?:aria-label|:aria-label|title|:title)=["']/i.test(attrs);
+  if (hasAriaLabel) return false;
+
+  const strippedText = innerHtml.replace(/<[^>]*>/g, '').trim();
+  const hasIcon = /<(?:i|svg|span)\b[^>]*(?:fa-|icon|material-icons)/i.test(innerHtml);
+  return strippedText.length === 0 && hasIcon;
+}
+
+function isWrappedInTooltip(template: string, matchIndex: number, configuredTooltips: readonly string[]): boolean {
+  const contextBefore = template.slice(Math.max(0, matchIndex - 80), matchIndex);
+  return (
+    /[a-zA-Z0-9_]*Tooltip\b/i.test(contextBefore) ||
+    configuredTooltips.some(t => contextBefore.includes(t))
+  );
+}
+
 export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityRuleId> {
   constructor(projectRoot: string = process.cwd(), roots?: readonly string[]) {
     const config = getAuditConfig(projectRoot);
@@ -148,55 +165,34 @@ export class MobileAccessibilityAuditor extends BaseAuditor<MobileAccessibilityR
 
   private auditIconButtonLabels(relFile: string, fullContent: string, template: string, templateStart: number): void {
     const buttonRegex = /<button\b((?:[^>"'`]|"[^"]*"|'[^']*'|`[^`]*`)*)>([\s\S]*?)<\/button>/gi;
+    const config = getAuditConfig(this.projectRoot);
+    const configuredTooltips = config.templates?.tooltipComponents ?? [];
     let match: RegExpExecArray | null;
 
     while ((match = buttonRegex.exec(template)) !== null) {
       const attrs = match[1] ?? '';
       const innerHtml = match[2] ?? '';
 
-      // Check if button has aria-label or title
-      const hasAriaLabel = /\b(?:aria-label|:aria-label|title|:title)=["']/i.test(attrs);
-      if (hasAriaLabel) continue;
+      if (!isIconOnlyButton(attrs, innerHtml)) continue;
+      if (isWrappedInTooltip(template, match.index, configuredTooltips)) continue;
 
-      // Check if innerHtml contains only an icon tag (<i class="fa...", <svg, <span class="...icon") and no text
-      const strippedText = innerHtml.replace(/<[^>]*>/g, '').trim();
-      const hasIcon = /<(?:i|svg|span)\b[^>]*(?:fa-|icon|material-icons)/i.test(innerHtml);
+      const fullIndex = templateStart + match.index;
+      const line = this.getLineNumber(fullContent, fullIndex);
+      const lineContent = this.getLineAt(fullContent, line);
 
-      if (strippedText.length === 0 && hasIcon) {
-        // Check if wrapped in a tooltip component (e.g. PVTooltip, Tooltip, or configured tooltipComponents)
-        const contextBefore = template.slice(Math.max(0, match.index - 80), match.index);
-        const config = getAuditConfig(this.projectRoot);
-        const configuredTooltips = config.templates?.tooltipComponents ?? [];
-        const isTooltipWrapped =
-          /[a-zA-Z0-9_]*Tooltip\b/i.test(contextBefore) ||
-          configuredTooltips.some(t => contextBefore.includes(t));
+      if (this.hasEscapeHatch(lineContent, ['a11y-ok', 'tooltip-ok'])) continue;
 
-        if (isTooltipWrapped) {
-          continue;
-        }
-
-        const fullIndex = templateStart + match.index;
-        const line = this.getLineNumber(fullContent, fullIndex);
-        const lineContent = this.getLineAt(fullContent, line);
-
-        if (this.hasEscapeHatch(lineContent, ['a11y-ok', 'tooltip-ok'])) {
-          continue;
-        }
-
-        this.addViolation({
-          ruleId: 'icon-button-accessible-label',
-          severity: 'error',
-          file: relFile,
-          line,
-          message: `Icon-only button has no accessible label. Add 'aria-label', 'title', or wrap with a tooltip component.`,
-          context: match[0].slice(0, 100)
-        });
-      }
+      this.addViolation({
+        ruleId: 'icon-button-accessible-label',
+        severity: 'error',
+        file: relFile,
+        line,
+        message: `Icon-only button has no accessible label. Add 'aria-label', 'title', or wrap with a tooltip component.`,
+        context: match[0].slice(0, 100)
+      });
     }
   }
 }
 
 // Standalone execution support
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new MobileAccessibilityAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MobileAccessibilityAuditor());

@@ -10,10 +10,55 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMainModule } from './cliUtils.ts';
 
 export interface SyncEnvOptions {
   targetDir?: string;
   dryRun?: boolean;
+}
+
+function syncCanonicalScriptFile(
+  file: string,
+  packageRootDir: string,
+  targetDir: string,
+  dryRun?: boolean
+): boolean {
+  const srcPath = path.join(packageRootDir, file);
+  const destPath = path.join(targetDir, file);
+
+  if (!fs.existsSync(srcPath)) return false;
+
+  if (!dryRun) {
+    fs.copyFileSync(srcPath, destPath);
+    if (file.endsWith('.sh')) {
+      try {
+        fs.chmodSync(destPath, 0o755);
+      } catch {
+        // catch-ok: Ignore chmod failures on non-POSIX
+      }
+    }
+  }
+  return true;
+}
+
+function ensurePluginsDirectory(targetDir: string, dryRun?: boolean): void {
+  const pluginsDir = path.join(targetDir, 'scripts/setup/plugins');
+  if (fs.existsSync(pluginsDir) || dryRun) return;
+
+  fs.mkdirSync(pluginsDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginsDir, '.gitkeep'), '', 'utf8');
+
+  const sampleSh = `#!/usr/bin/env bash
+# Plugin de inicialización específico de proyecto (Linux/macOS)
+# Coloca aquí tus tareas post-instalación específicas (ej. copiar plantillas, configurar BD)
+# echo "Ejecutando plugin de configuración local..."
+`;
+  const samplePs1 = `# Plugin de inicialización específico de proyecto (Windows)
+# Coloca aquí tus tareas post-instalación específicas (ej. copiar plantillas, configurar BD)
+# Write-Host "Ejecutando plugin de configuracion local..." -ForegroundColor Cyan
+`;
+  fs.writeFileSync(path.join(pluginsDir, '01_sample.sh.sample'), sampleSh, 'utf8');
+  fs.writeFileSync(path.join(pluginsDir, '01_sample.ps1.sample'), samplePs1, 'utf8');
 }
 
 export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean; filesUpdated: string[]; message: string } {
@@ -29,45 +74,12 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean
   const filesUpdated: string[] = [];
 
   for (const file of filesToSync) {
-    const srcPath = path.join(packageRootDir, file);
-    const destPath = path.join(targetDir, file);
-
-    if (fs.existsSync(srcPath)) {
-      if (!options.dryRun) {
-        fs.copyFileSync(srcPath, destPath);
-        if (file.endsWith('.sh')) {
-          try {
-            fs.chmodSync(destPath, 0o755);
-          } catch {
-            // Ignore chmod failures on non-POSIX
-          }
-        }
-      }
+    if (syncCanonicalScriptFile(file, packageRootDir, targetDir, options.dryRun)) {
       filesUpdated.push(file);
     }
   }
 
-  // Asegurar directorio de plugins
-  const pluginsDir = path.join(targetDir, 'scripts/setup/plugins');
-  if (!fs.existsSync(pluginsDir)) {
-    if (!options.dryRun) {
-      fs.mkdirSync(pluginsDir, { recursive: true });
-      fs.writeFileSync(path.join(pluginsDir, '.gitkeep'), '', 'utf8');
-
-      // Crear ejemplos de plugins
-      const sampleSh = `#!/usr/bin/env bash
-# Plugin de inicialización específico de proyecto (Linux/macOS)
-# Coloca aquí tus tareas post-instalación específicas (ej. copiar plantillas, configurar BD)
-# echo "Ejecutando plugin de configuración local..."
-`;
-      const samplePs1 = `# Plugin de inicialización específico de proyecto (Windows)
-# Coloca aquí tus tareas post-instalación específicas (ej. copiar plantillas, configurar BD)
-# Write-Host "Ejecutando plugin de configuracion local..." -ForegroundColor Cyan
-`;
-      fs.writeFileSync(path.join(pluginsDir, '01_sample.sh.sample'), sampleSh, 'utf8');
-      fs.writeFileSync(path.join(pluginsDir, '01_sample.ps1.sample'), samplePs1, 'utf8');
-    }
-  }
+  ensurePluginsDirectory(targetDir, options.dryRun);
 
   return {
     success: true,
@@ -77,14 +89,7 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean
 }
 
 // CLI entrypoint
-const isDirectCli = process.argv[1] && (() => {
-  try {
-    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-  }
-})();
-if (isDirectCli) {
+if (isMainModule(import.meta.url)) {
   const isDryRun = process.argv.includes('--dry-run');
   console.log('\n┌────────────────────────────────────────────────────────┐');
   console.log('│  🔄 Sincronizador de Scripts de Entorno (@francogp/auditor) │');

@@ -7,9 +7,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMainModule } from './cliUtils.ts';
 
 export function runSetup(args: string[] = process.argv.slice(2)): number {
   const isWindows = process.platform === 'win32';
@@ -34,14 +33,7 @@ export function runSetup(args: string[] = process.argv.slice(2)): number {
 }
 
 // CLI entrypoint
-const isDirectCli = process.argv[1] && (() => {
-  try {
-    return fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-  }
-})();
-if (isDirectCli) {
+if (isMainModule(import.meta.url)) {
   const code = runSetup();
   process.exit(code);
 }

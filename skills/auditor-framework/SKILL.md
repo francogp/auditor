@@ -1,6 +1,6 @@
 ---
 name: auditor-framework
-description: MANDATORY governance and architectural engine for creating, refactoring, maintaining, and administering ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever the user mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `audit.config.ts`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_audit_findings', or audit scripts ('npm run audit', 'npm run audit:fallow:*', 'npm run audit:lint'). Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
+description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, and administering ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, or whenever the user mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `audit.config.ts`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run audit', 'npm run audit:findings', 'npm run audit:complexity', 'npm run audit:fallow:*', 'npm run audit:lint'). STRICTLY FORBIDDEN to use ad-hoc node -e scripts or custom inline parsers to inspect audit results; ALWAYS use the framework's native CLI reporting tools. Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
 ---
 
 # Auditor Framework: Governance, Architecture & Maintenance
@@ -116,14 +116,50 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 21. **Child Process Stream Isolation & Ephemeral Scratch Output Mandate**:
     - Sub-auditors invoking external CLI tools or linters (`html-validate`, `vue-tsc`, `fallow`) via child processes (`spawnSync`) MUST NEVER rely on piping large JSON payloads across standard output (`stdout`), as Node.js process exits can truncate unbuffered output streams.
     - Tools supporting direct file output MUST write raw JSON to an isolated ephemeral file in `scratch/audits/<family>/` (e.g. `-f json=scratch/audits/architecture/html-validate-raw.json`) and parse it cleanly from disk.
+22. **Zero Hardcoded Bundle Limits & Pure Configuration Budgets (`validate_bundle_budget`)**:
+    - The core engine MUST NEVER hardcode fallback chunk size thresholds (`MAX_CLIENT_CHUNK_WARN_BYTES`, `MAX_CLIENT_CHUNK_ERROR_BYTES`) or ad-hoc file budgets.
+    - All bundle chunk size validation and threshold evaluation MUST resolve dynamically and strictly from `audit.config.ts` (`config.bundle.budgets`, `config.bundle.maxClientChunkErrorBytes`, `config.bundle.maxClientChunkWarnBytes`). If unconfigured, no arbitrary framework size penalty is applied.
+23. **Static Security Gating & CLI Non-Production Classification (`AuditSecurityConfig`)**:
+    - Static security scanning (Fallow CWE sinks) is governed by `config.security.enabled`. CLI tools and maintenance scripts identified by `isCliPath()` are treated as non-production environments with legitimate access to synchronous filesystem and child process operations under Node.js 26 permissions.
+24. **Canonical Non-Fatal Catch Annotation Contract (`// catch-ok:`)**:
+    - Any intentional, non-fatal catch block across the framework and host projects must declare `// catch-ok: <justification>` within its scope to pass `validate_error_suppression`.
+25. **Centralized CLI Entrypoint Verification (`isMainModule`)**:
+    - CLI tools and executable scripts MUST use the centralized `isMainModule(import.meta.url)` helper from `@francogp/auditor` to check for direct CLI invocation.
+26. **Prohibition of Ad-Hoc Audit Result Parsing & Mandatory Native CLI Reporters Mandate**:
+    - AI agents and developers MUST NEVER write or execute ad-hoc inline node scripts (`node -e "..."`), python scripts, or bash one-liners to read, inspect, or summarize `scratch/audits/latest_audit.json`.
+    - All audit result inspections, category breakdowns, severity filtering, and complexity hotspot analyses MUST be conducted strictly through the framework's native CLI tools:
+      - `npm run audit`: Global execution and consolidated Box-Drawing table.
+      - `npm run audit:findings` / `npm run audit:errors` / `npm run audit:warnings` / `npm run audit:summary` / `npm run audit:files`: Filtering and breakdown of findings.
+      - `npm run audit:complexity`: Cognitive/cyclomatic complexity hotspots and Fallow refactoring targets.
+      - `npm run audit:similar`: Semantic and structural clone detection using Fallow ML vector embeddings in Box-Drawing tables.
+      - `npm run audit:review`: Graph-grounded architectural review brief for changed code using Fallow code review graphs.
+      - `npm run audit:fallow:dupes` / `npm run audit:fallow:triplets` / `npm run audit:fallow:security` / `npm run audit:fallow:dead-code`: Fallow intelligence deep dives.
+    - If `report_findings` warns that `latest_audit.json` is stale (>5 min), the agent MUST immediately execute `npm run audit` to produce a fresh, valid report before inspecting findings. Bypassing the anti-staleness check with homebrew scripts is strictly forbidden.
+    - **Missing Tool Mandate (Solicitud y Creación de Nuevas Herramientas)**: If a specific inspection, filtering, or reporting capability is missing or not provided by existing native tools, AI agents and developers MUST NOT create ad-hoc scripts or one-off terminal hacks. Instead, they MUST explicitly propose and create a new official native CLI tool in `src/cli/` (or extend an existing reporter), registering its canonical script in `package.json` with full Box-Drawing theme support (`unifiedTheme.ts`), 80-column limits, and permission flags.
+27. **Fallow Refactoring Targets & Workspace Diagnostics Governance (`config.fallow`)**:
+    - Fallow provides hotspot refactoring targets and project workspace diagnostics.
+    - `config.fallow.enforceTargets`: When set to `true`, hotspot refactoring targets meeting `maxTargetPriority` (`'critical'`, `'high'`, `'all'`) are promoted to blocking `severity: 'error'` findings under rule `fallow-refactoring-targets`. When `false` (default), they remain purely advisory.
+    - Workspace-level diagnostics (e.g. invalid configurations or structural issues) are validated under `validate_fallow_config` as `fallow-workspace-diagnostic`.
+28. **Semantic Vector Code Duplication Governance & Fast-Preset Bypass (`validate_similar_code`)**:
+    - Vector embeddings similarity detection (`fallow similar-code`) identifies semantic duplicates across files even with different syntax or function signatures.
+    - **Fast Preset Isolation**: Vector analysis MUST NEVER execute under fast presets (`preset=lint`, `preset=md`, `audit:for-commit`). It runs exclusively in full audits (`npm run audit`) or via the dedicated CLI tool (`npm run audit:similar`).
+    - **Surgical Sensitivity (`threshold: 0.95`, `ignoreSameFile: true`)**: Core default threshold of `0.95` combined with intra-file exclusion eliminates false positives between synchronous/asynchronous variants or polymorphic class methods, isolating true cross-module duplication.
+    - **Automatic Embedding Model Initialization**: If the local embedding model (`jina-embeddings-v2-base-code`) is uninitialized (`model_ready === false`), the suite MUST emit a visible console notice (`📦 [Fallow] Modelo de embeddings no inicializado. Descargando e inicializando automáticamente...`) and run `fallow similar-code setup --local --yes` to proceed without manual intervention.
+29. **Universal Ephemeral Scratch (`scratch/`) & Build Output (`dist/`) Isolation Mandate**:
+    - **`scratch/` (Mandatory for all drafts & ephemeral data)**: Universal, mandatory directory across ALL projects and repositories for any and all ephemeral files: scratch scripts, AI temporary investigation notes, experimental files, testing dumps, raw json outputs (`scratch/audits/`), and intermediate CLI caches.
+      - Every project MUST declare `scratch/` in `.gitignore`.
+      - Committing or placing drafts, temporary files, or scratch scripts in `src/`, root, or non-scratch paths (such as `tmp/`, `.tmp/`, `temp/`, `test.js`, `dummy.ts`) is strictly forbidden and actively blocked by `validate_ephemeral_storage_isolation`.
+    - **`dist/` (Mandatory for all compilations & production builds)**: Universal, mandatory directory across ALL projects for all compiled outputs, production bundles, generated JS/CSS assets (`dist/assets/`), and packaged library outputs.
+      - Every project MUST declare `dist/` in `.gitignore`.
+      - Production build artifacts, source maps, and bundle chunks must reside strictly within `dist/` and must never pollute source code trees.
 
 ---
 
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
 ### 1. Generic Built-In Suites (`src/suites/`)
-36 domain-agnostic suites discovered automatically across 4 canonical families:
-- `architecture/` (28 suites + shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
+37 domain-agnostic suites discovered automatically across 4 canonical families:
+- `architecture/` (29 suites + shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), vector semantic similarity (`validate_similar_code`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
 - `domain_data/` (2 suites): O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `audit.config.ts`)
 - `persistence/` (1 suite): SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
 - `documentation/` (5 suites): Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards, markdown lint, code references
@@ -136,6 +172,7 @@ Configured at root in `audit.config.ts`:
 - `paths.testFilePatterns`: `['.spec.', '.test.', '.simulation.']` (Dynamic test file recognition)
 - `paths.testFragmentationWhitelist`: `['src/large-feature.ts']` (Files exempt from test fragmentation limits)
 - `paths.e2eRoots`: `['tests/e2e']`
+- `paths.cliRoots`: `['src/cli']` (CLI entrypoints exempt from console logger wrapper)
 - `paths.ignoredDirs`: `['external', 'backup_legacy_code', 'fixtures']`
 - `paths.ignoredPatterns`: `['src/generated/migrations_data.ts']`
 - `persistence.engine`: `'hybrid' | 'supabase' | 'sqlite' | 'postgres' | 'none'`
@@ -147,12 +184,17 @@ Configured at root in `audit.config.ts`:
 - `styles.zLayersScssFile`: `'src/styles/_base.scss'` (SCSS variables mapping)
 - `styles.baseScssFile`: `'src/styles/_base.scss'` (Base SCSS file for global resets and overscroll locks)
 - `styles.lineHeightOverlapCheck`: `boolean` (Anti-zero line-height verification)
+- `bundle.maxClientChunkWarnBytes`: Max client chunk size warning threshold in bytes (e.g. `1200 * 1024`)
+- `bundle.maxClientChunkErrorBytes`: Max client chunk size error threshold in bytes (e.g. `2000 * 1024`)
+- `bundle.budgets`: Per-chunk regex pattern matchers and budget limits (`[{ pattern: 'vendor', maxBytes: 2000 * 1024 }]`)
 - `bundle.exemptChunkPrefixes`: `['worker-vendor-pkmn', 'worker-game-data']` (Exempt client chunks)
 - `bundle.forbiddenUiImports`: `[{ module: 'xlsx', reason: 'Parser pesado' }]` (Heavy modules barred in UI)
+- `security.enabled`: `boolean` (Enables or disables static Fallow CWE security analysis)
 - `templates.safeTemplateFunctions`: `['formatMoney', 'translate']` (Functions safe in templates)
 - `templates.forbiddenTemplateCallPatterns`: Heavy classes/helpers barred from template calls
 - `animation.customTimerFunctions`: `['requestDelayedFrame']` (Custom timer functions recognized in UI)
 - `constants.ignoredNames`: `['TAX_DEFAULT_ROUNDING']` (Constants ignored in duplicate detection)
+- `constants.allowedNumericPrefixes`: `['GEN_', 'ISO_', 'BASE_']` (Prefixes allowed for numeric constants)
 - `constants.exemptMagicNumbers`: `[21, 10.5, 27]` (Numeric literals exempt from magic numbers check)
 - `documentation.knownValidAbstractPaths`: `['@docs/architecture/fiscal-engine.md']` (Abstract valid docs paths)
 - `pinia.authorizedMutationFiles`: `['src/logic/coordinators/sessionCoordinator.ts']` (Authorized store mutation files)
@@ -161,6 +203,12 @@ Configured at root in `audit.config.ts`:
 - `domain.allowedNumericConstantPrefixes`: `['GEN_', 'ISO_', 'UTF_8', 'RGB_', ...]` (Constant naming exceptions)
 - `domain.finiteDomainTypes`: `['UserId', 'InvoiceId', 'RoleId', 'CustomerId', ...]`
 - `domain.fallbackIdPatterns`: `['userId', 'invoiceId', 'roleId', 'customerId', ...]`
+- `fallow.enabled`: `boolean` (Enables Fallow static intelligence and deep analysis)
+- `fallow.enforceTargets`: `boolean` (When true, promotes refactoring targets to blocking errors)
+- `fallow.maxTargetPriority`: `'critical' | 'high' | 'all'` (Priority filter threshold for refactoring targets)
+- `fallow.similarCode.enabled`: `boolean` (Enables vector semantic duplication detection in full audit)
+- `fallow.similarCode.threshold`: `number` (Similarity threshold, default `0.95`)
+- `fallow.similarCode.ignoreSameFile`: `boolean` (Excludes intra-file candidate pairs, default `true`)
 - `extensions`: [Host project custom plugins in `scripts/auditors/`]
 
 ### File Naming Conventions:
@@ -192,7 +240,7 @@ Use `FileScanAuditor` when the audit inspects files line-by-line across specific
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, isMainModule } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -246,7 +294,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new MyFeatureAuditor());
 }
 ```
@@ -263,7 +311,7 @@ Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, 
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '@francogp/auditor';
+import { BaseAuditor, isMainModule } from '@francogp/auditor';
 import { MY_DATA } from '../../../src/data/myData.ts';
 
 enableCompileCache();
@@ -314,7 +362,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new MyDataAuditor());
 }
 ```
@@ -332,7 +380,7 @@ Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFil
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
+import { BaseAuditor, SharedAstContext, isMainModule } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -382,7 +430,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
+if (isMainModule(import.meta.url)) {
   await BaseAuditor.runCli(new MyAstAuditor());
 }
 ```
@@ -451,6 +499,8 @@ All inspection routines MUST use the official NPM scripts declared in `package.j
 - `npm run audit:errors`: Preset filtering strictly to errors (`severity=error`).
 - `npm run audit:warnings`: Preset filtering strictly to warnings (`severity=warning`).
 - `npm run audit:summary`: Compact summary overview of latest audit results.
+- `npm run audit:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `--threshold <N>`).
+- `npm run audit:review`: Graph-grounded architectural review brief for changed files against base branch via Fallow code-review graphs.
 
 ### Proactive Tool Evolution Mandate (Enhance the Official Toolkit over Makeshift Scripts)
 If diagnostic needs or query patterns require analyzing audit data in ways not yet covered, agents and developers must avoid relying on disposable, makeshift terminal one-liners (`node -e`, raw grep chains). Instead, **proactively add the missing capabilities directly into the official native toolkit** (e.g. adding flags, directory breakdowns, or output formatters to `report_findings.ts`, `auditScanner.ts`, or official npm scripts in `package.json`), transforming ad-hoc needs into first-class, reusable tools for everyone.

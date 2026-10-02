@@ -13,7 +13,6 @@
  *   5. o1-redundant-spread-return: Redundant 'return [...arr]' instead of directly returning 'readonly T[]'.
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isTestPath } from '../../core/auditConfig.ts';
@@ -48,8 +47,6 @@ export function getResolvedO1CatalogPatterns(): Array<{
   return DEFAULT_O1_CATALOG_PATTERNS;
 }
 
-export const O1_CATALOG_PATTERNS = DEFAULT_O1_CATALOG_PATTERNS;
-
 export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))\b(?:\s+as\s+[^)]+)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
 export const P_OBJECT_SCAN_LOOKUP = /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
 export const P_JSON_CLONE = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(/g;
@@ -77,12 +74,102 @@ export const O1_RULES: readonly O1RuleId[] = [
   'o1-redundant-spread-return'
 ] as const;
 
+export interface O1Issue {
+  ruleId: O1RuleId;
+  message: string;
+  line: number;
+  context: string;
+  isWarning: boolean;
+}
+
+function checkLineCatalogLookups(params: {
+  lineText: string;
+  lineNumber: number;
+  normalizedPath: string;
+  catalogPatterns: Array<{ name: string; pattern: RegExp; alternative: string; definingFile: string }>;
+  issues: O1Issue[];
+}): void {
+  for (const catalog of params.catalogPatterns) {
+    if (params.normalizedPath.endsWith(catalog.definingFile)) {
+      continue;
+    }
+
+    catalog.pattern.lastIndex = 0;
+    if (catalog.pattern.test(params.lineText)) {
+      params.issues.push({
+        ruleId: 'o1-catalog-lookup',
+        message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
+        line: params.lineNumber,
+        context: params.lineText.trim(),
+        isWarning: false
+      });
+    }
+  }
+}
+
+function checkLinePatterns(params: {
+  lineText: string;
+  lineNumber: number;
+  issues: O1Issue[];
+}): void {
+  const { lineText, lineNumber, issues } = params;
+  const trimmed = lineText.trim();
+
+  P_STATIC_ARRAY_INCLUDES.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = P_STATIC_ARRAY_INCLUDES.exec(lineText)) !== null) {
+    const arrayName = match[1];
+    issues.push({
+      ruleId: 'o1-linear-membership',
+      message: `Linear O(N) membership check with '.includes()' on '${arrayName}'. Derive a 'ReadonlySet<T>' and use '.has()'`,
+      line: lineNumber,
+      context: trimmed,
+      isWarning: false
+    });
+  }
+
+  P_OBJECT_SCAN_LOOKUP.lastIndex = 0;
+  if (P_OBJECT_SCAN_LOOKUP.test(lineText)) {
+    issues.push({
+      ruleId: 'o1-object-scan',
+      message: "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
+      line: lineNumber,
+      context: trimmed,
+      isWarning: false
+    });
+  }
+
+  P_JSON_CLONE.lastIndex = 0;
+  if (P_JSON_CLONE.test(lineText)) {
+    issues.push({
+      ruleId: 'o1-json-clone',
+      message: "Forbidden 'JSON" + ".parse(JSON" + ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
+      line: lineNumber,
+      context: trimmed,
+      isWarning: false
+    });
+  }
+
+  P_REDUNDANT_SPREAD_RETURN.lastIndex = 0;
+  const spreadMatch = P_REDUNDANT_SPREAD_RETURN.exec(lineText);
+  if (spreadMatch && spreadMatch[1]) {
+    const target = spreadMatch[1].trim();
+    issues.push({
+      ruleId: 'o1-redundant-spread-return',
+      message: `Redundant array spread 'return [...${target}]'. Return the collection directly typed as 'readonly T[]' to prevent unnecessary heap allocations and GC churn.`,
+      line: lineNumber,
+      context: trimmed,
+      isWarning: false
+    });
+  }
+}
+
 export function scanFileForO1Issues(
   filePath: string,
   content: string,
   catalogPatterns: Array<{ name: string; pattern: RegExp; alternative: string; definingFile: string }> = getResolvedO1CatalogPatterns()
-): Array<{ ruleId: O1RuleId; message: string; line: number; context: string; isWarning: boolean }> {
-  const issues: Array<{ ruleId: O1RuleId; message: string; line: number; context: string; isWarning: boolean }> = [];
+): O1Issue[] {
+  const issues: O1Issue[] = [];
   const lines = content.split('\n');
   const normalizedPath = filePath.replace(/\\/g, '/');
 
@@ -95,79 +182,13 @@ export function scanFileForO1Issues(
       continue;
     }
 
-    // 1. Static Catalog Lookups
-    for (const catalog of catalogPatterns) {
-      if (normalizedPath.endsWith(catalog.definingFile)) {
-        continue; // Skip the catalog's own definition file
-      }
-
-      catalog.pattern.lastIndex = 0;
-      if (catalog.pattern.test(lineText)) {
-        issues.push({
-          ruleId: 'o1-catalog-lookup',
-          message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
-          line: lineNumber,
-          context: lineText.trim(),
-          isWarning: false
-        });
-      }
-    }
-
-    // 2. Static Array .includes()
-    P_STATIC_ARRAY_INCLUDES.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = P_STATIC_ARRAY_INCLUDES.exec(lineText)) !== null) {
-      const arrayName = match[1];
-      issues.push({
-        ruleId: 'o1-linear-membership',
-        message: `Linear O(N) membership check with '.includes()' on '${arrayName}'. Derive a 'ReadonlySet<T>' and use '.has()'`,
-        line: lineNumber,
-        context: lineText.trim(),
-        isWarning: false
-      });
-    }
-
-    // 3. Object.keys / Object.values Linear Scan
-    P_OBJECT_SCAN_LOOKUP.lastIndex = 0;
-    if (P_OBJECT_SCAN_LOOKUP.test(lineText)) {
-      issues.push({
-        ruleId: 'o1-object-scan',
-        message: "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
-        line: lineNumber,
-        context: lineText.trim(),
-        isWarning: false
-      });
-    }
-
-    // 4. JSON.parse(JSON.stringify) Anti-Pattern
-    P_JSON_CLONE.lastIndex = 0;
-    if (P_JSON_CLONE.test(lineText)) {
-      issues.push({
-        ruleId: 'o1-json-clone',
-        message: "Forbidden 'JSON" + ".parse(JSON" + ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
-        line: lineNumber,
-        context: lineText.trim(),
-        isWarning: false
-      });
-    }
-
-    // 5. Redundant Spread Return 'return [...arr]'
-    P_REDUNDANT_SPREAD_RETURN.lastIndex = 0;
-    const spreadMatch = P_REDUNDANT_SPREAD_RETURN.exec(lineText);
-    if (spreadMatch && spreadMatch[1]) {
-      const target = spreadMatch[1].trim();
-      issues.push({
-        ruleId: 'o1-redundant-spread-return',
-        message: `Redundant array spread 'return [...${target}]'. Return the collection directly typed as 'readonly T[]' to prevent unnecessary heap allocations and GC churn.`,
-        line: lineNumber,
-        context: lineText.trim(),
-        isWarning: false
-      });
-    }
+    checkLineCatalogLookups({ lineText, lineNumber, normalizedPath, catalogPatterns, issues });
+    checkLinePatterns({ lineText, lineNumber, issues });
   }
 
   return issues;
 }
+
 
 export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
@@ -218,6 +239,4 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new O1DataStructuresAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new O1DataStructuresAuditor());

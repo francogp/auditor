@@ -17,12 +17,9 @@ export const DOX_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   aliases: ['dox', 'agents', 'agents.md', 'documentation', 'dox-integrity', 'doxindexintegrity']
 };
 
-export async function checkDoxIntegrity(
-  rootDir: string,
-  ignoreDirs: ReadonlySet<string>
-): Promise<Violation[]> {
-  const violations: Violation[] = [];
+const CODE_EXTENSIONS = new Set(['.ts', '.vue', '.js', '.scss', '.css']);
 
+async function loadGitIgnoredPaths(rootDir: string): Promise<Set<string>> {
   const gitIgnoredPaths = new Set<string>();
   try {
     const gitignoreRaw = await fs.readFile(path.join(rootDir, '.gitignore'), 'utf-8');
@@ -32,59 +29,86 @@ export async function checkDoxIntegrity(
       gitIgnoredPaths.add(path.resolve(rootDir, trimmed));
     }
   } catch {
-    // no .gitignore found — skip silently
+    // catch-ok: no .gitignore found — skip silently
   }
+  return gitIgnoredPaths;
+}
 
-  const doxDirs: string[] = []; // no-domain: Non-domain utility collection or data structure
-
-  async function hasCodeFiles(dir: string): Promise<boolean> {
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isFile()) {
-          const ext = path.extname(entry.name).toLowerCase();
-          if (ext === '.ts' || ext === '.vue' || ext === '.js' || ext === '.scss' || ext === '.css') {
-            return true;
-          }
-        }
-      }
-    } catch {
-      return false;
-    }
-    return false;
+function isPathIgnored(
+  dir: string,
+  ignoreDirs: ReadonlySet<string>,
+  gitIgnoredPaths: ReadonlySet<string>
+): boolean {
+  const dirName = path.basename(dir);
+  if (ignoreDirs.has(dirName) || (dirName.startsWith('.') && dirName !== '.')) {
+    return true;
   }
-
-  function isIgnored(dir: string): boolean {
-    const dirName = path.basename(dir);
-    if (ignoreDirs.has(dirName) || (dirName.startsWith('.') && dirName !== '.')) {
+  const absDir = path.resolve(dir);
+  for (const ignored of gitIgnoredPaths) {
+    if (absDir === ignored || absDir.startsWith(ignored + path.sep)) {
       return true;
     }
-    const absDir = path.resolve(dir);
-    for (const ignored of gitIgnoredPaths) {
-      if (absDir === ignored || absDir.startsWith(ignored + path.sep)) {
-        return true;
-      }
-    }
-    return false;
   }
+  return false;
+}
 
-  async function traverse(dir: string) {
-    if (isIgnored(dir)) {
-      return;
+interface DoxHierarchyScan {
+  doxDirs: string[];
+  doxFilesMap: Map<string, string>;
+}
+
+function checkDirContainsCodeOrAgentsMd(entries: readonly Dirent[]): { hasCode: boolean; hasAgentsMd: boolean } {
+  let hasCode = false;
+  let hasAgentsMd = false;
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      if (entry.name === 'AGENTS.md') hasAgentsMd = true;
+      const ext = path.extname(entry.name).toLowerCase();
+      if (CODE_EXTENSIONS.has(ext)) hasCode = true;
     }
+  }
+  return { hasCode, hasAgentsMd };
+}
 
-    const relPath = path.relative(rootDir, dir);
+async function tryReadAgentsMd(dir: string): Promise<string | null> {
+  try {
+    return await fs.readFile(path.join(dir, 'AGENTS.md'), 'utf-8');
+  } catch {
+    // catch-ok: unreadable AGENTS.md
+    return null;
+  }
+}
+
+async function scanDoxHierarchy(
+  rootDir: string,
+  ignoreDirs: ReadonlySet<string>,
+  gitIgnoredPaths: ReadonlySet<string>
+): Promise<DoxHierarchyScan> {
+  const doxDirs: string[] = [];
+  const doxFilesMap = new Map<string, string>();
+
+  async function traverse(dir: string): Promise<void> {
+    if (isPathIgnored(dir, ignoreDirs, gitIgnoredPaths)) return;
 
     let entries: Dirent[];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {
+      // catch-ok: unreadable directory
       return;
     }
 
-    if (relPath !== '' && relPath !== 'src') {
-      if (await hasCodeFiles(dir)) {
-        doxDirs.push(dir);
+    const relPath = path.relative(rootDir, dir);
+    const { hasCode, hasAgentsMd } = checkDirContainsCodeOrAgentsMd(entries);
+
+    if (relPath !== '' && relPath !== 'src' && hasCode) {
+      doxDirs.push(dir);
+    }
+
+    if (hasAgentsMd) {
+      const content = await tryReadAgentsMd(dir);
+      if (content !== null) {
+        doxFilesMap.set(dir, content);
       }
     }
 
@@ -96,37 +120,30 @@ export async function checkDoxIntegrity(
   }
 
   await traverse(rootDir);
+  return { doxDirs, doxFilesMap };
+}
 
-  const doxFilesMap = new Map<string, string>();
-
-  async function loadAllDoxFiles(dir: string) {
-    if (isIgnored(dir)) {
-      return;
+function findNearestAncestorDoxDir(
+  dir: string,
+  rootDir: string,
+  doxFilesMap: ReadonlyMap<string, string>
+): string | null {
+  let current = path.dirname(dir);
+  while (current !== rootDir) {
+    if (doxFilesMap.has(current)) {
+      return current;
     }
-
-    let entries: Dirent[];
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    try {
-      const agentsPath = path.join(dir, 'AGENTS.md');
-      const content = await fs.readFile(agentsPath, 'utf-8');
-      doxFilesMap.set(dir, content);
-    } catch (err) {
-      void err;
-    }
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        await loadAllDoxFiles(path.join(dir, entry.name));
-      }
-    }
+    current = path.dirname(current);
   }
+  return rootDir;
+}
 
-  await loadAllDoxFiles(rootDir);
+function validateMissingAgentsFiles(
+  rootDir: string,
+  doxDirs: readonly string[],
+  doxFilesMap: ReadonlyMap<string, string>
+): Violation[] {
+  const violations: Violation[] = [];
 
   for (const dir of doxDirs) {
     const agentsPath = path.join(dir, 'AGENTS.md');
@@ -146,8 +163,6 @@ export async function checkDoxIntegrity(
   }
 
   const rootAgentsPath = path.join(rootDir, 'AGENTS.md');
-  process.stderr.write(styleText('cyan', '📘 Escaneando jerarquía e integridad de índices AGENTS.md / DOX...\n'));
-
   if (!doxFilesMap.has(rootDir)) {
     violations.push({
       file: rootAgentsPath,
@@ -162,139 +177,210 @@ export async function checkDoxIntegrity(
     });
   }
 
-  function findNearestAncestorDoxDir(dir: string): string | null {
-    let current = path.dirname(dir);
-    while (current !== rootDir) {
-      if (doxFilesMap.has(current)) {
-        return current;
-      }
-      current = path.dirname(current);
+  return violations;
+}
+
+function validateChildRegistration(
+  rootDir: string,
+  doxFilesMap: ReadonlyMap<string, string>
+): Violation[] {
+  const violations: Violation[] = [];
+
+  for (const [dirPath] of doxFilesMap.entries()) {
+    if (dirPath === rootDir) continue;
+
+    const agentsPath = path.join(dirPath, 'AGENTS.md');
+    const parentDoxDir = findNearestAncestorDoxDir(dirPath, rootDir, doxFilesMap);
+    if (!parentDoxDir) continue;
+
+    const parentContent = doxFilesMap.get(parentDoxDir);
+    if (!parentContent) continue;
+
+    const relativeChildPath = path.relative(parentDoxDir, agentsPath);
+    const posixPath = relativeChildPath.split(path.sep).join(path.posix.sep);
+    const cleanPath = posixPath.startsWith('./') ? posixPath.slice(2) : posixPath;
+    const dirOnlyPath = path.dirname(posixPath);
+    const hasLink =
+      parentContent.includes(cleanPath) ||
+      parentContent.includes('./' + cleanPath) ||
+      parentContent.includes(encodeURI(cleanPath)) ||
+      parentContent.includes('./' + encodeURI(cleanPath)) ||
+      parentContent.includes('[' + dirOnlyPath + '/]') ||
+      parentContent.includes('(' + dirOnlyPath + '/') ||
+      parentContent.includes('./' + dirOnlyPath + '/');
+
+    if (!hasLink) {
+      const parentFile = path.join(parentDoxDir, 'AGENTS.md');
+      violations.push({
+        file: parentFile,
+        line: 1,
+        message: `El archivo '${path.relative(rootDir, agentsPath)}' no está registrado en el índice DOX de '${path.relative(rootDir, parentFile)}'.`,
+        context: cleanPath,
+        severity: 'error',
+        fixable: false,
+        packageName: 'DOX',
+        ruleId: 'dox-unregistered-child',
+        ruleDescription: 'AGENTS.md hijo no registrado'
+      });
     }
-    return rootDir;
   }
+
+  return violations;
+}
+
+function checkLinkSyntax(
+  targetUrl: string,
+  label: string,
+  line: number,
+  agentsPath: string
+): Violation | null {
+  const isFullPath =
+    targetUrl.startsWith('file://') ||
+    targetUrl.startsWith('/') ||
+    targetUrl.startsWith('\\') ||
+    /^[a-zA-Z]:/.test(targetUrl) ||
+    path.isAbsolute(targetUrl);
+
+  if (isFullPath) {
+    return {
+      file: agentsPath,
+      line,
+      message: `Enlace absoluto o ruta completa prohibida '${targetUrl}' detectada en '${label}'. Se exige el uso exclusivo de rutas relativas (RULE 10).`,
+      context: targetUrl,
+      severity: 'error',
+      fixable: false,
+      packageName: 'DOX',
+      ruleId: 'dox-absolute-link',
+      ruleDescription: 'Enlace con ruta absoluta'
+    };
+  }
+  return null;
+}
+
+async function checkLinkTarget(
+  targetUrl: string,
+  line: number,
+  agentsPath: string,
+  dirPath: string,
+  gitIgnoredPaths: ReadonlySet<string>
+): Promise<Violation | null> {
+  const rawTarget = targetUrl.split('#')[0] ?? '';
+  let cleanTarget: string;
+  try {
+    cleanTarget = decodeURIComponent(rawTarget);
+  } catch {
+    // catch-ok: malformed URI component fallback
+    cleanTarget = rawTarget;
+  }
+  if (!cleanTarget) return null;
+
+  const absoluteTarget = path.resolve(dirPath, cleanTarget);
+  const isGitIgnored =
+    gitIgnoredPaths.has(absoluteTarget) ||
+    [...gitIgnoredPaths].some(p => absoluteTarget.startsWith(p + path.sep));
+
+  if (isGitIgnored) {
+    return {
+      file: agentsPath,
+      line,
+      message: `Enlace a ruta ignorada por Git (.gitignore): '${targetUrl}' apunta a una ruta no versionada que no existirá en clones o CI.`,
+      context: targetUrl,
+      severity: 'error',
+      fixable: false,
+      packageName: 'DOX',
+      ruleId: 'dox-gitignore-target',
+      ruleDescription: 'Enlace a ruta ignorada en git'
+    };
+  }
+
+  try {
+    await fs.stat(absoluteTarget);
+  } catch {
+    // catch-ok: non-existent file target check
+    return {
+      file: agentsPath,
+      line,
+      message: `Enlace roto: '${targetUrl}' apuntando a '${cleanTarget}' no existe en el disco.`,
+      context: targetUrl,
+      severity: 'error',
+      fixable: false,
+      packageName: 'DOX',
+      ruleId: 'dox-broken-link',
+      ruleDescription: 'Enlace roto a archivo inexistente'
+    };
+  }
+
+  return null;
+}
+
+async function validateSingleLink(
+  targetUrl: string,
+  label: string,
+  line: number,
+  agentsPath: string,
+  dirPath: string,
+  gitIgnoredPaths: ReadonlySet<string>
+): Promise<Violation | null> {
+  if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://') || targetUrl.startsWith('#')) {
+    return null;
+  }
+  const syntaxViolation = checkLinkSyntax(targetUrl, label, line, agentsPath);
+  if (syntaxViolation) return syntaxViolation;
+  return checkLinkTarget(targetUrl, line, agentsPath, dirPath, gitIgnoredPaths);
+}
+
+async function validateFileLinks(
+  agentsPath: string,
+  dirPath: string,
+  content: string,
+  gitIgnoredPaths: ReadonlySet<string>
+): Promise<Violation[]> {
+  const violations: Violation[] = [];
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const lines = content.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineText = lines[i];
+    if (lineText === undefined) continue;
+    let match: RegExpExecArray | null;
+    while ((match = linkRegex.exec(lineText)) !== null) {
+      const label = match[1] ?? '';
+      const targetUrl = (match[2] ?? '').trim();
+      const violation = await validateSingleLink(
+        targetUrl,
+        label,
+        i + 1,
+        agentsPath,
+        dirPath,
+        gitIgnoredPaths
+      );
+      if (violation) {
+        violations.push(violation);
+      }
+    }
+  }
+
+  return violations;
+}
+
+export async function checkDoxIntegrity(
+  rootDir: string,
+  ignoreDirs: ReadonlySet<string>
+): Promise<Violation[]> {
+  const gitIgnoredPaths = await loadGitIgnoredPaths(rootDir);
+  const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoredPaths);
+
+  process.stderr.write(styleText('cyan', '📘 Escaneando jerarquía e integridad de índices AGENTS.md / DOX...\n'));
+
+  const violations: Violation[] = [
+    ...validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap),
+    ...validateChildRegistration(rootDir, doxFilesMap)
+  ];
 
   for (const [dirPath, content] of doxFilesMap.entries()) {
     const agentsPath = path.join(dirPath, 'AGENTS.md');
-
-    if (dirPath !== rootDir) {
-      const parentDoxDir = findNearestAncestorDoxDir(dirPath);
-      if (parentDoxDir) {
-        const parentContent = doxFilesMap.get(parentDoxDir);
-        if (parentContent) {
-          const relativeChildPath = path.relative(parentDoxDir, agentsPath);
-          const posixPath = relativeChildPath.split(path.sep).join(path.posix.sep);
-          const cleanPath = posixPath.startsWith('./') ? posixPath.slice(2) : posixPath;
-          const dirOnlyPath = path.dirname(posixPath);
-          const hasLink =
-            parentContent.includes(cleanPath) ||
-            parentContent.includes('./' + cleanPath) ||
-            parentContent.includes(encodeURI(cleanPath)) ||
-            parentContent.includes('./' + encodeURI(cleanPath)) ||
-            parentContent.includes('[' + dirOnlyPath + '/]') ||
-            parentContent.includes('(' + dirOnlyPath + '/') ||
-            parentContent.includes('./' + dirOnlyPath + '/');
-
-          if (!hasLink) {
-            const parentFile = path.join(parentDoxDir, 'AGENTS.md');
-            violations.push({
-              file: parentFile,
-              line: 1,
-              message: `El archivo '${path.relative(rootDir, agentsPath)}' no está registrado en el índice DOX de '${path.relative(rootDir, parentFile)}'.`,
-              context: cleanPath,
-              severity: 'error',
-              fixable: false,
-              packageName: 'DOX',
-              ruleId: 'dox-unregistered-child',
-              ruleDescription: 'AGENTS.md hijo no registrado'
-            });
-          }
-        }
-      }
-    }
-
-    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const lines = content.split('\n');
-
-    for (let i = 0; i < lines.length; i++) {
-      const lineText = lines[i];
-      if (lineText === undefined) continue;
-      let match;
-      while ((match = linkRegex.exec(lineText)) !== null) {
-        const label = match[1] ?? '';
-        const targetUrl = (match[2] ?? '').trim();
-
-        if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://') || targetUrl.startsWith('#')) {
-          continue;
-        }
-
-        const isFullPath =
-          targetUrl.startsWith('file://') ||
-          targetUrl.startsWith('/') ||
-          targetUrl.startsWith('\\') ||
-          /^[a-zA-Z]:/.test(targetUrl) ||
-          path.isAbsolute(targetUrl);
-
-        if (isFullPath) {
-          violations.push({
-            file: agentsPath,
-            line: i + 1,
-            message: `Enlace absoluto o ruta completa prohibida '${targetUrl}' detectada en '${label}'. Se exige el uso exclusivo de rutas relativas (RULE 10).`,
-            context: targetUrl,
-            severity: 'error',
-            fixable: false,
-            packageName: 'DOX',
-            ruleId: 'dox-absolute-link',
-            ruleDescription: 'Enlace con ruta absoluta'
-          });
-          continue;
-        }
-
-        const rawTarget = targetUrl.split('#')[0] ?? '';
-        let cleanTarget: string;
-        try {
-          cleanTarget = decodeURIComponent(rawTarget);
-        } catch {
-          cleanTarget = rawTarget;
-        }
-        if (!cleanTarget) continue;
-
-        const absoluteTarget = path.resolve(dirPath, cleanTarget);
-
-        const isGitIgnored =
-          gitIgnoredPaths.has(absoluteTarget) ||
-          [...gitIgnoredPaths].some(p => absoluteTarget.startsWith(p + path.sep));
-        if (isGitIgnored) {
-          violations.push({
-            file: agentsPath,
-            line: i + 1,
-            message: `Enlace a ruta ignorada por Git (.gitignore): '${targetUrl}' apunta a una ruta no versionada que no existirá en clones o CI.`,
-            context: targetUrl,
-            severity: 'error',
-            fixable: false,
-            packageName: 'DOX',
-            ruleId: 'dox-gitignore-target',
-            ruleDescription: 'Enlace a ruta ignorada en git'
-          });
-          continue;
-        }
-
-        try {
-          await fs.stat(absoluteTarget);
-        } catch (_e) {
-          violations.push({
-            file: agentsPath,
-            line: i + 1,
-            message: `Enlace roto: '${targetUrl}' apuntando a '${cleanTarget}' no existe en el disco.`,
-            context: targetUrl,
-            severity: 'error',
-            fixable: false,
-            packageName: 'DOX',
-            ruleId: 'dox-broken-link',
-            ruleDescription: 'Enlace roto a archivo inexistente'
-          });
-        }
-      }
-    }
+    const linkViolations = await validateFileLinks(agentsPath, dirPath, content, gitIgnoredPaths);
+    violations.push(...linkViolations);
   }
 
   return violations;

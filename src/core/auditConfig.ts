@@ -141,6 +141,11 @@ export interface AuditAnimationConfig {
 export interface AuditConstantsConfig {
   readonly ignoredNames?: readonly string[];
   readonly exemptMagicNumbers?: readonly number[];
+  readonly allowedNumericPrefixes?: readonly string[];
+}
+
+export interface AuditSecurityConfig {
+  readonly enabled?: boolean;
 }
 
 export interface AuditDocumentationConfig {
@@ -149,6 +154,21 @@ export interface AuditDocumentationConfig {
 
 export interface AuditPiniaConfig {
   readonly authorizedMutationFiles?: readonly string[];
+}
+
+export interface AuditFallowSimilarCodeConfig {
+  readonly enabled?: boolean;
+  readonly threshold?: number;
+  readonly ignoreSameFile?: boolean;
+  readonly minLines?: number;
+}
+
+export interface AuditFallowConfig {
+  readonly enabled?: boolean;
+  readonly security?: AuditSecurityConfig;
+  readonly enforceTargets?: boolean;
+  readonly maxTargetPriority?: 'critical' | 'high' | 'all';
+  readonly similarCode?: AuditFallowSimilarCodeConfig;
 }
 
 export interface AuditEngineConfig {
@@ -162,8 +182,10 @@ export interface AuditEngineConfig {
   readonly agentPlugin?: AuditAgentPluginConfig;
   readonly animation?: AuditAnimationConfig;
   readonly constants?: AuditConstantsConfig;
+  readonly security?: AuditSecurityConfig;
   readonly documentation?: AuditDocumentationConfig;
   readonly pinia?: AuditPiniaConfig;
+  readonly fallow?: AuditFallowConfig;
   readonly e2e?: AuditE2eConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
@@ -218,7 +240,10 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     finiteDomainTypes: [],
     infraIdWhitelist: [],
     fallbackIdPatterns: [],
-    o1CatalogPatterns: []
+    o1CatalogPatterns: [],
+    allowedNumericConstantPrefixes: [
+      'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'
+    ]
   },
   templates: {
     requireInputIds: false
@@ -241,6 +266,28 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   agentPlugin: {
     enabled: true
   },
+  security: {
+    enabled: true
+  },
+  fallow: {
+    enabled: true,
+    security: {
+      enabled: true
+    },
+    enforceTargets: false,
+    maxTargetPriority: 'critical',
+    similarCode: {
+      enabled: false,
+      threshold: 0.95,
+      ignoreSameFile: true,
+      minLines: 3
+    }
+  },
+  constants: {
+    ignoredNames: [],
+    exemptMagicNumbers: [],
+    allowedNumericPrefixes: []
+  },
   customFamilies: [],
   extensions: [],
   presets: {}
@@ -249,83 +296,127 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
 let cachedConfig: AuditEngineConfig | null = null;
 let cachedProjectRoot: string | null = null;
 
-export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
+function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>): Set<string> {
   const declared = new Set<string>();
-  if (config.persistence !== undefined) declared.add('persistence');
-  if (config.domain !== undefined) declared.add('domain');
-  if (config.styles !== undefined) declared.add('styles');
-  if (config.templates !== undefined) declared.add('templates');
-  if (config.bundle !== undefined) declared.add('bundle');
-  if (config.agentPlugin !== undefined) declared.add('agentPlugin');
+  const keys = ['persistence', 'domain', 'styles', 'templates', 'bundle', 'agentPlugin', 'security', 'fallow'] as const;
+  for (const k of keys) {
+    if (config[k] !== undefined) declared.add(k);
+  }
+  return declared;
+}
 
+function buildPathsConfig(raw?: DeepPartial<AuditEngineConfig['paths']>): AuditEngineConfig['paths'] {
+  const p = raw ?? {};
   return {
-    name: config.name,
-    paths: {
-      ...DEFAULT_AUDIT_CONFIG.paths,
-      ...(config.paths ?? {}),
-      cliRoots: config.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots,
-      testFilePatterns: config.paths?.testFilePatterns ?? [],
-      testFragmentationWhitelist: config.paths?.testFragmentationWhitelist ?? []
-    },
-    persistence: {
-      ...DEFAULT_AUDIT_CONFIG.persistence,
-      ...(config.persistence ?? {}),
-      forbiddenMockModules: config.persistence?.forbiddenMockModules ?? [],
-      positionalArrayColumns: config.persistence?.positionalArrayColumns ?? [],
-      allowedDatabaseDirs: config.persistence?.allowedDatabaseDirs ?? [],
-      allowedDatabaseFiles: config.persistence?.allowedDatabaseFiles ?? [],
-      allowedHosts: config.persistence?.allowedHosts ?? ['localhost', '127.0.0.1'],
-      prohibitedTemplateIdentifiers: config.persistence?.prohibitedTemplateIdentifiers ?? []
-    },
-    domain: {
-      ...DEFAULT_AUDIT_CONFIG.domain,
-      ...(config.domain ?? {}),
-      enabled: config.domain?.enabled ?? true,
-      o1CatalogPatterns: (config.domain?.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? [],
-      caseNormalizationExemptTokens: config.domain?.caseNormalizationExemptTokens ?? [],
-      allowedStoreSetterPrefixes: config.domain?.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'],
-      allowedNumericConstantPrefixes: config.domain?.allowedNumericConstantPrefixes ?? []
-    },
-    templates: {
-      ...DEFAULT_AUDIT_CONFIG.templates,
-      ...(config.templates ?? {}),
-      tooltipComponents: config.templates?.tooltipComponents ?? [],
-      forbiddenTemplateCallPatterns: config.templates?.forbiddenTemplateCallPatterns ?? [],
-      safeTemplateFunctions: config.templates?.safeTemplateFunctions ?? []
-    },
-    styles: {
-      globalUtilityClasses: config.styles?.globalUtilityClasses ?? [],
-      canonicalButtonVariants: config.styles?.canonicalButtonVariants ?? [],
-      zLayersEnabled: config.styles?.zLayersEnabled,
-      zLayersScssFile: config.styles?.zLayersScssFile,
-      baseScssFile: config.styles?.baseScssFile ?? config.styles?.zLayersScssFile,
-      zLayersTsFile: config.styles?.zLayersTsFile,
-      zLayers: config.styles?.zLayers,
-      lineHeightOverlapCheck: config.styles?.lineHeightOverlapCheck ?? true,
-      heavyEffectPaths: config.styles?.heavyEffectPaths ?? [],
-      buttonGovernance: config.styles?.buttonGovernance
-    },
-    bundle: {
-      enabled: config.bundle?.enabled,
-      statsFile: config.bundle?.statsFile ?? DEFAULT_AUDIT_CONFIG.bundle?.statsFile,
-      distDir: config.bundle?.distDir ?? DEFAULT_AUDIT_CONFIG.bundle?.distDir,
-      exemptChunkPrefixes: config.bundle?.exemptChunkPrefixes ?? [],
-      maxClientChunkWarnBytes: config.bundle?.maxClientChunkWarnBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkWarnBytes,
-      maxClientChunkErrorBytes: config.bundle?.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
-      budgets: (config.bundle?.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
-      duplicateModuleThresholdBytes: config.bundle?.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
-      topModulesLimit: config.bundle?.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit,
-      forbiddenUiImports: (config.bundle?.forbiddenUiImports as readonly { readonly module: string; readonly reason: string }[] | undefined) ?? []
-    },
+    ...DEFAULT_AUDIT_CONFIG.paths,
+    ...p,
+    cliRoots: p.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots,
+    testFilePatterns: p.testFilePatterns ?? [],
+    testFragmentationWhitelist: p.testFragmentationWhitelist ?? []
+  };
+}
+
+function buildPersistenceConfig(raw?: DeepPartial<AuditPersistenceConfig>): AuditPersistenceConfig {
+  const p = raw ?? {};
+  return {
+    ...DEFAULT_AUDIT_CONFIG.persistence,
+    ...p,
+    forbiddenMockModules: p.forbiddenMockModules ?? [],
+    positionalArrayColumns: p.positionalArrayColumns ?? [],
+    allowedDatabaseDirs: p.allowedDatabaseDirs ?? [],
+    allowedDatabaseFiles: p.allowedDatabaseFiles ?? [],
+    allowedHosts: p.allowedHosts ?? ['localhost', '127.0.0.1'],
+    prohibitedTemplateIdentifiers: p.prohibitedTemplateIdentifiers ?? []
+  };
+}
+
+function buildDomainConfig(raw?: DeepPartial<AuditDomainConfig>): AuditDomainConfig {
+  const d = raw ?? {};
+  return {
+    ...DEFAULT_AUDIT_CONFIG.domain,
+    ...d,
+    enabled: d.enabled ?? true,
+    o1CatalogPatterns: (d.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? [],
+    caseNormalizationExemptTokens: d.caseNormalizationExemptTokens ?? [],
+    allowedStoreSetterPrefixes: d.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'],
+    allowedNumericConstantPrefixes: d.allowedNumericConstantPrefixes ?? DEFAULT_AUDIT_CONFIG.domain?.allowedNumericConstantPrefixes ?? []
+  };
+}
+
+function buildTemplatesConfig(raw?: DeepPartial<AuditTemplatesConfig>): AuditTemplatesConfig {
+  const t = raw ?? {};
+  return {
+    ...DEFAULT_AUDIT_CONFIG.templates,
+    ...t,
+    tooltipComponents: t.tooltipComponents ?? [],
+    forbiddenTemplateCallPatterns: t.forbiddenTemplateCallPatterns ?? [],
+    safeTemplateFunctions: t.safeTemplateFunctions ?? []
+  };
+}
+
+function buildStylesConfig(raw?: DeepPartial<AuditStylesConfig>): AuditStylesConfig {
+  const s = raw ?? {};
+  return {
+    globalUtilityClasses: s.globalUtilityClasses ?? [],
+    canonicalButtonVariants: s.canonicalButtonVariants ?? [],
+    zLayersEnabled: s.zLayersEnabled,
+    zLayersScssFile: s.zLayersScssFile,
+    baseScssFile: s.baseScssFile ?? s.zLayersScssFile,
+    zLayersTsFile: s.zLayersTsFile,
+    zLayers: s.zLayers,
+    lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? true,
+    heavyEffectPaths: s.heavyEffectPaths ?? [],
+    buttonGovernance: s.buttonGovernance
+  };
+}
+
+function buildBundleConfig(raw?: DeepPartial<AuditBundleConfig>): AuditBundleConfig {
+  const b = raw ?? {};
+  return {
+    enabled: b.enabled,
+    statsFile: b.statsFile ?? DEFAULT_AUDIT_CONFIG.bundle?.statsFile,
+    distDir: b.distDir ?? DEFAULT_AUDIT_CONFIG.bundle?.distDir,
+    exemptChunkPrefixes: b.exemptChunkPrefixes ?? [],
+    maxClientChunkWarnBytes: b.maxClientChunkWarnBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkWarnBytes,
+    maxClientChunkErrorBytes: b.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
+    budgets: (b.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
+    duplicateModuleThresholdBytes: b.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
+    topModulesLimit: b.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit,
+    forbiddenUiImports: (b.forbiddenUiImports as readonly { readonly module: string; readonly reason: string }[] | undefined) ?? []
+  };
+}
+
+function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfig>): {
+  agentPlugin: AuditAgentPluginConfig;
+  security: AuditSecurityConfig;
+  animation: AuditAnimationConfig;
+} {
+  const secEnabled = config.fallow?.security?.enabled ?? config.security?.enabled ?? DEFAULT_AUDIT_CONFIG.security?.enabled ?? true;
+  return {
     agentPlugin: {
       enabled: config.agentPlugin?.enabled ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
     },
+    security: {
+      enabled: secEnabled
+    },
     animation: {
       customTimerFunctions: config.animation?.customTimerFunctions ?? []
-    },
+    }
+  };
+}
+
+function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig>): {
+  constants: AuditConstantsConfig;
+  documentation: AuditDocumentationConfig;
+  pinia: AuditPiniaConfig;
+  e2e: AuditE2eConfig;
+} {
+  const c = config.constants;
+  return {
     constants: {
-      ignoredNames: config.constants?.ignoredNames ?? [],
-      exemptMagicNumbers: config.constants?.exemptMagicNumbers ?? []
+      ignoredNames: c?.ignoredNames ?? [],
+      exemptMagicNumbers: c?.exemptMagicNumbers ?? [],
+      allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
     },
     documentation: {
       knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? []
@@ -335,7 +426,57 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     },
     e2e: {
       idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false
+    }
+  };
+}
+
+function buildFallowSimilarCodeConfig(
+  raw?: DeepPartial<AuditFallowSimilarCodeConfig>
+): AuditFallowSimilarCodeConfig {
+  const def = DEFAULT_AUDIT_CONFIG.fallow?.similarCode;
+  const s = raw ?? {};
+  return {
+    enabled: s.enabled ?? def?.enabled ?? false,
+    threshold: s.threshold ?? def?.threshold ?? 0.95,
+    ignoreSameFile: s.ignoreSameFile ?? def?.ignoreSameFile ?? true,
+    minLines: s.minLines ?? def?.minLines ?? 3
+  };
+}
+
+function buildFallowConfig(
+  raw?: DeepPartial<AuditFallowConfig>,
+  rootSecurity?: DeepPartial<AuditSecurityConfig>
+): AuditFallowConfig {
+  const def = DEFAULT_AUDIT_CONFIG.fallow;
+  const f = raw ?? {};
+  const secEnabled = f.security?.enabled ?? rootSecurity?.enabled ?? def?.security?.enabled ?? true;
+  return {
+    enabled: f.enabled ?? def?.enabled ?? true,
+    security: {
+      enabled: secEnabled
     },
+    enforceTargets: f.enforceTargets ?? def?.enforceTargets ?? false,
+    maxTargetPriority: f.maxTargetPriority ?? def?.maxTargetPriority ?? 'critical',
+    similarCode: buildFallowSimilarCodeConfig(f.similarCode)
+  };
+}
+
+export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
+  const declared = collectDeclaredSubsystems(config);
+  const agentAndSecurity = buildAgentAndSecurityConfig(config);
+  const constantsAndDoc = buildConstantsAndDocConfig(config);
+
+  return {
+    name: config.name,
+    paths: buildPathsConfig(config.paths),
+    persistence: buildPersistenceConfig(config.persistence),
+    domain: buildDomainConfig(config.domain),
+    templates: buildTemplatesConfig(config.templates),
+    styles: buildStylesConfig(config.styles),
+    bundle: buildBundleConfig(config.bundle),
+    fallow: buildFallowConfig(config.fallow, config.security),
+    ...agentAndSecurity,
+    ...constantsAndDoc,
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
     presets: config.presets ?? {},
@@ -343,28 +484,51 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
   };
 }
 
+function checkInfrastructureSubsystems(
+  declared: ReadonlySet<string> | undefined,
+  config: AuditEngineConfig,
+  missing: string[]
+): void {
+  if (!declared?.has('persistence') || !config.persistence?.engine) {
+    missing.push("  - 'persistence': Debe declarar explícitamente 'persistence: { engine: \"supabase\" | \"sqlite\" | \"postgres\" | \"hybrid\" | \"none\" }'.");
+  }
+  if (!declared?.has('bundle') || config.bundle?.enabled === undefined) {
+    missing.push("  - 'bundle': Debe declarar explícitamente 'bundle: { enabled: true }' (con 'exemptChunkPrefixes' si aplica) o 'bundle: { enabled: false }'.");
+  }
+}
+
+function checkUiSubsystems(
+  declared: ReadonlySet<string> | undefined,
+  config: AuditEngineConfig,
+  missing: string[]
+): void {
+  const s = config.styles;
+  const hasZStyles = s?.zLayersEnabled !== undefined || s?.zLayersScssFile || (s?.globalUtilityClasses && s.globalUtilityClasses.length > 0);
+  if (!declared?.has('styles') || !hasZStyles) {
+    missing.push("  - 'styles': Debe declarar explícitamente 'styles: { zLayersEnabled: true, zLayersScssFile: \"...\" }' o 'styles: { zLayersEnabled: false }'.");
+  }
+  if (!declared?.has('templates') || config.templates?.requireInputIds === undefined) {
+    missing.push("  - 'templates': Debe declarar explícitamente 'templates: { requireInputIds: false }' o 'templates: { requireInputIds: true }'.");
+  }
+  if (!declared?.has('agentPlugin') || config.agentPlugin?.enabled === undefined) {
+    missing.push("  - 'agentPlugin': Debe declarar explícitamente 'agentPlugin: { enabled: true }' o 'agentPlugin: { enabled: false }'.");
+  }
+}
+
+function checkSubsystemDeclarations(config: AuditEngineConfig): string[] {
+  const declared = config._declaredSubsystems;
+  const missing: string[] = [];
+  checkInfrastructureSubsystems(declared, config, missing);
+  checkUiSubsystems(declared, config, missing);
+  return missing;
+}
+
 /**
  * Validates that all required subsystems are explicitly declared in audit.config.ts.
  * Enforces the "Mandato de Configuración Explícita y Cero Omisiones Silenciosas".
  */
 export function assertAuditConfigComplete(config: AuditEngineConfig): void {
-  const missing: string[] = [];
-
-  if (!config._declaredSubsystems?.has('persistence') || !config.persistence?.engine) {
-    missing.push("  - 'persistence': Debe declarar explícitamente 'persistence: { engine: \"supabase\" | \"sqlite\" | \"postgres\" | \"hybrid\" | \"none\" }'.");
-  }
-  if (!config._declaredSubsystems?.has('bundle') || config.bundle?.enabled === undefined) {
-    missing.push("  - 'bundle': Debe declarar explícitamente 'bundle: { enabled: true }' (con 'exemptChunkPrefixes' si aplica) o 'bundle: { enabled: false }'.");
-  }
-  if (!config._declaredSubsystems?.has('styles') || (config.styles?.zLayersEnabled === undefined && !config.styles?.zLayersScssFile && (!config.styles?.globalUtilityClasses || config.styles.globalUtilityClasses.length === 0))) {
-    missing.push("  - 'styles': Debe declarar explícitamente 'styles: { zLayersEnabled: true, zLayersScssFile: \"...\" }' o 'styles: { zLayersEnabled: false }'.");
-  }
-  if (!config._declaredSubsystems?.has('templates') || config.templates?.requireInputIds === undefined) {
-    missing.push("  - 'templates': Debe declarar explícitamente 'templates: { requireInputIds: false }' o 'templates: { requireInputIds: true }'.");
-  }
-  if (!config._declaredSubsystems?.has('agentPlugin') || config.agentPlugin?.enabled === undefined) {
-    missing.push("  - 'agentPlugin': Debe declarar explícitamente 'agentPlugin: { enabled: true }' o 'agentPlugin: { enabled: false }'.");
-  }
+  const missing = checkSubsystemDeclarations(config);
 
   if (missing.length > 0) {
     throw new Error(
@@ -372,6 +536,27 @@ export function assertAuditConfigComplete(config: AuditEngineConfig): void {
       missing.join('\n') +
       `\n\nTodos los subsistemas deben estar explícitamente configurados (activos o ignorados con enabled: false o engine: 'none').`
     );
+  }
+}
+
+function tryLoadJsonConfig(
+  jsonConfigPath: string,
+  projectRoot: string,
+  logWarning: boolean = false
+): AuditEngineConfig | null {
+  if (!fs.existsSync(jsonConfigPath)) return null;
+  try {
+    const content = fs.readFileSync(jsonConfigPath, 'utf-8');
+    const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
+    cachedConfig = defineAuditConfig(parsed);
+    cachedProjectRoot = projectRoot;
+    return cachedConfig;
+  } catch (err: unknown) {
+    if (logWarning) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[AuditConfig] Warning: Failed to load audit.config.json: ${msg}. Using defaults.`);
+    }
+    return null;
   }
 }
 
@@ -397,17 +582,9 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[AuditConfig] Warning: Failed to load audit.config.ts: ${msg}. Using defaults.`);
     }
-  } else if (fs.existsSync(jsonConfigPath)) {
-    try {
-      const content = fs.readFileSync(jsonConfigPath, 'utf-8');
-      const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
-      cachedConfig = defineAuditConfig(parsed);
-      cachedProjectRoot = projectRoot;
-      return cachedConfig;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[AuditConfig] Warning: Failed to load audit.config.json: ${msg}. Using defaults.`);
-    }
+  } else {
+    const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
+    if (loaded) return loaded;
   }
 
   cachedConfig = DEFAULT_AUDIT_CONFIG;
@@ -424,17 +601,8 @@ export function getAuditConfig(projectRoot: string = process.cwd()): AuditEngine
   }
 
   const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
-  if (fs.existsSync(jsonConfigPath)) {
-    try {
-      const content = fs.readFileSync(jsonConfigPath, 'utf-8');
-      const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
-      cachedConfig = defineAuditConfig(parsed);
-      cachedProjectRoot = projectRoot;
-      return cachedConfig;
-    } catch {
-      // fallback
-    }
-  }
+  const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, false);
+  if (loaded) return loaded;
 
   return cachedConfig ?? DEFAULT_AUDIT_CONFIG;
 }
@@ -453,6 +621,21 @@ export function setAuditConfig(config: AuditEngineConfig, projectRoot: string = 
 export function resetAuditConfig(): void {
   cachedConfig = null;
   cachedProjectRoot = null;
+}
+
+/**
+ * Helper to check if a normalized path matches any of the given root directories.
+ */
+export function matchesAnyRoot(normalizedPath: string, roots: readonly string[]): boolean {
+  if (!normalizedPath || !roots || roots.length === 0) return false;
+  return roots.some(root => {
+    const cleanRoot = root.replace(/^\/+|\/+$/g, '').toLowerCase();
+    return cleanRoot !== '' && (
+      normalizedPath === cleanRoot ||
+      normalizedPath.startsWith(cleanRoot + '/') ||
+      normalizedPath.includes('/' + cleanRoot + '/')
+    );
+  });
 }
 
 /**
@@ -480,11 +663,8 @@ export function isTestPath(filePath: string): boolean {
     ...(config.paths.integrationRoots ?? [])
   ];
 
-  for (const root of configuredRoots) {
-    const cleanRoot = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    if (cleanRoot && (norm === cleanRoot || norm.startsWith(cleanRoot + '/') || norm.includes('/' + cleanRoot + '/'))) {
-      return true;
-    }
+  if (matchesAnyRoot(norm, configuredRoots)) {
+    return true;
   }
 
   if (configuredRoots.length === 0 && (norm.startsWith('tests/') || norm.includes('/tests/'))) {
@@ -504,14 +684,7 @@ export function isDataPath(filePath: string): boolean {
   const config = getAuditConfig();
   const dataRoots = config?.paths?.dataRoots ?? ['src/data'];
 
-  for (const root of dataRoots) {
-    const cleanRoot = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    if (cleanRoot && (norm === cleanRoot || norm.startsWith(cleanRoot + '/') || norm.includes('/' + cleanRoot + '/'))) {
-      return true;
-    }
-  }
-
-  return false;
+  return matchesAnyRoot(norm, dataRoots);
 }
 
 /**
@@ -528,14 +701,7 @@ export function isConstantsPath(filePath: string): boolean {
   const config = getAuditConfig();
   const constantsRoots = config?.paths?.constantsRoots ?? ['src/constants'];
 
-  for (const root of constantsRoots) {
-    const cleanRoot = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    if (cleanRoot && (norm === cleanRoot || norm.startsWith(cleanRoot + '/') || norm.includes('/' + cleanRoot + '/'))) {
-      return true;
-    }
-  }
-
-  return false;
+  return matchesAnyRoot(norm, constantsRoots);
 }
 
 /**
@@ -561,12 +727,7 @@ export function isInCodeRoots(filePath: string, config = getAuditConfig()): bool
   if (norm.includes('node_modules')) return false;
 
   const codeRoots = config?.paths?.codeRoots ?? ['src', 'scripts'];
-  const inRoots = codeRoots.some(root => {
-    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
-  });
-
-  if (!inRoots) return false;
+  if (!matchesAnyRoot(norm, codeRoots)) return false;
 
   // When includeTestsInCodeAudit is true, or codeRoots explicitly includes a testRoot, tests ARE audited!
   const includesTests = config?.paths?.includeTestsInCodeAudit === true ||
@@ -586,10 +747,7 @@ export function isScriptPath(filePath: string, config = getAuditConfig()): boole
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
   const scriptsRoots = config?.paths?.scriptsRoots ?? ['scripts'];
-  return scriptsRoots.some(root => {
-    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
-  });
+  return matchesAnyRoot(norm, scriptsRoots);
 }
 
 /**
@@ -599,10 +757,7 @@ export function isSrcPath(filePath: string, config = getAuditConfig()): boolean 
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
   const srcRoots = config?.paths?.srcRoots ?? ['src'];
-  return srcRoots.some(root => {
-    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
-  });
+  return matchesAnyRoot(norm, srcRoots);
 }
 
 /**
@@ -612,8 +767,28 @@ export function isCliPath(filePath: string, config = getAuditConfig()): boolean 
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
   const cliRoots = config?.paths?.cliRoots ?? ['src/cli'];
-  return cliRoots.some(root => {
-    const clean = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
-  });
+  return matchesAnyRoot(norm, cliRoots);
+}
+
+/**
+ * Resolves the primary SCSS file path for Z-Layers from config or stylesRoots.
+ */
+export function resolveZLayersScssPath(projectRoot: string = process.cwd()): string | undefined {
+  const config = getAuditConfig(projectRoot);
+  const rawTarget = config.styles?.zLayersScssFile ?? config.styles?.baseScssFile;
+  if (rawTarget) {
+    const configuredPath = path.resolve(projectRoot, rawTarget);
+    if (fs.existsSync(configuredPath)) return configuredPath;
+  }
+
+  const stylesRoots = config.paths?.stylesRoots ?? ['src/styles'];
+  const baseNames = ['_base.scss', 'core/_base.scss', 'base.scss', 'main.scss', 'index.scss'];
+  for (const r of stylesRoots) {
+    for (const b of baseNames) {
+      const candidate = path.resolve(projectRoot, r, b);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+
+  return undefined;
 }
