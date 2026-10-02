@@ -175,7 +175,7 @@ Once the user approves:
 1. Apply approved lessons to owning `AGENTS.md`.
 2. **Version Bump Execution** (if approved by user in Step 3.4):
    - Run `npx auditor-version bump --type=<approved_type>`.
-   - Run `npm run compile` to recompile `dist/` with the freshly stamped version.
+   - Run `npm run build` to recompile `dist/` with the freshly stamped version.
 3. Run pre-commit sanity check: `npm run audit:md`.
 4. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
 5. Run:
