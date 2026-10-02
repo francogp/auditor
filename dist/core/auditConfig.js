@@ -215,7 +215,8 @@ function buildConstantsAndDocConfig(config) {
             allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
         },
         documentation: {
-            knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? []
+            knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? [],
+            skillsRoots: config.documentation?.skillsRoots ?? []
         },
         pinia: {
             authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []

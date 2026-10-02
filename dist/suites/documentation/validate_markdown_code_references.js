@@ -187,13 +187,30 @@ function loadRegisteredScripts(rootDir) {
         return new Set();
     }
 }
+function addSkillsFromDir(targetDir, skillsSet) {
+    if (fs.existsSync(targetDir)) {
+        try {
+            for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) {
+                if (entry.isDirectory() && !entry.name.startsWith('.')) {
+                    skillsSet.add(entry.name);
+                }
+            }
+        }
+        catch {
+            // catch-ok: unreadable directory
+        }
+    }
+}
 function discoverRegisteredSkills(rootDir) {
     const allSkills = new Set();
-    const skillsDir = path.join(rootDir, '.agents/skills');
-    if (fs.existsSync(skillsDir)) {
-        for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
-            if (entry.isDirectory())
-                allSkills.add(entry.name);
+    addSkillsFromDir(path.join(rootDir, '.agents/skills'), allSkills);
+    addSkillsFromDir(path.join(rootDir, 'skills'), allSkills);
+    addSkillsFromDir(path.join(rootDir, 'node_modules/@francogp/auditor/skills'), allSkills);
+    addSkillsFromDir(path.resolve(import.meta.dirname, '../../../skills'), allSkills);
+    const config = getAuditConfig(rootDir);
+    if (config.documentation?.skillsRoots) {
+        for (const r of config.documentation.skillsRoots) {
+            addSkillsFromDir(path.resolve(rootDir, r), allSkills);
         }
     }
     return allSkills;

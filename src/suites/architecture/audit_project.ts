@@ -778,9 +778,9 @@ function isNonProductionPath(filePath: string): boolean {
 }
 
 function isComplexityExemptPath(filePath: string): boolean {
-  if (isToolingConfigFile(filePath)) return true;
+  if (isNonProductionPath(filePath)) return true;
   const norm = (filePath || '').split('\\').join('/');
-  if (isTestPath(norm) || norm.startsWith('scratch/') || norm.startsWith('dist/')) {
+  if (norm.startsWith('dist/')) {
     return true;
   }
   if (isDataPath(norm)) return true;

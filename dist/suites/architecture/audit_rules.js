@@ -518,7 +518,7 @@ export const zeroTimerLogic = {
     id: 'zeroTimerLogic',
     name: 'Zero Timer Logic',
     aliases: ['zerotimerlogic'],
-    regex: /\b(sleep)\s*\(/g,
+    regex: /(?<!\.)\b(sleep)\s*\(/g,
     message: "Uso de 'sleep()' nativo detectado en lógica central. Las funciones de lógica de negocio deben ser 100% deterministas y orientadas a eventos.",
     severity: 'error',
     check: (content, _match, filePath) => {

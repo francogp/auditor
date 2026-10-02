@@ -19,6 +19,7 @@ import {
   defineAuditConfig,
   resetAuditConfig
 } from '../src/core/auditConfig.ts';
+import { zeroTimerLogic } from '../src/suites/architecture/audit_rules.ts';
 
 describe('ProjectArchitectureAuditor & Fallow Integration', () => {
   let tempDir: string;
@@ -291,6 +292,43 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       expect(compV).toBeDefined();
       expect(compV!.severity).toBe('error');
       expect(getViolationCategory(compV!)).toBe('Fallow: Complejidad');
+    });
+
+    it('exempts non-production script files from complexity findings', () => {
+      const data = {
+        findings: [
+          {
+            path: 'scripts/maintenance/run_migrations.ts',
+            line: 45,
+            function_name: 'executeComplexMigrationScript',
+            cognitive_complexity: 40,
+            cyclomatic_complexity: 25,
+            recommendation: 'Break into smaller functions'
+          }
+        ],
+        large_functions: [],
+        targets: []
+      };
+
+      const violations = mapFallowJson('health', data);
+      expect(violations).toHaveLength(0);
+    });
+  });
+
+  describe('zeroTimerLogic Rule', () => {
+    it('does not flag gsap.ticker.sleep() while detecting standalone sleep() calls', () => {
+      const validTickerSleep = 'gsap.ticker.sleep();';
+      const invalidStandaloneSleep = 'await sleep(500);';
+      const invalidDirectSleep = 'sleep(100);';
+
+      zeroTimerLogic.regex.lastIndex = 0;
+      expect(zeroTimerLogic.regex.test(validTickerSleep)).toBe(false);
+
+      zeroTimerLogic.regex.lastIndex = 0;
+      expect(zeroTimerLogic.regex.test(invalidStandaloneSleep)).toBe(true);
+
+      zeroTimerLogic.regex.lastIndex = 0;
+      expect(zeroTimerLogic.regex.test(invalidDirectSleep)).toBe(true);
     });
   });
 

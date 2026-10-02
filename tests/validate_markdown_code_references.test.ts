@@ -266,4 +266,23 @@ Temporary artifacts are placed in \`scratch/bundle_stats.html\`.
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
   });
+
+  it('recognizes skills distributed with @francogp/auditor package and node_modules', async () => {
+    // Simulate library distribution in node_modules/@francogp/auditor/skills
+    await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/domain-type-first'), { recursive: true });
+
+    const mdContent = `
+# Skill References from Framework
+Refer to @/domain-type-first and @/auditor-framework.
+    `;
+    await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
+
+    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const result = await auditor.execute();
+
+    const skillFindings = result.findings.filter(f => f.ruleId === 'markdown-broken-skill-ref');
+    expect(skillFindings).toHaveLength(0);
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
 });

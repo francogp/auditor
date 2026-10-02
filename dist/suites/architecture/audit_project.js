@@ -458,10 +458,10 @@ function isNonProductionPath(filePath) {
     return false;
 }
 function isComplexityExemptPath(filePath) {
-    if (isToolingConfigFile(filePath))
+    if (isNonProductionPath(filePath))
         return true;
     const norm = (filePath || '').split('\\').join('/');
-    if (isTestPath(norm) || norm.startsWith('scratch/') || norm.startsWith('dist/')) {
+    if (norm.startsWith('dist/')) {
         return true;
     }
     if (isDataPath(norm))

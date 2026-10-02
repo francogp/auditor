@@ -150,6 +150,7 @@ export interface AuditSecurityConfig {
 
 export interface AuditDocumentationConfig {
   readonly knownValidAbstractPaths?: readonly string[];
+  readonly skillsRoots?: readonly string[];
 }
 
 export interface AuditPiniaConfig {
@@ -420,7 +421,8 @@ function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig>): {
       allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
     },
     documentation: {
-      knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? []
+      knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? [],
+      skillsRoots: config.documentation?.skillsRoots ?? []
     },
     pinia: {
       authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []

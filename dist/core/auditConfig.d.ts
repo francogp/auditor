@@ -134,6 +134,7 @@ export interface AuditSecurityConfig {
 }
 export interface AuditDocumentationConfig {
     readonly knownValidAbstractPaths?: readonly string[];
+    readonly skillsRoots?: readonly string[];
 }
 export interface AuditPiniaConfig {
     readonly authorizedMutationFiles?: readonly string[];
