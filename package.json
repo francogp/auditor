@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "1.0.0",
+  "version": "1.1.0-build.20261002-142756",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -59,6 +59,10 @@
       "types": "./dist/plugin/defineAuditorExtension.d.ts",
       "default": "./dist/plugin/defineAuditorExtension.js"
     },
+    "./version": {
+      "types": "./dist/core/version.d.ts",
+      "default": "./dist/core/version.js"
+    },
     "./suites/*": {
       "types": "./dist/suites/*.d.ts",
       "default": "./dist/suites/*.js"
@@ -67,6 +71,7 @@
   },
   "bin": {
     "auditor": "./dist/cli/audit_full.js",
+    "auditor-version": "./dist/cli/bump_version.js",
     "auditor-commit": "./dist/cli/audit_for_commit.js",
     "auditor-bundle": "./dist/cli/audit_bundle.js",
     "auditor-findings": "./dist/cli/report_findings.js",
@@ -81,8 +86,10 @@
     "auditor-setup-env": "./dist/cli/setup_env.js"
   },
   "scripts": {
+    "version": "node --experimental-strip-types src/cli/bump_version.ts",
+    "version:analyze": "node --experimental-strip-types src/cli/bump_version.ts analyze",
+    "version:bump": "node --experimental-strip-types src/cli/bump_version.ts bump",
     "compile": "tsc -p tsconfig.build.json && chmod +x dist/cli/*.js",
-    "prepare": "tsc -p tsconfig.build.json && chmod +x dist/cli/*.js",
     "preinstall": "node --experimental-strip-types src/cli/check_environment.ts",
     "test": "vitest run",
     "test:watch": "vitest",

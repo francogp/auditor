@@ -39,6 +39,7 @@ import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from '../core/streamingRunner.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { BaseAuditor } from '../core/auditorBase.ts';
+import { AUDITOR_VERSION } from '../core/version.ts';
 
 enableCompileCache();
 
@@ -368,7 +369,7 @@ function buildConsolidatedReport(params: {
 }): { meta: AuditRunMetadata; consolidatedReport: ConsolidatedAuditReport } {
   const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily } = params;
   const meta: AuditRunMetadata = {
-    version: '2.0.0',
+    version: AUDITOR_VERSION,
     timestamp: Temporal.Now.instant().toString(),
     isFullAudit,
     runMode: ctx.runMode,
@@ -479,6 +480,10 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
 }
 
 async function runMasterAudit() {
+  if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
+    console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
+    process.exit(0);
+  }
   process.env.AUDIT_SUBPROCESS = 'true';
   const startTime = performance.now();
   const config = await loadAuditConfig();
@@ -512,7 +517,10 @@ async function runMasterAudit() {
     return a.id.localeCompare(b.id);
   });
 
-  const subtitleDetails: string[] = [`Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`];
+  const subtitleDetails: string[] = [
+    `v${AUDITOR_VERSION}`,
+    `Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`
+  ];
   if (cliOptions.targetPreset) subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
   if (cliOptions.values.family) subtitleDetails.push(`Familia: ${String(cliOptions.values.family).toUpperCase()}`);
   if (tasksToRun.length !== allAvailableTasks.length || omittedSuiteIds.length > 0) subtitleDetails.push('Modo: PARCIAL ⚠️');

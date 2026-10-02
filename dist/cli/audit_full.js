@@ -28,6 +28,7 @@ import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
 import { BaseAuditor } from "../core/auditorBase.js";
+import { AUDITOR_VERSION } from "../core/version.js";
 enableCompileCache();
 const CPU_CORE_DIVISOR = 2;
 const MIN_CONCURRENCY = 1;
@@ -285,7 +286,7 @@ function printFindingsSummary(results, sortedCategories) {
 function buildConsolidatedReport(params) {
     const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily } = params;
     const meta = {
-        version: '2.0.0',
+        version: AUDITOR_VERSION,
         timestamp: Temporal.Now.instant().toString(),
         isFullAudit,
         runMode: ctx.runMode,
@@ -377,6 +378,10 @@ async function renderAndPersistMasterReport(ctx) {
     return anyFailed;
 }
 async function runMasterAudit() {
+    if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
+        console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
+        process.exit(0);
+    }
     process.env.AUDIT_SUBPROCESS = 'true';
     const startTime = performance.now();
     const config = await loadAuditConfig();
@@ -406,7 +411,10 @@ async function runMasterAudit() {
             return orderA - orderB;
         return a.id.localeCompare(b.id);
     });
-    const subtitleDetails = [`Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`];
+    const subtitleDetails = [
+        `v${AUDITOR_VERSION}`,
+        `Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`
+    ];
     if (cliOptions.targetPreset)
         subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
     if (cliOptions.values.family)

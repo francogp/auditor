@@ -18,5 +18,6 @@ export * from "./cli/check_environment.js";
 export * from "./cli/init_agent.js";
 export * from "./cli/sync_env_scripts.js";
 export * from "./cli/cliUtils.js";
+export * from "./core/version.js";
 export * from "./plugin/defineAuditorExtension.js";
 //# sourceMappingURL=index.js.map

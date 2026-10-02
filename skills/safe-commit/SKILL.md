@@ -161,19 +161,29 @@ You must execute the 6 gates sequentially. If ANY gate fails, execute the repair
 **Step 3.3** — Workspace Scratch Cleanup
 - Remove transient debug files, leaving only `scratch/backups/`.
 
-**Step 3.4** — 🛑 STOP & Call `ask_question`
-- Solicit explicit user review and approval before creating the git commit.
+**Step 3.4** — Version Bump Analysis & User Approval Gate (`ask_question`)
+- Execute `npx auditor-version analyze` (or `npm run version:analyze -- --json`) to evaluate Git diff metrics, affected subsystems, and commit intent.
+- Solicit explicit user review and approval before creating the git commit via `ask_question`:
+  - Ask whether to apply a version bump (recommended when preparing a release or pushing to `main`) or maintain the current version (for local/branch development commits to prevent merge conflicts).
+  - If bumping, present the recommended SemVer bump (`major`, `minor`, or `patch`) with its rationale and next version (`X.Y.Z-build.YYYYMMDD-HHmmss`), allowing the user to confirm or select a different bump type.
 
 ---
 
-## Phase 4: Single Atomic Certified Commit
+## Phase 4: Single Atomic Certified Commit & Release
 
 Once the user approves:
 1. Apply approved lessons to owning `AGENTS.md`.
-2. Run pre-commit sanity check: `npm run audit:md`.
-3. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
-4. Run:
+2. **Version Bump Execution** (if approved by user in Step 3.4):
+   - Run `npx auditor-version bump --type=<approved_type>`.
+   - Run `npm run compile` to recompile `dist/` with the freshly stamped version.
+3. Run pre-commit sanity check: `npm run audit:md`.
+4. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
+5. Run:
    ```bash
    git add . && git commit -m "<message>"
    ```
-5. Mark Phase 4 `[x]` in `task.md` and display final confirmation.
+6. **Git Tag & Push** (if version was bumped):
+   - Create annotated tag: `git tag -a v<new_version> -m "Release v<new_version>"`
+   - Push with follow tags: `git push origin <branch> --follow-tags`
+7. Mark Phase 4 `[x]` in `task.md` and display final confirmation.
+

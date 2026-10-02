@@ -66,6 +66,7 @@ npm ci
 Host projects **MUST NOT** rewrite or duplicate the 25 generic audit scripts in their `package.json`.
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
 - `auditor` (master orchestrator `audit_full.ts`)
+- `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
 - `auditor-commit` (safe-commit gatekeeper `audit_for_commit.ts`)
 - `auditor-findings` (interactive findings reporter `report_findings.ts`)
 - `auditor-fallow` (Fallow intelligence suite `report_fallow.ts`)
