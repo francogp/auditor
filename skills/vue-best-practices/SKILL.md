@@ -20,8 +20,8 @@ Use this skill as an instruction set. Follow the workflow in order unless the us
 
 ## 1) Confirm architecture before coding (required)
 
-- Default stack: Vue 3 + Composition API + `<script setup lang="ts">` (mandatory across Facturación 2.0).
-- Options API and JSX are strictly forbidden under Facturación 2.0 project governance.
+- Default stack: Vue 3 + Composition API + `<script setup lang="ts">` (mandatory across enterprise projects).
+- Options API and JSX are strictly forbidden under modern project governance.
 
 ### 1.1 Must-read core references (required)
 

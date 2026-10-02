@@ -131,16 +131,20 @@ export function executeAuditorStreaming(
       }
     });
 
-    const timeoutLimit = task.timeoutMs ?? DEFAULT_RUNNER_TIMEOUT_MS;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      try {
-        child.kill('SIGTERM');
-        setTimeout(() => {
-          try { child.kill('SIGKILL'); } catch { /* catch-ok: ignore kill failure on already exited child */ }
-        }, SIGKILL_ESCALATION_DELAY_MS);
-      } catch { /* catch-ok: ignore kill failure on already exited child */ }
-    }, timeoutLimit);
+    const timeoutLimit = task.timeoutMs !== undefined ? task.timeoutMs : DEFAULT_RUNNER_TIMEOUT_MS;
+    let timer: NodeJS.Timeout | undefined;
+    if (timeoutLimit > 0) {
+      timer = setTimeout(() => {
+        timedOut = true;
+        onSubProgress?.(`Timeout excedido (${timeoutLimit}ms) al ejecutar el auditor '${task.name}' (${task.id}).`);
+        try {
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            try { child.kill('SIGKILL'); } catch { /* catch-ok: ignore kill failure on already exited child */ }
+          }, SIGKILL_ESCALATION_DELAY_MS);
+        } catch { /* catch-ok: ignore kill failure on already exited child */ }
+      }, timeoutLimit);
+    }
 
     function processStderrChunk(chunk: string): void {
       stderrBuffer += chunk;
@@ -163,7 +167,7 @@ export function executeAuditorStreaming(
     child.stderr?.on('data', processStderrChunk);
 
     child.on('close', (code) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       if (stderrLineBuffer.trim() && !isNodeInternalWarning(stderrLineBuffer.trim())) {
         onSubProgress?.(stderrLineBuffer.trim());
       }

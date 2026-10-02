@@ -193,6 +193,8 @@ export interface AuditEngineConfig {
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
   readonly _declaredSubsystems?: ReadonlySet<string>;
+  readonly _rawPaths?: Readonly<DeepPartial<AuditEngineConfig['paths']>>;
+  readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
 }
 
 export type DeepPartial<T> = {
@@ -468,6 +470,8 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
   const declared = collectDeclaredSubsystems(config);
   const agentAndSecurity = buildAgentAndSecurityConfig(config);
   const constantsAndDoc = buildConstantsAndDocConfig(config);
+  const rawPaths = (config as AuditEngineConfig)._rawPaths ?? config.paths;
+  const rawConfig = (config as AuditEngineConfig)._rawConfig ?? config;
 
   return {
     name: config.name,
@@ -483,7 +487,9 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
     presets: config.presets ?? {},
-    _declaredSubsystems: declared
+    _declaredSubsystems: declared,
+    _rawPaths: rawPaths,
+    _rawConfig: rawConfig
   };
 }
 
@@ -578,7 +584,11 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
       const fileUrl = pathToFileURL(configPath).href;
       const mod = (await import(fileUrl)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
       if (mod.default) {
-        cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
+        if ((mod.default as AuditEngineConfig)._declaredSubsystems) {
+          cachedConfig = mod.default as AuditEngineConfig;
+        } else {
+          cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
+        }
         cachedProjectRoot = projectRoot;
         return cachedConfig;
       }

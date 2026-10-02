@@ -37,16 +37,16 @@ When saving a new behavior, constraint, or success pattern:
    - **Upstream Alert Protocol (When running in a host project targeting `@francogp/auditor`)**:
      - Prepend a prominent warning banner at the very top of `learning_proposal.md`:
        ```markdown
-       > [!WARNING] DESTINO DE APRENDIZAJE: REPOSITORIO UPSTREAM (@francogp/auditor)
-       > Este aprendizaje pertenece al motor/librería `@francogp/auditor`, NO al proyecto anfitrión actual (`<host-project-name>`).
-       > Estos cambios NO se aplicarán localmente ni dentro de `node_modules/`. Deben trasladarse y aplicarse en el repositorio de `@francogp/auditor`.
+       > [!WARNING] LEARNING TARGET: UPSTREAM REPOSITORY (@francogp/auditor)
+       > This learning belongs to the `@francogp/auditor` engine/package, NOT to the current host project (`<host-project-name>`).
+       > These changes MUST NOT be applied locally or inside `node_modules/`. They must be transferred and applied to the `@francogp/auditor` repository.
        ```
      - In the chat response, explicitly notify the programmer:
        1. That the learning and diff were drafted and saved in `learning_proposal.md`.
        2. That this change belongs to the `@francogp/auditor` repository, not the current host project.
        3. That it cannot be applied automatically in the current session unless the developer opens the `@francogp/auditor` workspace. Provide the diff and recommendations clearly so the programmer can carry them over.
        4. Stop and do NOT modify any host project files or `node_modules/`.
-4. **Language Integrity Check**: Ensure the proposed rules or additions inside the `learning_proposal.md` diff blocks are written in English (matching the target files), while all descriptions, justifications, and chat explanations are in Spanish.
+4. **Language Integrity Check**: Ensure the proposed rules or additions inside the learning proposal diff blocks and documentation are written strictly and exclusively in English with zero language mixing, conforming to repository governance contracts.
 5. **Get User Approval (Local Workspace Only)**: If the learning is for the local workspace, stop and wait for the user's explicit approval on the proposal before applying any changes to the files.
 6. **Documentation-Only Verification**: After applying changes to local `AGENTS.md` or skill files, ONLY run the unified documentation and DOX audit (`npm run audit:md`). Running full project audits (`npm run lint` or `npm run audit`) for documentation or skill edits is strictly forbidden.
    - **STRICT PROHIBITION ON RUNNING TESTS FOR DOCS**: You are STRICTLY FORBIDDEN from running `npm run test`, Vitest, Node test runners, or E2E simulations when updating documentation, DOX indices, or `.md` files. Test suites are exclusively for code logic changes in `src/` or `database/`.

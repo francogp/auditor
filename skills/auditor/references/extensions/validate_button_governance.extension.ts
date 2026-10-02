@@ -1,10 +1,10 @@
 /**
  * scripts/auditors/extensions/validate_button_governance.extension.ts
  *
- * FACTURACIÓN 2.0 BUTTON GOVERNANCE EXTENSION AUDITOR (Node.js 26+ Native)
+ * ENTERPRISE BUTTON GOVERNANCE EXTENSION AUDITOR (Node.js 26+ Native)
  *
  * Extracted from @francogp/auditor core as a host-specific architecture extension.
- * Enforces Facturación 2.0 "Mandato 23":
+ * Enforces UI Architecture Governance (Button Rule 23):
  *   1. Anti-clipping perimetral 360° border on buttons in _buttons.scss (no border-bottom-color).
  *   2. Anti-cutoff uniform inset shadows in _buttons.scss (no negative inset 0 -Npx).
  *   3. Prohibition of ad-hoc .btn style overrides in component <style> blocks.
@@ -36,8 +36,8 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
   constructor(projectRoot: string = process.cwd()) {
     super({
       id: 'validate_button_governance',
-      name: 'Button Governance Validator (Mandato 23)',
-      description: 'Valida gobernanza centralizada de botones y variantes canónicas',
+      name: 'Button Governance Validator (Rule 23)',
+      description: 'Valida gobernanza de botones y variantes canónicas',
       family: 'architecture',
       ruleIds: BUTTON_GOVERNANCE_RULES,
       packageName: 'Botones',
@@ -67,7 +67,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
           severity: 'error',
           file: relButtons,
           line: 1,
-          message: 'Uso prohibido de "border-bottom-color" en botones. Todos los botones deben tener borde perimetral 360° continuo (Mandato 23).',
+          message: 'Forbidden usage of "border-bottom-color" on buttons. All buttons must maintain continuous 360° perimeter borders.',
           context: 'border-bottom-color'
         });
       }
@@ -78,7 +78,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
           severity: 'error',
           file: relButtons,
           line: 1,
-          message: 'Uso prohibido de sombra inset negativa vertical en botones. Simula corte visual (Mandato 23).',
+          message: 'Forbidden negative vertical inset shadow on buttons simulating visual clipping.',
           context: 'inset 0 -Npx'
         });
       }

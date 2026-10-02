@@ -30,7 +30,7 @@ For zero-downtime changes:
 - Run in transactions when possible
 - Maintain strict PostgreSQL schema contracts and RLS security
 
-## Multi-Host Supabase Architecture (Facturación 2.0)
+## Multi-Host Supabase Architecture (Enterprise Blueprint)
 
 ### Supabase / PostgreSQL
 

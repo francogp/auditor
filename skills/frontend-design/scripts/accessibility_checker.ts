@@ -148,7 +148,7 @@ export function checkAccessibility(projectPath: string): A11yReport {
 
 function renderBoxDrawing(report: A11yReport): void {
   console.log('\n┌──────────────────────────────────────────────────────────────────────────────┐');
-  console.log('│                 FACTURACIÓN 2.0 - ACCESSIBILITY CHECKER (WCAG)               │');
+  console.log('│                 ENTERPRISE ARCHITECTURE - ACCESSIBILITY CHECKER (WCAG)               │');
   console.log('├──────────────────────────────────────────────────────────────────────────────┤');
   console.log(`│ Files Scanned:                  ${String(report.filesScanned).padEnd(44)} │`);
   console.log(`│ Total Issues:                   ${String(report.totalIssues).padEnd(44)} │`);

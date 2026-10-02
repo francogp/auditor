@@ -214,6 +214,9 @@ Run \`npm run nonexistent-script\` to verify.
     const scriptFinding = result.findings.find(f => f.ruleId === 'markdown-unregistered-npm-script');
     expect(scriptFinding).toBeDefined();
     expect(scriptFinding?.context).toBe('npm run nonexistent-script');
+    expect(scriptFinding?.message).toBe(
+      'ERR! missing or relocated script: command "npm run nonexistent-script" is not registered in package.json.scripts'
+    );
   });
 
   it('accepts registered npm run commands and trailing colon placeholders', async () => {

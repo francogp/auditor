@@ -5,7 +5,7 @@ export default defineAuditConfig({
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
-    scriptsRoots: ['scripts'],
+    scriptsRoots: ['src/cli'],
     codeRoots: ['src'],
     cliRoots: ['src/cli', 'src/core', 'src/suites', 'src/analyzers'],
     ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**', '.agents/**'],

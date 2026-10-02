@@ -27,6 +27,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.4). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.4 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit: `git add . && git commit -m "<message>" && git tag -a v<base_version> -m "Release v<base_version>"`. Leaving a version bump untagged breaks automated dependency resolution (`github:owner/repo`). |
+| **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -79,9 +80,9 @@ graph TD
 > [!CAUTION]
 > This is the absolute first action — before `git status`, before any npm command, before anything.
 
-**Step 0.1** — Initialize `task.md`
+**Step 0.1** — Initialize `task.md` (Strict Overwrite)
 
-Call `write_to_file` to create `<appDataDir>/brain/<conversation-id>/task.md` using the exact structure from [task-template.md](./references/task-template.md). All phase items start as `[ ]`.
+Call `write_to_file` to create or completely overwrite (`Overwrite: true`) `<appDataDir>/brain/<conversation-id>/task.md` using the exact structure and headings from [task-template.md](./references/task-template.md). Agents MUST view `references/task-template.md` and replicate it verbatim without inventing custom headings, moving sections above the checklist, altering step wording, or omitting the `## Step Records & Execution Metrics` section. All phase items start as `[ ]`.
 
 **Step 0.2** — Note scratch directory
 
@@ -200,8 +201,44 @@ Once the user approves:
      ```bash
      git add . && git commit -m "<message>"
      ```
-5. **Git Push**:
-   - Run: `git push origin <branch> --follow-tags`
-   - Verify that the commit and the annotated tag were pushed cleanly.
-6. Mark Phase 4 `[x]` in `task.md` and display final confirmation.
+5. **Autonomous Git Push Prohibition & User Handoff**:
+   - **AI AGENTS MUST NEVER EXECUTE `git push` AUTONOMOUSLY**: Publishing commits and tags to remote repositories (`origin`) is an external, irreversible operation. Once the atomic commit and tag are created locally, Phase 4 execution stops.
+   - Do NOT run `git push` unless the user explicitly gave an unambiguous command in their prompt (e.g. "hace push", "push changes to remote").
+   - Conclude the workflow by rendering the **Mandatory Safe-Commit Completion Template** in the chat response, providing the user with the exact command to push when they are ready.
+6. Mark Phase 4 `[x]` in `task.md` and render the final completion response.
+
+---
+
+## Mandatory Safe-Commit Completion Template
+
+Every completed safe-commit run MUST finish with this standardized Markdown template in the chat response:
+
+```markdown
+# ✅ SAFE-COMMIT COMPLETADO CON ÉXITO
+
+### Resumen de la Operación
+- **Commit Hash**: `<commit-hash>`
+- **Tag Creado**: `v<version>` (o `Ninguno - Versión mantenida`)
+- **Mensaje**: `<commit-title>`
+- **Archivos Modificados**: `<count>` archivos
+
+### Puertas de Calidad Verificadas (6/6)
+| Puerta | Descripción | Estado |
+|:---|:---|:---:|
+| 2.1 | `npm run audit:md` (DOX y Markdown) | ✅ Aprobado (0 err) |
+| 2.2 | `npm run audit:for-commit` (Gatekeeper Diferencial) | ✅ Aprobado (0 err, 0 new warn) |
+| 2.3 | `npm run test` (Tests Automatizados) | ✅ Aprobado (100% pasando) |
+| 2.4 | `npm run build` (Single Build Mandate) | ✅ Aprobado (Exit 0) |
+| 2.5 | `npm run audit:bundle` (Presupuestos de Chunks) | ✅ Aprobado |
+| 2.6 | `npm run audit:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
+
+### Publicación Remota (Git Push)
+> ⚠️ **Control de Seguridad**: Por gobernanza del repositorio, el agente **NO** realiza push automático a ramas remotas sin petición explícita previa.
+
+Para publicar los cambios y tags en el repositorio remoto, ejecuta manualmente:
+```bash
+git push origin <branch> --follow-tags
+```
+*O indícame explícitamente "hace push" si deseas que lo ejecute por ti.*
+```
 

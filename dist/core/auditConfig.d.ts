@@ -173,6 +173,8 @@ export interface AuditEngineConfig {
     readonly extensions?: readonly string[];
     readonly presets?: Record<string, readonly string[]>;
     readonly _declaredSubsystems?: ReadonlySet<string>;
+    readonly _rawPaths?: Readonly<DeepPartial<AuditEngineConfig['paths']>>;
+    readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
 }
 export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];

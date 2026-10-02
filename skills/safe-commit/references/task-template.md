@@ -42,8 +42,8 @@
   - [ ] Atomic Commit & Tag:
     - [ ] If version bumped: `git add . && git commit -m "<message>" && git tag -a v<base_version> -m "Release v<base_version>"`
     - [ ] If version unchanged: `git add . && git commit -m "<message>"`
-  - [ ] Git push with `--follow-tags`: `git push origin <branch> --follow-tags`
   - [ ] Mark Phase 4 `[x]`
+  - [ ] Render final Safe Commit Completion Template (Autonomous push prohibited; display `git push` command for user)
 
 ---
 

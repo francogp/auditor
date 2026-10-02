@@ -166,7 +166,8 @@ function parseCommitCliArgs(config) {
             preset: { type: 'string' },
             family: { type: 'string' },
             task: { type: 'string' },
-            suites: { type: 'string' }
+            suites: { type: 'string' },
+            'skip-similar': { type: 'boolean' }
         },
         strict: false
     });
@@ -175,7 +176,8 @@ function parseCommitCliArgs(config) {
     const familyArg = typeof values.family === 'string' ? values.family : undefined;
     const taskArg = typeof values.task === 'string' ? values.task : undefined;
     const suitesArg = typeof values.suites === 'string' ? values.suites.split(',') : undefined;
-    return { effectivePreset, familyArg, taskArg, suitesArg };
+    const skipSimilar = Boolean(values['skip-similar']) || normalized.includes('--skip-similar');
+    return { effectivePreset, familyArg, taskArg, suitesArg, skipSimilar };
 }
 function printModifiedFiles(modifiedFiles) {
     console.log(styleText('bold', '📁 Archivos modificados detectados:'));
@@ -213,7 +215,7 @@ function buildTimeoutViolation(task) {
     return {
         file: task.scriptPath,
         line: 1,
-        message: `Timeout excedido (${task.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms) en ejecución de la suite.`,
+        message: `Timeout excedido (${task.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms) al ejecutar el auditor '${task.name}' (${task.id}).`,
         context: task.name,
         severity: 'error',
         ruleId: task.id,
@@ -372,7 +374,8 @@ async function main() {
         preset: effectivePreset,
         family: familyArg,
         task: taskArg,
-        suites: suitesArg
+        suites: suitesArg,
+        skipSimilar: true
     });
     const allViolations = await runCommitAuditorTasks(discoveredTasks);
     const { projectErrors, warningsByFile } = partitionViolations(allViolations, modifiedFiles);

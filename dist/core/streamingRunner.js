@@ -91,20 +91,24 @@ export function executeAuditorStreaming(task, args, onSubProgress) {
                 AUDIT_SUBPROCESS: 'true'
             }
         });
-        const timeoutLimit = task.timeoutMs ?? DEFAULT_RUNNER_TIMEOUT_MS;
-        const timer = setTimeout(() => {
-            timedOut = true;
-            try {
-                child.kill('SIGTERM');
-                setTimeout(() => {
-                    try {
-                        child.kill('SIGKILL');
-                    }
-                    catch { /* catch-ok: ignore kill failure on already exited child */ }
-                }, SIGKILL_ESCALATION_DELAY_MS);
-            }
-            catch { /* catch-ok: ignore kill failure on already exited child */ }
-        }, timeoutLimit);
+        const timeoutLimit = task.timeoutMs !== undefined ? task.timeoutMs : DEFAULT_RUNNER_TIMEOUT_MS;
+        let timer;
+        if (timeoutLimit > 0) {
+            timer = setTimeout(() => {
+                timedOut = true;
+                onSubProgress?.(`Timeout excedido (${timeoutLimit}ms) al ejecutar el auditor '${task.name}' (${task.id}).`);
+                try {
+                    child.kill('SIGTERM');
+                    setTimeout(() => {
+                        try {
+                            child.kill('SIGKILL');
+                        }
+                        catch { /* catch-ok: ignore kill failure on already exited child */ }
+                    }, SIGKILL_ESCALATION_DELAY_MS);
+                }
+                catch { /* catch-ok: ignore kill failure on already exited child */ }
+            }, timeoutLimit);
+        }
         function processStderrChunk(chunk) {
             stderrBuffer += chunk;
             const { lines, remainder } = splitChunkIntoLines(stderrLineBuffer, chunk);
@@ -122,7 +126,8 @@ export function executeAuditorStreaming(task, args, onSubProgress) {
         child.stderr?.setEncoding('utf-8');
         child.stderr?.on('data', processStderrChunk);
         child.on('close', (code) => {
-            clearTimeout(timer);
+            if (timer)
+                clearTimeout(timer);
             if (stderrLineBuffer.trim() && !isNodeInternalWarning(stderrLineBuffer.trim())) {
                 onSubProgress?.(stderrLineBuffer.trim());
             }

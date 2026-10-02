@@ -27,6 +27,7 @@ Architecture & Tooling Engineers.
 - **Configurable CLI Logging Cleanliness & Dynamic Test Auditor Locations**: `validate_console_cleanliness.ts` derives permitted terminal output roots dynamically from `config.paths.cliRoots` (`isCliPath()`), avoiding hardcoded framework paths. `validate_auditor_tests.ts` dynamically searches for sub-auditor test files across all paths declared in `config.paths.testRoots`.
 - **Dynamic Persistence Mock Detection**: Forbidden integration mock targets in `validate_test_hygiene.ts` derive dynamically based on `config.persistence.engine` (`supabase`, `sqlite`, `hybrid`).
 - **Zero Untested Rules**: Every rule ID declared across these suites is verified with positive and negative test cases.
+- **Explicit Audit Config Path Verification**: `validate_audit_config.ts` enforces that every file, directory, migration path, style sheet, domain catalog, persistence definition, and extension explicitly cited in `audit.config.ts` physically exists on disk (`severity: 'error'`), ignoring unconfigured defaults.
 - **Living Standard Engines**: HTML standards validation delegates to `html-validate` instead of ad-hoc regex.
 - **Strict Fallow Error Severity**: All Fallow-derived findings are treated strictly as `severity: 'error'`.
 
@@ -35,6 +36,7 @@ Architecture & Tooling Engineers.
 - [`audit_project.ts`](./audit_project.ts): Master architectural rule runner.
 - [`audit_rules.ts`](./audit_rules.ts): Declarative rules and violation definitions.
 - [`validate_agent_plugin.ts`](./validate_agent_plugin.ts): Antigravity agent plugin registration verification.
+- [`validate_audit_config.ts`](./validate_audit_config.ts): Verification that 100% of explicit file/directory paths cited in `audit.config.ts` physically exist.
 - [`validate_audit_headers.ts`](./validate_audit_headers.ts): Verification of file headers and suppression prohibitions.
 - [`validate_auditor_tests.ts`](./validate_auditor_tests.ts): Hermetic testing verifier ensuring clean path tests exist.
 - [`validate_build_tools.ts`](./validate_build_tools.ts): Cross-platform discovery of native build tools.

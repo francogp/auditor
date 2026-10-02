@@ -264,9 +264,13 @@ async function tryReadTaskResult(
 
 function extractSubprocessErrorMessage(
   proc: { status: number | null; stdout: string; stderr: string; timedOut: boolean },
-  timeoutMs: number = DEFAULT_SUBPROCESS_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_SUBPROCESS_TIMEOUT_MS,
+  task?: AuditTaskDefinition
 ): string {
   if (proc.timedOut) {
+    if (task) {
+      return `Timeout excedido (${timeoutMs}ms) al ejecutar el auditor '${task.name}' (${task.id}).`;
+    }
     return `Timeout excedido (${timeoutMs}ms) en la ejecución de la suite.`;
   }
   const cleanStderr = proc.stderr
@@ -297,7 +301,7 @@ async function parseSubprocessOutput(
   const findings: AuditFinding[] = [];
 
   if (!isSuccess) {
-    const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? 60000);
+    const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? 60000, task);
     findings.push({
       severity: 'error',
       message: errorMsg,

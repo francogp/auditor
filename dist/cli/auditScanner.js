@@ -13,12 +13,14 @@ import { resolveFamilyMetadata, getActiveFamilies } from "../core/auditContract.
 import { loadAuditConfig } from "../core/auditConfig.js";
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 const DEFAULT_TIMEOUT_MS = 60000;
-const HEAVY_TIMEOUT_MS = 180000; // 3 minutes for full repo AST / DB migration validation
+const HEAVY_TIMEOUT_MS = 300000; // 5 minutes for full repo AST / DB migration validation
 function getTimeoutForTask(filename) {
+    if (filename.includes('validate_similar_code')) {
+        return 0; // No killing timeout: allow embeddings to generate and persist cache to disk
+    }
     if (filename.includes('audit_project') ||
         filename.includes('validate_type_check') ||
-        filename.includes('validate_eslint') ||
-        filename.includes('validate_similar_code')) {
+        filename.includes('validate_eslint')) {
         return HEAVY_TIMEOUT_MS;
     }
     return DEFAULT_TIMEOUT_MS;

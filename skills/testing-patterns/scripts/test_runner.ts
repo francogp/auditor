@@ -61,7 +61,7 @@ async function main(): Promise<void> {
 
   if (!json) {
     console.log('\n┌──────────────────────────────────────────────────────────────────────────────┐');
-    console.log('│                  FACTURACIÓN 2.0 - UNIFIED TEST RUNNER                       │');
+    console.log('│                  ENTERPRISE ARCHITECTURE - UNIFIED TEST RUNNER                       │');
     console.log('├──────────────────────────────────────────────────────────────────────────────┤');
     console.log(`│ Target Suite:                   ${target.padEnd(44)} │`);
     console.log(`│ Coverage:                       ${(isCoverage ? 'Enabled' : 'Disabled').padEnd(44)} │`);

@@ -278,7 +278,7 @@ function checkNpmRunCommands(
         severity: 'error',
         file: relPath,
         line: lineNum,
-        message: `Comando "npm run ${scriptName}" no está registrado en package.json.scripts`,
+        message: `ERR! missing or relocated script: command "npm run ${scriptName}" is not registered in package.json.scripts`,
         context: `npm run ${scriptName}`
       });
     }

@@ -14,6 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
@@ -49,13 +50,36 @@ export function isSimilarCodeSkipped(argv = process.argv) {
         return lower === '--skip-similar' || lower === 'skip-similar';
     });
 }
+export function ensureSimilarCodeCacheDir(projectRoot) {
+    const cacheDir = path.resolve(projectRoot, 'scratch/.cache/similar-code');
+    if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    const globalModelsDir = path.join(os.homedir(), '.cache/fallow/similar-code/models');
+    const localModelsDir = path.join(cacheDir, 'models');
+    if (fs.existsSync(globalModelsDir) && !fs.existsSync(localModelsDir)) {
+        try {
+            fs.symlinkSync(globalModelsDir, localModelsDir, 'dir');
+        }
+        catch {
+            // catch-ok: symlink failure on systems without permission, fallow will handle setup
+        }
+    }
+    return cacheDir;
+}
 export function checkOrInitializeModel(fallowBin, projectRoot) {
+    const cacheDir = ensureSimilarCodeCacheDir(projectRoot);
+    const customEnv = {
+        ...process.env,
+        FALLOW_SIMILAR_CODE_CACHE_DIR: cacheDir
+    };
     try {
         const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
             cwd: projectRoot,
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
-            timeout: 10000
+            env: customEnv,
+            timeout: 15000
         });
         const parsed = JSON.parse(statusOut);
         if (parsed.model_ready === true) {
@@ -71,7 +95,8 @@ export function checkOrInitializeModel(fallowBin, projectRoot) {
             cwd: projectRoot,
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'inherit'],
-            timeout: 180000
+            env: customEnv,
+            timeout: 0
         });
         return true;
     }
@@ -158,20 +183,24 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
         const threshold = similarCfg.threshold ?? 0.95;
         const minLines = similarCfg.minLines ?? 3;
         const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
-        const timeoutMs = similarCfg.timeoutMs ?? 300000;
         this.context.logStep(2, 2, `Ejecutando fallow similar-code (umbral: ${threshold}, min-lines: ${minLines})...`);
         const rawOutputFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/similar-code-raw.json');
         if (!fs.existsSync(path.dirname(rawOutputFile))) {
             fs.mkdirSync(path.dirname(rawOutputFile), { recursive: true });
         }
+        const cacheDir = ensureSimilarCodeCacheDir(this.projectRoot);
         try {
             const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines} --output-file "${rawOutputFile}"`;
             childProcess.execSync(cmd, {
                 cwd: this.projectRoot,
                 encoding: 'utf8',
                 stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    ...process.env,
+                    FALLOW_SIMILAR_CODE_CACHE_DIR: cacheDir
+                },
                 maxBuffer: 50 * 1024 * 1024,
-                timeout: timeoutMs
+                timeout: 0
             });
             this.processRawOutputFile(rawOutputFile, ignoreSameFile);
         }

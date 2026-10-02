@@ -134,7 +134,7 @@ export function auditUX(projectPath: string): UXReport {
 
 function renderBoxDrawing(report: UXReport): void {
   console.log('\n┌──────────────────────────────────────────────────────────────────────────────┐');
-  console.log('│                       FACTURACIÓN 2.0 - UX & MOTION AUDIT                    │');
+  console.log('│                       ENTERPRISE ARCHITECTURE - UX & MOTION AUDIT                    │');
   console.log('├──────────────────────────────────────────────────────────────────────────────┤');
   console.log(`│ Files Scanned:                  ${String(report.filesScanned).padEnd(44)} │`);
   console.log(`│ GSAP-Powered Components:        ${String(report.gsapComponentsFound).padEnd(44)} │`);

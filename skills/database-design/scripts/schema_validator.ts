@@ -148,7 +148,7 @@ export function validateMigrations(projectPath: string): ValidationReport {
 
 function renderBoxDrawing(report: ValidationReport): void {
   console.log('\n┌──────────────────────────────────────────────────────────────────────────────┐');
-  console.log('│                    FACTURACIÓN 2.0 - SCHEMA VALIDATOR                        │');
+  console.log('│                    ENTERPRISE ARCHITECTURE - SCHEMA VALIDATOR                        │');
   console.log('├──────────────────────────────────────────────────────────────────────────────┤');
   console.log(`│ Total Migrations (.sql):        ${String(report.totalMigrations).padEnd(44)} │`);
   console.log(`│ Paired SQLite (.sqlite.sql):    ${String(report.pairedSqliteMigrations).padEnd(44)} │`);

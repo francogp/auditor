@@ -18,8 +18,8 @@ tags: [vue3, transition, animation, performance, keys]
 - Prefer `transform` and `opacity` for smooth animations
 
 > [!IMPORTANT]
-> **Facturación 2.0 Architecture Standard - GSAP Exclusive Mandate**:
-> In Facturación 2.0, manual CSS transitions (`transition: ...`) are strictly prohibited and rejected by `validate_component_styles.ts`.
+> **Enterprise Architecture Standard - GSAP Exclusive Mandate**:
+> In standard enterprise architecture, manual CSS transitions (`transition: ...`) are strictly prohibited and rejected by `validate_component_styles.ts`.
 > Vue transitions MUST use javascript-driven GSAP hooks: `<Transition :css="false" @before-enter="..." @enter="..." @leave="...">`
 > (or composables like `useGsapTransition`), never manual CSS transition classes.
 

@@ -20,6 +20,7 @@ Architecture & Tooling Engineers.
 - [`audit_for_commit.test.ts`](./audit_for_commit.test.ts): Tests for differential pre-commit gate.
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
 - [`cli_utils.test.ts`](./cli_utils.test.ts): Unit tests for CLI entrypoint detection and utilities.
+- [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for audit configuration path and file physical existence verification.
 - [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.
 - [`version_bump.test.ts`](./version_bump.test.ts): Tests for SemVer bump calculation, build timestamp formatting, and git diff heuristics.
 

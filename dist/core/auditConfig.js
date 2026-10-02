@@ -254,6 +254,8 @@ export function defineAuditConfig(config) {
     const declared = collectDeclaredSubsystems(config);
     const agentAndSecurity = buildAgentAndSecurityConfig(config);
     const constantsAndDoc = buildConstantsAndDocConfig(config);
+    const rawPaths = config._rawPaths ?? config.paths;
+    const rawConfig = config._rawConfig ?? config;
     return {
         name: config.name,
         paths: buildPathsConfig(config.paths),
@@ -268,7 +270,9 @@ export function defineAuditConfig(config) {
         customFamilies: config.customFamilies ?? [],
         extensions: config.extensions ?? [],
         presets: config.presets ?? {},
-        _declaredSubsystems: declared
+        _declaredSubsystems: declared,
+        _rawPaths: rawPaths,
+        _rawConfig: rawConfig
     };
 }
 function checkInfrastructureSubsystems(declared, config, missing) {
@@ -343,7 +347,12 @@ export async function loadAuditConfig(projectRoot = process.cwd()) {
             const fileUrl = pathToFileURL(configPath).href;
             const mod = (await import(__rewriteRelativeImportExtension(fileUrl)));
             if (mod.default) {
-                cachedConfig = defineAuditConfig(mod.default);
+                if (mod.default._declaredSubsystems) {
+                    cachedConfig = mod.default;
+                }
+                else {
+                    cachedConfig = defineAuditConfig(mod.default);
+                }
                 cachedProjectRoot = projectRoot;
                 return cachedConfig;
             }
