@@ -13,7 +13,7 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
-import { getAuditConfig, resolveZLayersScssPath } from "../../core/auditConfig.js";
+import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers } from "../../core/auditConfig.js";
 import { Z_LAYERS } from "./audit_rules.js";
 enableCompileCache();
 export const Z_INDEX_RULES = [
@@ -135,7 +135,8 @@ export class ZIndexAuditor extends BaseAuditor {
             });
             return;
         }
-        const result = auditZIndexParity(scssContent, isFixMode, Z_LAYERS);
+        const effectiveLayers = getEffectiveZLayers(this.projectRoot);
+        const result = auditZIndexParity(scssContent, isFixMode, effectiveLayers);
         for (const v of result.violations) {
             this.addViolation({
                 ruleId: v.ruleId,

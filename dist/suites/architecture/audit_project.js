@@ -13,13 +13,13 @@ import { enableCompileCache } from 'node:module';
 import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
 import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from "../../core/auditorBase.js";
-import { matchesRule, Z_INDEX_CONSISTENCY_DESCRIPTOR, FALLOW_SUITE_DESCRIPTORS, SASS_MIGRATOR_DESCRIPTOR, Z_LAYERS, auditRulesConfig as config } from "./audit_rules.js";
+import { matchesRule, Z_INDEX_CONSISTENCY_DESCRIPTOR, FALLOW_SUITE_DESCRIPTORS, SASS_MIGRATOR_DESCRIPTOR, auditRulesConfig as config } from "./audit_rules.js";
 import { auditZIndexParity } from "./validate_z_index.js";
 import { runCssChecker, CSS_ANALYZER_DESCRIPTOR } from "../../analyzers/cssAnalyzer.js";
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from "../../analyzers/doxAnalyzer.js";
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from "../../analyzers/constantAnalyzer.js";
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from "../../core/auditorBase.js";
-import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath } from "../../core/auditConfig.js";
+import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath, getEffectiveZLayers } from "../../core/auditConfig.js";
 enableCompileCache();
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
 async function getFilesToAudit(dir) {
@@ -347,7 +347,8 @@ async function checkZIndexConsistency(fix) {
     }
     try {
         const scssContent = await fs.readFile(scssPath, 'utf-8');
-        const result = auditZIndexParity(scssContent, fix, Z_LAYERS);
+        const effectiveLayers = getEffectiveZLayers(process.cwd());
+        const result = auditZIndexParity(scssContent, fix, effectiveLayers);
         if (fix && result.modified) {
             await fs.writeFile(scssPath, result.scssContent, 'utf-8');
         }

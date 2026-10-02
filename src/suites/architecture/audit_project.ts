@@ -22,7 +22,6 @@ import {
   Z_INDEX_CONSISTENCY_DESCRIPTOR,
   FALLOW_SUITE_DESCRIPTORS,
   SASS_MIGRATOR_DESCRIPTOR,
-  Z_LAYERS,
   auditRulesConfig as config
 } from './audit_rules.ts';
 import { auditZIndexParity } from './validate_z_index.ts';
@@ -30,7 +29,7 @@ import { runCssChecker, CSS_ANALYZER_DESCRIPTOR } from '../../analyzers/cssAnaly
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxAnalyzer.ts';
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
-import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath } from '../../core/auditConfig.ts';
+import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath, getEffectiveZLayers } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -452,7 +451,8 @@ async function checkZIndexConsistency(fix: boolean): Promise<string[]> {
   }
   try {
     const scssContent = await fs.readFile(scssPath, 'utf-8');
-    const result = auditZIndexParity(scssContent, fix, Z_LAYERS);
+    const effectiveLayers = getEffectiveZLayers(process.cwd());
+    const result = auditZIndexParity(scssContent, fix, effectiveLayers);
     if (fix && result.modified) {
       await fs.writeFile(scssPath, result.scssContent, 'utf-8');
     }

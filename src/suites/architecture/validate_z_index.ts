@@ -14,7 +14,7 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { getAuditConfig, resolveZLayersScssPath } from '../../core/auditConfig.ts';
+import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers } from '../../core/auditConfig.ts';
 import { Z_LAYERS } from './audit_rules.ts';
 
 enableCompileCache();
@@ -191,7 +191,8 @@ export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
       return;
     }
 
-    const result = auditZIndexParity(scssContent, isFixMode, Z_LAYERS);
+    const effectiveLayers = getEffectiveZLayers(this.projectRoot);
+    const result = auditZIndexParity(scssContent, isFixMode, effectiveLayers);
     for (const v of result.violations) {
       this.addViolation({
         ruleId: v.ruleId,

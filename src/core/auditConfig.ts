@@ -793,3 +793,68 @@ export function resolveZLayersScssPath(projectRoot: string = process.cwd()): str
 
   return undefined;
 }
+
+/**
+ * Canonical fallback Z-Layers scale matching framework standards.
+ */
+export const Z_LAYERS: Readonly<Record<string, number>> = Object.freeze({
+  BASE: 0,
+  LOW: 50,
+  CONTENT: 100,
+  HEADER: 500,
+  SIDEBAR: 800,
+  HUD: 1000,
+  NAVIGATION: 5000,
+  DROPDOWN: 7000,
+  OVERLAY: 10000,
+  MODAL: 11000,
+  MODAL_STEP: 10,
+  TOOLTIP: 15000,
+  TOAST: 20000,
+  MAX: 100000,
+  CRITICAL: 999999
+});
+
+function parseZLayersFromTs(tsPath: string): Record<string, number> | null {
+  if (!fs.existsSync(tsPath)) return null;
+  try {
+    const content = fs.readFileSync(tsPath, 'utf-8');
+    const objMatch = content.match(/(?:export\s+)?const\s+Z_LAYERS\s*=\s*\{([\s\S]*?)\}(?:\s*as\s+const)?\s*;/);
+    if (!objMatch?.[1]) return null;
+
+    const parsed: Record<string, number> = {};
+    for (const line of objMatch[1].split('\n')) {
+      const propMatch = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(-?\d+)/);
+      if (propMatch?.[1] && propMatch[2]) {
+        parsed[propMatch[1]] = parseInt(propMatch[2], 10);
+      }
+    }
+    return Object.keys(parsed).length > 0 ? parsed : null;
+  } catch {
+    // catch-ok: Fallback to default on read or parse failure
+    return null;
+  }
+}
+
+/**
+ * Resolves the effective Z-Layers dictionary from config.styles.zLayers,
+ * or by parsing the TypeScript file defined in config.styles.zLayersTsFile or config.domain.zLayersFile,
+ * or falls back to the default Z_LAYERS.
+ */
+export function getEffectiveZLayers(projectRoot: string = process.cwd()): Record<string, number> {
+  const config = getAuditConfig(projectRoot);
+  if (config.styles?.zLayers && Object.keys(config.styles.zLayers).length > 0) {
+    return config.styles.zLayers;
+  }
+
+  const rawTsTarget = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
+  if (rawTsTarget) {
+    const parsed = parseZLayersFromTs(path.resolve(projectRoot, rawTsTarget));
+    if (parsed) return parsed;
+  }
+
+  return Z_LAYERS;
+}
+
+
+
