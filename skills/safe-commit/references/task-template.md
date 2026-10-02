@@ -15,13 +15,14 @@
   - [ ] Test Gap Analysis (Audit non-trivial logic for unit tests in `tests/`)
   - [ ] `npm run audit:fallow` (Record BASELINE_HEALTH)
   - [ ] Code-Only Safety Backup (`mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch`)
+  - [ ] Version Bump Decision (`npx auditor-version analyze` & `ask_question`; run `bump` if approved)
   - [ ] Pre-draft commit message (The Elegant Protocol synthesis in `task.md`)
 - [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 6 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:
     - [ ] `npm run audit:md` (Gate 2.1: DOX Maintenance & fast Markdown audit — 0 errors)
     - [ ] `npm run audit:for-commit` (Gate 2.2: 0 errors, 0 new warnings vs origin/main)
     - [ ] `npm run test` (Gate 2.3: 100% test suites passing)
-    - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.4: STRICT Exit Code 0 — zero bypasses)
+    - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.4: STRICT Exit Code 0 — zero bypasses, single run)
     - [ ] `npm run audit:bundle` (Gate 2.5: Build optimization & chunk budget validation)
     - [ ] `npm run audit:fallow` (Gate 2.6: Score ≥ 85 and ≥ BASELINE_HEALTH)
   - [ ] **Loop Repair Action (Triggered on ANY failure above; repeat until all gates pass)**:
@@ -32,13 +33,14 @@
   - [ ] Create `<appDataDir>/brain/<conversation-id>/learning_proposal.md`
   - [ ] Create/Update `<appDataDir>/brain/<conversation-id>/walkthrough.md`
   - [ ] Workspace cleanup (Clean temporary files from `scratch/`)
-  - [ ] Call `ask_question` for user approval
+  - [ ] Call `ask_question` for learning proposal & commit approval
   - [ ] 🛑 HARD STOP (Wait for approval before Phase 4)
 - [ ] **Phase 4: Single Atomic Certified Commit & Completion**
   - [ ] Apply approved lessons to `AGENTS.md`
   - [ ] Pre-commit Sanity Check (`npm run audit:md`)
   - [ ] Synthesize final Elegant Protocol commit message
   - [ ] `git add .` & `git commit -m "<message>"` (Single Atomic Certified Commit)
+  - [ ] Git tag & push with `--follow-tags` (if version bumped in Phase 1)
   - [ ] Mark Phase 4 `[x]`
 
 ---

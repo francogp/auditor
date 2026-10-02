@@ -13,6 +13,7 @@ Architecture & Tooling Engineers.
 - **Exit Code Integrity**: Any suite error exits with code 1; passing audits exit with code 0.
 - **Differential Pre-Commit Gate**: `audit_for_commit.ts` inspects Git diffs against target base branch (`origin/main`) and enforces zero new warnings or errors.
 - **Bundle Analysis**: `audit_bundle.ts` validates client assets against chunk size budgets and detects duplicate module bloat.
+- **Similar-Code Bypassing for CI/Deployments (`--skip-similar`)**: `audit_full.ts` and `auditScanner.ts` support `--skip-similar`, `--no-similar`, and `AUDIT_SKIP_SIMILAR=1` to cleanly omit vector embeddings analysis in GitHub Pages or lightweight CI builds without requiring model downloads or breaking pipelines.
 
 ## Key Files
 
@@ -20,6 +21,7 @@ Architecture & Tooling Engineers.
 - [`audit_for_commit.ts`](./audit_for_commit.ts): Pre-commit differential auditor gatekeeper.
 - [`audit_full.ts`](./audit_full.ts): Master auditor orchestrator executing discovered suites.
 - [`auditScanner.ts`](./auditScanner.ts): Automatic suite discovery and filtering engine.
+- [`bump_version.ts`](./bump_version.ts): CLI for `auditor-version` (`analyze`, `bump`, `-v`, `--json`).
 - [`check_environment.ts`](./check_environment.ts): Runtime and tooling environment validator.
 - [`cliUtils.ts`](./cliUtils.ts): Shared utilities for CLI tools and entrypoint detection.
 - [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin registrator.
@@ -29,6 +31,7 @@ Architecture & Tooling Engineers.
 - [`report_review.ts`](./report_review.ts): Differential architectural review tool leveraging Fallow code-review graphs.
 - [`report_similar_code.ts`](./report_similar_code.ts): Box-drawing report tool for Fallow semantic and structural similar-code candidates.
 - [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
+- [`stamp_version.ts`](./stamp_version.ts): Standalone CLI for generating and stamping `src/core/version.ts`.
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
 
 ## Child DOX Index

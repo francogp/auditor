@@ -88,6 +88,7 @@ export interface AuditRunMetadata {
     executedSuiteCount: number;
     executedSuites: string[];
     omittedSuites: string[];
+    skipSimilar?: boolean;
     environment: {
         nodeVersion: string;
         platform: string;

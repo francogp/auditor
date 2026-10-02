@@ -77,6 +77,7 @@ export interface DiscoveryOptions {
   suites?: string[];
   preset?: string;
   fastOnly?: boolean;
+  skipSimilar?: boolean;
 }
 
 const DEFAULT_PERMISSIONS = [
@@ -126,6 +127,9 @@ function createAuditTaskDefinition(
   const id = filename;
   const isFast = family === 'architecture' || filename.includes('domain_types');
 
+  if (options.skipSimilar && (id === 'validate_similar_code' || filename.includes('validate_similar_code'))) {
+    return null;
+  }
   if (targetSuiteIds && !targetSuiteIds.has(id)) return null;
   if (options.family && options.family !== family) return null;
   if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) return null;

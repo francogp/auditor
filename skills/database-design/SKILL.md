@@ -56,7 +56,7 @@ When modifying schemas or persistence in Supabase:
 ## Anti-Patterns
 
 - **NEVER modify historical/pushed migrations** (they will never re-run on existing databases; always create a new forward-only migration).
-- **Reject skipping** indexing on foreign keys and billing period queries.
+- **Reject skipping** indexing on foreign keys and frequent temporal / range filter queries.
 - **Avoid using** `SELECT *` in production hot paths.
-- **Reject storing JSON** when relational/structured data is better suited for financial audits.
+- **Reject storing raw JSON** when relational/structured columns are required for indexed queries, constraints, or audits.
 - **Identify and fix** N+1 queries.

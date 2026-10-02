@@ -103,3 +103,39 @@ Host projects **MUST NOT** rewrite or duplicate the 25 generic audit scripts in 
 ```
 
 Host extensions declared in `audit.config.ts` are automatically discovered and executed by `npm run audit`. No manual runner registration is required.
+
+---
+
+## 5. Universal Standard `build` Script Contract
+
+Tool packages distributing CLI tools or pre-compiled distribution bundles (`dist/`) MUST strictly use the universal standard npm convention:
+
+```json
+{
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli/*.js"
+  }
+}
+```
+
+Custom non-standard script names like `compile` or `build:dist` are strictly prohibited to maintain consistency and eliminate cognitive friction across tooling. Architectural audits and quality gates remain decoupled under `npm run audit`.
+
+---
+
+## 6. GitHub Pages & CI Deployments (`--skip-similar`)
+
+In consumer host projects deploying to GitHub Pages or executing in lightweight CI environments:
+- Running the full auditor executes `validate_similar_code`, which queries or downloads local Fallow vector embeddings models (`jina-embeddings-v2-base-code`).
+- In cloud runners or GitHub Actions with strict timeouts, restricted network access, or headless GitHub Pages builds, pass the `--skip-similar` flag (or `AUDIT_SKIP_SIMILAR=1`) to cleanly omit vector embeddings analysis while executing 100% of all other architectural, style, type, and security suites:
+
+```bash
+# In package.json or deployment command:
+auditor --skip-similar
+
+# Or in GitHub Actions workflow step:
+- name: Audit & Build
+  run: npx auditor --skip-similar && npm run build
+  env:
+    AUDIT_SKIP_SIMILAR: 1
+```
+

@@ -16,8 +16,10 @@ import {
   ValidateSimilarCodeAuditor,
   SIMILAR_CODE_RULES,
   evaluateSimilarCodeCandidates,
+  isSimilarCodeSkipped,
   type SimilarCodeCandidate
 } from '../src/suites/architecture/validate_similar_code.ts';
+import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateSimilarCodeAuditor', () => {
@@ -182,6 +184,53 @@ describe('ValidateSimilarCodeAuditor', () => {
       const result = await auditor.finishAudit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+  });
+
+  describe('Skip-Similar Flag & CI/Deploy Bypassing', () => {
+    it('detects CLI flags and environment variables in isSimilarCodeSkipped', () => {
+      expect(isSimilarCodeSkipped(['--skip-similar'])).toBe(true);
+      expect(isSimilarCodeSkipped(['skip-similar'])).toBe(true);
+      expect(isSimilarCodeSkipped(['--no-similar'])).toBe(true);
+      expect(isSimilarCodeSkipped(['no-similar'])).toBe(true);
+      expect(isSimilarCodeSkipped(['--skip-similar-code'])).toBe(true);
+      expect(isSimilarCodeSkipped(['skip-similar-code'])).toBe(true);
+      expect(isSimilarCodeSkipped(['--no-ai'])).toBe(true);
+      expect(isSimilarCodeSkipped(['--skip-ai'])).toBe(true);
+      expect(isSimilarCodeSkipped(['similar=false'])).toBe(true);
+      expect(isSimilarCodeSkipped(['--similar=false'])).toBe(true);
+      expect(isSimilarCodeSkipped(['--preset=lint'])).toBe(false);
+
+      process.env.AUDIT_SKIP_SIMILAR = '1';
+      expect(isSimilarCodeSkipped([])).toBe(true);
+      delete process.env.AUDIT_SKIP_SIMILAR;
+
+      process.env.SKIP_SIMILAR_CODE = 'true';
+      expect(isSimilarCodeSkipped([])).toBe(true);
+      delete process.env.SKIP_SIMILAR_CODE;
+    });
+
+    it('skips execution cleanly with zero errors when isSimilarCodeSkipped is active', async () => {
+      process.env.AUDIT_SKIP_SIMILAR = 'true';
+      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+
+      await auditor.runAudit();
+      delete process.env.AUDIT_SKIP_SIMILAR;
+
+      const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('excludes validate_similar_code from discovery when skipSimilar is true', async () => {
+      const allTasks = await discoverAuditors();
+      const hasSimilarCodeInAll = allTasks.some(t => t.id === 'validate_similar_code');
+      expect(hasSimilarCodeInAll).toBe(true);
+
+      const skippedTasks = await discoverAuditors({ skipSimilar: true });
+      const hasSimilarCodeInSkipped = skippedTasks.some(t => t.id === 'validate_similar_code');
+      expect(hasSimilarCodeInSkipped).toBe(false);
     });
   });
 });

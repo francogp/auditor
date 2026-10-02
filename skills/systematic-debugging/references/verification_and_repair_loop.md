@@ -13,12 +13,12 @@ flowchart TD
     VerifyUnit -- "No (Still RED)" --> AttemptCheck{"Attempts < 5?"}
     AttemptCheck -- "Yes" --> Increment["Increment Attempt Counter"] --> Diagnose
     AttemptCheck -- "No (5 Reached)" --> AbortBlocked["Halt: Emit Blocked Status Report"]
-    VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Node Regression: npm run test:node"]
+    VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Regression Suite: npm test"]
     RunNodeRegression -- "Fail" --> Diagnose
-    RunNodeRegression -- "Pass (0 Regressions)" --> CheckTier3{"Tier 3 Created/Affected?"}
+    RunNodeRegression -- "Pass (0 Regressions)" --> CheckTier3{"E2E / Integration Affected?"}
     CheckTier3 -- "No" --> LintAndDox["5. Lint & DOX Pass: npm run lint && npm run audit:md"]
-    CheckTier3 -- "Yes" --> RunPlaywright["5. Run Playwright: npm run sim:e2e filter=<suite>"]
-    RunPlaywright -- "Pass" --> CleanZeroPass["6. Step 6B: Dual Clean Pass (clean=true)"]
+    CheckTier3 -- "Yes" --> RunPlaywright["5. Run E2E: npm run test:e2e"]
+    RunPlaywright -- "Pass" --> CleanZeroPass["6. Step 6B: Verification Pass"]
     CleanZeroPass -- "Pass" --> LintAndDox
     LintAndDox --> Done(["Bug Fully Certified & Fixed!"])
 ```
@@ -57,25 +57,25 @@ To prevent infinite loops and token waste:
 Once Tier 1 turns GREEN, verify all layers sequentially:
 
 ### Step 1: Full Node Unit Regression Check
-Run the complete Node test suite to guarantee 0 regressions across the codebase:
+Run the complete test suite to guarantee 0 regressions across the codebase:
 ```bash
-npm run test:node
+npm test
 ```
 If any unrelated test fails, it is an empirical regression caused by the edit in `src/`. Re-enter the repair loop immediately.
 
-**Database-Specific Step 1 Pass (Supabase Verification)**:
+**Database-Specific Step 1 Pass**:
 If the bug touched persistence, database migrations, or SQL schemas:
-1. Confirm the reproduction test runs and passes GREEN against Supabase PostgREST models.
+1. Confirm the reproduction test runs and passes GREEN against the configured database engine.
 2. Validate SQL migration syntax and schema integrity:
    ```bash
-   npm run audit:family:persistence
+   npx auditor family=persistence
    ```
 
 ### Step 2: UI & Component Interaction Verification
 If the bug affected UI, GSAP animations, or view interactions:
-1. Run component and view unit tests:
+1. Run component and view tests:
    ```bash
-   npm run test:unit
+   npm test
    ```
 
 ### Step 3: Fast Quality Gate & DOX Pass

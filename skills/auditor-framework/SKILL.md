@@ -145,6 +145,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - **Fast Preset Isolation**: Vector analysis MUST NEVER execute under fast presets (`preset=lint`, `preset=md`, `audit:for-commit`). It runs exclusively in full audits (`npm run audit`) or via the dedicated CLI tool (`npm run audit:similar`).
     - **Surgical Sensitivity (`threshold: 0.95`, `ignoreSameFile: true`)**: Core default threshold of `0.95` combined with intra-file exclusion eliminates false positives between synchronous/asynchronous variants or polymorphic class methods, isolating true cross-module duplication.
     - **Automatic Embedding Model Initialization**: If the local embedding model (`jina-embeddings-v2-base-code`) is uninitialized (`model_ready === false`), the suite MUST emit a visible console notice (`📦 [Fallow] Modelo de embeddings no inicializado. Descargando e inicializando automáticamente...`) and run `fallow similar-code setup --local --yes` to proceed without manual intervention.
+    - **GitHub Pages & CI Deployments Bypass (`--skip-similar`)**: In CI pipelines, containerized environments, or GitHub Pages builds where external AI model downloads or heavy vector embeddings are undesirable, pass `--skip-similar`, `--no-similar`, or set `AUDIT_SKIP_SIMILAR=1` to cleanly omit vector duplication checks with zero violations.
 29. **Universal Ephemeral Scratch (`scratch/`) & Build Output (`dist/`) Isolation Mandate**:
     - **`scratch/` (Mandatory for all drafts & ephemeral data)**: Universal, mandatory directory across ALL projects and repositories for any and all ephemeral files: scratch scripts, AI temporary investigation notes, experimental files, testing dumps, raw json outputs (`scratch/audits/`), and intermediate CLI caches.
       - Every project MUST declare `scratch/` in `.gitignore`.
@@ -221,219 +222,14 @@ Configured at root in `audit.config.ts`:
 
 ## 🛠️ Step-by-Step Guide: How to Create a New Sub-Auditor
 
-### 📦 Bundled Boilerplate Templates (`assets/templates/`)
+### 📦 Architecture & Templates (`assets/templates/`)
 Pre-formatted, production-ready templates conforming to all project standards are bundled directly within this skill for instant scaffolding:
-- **Line-by-Line Scanner**: [`assets/templates/file_scan_auditor_template.ts`](./assets/templates/file_scan_auditor_template.ts)
-- **Composite / Database / Asset Auditor**: [`assets/templates/base_auditor_template.ts`](./assets/templates/base_auditor_template.ts)
-- **AST-Driven Auditor**: [`assets/templates/ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts)
-- **Dedicated Vitest Unit Test**: [`assets/templates/auditor_unit_test_template.test.ts`](./assets/templates/auditor_unit_test_template.test.ts)
+- **Line-by-Line Scanner (`FileScanAuditor`)**: [`assets/templates/file_scan_auditor_template.ts`](./assets/templates/file_scan_auditor_template.ts) — Best for regex patterns, forbidden tokens, or syntax rules across file lines.
+- **Composite / Database / Asset Auditor (`BaseAuditor`)**: [`assets/templates/base_auditor_template.ts`](./assets/templates/base_auditor_template.ts) — Best for multi-source comparisons, database schema validations, or dataset integrity checks.
+- **AST-Driven Sub-Auditor (`requiresAst: true` & `SharedAstContext`)**: [`assets/templates/ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts) — Best for TypeScript AST analysis without redundant compiler overhead.
+- **Dedicated Vitest Unit Test**: [`assets/templates/auditor_unit_test_template.test.ts`](./assets/templates/auditor_unit_test_template.test.ts) — Mandatory companion unit test covering 100% of rule IDs and clean execution.
 
-### Option A: File-Scanning Auditor (`FileScanAuditor`)
-Use `FileScanAuditor` when the audit inspects files line-by-line across specific directories (e.g. searching for regex patterns, forbidden tokens, or syntax rules).
-
-```typescript
-/**
- * scripts/auditors/architecture/validate_my_feature.ts
- *
- * MY FEATURE AUDITOR (Node.js 26+ Native)
- */
-
-import path from 'node:path';
-import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, isMainModule } from '@francogp/auditor';
-
-enableCompileCache();
-
-export type MyFeatureRuleId =
-  | 'my-feature-forbidden-token'
-  | 'my-feature-missing-attribute';
-
-export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
-  'my-feature-forbidden-token',
-  'my-feature-missing-attribute'
-];
-
-export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
-  constructor(roots: readonly string[] = ['src']) {
-    super({
-      id: 'validate_my_feature',
-      name: 'My Feature Validator',
-      description: 'Valida tokens prohibidos y atributos de la característica X',
-      family: 'architecture',
-      ruleIds: MY_FEATURE_RULES,
-      ruleDescriptions: {
-        'my-feature-forbidden-token': 'Token prohibido detectado en archivo fuente',
-        'my-feature-missing-attribute': 'Atributo obligatorio faltante en componente'
-      },
-      roots,
-      allowedExtensions: new Set(['.vue', '.ts'])
-    });
-  }
-
-  protected override scanFile(relPath: string, content: string): void {
-    const lines = content.split(/\r?\n/);
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const lineNum = i + 1;
-
-      // Check escape hatches: // domain-ok, // my-feature-ok
-      if (this.isLineIgnored(line, ['my-feature-ok'])) continue;
-
-      if (line.includes('bannedToken')) {
-        this.addViolation({
-          ruleId: 'my-feature-forbidden-token',
-          severity: 'error',
-          file: relPath,
-          line: lineNum,
-          message: `Forbidden token 'bannedToken' detected. Use canonical helper instead.`,
-          context: line.trim()
-        });
-      }
-    }
-  }
-}
-
-// Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyFeatureAuditor());
-}
-```
-
-### Option B: Composite / Data Auditor (`BaseAuditor`)
-Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, database schema validations, or dataset integrity checks.
-
-```typescript
-/**
- * scripts/auditors/domain_data/validate_my_data.ts
- *
- * MY DATA INTEGRITY AUDITOR (Node.js 26+ Native)
- */
-
-import path from 'node:path';
-import { enableCompileCache } from 'node:module';
-import { BaseAuditor, isMainModule } from '@francogp/auditor';
-import { MY_DATA } from '../../../src/data/myData.ts';
-
-enableCompileCache();
-
-export type MyDataRuleId = 'my-data-key-missing' | 'my-data-value-invalid';
-
-export const MY_DATA_RULES: readonly MyDataRuleId[] = [
-  'my-data-key-missing',
-  'my-data-value-invalid'
-];
-
-export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
-  constructor() {
-    super({
-      id: 'validate_my_data',
-      name: 'My Data Validator',
-      description: 'Valida integridad y campos obligatorios en base de datos',
-      family: 'domain_data',
-      ruleIds: MY_DATA_RULES,
-      ruleDescriptions: {
-        'my-data-key-missing': 'Clave requerida faltante en registro de datos',
-        'my-data-value-invalid': 'Valor no válido en propiedad requerida'
-      },
-      requiredFiles: [
-        path.resolve(process.cwd(), 'src/data/myData.ts')
-      ]
-    });
-  }
-
-  public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 2, 'Validating my data keys...');
-    for (const [key, value] of Object.entries(MY_DATA)) {
-      this.filesScannedCount++;
-      if (!value.requiredField) {
-        this.addViolation({
-          ruleId: 'my-data-key-missing',
-          severity: 'error',
-          file: 'src/data/myData.ts',
-          line: 1,
-          message: `Entry '${key}' is missing 'requiredField'.`,
-          context: key
-        });
-      }
-    }
-
-    this.context.setMetric('Total Entries Checked', Object.keys(MY_DATA).length);
-  }
-}
-
-// Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyDataAuditor());
-}
-```
-
-### Option C: AST-Driven Sub-Auditor (`requiresAst: true` & `SharedAstContext`)
-Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFile`) when the audit inspects TypeScript syntax trees, imports, exports, decorators, types, or Vue SFC script blocks across codebase files.
-
-```typescript
-/**
- * scripts/auditors/architecture/validate_my_ast_rule.ts
- *
- * AST-DRIVEN AUDITOR (Node.js 26+ Native)
- */
-
-import path from 'node:path';
-import ts from 'typescript';
-import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext, isMainModule } from '@francogp/auditor';
-
-enableCompileCache();
-
-export type MyAstRuleId = 'my-ast-forbidden-call';
-
-export const MY_AST_RULES: readonly MyAstRuleId[] = [
-  'my-ast-forbidden-call'
-] as const;
-
-export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
-  constructor() {
-    super({
-      id: 'validate_my_ast_rule',
-      name: 'My AST Rule Validator',
-      description: 'Valida llamadas prohibidas en el AST de TypeScript',
-      family: 'architecture',
-      ruleIds: MY_AST_RULES,
-      ruleDescriptions: {
-        'my-ast-forbidden-call': 'Llamada prohibida detectada en el árbol sintáctico'
-      },
-      requiresAst: true,
-      roots: ['src'],
-      allowedExtensions: new Set(['.ts', '.vue'])
-    });
-  }
-
-  public override async runAudit(astContext?: SharedAstContext): Promise<void> {
-    this.context.logStep(1, 1, 'Analizando AST con contexto compartido...');
-
-    const astEngine = astContext ?? new SharedAstContext();
-    const relFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
-
-    for (const relFile of relFiles) {
-      this.filesScannedCount++;
-      const absPath = path.resolve(this.projectRoot, relFile);
-      const sourceFile = astEngine.getSourceFile(absPath);
-
-      ts.forEachChild(sourceFile, (node) => {
-        if (ts.isCallExpression(node)) {
-          // Inspect AST node properties...
-        }
-      });
-    }
-
-    this.context.setMetric('Files Scanned with AST', this.filesScannedCount);
-  }
-}
-
-// Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyAstAuditor());
-}
-```
+📘 **Comprehensive Walkthrough**: See [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md) for complete step-by-step code implementations of Options A, B, and C.
 
 ---
 
@@ -445,6 +241,7 @@ if (isMainModule(import.meta.url)) {
 - **Auditor Updates**: Pull latest upstream changes strictly via standard native npm: `npm update @francogp/auditor` (or `npm install @francogp/auditor@github:francogp/auditor`). Zero ad-hoc clone/copy scripts. Bundled skills (`skills/*`) and agent rules (`rules/AGENTS.md`) are updated automatically via host `.agents/plugins.json` pointing to `node_modules/@francogp/auditor`.
 - **Hermetic CI**: Use standard `npm ci` for deterministic, zero-drift pipeline execution.
 - **Binary Inheritance**: Host `package.json` scripts map directly to exported binaries (`auditor`, `auditor-commit`, `auditor-findings`, etc.) without duplicating framework scripts.
+- **Deploy Builds & CI Pipelines (`--skip-similar`)**: When host applications run the auditor during `build` (e.g. `"build": "auditor --skip-similar && vite build"`) or in GitHub Pages workflows, they MUST use `--skip-similar` (or `AUDIT_SKIP_SIMILAR=1`). This ignores the Fallow similar-code AI embedding suite without altering `audit.config.ts`, avoiding heavy model downloads and timeouts while executing 100% of architectural, lint, type, and style suites.
 
 📘 **Detailed Guide & Canonical Config**: See [host-package-governance.md](references/host-package-governance.md) for full instructions, CI setups, and `package.json` blueprint.
 
@@ -479,36 +276,11 @@ Every sub-auditor (generic suites in `src/suites/` and host extension plugins in
 
 ## 🔍 Interactive Findings Reporter (`report_findings.ts`) & CLI Diagnostics
 
-The findings reporter (`src/cli/report_findings.ts`) is the official SSoT diagnostic tool for querying, grouping, and inspecting audit results without running arbitrary terminal scripts or raw grep commands.
-
-### Supported CLI Options & Flags
-
-| Flag / Parameter | Description | Example Usage |
-| :--- | :--- | :--- |
-| `partial` | Allows inspecting partial runs (e.g. `npm run audit suites=audit_project`, `npm run audit:lint`) without failing the full-audit completeness check. Displays an informative partial-mode warning banner with executed suite count. | `npm run audit:findings partial dir=src/` |
-| `breakdown` / `by-dir` / `dirs` | Renders a consolidated Box-Drawing table of findings grouped by directory/scope with `TOTAL CONSOLIDADO`. | `npm run audit:findings breakdown` |
-| `dir=<path>` / `folder=<path>` | Filters findings by directory or file path substring across both category breakdown tables and finding samples. | `npm run audit:findings partial dir=src/` |
-| `scope=<host\|packages\|all>` | Isolates application code (`host`) from reusable engine code (`packages`) in category tables and sample lists. | `npm run audit:findings scope=host` |
-| `category=<name>` / `<name>` | Filters by rule or category name. | `npm run audit:findings category=seguridad` |
-| `files` | Lists affected files sorted by error density with category banners and total sums. | `npm run audit:findings category=cwe files top=10` |
-| `stale` / `allow-stale` | Bypasses the 5-minute freshness check for investigative read-only inspection. | `npm run audit:findings breakdown stale` |
-| `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`). | `npm run audit:findings severity=error` |
-| `top=<N\|all>` | Limits displayed items (default: 20). | `npm run audit:findings top=all` |
-| `search=<term>` | Searches within finding messages and context snippets. | `npm run audit:findings search=token` |
-| `json` | Emits structured JSON including `breakdownByDir` and `files` maps. | `npm run audit:findings json` |
-
-### Official NPM Reporter Scripts
-
-All inspection routines MUST use the official NPM scripts declared in `package.json`:
-- `npm run audit:findings`: Primary findings reporter with full filtering capabilities (`partial`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).
-- `npm run audit:errors`: Preset filtering strictly to errors (`severity=error`).
-- `npm run audit:warnings`: Preset filtering strictly to warnings (`severity=warning`).
-- `npm run audit:summary`: Compact summary overview of latest audit results.
-- `npm run audit:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `--threshold <N>`).
-- `npm run audit:review`: Graph-grounded architectural review brief for changed files against base branch via Fallow code-review graphs.
-
-### Proactive Tool Evolution Mandate (Enhance the Official Toolkit over Makeshift Scripts)
-If diagnostic needs or query patterns require analyzing audit data in ways not yet covered, agents and developers must avoid relying on disposable, makeshift terminal one-liners (`node -e`, raw grep chains). Instead, **proactively add the missing capabilities directly into the official native toolkit** (e.g. adding flags, directory breakdowns, or output formatters to `report_findings.ts`, `auditScanner.ts`, or official npm scripts in `package.json`), transforming ad-hoc needs into first-class, reusable tools for everyone.
+The findings reporter (`src/cli/report_findings.ts`) is the official SSoT diagnostic tool for querying, grouping, and inspecting audit results without running arbitrary terminal scripts or raw grep commands:
+- **CLI Options & Filters**: Supports `severity=...`, `category=...`, `dir=...`, `scope=...`, `search=...`, and directory breakdowns (`breakdown`).
+- **Official NPM Scripts**: `npm run audit:findings`, `npm run audit:errors`, `npm run audit:warnings`, `npm run audit:summary`, `npm run audit:similar`, `npm run audit:review`.
+- **Proactive Tool Evolution Mandate**: Proactively add missing capabilities directly into official native tools (`report_findings.ts`) rather than using disposable terminal one-liners (`node -e`).
+- **Full Reference**: Detailed flag tables and usage examples are maintained in [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md).
 
 ---
 
@@ -535,6 +307,9 @@ Fallow is integrated into `@francogp/auditor` (`audit_project.ts` and `report_fa
 
 The following reference manuals and configuration blueprints are maintained in `references/`:
 
+- [`references/host-package-governance.md`](./references/host-package-governance.md): Host installation, updates via GitHub npm, CI reproducibility, and script inheritance.
+- [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md): Complete authoring guide with boilerplate implementations for FileScan, Base, and AST sub-auditors.
+- [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md): Complete reference manual for interactive findings reporting and CLI diagnostic options.
 - [`references/setup-extension-guide.md`](./references/setup-extension-guide.md): Architecture and plugin guides for extending `setup-linux.sh` and `setup-windows.ps1` in host projects.
 - [`references/blueprints.md`](./references/blueprints.md): Overview of configuration blueprints and mandatory explicit subsystem configuration.
 - [`references/audit.config.facturacion2.example.ts`](./references/audit.config.facturacion2.example.ts): Reference `audit.config.ts` for Facturación 2.0 (Supabase, fiscal domain types, strict rules).

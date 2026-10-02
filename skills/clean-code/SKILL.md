@@ -173,8 +173,8 @@ File to edit: UserService.ts
 
 | Role / Concern | Scope | Command |
 | :--- | :--- | :--- |
-| **Database & Persistence** | Schema & Parity | `npm run audit:family:persistence` (or `npm run database:test-migrations`) |
-| **Frontend & Styles** | Accessibility & Styles | `npm run validate:component-styles` (or `npm run validate:mobile-accessibility`) |
+| **Database & Persistence** | Schema & Parity | `npx auditor family=persistence` (or `npm run audit`) |
+| **Frontend & Styles** | Accessibility & Styles | `npx auditor task=validate_component_styles` |
 | **Security & Vulnerabilities** | Security Audit | `npm run audit:fallow:security` |
 | **Testing & Parity** | Full Vitest Suite | `npm run test` (executes 100% of unit and node projects) |
 | **Any agent** | Lint & Fast Types | `npm run lint` (runs `npm run audit:lint` executing 10 core sub-auditors in parallel) |

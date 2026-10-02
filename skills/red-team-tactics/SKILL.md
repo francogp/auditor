@@ -193,8 +193,6 @@ For each successful technique:
 - Access beyond proof of concept
 - Retain sensitive data
 
----
-
 ### Anti-Patterns to Avoid
 
 | ❌ Don't | ✅ Do |
@@ -206,4 +204,18 @@ For each successful technique:
 
 ---
 
+## 10. Automated Static Security & Vulnerability Analysis
+
+While Red Team tactics guide behavioral simulation and adversary thinking, static code vulnerability analysis is automated via **Fallow Security**:
+
+| Command | Purpose | Usage |
+| :--- | :--- | :--- |
+| `npm run audit:fallow:security` | Detect CWE vulnerabilities, unsafe sinks, and insecure code paths | `npm run audit:fallow:security` |
+
+### Complementary Security Skills
+- For OWASP Top 10 checklists, defensive threat modeling, and defensive verification: see [`skills/vulnerability-scanner/`](../vulnerability-scanner/SKILL.md).
+
+---
+
 > **Remember:** Red team simulates attackers to improve defenses, not to cause harm.
+

@@ -22,6 +22,7 @@ export interface DiscoveryOptions {
     suites?: string[];
     preset?: string;
     fastOnly?: boolean;
+    skipSimilar?: boolean;
 }
 export declare function discoverAuditors(options?: DiscoveryOptions): Promise<AuditTaskDefinition[]>;
 //# sourceMappingURL=auditScanner.d.ts.map

@@ -25,6 +25,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 6 validation gates exit cleanly with code 0 on the final code. |
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, or filtering logic of `audit_for_commit.ts`, `audit_bundle.ts`, or any quality gatekeeper to make checks pass. All project errors and NEW warnings must be resolved cleanly at the code source. |
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
+| **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.4). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.4 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -35,8 +36,8 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 
 ```mermaid
 graph TD
-    A0[Phase 0\nCreate task.md] --> A1
-    A1[Phase 1\nTest Gaps + Zero-Commit Safety Backup] --> LOOP
+    A0[Phase 0\nCreate task.md] --> A1[Phase 1\nTest Gaps + Safety Backup\n+ Version Bump Decision]
+    A1 --> LOOP
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
@@ -46,7 +47,7 @@ graph TD
         C1 -->|0 errors, 0 warnings| C2[2.3 npm run test]
         
         C2 -->|Tests Fail| REPAIR
-        C2 -->|100% Pass| C3[2.4 npm run build\n🔒 THE BUILD GATE]
+        C2 -->|100% Pass| C3[2.4 npm run build\n🔒 THE BUILD GATE (Single Run)]
         
         C3 -->|Exit code ≠ 0 / Fail| REPAIR
         C3 -->|Exit 0 ✅| C4[2.5 Build Optimization & Chunk Analysis\nnpm run audit:bundle]
@@ -60,7 +61,7 @@ graph TD
     C5 -->|Score ≥ 85 & Build Exit 0 & Chunks OK| EXIT_GATE[✅ Loop Exit]
     EXIT_GATE --> A3[Phase 3\nLessons + Walkthrough]
     A3 --> STOP1{🛑 USER APPROVES\nlearning_proposal.md?}
-    STOP1 -->|Approved| A4[Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run audit:md]
+    STOP1 -->|Approved| A4[Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run audit:md\n+ Tag & Push]
 
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style C0 fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
@@ -108,7 +109,18 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
   mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch
   ```
 
-**Step 1.4** — Pre-Draft Commit Message
+**Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
+- Execute `npx auditor-version analyze` (or `npm run version:analyze -- --json`) to evaluate Git diff metrics, affected subsystems, and commit intent.
+- Solicit explicit user review via `ask_question` at this early stage:
+  - Ask whether to apply a version bump (recommended when preparing a release or pushing to `main`) or maintain the current version (for local/branch development commits to prevent merge conflicts).
+  - If bumping, present the recommended SemVer bump (`major`, `minor`, or `patch`) with its rationale and next version (`X.Y.Z-build.YYYYMMDD-HHmmss`), allowing the user to confirm or select a different bump type.
+- If the user approves a bump, execute immediately:
+  ```bash
+  npx auditor-version bump --type=<approved_type>
+  ```
+  *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.4 to compile the final stamped version in a single pass without needing a redundant second build!)*
+
+**Step 1.5** — Pre-Draft Commit Message
 - Pre-draft the commit message in `task.md` following [commit-standards.md](./references/commit-standards.md).
 
 **✓ Completion gate**: Mark Phase 1 `[x]` in `task.md`. Proceed to Phase 2.
@@ -136,6 +148,7 @@ You must execute the 6 gates sequentially. If ANY gate fails, execute the repair
 ### 2.4 The Build Gate (`npm run build`)
 - Run `npm run build`.
 - Compiles the production bundle with strict exit code 0. Zero bypasses.
+- **Strict Single Build**: This is the ONLY time `npm run build` executes in the entire workflow. Because any version bump was already applied in Step 1.4, this build compiles the definitive version directly into `dist/`.
 
 ### 2.5 Production Bundle & Chunk Analysis (`npm run audit:bundle`)
 - Run `npm run audit:bundle` (or `npx auditor-bundle`).
@@ -161,11 +174,12 @@ You must execute the 6 gates sequentially. If ANY gate fails, execute the repair
 **Step 3.3** — Workspace Scratch Cleanup
 - Remove transient debug files, leaving only `scratch/backups/`.
 
-**Step 3.4** — Version Bump Analysis & User Approval Gate (`ask_question`)
-- Execute `npx auditor-version analyze` (or `npm run version:analyze -- --json`) to evaluate Git diff metrics, affected subsystems, and commit intent.
+**Step 3.4** — Learning Proposal & Final Commit Approval Gate (`ask_question`)
 - Solicit explicit user review and approval before creating the git commit via `ask_question`:
-  - Ask whether to apply a version bump (recommended when preparing a release or pushing to `main`) or maintain the current version (for local/branch development commits to prevent merge conflicts).
-  - If bumping, present the recommended SemVer bump (`major`, `minor`, or `patch`) with its rationale and next version (`X.Y.Z-build.YYYYMMDD-HHmmss`), allowing the user to confirm or select a different bump type.
+  - Present `learning_proposal.md` for review.
+  - Request final user confirmation to proceed with the atomic git commit and release.
+
+**✓ Completion gate**: Wait for user response. Do NOT proceed to Phase 4 until approved.
 
 ---
 
@@ -173,17 +187,14 @@ You must execute the 6 gates sequentially. If ANY gate fails, execute the repair
 
 Once the user approves:
 1. Apply approved lessons to owning `AGENTS.md`.
-2. **Version Bump Execution** (if approved by user in Step 3.4):
-   - Run `npx auditor-version bump --type=<approved_type>`.
-   - Run `npm run build` to recompile `dist/` with the freshly stamped version.
-3. Run pre-commit sanity check: `npm run audit:md`.
-4. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
-5. Run:
+2. Run pre-commit sanity check: `npm run audit:md`.
+3. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
+4. Run:
    ```bash
    git add . && git commit -m "<message>"
    ```
-6. **Git Tag & Push** (if version was bumped):
+5. **Git Tag & Push** (if version was bumped in Step 1.4):
    - Create annotated tag: `git tag -a v<new_version> -m "Release v<new_version>"`
    - Push with follow tags: `git push origin <branch> --follow-tags`
-7. Mark Phase 4 `[x]` in `task.md` and display final confirmation.
+6. Mark Phase 4 `[x]` in `task.md` and display final confirmation.
 

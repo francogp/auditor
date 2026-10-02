@@ -56,7 +56,7 @@ Consult this skill whenever you need to:
 7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
 8. **Strict Zero-Fallback Mandate**: Under NO circumstances implement runtime fallbacks, compatibility patches, default returns, or recovery adapters (`||`, `??`, dummy objects, fallback choices) to make tests pass or hide errors. System logic MUST fail fast and loudly (`throw new Error`).
 9. **Strict Event-Driven Mandate**: Application design, state transitions, and save loading MUST be 100% event-driven. Timers and timeouts (`setTimeout`, `setInterval`, race timeouts) are STRICTLY FORBIDDEN in application code (`src/`), and are only allowed as max execution failure caps in E2E tests.
-10. **Strict Test Execution Mandate**: Automated test runs (`npm run test`) MUST execute 100% of unit and node projects natively in Vitest via `scripts/testing/run_tests.ts`.
+10. **Strict Test Execution Mandate**: Automated test runs (`npm test` or `npm run test`) MUST execute 100% of unit and integration test suites natively in Vitest / Node test runner without bypasses.
 
 Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
 

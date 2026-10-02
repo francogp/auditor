@@ -8,28 +8,24 @@ This reference document details the operational protocols for ingesting, parsing
 
 Bugs arrive through three distinct channels: Vitest automated test suite failures, calculation / parser tolerance anomalies, or manual/verbal developer reports.
 
-### A. Vitest Test Suite Failures
+### A. Automated Test Suite Failures
 
-When automated tests fail (`npm run test`, `npm run test:unit`, `npm run test:node`):
+When automated tests fail (`npm test` or `npm run test`):
 
 1. **Failure Artifacts (`scratch/test-results/`)**:
    - Inspect console output, error assertion deltas, and failure stack traces.
 2. **Trace Analysis**:
-   - For calculation errors: verify expected vs received numeric values and check delta against `TOLERANCE = 0.011`.
-   - For store/component tests: check Vue reactivity, Pinia actions, and DOM selector state.
+   - For calculation or assertion errors: verify expected vs received values and tolerance boundaries.
+   - For store/component tests: check reactivity, state mutations, and DOM selector state.
 
-### B. Formula Calculation & Parser Desyncs
+### B. Algorithmic, Calculation & Parser Desyncs
 
-When a fuzzer or replayer crashes (`npm run billing:verify` or `npm run test`):
+When an algorithmic pipeline, fuzzer, or replay test crashes (`npm test` or specialized test script):
 
-1. **Calculation Input Snapshot**:
-   - Extract the static case parameters:
-     - `tariffId`: Canonical tariff ID being evaluated.
-     - `kwh`: Consumed active energy and reactive energy readings.
-     - `period`: Billing month and year.
-     - `reading`: Meter input values and power factors.
+1. **Input Snapshot**:
+   - Extract the static case parameters, inputs, configuration tokens, and payload states that led to the fault.
 2. **Loud Calculation Error**:
-   - Read the exact un-truncated error message or tolerance delta to isolate the failing formula step.
+   - Read the exact un-truncated error message or tolerance delta to isolate the failing pipeline step.
 
 ### C. Manual or Verbal Bug Reports
 

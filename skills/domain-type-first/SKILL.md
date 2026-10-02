@@ -9,6 +9,10 @@ Use this skill before writing or editing any code that introduces, changes, or c
 
 The goal is simple: invalid domain values should fail at compile time. If TypeScript accepts an invalid value, the domain was designed incorrectly.
 
+## Modular Reference Guides
+
+- [Branding & Boundary Patterns Guide](./references/branding-patterns.md): Canonical recipes for Nominal Branded Types (`Brand<T, B>`), runtime boundary validation guards, DTOs, and tuple/record templates.
+
 ## Trigger Checklist
 
 Apply this workflow whenever the task involves any of the following:
@@ -20,7 +24,7 @@ Apply this workflow whenever the task involves any of the following:
 - **Finite Domain IDs & Values**: Finite identifiers such as entity species, moves, abilities, items, maps, trainers, factions, statuses, weather, ranks, categories, modes, slots, phases, classes, tables, or routes across `src/` and `scripts/`.
 - **Collections & Dictionaries**: Constants declared as arrays, sets, maps, records, or object dictionaries in `src/` and `scripts/`.
 - **Generated Data & Boundary Validation**: Generated data under `src/data/**`, generated wrappers from JSON, npm scripts under `scripts/**`, or runtime boundary validators (`isDomainId`, `requireDomainId`).
-- **Audit Findings**: Review/audit findings from `npm run validate:domain-types` or `npm run audit`.
+- **Audit Findings**: Review/audit findings from `npx auditor task=validate_domain_types` or `npm run audit`.
 
 If it represents a finite domain, design and use the domain type first.
 
@@ -117,7 +121,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 - **Fail Loud & Fast Mandate**: If an ID is missing, malformed, or does not exist in the domain set, the system MUST throw an explicit, descriptive error immediately (e.g. via `requireItemId(x)`, `requireEntityId(x)`).
 - **Canonical ID Mandate**: Every domain entity MUST be resolved, validated, and evaluated STRICTLY via its canonical `id`. It is forbidden to fall back to secondary fields or names (`toID(m.id || m.name)`, `p.species || p.name`, `p.id || p.name`, `move.id || move.name`).
 - **UI Localization Boundary**: For presentation in UI labels/buttons, Spanish translations must be resolved via standard domain mapping helpers (e.g. `getItemName(id)`, `getAbilityName(id)`). The underlying data structures, payloads, and state properties must remain strictly typed domain IDs.
-- **Audit Rules Enforcement**: Enforced automatically by `noDomainIdFallbacks` and `noDomainNameFallbacks` in `scripts/maintenance/audit_rules.ts`.
+- **Audit Rules Enforcement**: Enforced automatically by `noDomainIdFallbacks` and `noDomainNameFallbacks` in `src/suites/architecture/audit_rules.ts`.
 
 ## Absolute Prohibition on Value-Hardcoding in Constant Names (`badConstantNames`)
 
@@ -229,39 +233,9 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 - **Input-Only Boundary Scope for `unknown`**: The type `unknown` is strictly reserved for dedicated **boundary deserializers, type-guards, and input parsers** (e.g. `isDomainId(raw: unknown): raw is DomainId`, `parseSaveData(json: unknown)`). Business logic receiving data past the boundary MUST ALWAYS be strongly typed with domain models or DTOs.
 - **Prohibition on Fake DTO Shortcuts**: It is STRICTLY FORBIDDEN to bypass boundary parsing by casting raw data to `Record<string, unknown>` or double-casting (`raw as unknown as ValidatedDTO`) to pretend data was validated. The boundary parser must validate every field and return a strict domain DTO.
 
-## Strict Boundary DTOs vs Type-Casting Shortcuts (Zero `unknown` in Core Business Logic)
+## Strict Boundary DTOs vs Type-Casting Shortcuts
 
-```typescript
-// ❌ ANTI-PATTERN: Business logic accepts unknown or relies on fake Record casting
-function processBattleEvent(payload: unknown) { // FORBIDDEN: unknown leaking into business logic
-  const data = payload as Record<string, unknown>; // FORBIDDEN: fake casting shortcut
-  applyDamage(data.targetId as EntityId, Number(data.amount));
-}
-
-// ✅ CANONICAL: Boundary parser validates raw unknown and returns a strict domain DTO
-// 1. Strict Domain DTO definition
-export interface BattleDamagePayload {
-  readonly targetId: EntityId;
-  readonly amount: number;
-}
-
-// 2. Boundary parser: only place where unknown is accepted
-export function parseBattleDamagePayload(raw: unknown): BattleDamagePayload {
-  if (typeof raw !== 'object' || raw === null) {
-    throw new Error('Invalid payload: expected object', { cause: raw });
-  }
-  const candidate = raw as Record<string, unknown>;
-  return {
-    targetId: requireEntityId(String(candidate.targetId)),
-    amount: requirePositiveNumber(Number(candidate.amount)),
-  };
-}
-
-// 3. Business logic: pure, strictly-typed domain function with zero unknown
-function processBattleEvent(payload: BattleDamagePayload): void {
-  applyDamage(payload.targetId, payload.amount);
-}
-```
+Business logic functions must never accept `unknown` or rely on `payload as Record<string, unknown>`. Validate raw inputs at boundaries into strict domain DTOs. See [Branding & Boundary Patterns Guide](./references/branding-patterns.md#4-strict-boundary-dtos-vs-type-casting-shortcuts) for complete DTO patterns.
 
 ## Absolute Prohibition on Double-Casting (`as unknown as DomainId`) in Production Code
 
@@ -348,78 +322,14 @@ function processBattleEvent(payload: BattleDamagePayload): void {
 - **Hot-Path Import Guard (`noDynamicImportInHotPath`)**: Dynamic `import()` inside loops, Vue computed properties, or GSAP timelines is prohibited to avoid combat animation stutter.
 - **Auto-Fixer Command**: Mechanical rules can be auto-repaired across the codebase by running:
   ```bash
-  npm run audit:fix
+  npm run lint:fix
   ```
 
-## Canonical Patterns
+## Canonical Patterns & Boundary Validation
 
-Use one of these patterns as the source of truth.
+Always use canonical domain definitions (Tuple Domain, Object-Key Domain, Generated JSON) and validate exclusively at external trust boundaries without fallback defaults.
 
-### Tuple Domain
-
-```ts
-export const WEATHER_IDS = ['clear', 'rain', 'storm'] as const;
-export type StatusId = (typeof WEATHER_IDS)[number];
-```
-
-### Object-Key Domain
-
-```ts
-export const ITEM_DATA = {
-  potion: { price: 300 },
-  superpotion: { price: 700 },
-} as const;
-
-export type ItemId = keyof typeof ITEM_DATA;
-```
-
-### Generated JSON Domain
-
-```ts
-import dbJson from './items.json' with { type: 'json' };
-
-export const ITEM_DATA = dbJson;
-export type ItemId = keyof typeof ITEM_DATA;
-```
-
-### Partial Coverage Map
-
-Use `Partial<Record<DomainId, Value>>` only when the map intentionally covers a subset of a strict domain.
-
-```ts
-export const WEATHER_BONUSES = {
-  rain: 1.2,
-  storm: 1.5,
-} satisfies Partial<Record<StatusId, number>>;
-```
-
-### Full Coverage Map
-
-Use `Record<DomainId, Value>` when every domain member must be present.
-
-```ts
-export const TYPE_LABELS = {
-  fire: 'Fuego',
-  water: 'Agua',
-} satisfies Record<CategoryType, string>;
-```
-
-## Boundary Validation
-
-Runtime validation is allowed only at trust boundaries. It must validate into the strict type and fail loudly when invalid.
-
-```ts
-export function isStatusId(value: string): value is StatusId {
-  return WEATHER_IDS.includes(value as StatusId);
-}
-
-export function requireStatusId(value: string): StatusId {
-  if (isStatusId(value)) return value;
-  throw new Error(`Invalid weather id: ${value}`);
-}
-```
-
-Prefer existing project guards when available. Do not add silent fallbacks, normalizers, sanitizers, or compatibility adapters to make invalid data pass.
+For complete implementation blueprints, see [Branding & Boundary Patterns Guide](./references/branding-patterns.md).
 
 ## Modular Top-Level Constants vs Inline Declarations
 
@@ -532,10 +442,10 @@ The canonical domain type auditor is `validate_domain_types` from `@francogp/aud
 
 ```bash
 # Standard in-depth audit across src/ and scripts/
-npm run validate:domain-types
+npx auditor task=validate_domain_types
 
 # Full domain data suite audit
-npm run audit:family:domain
+npx auditor family=domain_data
 
 # Inspect domain findings in Box-Drawing tables
 npm run audit:findings category=validate_domain_types

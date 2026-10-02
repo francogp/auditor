@@ -1,7 +1,7 @@
 ---
 name: systematic-debugging
 description: >
-  MANDATORY orchestrator for evidence-based troubleshooting, bug resolution, and failure triage across Facturación 2.0.
+  MANDATORY orchestrator for evidence-based troubleshooting, bug resolution, and failure triage across TypeScript, Vue, Node.js and fullstack applications.
   YOU MUST trigger this skill whenever a bug, error, test failure, crash, desync, unhandled rejection, visual glitch,
   database bug, persistence failure, SQL migration mismatch, multi-engine database divergence (SQLite, PostgreSQL),
   or unexpected behavior is reported by the user or detected during execution in both Spanish and English
@@ -31,13 +31,13 @@ description: >
    - Querying mutable live fuzzer files (`fuzzer_certified_cases.json`) dynamically is strictly prohibited.
 4. **⛔ GATE 4: MAXIMUM 5-ITERATION CAP**:
    - The repair loop is strictly capped at 5 attempts. If a bug resists repair after 5 attempts, execution MUST halt with a structured blocker report.
-5. **⛔ GATE 5: MULTI-HOST SUPABASE & MIGRATION VERIFICATION GATE**:
-   - Whenever a bug touches persistence, SQL queries, schemas, database migrations, RPCs, store serialization/rehydration, or Supabase client configuration:
-     - Verify against the Supabase schema and PostgreSQL migrations in `supabase/migrations/`.
-     - Static SQL migrations ONLY; runtime schema auto-healing or data patching is strictly forbidden (Mandate 4).
-     - Multi-host support MUST be preserved: connection configurations must work across local Docker, LAN, and Cloud instances (Mandate 5).
+5. **⛔ GATE 5: PERSISTENCE & MIGRATION VERIFICATION GATE**:
+   - Whenever a bug touches persistence, SQL queries, schemas, database migrations, RPCs, or store serialization/rehydration:
+     - Verify against the active database schema and SQL migrations in the project migrations directory (`config.paths.migrationsDir` or `supabase/migrations/`).
+     - Static SQL migrations ONLY; runtime schema auto-healing or data patching is strictly forbidden.
+     - Multi-host/multi-engine support MUST be preserved: connection configurations must work cleanly across test, local container, and production instances.
 6. **⛔ GATE 6: ABSOLUTE PROHIBITION ON MODIFYING HISTORICAL / PUSHED MIGRATIONS**:
-   - When debugging database, migration, or schema failures, agents MUST NEVER modify historical migration files in `supabase/migrations/` that were committed in prior commits or pushed to `main`.
+   - When debugging database, migration, or schema failures, agents MUST NEVER modify historical migration files in the migrations directory that were committed in prior commits or pushed to `main`.
    - Any database bug, schema addition, missing column, constraint fix, or data repair MUST ALWAYS be resolved by creating a NEW forward-only timestamped migration (`YYYYMMDDHHmmss_<name>.sql`), NEVER by editing past migrations.
 
 ---

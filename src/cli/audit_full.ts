@@ -56,6 +56,7 @@ interface AuditFullCliOptions {
   targetPreset: AuditPresetName | undefined;
   targetSuites: string[] | undefined;
   concurrencyLimit: number;
+  skipSimilar: boolean;
 }
 
 function resolveTargetFamily(
@@ -107,9 +108,52 @@ function resolveConcurrencyLimit(concurrencyValue: unknown): number {
   return defaultConcurrency;
 }
 
+function resolveSkipSimilar(values: Record<string, unknown>, positionals: readonly string[]): boolean {
+  if (
+    Boolean(values['skip-similar']) ||
+    Boolean(values['no-similar']) ||
+    Boolean(values['skip-similar-code']) ||
+    Boolean(values['no-ai']) ||
+    Boolean(values['skip-ai']) ||
+    values.similar === 'false' ||
+    values.similar === false
+  ) {
+    return true;
+  }
+
+  for (const pos of positionals) {
+    const lower = pos.toLowerCase();
+    if (
+      lower === 'skip-similar' ||
+      lower === 'no-similar' ||
+      lower === 'skip-similar-code' ||
+      lower === 'no-ai' ||
+      lower === 'skip-ai' ||
+      lower === 'similar=false'
+    ) {
+      return true;
+    }
+  }
+
+  if (
+    process.env.AUDIT_SKIP_SIMILAR === 'true' ||
+    process.env.AUDIT_SKIP_SIMILAR === '1' ||
+    process.env.SKIP_SIMILAR_CODE === 'true' ||
+    process.env.SKIP_SIMILAR_CODE === '1'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliOptions {
   const args = process.argv.slice(2);
-  const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (['errors-only', 'fix', 'all'].includes(a) ? `--${a}` : a));
+  const BOOLEAN_FLAGS = [
+    'errors-only', 'fix', 'all',
+    'skip-similar', 'no-similar', 'skip-similar-code', 'no-ai', 'skip-ai'
+  ];
+  const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
 
   const { values, positionals } = parseArgs({
     args: normalized,
@@ -127,7 +171,13 @@ function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliO
       top: { type: 'string', short: 't' },
       rule: { type: 'string', short: 'r', multiple: true },
       rules: { type: 'string', multiple: true },
-      fix: { type: 'boolean' }
+      fix: { type: 'boolean' },
+      'skip-similar': { type: 'boolean' },
+      'no-similar': { type: 'boolean' },
+      'skip-similar-code': { type: 'boolean' },
+      'no-ai': { type: 'boolean' },
+      'skip-ai': { type: 'boolean' },
+      similar: { type: 'string' }
     },
     allowPositionals: true,
     strict: false
@@ -140,7 +190,8 @@ function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliO
     formattedRules: resolveFormattedRules(values, positionals),
     targetPreset: values.preset as AuditPresetName | undefined,
     targetSuites: resolveTargetSuites(values),
-    concurrencyLimit: resolveConcurrencyLimit(values.concurrency)
+    concurrencyLimit: resolveConcurrencyLimit(values.concurrency),
+    skipSimilar: resolveSkipSimilar(values, positionals)
   };
 }
 
@@ -158,13 +209,19 @@ function determineRunMode(
   return 'full';
 }
 
-function buildTaskArgs(task: AuditTaskDefinition, values: Record<string, unknown>, formattedRules: string): string[] {
+function buildTaskArgs(
+  task: AuditTaskDefinition,
+  values: Record<string, unknown>,
+  formattedRules: string,
+  skipSimilar?: boolean
+): string[] {
   const taskArgs = [...task.args];
   if (values['errors-only'] && !taskArgs.includes('--errors-only')) taskArgs.push('--errors-only');
   if (formattedRules && !taskArgs.includes('--rule')) taskArgs.push('--rule', formattedRules);
   if (values.top && !taskArgs.includes('--top')) taskArgs.push('--top', values.top as string);
   if (values['changed-since'] && !taskArgs.includes('--changed-since')) taskArgs.push('--changed-since', values['changed-since'] as string);
   if (values.fix && !taskArgs.includes('fix')) taskArgs.push('fix');
+  if (skipSimilar && !taskArgs.includes('--skip-similar')) taskArgs.push('--skip-similar');
   return taskArgs;
 }
 
@@ -379,6 +436,7 @@ function buildConsolidatedReport(params: {
     executedSuiteCount: ctx.tasksToRun.length,
     executedSuites: ctx.tasksToRun.map(t => t.id),
     omittedSuites: ctx.omittedSuiteIds,
+    skipSimilar: ctx.cliOptions.skipSimilar || undefined,
     environment: { nodeVersion: process.version, platform: process.platform, cwd: process.cwd() }
   };
 
@@ -491,14 +549,20 @@ async function runMasterAudit() {
   const activeFamilies = getActiveFamilies(config.customFamilies);
   const cliOptions = parseAuditFullCliArgs(activeFamilies);
 
+  if (cliOptions.skipSimilar) {
+    process.env.AUDIT_SKIP_SIMILAR = 'true';
+  }
+
   const scratchAuditsDir = path.resolve(process.cwd(), 'scratch/audits');
   await fs.mkdir(scratchAuditsDir, { recursive: true });
   for (const family of activeFamilies) {
     await fs.mkdir(path.join(scratchAuditsDir, family), { recursive: true });
   }
 
-  const allAvailableTasks = await discoverAuditors();
+  const discoveryBase = { skipSimilar: cliOptions.skipSimilar };
+  const allAvailableTasks = await discoverAuditors(discoveryBase);
   const tasksToRun = await discoverAuditors({
+    ...discoveryBase,
     family: cliOptions.targetFamily,
     task: cliOptions.targetSuites ? undefined : (cliOptions.values.task as string | undefined),
     suites: cliOptions.targetSuites,
@@ -523,6 +587,7 @@ async function runMasterAudit() {
   ];
   if (cliOptions.targetPreset) subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
   if (cliOptions.values.family) subtitleDetails.push(`Familia: ${String(cliOptions.values.family).toUpperCase()}`);
+  if (cliOptions.skipSimilar) subtitleDetails.push('Similar-Code: OMITIDO ⏭️');
   if (tasksToRun.length !== allAvailableTasks.length || omittedSuiteIds.length > 0) subtitleDetails.push('Modo: PARCIAL ⚠️');
 
   const bannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
@@ -544,7 +609,7 @@ async function runMasterAudit() {
   const coordinator = new TaskStreamCoordinator(tasksToRun.length, { indent: '  ' });
 
   async function executeSingleTask(task: AuditTaskDefinition): Promise<StandardAuditResult> {
-    const taskArgs = buildTaskArgs(task, cliOptions.values, cliOptions.formattedRules);
+    const taskArgs = buildTaskArgs(task, cliOptions.values, cliOptions.formattedRules, cliOptions.skipSimilar);
     const subLines: string[] = [];
     let parsedResult: StandardAuditResult | null = null;
     let taskDuration = 0;

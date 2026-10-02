@@ -61,6 +61,8 @@ Architecture & Tooling Engineers.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
+- [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.
+- [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, and SemVer bump calculation engine.
 
 ## Child DOX Index
 

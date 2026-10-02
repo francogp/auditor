@@ -76,6 +76,35 @@ export function isFastPresetActive(): boolean {
   );
 }
 
+export function isSimilarCodeSkipped(argv: readonly string[] = process.argv): boolean {
+  if (
+    process.env.AUDIT_SKIP_SIMILAR === 'true' ||
+    process.env.AUDIT_SKIP_SIMILAR === '1' ||
+    process.env.SKIP_SIMILAR_CODE === 'true' ||
+    process.env.SKIP_SIMILAR_CODE === '1'
+  ) {
+    return true;
+  }
+
+  return argv.some(arg => {
+    const lower = arg.toLowerCase().trim();
+    return (
+      lower === '--skip-similar' ||
+      lower === 'skip-similar' ||
+      lower === '--no-similar' ||
+      lower === 'no-similar' ||
+      lower === '--skip-similar-code' ||
+      lower === 'skip-similar-code' ||
+      lower === '--no-ai' ||
+      lower === 'no-ai' ||
+      lower === '--skip-ai' ||
+      lower === 'skip-ai' ||
+      lower === '--similar=false' ||
+      lower === 'similar=false'
+    );
+  });
+}
+
 export function checkOrInitializeModel(fallowBin: string, projectRoot: string): boolean {
   try {
     const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
@@ -271,6 +300,11 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
 
     if (!similarCfg?.enabled) {
       this.context.logStep(1, 1, 'Similar-code desactivado en audit.config.ts (fallow.similarCode.enabled: false). Omitiendo.');
+      return;
+    }
+
+    if (isSimilarCodeSkipped()) {
+      this.context.logStep(1, 1, 'Similar-code vectorial omitido por flag (--skip-similar / no-similar).');
       return;
     }
 

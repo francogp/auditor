@@ -40,6 +40,7 @@ export interface SimilarCodeStatusOutput {
 }
 export declare function resolveFallowBinary(projectRoot?: string): string | null;
 export declare function isFastPresetActive(): boolean;
+export declare function isSimilarCodeSkipped(argv?: readonly string[]): boolean;
 export declare function checkOrInitializeModel(fallowBin: string, projectRoot: string): boolean;
 export declare function evaluateSimilarCodeCandidates(candidates: readonly SimilarCodeCandidate[] | undefined, options: {
     ignoreSameFile?: boolean;
