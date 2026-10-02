@@ -8,9 +8,10 @@
  * - Clean execution verification (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import childProcess from 'node:child_process';
 import {
   ValidateSimilarCodeAuditor,
   SIMILAR_CODE_RULES,
@@ -54,6 +55,7 @@ describe('ValidateSimilarCodeAuditor', () => {
   describe('Metadata & Rules', () => {
     it('declares all expected canonical rules', () => {
       expect(SIMILAR_CODE_RULES).toContain('fallow-similar-code');
+      expect(SIMILAR_CODE_RULES).toContain('fallow-similar-code-failed');
     });
 
     it('initializes with correct id and family', () => {
@@ -119,6 +121,56 @@ describe('ValidateSimilarCodeAuditor', () => {
       const result = await auditor.finishAudit();
       expect(result.findings).toHaveLength(1);
       expect(result.findings[0]?.ruleId).toBe('fallow-similar-code');
+    });
+  });
+
+  describe('Execution Failure Governance (Zero Warning Mandate)', () => {
+    it('captures spawnSync ETIMEDOUT during runAudit and reports fallow-similar-code-failed with severity: error', async () => {
+      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const spy = vi.spyOn(childProcess, 'execSync').mockImplementation((cmd) => {
+        if (typeof cmd === 'string' && cmd.includes('similar-code status')) {
+          return JSON.stringify({ kind: 'status', model_ready: true });
+        }
+        throw new Error('spawnSync /bin/sh ETIMEDOUT');
+      });
+
+      await auditor.runAudit();
+      spy.mockRestore();
+
+      const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(1);
+      expect(result.summary.warnings).toBe(0);
+      expect(result.status).toBe('failed');
+
+      const finding = result.findings.find(f => f.ruleId === 'fallow-similar-code-failed');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+      expect(finding?.message).toContain('ETIMEDOUT');
+    });
+
+    it('reports fallow-similar-code-failed with severity: error when model setup fails', async () => {
+      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const spy = vi.spyOn(childProcess, 'execSync').mockImplementation((cmd) => {
+        if (typeof cmd === 'string' && cmd.includes('similar-code status')) {
+          return JSON.stringify({ kind: 'status', model_ready: false });
+        }
+        if (typeof cmd === 'string' && cmd.includes('similar-code setup')) {
+          throw new Error('Download failed: 404 Not Found');
+        }
+        return '';
+      });
+
+      await auditor.runAudit();
+      spy.mockRestore();
+
+      const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(1);
+      expect(result.status).toBe('failed');
+
+      const finding = result.findings.find(f => f.ruleId === 'fallow-similar-code-failed');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+      expect(finding?.message).toContain('No se pudo inicializar o descargar');
     });
   });
 

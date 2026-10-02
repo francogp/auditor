@@ -13,7 +13,7 @@
  *   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-export type SimilarCodeRuleId = 'fallow-similar-code';
+export type SimilarCodeRuleId = 'fallow-similar-code' | 'fallow-similar-code-failed';
 export declare const SIMILAR_CODE_RULES: readonly SimilarCodeRuleId[];
 export interface SimilarCodeCandidateLocation {
     path: string;
@@ -46,6 +46,9 @@ export declare function evaluateSimilarCodeCandidates(candidates: readonly Simil
 }, auditor: ValidateSimilarCodeAuditor): number;
 export declare class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     constructor(targetPath?: string);
+    private ensureFallowBinaryAndModel;
+    private executeAnalysis;
+    private processRawOutputFile;
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_similar_code.d.ts.map

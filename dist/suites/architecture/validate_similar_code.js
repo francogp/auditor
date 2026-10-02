@@ -14,14 +14,15 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const SIMILAR_CODE_RULES = [
-    'fallow-similar-code'
+    'fallow-similar-code',
+    'fallow-similar-code-failed'
 ];
 export function resolveFallowBinary(projectRoot = process.cwd()) {
     const candidates = [
@@ -40,7 +41,7 @@ export function isFastPresetActive() {
 }
 export function checkOrInitializeModel(fallowBin, projectRoot) {
     try {
-        const statusOut = execSync(`node "${fallowBin}" similar-code status --format json`, {
+        const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
             cwd: projectRoot,
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
@@ -56,7 +57,7 @@ export function checkOrInitializeModel(fallowBin, projectRoot) {
     }
     process.stdout.write(styleText('cyan', '📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n'));
     try {
-        execSync(`node "${fallowBin}" similar-code setup --local --yes`, {
+        childProcess.execSync(`node "${fallowBin}" similar-code setup --local --yes`, {
             cwd: projectRoot,
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'inherit'],
@@ -107,10 +108,97 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
             ruleIds: SIMILAR_CODE_RULES,
             packageName: 'Fallow',
             ruleDescriptions: {
-                'fallow-similar-code': 'Duplicado semántico'
+                'fallow-similar-code': 'Duplicado semántico',
+                'fallow-similar-code-failed': 'Fallo de ejecución similar-code'
             },
             projectRoot
         });
+    }
+    ensureFallowBinaryAndModel() {
+        const fallowBin = resolveFallowBinary(this.projectRoot);
+        if (!fallowBin) {
+            this.context.logStep(1, 1, 'Binario de Fallow no encontrado.');
+            this.addViolation({
+                ruleId: 'fallow-similar-code-failed',
+                severity: 'error',
+                file: '.fallowrc.json',
+                line: 1,
+                message: 'Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.',
+                context: 'binary-missing'
+            });
+            return null;
+        }
+        this.context.logStep(1, 2, 'Verificando estado del modelo de embeddings local...');
+        const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot);
+        if (!modelReady) {
+            this.context.logStep(2, 2, 'Modelo no disponible.');
+            this.addViolation({
+                ruleId: 'fallow-similar-code-failed',
+                severity: 'error',
+                file: '.fallowrc.json',
+                line: 1,
+                message: 'No se pudo inicializar o descargar el modelo local de embeddings para fallow similar-code.',
+                context: 'model-not-ready'
+            });
+            return null;
+        }
+        return fallowBin;
+    }
+    executeAnalysis(fallowBin, similarCfg) {
+        const threshold = similarCfg.threshold ?? 0.95;
+        const minLines = similarCfg.minLines ?? 3;
+        const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
+        const timeoutMs = similarCfg.timeoutMs ?? 300000;
+        this.context.logStep(2, 2, `Ejecutando fallow similar-code (umbral: ${threshold}, min-lines: ${minLines})...`);
+        const rawOutputFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/similar-code-raw.json');
+        if (!fs.existsSync(path.dirname(rawOutputFile))) {
+            fs.mkdirSync(path.dirname(rawOutputFile), { recursive: true });
+        }
+        try {
+            const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines} --output-file "${rawOutputFile}"`;
+            childProcess.execSync(cmd, {
+                cwd: this.projectRoot,
+                encoding: 'utf8',
+                stdio: ['pipe', 'pipe', 'pipe'],
+                maxBuffer: 50 * 1024 * 1024,
+                timeout: timeoutMs
+            });
+            this.processRawOutputFile(rawOutputFile, ignoreSameFile);
+        }
+        catch (err) {
+            // catch-ok: Capturar errores de timeout o ejecución y reportar como error crítico bloqueante
+            const errorMsg = err.message || String(err);
+            this.addViolation({
+                ruleId: 'fallow-similar-code-failed',
+                severity: 'error',
+                file: '.fallowrc.json',
+                line: 1,
+                message: `Fallo al ejecutar fallow similar-code: ${errorMsg}`,
+                context: errorMsg
+            });
+        }
+    }
+    processRawOutputFile(rawOutputFile, ignoreSameFile) {
+        if (!fs.existsSync(rawOutputFile)) {
+            this.addViolation({
+                ruleId: 'fallow-similar-code-failed',
+                severity: 'error',
+                file: '.fallowrc.json',
+                line: 1,
+                message: 'fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.',
+                context: 'missing-output-file'
+            });
+            return;
+        }
+        const fileContent = fs.readFileSync(rawOutputFile, 'utf8');
+        const jsonStart = fileContent.indexOf('{');
+        if (jsonStart !== -1) {
+            const parsed = JSON.parse(fileContent.substring(jsonStart));
+            const totalCandidates = parsed.candidates?.length ?? 0;
+            const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
+            this.context.setMetric('Candidatos Totales', totalCandidates);
+            this.context.setMetric('Pares Reportados', reported);
+        }
     }
     async runAudit() {
         const config = getAuditConfig(this.projectRoot);
@@ -123,43 +211,11 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
             this.context.logStep(1, 1, 'Preset rápido activo (lint/md/commit). Omitiendo similar-code vectorial.');
             return;
         }
-        const fallowBin = resolveFallowBinary(this.projectRoot);
+        const fallowBin = this.ensureFallowBinaryAndModel();
         if (!fallowBin) {
-            this.context.logStep(1, 1, 'Binario de Fallow no encontrado. Omitiendo similar-code.');
             return;
         }
-        this.context.logStep(1, 2, 'Verificando estado del modelo de embeddings local...');
-        const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot);
-        if (!modelReady) {
-            this.context.logStep(2, 2, 'Modelo no disponible. Omitiendo análisis.');
-            return;
-        }
-        const threshold = similarCfg.threshold ?? 0.95;
-        const minLines = similarCfg.minLines ?? 3;
-        const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
-        this.context.logStep(2, 2, `Ejecutando fallow similar-code (umbral: ${threshold}, min-lines: ${minLines})...`);
-        try {
-            const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines}`;
-            const stdout = execSync(cmd, {
-                cwd: this.projectRoot,
-                encoding: 'utf8',
-                stdio: ['pipe', 'pipe', 'ignore'],
-                maxBuffer: 50 * 1024 * 1024,
-                timeout: 120000
-            });
-            const jsonStart = stdout.indexOf('{');
-            if (jsonStart !== -1) {
-                const parsed = JSON.parse(stdout.substring(jsonStart));
-                const totalCandidates = parsed.candidates?.length ?? 0;
-                const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
-                this.context.setMetric('Candidatos Totales', totalCandidates);
-                this.context.setMetric('Pares Reportados', reported);
-            }
-        }
-        catch (err) {
-            // catch-ok: Capturar errores de timeout o ejecución sin crash fatal
-            process.stderr.write(styleText('yellow', `⚠️ Advertencia al ejecutar similar-code: ${err.message}\n`));
-        }
+        this.executeAnalysis(fallowBin, similarCfg);
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

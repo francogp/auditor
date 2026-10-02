@@ -143,6 +143,7 @@ export interface AuditFallowSimilarCodeConfig {
     readonly threshold?: number;
     readonly ignoreSameFile?: boolean;
     readonly minLines?: number;
+    readonly timeoutMs?: number;
 }
 export interface AuditFallowConfig {
     readonly enabled?: boolean;
