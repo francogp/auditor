@@ -118,9 +118,9 @@ describe('Version Analyzer & SemVer Heuristics', () => {
   });
 
   describe('applyVersionBump hermetic sandboxing', () => {
-    it('applies version bump and writes package.json and version.ts', () => {
+    it('applies version bump and writes package.json and version.ts for @francogp/auditor', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'my-project', version: '1.0.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }, null, 2), 'utf-8');
 
       const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T18:00:00-03:00[America/Buenos_Aires]');
       const result = applyVersionBump({
@@ -143,6 +143,21 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       const versionTsContent = fs.readFileSync(result.versionTsPath, 'utf-8');
       expect(versionTsContent).toContain("export const AUDITOR_VERSION = '1.1.0-build.20261002-180000';");
       expect(versionTsContent).toContain("export const AUDITOR_BUILD_ID = '20261002-180000';");
+    });
+
+    it('does not create version.ts for consumer host projects when unconfigured', () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'consumer-app', version: '1.0.0' }, null, 2), 'utf-8');
+
+      const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T18:00:00-03:00[America/Buenos_Aires]');
+      const result = applyVersionBump({
+        cwd: tempDir,
+        bumpType: 'minor',
+        customNow: fixedDate
+      });
+
+      expect(result.versionTsPath).toBe('');
+      expect(fs.existsSync(path.join(tempDir, 'src/version.ts'))).toBe(false);
     });
 
     it('honors major bump override', () => {

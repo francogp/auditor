@@ -13,7 +13,7 @@ Architecture & Tooling Engineers.
 - **Exit Code Integrity**: Any suite error exits with code 1; passing audits exit with code 0.
 - **Differential Pre-Commit Gate**: `audit_for_commit.ts` inspects Git diffs against target base branch (`origin/main`) and enforces zero new warnings or errors.
 - **Bundle Analysis**: `audit_bundle.ts` validates client assets against chunk size budgets and detects duplicate module bloat.
-- **Similar-Code Bypassing for CI/Deployments (`--skip-similar`)**: `audit_full.ts` and `auditScanner.ts` support `--skip-similar`, `--no-similar`, and `AUDIT_SKIP_SIMILAR=1` to cleanly omit vector embeddings analysis in GitHub Pages or lightweight CI builds without requiring model downloads or breaking pipelines.
+- **Similar-Code Bypassing for CI/Deployments (`--skip-similar`)**: `audit_full.ts` and `auditScanner.ts` support `--skip-similar` (and `AUDIT_SKIP_SIMILAR=1`) to cleanly omit vector embeddings analysis in GitHub Pages or lightweight CI builds without requiring model downloads or breaking pipelines.
 
 ## Key Files
 
@@ -33,6 +33,7 @@ Architecture & Tooling Engineers.
 - [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
 - [`stamp_version.ts`](./stamp_version.ts): Standalone CLI for generating and stamping `src/core/version.ts`.
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
+- [`update_package.ts`](./update_package.ts): Native CLI updater (`auditor-update`) for updating `@francogp/auditor` across host repositories.
 
 ## Child DOX Index
 

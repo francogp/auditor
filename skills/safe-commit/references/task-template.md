@@ -39,8 +39,10 @@
   - [ ] Apply approved lessons to `AGENTS.md`
   - [ ] Pre-commit Sanity Check (`npm run audit:md`)
   - [ ] Synthesize final Elegant Protocol commit message
-  - [ ] `git add .` & `git commit -m "<message>"` (Single Atomic Certified Commit)
-  - [ ] Git tag & push with `--follow-tags` (if version bumped in Phase 1)
+  - [ ] Atomic Commit & Tag:
+    - [ ] If version bumped: `git add . && git commit -m "<message>" && git tag -a v<base_version> -m "Release v<base_version>"`
+    - [ ] If version unchanged: `git add . && git commit -m "<message>"`
+  - [ ] Git push with `--follow-tags`: `git push origin <branch> --follow-tags`
   - [ ] Mark Phase 4 `[x]`
 
 ---

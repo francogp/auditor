@@ -191,23 +191,15 @@ describe('ValidateSimilarCodeAuditor', () => {
     it('detects CLI flags and environment variables in isSimilarCodeSkipped', () => {
       expect(isSimilarCodeSkipped(['--skip-similar'])).toBe(true);
       expect(isSimilarCodeSkipped(['skip-similar'])).toBe(true);
-      expect(isSimilarCodeSkipped(['--no-similar'])).toBe(true);
-      expect(isSimilarCodeSkipped(['no-similar'])).toBe(true);
-      expect(isSimilarCodeSkipped(['--skip-similar-code'])).toBe(true);
-      expect(isSimilarCodeSkipped(['skip-similar-code'])).toBe(true);
-      expect(isSimilarCodeSkipped(['--no-ai'])).toBe(true);
-      expect(isSimilarCodeSkipped(['--skip-ai'])).toBe(true);
-      expect(isSimilarCodeSkipped(['similar=false'])).toBe(true);
-      expect(isSimilarCodeSkipped(['--similar=false'])).toBe(true);
       expect(isSimilarCodeSkipped(['--preset=lint'])).toBe(false);
 
       process.env.AUDIT_SKIP_SIMILAR = '1';
       expect(isSimilarCodeSkipped([])).toBe(true);
       delete process.env.AUDIT_SKIP_SIMILAR;
 
-      process.env.SKIP_SIMILAR_CODE = 'true';
+      process.env.AUDIT_SKIP_SIMILAR = 'true';
       expect(isSimilarCodeSkipped([])).toBe(true);
-      delete process.env.SKIP_SIMILAR_CODE;
+      delete process.env.AUDIT_SKIP_SIMILAR;
     });
 
     it('skips execution cleanly with zero errors when isSimilarCodeSkipped is active', async () => {

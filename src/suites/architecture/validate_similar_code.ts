@@ -79,29 +79,14 @@ export function isFastPresetActive(): boolean {
 export function isSimilarCodeSkipped(argv: readonly string[] = process.argv): boolean {
   if (
     process.env.AUDIT_SKIP_SIMILAR === 'true' ||
-    process.env.AUDIT_SKIP_SIMILAR === '1' ||
-    process.env.SKIP_SIMILAR_CODE === 'true' ||
-    process.env.SKIP_SIMILAR_CODE === '1'
+    process.env.AUDIT_SKIP_SIMILAR === '1'
   ) {
     return true;
   }
 
   return argv.some(arg => {
     const lower = arg.toLowerCase().trim();
-    return (
-      lower === '--skip-similar' ||
-      lower === 'skip-similar' ||
-      lower === '--no-similar' ||
-      lower === 'no-similar' ||
-      lower === '--skip-similar-code' ||
-      lower === 'skip-similar-code' ||
-      lower === '--no-ai' ||
-      lower === 'no-ai' ||
-      lower === '--skip-ai' ||
-      lower === 'skip-ai' ||
-      lower === '--similar=false' ||
-      lower === 'similar=false'
-    );
+    return lower === '--skip-similar' || lower === 'skip-similar';
   });
 }
 
@@ -304,7 +289,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     }
 
     if (isSimilarCodeSkipped()) {
-      this.context.logStep(1, 1, 'Similar-code vectorial omitido por flag (--skip-similar / no-similar).');
+      this.context.logStep(1, 1, 'Similar-code vectorial omitido por flag (--skip-similar o AUDIT_SKIP_SIMILAR=1).');
       return;
     }
 

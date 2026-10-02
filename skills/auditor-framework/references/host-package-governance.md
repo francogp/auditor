@@ -31,20 +31,21 @@ npm install github:francogp/auditor
 ## 2. Bringing Updates from GitHub (Updating `package-lock.json`)
 
 > 🔴 **NATIVE NPM UPDATE MANDATE (ZERO CLONING OR MAKESHIFT SCRIPTS)**:
-> When a user or task requests to *"update the auditor"*, *"pull latest auditor changes"*, *"update skills"*, or sync the static analysis engine, developers and AI agents **MUST NEVER** execute `git clone`, create submodules, or copy source files between repositories.
-> Updates MUST be performed 100% natively through npm.
+> When a user or task requests to *"update the auditor"*, *"pull latest auditor changes"*, *"update skills"*, or sync the static analysis engine, developers and AI agents **MUST NEVER** execute `git clone`, create submodules, run ad-hoc `node -e` scripts, inspect `git log` inside `node_modules`, or copy files between repositories.
+> Updates MUST be performed 100% natively through the official updater or npm.
 
-To pull the latest commit from GitHub and update `package-lock.json`:
-
+### Canonical Update Command:
 ```bash
-npm update @francogp/auditor
+npx auditor-update
 ```
-*(Or force-reinstall to bypass local caching: `npm install @francogp/auditor@github:francogp/auditor`).*
+*(Or via host project script: `npm run auditor:update`).*
 
-When `npm update @francogp/auditor` runs:
-1. `npm` queries GitHub, resolves the latest commit on `main`, and updates the pinned commit hash and integrity checksum in `package-lock.json`.
-2. All bundled skills (`skills/*`) and agent rules (`rules/AGENTS.md`) located in `node_modules/@francogp/auditor` are instantly updated on disk. Because the host's `.agents/plugins.json` already points to `node_modules/@francogp/auditor`, Antigravity immediately discovers the latest skills without needing manual copy operations.
-3. Commit the updated `package-lock.json` to lock the audited version for the entire team and CI.
+Under the hood, `auditor-update`:
+1. Executes `npm update @francogp/auditor` to resolve the latest commit and update `package-lock.json`.
+2. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
+3. Renders a Box-Drawing verification table confirming successful synchronization.
+4. All bundled skills (`skills/*`) and agent rules (`rules/AGENTS.md`) located in `node_modules/@francogp/auditor` are instantly updated on disk. Because the host's `.agents/plugins.json` already points to `node_modules/@francogp/auditor`, Antigravity immediately discovers the latest skills without needing manual copy operations.
+5. Commit the updated `package-lock.json` to lock the audited version for the entire team and CI.
 
 ---
 

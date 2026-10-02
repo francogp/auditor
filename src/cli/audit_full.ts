@@ -109,37 +109,20 @@ function resolveConcurrencyLimit(concurrencyValue: unknown): number {
 }
 
 function resolveSkipSimilar(values: Record<string, unknown>, positionals: readonly string[]): boolean {
-  if (
-    Boolean(values['skip-similar']) ||
-    Boolean(values['no-similar']) ||
-    Boolean(values['skip-similar-code']) ||
-    Boolean(values['no-ai']) ||
-    Boolean(values['skip-ai']) ||
-    values.similar === 'false' ||
-    values.similar === false
-  ) {
+  if (Boolean(values['skip-similar'])) {
     return true;
   }
 
   for (const pos of positionals) {
     const lower = pos.toLowerCase();
-    if (
-      lower === 'skip-similar' ||
-      lower === 'no-similar' ||
-      lower === 'skip-similar-code' ||
-      lower === 'no-ai' ||
-      lower === 'skip-ai' ||
-      lower === 'similar=false'
-    ) {
+    if (lower === 'skip-similar' || lower === '--skip-similar') {
       return true;
     }
   }
 
   if (
     process.env.AUDIT_SKIP_SIMILAR === 'true' ||
-    process.env.AUDIT_SKIP_SIMILAR === '1' ||
-    process.env.SKIP_SIMILAR_CODE === 'true' ||
-    process.env.SKIP_SIMILAR_CODE === '1'
+    process.env.AUDIT_SKIP_SIMILAR === '1'
   ) {
     return true;
   }
@@ -150,8 +133,7 @@ function resolveSkipSimilar(values: Record<string, unknown>, positionals: readon
 function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliOptions {
   const args = process.argv.slice(2);
   const BOOLEAN_FLAGS = [
-    'errors-only', 'fix', 'all',
-    'skip-similar', 'no-similar', 'skip-similar-code', 'no-ai', 'skip-ai'
+    'errors-only', 'fix', 'all', 'skip-similar'
   ];
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
 
@@ -172,12 +154,7 @@ function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliO
       rule: { type: 'string', short: 'r', multiple: true },
       rules: { type: 'string', multiple: true },
       fix: { type: 'boolean' },
-      'skip-similar': { type: 'boolean' },
-      'no-similar': { type: 'boolean' },
-      'skip-similar-code': { type: 'boolean' },
-      'no-ai': { type: 'boolean' },
-      'skip-ai': { type: 'boolean' },
-      similar: { type: 'string' }
+      'skip-similar': { type: 'boolean' }
     },
     allowPositionals: true,
     strict: false

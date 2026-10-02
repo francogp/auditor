@@ -18,7 +18,7 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 | `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`). | `npm run audit:findings severity=error` |
 | `top=<N\|all>` | Limits displayed items (default: 20). | `npm run audit:findings top=all` |
 | `search=<term>` | Searches within finding messages and context snippets. | `npm run audit:findings search=token` |
-| `skip-similar` / `no-similar` | Completely bypasses Fallow similar-code vector duplication analysis during GitHub Pages or CI builds, avoiding heavy AI model downloads and timeouts. | `npx auditor --skip-similar` |
+| `skip-similar` / `--skip-similar` | Completely bypasses Fallow similar-code vector duplication analysis during GitHub Pages or CI builds (or via `AUDIT_SKIP_SIMILAR=1`), avoiding heavy AI model downloads and timeouts. | `npx auditor --skip-similar` |
 | `json` | Emits structured JSON including `breakdownByDir` and `files` maps. | `npm run audit:findings json` |
 
 ---
@@ -26,6 +26,8 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 ## 2. Official NPM Reporter Scripts
 
 All inspection routines MUST use the official NPM scripts declared in `package.json`:
+- `npx auditor-update` / `npm run auditor:update`: Dedicated CLI updater executing hermetic npm update, timestamp verification, and Box-Drawing summary table.
+- `npx auditor-version -v`: Displays the active package version, build timestamp, and ISO date metadata.
 - `npm run audit:findings`: Primary findings reporter with full filtering capabilities (`partial`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).
 - `npm run audit:errors`: Preset filtering strictly to errors (`severity=error`).
 - `npm run audit:warnings`: Preset filtering strictly to warnings (`severity=warning`).

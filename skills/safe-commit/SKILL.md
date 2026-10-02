@@ -26,6 +26,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, or filtering logic of `audit_for_commit.ts`, `audit_bundle.ts`, or any quality gatekeeper to make checks pass. All project errors and NEW warnings must be resolved cleanly at the code source. |
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.4). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.4 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
+| **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit: `git add . && git commit -m "<message>" && git tag -a v<base_version> -m "Release v<base_version>"`. Leaving a version bump untagged breaks automated dependency resolution (`github:owner/repo`). |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -189,12 +190,18 @@ Once the user approves:
 1. Apply approved lessons to owning `AGENTS.md`.
 2. Run pre-commit sanity check: `npm run audit:md`.
 3. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
-4. Run:
-   ```bash
-   git add . && git commit -m "<message>"
-   ```
-5. **Git Tag & Push** (if version was bumped in Step 1.4):
-   - Create annotated tag: `git tag -a v<new_version> -m "Release v<new_version>"`
-   - Push with follow tags: `git push origin <branch> --follow-tags`
+4. **Single Atomic Commit & Tag**:
+   - If version was bumped in Step 1.4, run the atomic chained command:
+     ```bash
+     git add . && git commit -m "<message>" && git tag -a v<base_version> -m "Release v<base_version>"
+     ```
+     *(The tag MUST be strictly `v<base_version>` e.g. `v1.2.0`. Creating multiple tags or appending `-build...` to Git tags is STRICTLY PROHIBITED; build timestamps live strictly inside `package.json`).*
+   - If no version bump occurred:
+     ```bash
+     git add . && git commit -m "<message>"
+     ```
+5. **Git Push**:
+   - Run: `git push origin <branch> --follow-tags`
+   - Verify that the commit and the annotated tag were pushed cleanly.
 6. Mark Phase 4 `[x]` in `task.md` and display final confirmation.
 
