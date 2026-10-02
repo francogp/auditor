@@ -417,10 +417,13 @@ function checkSourcePathReferences(
   auditor: MarkdownCodeReferencesAuditor
 ): number {
   let checked = 0;
-  const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
+  const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+|packages\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
   let pathMatch: RegExpExecArray | null;
   while ((pathMatch = pathRegex.exec(line)) !== null) {
     const candidate = pathMatch[1]!.replace(/[.,:;)\]`'"]+$/, '').split('#')[0]!;
+    if (candidate.startsWith('packages/') && /\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa])\b/i.test(line)) {
+      continue;
+    }
     checked++;
     validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir, gitIgnoreMatcher, knownValidAbstractPaths, auditor);
   }

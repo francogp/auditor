@@ -283,17 +283,44 @@ if ($env:Path -notlike "*$npmRoamingPath*") {
     $env:Path = "$npmRoamingPath;" + $env:Path
 }
 
-# 7. Actualizar npm a la última versión
+# 7. Actualizar npm a la versión adecuada (en auto-actualización instala npm@latest y sincroniza package.json; en -DeclaredVersions sincroniza con el commit)
 Write-Host ""
 if ($updateToLatest) {
     Write-Host "[NPM] Actualizando npm a la última versión global (npm@latest)..." -ForegroundColor Cyan
     try {
         npm install -g npm@latest
+        $newNpmVer = (npm -v).Trim()
+        if ($newNpmVer -and (Test-Path $pkgPath)) {
+            $rawPkg = [System.IO.File]::ReadAllText($pkgPath)
+            if ($rawPkg -match '("npm":\s*">=)[^"]*(")') {
+                $updatedPkg = $rawPkg -replace '("npm":\s*">=)[^"]*(")', "`${1}$newNpmVer`${2}"
+                [System.IO.File]::WriteAllText($pkgPath, $updatedPkg)
+                Write-Host "  [OK] Versión de npm sincronizada a >=$newNpmVer en package.json" -ForegroundColor Green
+            }
+        }
     } catch {
         Write-Host "  [WARN] Advertencia al actualizar npm global: $_" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "[NPM] Preservando versión activa de npm ($((npm -v)))." -ForegroundColor Gray
+    $targetNpmVer = ""
+    if (Test-Path $pkgPath) {
+        $rawPkg = [System.IO.File]::ReadAllText($pkgPath)
+        if ($rawPkg -match '"npm":\s*">=?([0-9.]+)"') {
+            $targetNpmVer = $matches[1]
+        }
+    }
+    $currentNpmVer = (npm -v).Trim()
+    if ($targetNpmVer -and ($currentNpmVer -ne $targetNpmVer)) {
+        Write-Host "[NPM] Sincronizando npm a la versión declarada en el commit (npm@$targetNpmVer)..." -ForegroundColor Cyan
+        try {
+            npm install -g "npm@$targetNpmVer"
+            Write-Host "  [OK] npm instalado en v$targetNpmVer" -ForegroundColor Green
+        } catch {
+            Write-Host "  [WARN] Advertencia al instalar npm@$targetNpmVer: $_" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "[NPM] Preservando versión activa de npm ($currentNpmVer)." -ForegroundColor Gray
+    }
 }
 
 # 8. Verificación de configuración NPM aislada al proyecto

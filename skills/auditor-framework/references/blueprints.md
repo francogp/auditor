@@ -1,63 +1,63 @@
-# Blueprints de Configuración para Proyectos Anfitriones
+# Host Project Configuration Blueprints
 
-Este documento contiene los modelos de configuración completos, validados y agnósticos para la integración y migración de proyectos reales del ecosistema a `@francogp/auditor`.
-
----
-
-## 🏛️ Mandato de Configuración Explícita Obligatoria
-
-Todo proyecto que utilice `@francogp/auditor` debe declarar explícitamente todos los subsistemas del motor en su `audit.config.ts`:
-
-1. `persistence`: Motor de base de datos (`'supabase'`, `'sqlite'`, `'hybrid'`, `'postgres'`, `'custom'` o `'none'`). Configura `prohibitedTemplateIdentifiers`, `authorizedSaveFiles` y `allowedHosts` según la infraestructura.
-2. `bundle`: Presupuestos y límites de chunks del bundle (`enabled: true` con `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets` o `enabled: false`). Chunks de Web Worker o módulos de simulación se declaran en `exemptChunkPrefixes`. Imports de valor prohibidos en UI se extienden en `forbiddenUiImports`.
-3. `fallow.security` (o `security`): Gating de análisis de vulnerabilidades Fallow CWE (`enabled: boolean`). Permite desactivar alertas en herramientas de línea de comandos puras.
-4. `styles`: Z-layers (`zLayersEnabled: boolean`, escala directa en `zLayers`, archivo SCSS en `zLayersScssFile`, archivo TS en `zLayersTsFile`), archivo SCSS base (`baseScssFile`), verificación interlineal (`lineHeightOverlapCheck: boolean`) y clases de utilidad.
-5. `templates`: Requisitos de validación de templates HTML/Vue (`requireInputIds: boolean`, funciones seguras permitidas en templates `safeTemplateFunctions?: string[]`, patrones prohibidos en render loop `forbiddenTemplateCallPatterns?: string[]`).
-6. `animation`: Gobernanza de animaciones GSAP obligatoria. `gsapSleep` y `delayedCall` son estándares del framework para la UI; temporizadores personalizados adicionales se declaran en `customTimerFunctions?: string[]`.
-7. `constants`: Nombres de constantes ignorados en duplicados (`ignoredNames?: string[]`), prefijos numéricos permitidos (`allowedNumericPrefixes?: string[]`) y números mágicos exentos (`exemptMagicNumbers?: number[]`).
-8. `documentation`: Rutas abstractas válidas en referencias de código (`knownValidAbstractPaths?: string[]`).
-9. `pinia`: Archivos autorizados para mutaciones de stores fuera de acciones (`authorizedMutationFiles?: string[]`).
-10. `paths`: Rutas del código, raíces CLI (`cliRoots?: string[]`) y lista blanca de fragmentación de tests (`testFragmentationWhitelist?: string[]`).
-11. `domain`: Tipos finitos (`finiteDomainTypes`), whitelists de infra IDs (`infraIdWhitelist`), tokens exentos de normalización (`caseNormalizationExemptTokens`), prefijos de setters de store (`allowedStoreSetterPrefixes`) y prefijos numéricos de constantes (`allowedNumericConstantPrefixes`).
-12. `agentPlugin`: Integración del plugin de agentes de IA (`enabled: boolean`).
-13. `fallow`: Inteligencia estática profunda, seguridad y similaridad semántica (`enabled: boolean`, `security?: { enabled: boolean }`, `enforceTargets?: boolean`, `maxTargetPriority?: 'critical' | 'high' | 'all'`, `similarCode?: { enabled?: boolean, threshold?: number, ignoreSameFile?: boolean }`).
-
-Cualquier subsistema omitido provocará un fallo inmediato en tiempo de ejecución (`assertAuditConfigComplete`) para alertar al desarrollador sobre configuraciones desactualizadas o incompletas tras actualizaciones del motor.
+This document contains complete, validated, and domain-agnostic configuration blueprints for integrating and migrating host projects to `@francogp/auditor`.
 
 ---
 
-## 📁 Archivos de Ejemplo Disponibles
+## 🏛️ Mandatory Explicit Configuration Mandate
 
-Los archivos fuente TypeScript de ejemplo se encuentran disponibles en este mismo directorio:
+Every host project using `@francogp/auditor` must explicitly configure all engine subsystems in its `audit.config.ts`:
 
-- [`audit.config.facturacion2.example.ts`](./audit.config.facturacion2.example.ts): Configuración de referencia para Facturación 2.0.
-- [`audit.config.pokevicio.example.ts`](./audit.config.pokevicio.example.ts): Configuración de referencia para Poké Vicio.
-- [`setup-extension-guide.md`](./setup-extension-guide.md): Guía de arquitectura y plugins de extensión para setup en Linux y Windows.
-- [`extensions/validate_button_governance.extension.ts`](./extensions/validate_button_governance.extension.ts): Blueprint de extensión para gobernanza de botones y anti-clipping (Facturación 2.0).
-- [`extensions/validate_render_performance.extension.ts`](./extensions/validate_render_performance.extension.ts): Blueprint de extensión de auditoría para render/GPU (Poké Vicio).
-- [`extensions/validate_overscroll_lock.extension.ts`](./extensions/validate_overscroll_lock.extension.ts): Blueprint de extensión para bloqueo de sobre-desplazamiento móvil (Poké Vicio).
+1. `persistence`: Database engine (`'supabase'`, `'sqlite'`, `'hybrid'`, `'postgres'`, `'custom'`, or `'none'`). Configures `prohibitedTemplateIdentifiers`, `authorizedSaveFiles`, and `allowedHosts` according to host infrastructure.
+2. `bundle`: Bundle chunk budgets and size thresholds (`enabled: true` with `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets`, or `enabled: false`). Heavy Web Worker chunks or simulation data modules are declared in `exemptChunkPrefixes`. Forbidden UI value imports are extended in `forbiddenUiImports`.
+3. `fallow.security` (or `security`): Fallow CWE static vulnerability gating (`enabled: boolean`). Enables disabling alerts for pure CLI tools and runners.
+4. `styles`: Z-layers (`zLayersEnabled: boolean`, direct scale in `zLayers`, SCSS file in `zLayersScssFile`, TS file in `zLayersTsFile`), base SCSS file (`baseScssFile`), line-height overlap check (`lineHeightOverlapCheck: boolean`), and utility classes.
+5. `templates`: HTML/Vue template hygiene requirements (`requireInputIds: boolean`, permitted safe functions `safeTemplateFunctions?: string[]`, forbidden render loop patterns `forbiddenTemplateCallPatterns?: string[]`).
+6. `animation`: Mandatory GSAP animation governance. `gsapSleep` and `delayedCall` are universal framework standards for UI delays; additional custom timer functions are declared in `customTimerFunctions?: string[]`.
+7. `constants`: Duplicate constant ignore names (`ignoredNames?: string[]`), allowed numeric prefixes (`allowedNumericPrefixes?: string[]`), and exempt magic numbers (`exemptMagicNumbers?: number[]`).
+8. `documentation`: Known valid abstract code reference paths (`knownValidAbstractPaths?: string[]`).
+9. `pinia`: Authorized external store mutation files (`authorizedMutationFiles?: string[]`).
+10. `paths`: Directory structure, CLI roots (`cliRoots?: string[]`), and test fragmentation whitelist (`testFragmentationWhitelist?: string[]`).
+11. `domain`: Finite domain types (`finiteDomainTypes`), infra ID whitelists (`infraIdWhitelist`), normalization-exempt tokens (`caseNormalizationExemptTokens`), allowed store setter prefixes (`allowedStoreSetterPrefixes`), and allowed numeric constant prefixes (`allowedNumericConstantPrefixes`).
+12. `agentPlugin`: AI agent plugin integration (`enabled: boolean`).
+13. `fallow`: Deep static intelligence, security, and semantic code similarity (`enabled: boolean`, `security?: { enabled: boolean }`, `enforceTargets?: boolean`, `maxTargetPriority?: 'critical' | 'high' | 'all'`, `similarCode?: { enabled?: boolean, threshold?: number, ignoreSameFile?: boolean }`).
 
----
-
-## 1. Facturación 2.0 (CEVT) — Supabase, Motor Fiscal y Extensiones
-
-- **Archivo de ejemplo**: [`audit.config.facturacion2.example.ts`](./audit.config.facturacion2.example.ts)
-- **Características principales**:
-  - Motor de persistencia Supabase (`persistence.engine: 'supabase'`) con verificación de esquemas calificados (`schemaQualified: true`).
-  - Capas Z en `src/styles/_base.scss`.
-  - Auditoría de bundle activa para chunks en `dist/assets`.
-  - Definición explícita de tipos de dominio fiscales (`TariffId`, `VoltageCategory`, `TaxRateType`, `ServerId`, `BillingStatus`, `ConsumptionStepId`, `RoundingModeType`).
-  - Patrones de identificación para evitar fallbacks no seguros (`tariffId`, `formulaId`, `stepId`, etc.).
-  - 2 sub-auditores de extensión locales (`validate_script_hardcoding.ts`, `validate_emoji_typography.ts`).
+Any omitted subsystem will trigger an immediate runtime failure (`assertAuditConfigComplete`) to alert developers about missing or incomplete configurations following framework updates.
 
 ---
 
-## 2. Poké Vicio (PokeBorrador) — Híbrido, FSM y Web Workers
+## 📁 Available Reference Configuration Files
 
-- **Archivo de ejemplo**: [`audit.config.pokevicio.example.ts`](./audit.config.pokevicio.example.ts)
-- **Características principales**:
-  - Persistencia híbrida SQLite + Supabase (`persistence.engine: 'hybrid'`) con archivos de guardado autorizados (`saveCoordinator.ts`, `saveActionHelpers.ts`).
-  - Exención de chunks pesados de Web Workers y datos de simulación (`worker-vendor-pkmn`, `worker-game-data`, `vendor-pkmn-sim`, etc.) del límite del hilo principal vía `bundle.exemptChunkPrefixes`.
-  - Tipos de dominio para el motor de combate e invariantes (`PokemonId`, `MoveId`, `AbilityId`, `ItemId`, `FsmState`, etc.).
-  - Familias de auditoría personalizadas: `fsm` (Finite State Machine & Turn Invariants) y `assets` (Game Assets & Sprite Integrity).
-  - 21 sub-auditores de extensión locales en `scripts/auditors/` (incluyendo `validate_render_performance.ts` y `validate_overscroll_lock.ts`).
+TypeScript reference configuration blueprints are available in this directory:
+
+- [`audit.config.facturacion2.example.ts`](./audit.config.facturacion2.example.ts): Reference configuration blueprint for Facturación 2.0.
+- [`audit.config.pokevicio.example.ts`](./audit.config.pokevicio.example.ts): Reference configuration blueprint for Poké Vicio.
+- [`setup-extension-guide.md`](./setup-extension-guide.md): Environment setup script architecture and extension guide for Linux and Windows.
+- [`extensions/validate_button_governance.extension.ts`](./extensions/validate_button_governance.extension.ts): Extension blueprint for button governance and anti-clipping standards (Facturación 2.0).
+- [`extensions/validate_render_performance.extension.ts`](./extensions/validate_render_performance.extension.ts): Extension blueprint for GPU render and atmosphere hygiene (Poké Vicio).
+- [`extensions/validate_overscroll_lock.extension.ts`](./extensions/validate_overscroll_lock.extension.ts): Extension blueprint for mobile touch overscroll containment (Poké Vicio).
+
+---
+
+## 1. Facturación 2.0 (CEVT) — Supabase, Billing Engine & Host Extensions
+
+- **Reference File**: [`audit.config.facturacion2.example.ts`](./audit.config.facturacion2.example.ts)
+- **Key Characteristics**:
+  - Supabase persistence engine (`persistence.engine: 'supabase'`) with schema-qualified query verification (`schemaQualified: true`).
+  - Z-layers defined in `src/styles/_base.scss`.
+  - Active bundle auditing for emitted production assets in `dist/assets`.
+  - Explicit definition of fiscal domain types (`TariffId`, `VoltageCategory`, `TaxRateType`, `ServerId`, `BillingStatus`, `ConsumptionStepId`, `RoundingModeType`).
+  - Strict pattern matching to prevent loose string fallbacks (`tariffId`, `formulaId`, `stepId`, etc.).
+  - 2 local host extension auditors (`validate_script_hardcoding.ts`, `validate_emoji_typography.ts`).
+
+---
+
+## 2. Poké Vicio (PokeBorrador) — Hybrid Engine, FSM & Background Workers
+
+- **Reference File**: [`audit.config.pokevicio.example.ts`](./audit.config.pokevicio.example.ts)
+- **Key Characteristics**:
+  - Hybrid SQLite + Supabase persistence (`persistence.engine: 'hybrid'`) with authorized save coordinator modules (`saveCoordinator.ts`, `saveActionHelpers.ts`).
+  - Exemption of heavy Web Worker bundles and simulation data modules (`worker-vendor-pkmn`, `worker-game-data`, `vendor-pkmn-sim`, etc.) from main-thread limits via `bundle.exemptChunkPrefixes`.
+  - Battle engine domain types and turn invariants (`PokemonId`, `MoveId`, `AbilityId`, `ItemId`, `FsmState`, etc.).
+  - Custom audit families: `fsm` (Finite State Machine & Turn Invariants) and `assets` (Game Assets & Sprite Integrity).
+  - 21 local host extension sub-auditors in `scripts/auditors/` (including `validate_render_performance.ts` and `validate_overscroll_lock.ts`).

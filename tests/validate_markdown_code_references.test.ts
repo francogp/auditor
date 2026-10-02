@@ -70,6 +70,24 @@ Also check \`supabase/nonexistent_table.sql\`.
     expect(brokenRefs[1]?.context).toBe('supabase/nonexistent_table.sql');
   });
 
+  it('detects broken workspace package references (packages/...)', async () => {
+    const mdContent = `
+# Architecture
+See the standalone package in \`packages/auditor/src/index.ts\`.
+Also check \`packages/legacy_pkg\`.
+    `;
+    await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
+
+    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(2);
+    const brokenRefs = result.findings.filter(f => f.ruleId === 'markdown-broken-source-ref');
+    expect(brokenRefs.length).toBe(2);
+    expect(brokenRefs[0]?.context).toBe('packages/auditor/src/index.ts');
+    expect(brokenRefs[1]?.context).toBe('packages/legacy_pkg');
+  });
+
   it('accepts valid existing source code references', async () => {
     await fs.mkdir(path.join(tempDir, 'src/data'), { recursive: true });
     await fs.writeFile(path.join(tempDir, 'src/data/items.ts'), 'export const items = {};', 'utf-8');

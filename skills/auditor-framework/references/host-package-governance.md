@@ -140,3 +140,18 @@ auditor --skip-similar
     AUDIT_SKIP_SIMILAR: 1
 ```
 
+---
+
+## 7. Master Environment Setup Scripts Governance (`setup-linux.sh`, `setup-windows.ps1`)
+
+The root environment initialization scripts `setup-linux.sh` and `setup-windows.ps1` belong canonically to `@francogp/auditor` and are distributed with the package.
+
+> [!CAUTION]
+> **Prohibition on Local Host Patches**: AI agents and developers **MUST NEVER** attempt to apply ad-hoc local patches, temporary regex replacements, or logic mutations directly inside a host project's `setup-linux.sh` or `setup-windows.ps1`.
+> 
+> If an issue, defect, version synchronization gap (e.g. Node vs NPM in `--declared-versions`), or platform incompatibility is discovered:
+> 1. The agent **MUST PROACTIVELY NOTIFY THE USER**, clearly explaining the root cause.
+> 2. The agent **MUST INSTRUCT THE USER** that the change must be requested and made upstream in the `@francogp/auditor` repository.
+> 3. Once resolved and released upstream, the host project updates via `npm run auditor:update` and synchronizes the official scripts.
+
+

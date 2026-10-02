@@ -30,6 +30,7 @@ export const MARKDOWN_LINK_RULES = [
     'markdown-absolute-path',
     'markdown-stale-environment-path',
     'markdown-gitignored-target',
+    'markdown-broken-workspace-package',
 ];
 const DEFAULT_ROOT = path.resolve(import.meta.dirname, '../../..');
 export { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories } from "./validate_markdown_code_references.js";
@@ -202,6 +203,42 @@ function checkStandaloneTextViolations(lines, relSourceFile, brokenLines) {
     }
     return textViolations;
 }
+function checkWorkspacePackageViolations(lines, relSourceFile, filePath, rootDir, brokenLines) {
+    const violations = [];
+    const pkgRegex = /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_./#-]+)?)(?:\/)?(?:$|[`'"\s)\]>,:;])/g;
+    for (let i = 0; i < lines.length; i++) {
+        const lineText = lines[i];
+        const lineNum = i + 1;
+        if (brokenLines.has(lineNum))
+            continue;
+        if (/\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa])\b/i.test(lineText)) {
+            continue;
+        }
+        let match;
+        pkgRegex.lastIndex = 0;
+        while ((match = pkgRegex.exec(lineText)) !== null) {
+            const pkgSubpath = match[1].replace(/[.,:;)\]`'"]+$/, '');
+            if (pkgSubpath.includes('*') || pkgSubpath.includes('...') || pkgSubpath.includes('<')) {
+                continue;
+            }
+            const candidateRel = path.join('packages', pkgSubpath);
+            const rootTarget = path.resolve(rootDir, candidateRel);
+            const localTarget = path.resolve(path.dirname(filePath), candidateRel);
+            if (!fs.existsSync(rootTarget) && !fs.existsSync(localTarget)) {
+                violations.push({
+                    sourceFile: relSourceFile,
+                    linkText: '',
+                    rawUrl: `packages/${pkgSubpath}`,
+                    resolvedPath: candidateRel,
+                    error: `Referencia a workspace package inexistente en disco: "packages/${pkgSubpath}" (RULE: No mantener rutas a paquetes de workspace eliminados)`,
+                    ruleId: 'markdown-broken-workspace-package',
+                    line: lineNum,
+                });
+            }
+        }
+    }
+    return violations;
+}
 /**
  * Parses all markdown links in a file and returns broken references or illegal paths.
  */
@@ -232,6 +269,8 @@ export function checkMarkdownLinksInContent(content, filePath, rootDir) {
     const brokenLines = new Set(brokenLinks.map(b => b.line).filter((l) => l !== undefined));
     const standaloneViolations = checkStandaloneTextViolations(cleanContent.split('\n'), relSourceFile, brokenLines);
     brokenLinks.push(...standaloneViolations);
+    const workspaceViolations = checkWorkspacePackageViolations(cleanContent.split('\n'), relSourceFile, filePath, rootDir, brokenLines);
+    brokenLinks.push(...workspaceViolations);
     return { linksChecked, brokenLinks };
 }
 /**
@@ -280,6 +319,7 @@ export class MarkdownLinkAuditor extends BaseAuditor {
                 'markdown-absolute-path': 'Ruta absoluta prohibida',
                 'markdown-stale-environment-path': 'Referencia a entorno obsoleto',
                 'markdown-gitignored-target': 'Enlace a ruta ignorada en git',
+                'markdown-broken-workspace-package': 'Workspace package inexistente',
             },
             roots: effectiveScanRoots,
             allowedExtensions: new Set(['.md']),

@@ -20,7 +20,7 @@ import { BaseAuditor } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { stripCodeBlocks } from './validate_markdown_code_references.ts';
 export { stripCodeBlocks };
-export type MarkdownLinkRuleId = 'markdown-broken-relative-link' | 'markdown-absolute-path' | 'markdown-stale-environment-path' | 'markdown-gitignored-target';
+export type MarkdownLinkRuleId = 'markdown-broken-relative-link' | 'markdown-absolute-path' | 'markdown-stale-environment-path' | 'markdown-gitignored-target' | 'markdown-broken-workspace-package';
 export declare const MARKDOWN_LINK_RULES: readonly MarkdownLinkRuleId[];
 export interface BrokenMarkdownLink {
     readonly sourceFile: string;

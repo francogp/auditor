@@ -303,6 +303,20 @@ Fallow is integrated into `@francogp/auditor` (`audit_project.ts` and `report_fa
 
 ---
 
+## 🛠️ Master Environment Setup Scripts Governance (`setup-linux.sh`, `setup-windows.ps1`)
+
+The root environment initialization scripts `setup-linux.sh` and `setup-windows.ps1` belong canonically to `@francogp/auditor`.
+
+1. **Strict Prohibition on Local Host Patches**:
+   - AI agents and developers **MUST NEVER** attempt to apply ad-hoc local patches, temporary regex replacements, or logic mutations directly inside a host project's `setup-linux.sh` or `setup-windows.ps1`.
+2. **Upstream Reporting Protocol**:
+   - If an issue, defect, version synchronization gap (e.g. Node vs NPM in `--declared-versions`), or platform incompatibility is discovered:
+     - The agent **MUST PROACTIVELY NOTIFY THE USER**, clearly explaining the root cause.
+     - The agent **MUST INSTRUCT THE USER** that the change must be requested and made upstream in the `@francogp/auditor` repository.
+     - Once resolved and released upstream, the host project updates via `npm run auditor:update` and synchronizes the official scripts.
+
+---
+
 ## 📚 References & Host Integration Blueprints
 
 The following reference manuals and configuration blueprints are maintained in `references/`:

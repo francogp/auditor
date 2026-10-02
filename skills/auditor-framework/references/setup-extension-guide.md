@@ -1,64 +1,78 @@
-# Guía de Extensión de Scripts de Setup (Linux & Windows)
+# Setup Scripts Extension & Governance Guide (Linux & Windows)
 
-Esta guía documenta la arquitectura estándar y los mecanismos de extensión para los scripts de inicialización de entorno de desarrollo (`setup-linux.sh` y `setup-windows.ps1`) en proyectos que utilizan `@francogp/auditor`.
-
----
-
-## 1. Principios de Arquitectura de Setup
-
-1. **Agnóstico y Modular**: Los scripts de setup base (`setup-linux.sh` y `setup-windows.ps1`) se encargan exclusivamente de los fundamentos transversales:
-   - Verificación de versión de Node.js (Node 26+).
-   - Verificación de gestor de paquetes (`npm`).
-   - Instalación hermética de dependencias (`npm ci` o `npm install`).
-   - Verificación de herramientas nativas de compilación (`css-checker`, etc.).
-2. **Cero Modificación del Core**: Las dependencias específicas del dominio de un proyecto (ej. bases de datos Docker, certificados SSL locales, semillas de datos, servicios en segundo plano) **NUNCA** deben introducirse modificando los scripts base del framework.
-3. **Idempotencia Obligatoria**: Cualquier script de extensión debe ser 100% idempotente; ejecutar el setup múltiples veces consecutivas debe producir el mismo estado final sin errores, duplicados ni corrupción de datos.
+This guide documents the canonical architecture, extension mechanisms, and governance policies for development environment initialization scripts (`setup-linux.sh` and `setup-windows.ps1`) in projects utilizing `@francogp/auditor`.
 
 ---
 
-## 2. Mecanismos de Extensión Disponibles
+## 1. Setup Architecture Principles
 
-Existen dos mecanismos canónicos para extender el proceso de setup:
+1. **Agnostic & Modular**: Core setup scripts (`setup-linux.sh` and `setup-windows.ps1`) handle cross-cutting fundamentals exclusively:
+   - Node.js runtime verification and synchronization (Node.js 26+).
+   - Package manager governance (`npm`).
+   - Hermetic dependency installation (`npm ci`).
+   - Native build tools discovery (`css-checker`, etc.).
+2. **Zero Core Modification & Strict Prohibition on Local Host Patches**: Domain-specific requirements of a host project (e.g. Docker databases, local SSL certificates, database seeds, background daemons) **MUST NEVER** be introduced by mutating the framework base scripts. Furthermore, when encountering bugs, version synchronization gaps, or improvements in setup scripts, **AGENTS ARE STRICTLY FORBIDDEN** from applying local patches or workarounds in the host project; agents MUST notify the user so the issue is resolved upstream in `@francogp/auditor`.
+3. **Mandatory Idempotency**: All extension scripts must be 100% idempotent; executing the setup repeatedly must yield identical end states without errors, duplicates, or data corruption.
+
+---
+
+### Strict Prohibition on Local Host Patches & Upstream Reporting Mandate
+
+Master setup scripts (`setup-linux.sh` and `setup-windows.ps1`) are distributed canonically by `@francogp/auditor`.
+
+> [!CAUTION]
+> **Prohibition on Local Host Patches**: AI agents and developers **ARE STRICTLY PROHIBITED** from applying local patches, ad-hoc rewrites, or logic mutations to `setup-linux.sh` or `setup-windows.ps1` in host projects to circumvent version synchronization issues, NVM edge cases, or runtime behaviors.
+
+**Mandatory Protocol for Agents**:
+1. If an agent identifies a defect, version discrepancy (e.g. Node vs NPM in `--declared-versions`), or needed optimization in `setup-linux.sh` or `setup-windows.ps1`:
+2. **DO NOT modify the script locally within the host project.**
+3. **Proactively warn the user**, detailing the precise root cause and stating clearly that the fix **must be communicated to the `@francogp/auditor` maintainer** so it is resolved upstream in the master framework and cleanly distributed across all projects via `npm run auditor:update`.
+
+---
+
+## 2. Supported Extension Mechanisms
+
+Two canonical mechanisms exist for extending the setup workflow:
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │             setup-linux.sh / setup-windows.ps1          │
-│  1. Node.js 26+ check                                  │
-│  2. npm dependencies installation                      │
+│  1. Node.js 26+ check & NVM resolution                 │
+│  2. npm dependencies installation (npm ci)             │
 │  3. Native build tools verification                    │
 └──────────────────────────┬─────────────────────────────┘
                            │
              ┌─────────────┴─────────────┐
              ▼                           ▼
-   [Mecanismo A: Plugins]      [Mecanismo B: Post-Setup Hook]
+   [Mechanism A: Plugins]      [Mechanism B: Post-Setup Hook]
    scripts/setup/plugins/*.sh   npm run env:post-setup
    scripts/setup/plugins/*.ps1
 ```
 
 ---
 
-### Mecanismo A: Carpeta de Plugins (`scripts/setup/plugins/`)
+### Mechanism A: Plugins Directory (`scripts/setup/plugins/`)
 
-El runner de setup busca automáticamente un directorio `scripts/setup/plugins/` en la raíz del proyecto. Si existe, ejecuta todos los scripts ejecutables en orden alfabético/numérico.
+The setup runner automatically searches for a `scripts/setup/plugins/` directory at the project root. If found, it executes all executable scripts in alphabetical/numerical order.
 
-#### Estructura Recomendada
+#### Recommended Directory Structure
 ```
 scripts/setup/plugins/
-├── 01-docker-db.sh          # Linux/macOS: Inicia contenedor de DB local
-├── 01-docker-db.ps1         # Windows: Inicia contenedor de DB local
-├── 02-local-ssl-certs.sh    # Linux/macOS: Genera certificados TLS con mkcert
-└── 02-local-ssl-certs.ps1   # Windows: Genera certificados TLS con mkcert
+├── 01-docker-db.sh          # Linux/macOS: Starts local DB container
+├── 01-docker-db.ps1         # Windows: Starts local DB container
+├── 02-local-ssl-certs.sh    # Linux/macOS: Generates TLS certificates via mkcert
+└── 02-local-ssl-certs.ps1   # Windows: Generates TLS certificates via mkcert
 ```
 
-#### Convenciones de Nomenclatura y Prefijos Numéricos
-- Usar prefijos de dos dígitos (`01-`, `02-`, `10-`) para garantizar un orden de ejecución determinista.
-- Cada plugin en Bash debe tener su contraparte idéntica en funcionalidad para PowerShell (y viceversa) para garantizar paridad entre plataformas.
+#### Naming Conventions & Numerical Ordering
+- Use two-digit numerical prefixes (`01-`, `02-`, `10-`) to ensure deterministic execution order.
+- Every Bash plugin must have an identically functioning PowerShell counterpart (and vice-versa) to guarantee cross-platform parity.
 
 ---
 
-### Mecanismo B: Gancho `npm run env:post-setup`
+### Mechanism B: `npm run env:post-setup` Hook
 
-En `package.json`, los proyectos pueden declarar un script `env:post-setup`:
+In `package.json`, host projects can declare an `env:post-setup` script:
 
 ```json
 {
@@ -71,13 +85,13 @@ En `package.json`, los proyectos pueden declarar un script `env:post-setup`:
 }
 ```
 
-El script base invoca `npm run env:post-setup --if-present` al finalizar la instalación de paquetes.
+The base setup script executes `npm run env:post-setup --if-present` upon completing package installation.
 
 ---
 
-## 3. Plantillas de Implementación
+## 3. Reference Implementation Templates
 
-### Plugin 1: Contenedor Docker para Base de Datos Local
+### Plugin 1: Local Docker Database Container
 
 #### Linux / macOS (`01-docker-db.sh`)
 ```bash
@@ -88,28 +102,28 @@ CONTAINER_NAME="facturacion-postgres"
 IMAGE="postgres:16-alpine"
 DB_PORT="5432"
 
-echo "🐘 [Plugin 01] Verificando contenedor Docker de Base de Datos ($CONTAINER_NAME)..."
+echo "🐘 [Plugin 01] Verifying Docker Database container ($CONTAINER_NAME)..."
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "⚠️ Docker no está instalado en este sistema. Omitiendo arranque de DB."
+  echo "⚠️ Docker is not installed on this system. Skipping database launch."
   exit 0
 fi
 
 if [ "$(docker ps -q -f name=^/${CONTAINER_NAME}$)" ]; then
-  echo "  ✅ Contenedor $CONTAINER_NAME ya está en ejecución."
+  echo "  ✅ Container $CONTAINER_NAME is already running."
 elif [ "$(docker ps -aq -f status=exited -f name=^/${CONTAINER_NAME}$)" ]; then
-  echo "  🔄 Iniciando contenedor existente $CONTAINER_NAME..."
+  echo "  🔄 Starting existing container $CONTAINER_NAME..."
   docker start "$CONTAINER_NAME" >/dev/null
-  echo "  ✅ Contenedor iniciado."
+  echo "  ✅ Container started."
 else
-  echo "  🚀 Creando y arrancando nuevo contenedor $CONTAINER_NAME..."
+  echo "  🚀 Creating and starting new container $CONTAINER_NAME..."
   docker run -d \
     --name "$CONTAINER_NAME" \
     -e POSTGRES_PASSWORD=postgres \
     -e POSTGRES_DB=facturacion \
     -p "${DB_PORT}:5432" \
     "$IMAGE" >/dev/null
-  echo "  ✅ Contenedor $CONTAINER_NAME creado y escuchando en puerto $DB_PORT."
+  echo "  ✅ Container $CONTAINER_NAME created and listening on port $DB_PORT."
 fi
 ```
 
@@ -122,28 +136,28 @@ $containerName = "facturacion-postgres"
 $image = "postgres:16-alpine"
 $dbPort = "5432"
 
-Write-Host "🐘 [Plugin 01] Verificando contenedor Docker de Base de Datos ($containerName)..." -ForegroundColor Cyan
+Write-Host "🐘 [Plugin 01] Verifying Docker Database container ($containerName)..." -ForegroundColor Cyan
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Warning "Docker no está instalado en este sistema. Omitiendo arranque de DB."
+    Write-Warning "Docker is not installed on this system. Skipping database launch."
     exit 0
 }
 
 $running = docker ps -q -f "name=^/${containerName}$"
 if ($running) {
-    Write-Host "  ✅ Contenedor $containerName ya está en ejecución." -ForegroundColor Green
+    Write-Host "  ✅ Container $containerName is already running." -ForegroundColor Green
     exit 0
 }
 
 $exited = docker ps -aq -f "status=exited" -f "name=^/${containerName}$"
 if ($exited) {
-    Write-Host "  🔄 Iniciando contenedor existente $containerName..." -ForegroundColor Yellow
+    Write-Host "  🔄 Starting existing container $containerName..." -ForegroundColor Yellow
     docker start $containerName | Out-Null
-    Write-Host "  ✅ Contenedor iniciado." -ForegroundColor Green
+    Write-Host "  ✅ Container started." -ForegroundColor Green
     exit 0
 }
 
-Write-Host "  🚀 Creando y arrancando nuevo contenedor $containerName..." -ForegroundColor Yellow
+Write-Host "  🚀 Creating and starting new container $containerName..." -ForegroundColor Yellow
 docker run -d `
   --name $containerName `
   -e POSTGRES_PASSWORD=postgres `
@@ -151,12 +165,12 @@ docker run -d `
   -p "${dbPort}:5432" `
   $image | Out-Null
 
-Write-Host "  ✅ Contenedor $containerName creado y escuchando en puerto $dbPort." -ForegroundColor Green
+Write-Host "  ✅ Container $containerName created and listening on port $dbPort." -ForegroundColor Green
 ```
 
 ---
 
-### Plugin 2: Certificados SSL Locales con `mkcert`
+### Plugin 2: Local SSL Certificates with `mkcert`
 
 #### Linux / macOS (`02-local-ssl-certs.sh`)
 ```bash
@@ -167,23 +181,23 @@ CERT_DIR="certs"
 KEY_FILE="$CERT_DIR/localhost-key.pem"
 CERT_FILE="$CERT_DIR/localhost.pem"
 
-echo "🔐 [Plugin 02] Verificando certificados SSL locales para desarrollo..."
+echo "🔐 [Plugin 02] Verifying local development SSL certificates..."
 
 if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
-  echo "  ✅ Certificados SSL locales ya existen en $CERT_DIR/."
+  echo "  ✅ Local SSL certificates already exist in $CERT_DIR/."
   exit 0
 fi
 
 mkdir -p "$CERT_DIR"
 
 if command -v mkcert >/dev/null 2>&1; then
-  echo "  🔑 Generando certificados con mkcert..."
+  echo "  🔑 Generating certificates with mkcert..."
   mkcert -install
   mkcert -key-file "$KEY_FILE" -cert-file "$CERT_FILE" localhost 127.0.0.1 ::1
-  echo "  ✅ Certificados generados correctamente."
+  echo "  ✅ Certificates successfully generated."
 else
-  echo "  ⚠️ mkcert no encontrado. Omitiendo generación automática de SSL."
-  echo "     Para HTTPS local, instala mkcert: https://github.com/FiloSottile/mkcert"
+  echo "  ⚠️ mkcert not found. Skipping automatic SSL generation."
+  echo "     For local HTTPS, install mkcert: https://github.com/FiloSottile/mkcert"
 fi
 ```
 
@@ -196,33 +210,33 @@ $certDir = "certs"
 $keyFile = Join-Path $certDir "localhost-key.pem"
 $certFile = Join-Path $certDir "localhost.pem"
 
-Write-Host "🔐 [Plugin 02] Verificando certificados SSL locales para desarrollo..." -ForegroundColor Cyan
+Write-Host "🔐 [Plugin 02] Verifying local development SSL certificates..." -ForegroundColor Cyan
 
 if ((Test-Path $keyFile) -and (Test-Path $certFile)) {
-    Write-Host "  ✅ Certificados SSL locales ya existen en $certDir/." -ForegroundColor Green
+    Write-Host "  ✅ Local SSL certificates already exist in $certDir/." -ForegroundColor Green
     exit 0
 }
 
 New-Item -ItemType Directory -Force -Path $certDir | Out-Null
 
 if (Get-Command mkcert -ErrorAction SilentlyContinue) {
-    Write-Host "  🔑 Generando certificados con mkcert..." -ForegroundColor Yellow
+    Write-Host "  🔑 Generating certificates with mkcert..." -ForegroundColor Yellow
     mkcert -install
     mkcert -key-file $keyFile -cert-file $certFile localhost 127.0.0.1 ::1
-    Write-Host "  ✅ Certificados generados correctamente." -ForegroundColor Green
+    Write-Host "  ✅ Certificates successfully generated." -ForegroundColor Green
 } else {
-    Write-Warning "mkcert no encontrado. Omitiendo generación automática de SSL."
-    Write-Host "     Para HTTPS local, instala mkcert: choco install mkcert" -ForegroundColor Gray
+    Write-Warning "mkcert not found. Skipping automatic SSL generation."
+    Write-Host "     For local HTTPS, install mkcert: choco install mkcert" -ForegroundColor Gray
 }
 ```
 
 ---
 
-## 4. Reglas Críticas para Plugins
+## 4. Critical Rules for Extension Plugins
 
-1. **Sin Contraseñas ni Secretos Hardcodeados**: No introduzcas claves de producción ni tokens de API en los scripts de setup. Usa variables de entorno o defaults exclusivos para entornos de pruebas locales (`postgres`, `dev`, `localhost`).
-2. **Comprobación de Dependencias Previas**: Verifica siempre con `command -v <herramienta>` (Bash) o `Get-Command <herramienta>` (PowerShell) si la herramienta requerida está instalada antes de ejecutarla, para evitar que el script falle abruptamente en máquinas de desarrollo que no la tengan configurada.
-3. **Manejo de Errores Limpio**:
-   - En Bash: `set -euo pipefail` al inicio.
-   - En PowerShell: `$ErrorActionPreference = 'Stop'` al inicio.
-4. **Respeto al Flag `--permission`**: Si el hook `env:post-setup` es un script TypeScript/Node.js, debe ejecutarse bajo el modelo de permisos nativo de Node.js 26+ (`node --permission ...`).
+1. **No Hardcoded Passwords or Production Secrets**: Never introduce production credentials or secret API tokens into setup scripts. Use environment variables or local test defaults (`postgres`, `dev`, `localhost`).
+2. **Pre-flight Dependency Checks**: Always verify with `command -v <tool>` (Bash) or `Get-Command <tool>` (PowerShell) whether a required tool is present before executing it, preventing abrupt setup crashes on developer machines lacking the tool.
+3. **Clean Error Handling**:
+   - In Bash: `set -euo pipefail` at the header.
+   - In PowerShell: `$ErrorActionPreference = 'Stop'` at the header.
+4. **Node.js 26+ Permission Compliance**: When `env:post-setup` is a TypeScript/Node.js script, it must execute strictly under Node.js 26+ native permission guards (`node --permission ...`).

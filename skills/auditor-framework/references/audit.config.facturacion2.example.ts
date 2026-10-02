@@ -1,156 +1,156 @@
 /**
  * .agents/skills/auditor-framework/references/audit.config.facturacion2.example.ts
  *
- * Ejemplo de configuración de auditoría para Facturación 2.0 (CEVT).
- * Aplicación web con backend Supabase, reglas de cálculo fiscal estricto,
- * extensiones de script hardcoding y tipado de dominio.
+ * Audit configuration example for Facturación 2.0 (CEVT).
+ * Web application with Supabase backend, strict fiscal calculation rules,
+ * script hardcoding extensions, and domain-type-first contracts.
  *
- * Este archivo sirve como REFERENCIA EDUCATIVA COMPLETA de configuración,
- * documentando cada campo, su propósito de arquitectura y el auditor correspondiente.
+ * This file serves as a COMPLETE EDUCATIONAL REFERENCE configuration,
+ * documenting every single field, its architectural purpose, and the corresponding auditor.
  */
 
 import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
-  // Nombre legible del proyecto mostrado en reportes de terminal y encabezados Box-Drawing
+  // Human-readable project name displayed in terminal reports and Box-Drawing headers
   name: 'Facturación 2.0 (CEVT)',
 
   paths: {
-    srcRoots: ['src'], // Directorios raíz donde reside el código de producción de la aplicación
-    testRoots: ['tests/unit', 'tests/node'], // Directorios de suites de pruebas unitarias y de arquitectura (Vitest / Node)
-    e2eRoots: ['tests/e2e'], // Directorio de pruebas de extremo a extremo (E2E) con emulación de navegador
-    integrationRoots: ['tests/integration'], // Directorio de pruebas de integración con servicios externos o base de datos
-    migrationsDir: 'supabase/migrations', // Directorio donde residen los scripts SQL de migración y evolución del esquema
-    scriptsRoots: ['scripts'], // Directorio de utilidades CLI, automatizaciones y scripts de mantenimiento fuera de producción
-    codeRoots: ['src', 'scripts', 'supabase'], // Alcance consolidado de directorios sujetos a auditoría de código estático
-    dataRoots: ['src/data'], // Directorios de catálogos y datos tabulares (exentos de límites de LOC/complejidad pero auditados para tipos)
-    constantsRoots: ['src/logic/constants'], // Directorios donde se declaran constantes globales y configuraciones del sistema
-    componentsRoots: ['src/components'], // Directorios de componentes visuales de interfaz (archivos Vue SFC .vue)
-    viewsRoots: ['src/views'], // Directorios de vistas de página principales conectadas al router
-    storesRoots: ['src/stores'], // Directorios de almacenes de estado reactivo global (Pinia stores)
-    composablesRoots: ['src/composables'], // Directorios de composables reactivos reutilizables de Vue
-    typesRoots: ['src/types'], // Directorios de declaraciones de tipos TypeScript, contratos e interfaces
-    stylesRoots: ['src/styles'], // Directorios de hojas de estilo globales (archivos SCSS/CSS de la aplicación)
-    logicRoots: ['src/logic'], // Directorios de lógica pura de negocio, coordinadores y calculadores desacoplados de UI
-    exemptFiles: ['src/logic/utils/logger.ts'], // Archivos específicos con excepciones justificadas para ciertas reglas de arquitectura
-    includeTestsInCodeAudit: false, // Determina si los archivos de prueba se auditan con las reglas de código de producción (false evita falsos positivos)
-    testFragmentationWhitelist: ['src/logic/calculators/heavyBillingEngine.ts'], // Módulos con alta complejidad autorizados formalmente a fragmentar sus suites de prueba
-    ignoreGlobs: ['supabase/docker/volumes/**'], // Patrones glob de exclusión universal para herramientas estáticas y escaneo de archivos
-    ignoredDirs: ['deploy'] // Directorios excluidos en su totalidad del análisis y recorrido del auditor
+    srcRoots: ['src'], // Root directories containing application production code
+    testRoots: ['tests/unit', 'tests/node'], // Unit and architectural test suites directories (Vitest / Node)
+    e2eRoots: ['tests/e2e'], // End-to-End browser test directory with browser emulation
+    integrationRoots: ['tests/integration'], // Integration test directory with external services or databases
+    migrationsDir: 'supabase/migrations', // Directory containing SQL migration scripts for schema evolution
+    scriptsRoots: ['scripts'], // CLI utilities, automation scripts, and maintenance tasks outside production
+    codeRoots: ['src', 'scripts', 'supabase'], // Consolidated directories subject to static code audits
+    dataRoots: ['src/data'], // Catalogs and tabular data directories (exempt from LOC/complexity limits but audited for types)
+    constantsRoots: ['src/logic/constants'], // Global constants and system configuration directories
+    componentsRoots: ['src/components'], // Visual UI components (Vue SFC .vue files)
+    viewsRoots: ['src/views'], // Main routed page views connected to Vue Router
+    storesRoots: ['src/stores'], // Global reactive state stores (Pinia stores)
+    composablesRoots: ['src/composables'], // Reusable Vue composables
+    typesRoots: ['src/types'], // TypeScript type declarations, contracts, and interfaces
+    stylesRoots: ['src/styles'], // Global stylesheets (SCSS/CSS files)
+    logicRoots: ['src/logic'], // Pure business logic, coordinators, and calculators decoupled from UI
+    exemptFiles: ['src/logic/utils/logger.ts'], // Specific files with justified exceptions for architectural rules
+    includeTestsInCodeAudit: false, // Determines whether test files are audited under production code rules (false avoids false positives)
+    testFragmentationWhitelist: ['src/logic/calculators/heavyBillingEngine.ts'], // High-complexity modules formally permitted to fragment test suites
+    ignoreGlobs: ['supabase/docker/volumes/**'], // Universal glob ignore patterns for static tools and file scanning
+    ignoredDirs: ['deploy'] // Directories entirely excluded from auditor analysis and traversal
   },
 
   persistence: {
-    engine: 'supabase', // Motor de base de datos en uso ('supabase', 'sqlite', 'postgres', 'hybrid', 'none')
-    schemaQualified: true, // Exige que toda consulta SQL cualifique explícitamente el esquema (ej. 'public.tabla')
-    prohibitedTemplateIdentifiers: ['supabase'], // Prohíbe acceder a instancias de base de datos directamente desde plantillas .vue para evitar fuga de persistencia a la vista
-    allowedHosts: ['supabase.co', 'localhost', '127.0.0.1'], // Dominios y endpoints de red explícitamente autorizados para conexiones del cliente
-    authorizedSaveFiles: [], // Módulos específicos autorizados a realizar persistencia directa en almacenamiento local
-    saveKeyPrefixes: ['facturacion_local_save_'], // Prefijo obligatorio en claves de almacenamiento local para garantizar aislamiento y trazabilidad
-    forbiddenMockModules: ['@/logic/db/*'] // Módulos de datos o persistencia cuyo mocking está prohibido en pruebas de integración para preservar fidelidad
+    engine: 'supabase', // Active database engine ('supabase', 'sqlite', 'postgres', 'hybrid', 'none')
+    schemaQualified: true, // Requires all SQL queries to explicitly qualify the schema (e.g. 'public.table')
+    prohibitedTemplateIdentifiers: ['supabase'], // Prohibits accessing database instances directly from .vue templates
+    allowedHosts: ['supabase.co', 'localhost', '127.0.0.1'], // Explicitly authorized domains and network endpoints for client connections
+    authorizedSaveFiles: [], // Specific modules authorized to perform direct persistence in local storage
+    saveKeyPrefixes: ['facturacion_local_save_'], // Mandatory prefix on local storage keys to ensure isolation and traceability
+    forbiddenMockModules: ['@/logic/db/*'] // Data or persistence modules whose mocking is prohibited in integration tests to preserve fidelity
   },
 
   e2e: {
-    idLocatorsOnly: false // Si es true, exige usar exclusivamente selectores por ID (#id) o data-testid en tests E2E para evitar selectores frágiles por texto o clases
+    idLocatorsOnly: false // If true, requires using exclusively ID (#id) or data-testid selectors in E2E tests
   },
 
   styles: {
-    zLayersEnabled: true, // Activa la verificación estricta de la escala canónica de z-index
-    baseScssFile: 'src/styles/_base.scss', // Archivo SCSS base donde se importan y declaran las variables principales del sistema de diseño
-    zLayersScssFile: 'src/styles/_base.scss', // Archivo SCSS canónico donde se definen las variables $z-* para estilos
-    zLayersTsFile: 'src/logic/constants/visuals.ts', // Archivo TypeScript canónico donde se exporta el objeto o enum Z_LAYERS para la lógica
+    zLayersEnabled: true, // Enables strict verification of the canonical z-index scale
+    baseScssFile: 'src/styles/_base.scss', // Base SCSS file where main design system variables are imported and declared
+    zLayersScssFile: 'src/styles/_base.scss', // Canonical SCSS file defining $z-* variables for styles
+    zLayersTsFile: 'src/logic/constants/visuals.ts', // Canonical TypeScript file exporting the Z_LAYERS object or enum for logic
     zLayers: {
-      BASE: 0, // Capa de fondo y base visual
-      LOW: 50, // Elementos decorativos sutiles detrás del contenido
-      CONTENT: 100, // Contenido principal y flujo estándar del documento
-      HEADER: 500, // Encabezados fijos de sección y barras superiores
-      SIDEBAR: 800, // Barras laterales colapsables y menús de navegación lateral
-      HUD: 1000, // Elementos flotantes de interfaz de usuario fija
-      NAVIGATION: 5000, // Barra de navegación principal y controles de acceso rápido
-      DROPDOWN: 7000, // Menús desplegables y autocompletados sobre la navegación
-      OVERLAY: 10000, // Fondos oscurecidos y telones para modales
-      MODAL: 11000, // Ventanas modales y cuadros de diálogo interactivos
-      MODAL_STEP: 10, // Incremento de capa para modales anidados
-      TOOLTIP: 15000, // Globos de información y ayudas contextuales sobre modales
-      TOAST: 20000, // Notificaciones flotantes de alta visibilidad
-      MAX: 100000, // Límite máximo general para capas normales
-      CRITICAL: 999999 // Capa crítica reservada para alertas de error del sistema y bloqueos fatales
+      BASE: 0, // Background and visual base layer
+      LOW: 50, // Subtle decorative elements behind content
+      CONTENT: 100, // Main content and standard document flow
+      HEADER: 500, // Sticky section headers and top bars
+      SIDEBAR: 800, // Collapsible sidebars and lateral navigation menus
+      HUD: 1000, // Floating fixed UI elements
+      NAVIGATION: 5000, // Main navigation bar and quick access controls
+      DROPDOWN: 7000, // Dropdown menus and autocomplete popovers over navigation
+      OVERLAY: 10000, // Darkened backdrops and scrims for modals
+      MODAL: 11000, // Modal windows and interactive dialog boxes
+      MODAL_STEP: 10, // Layer increment for nested modals
+      TOOLTIP: 15000, // Information tooltips and contextual popovers above modals
+      TOAST: 20000, // High-visibility floating notifications
+      MAX: 100000, // General maximum limit for standard layers
+      CRITICAL: 999999 // Critical layer reserved for system fatal errors and crash screens
     },
-    lineHeightOverlapCheck: true, // Verifica que las alturas de línea de texto prevengan solapamientos tipográficos
-    globalUtilityClasses: [], // Clases utilitarias de CSS declaradas como excepciones válidas al modelo de estilos modulares
+    lineHeightOverlapCheck: true, // Verifies that text line-heights prevent typographic overlap
+    globalUtilityClasses: [], // Global CSS utility classes declared as valid exceptions to modular styling
     buttonGovernance: {
-      enabled: true, // Activa la gobernanza estricta de botones para unificar variantes en toda la aplicación
-      buttonsScssFile: 'src/styles/_buttons.scss', // Archivo SCSS fuente donde se declaran las clases canónicas de botones
-      canonicalVariants: ['btn-primary', 'btn-secondary', 'btn-dark', 'btn-success', 'btn-danger'] // Lista blanca de variantes canónicas de botones permitidas en vistas y componentes
+      enabled: true, // Enables strict button governance to unify variants across the entire application
+      buttonsScssFile: 'src/styles/_buttons.scss', // Source SCSS file declaring canonical button classes
+      canonicalVariants: ['btn-primary', 'btn-secondary', 'btn-dark', 'btn-success', 'btn-danger'] // Allowed canonical button variants
     }
   },
 
   bundle: {
-    enabled: true, // Activa el análisis de presupuestos de bundle y pesos de chunks compilados de producción
-    distDir: 'dist/assets', // Directorio de salida generado por el bundler (Vite/Rollup) donde se inspeccionan los artefactos compilados
-    maxClientChunkWarnBytes: 1200 * 1024, // Umbral de tamaño de chunk en bytes que emite una advertencia de rendimiento (1.2 MB)
-    maxClientChunkErrorBytes: 2000 * 1024, // Umbral de tamaño de chunk en bytes que emite un error bloqueante en CI (2.0 MB)
-    exemptChunkPrefixes: [], // Prefijos de nombres de chunks exentos de los presupuestos principales (ej. workers en segundo plano)
+    enabled: true, // Enables bundle budget analysis and compiled production chunk size checks
+    distDir: 'dist/assets', // Bundler output directory (Vite/Rollup) where compiled production assets are inspected
+    maxClientChunkWarnBytes: 1200 * 1024, // Chunk size threshold in bytes triggering a performance warning (1.2 MB)
+    maxClientChunkErrorBytes: 2000 * 1024, // Chunk size threshold in bytes triggering a blocking CI error (2.0 MB)
+    exemptChunkPrefixes: [], // Chunk name prefixes exempt from main bundle budgets (e.g. background workers)
     budgets: [
-      { pattern: 'index', maxBytes: 1200 * 1024, warnBytes: 800 * 1024 }, // Presupuesto para el chunk principal de entrada de la aplicación
-      { pattern: 'vendor', maxBytes: 2000 * 1024, warnBytes: 1500 * 1024 } // Presupuesto para el chunk de dependencias externas compartidas
+      { pattern: 'index', maxBytes: 1200 * 1024, warnBytes: 800 * 1024 }, // Main entry chunk budget
+      { pattern: 'vendor', maxBytes: 2000 * 1024, warnBytes: 1500 * 1024 } // Shared vendor dependencies chunk budget
     ],
     forbiddenUiImports: [
-      { module: 'xlsx', reason: 'Parser pesado de hojas de cálculo debe cargarse bajo demanda o en worker.' } // Parser pesado que nunca debe importarse de forma síncrona en componentes UI
+      { module: 'xlsx', reason: 'Heavy spreadsheet parser must be loaded dynamically on demand or in a worker.' }
     ]
   },
 
   templates: {
-    requireInputIds: false, // Opcional: exige atributo id en elementos interactivos de templates para tests E2E
-    tooltipComponents: ['Tooltip', 'PVTooltip'], // Componentes de tooltip registrados para el framework
-    safeTemplateFunctions: ['formatMoney', 'formatDate', 'translate'] // Funciones permitidas dentro de expresiones {{ ... }} en plantillas Vue
+    requireInputIds: false, // Optional: enforces id attribute on interactive template elements for E2E tests
+    tooltipComponents: ['Tooltip', 'PVTooltip'], // Registered tooltip components for the framework
+    safeTemplateFunctions: ['formatMoney', 'formatDate', 'translate'] // Safe functions permitted inside {{ ... }} expressions
   },
 
   animation: {
-    customTimerFunctions: ['requestDelayedFrame'] // Funciones de tiempo personalizadas permitidas en UI además de gsapSleep/delayedCall
+    customTimerFunctions: ['requestDelayedFrame'] // Custom timing functions permitted in UI alongside gsapSleep/delayedCall
   },
 
   constants: {
-    ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constantes ignoradas en el detector de duplicados
-    allowedNumericPrefixes: ['BASE_', 'TAX_'], // Prefijos permitidos para constantes numéricas
-    exemptMagicNumbers: [21, 10.5, 27] // Números mágicos de tasas fiscales exentos de alerta
+    ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constants ignored by duplicate detector
+    allowedNumericPrefixes: ['BASE_', 'TAX_'], // Permitted prefixes for numeric constants
+    exemptMagicNumbers: [21, 10.5, 27] // Fiscal tax rate numbers exempt from magic number alerts
   },
 
   documentation: {
-    knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'] // Rutas abstractas reconocidas como válidas en Markdown
+    knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'] // Abstract paths recognized as valid in Markdown code references
   },
 
   pinia: {
-    authorizedMutationFiles: ['src/logic/coordinators/billingSessionCoordinator.ts'] // Archivos autorizados para mutar stores fuera de acciones
+    authorizedMutationFiles: ['src/logic/coordinators/billingSessionCoordinator.ts'] // Files authorized to mutate stores outside actions
   },
 
   agentPlugin: {
-    enabled: true // Integración del plugin de agentes de IA y skill oficial
+    enabled: true // Integration of AI agent plugin and official skill
   },
 
   fallow: {
-    enabled: true, // Fallow está 100% activo (código muerto, complejidad, duplicados, unused exports)
+    enabled: true, // Fallow is 100% active (dead code, complexity, duplication, unused exports)
     security: {
-      enabled: true // Análisis estático de vulnerabilidades Fallow CWE (sinks de seguridad, SSRF, inyecciones de comandos)
+      enabled: true // Static vulnerability analysis via Fallow CWE (security sinks, SSRF, command injection)
     },
-    enforceTargets: false, // NO desactiva Fallow. Solo decide si las sugerencias de refactorización estructural (targets) bloquean en CI o son consultivas
-    maxTargetPriority: 'critical', // Umbral de prioridad si enforceTargets es true ('critical' >= 30, 'high' >= 20, 'all')
+    enforceTargets: false, // Does NOT disable Fallow; decides whether structural refactoring targets block CI or act as advisory
+    maxTargetPriority: 'critical', // Priority threshold when enforceTargets is true ('critical' >= 30, 'high' >= 20, 'all')
     similarCode: {
-      enabled: true, // Búsqueda de duplicación semántica mediante embeddings vectoriales de IA
-      threshold: 0.95, // Sensibilidad quirúrgica (evita falsos positivos entre funciones similares)
-      ignoreSameFile: true // Ignora pares del mismo archivo (ej. safeWriteFile vs safeWriteFileSync) para alertar solo duplicados entre archivos distintos
+      enabled: true, // Semantic duplicate discovery using AI vector embeddings
+      threshold: 0.95, // Surgical sensitivity (prevents false positives between similar functions)
+      ignoreSameFile: true // Ignores pairs from the same file to alert only cross-file duplicates
     }
   },
 
   domain: {
-    timezoneVariable: 'APP_TIMEZONE', // Constante o variable canónica que almacena la zona horaria del sistema
-    timezoneHelperModule: '@/logic/utils/timeUtils', // Módulo centralizado autorizado para manipulaciones de fechas y conversiones de zona horaria
-    loggerModule: 'src/logic/utils/logger.ts', // Módulo canónico de logging estructurado que reemplaza llamadas directas a console.log/error
-    zLayersFile: 'src/logic/constants/visuals.ts', // Ruta al archivo TypeScript canónico de capas z-index para verificación de paridad de dominio
-    caseNormalizationExemptTokens: ['cevt', 'cuit', 'dni', 'iva', 'afip', 'kw', 'kwh', 'v', 'a'], // Siglas, acrónimos técnicos y unidades de medida exentos de advertencias de casing
-    allowedStoreSetterPrefixes: ['set', 'update', 'assign'], // Prefijos semánticos autorizados para métodos mutadores en stores de Pinia
+    timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
+    timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
+    loggerModule: 'src/logic/utils/logger.ts', // Canonical structured logging module replacing direct console.log/error calls
+    zLayersFile: 'src/logic/constants/visuals.ts', // Path to canonical TypeScript z-index layers file for domain parity verification
+    caseNormalizationExemptTokens: ['cevt', 'cuit', 'dni', 'iva', 'afip', 'kw', 'kwh', 'v', 'a'], // Acronyms and units exempt from casing warnings
+    allowedStoreSetterPrefixes: ['set', 'update', 'assign'], // Authorized semantic prefixes for Pinia store mutator methods
     allowedNumericConstantPrefixes: [
       'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'
-    ], // Prefijos autorizados en identificadores de constantes numéricas para reflejar su dominio técnico
+    ], // Authorized prefixes in numeric constant identifiers
     finiteDomainTypes: [
       'TariffId',
       'VoltageCategory',
@@ -159,13 +159,13 @@ export default defineAuditConfig({
       'BillingStatus',
       'ConsumptionStepId',
       'RoundingModeType'
-    ], // Tipos de dominio cerrado que deben definirse como uniones de literales y no strings abiertos
-    infraIdWhitelist: ['projectId', 'scriptId', 'userId', 'logId', 'fileId'], // Identificadores técnicos de infraestructura permitidos con tipo string primitivo
-    fallbackIdPatterns: ['tariffId', 'formulaId', 'stepId', 'serverId', 'rateId', 'categoryId'] // Patrones de identificadores de negocio que deben tiparse obligatoriamente con tipos de dominio
+    ], // Finite domain types that must be defined as literal unions rather than loose strings
+    infraIdWhitelist: ['projectId', 'scriptId', 'userId', 'logId', 'fileId'], // Infrastructure identifiers permitted with primitive string type
+    fallbackIdPatterns: ['tariffId', 'formulaId', 'stepId', 'serverId', 'rateId', 'categoryId'] // Business identifier patterns that must be typed with domain types
   },
 
   extensions: [
-    './scripts/auditors/domain_data/validate_script_hardcoding.ts', // Sub-auditor local que prohíbe scripts de cálculo fiscal hardcodeados en el código fuente
-    './scripts/auditors/architecture/validate_emoji_typography.ts' // Sub-auditor local que valida la coherencia tipográfica y el uso adecuado de emojis en la interfaz
+    './scripts/auditors/domain_data/validate_script_hardcoding.ts', // Local sub-auditor prohibiting hardcoded fiscal calculation scripts
+    './scripts/auditors/architecture/validate_emoji_typography.ts' // Local sub-auditor validating typographic consistency and proper emoji / icon usage
   ]
 });

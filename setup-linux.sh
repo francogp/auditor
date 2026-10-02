@@ -155,10 +155,16 @@ for bin_name in node npm npx corepack css-checker; do
     fi
 done
 
-# 5. Actualizar npm a la última versión global (por defecto en auto-actualización; preservada en --declared-versions)
+# 5. Actualizar npm a la versión adecuada (en auto-actualización instala npm@latest y sincroniza package.json; en --declared-versions sincroniza estrictamente con el commit)
 if [ "$UPDATE_TO_LATEST" = true ]; then
     echo -e "\n📦 Actualizando npm a la última versión global en este Node (npm@latest)..."
     npm install -g npm@latest || echo "⚠️ Advertencia: No se pudo actualizar npm globalmente. Continuando con versión actual..."
+
+    NEW_NPM_VER=$(npm -v 2>/dev/null || true)
+    if [ -n "$NEW_NPM_VER" ] && grep -q '"npm":' "$PKG_PATH"; then
+        sed -i -E "s/(\"npm\": *\">=)[^\"]*(\")/\1$NEW_NPM_VER\2/" "$PKG_PATH"
+        echo "✅ Versión de npm sincronizada a >=$NEW_NPM_VER en package.json"
+    fi
 
     for bin_name in npm npx; do
         if [ -e "$NODE_BIN_DIR/$bin_name" ]; then
@@ -166,7 +172,19 @@ if [ "$UPDATE_TO_LATEST" = true ]; then
         fi
     done
 else
-    echo -e "\n🔒 Preservando versión activa de npm ($($NODE_BIN_DIR/npm -v 2>/dev/null || npm -v))."
+    TARGET_NPM_VER=$(grep -o '"npm": *"[^"]*"' "$PKG_PATH" | grep -o '[0-9.]*' | head -n 1)
+    CURRENT_NPM_VER=$($NODE_BIN_DIR/npm -v 2>/dev/null || npm -v)
+    if [ -n "$TARGET_NPM_VER" ] && [ "$CURRENT_NPM_VER" != "$TARGET_NPM_VER" ]; then
+        echo -e "\n📦 Sincronizando npm a la versión declarada en el commit (npm@$TARGET_NPM_VER)..."
+        npm install -g "npm@$TARGET_NPM_VER" || echo "⚠️ Advertencia: No se pudo instalar npm@$TARGET_NPM_VER."
+        for bin_name in npm npx; do
+            if [ -e "$NODE_BIN_DIR/$bin_name" ]; then
+                ln -sf "$NODE_BIN_DIR/$bin_name" "$LOCAL_BIN/$bin_name"
+            fi
+        done
+    else
+        echo -e "\n🔒 Preservando versión activa de npm ($CURRENT_NPM_VER)."
+    fi
 fi
 
 # 6. Configuración de Seguridad de NPM aislada al proyecto (sin afectar el entorno global)

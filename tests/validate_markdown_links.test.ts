@@ -37,6 +37,7 @@ describe('MarkdownLinkAuditor', () => {
       expect(MARKDOWN_LINK_RULES).toContain('markdown-absolute-path');
       expect(MARKDOWN_LINK_RULES).toContain('markdown-stale-environment-path');
       expect(MARKDOWN_LINK_RULES).toContain('markdown-gitignored-target');
+      expect(MARKDOWN_LINK_RULES).toContain('markdown-broken-workspace-package');
     });
 
     it('initializes with correct id and family', () => {
@@ -101,6 +102,32 @@ describe('MarkdownLinkAuditor', () => {
       const gitignored = brokenLinks.find(b => b.ruleId === 'markdown-gitignored-target');
       expect(gitignored).toBeDefined();
       expect(gitignored?.error).toContain('ignored by git (.gitignore)');
+    });
+
+    it('detects nonexistent workspace packages in text and inline code (markdown-broken-workspace-package)', () => {
+      const markdown = `
+        # Architecture
+        Core auditor resides in the standalone package @fgp/auditor (packages/auditor/).
+        Also check \`packages/nonexistent_subpkg\`.
+      `;
+      const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
+      const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
+
+      const pkgViolations = brokenLinks.filter(b => b.ruleId === 'markdown-broken-workspace-package');
+      expect(pkgViolations.length).toBeGreaterThanOrEqual(1);
+      expect(pkgViolations.some(b => b.error.includes('workspace package inexistente'))).toBe(true);
+    });
+
+    it('allows workspace package mentions in migration context', () => {
+      const markdown = `
+        ## Guía de Migración
+        Elimina packages/auditor de los workspaces locales.
+      `;
+      const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
+      const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
+
+      const pkgViolations = brokenLinks.filter(b => b.ruleId === 'markdown-broken-workspace-package');
+      expect(pkgViolations).toHaveLength(0);
     });
 
     it('ignores valid external links, in-page anchors, and fenced code blocks', () => {
