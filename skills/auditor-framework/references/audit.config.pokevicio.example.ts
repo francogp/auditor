@@ -38,7 +38,7 @@ export default defineAuditConfig({
     includeTestsInCodeAudit: false, // Determina si los archivos de prueba se auditan con las reglas de código productivo (false previene falsos positivos)
     testFragmentationWhitelist: ['src/logic/battle/battleEngine.ts'], // Módulos de alta complejidad autorizados formalmente a fragmentar sus suites de prueba
     ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**', '.tsbuildinfo/**'], // Patrones glob de exclusión universal para herramientas estáticas y escaneo
-    ignoredDirs: ['external', 'showdown', 'backup_legacy_code', 'test aventura'], // Carpetas excluidas en su totalidad del análisis y recorrido del auditor
+    ignoredDirs: ['external', 'showdown', 'backup_legacy_code', 'test aventura', 'auditor_fault_suite'], // Carpetas excluidas en su totalidad del análisis y recorrido del auditor (incluye auditor_fault_suite para aislar la suite de fallos hermética)
     ignoredPatterns: ['src/logic/db/migrations_data.ts'] // Patrones de rutas específicas exentas de escaneos particulares
   },
 
@@ -66,6 +66,9 @@ export default defineAuditConfig({
     baseScssFile: 'src/styles/core/_base.scss', // Archivo SCSS base donde se importan y declaran las variables principales del sistema de diseño
     zLayersScssFile: 'src/styles/core/_base.scss', // Archivo SCSS canónico donde se definen las variables $z-* para estilos
     zLayersTsFile: 'src/logic/constants/visuals.ts', // Archivo TypeScript canónico donde se exporta el enum/objeto Z_LAYERS para la lógica
+    // Nota: El objeto `zLayers` es opcional si `zLayersTsFile` exporta Z_LAYERS; el framework auditor
+    // lo resuelve dinámicamente mediante `getEffectiveZLayers()`. Declararlo explícitamente aquí
+    // actúa como Single Source of Truth estricto con precedencia absoluta sobre el archivo TypeScript.
     zLayers: {
       BASE: 0, // Capa de fondo y base visual
       LOW: 50, // Elementos decorativos sutiles detrás del contenido
@@ -273,8 +276,6 @@ export default defineAuditConfig({
   ],
 
   extensions: [
-    './scripts/auditors/architecture/validate_render_performance.ts', // Sub-auditor que previene llamadas a funciones costosas en el loop de render de Vue templates
-    './scripts/auditors/architecture/validate_overscroll_lock.ts', // Valida el bloqueo de sobre-desplazamiento en modales y vistas de batalla
     './scripts/auditors/architecture/validate_battle_ui_branching.ts', // Valida la simplificación de bifurcaciones complejas en la UI de combate
     './scripts/auditors/architecture/validate_client_sim_decoupling.ts', // Garantiza el desacoplamiento estricto entre el motor de simulación y la UI del cliente
     './scripts/auditors/assets/audit_item_sprite_collisions.ts', // Detecta colisiones de nombres o índices en los sprites de ítems

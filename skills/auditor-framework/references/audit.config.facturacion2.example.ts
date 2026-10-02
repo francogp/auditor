@@ -36,7 +36,7 @@ export default defineAuditConfig({
     includeTestsInCodeAudit: false, // Determina si los archivos de prueba se auditan con las reglas de código de producción (false evita falsos positivos)
     testFragmentationWhitelist: ['src/logic/calculators/heavyBillingEngine.ts'], // Módulos con alta complejidad autorizados formalmente a fragmentar sus suites de prueba
     ignoreGlobs: ['supabase/docker/volumes/**'], // Patrones glob de exclusión universal para herramientas estáticas y escaneo de archivos
-    ignoredDirs: ['deploy'] // Directorios excluidos en su totalidad del análisis y recorrido del auditor
+    ignoredDirs: ['deploy', 'auditor_fault_suite'] // Directorios excluidos en su totalidad del análisis y recorrido del auditor (incluye auditor_fault_suite para aislar la suite de fallos hermética)
   },
 
   persistence: {
