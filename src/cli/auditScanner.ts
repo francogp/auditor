@@ -88,8 +88,14 @@ const DEFAULT_PERMISSIONS = [
   '--allow-addons'
 ] as const;
 
-function getPermissionsForTask(filename: string): string[] {
+function getPermissionsForTask(filename: string, fullPath?: string): string[] {
   const perms: string[] = [...DEFAULT_PERMISSIONS]; // no-domain: Non-domain utility collection or data structure
+  if (fullPath && fullPath.endsWith('.js')) {
+    const stripIdx = perms.indexOf('--experimental-strip-types');
+    if (stripIdx !== -1) {
+      perms.splice(stripIdx, 1);
+    }
+  }
   if (filename.includes('audit_project') || filename.includes('convert_assets')) {
     perms.push('--allow-worker');
   }
@@ -98,10 +104,10 @@ function getPermissionsForTask(filename: string): string[] {
 
 /** Convert snake_case or kebab-case filename to Title Case */
 function formatTaskTitle(filename: string): string {
-  if (filename === 'audit_project' || filename === 'audit_project.ts') {
+  if (filename === 'audit_project' || filename === 'audit_project.ts' || filename === 'audit_project.js') {
     return 'Project Architecture & Style Rules';
   }
-  const base = filename.replace(/\.ts$/, '').replace(/^(validate_|audit_)/, '');
+  const base = filename.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '');
   return base
     .split(/[_-]/)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
@@ -126,7 +132,7 @@ function createAuditTaskDefinition(
   if (options.fastOnly && !isFast) return null;
 
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-  const taskPermissions = getPermissionsForTask(filename);
+  const taskPermissions = getPermissionsForTask(filename, fullPath);
   const taskArgs = [...taskPermissions, relScriptPath, '--json'];
 
   if (isBuiltin && id === 'audit_project') {
@@ -181,8 +187,10 @@ function inferFamilyFromRelPath(relPath: string, activeFamilies: readonly AuditF
 }
 
 function isIgnoredFileEntry(entry: string): boolean {
-  if (entry.startsWith('_') || !entry.endsWith('.ts')) return true;
-  return entry.includes('.spec.') || entry.includes('.test.') || entry.startsWith('report_') || entry === 'audit_rules.ts';
+  if (entry.startsWith('_')) return true;
+  if (!entry.endsWith('.ts') && !entry.endsWith('.js')) return true;
+  if (entry.endsWith('.d.ts') || entry.endsWith('.d.ts.map') || entry.endsWith('.js.map')) return true;
+  return entry.includes('.spec.') || entry.includes('.test.') || entry.startsWith('report_') || entry === 'audit_rules.ts' || entry === 'audit_rules.js';
 }
 
 interface DirectoryScanParams {
@@ -215,7 +223,7 @@ async function scanSuiteDirectory(params: DirectoryScanParams): Promise<void> {
     } else if (stat.isFile() && !isIgnoredFileEntry(entry)) {
       const relPath = path.relative(params.rootDir, fullPath).replace(/\\/g, '/');
       const family = inferFamilyFromRelPath(relPath, params.activeFamilies);
-      const filename = path.basename(entry, '.ts');
+      const filename = path.basename(entry, path.extname(entry));
       const task = createAuditTaskDefinition(
         fullPath,
         filename,
@@ -250,7 +258,7 @@ function detectExtensionFamily(extPath: string, activeFamilies: readonly AuditFa
 }
 
 function scanSingleExtensionFile(fullPath: string, extPath: string, params: ExtensionScanParams): void {
-  const filename = path.basename(extPath, '.ts');
+  const filename = path.basename(extPath, path.extname(extPath));
   const family = detectExtensionFamily(extPath, params.activeFamilies);
 
   const task = createAuditTaskDefinition(
@@ -280,7 +288,7 @@ async function scanConfigExtensionEntry(extPath: string, params: ExtensionScanPa
       targetSuiteIds: params.targetSuiteIds,
       discovered: params.discovered
     });
-  } else if (stat.isFile() && extPath.endsWith('.ts')) {
+  } else if (stat.isFile() && (extPath.endsWith('.ts') || extPath.endsWith('.js'))) {
     scanSingleExtensionFile(fullPath, extPath, params);
   }
 }

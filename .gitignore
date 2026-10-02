@@ -2,7 +2,6 @@
 node_modules/
 
 # Build and Cache
-dist/
 .vite/
 .vitest-cache/
 coverage/

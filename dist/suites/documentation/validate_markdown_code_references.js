@@ -1,0 +1,487 @@
+/**
+ * scripts/auditors/documentation/validate_markdown_code_references.ts
+ *
+ * MARKDOWN CODE & SCRIPT REFERENCES AUDITOR (Node.js 26+ Native)
+ *
+ * Validates that all inline source code paths, npm run commands, skill references,
+ * and runtime versions referenced across documentation and skills are completely accurate:
+ *   1. Broken Source Path References (`markdown-broken-source-ref`): Detects
+ *      mentions of `src/...`, `scripts/...`, `supabase/...`, or `tests/...` that
+ *      do not resolve to an existent file or directory on disk.
+ *   2. Unregistered NPM Scripts (`markdown-unregistered-npm-script`): Detects
+ *      mentions of `npm run <cmd>` where `<cmd>` is not registered in `package.json.scripts`.
+ *   3. Hardcoded Runtime Versions (`markdown-hardcoded-runtime-version`): Detects
+ *      hardcoded runtime version assertions (e.g. `Node >= 26.x`, `npm >= 12.x`)
+ *      instead of referencing `package.json` (`engines`) and `.nvmrc`.
+ *   4. Broken Skill References (`markdown-broken-skill-ref`): Detects mentions
+ *      of `@/<skill-name>` where `<skill-name>` is not a valid skill in `.agents/skills/`.
+ *   5. Case Mismatches (`markdown-case-mismatch`): Detects file path or filename
+ *      mentions that differ in casing from disk (Linux ext4 case sensitivity violation).
+ *
+ * Usage:
+ *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/documentation/validate_markdown_code_references.ts
+ *   npm run validate:markdown-code-references
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { enableCompileCache } from 'node:module';
+import { BaseAuditor } from "../../core/auditorBase.js";
+import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
+import { getAuditConfig } from "../../core/auditConfig.js";
+enableCompileCache();
+export const MARKDOWN_CODE_REFERENCE_RULES = [
+    'markdown-broken-source-ref',
+    'markdown-unregistered-npm-script',
+    'markdown-hardcoded-runtime-version',
+    'markdown-broken-skill-ref',
+    'markdown-case-mismatch'
+];
+export const DEFAULT_SCAN_DIRECTORIES = [
+    '.agents/skills',
+    'AGENTS.md',
+    'README.md',
+    'docs',
+    'src',
+    'tests',
+    'scripts'
+];
+export function resolveMarkdownScanDirectories(projectRoot, explicitRoots) {
+    if (explicitRoots && explicitRoots.length > 0)
+        return explicitRoots;
+    const config = getAuditConfig(projectRoot);
+    const dirs = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
+    if (config.paths?.srcRoots)
+        dirs.push(...config.paths.srcRoots);
+    else
+        dirs.push('src');
+    if (config.paths?.testRoots)
+        dirs.push(...config.paths.testRoots);
+    else
+        dirs.push('tests');
+    if (config.paths?.scriptsRoots)
+        dirs.push(...config.paths.scriptsRoots);
+    else
+        dirs.push('scripts');
+    if (config.persistence?.engine !== 'none') {
+        if (config.paths?.migrationsDir) {
+            dirs.push(config.paths.migrationsDir);
+        }
+        else if (config.persistence?.engine === 'supabase') {
+            dirs.push('supabase');
+        }
+    }
+    return dirs;
+}
+export const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS = [
+    'scripts/tests',
+    'scripts/.cache/',
+    'scripts/setup/plugins/',
+    'scripts/setup/plugins/01_deploy_env.sh',
+    'scripts/setup/plugins/01_deploy_env.ps1',
+    'scripts/auditors/'
+];
+export function getKnownValidAbstractPaths(projectRoot) {
+    const config = getAuditConfig(projectRoot);
+    const paths = new Set(DEFAULT_KNOWN_VALID_ABSTRACT_PATHS);
+    if (config.paths?.migrationsDir) {
+        paths.add(config.paths.migrationsDir);
+    }
+    if (config.persistence?.supabaseDir) {
+        paths.add(`${config.persistence.supabaseDir}/migrations`);
+        paths.add(`${config.persistence.supabaseDir}/studio`);
+    }
+    if (config.documentation?.knownValidAbstractPaths) {
+        for (const p of config.documentation.knownValidAbstractPaths) {
+            paths.add(p);
+        }
+    }
+    return paths;
+}
+export const KNOWN_VALID_ABSTRACT_PATHS = new Set(DEFAULT_KNOWN_VALID_ABSTRACT_PATHS);
+/** English nouns or syntax descriptors following "npm run" in documentation prose to skip */
+const IGNORED_SCRIPT_WORDS = new Set([
+    'commands',
+    'command',
+    'scripts',
+    'script',
+    'options',
+    'flags',
+    'parameters',
+    'arguments'
+]);
+const KNOWN_PATH_ALIASES = new Set([
+    'components', 'logic', 'stores', 'types', 'assets', 'data', 'views',
+    'router', 'plugins', 'layouts', 'utils', 'services', 'styles', 'lib',
+    'tests', 'api', 'composables', 'injection-keys', 'models', 'shared'
+]);
+const STANDARD_FILES_TO_SKIP = new Set([
+    'package.json', 'tsconfig.json', 'vite.config.ts', 'vitest.config.ts',
+    'index.ts', 'README.md', 'AGENTS.md', 'setup-linux.sh', 'setup-windows.ps1',
+    'Dockerfile', 'docker-compose.yml', '.gitignore', '.eslintrc.cjs'
+]);
+const BUILTIN_SKILLS = new Set([
+    'a11y-debugging', 'agy-customizations', 'antigravity-guide', 'chrome-devtools',
+    'chrome-extensions', 'debug-optimize-lcp', 'generative_ui', 'memory-leak-debugging',
+    'migrate-workflows', 'modern-web-guidance', 'troubleshooting'
+]);
+export function stripCodeBlocks(markdown) {
+    return markdown.replace(/```[\s\S]*?```/g, match => {
+        return '\n'.repeat((match.match(/\n/g) || []).length);
+    });
+}
+const CANDIDATE_EXTENSIONS = ['.ts', '.vue', '.d.ts', '.json', '.sql', '.scss', '.css', '.md'];
+function findCaseInsensitiveEntry(entries, seg, isLast) {
+    const directMatch = entries.find(e => e.toLowerCase() === seg.toLowerCase());
+    if (directMatch)
+        return directMatch;
+    if (!isLast)
+        return undefined;
+    for (const ext of CANDIDATE_EXTENSIONS) {
+        const extMatch = entries.find(e => e.toLowerCase() === (seg + ext).toLowerCase());
+        if (extMatch)
+            return extMatch;
+    }
+    return undefined;
+}
+function hasExactMatchWithExtension(entries, seg) {
+    return CANDIDATE_EXTENSIONS.some(ext => entries.includes(seg + ext));
+}
+function resolveSegmentCasing(entries, seg, isLast) {
+    if (entries.includes(seg)) {
+        return { exists: true, exactMatch: true };
+    }
+    const foundEntry = findCaseInsensitiveEntry(entries, seg, isLast);
+    if (foundEntry) {
+        return { exists: true, exactMatch: false, actualCasing: foundEntry };
+    }
+    if (isLast && hasExactMatchWithExtension(entries, seg)) {
+        return { exists: true, exactMatch: true };
+    }
+    return { exists: false, exactMatch: false };
+}
+export function checkExactCase(startDir, relativePath) {
+    const segments = relativePath.split(/[/\\]+/).filter(Boolean);
+    let current = startDir;
+    for (let idx = 0; idx < segments.length; idx++) {
+        const seg = segments[idx];
+        if (!fs.existsSync(current))
+            return { exists: false, exactMatch: false };
+        const entries = fs.readdirSync(current);
+        const isLast = idx === segments.length - 1;
+        const result = resolveSegmentCasing(entries, seg, isLast);
+        if (!result.exists || !result.exactMatch) {
+            return result;
+        }
+        current = path.join(current, seg);
+    }
+    return { exists: true, exactMatch: true };
+}
+function loadRegisteredScripts(rootDir) {
+    const pkgPath = path.resolve(rootDir, 'package.json');
+    try {
+        const pkgContent = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        return new Set(Object.keys(pkgContent.scripts || {}));
+    }
+    catch {
+        // catch-ok: missing or invalid package.json
+        return new Set();
+    }
+}
+function discoverRegisteredSkills(rootDir) {
+    const allSkills = new Set();
+    const skillsDir = path.join(rootDir, '.agents/skills');
+    if (fs.existsSync(skillsDir)) {
+        for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+            if (entry.isDirectory())
+                allSkills.add(entry.name);
+        }
+    }
+    return allSkills;
+}
+function checkNpmRunCommands(line, lineNum, relPath, registeredScripts, auditor) {
+    let checked = 0;
+    const npmRegex = /npm run ([a-zA-Z0-9_:-]+)/g;
+    let npmMatch;
+    while ((npmMatch = npmRegex.exec(line)) !== null) {
+        const scriptName = npmMatch[1].trim();
+        checked++;
+        if (scriptName.endsWith(':'))
+            continue;
+        if (IGNORED_SCRIPT_WORDS.has(scriptName.toLowerCase()))
+            continue;
+        if (!registeredScripts.has(scriptName)) {
+            auditor.addViolation({
+                ruleId: 'markdown-unregistered-npm-script',
+                severity: 'error',
+                file: relPath,
+                line: lineNum,
+                message: `Comando "npm run ${scriptName}" no está registrado en package.json.scripts`,
+                context: `npm run ${scriptName}`
+            });
+        }
+    }
+    return checked;
+}
+function checkHardcodedRuntimeVersions(line, lineNum, relPath, auditor) {
+    const versionRegex = /(?:Node(?:\.js)?\s*(?:>=|>|v)?\s*26\.[0-9]+|npm\s*(?:>=|>|v)?\s*12\.[0-9]+)/i;
+    const versionMatch = versionRegex.exec(line);
+    if (!versionMatch)
+        return 0;
+    auditor.addViolation({
+        ruleId: 'markdown-hardcoded-runtime-version',
+        severity: 'error',
+        file: relPath,
+        line: lineNum,
+        message: `Versión runtime hardcodeada detectada: "${versionMatch[0]}". Debe referenciar package.json (engines) y .nvmrc`,
+        context: versionMatch[0]
+    });
+    return 1;
+}
+function checkSkillReferences(line, lineNum, relPath, allSkills, auditor) {
+    let checked = 0;
+    const skillRefRegex = /@\/([a-zA-Z0-9_-]+)/g;
+    let skillMatch;
+    while ((skillMatch = skillRefRegex.exec(line)) !== null) {
+        const candidate = skillMatch[1];
+        const fullRef = skillMatch[0];
+        const nextChar = line[skillMatch.index + fullRef.length];
+        if (nextChar === '/')
+            continue;
+        if (KNOWN_PATH_ALIASES.has(candidate))
+            continue;
+        checked++;
+        const isRegistered = allSkills.has(candidate) || BUILTIN_SKILLS.has(candidate);
+        if (!isRegistered) {
+            auditor.addViolation({
+                ruleId: 'markdown-broken-skill-ref',
+                severity: 'error',
+                file: relPath,
+                line: lineNum,
+                message: `Referencia a skill inexistente: "@/${candidate}". El skill no existe en .agents/skills ni en skills integrados`,
+                context: `@/${candidate}`
+            });
+        }
+    }
+    return checked;
+}
+function isCandidateAbstractPattern(candidate) {
+    return (candidate.includes('*') ||
+        candidate.includes('...') ||
+        candidate.includes('<') ||
+        candidate.includes('YYYYMMDD') ||
+        candidate.includes('case_xxx') ||
+        candidate.includes('_xxx') ||
+        candidate.includes('my_') ||
+        candidate.includes('myData') ||
+        candidate.endsWith('_') ||
+        (candidate.endsWith('/') && candidate.split('/').length <= 2));
+}
+function validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir, gitIgnoreMatcher, knownValidAbstractPaths, auditor) {
+    if (isCandidateAbstractPattern(candidate) || knownValidAbstractPaths.has(candidate)) {
+        return;
+    }
+    if (gitIgnoreMatcher.isIgnored(candidate) || gitIgnoreMatcher.isIgnored(path.resolve(rootDir, candidate))) {
+        return;
+    }
+    const caseCheck = checkExactCase(rootDir, candidate);
+    if (!caseCheck.exists) {
+        const localCaseCheck = checkExactCase(path.dirname(filePath), candidate);
+        if (!localCaseCheck.exists) {
+            auditor.addViolation({
+                ruleId: 'markdown-broken-source-ref',
+                severity: 'error',
+                file: relPath,
+                line: lineNum,
+                message: `Ruta de código referenciada no existe en disco: "${candidate}"`,
+                context: candidate
+            });
+        }
+        else if (!localCaseCheck.exactMatch) {
+            auditor.addViolation({
+                ruleId: 'markdown-case-mismatch',
+                severity: 'error',
+                file: relPath,
+                line: lineNum,
+                message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${localCaseCheck.actualCasing}" (Linux ext4)`,
+                context: candidate
+            });
+        }
+    }
+    else if (!caseCheck.exactMatch) {
+        auditor.addViolation({
+            ruleId: 'markdown-case-mismatch',
+            severity: 'error',
+            file: relPath,
+            line: lineNum,
+            message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${caseCheck.actualCasing}" (Linux ext4)`,
+            context: candidate
+        });
+    }
+}
+function checkSourcePathReferences(line, lineNum, relPath, filePath, rootDir, gitIgnoreMatcher, knownValidAbstractPaths, auditor) {
+    let checked = 0;
+    const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
+    let pathMatch;
+    while ((pathMatch = pathRegex.exec(line)) !== null) {
+        const candidate = pathMatch[1].replace(/[.,:;)\]`'"]+$/, '').split('#')[0];
+        checked++;
+        validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir, gitIgnoreMatcher, knownValidAbstractPaths, auditor);
+    }
+    return checked;
+}
+function checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, rootDir, gitIgnoreMatcher, seenViolations, auditor) {
+    const bulletFileRegex = /^\s*-\s*`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-)/;
+    const bm = bulletFileRegex.exec(line);
+    if (!bm)
+        return 0;
+    const token = bm[1];
+    const tokenPath = path.resolve(fileDir, token);
+    if (STANDARD_FILES_TO_SKIP.has(token) || gitIgnoreMatcher.isIgnored(tokenPath)) {
+        return 0;
+    }
+    const localCheck = checkExactCase(fileDir, token);
+    const violationKey = `${relPath}:${lineNum}:${token}`;
+    if (!localCheck.exists && !seenViolations.has(violationKey)) {
+        seenViolations.add(violationKey);
+        auditor.addViolation({
+            ruleId: 'markdown-broken-source-ref',
+            severity: 'error',
+            file: relPath,
+            line: lineNum,
+            message: `Archivo declarado en lista de contratos locales no existe en "${path.relative(rootDir, fileDir)}": "${token}"`,
+            context: token
+        });
+    }
+    else if (!localCheck.exactMatch && !seenViolations.has(violationKey)) {
+        seenViolations.add(violationKey);
+        auditor.addViolation({
+            ruleId: 'markdown-case-mismatch',
+            severity: 'error',
+            file: relPath,
+            line: lineNum,
+            message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${localCheck.actualCasing}" (Linux ext4)`,
+            context: token
+        });
+    }
+    return 1;
+}
+function checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, gitIgnoreMatcher, seenViolations, auditor) {
+    let checked = 0;
+    const inlineTokenRegex = /`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-|\)|$)/g;
+    let itm;
+    while ((itm = inlineTokenRegex.exec(line)) !== null) {
+        const token = itm[1];
+        const tokenPath = path.resolve(fileDir, token);
+        if (STANDARD_FILES_TO_SKIP.has(token) || gitIgnoreMatcher.isIgnored(tokenPath))
+            continue;
+        const foundCase = dirEntries.find(e => e.toLowerCase() === token.toLowerCase());
+        if (foundCase && foundCase !== token) {
+            checked++;
+            const violationKey = `${relPath}:${lineNum}:${token}`;
+            if (!seenViolations.has(violationKey)) {
+                seenViolations.add(violationKey);
+                auditor.addViolation({
+                    ruleId: 'markdown-case-mismatch',
+                    severity: 'error',
+                    file: relPath,
+                    line: lineNum,
+                    message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${foundCase}" (Linux ext4)`,
+                    context: token
+                });
+            }
+        }
+    }
+    return checked;
+}
+export class MarkdownCodeReferencesAuditor extends BaseAuditor {
+    rootDir;
+    scanRoots;
+    gitIgnoreMatcher;
+    constructor(scanRoots, rootDir) {
+        const effectiveRoot = rootDir || process.cwd();
+        const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
+        super({
+            id: 'validate_markdown_code_references',
+            name: 'Markdown Code References Validator',
+            description: 'Valida rutas, scripts, casing y skills en markdown',
+            family: 'documentation',
+            ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
+            packageName: 'Doc',
+            ruleDescriptions: {
+                'markdown-broken-source-ref': 'Ruta de código inexistente',
+                'markdown-unregistered-npm-script': 'Comando npm no registrado',
+                'markdown-hardcoded-runtime-version': 'Versión Node/npm hardcodeada',
+                'markdown-broken-skill-ref': 'Referencia a skill inexistente',
+                'markdown-case-mismatch': 'Casing incorrecto en ruta'
+            },
+            roots: effectiveScanRoots,
+            allowedExtensions: new Set(['.md']),
+            extraIgnorePatterns: [
+                'coverage/**',
+                ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []),
+                ...(getAuditConfig(effectiveRoot).paths.ignoredPatterns ?? [])
+            ],
+            unignoreDirs: ['.agents'],
+            projectRoot: effectiveRoot
+        });
+        this.rootDir = effectiveRoot;
+        this.scanRoots = effectiveScanRoots;
+        this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
+    }
+    scanMarkdownFile(filePath, registeredScripts, allSkills, knownValidAbstractPaths, seenViolations) {
+        const relPath = path.relative(this.rootDir, filePath).replace(/\\/g, '/');
+        const rawContent = fs.readFileSync(filePath, 'utf8');
+        const cleanContent = stripCodeBlocks(rawContent);
+        const lines = cleanContent.split('\n');
+        const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
+        const fileDir = path.dirname(filePath);
+        let dirEntries = [];
+        if (relPath.endsWith('AGENTS.md')) {
+            try {
+                dirEntries = fs.readdirSync(fileDir);
+            }
+            catch {
+                // catch-ok: unreadable directory
+                dirEntries = [];
+            }
+        }
+        let checked = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lineNum = i + 1;
+            if (!isSkillDoc) {
+                checked += checkNpmRunCommands(line, lineNum, relPath, registeredScripts, this);
+                checked += checkSourcePathReferences(line, lineNum, relPath, filePath, this.rootDir, this.gitIgnoreMatcher, knownValidAbstractPaths, this);
+            }
+            checked += checkHardcodedRuntimeVersions(line, lineNum, relPath, this);
+            checked += checkSkillReferences(line, lineNum, relPath, allSkills, this);
+            if (relPath.endsWith('AGENTS.md')) {
+                checked += checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, this.rootDir, this.gitIgnoreMatcher, seenViolations, this);
+                checked += checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, this.gitIgnoreMatcher, seenViolations, this);
+            }
+        }
+        return checked;
+    }
+    async runAudit() {
+        this.context.logStep(1, 2, 'Cargando scripts de package.json y descubriendo archivos Markdown...');
+        const registeredScripts = loadRegisteredScripts(this.rootDir);
+        const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
+        const allSkills = discoverRegisteredSkills(this.rootDir);
+        const mdFiles = this.collectMarkdownFiles();
+        this.filesScannedCount = mdFiles.length;
+        this.context.logStep(2, 2, `Verificando referencias de código en ${mdFiles.length} archivos Markdown...`);
+        let referencesChecked = 0;
+        const seenViolations = new Set();
+        for (const filePath of mdFiles) {
+            referencesChecked += this.scanMarkdownFile(filePath, registeredScripts, allSkills, knownValidAbstractPaths, seenViolations);
+        }
+        this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);
+        this.context.setMetric('Referencias de código analizadas', referencesChecked);
+    }
+    collectMarkdownFiles() {
+        return this.context.collectFiles(this.scanRoots, new Set(['.md']));
+    }
+}
+// ─── CLI Entrypoint ─────────────────────────────────────────────────────────
+await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownCodeReferencesAuditor());
+//# sourceMappingURL=validate_markdown_code_references.js.map
