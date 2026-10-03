@@ -5,7 +5,6 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { styleText } from 'node:util';
 export const DOX_ANALYZER_DESCRIPTOR = {
     id: 'dox',
     name: 'DOX / AGENTS.md Integrity',
@@ -283,7 +282,6 @@ async function validateFileLinks(agentsPath, dirPath, content, gitIgnoredPaths) 
 export async function checkDoxIntegrity(rootDir, ignoreDirs) {
     const gitIgnoredPaths = await loadGitIgnoredPaths(rootDir);
     const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoredPaths);
-    process.stderr.write(styleText('cyan', '📘 Escaneando jerarquía e integridad de índices AGENTS.md / DOX...\n'));
     const violations = [
         ...validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap),
         ...validateChildRegistration(rootDir, doxFilesMap)

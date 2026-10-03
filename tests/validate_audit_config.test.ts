@@ -5,7 +5,7 @@ import os from 'node:os';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
-const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts');
+const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts').replace(/\\/g, '/');
 
 describe('ValidateAuditConfigAuditor', () => {
   let tempDir: string;

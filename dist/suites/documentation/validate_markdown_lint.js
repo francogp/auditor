@@ -101,7 +101,6 @@ export class MarkdownLintAuditor extends BaseAuditor {
     }
     async runAudit() {
         const isFixMode = this.isFixModeRequested();
-        this.context.logStep(1, 2, `Ejecutando markdownlint (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
         const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
         const args = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
         for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
@@ -117,7 +116,6 @@ export class MarkdownLintAuditor extends BaseAuditor {
             timeout: EXECUTION_TIMEOUT_MS
         });
         const findings = parseMarkdownLintIssues(combinedOutput, this.projectRoot);
-        this.context.logStep(2, 2, `Procesando resultados de markdownlint (${findings.length} incidencias)...`);
         this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
         this.filesScannedCount = 1;
         this.context.setMetric('markdown_violations', findings.length);

@@ -60,6 +60,7 @@ describe('AuditorTestsAuditor', () => {
       const source = `
         super({
           id: 'val_foo',
+          packageName: 'Foo',
           ruleDescriptions: {
             'custom-rule-1': 'Description 1',
             'custom-rule-2': 'Description 2'
@@ -84,7 +85,7 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['dummy-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
           }
           public override async runAudit() {}
         }
@@ -121,7 +122,7 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['covered-rule', 'untested-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
           }
           public override async runAudit() {}
         }
@@ -166,7 +167,7 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['my-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
           }
           public override async runAudit() {}
         }
@@ -206,7 +207,7 @@ describe('AuditorTestsAuditor', () => {
         export const CUSTOM_RULES = ['custom-rule'] as const;
         export class CustomExtAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_custom_ext', name: 'Custom', description: 'Desc', family: 'architecture', ruleIds: CUSTOM_RULES });
+            super({ id: 'validate_custom_ext', name: 'Custom', description: 'Desc', family: 'architecture', packageName: 'Custom', ruleIds: CUSTOM_RULES });
           }
           public override async runAudit() {}
         }
@@ -240,7 +241,7 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['my-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', ruleIds: DUMMY_RULES });
+            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
           }
           public override async runAudit() {}
         }

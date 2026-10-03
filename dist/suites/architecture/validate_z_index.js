@@ -83,11 +83,12 @@ export class ZIndexAuditor extends BaseAuditor {
             name: 'Z-Index Consistency Validator',
             description: 'Valida paridad entre Z_LAYERS (TS) y variables CSS (SCSS)',
             family: 'architecture',
+            packageName: 'Z-Index',
             ruleIds: Z_INDEX_RULES,
             ruleDescriptions: {
-                'z-index-missing-var': 'Z-Index: Falta variable en _base.scss',
-                'z-index-mismatch': 'Z-Index: Desincronización TS vs SCSS',
-                'z-index-read-error': 'Z-Index: Error al leer estilos base'
+                'z-index-missing-var': 'Falta variable en _base.scss',
+                'z-index-mismatch': 'Desincronización TS vs SCSS',
+                'z-index-read-error': 'Error al leer estilos base'
             }
         });
         const config = getAuditConfig();
@@ -103,7 +104,6 @@ export class ZIndexAuditor extends BaseAuditor {
     async runAudit() {
         const config = getAuditConfig();
         if (!this.isExplicit && config.styles?.zLayersEnabled === false) {
-            this.context.logStep(1, 1, 'Z-Layers deshabilitadas explícitamente en audit.config.ts (styles.zLayersEnabled: false). Omitiendo.');
             return;
         }
         if (!this.scssPath) {
@@ -118,7 +118,6 @@ export class ZIndexAuditor extends BaseAuditor {
             return;
         }
         const isFixMode = this.isFixModeRequested();
-        this.context.logStep(1, 1, 'Verificando paridad de variables Z-Index en _base.scss...');
         let scssContent;
         try {
             scssContent = await fs.readFile(this.scssPath, 'utf-8');

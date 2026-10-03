@@ -25,7 +25,8 @@ function isSelfProviderProject(projectRoot) {
         const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8'));
         if (pkgData.name === '@francogp/auditor') {
             const hasPluginJson = fs.existsSync(path.join(projectRoot, 'plugin.json'));
-            const hasSkillMd = fs.existsSync(path.join(projectRoot, 'skills/auditor/SKILL.md')) ||
+            const hasSkillMd = fs.existsSync(path.join(projectRoot, '.agents/skills/auditor/SKILL.md')) ||
+                fs.existsSync(path.join(projectRoot, 'skills/auditor/SKILL.md')) ||
                 fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
             return hasPluginJson && hasSkillMd;
         }
@@ -37,22 +38,27 @@ function isSelfProviderProject(projectRoot) {
 }
 function isPluginRegisteredInAgents(projectRoot) {
     const pluginsJsonPath = path.join(projectRoot, '.agents/plugins.json');
-    if (!fs.existsSync(pluginsJsonPath))
-        return false;
-    try {
-        const raw = fs.readFileSync(pluginsJsonPath, 'utf8');
-        const data = JSON.parse(raw);
-        if (!Array.isArray(data.entries))
+    const skillsJsonPath = path.join(projectRoot, '.agents/skills.json');
+    const checkFile = (filePath) => {
+        if (!fs.existsSync(filePath))
             return false;
-        return data.entries.some(e => e.path === 'node_modules/@francogp/auditor' ||
-            e.path.endsWith('@francogp/auditor') ||
-            e.path === './packages/auditor' ||
-            e.path === 'packages/auditor');
-    }
-    catch {
-        // catch-ok: malformed or unreadable plugins.json is treated as unregistered
-        return false;
-    }
+        try {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const data = JSON.parse(raw);
+            if (!Array.isArray(data.entries))
+                return false;
+            return data.entries.some(e => e.path === 'node_modules/@francogp/auditor' ||
+                e.path.endsWith('@francogp/auditor') ||
+                e.path.includes('@francogp/auditor') ||
+                e.path === './packages/auditor' ||
+                e.path === 'packages/auditor');
+        }
+        catch {
+            // catch-ok: malformed or unreadable file is treated as unregistered
+            return false;
+        }
+    };
+    return checkFile(pluginsJsonPath) || checkFile(skillsJsonPath);
 }
 export class AgentPluginAuditor extends BaseAuditor {
     constructor(options = {}) {
@@ -70,7 +76,6 @@ export class AgentPluginAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        this.context.logStep(1, 1, 'Verificando integración de plugin y skill oficial para agentes...');
         this.filesScannedCount = 1;
         if (isSelfProviderProject(this.projectRoot)) {
             this.context.setMetric('Agent Plugin Status', 'Provider Validated');
@@ -80,7 +85,6 @@ export class AgentPluginAuditor extends BaseAuditor {
             ? await loadAuditConfig(this.projectRoot)
             : getAuditConfig();
         if (config.agentPlugin?.enabled === false) {
-            this.context.logStep(1, 1, 'Validación de plugin para agentes omitida (agentPlugin.enabled: false).');
             this.context.setMetric('Agent Plugin Status', 'Disabled');
             return;
         }

@@ -64,7 +64,6 @@ export class HtmlValidateAuditor extends BaseAuditor {
     }
     async runAudit() {
         const isFixMode = this.isFixModeRequested();
-        this.context.logStep(1, 2, `Ejecutando html-validate (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
         const binPath = resolveNodeModuleBin(this.projectRoot, 'html-validate/bin/html-validate.mjs');
         const configFile = resolveHtmlValidateConfig(this.projectRoot);
         const reportFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/html-validate-raw.json');
@@ -79,7 +78,6 @@ export class HtmlValidateAuditor extends BaseAuditor {
             targets.push('index.html');
         }
         if (targets.length === 0) {
-            this.context.logStep(1, 1, 'No se encontraron archivos HTML/Vue para html-validate. Omitiendo.');
             return;
         }
         const args = ['-c', configFile, '--ext', 'html,vue', '-f', `json=${reportFile}`, ...targets];
@@ -104,7 +102,6 @@ export class HtmlValidateAuditor extends BaseAuditor {
         else {
             findings = parseHtmlValidateResults(combinedOutput, this.projectRoot);
         }
-        this.context.logStep(2, 2, `Procesando violaciones de HTML5 (${findings.length} problemas)...`);
         this.importAuditFindings(findings, 'html-validate-issue', 'html-validate');
         this.filesScannedCount = 1;
         this.context.setMetric('html_violations', findings.length);

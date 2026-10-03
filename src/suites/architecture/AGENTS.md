@@ -26,7 +26,9 @@ Architecture & Tooling Engineers.
 - **Configurable Constant Governance**: Duplicate constant detection ignores identifiers listed in `config.constants.ignoredNames`, and `magicNumbers` exempts numbers declared in `config.constants.exemptMagicNumbers`.
 - **Configurable CLI Logging Cleanliness & Dynamic Test Auditor Locations**: `validate_console_cleanliness.ts` derives permitted terminal output roots dynamically from `config.paths.cliRoots` (`isCliPath()`), avoiding hardcoded framework paths. `validate_auditor_tests.ts` dynamically searches for sub-auditor test files across all paths declared in `config.paths.testRoots`.
 - **Dynamic Persistence Mock Detection**: Forbidden integration mock targets in `validate_test_hygiene.ts` derive dynamically based on `config.persistence.engine` (`supabase`, `sqlite`, `hybrid`).
-- **Zero Untested Rules**: Every rule ID declared across these suites is verified with positive and negative test cases.
+- **Zero Untested Rules & Rule Description Testing Mandate**: Every rule ID declared across these suites is verified with positive and negative test cases. `validate_auditor_tests.ts` statically inspects `ruleDescriptions` across sub-auditor sources and strictly requires that the corresponding test file in `tests/` references 100% of declared rule IDs.
+- **Fallow Vector Semantic Cache Architecture & Setup Banner**: `validate_similar_code.ts` executes Fallow ML embeddings on Candle CPU (CPU-only, no GPU/CUDA) via `--threads ${os.availableParallelism()}`. Vector cache resides in `%LOCALAPPDATA%\fallow\similar-code` on Windows (`~/.cache/fallow/similar-code` on Linux). Subdirectories `models/` and `vectors/` are pre-created (`ensureFallowCacheDirs`) to prevent Windows `os error 3`, reducing run times from >230s down to ~2s. Setup failure displays a Box-Drawing warning banner with the manual command (`npx fallow similar-code setup --local --yes`).
+- **Pure PostCSS AST Style Analysis**: `validate_css_duplicates.ts` evaluates 7 CSS hygiene rules in memory via PostCSS and `postcss-scss`, completely eliminating external native Go binaries.
 - **Explicit Audit Config Path Verification**: `validate_audit_config.ts` enforces that every file, directory, migration path, style sheet, domain catalog, persistence definition, and extension explicitly cited in `audit.config.ts` physically exists on disk (`severity: 'error'`), ignoring unconfigured defaults.
 - **Living Standard Engines**: HTML standards validation delegates to `html-validate` instead of ad-hoc regex.
 - **Strict Fallow Error Severity**: All Fallow-derived findings are treated strictly as `severity: 'error'`.
@@ -39,11 +41,10 @@ Architecture & Tooling Engineers.
 - [`validate_audit_config.ts`](./validate_audit_config.ts): Verification that 100% of explicit file/directory paths cited in `audit.config.ts` physically exist.
 - [`validate_audit_headers.ts`](./validate_audit_headers.ts): Verification of file headers and suppression prohibitions.
 - [`validate_auditor_tests.ts`](./validate_auditor_tests.ts): Hermetic testing verifier ensuring clean path tests exist.
-- [`validate_build_tools.ts`](./validate_build_tools.ts): Cross-platform discovery of native build tools.
 - [`validate_bundle_budget.ts`](./validate_bundle_budget.ts): Production bundle chunk size and runtime leak gate.
 - [`validate_component_styles.ts`](./validate_component_styles.ts): Component-to-style 1:1 binding and orphan SCSS detection.
 - [`validate_console_cleanliness.ts`](./validate_console_cleanliness.ts): Prohibition of `console.log` and `debugger` in source code.
-- [`validate_css_duplicates.ts`](./validate_css_duplicates.ts): CSS selector block duplication checker.
+- [`validate_css_duplicates.ts`](./validate_css_duplicates.ts): Pure PostCSS AST auditor validating 7 CSS hygiene rules: duplicate rules, similar selectors, unvariabled tokens, and styling standards.
 - [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components.
 - [`validate_duplicate_constants.ts`](./validate_duplicate_constants.ts): AST analysis of duplicate/divergent constants.
 - [`validate_ephemeral_storage_isolation.ts`](./validate_ephemeral_storage_isolation.ts): Strict isolation of temporary files in `scratch/`.

@@ -114,13 +114,11 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
     ];
 
     let binPath: string | null = fsSync.existsSync(vueTscPath) ? vueTscPath : null;
-    let toolName = 'vue-tsc';
 
     if (!binPath) {
       for (const cand of tscCandidates) {
         if (fsSync.existsSync(cand)) {
           binPath = cand;
-          toolName = 'tsc';
           break;
         }
       }
@@ -128,10 +126,7 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
     if (!binPath) {
       binPath = 'tsc';
-      toolName = 'tsc';
     }
-
-    this.context.logStep(1, 2, `Ejecutando verificación estricta de tipos (${toolName} --noEmit)...`);
 
     const spawnArgs = binPath === 'tsc' ? ['--noEmit'] : [binPath, '--noEmit'];
     const spawnCmd = binPath === 'tsc' ? 'tsc' : 'node';
@@ -144,8 +139,6 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
     const combinedOutput = `${proc.stdout || ''}\n${proc.stderr || ''}`;
     const findings = parseTypeScriptDiagnostics(combinedOutput, this.projectRoot);
-
-    this.context.logStep(2, 2, `Procesando diagnósticos del compilador (${findings.length} errores)...`);
 
     this.importAuditFindings(findings, 'ts-compiler-error', 'TS');
 

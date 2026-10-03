@@ -7,7 +7,6 @@
 import fs from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
-import { styleText } from 'node:util';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 
 export const DOX_ANALYZER_DESCRIPTOR: RuleDescriptor = {
@@ -369,8 +368,6 @@ export async function checkDoxIntegrity(
 ): Promise<Violation[]> {
   const gitIgnoredPaths = await loadGitIgnoredPaths(rootDir);
   const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoredPaths);
-
-  process.stderr.write(styleText('cyan', '📘 Escaneando jerarquía e integridad de índices AGENTS.md / DOX...\n'));
 
   const violations: Violation[] = [
     ...validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap),

@@ -52,6 +52,17 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       expect(auditor.ruleDescriptions?.['no-tautological-integration-mocks']).toBeDefined();
       expect(auditor.ruleDescriptions?.['playwright-id-locators-only']).toBeDefined();
       expect(auditor.ruleDescriptions?.['no-playwright-force-click']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-duplicate-code']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-triplicate-code']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-complexity']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-cognitive-complexity']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-cyclomatic-complexity']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-unused-export']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-unresolved-imports']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-circular-dependencies']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-unlisted-dependencies']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-boundary-violations']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['fallow-stale-suppressions']).toBeDefined();
     });
   });
 

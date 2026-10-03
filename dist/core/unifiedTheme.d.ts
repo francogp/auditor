@@ -31,6 +31,12 @@ export interface FindingCountData {
 export declare function renderFindingsBreakdownTable(items: readonly [string, FindingCountData][], labelHeader?: string): string;
 export declare function renderSampleFindings(findings: readonly AuditFinding[], limitOrAll?: number | 'all'): string;
 export declare function renderBanner(title: string, subtitle?: string): string;
+/**
+ * Renders a prominent 80-column Box-Drawing warning banner when the automatic
+ * installation of Fallow's vector embedding model fails, notifying both human
+ * developers and AI agents with the exact command to install it manually.
+ */
+export declare function renderSimilarCodeWarningBanner(): string;
 export declare function renderFamilyHeader(meta: FamilyMetadata): string;
 export declare function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'info'): string;
 export declare function formatDuration(ms: number): string;

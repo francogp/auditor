@@ -149,7 +149,7 @@ LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
 
 echo -e "\n🔗 Sincronizando enlaces simbólicos en $LOCAL_BIN..."
-for bin_name in node npm npx corepack css-checker; do
+for bin_name in node npm npx corepack; do
     if [ -e "$NODE_BIN_DIR/$bin_name" ]; then
         ln -sf "$NODE_BIN_DIR/$bin_name" "$LOCAL_BIN/$bin_name"
     fi
@@ -206,10 +206,52 @@ echo -e "\n📦 Instalando dependencias del proyecto con npm ci..."
 cd "$SCRIPT_DIR"
 npm ci
 
-# 8. Validar y compilar herramientas nativas auxiliares si el script está definido
-if grep -q '"validate:tools"' "$PKG_PATH"; then
-    echo -e "\n🔧 Validando herramientas nativas auxiliares (npm run validate:tools)..."
-    npm run validate:tools
+# 8. Inicializar Directorios Básicos del Auditor y del Proyecto
+echo -e "\n📁 Inicializando directorios básicos del auditor y del proyecto..."
+REQUIRED_DIRS=(
+    "scratch"
+    "scratch/audits"
+    "scratch/audits/architecture"
+    "scratch/audits/documentation"
+    "scratch/audits/domain_data"
+    "scratch/audits/persistence"
+    ".agents"
+    ".agents/skills"
+    "dist"
+    "scripts/setup/plugins"
+)
+
+for dir in "${REQUIRED_DIRS[@]}"; do
+    target_path="$SCRIPT_DIR/$dir"
+    if [ ! -d "$target_path" ]; then
+        mkdir -p "$target_path"
+        echo "  [+] Creado directorio: $dir"
+    else
+        echo "  [✓] Directorio detectado: $dir"
+    fi
+done
+
+# Inicializar directorio de caché persistente de Fallow similar-code si no existe
+FALLOW_USER_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/fallow/similar-code"
+if [ ! -d "$FALLOW_USER_CACHE" ]; then
+    mkdir -p "$FALLOW_USER_CACHE/models" "$FALLOW_USER_CACHE/vectors"
+    echo "  [+] Creado directorio de caché Fallow: $FALLOW_USER_CACHE"
+fi
+
+# Verificación de exclusión de scratch/ en .gitignore
+GITIGNORE_FILE="$SCRIPT_DIR/.gitignore"
+if [ -f "$GITIGNORE_FILE" ]; then
+    if ! grep -qE '^scratch/?\s*$' "$GITIGNORE_FILE"; then
+        echo -e "\n  [+] Asegurando exclusión de scratch/ en .gitignore..."
+        printf "\n# Scratch & Temporary Audits\nscratch/\n" >> "$GITIGNORE_FILE"
+        echo "  [OK] scratch/ agregado a .gitignore"
+    else
+        echo "  [✓] scratch/ ya está excluido en .gitignore"
+    fi
+else
+    echo -e "\n  [+] Creando .gitignore básico con exclusión de scratch/..."
+    printf "# Dependencies\nnode_modules/\n\n# Scratch & Temporary Audits\nscratch/\n*.log\n" > "$GITIGNORE_FILE"
+    echo "  [OK] .gitignore creado con scratch/"
 fi
 
 # 9. Ejecutar Plugins Específicos del Proyecto (scripts/setup/plugins/*.sh)
@@ -230,10 +272,7 @@ if grep -q '"env:post-setup"' "$PKG_PATH"; then
     npm run env:post-setup
 fi
 
-# Sincronizar binarios nativos generados hacia ~/.local/bin
-if [ -e "$NODE_BIN_DIR/css-checker" ]; then
-    ln -sf "$NODE_BIN_DIR/css-checker" "$LOCAL_BIN/css-checker"
-fi
+
 
 echo "======================================================"
 echo " 🎉 ¡ENTORNO Y DEPENDENCIAS PREPARADOS CON ÉXITO!"

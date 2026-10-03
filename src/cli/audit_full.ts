@@ -33,7 +33,8 @@ import {
   renderConsolidatedFooter,
   renderMarkdownReport,
   renderFindingsBreakdownTable,
-  renderSampleFindings
+  renderSampleFindings,
+  renderSimilarCodeWarningBanner
 } from '../core/unifiedTheme.ts';
 import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from '../core/streamingRunner.ts';
@@ -480,6 +481,14 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
   printFindingsSummary(results, sortedCategories);
   console.log(renderConsolidatedFooter(results.length, suitesPassed, totalErrors, totalWarnings, totalDuration));
 
+  const hasSimilarCodeSetupFailure = results.some(r =>
+    r.findings?.some(f => f.ruleId === 'fallow-similar-code-failed' && (f.context === 'manual-setup-required' || f.context === 'model-not-ready'))
+  );
+
+  if (hasSimilarCodeSetupFailure) {
+    console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
+  }
+
   const { meta, consolidatedReport } = buildConsolidatedReport({
     ctx,
     totalErrors,
@@ -614,6 +623,15 @@ async function runMasterAudit() {
       const errCount = currentResult.findings?.filter(f => f.severity === 'error').length ?? (currentResult.status === 'failed' ? 1 : 0);
       const warnCount = currentResult.findings?.filter(f => f.severity === 'warning').length ?? 0;
       currentResult.summary = { errors: errCount, warnings: warnCount, info: 0 };
+    }
+
+    if (subLines.length === 0 && currentResult.subAuditors && currentResult.subAuditors.length > 0) {
+      const total = currentResult.subAuditors.length;
+      for (let i = 0; i < total; i++) {
+        const s = currentResult.subAuditors[i]!;
+        const badge = s.count > 0 ? ` (🐛 ${s.count})` : '';
+        subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}`);
+      }
     }
 
     await coordinator.onTaskComplete({

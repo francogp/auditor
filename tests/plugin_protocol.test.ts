@@ -39,6 +39,7 @@ describe('Auditor Plugin Protocol', () => {
           name: 'Dummy Validator',
           description: 'Validador de prueba para extensiones',
           family: 'domain_data',
+          packageName: 'Dummy',
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
             'dummy-rule': 'Regla de prueba de extensión'

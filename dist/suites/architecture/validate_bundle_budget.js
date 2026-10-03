@@ -189,7 +189,6 @@ export class BundleBudgetAuditor extends BaseAuditor {
     async runAudit(astContext) {
         const config = getAuditConfig(this.projectRoot);
         if (config.bundle?.enabled === false) {
-            this.context.logStep(1, 1, 'Auditoría de presupuestos de bundle omitida (bundle.enabled: false).');
             this.context.setMetric('Bundle Status', 'Disabled');
             return;
         }
@@ -207,16 +206,12 @@ export class BundleBudgetAuditor extends BaseAuditor {
         const allFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));
         const candidateFiles = allFiles.filter(f => !isTestPath(f) && !path.basename(f).endsWith('.d.ts'));
         const astEngine = astContext ?? new SharedAstContext();
-        this.context.logStep(1, 2, `Auditing imports across ${candidateFiles.length} source files...`);
         for (const relPath of candidateFiles) {
             this.filesScannedCount++;
             const fullPath = path.resolve(this.projectRoot, relPath);
             auditFileImports(relPath, fullPath, this.projectRoot, effectiveUiDirs, forbiddenSegments, effectiveForbiddenUiImports, astEngine, this);
         }
         const distAssetsDir = path.resolve(this.projectRoot, config.bundle?.distDir ?? 'dist/assets');
-        if (fs.existsSync(distAssetsDir)) {
-            this.context.logStep(2, 2, `Checking compiled chunk sizes in ${config.bundle?.distDir ?? 'dist/assets'}...`);
-        }
         const chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
         this.context.setMetric('Files Audited', this.filesScannedCount);
         this.context.setMetric('Compiled Chunks', chunksAudited);

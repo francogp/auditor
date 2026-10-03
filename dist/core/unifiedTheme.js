@@ -146,6 +146,36 @@ export function renderBanner(title, subtitle) {
     lines.push(styleText('cyan', `╚═${line}═╝`));
     return lines.join('\n');
 }
+/**
+ * Renders a prominent 80-column Box-Drawing warning banner when the automatic
+ * installation of Fallow's vector embedding model fails, notifying both human
+ * developers and AI agents with the exact command to install it manually.
+ */
+export function renderSimilarCodeWarningBanner() {
+    const line = '═'.repeat(TERMINAL_WIDTH - 4);
+    const innerWidth = TERMINAL_WIDTH - 6;
+    const lines = [];
+    const yellow = (s) => styleText('yellow', s);
+    const boldYellow = (s) => styleText(['bold', 'yellow'], s);
+    const white = (s) => styleText('white', s);
+    const boldWhite = (s) => styleText(['bold', 'white'], s);
+    const cyan = (s) => styleText(['bold', 'cyan'], s);
+    const dim = (s) => styleText('dim', s);
+    lines.push(yellow(`╔═${line}═╗`));
+    lines.push(yellow('║  ') + padVisual(boldYellow('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE'), innerWidth) + yellow('  ║'));
+    lines.push(yellow(`╠═${line}═╣`));
+    lines.push(yellow('║  ') + padVisual(white('La inicialización automática del modelo de embeddings de Fallow falló.'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(white('El sub-auditor especializado de similar-code no se pudo ejecutar.'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(dim('Esta funcionalidad requiere instalación manual en este entorno.'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual('', innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(boldWhite('Para instalarlo manualmente, ejecuta el siguiente comando en tu terminal:'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(cyan('  👉  npx fallow similar-code setup --local --yes'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual('', innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(dim('Nota para IA / CI: puedes omitir esta suite usando el flag --skip-similar'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(dim('o exportando la variable de entorno AUDIT_SKIP_SIMILAR=1.'), innerWidth) + yellow('  ║'));
+    lines.push(yellow(`╚═${line}═╝`));
+    return lines.join('\n');
+}
 export function renderFamilyHeader(meta) {
     const line = '─'.repeat(TERMINAL_WIDTH - 8);
     return styleText('bold', `\n${meta.icon} [FAMILIA ${meta.order}] ${meta.title}\n${styleText('dim', `  ${line}`)}`);
@@ -230,7 +260,7 @@ export function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_P
     for (const [file, items] of byFile) {
         if (shown >= maxLimit)
             break;
-        lines.push(`\n  📄 ${styleText('bold', file)} (${items.length} incidencia${items.length === 1 ? '' : 's'}):`);
+        lines.push(`\n  📄 ${styleText('bold', file)} (🐛 ${items.length}):`);
         for (const item of items) {
             if (shown >= maxLimit)
                 break;
@@ -239,7 +269,7 @@ export function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_P
         }
     }
     if (findings.length > maxLimit) {
-        lines.push(styleText('cyan', `\n  ... y ${findings.length - maxLimit} incidencia(s) más. Usa --output=<archivo> para volcado completo.`));
+        lines.push(styleText('cyan', `\n  ... y 🐛 ${findings.length - maxLimit} más. Usa --output=<archivo> para volcado completo.`));
     }
     return lines.join('\n');
 }
@@ -311,7 +341,7 @@ function renderMarkdownFindingsTable(allFindings) {
         md += `| ${sevIcon} | ${filePath} | ${lineStr} | ${ruleStr} | ${f.message.replace(/\|/g, '\\|')} |\n`;
     }
     if (allFindings.length > 100) {
-        md += `\n*... y ${allFindings.length - 100} incidencias más truncadas por longitud.*\n`;
+        md += `\n*... y 🐛 ${allFindings.length - 100} más truncadas por longitud.*\n`;
     }
     return md;
 }

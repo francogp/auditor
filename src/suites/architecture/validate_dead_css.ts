@@ -229,7 +229,6 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const globalUtilityClasses = getEffectiveGlobalUtilityClasses(this.projectRoot);
     const srcRoots = config.paths.srcRoots ?? ['src'];
-    this.context.logStep(1, 2, 'Recopilando tokens de código globales en código fuente...');
     const allSrcFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.json']));
     const globalTokens = collectGlobalCodeTokens(this.projectRoot, allSrcFiles);
 
@@ -237,7 +236,6 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
       ...(config.paths.componentsRoots ?? ['src/components']),
       ...(config.paths.viewsRoots ?? ['src/views'])
     ];
-    this.context.logStep(2, 2, 'Auditando clases scoped en componentes...');
     const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
     let scopedClassesChecked = 0;
 

@@ -338,6 +338,13 @@ export class ComponentStylesAuditor extends BaseAuditor {
             auditVueComponent(file, this.projectRoot, srcDir, trackScssFile, config, this);
         }
         auditOrphanedScss(stylesRoots, scssFiles, importedScssFiles, this.projectRoot, this);
+        const subAuditors = this.getSubAuditors();
+        const totalSteps = subAuditors.length;
+        for (let i = 0; i < subAuditors.length; i++) {
+            const sub = subAuditors[i];
+            const count = this.countsByRule.get(sub.id) ?? 0;
+            this.logSubAudit(i + 1, totalSteps, sub.name, count);
+        }
     }
 }
 export function auditComponentStyles(rootDir) {

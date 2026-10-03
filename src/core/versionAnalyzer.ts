@@ -156,7 +156,7 @@ function aggregateSubsystemMetrics(changedFiles: ChangedFileDetail[]): {
     if (file.path.startsWith('src/core/') || file.path === 'src/index.ts') {
       hasCoreChanges = true;
     }
-    if (file.status === 'A' && (file.path.startsWith('src/suites/') || file.path.startsWith('src/cli/') || file.path.startsWith('skills/'))) {
+    if (file.status === 'A' && (file.path.startsWith('src/suites/') || file.path.startsWith('src/cli/') || file.path.startsWith('.agents/skills/') || file.path.startsWith('skills/'))) {
       hasNewFeatures = true;
     }
   }

@@ -9,7 +9,7 @@
  */
 import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { getAuditConfig } from "../core/auditConfig.js";
 import { isMainModule } from "./cliUtils.js";
 import { resolveFallowBinary, checkOrInitializeModel } from "../suites/architecture/validate_similar_code.js";
@@ -38,7 +38,7 @@ export function runSimilarCodeReport(projectRoot = process.cwd()) {
     }
     const modelReady = checkOrInitializeModel(fallowBin, projectRoot);
     if (!modelReady) {
-        console.error(styleText('red', '❌ El modelo de embeddings para similar-code no está disponible.'));
+        console.error('\n' + renderSimilarCodeWarningBanner() + '\n');
         process.exit(1);
     }
     if (!isJson) {

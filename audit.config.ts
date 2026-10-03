@@ -61,7 +61,6 @@ export default defineAuditConfig({
       'validate_audit_headers',
       'validate_auditor_tests',
       'validate_test_fragmentation',
-      'validate_build_tools',
       'validate_agent_plugin',
       'validate_bundle_budget',
       'validate_duplicate_constants',

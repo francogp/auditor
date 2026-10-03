@@ -145,7 +145,11 @@ describe('auditorBase infrastructure', () => {
             name: 'Test Auditor',
             description: 'Test auditor for projectRoot verification',
             family: 'architecture',
+            packageName: 'Test',
             ruleIds: ['test-rule'],
+            ruleDescriptions: {
+              'test-rule': 'Regla de test'
+            },
             roots: ['src'],
             allowedExtensions: new Set(['.ts']),
             projectRoot: root

@@ -43,7 +43,6 @@ export class DuplicateConstantsAuditor extends BaseAuditor {
         });
     }
     async runAudit(astContext) {
-        this.context.logStep(1, 1, 'Analizando declaraciones de constantes con AST...');
         const relFiles = await this.context.collectFiles(this.roots, this.allowedExtensions);
         const absFiles = relFiles
             .filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'))

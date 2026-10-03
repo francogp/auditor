@@ -15,13 +15,19 @@ export function isMainModule(metaUrl) {
     if (!scriptArg || scriptArg.includes('..'))
         return false;
     try {
-        const targetPath = fileURLToPath(metaUrl);
+        const targetPath = path.resolve(fileURLToPath(metaUrl));
         try {
-            return fs.realpathSync(scriptArg) === targetPath;
+            const realScript = path.resolve(fs.realpathSync(scriptArg));
+            return process.platform === 'win32'
+                ? realScript.toLowerCase() === targetPath.toLowerCase()
+                : realScript === targetPath;
         }
         catch {
             // catch-ok: Fallback to path.resolve if realpath fails
-            return path.resolve(scriptArg) === targetPath;
+            const resolvedScript = path.resolve(scriptArg);
+            return process.platform === 'win32'
+                ? resolvedScript.toLowerCase() === targetPath.toLowerCase()
+                : resolvedScript === targetPath;
         }
     }
     catch {

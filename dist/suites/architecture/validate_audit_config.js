@@ -47,9 +47,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             ruleIds: AUDIT_CONFIG_RULES,
             packageName: 'Config',
             ruleDescriptions: {
-                'audit-config-missing-path': 'Ruta o directorio en audit.config.ts no existe',
-                'audit-config-missing-file': 'Archivo citado en audit.config.ts no existe',
-                'audit-config-invalid-extension': 'Extensión citada en audit.config.ts no existe'
+                'audit-config-missing-path': 'Ruta configurada no existe',
+                'audit-config-missing-file': 'Archivo configurado no existe',
+                'audit-config-invalid-extension': 'Extensión configurada no existe'
             },
             projectRoot
         });
@@ -68,13 +68,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             return;
         }
         const config = await loadAuditConfig(this.projectRoot);
-        this.context.logStep(1, 4, 'Verificando existencia física de directorios y raíces configuradas...');
         this.verifyPathRoots(config);
-        this.context.logStep(2, 4, 'Verificando rutas de persistencia y migraciones...');
         this.verifyPersistencePaths(config);
-        this.context.logStep(3, 4, 'Verificando archivos de estilos, capas y dominios...');
         this.verifyDomainAndStylePaths(config);
-        this.context.logStep(4, 4, 'Verificando extensiones registradas...');
         this.verifyExtensionPaths(config);
     }
     checkPathExists(relPath, ruleId, description) {

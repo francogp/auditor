@@ -228,7 +228,6 @@ export class AuditorTestsAuditor extends BaseAuditor {
     }
     async runAudit() {
         const tasks = await discoverAuditorTasks(this.projectRoot);
-        this.context.logStep(2, 2, `Verificando tests unitarios para ${tasks.length} suites...`);
         const config = getAuditConfig(this.projectRoot);
         const testRoots = config.paths.testRoots ?? ['tests'];
         let auditorsWithDedicatedTests = 0;

@@ -109,6 +109,24 @@ export interface AuditFinding {
 export const AUDIT_STATUSES = ['passed', 'failed'] as const;
 export type AuditExecutionStatus = (typeof AUDIT_STATUSES)[number];
 
+export interface SubAuditorStep {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+}
+
+export interface SubAuditorReport {
+  readonly id: string;
+  readonly name: string;
+  readonly status: 'passed' | 'warning' | 'failed';
+  readonly count: number;
+  readonly detail?: string;
+}
+
+export interface ICompositeAuditor {
+  getSubAuditors(): readonly SubAuditorStep[];
+}
+
 export interface StandardAuditResult {
   id: string;
   name: string;
@@ -124,6 +142,7 @@ export interface StandardAuditResult {
     info: number;
     totalFilesScanned?: number;
   };
+  subAuditors?: readonly SubAuditorReport[];
 }
 
 export interface AuditTaskDefinition {

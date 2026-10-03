@@ -21,6 +21,7 @@ import {
 } from '../src/suites/architecture/validate_similar_code.ts';
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
+import { renderSimilarCodeWarningBanner } from '../src/core/unifiedTheme.ts';
 
 describe('ValidateSimilarCodeAuditor', () => {
   const scratchDir = path.resolve(process.cwd(), 'scratch/test_similar_code_' + crypto.randomUUID());
@@ -150,7 +151,7 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(finding?.message).toContain('ETIMEDOUT');
     });
 
-    it('reports fallow-similar-code-failed with severity: error when model setup fails', async () => {
+    it('reports fallow-similar-code-failed with severity: warning when model setup fails', async () => {
       const auditor = new ValidateSimilarCodeAuditor(scratchDir);
       const spy = vi.spyOn(childProcess, 'execSync').mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('similar-code status')) {
@@ -166,13 +167,25 @@ describe('ValidateSimilarCodeAuditor', () => {
       spy.mockRestore();
 
       const result = await auditor.finishAudit();
-      expect(result.summary.errors).toBe(1);
-      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBe(1);
+      expect(result.status).toBe('passed');
 
       const finding = result.findings.find(f => f.ruleId === 'fallow-similar-code-failed');
       expect(finding).toBeDefined();
-      expect(finding?.severity).toBe('error');
+      expect(finding?.severity).toBe('warning');
+      expect(finding?.context).toBe('manual-setup-required');
       expect(finding?.message).toContain('No se pudo inicializar o descargar');
+    });
+
+    it('renderSimilarCodeWarningBanner generates a striking box containing the manual setup command', () => {
+      const banner = renderSimilarCodeWarningBanner();
+      expect(banner).toContain('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE');
+      expect(banner).toContain('npx fallow similar-code setup --local --yes');
+      expect(banner).toContain('--skip-similar');
+      expect(banner).toContain('AUDIT_SKIP_SIMILAR=1');
+      expect(banner).toContain('╔══════════════════════════════════════════════════════════════════════════════╗');
+      expect(banner).toContain('╚══════════════════════════════════════════════════════════════════════════════╝');
     });
   });
 

@@ -5,14 +5,17 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { isMainModule } from '../src/cli/cliUtils.ts';
 
 describe('cliUtils', () => {
   it('returns true when metaUrl matches process.argv[1]', () => {
     const originalArgv1 = process.argv[1] ?? '';
     try {
-      process.argv[1] = '/workspace/test-script.ts';
-      const metaUrl = 'file:///workspace/test-script.ts';
+      const scriptPath = path.resolve('/workspace/test-script.ts');
+      process.argv[1] = scriptPath;
+      const metaUrl = pathToFileURL(scriptPath).href;
       expect(isMainModule(metaUrl)).toBe(true);
     } finally {
       process.argv[1] = originalArgv1;
@@ -22,8 +25,10 @@ describe('cliUtils', () => {
   it('returns false when metaUrl does not match process.argv[1]', () => {
     const originalArgv1 = process.argv[1] ?? '';
     try {
-      process.argv[1] = '/workspace/other-script.ts';
-      const metaUrl = 'file:///workspace/test-script.ts';
+      const scriptPath = path.resolve('/workspace/other-script.ts');
+      const targetPath = path.resolve('/workspace/test-script.ts');
+      process.argv[1] = scriptPath;
+      const metaUrl = pathToFileURL(targetPath).href;
       expect(isMainModule(metaUrl)).toBe(false);
     } finally {
       process.argv[1] = originalArgv1;
@@ -34,7 +39,7 @@ describe('cliUtils', () => {
     const originalArgv1 = process.argv[1] ?? '';
     try {
       process.argv[1] = '../secret/script.ts';
-      const metaUrl = 'file:///secret/script.ts';
+      const metaUrl = pathToFileURL(path.resolve('/secret/script.ts')).href;
       expect(isMainModule(metaUrl)).toBe(false);
     } finally {
       process.argv[1] = originalArgv1;
@@ -46,7 +51,7 @@ describe('cliUtils', () => {
     try {
       // @ts-expect-error Testing undefined argv[1]
       process.argv[1] = undefined;
-      expect(isMainModule('file:///workspace/script.ts')).toBe(false);
+      expect(isMainModule(pathToFileURL(path.resolve('/workspace/script.ts')).href)).toBe(false);
     } finally {
       process.argv[1] = originalArgv1;
     }

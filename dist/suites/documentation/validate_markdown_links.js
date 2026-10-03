@@ -334,14 +334,12 @@ export class MarkdownLinkAuditor extends BaseAuditor {
         this.scanRoots = effectiveScanRoots;
     }
     async runAudit() {
-        this.context.logStep(1, 2, 'Collecting markdown files...');
         const result = auditMarkdownLinks({
             scanPaths: this.scanRoots,
             rootDir: this.projectRoot,
             extraIgnorePatterns: this.extraIgnorePatterns
         });
         this.filesScannedCount = result.filesScanned;
-        this.context.logStep(2, 2, 'Verifying relative links and paths...');
         for (const v of result.violations) {
             this.addViolation({
                 ruleId: v.ruleId ?? 'markdown-broken-relative-link',

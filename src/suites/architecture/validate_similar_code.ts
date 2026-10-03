@@ -91,37 +91,46 @@ export function isSimilarCodeSkipped(argv: readonly string[] = process.argv): bo
   });
 }
 
-export function ensureSimilarCodeCacheDir(projectRoot: string): string {
-  const cacheDir = path.resolve(projectRoot, 'scratch/.cache/similar-code');
+import { sanitizePath } from '../../core/safePath.ts';
+
+export function resolveFallowUserCacheDir(): string {
+  if (process.platform === 'win32') {
+    const rawLocal = process.env.LOCALAPPDATA;
+    const localAppData = rawLocal ? sanitizePath(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
+    return path.join(localAppData, 'fallow', 'similar-code');
+  }
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Caches', 'fallow', 'similar-code');
+  }
+  const rawXdg = process.env.XDG_CACHE_HOME;
+  const xdg = rawXdg ? sanitizePath(rawXdg) : path.join(os.homedir(), '.cache');
+  return path.join(xdg, 'fallow', 'similar-code');
+}
+
+export function ensureSimilarCodeCacheDir(_projectRoot?: string): string {
+  const cacheDir = resolveFallowUserCacheDir();
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
-
-  const globalModelsDir = path.join(os.homedir(), '.cache/fallow/similar-code/models');
-  const localModelsDir = path.join(cacheDir, 'models');
-  if (fs.existsSync(globalModelsDir) && !fs.existsSync(localModelsDir)) {
-    try {
-      fs.symlinkSync(globalModelsDir, localModelsDir, 'dir');
-    } catch {
-      // catch-ok: symlink failure on systems without permission, fallow will handle setup
-    }
+  const modelsDir = path.join(cacheDir, 'models');
+  if (!fs.existsSync(modelsDir)) {
+    fs.mkdirSync(modelsDir, { recursive: true });
+  }
+  const vectorsDir = path.join(cacheDir, 'vectors');
+  if (!fs.existsSync(vectorsDir)) {
+    fs.mkdirSync(vectorsDir, { recursive: true });
   }
   return cacheDir;
 }
 
 export function checkOrInitializeModel(fallowBin: string, projectRoot: string): boolean {
-  const cacheDir = ensureSimilarCodeCacheDir(projectRoot);
-  const customEnv = {
-    ...process.env,
-    FALLOW_SIMILAR_CODE_CACHE_DIR: cacheDir
-  };
+  ensureSimilarCodeCacheDir(projectRoot);
 
   try {
     const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
-      env: customEnv,
       timeout: 15000
     });
     const parsed = JSON.parse(statusOut) as SimilarCodeStatusOutput;
@@ -141,7 +150,6 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string): 
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'inherit'],
-      env: customEnv,
       timeout: 0
     });
     return true;
@@ -213,7 +221,6 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
   private ensureFallowBinaryAndModel(): string | null {
     const fallowBin = resolveFallowBinary(this.projectRoot);
     if (!fallowBin) {
-      this.context.logStep(1, 1, 'Binario de Fallow no encontrado.');
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
         severity: 'error',
@@ -225,17 +232,16 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       return null;
     }
 
-    this.context.logStep(1, 2, 'Verificando estado del modelo de embeddings local...');
     const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot);
     if (!modelReady) {
-      this.context.logStep(2, 2, 'Modelo no disponible.');
+      this.context.setMetric('Similar-Code', 'Instalación manual');
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
-        severity: 'error',
+        severity: 'warning',
         file: '.fallowrc.json',
         line: 1,
-        message: 'No se pudo inicializar o descargar el modelo local de embeddings para fallow similar-code.',
-        context: 'model-not-ready'
+        message: 'No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.',
+        context: 'manual-setup-required'
       });
       return null;
     }
@@ -248,25 +254,20 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     const minLines = similarCfg.minLines ?? 3;
     const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
 
-    this.context.logStep(2, 2, `Ejecutando fallow similar-code (umbral: ${threshold}, min-lines: ${minLines})...`);
-
     const rawOutputFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/similar-code-raw.json');
     if (!fs.existsSync(path.dirname(rawOutputFile))) {
       fs.mkdirSync(path.dirname(rawOutputFile), { recursive: true });
     }
 
-    const cacheDir = ensureSimilarCodeCacheDir(this.projectRoot);
+    ensureSimilarCodeCacheDir(this.projectRoot);
+    const threads = os.availableParallelism?.() ?? os.cpus().length ?? 4;
 
     try {
-      const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines} --output-file "${rawOutputFile}"`;
+      const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines} --threads ${threads} --output-file "${rawOutputFile}"`;
       childProcess.execSync(cmd, {
         cwd: this.projectRoot,
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          FALLOW_SIMILAR_CODE_CACHE_DIR: cacheDir
-        },
         maxBuffer: 50 * 1024 * 1024,
         timeout: 0
       });
@@ -316,17 +317,14 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     const similarCfg = config.fallow?.similarCode;
 
     if (!similarCfg?.enabled) {
-      this.context.logStep(1, 1, 'Similar-code desactivado en audit.config.ts (fallow.similarCode.enabled: false). Omitiendo.');
       return;
     }
 
     if (isSimilarCodeSkipped()) {
-      this.context.logStep(1, 1, 'Similar-code vectorial omitido por flag (--skip-similar o AUDIT_SKIP_SIMILAR=1).');
       return;
     }
 
     if (isFastPresetActive()) {
-      this.context.logStep(1, 1, 'Preset rápido activo (lint/md/commit). Omitiendo similar-code vectorial.');
       return;
     }
 

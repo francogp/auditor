@@ -143,13 +143,8 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
   }
 
   public override runAudit(): void {
-    this.context.logStep(1, 3, 'Verificando ausencia de directorios efímeros en árboles de código fuente...');
     this.scanSourceDirectoriesOnDisk();
-
-    this.context.logStep(2, 3, 'Auditando reglas de .gitignore contra rutas temporales de código fuente...');
     this.scanGitignoreRules();
-
-    this.context.logStep(3, 3, 'Inspeccionando referencias a carpetas temporales en código fuente...');
     this.scanSourceCodeReferences();
   }
 

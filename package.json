@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "1.4.0-build.20261002-180728",
+  "version": "2.0.0-build.20261002-214741",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -18,7 +18,7 @@
   "files": [
     "dist",
     "src",
-    "skills",
+    ".agents/skills",
     "rules",
     "plugin.json",
     "setup-linux.sh",
@@ -84,7 +84,8 @@
     "auditor-init-agent": "./dist/cli/init_agent.js",
     "auditor-sync-env": "./dist/cli/sync_env_scripts.js",
     "auditor-check-env": "./dist/cli/check_environment.js",
-    "auditor-setup-env": "./dist/cli/setup_env.js"
+    "auditor-setup-env": "./dist/cli/setup_env.js",
+    "auditor-css": "./dist/cli/report_css.js"
   },
   "scripts": {
     "auditor:update": "node --experimental-strip-types src/cli/update_package.ts",
@@ -106,7 +107,7 @@
     "sync:env": "node --experimental-strip-types src/cli/sync_env_scripts.ts",
     "env:setup": "node --experimental-strip-types src/cli/setup_env.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli/*.js",
+    "build": "tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts",
     "audit:changed": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts changed-since=main",
     "audit:lint": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=lint",
     "audit:errors": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts severity=error",
@@ -125,14 +126,13 @@
     "audit:complexity": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_complexity.ts",
     "audit:project": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/audit_project.ts",
     "audit:fix": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/audit_project.ts fix",
-    "audit:css": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/validate_css_duplicates.ts",
+    "audit:css": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_css.ts",
     "audit:family:domain": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts family=domain_data",
     "audit:family:persistence": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts family=persistence",
     "audit:family:architecture": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts family=architecture",
     "audit:family:documentation": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts family=documentation",
     "lint": "npm run audit:lint",
     "lint:fix": "npm run audit:lint fix",
-    "validate:tools": "node --experimental-strip-types src/suites/architecture/validate_build_tools.ts",
     "validate:types": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/suites/architecture/validate_type_check.ts",
     "validate:html": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/validate_html_validate.ts",
     "validate:console-cleanliness": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_console_cleanliness.ts",
@@ -143,7 +143,7 @@
     "validate:reactive-purity": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_reactive_purity.ts",
     "validate:line-height": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_typography_line_height.ts",
     "validate:z-index": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_z_index.ts",
-    "validate:css-duplicates": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/validate_css_duplicates.ts",
+    "validate:css-duplicates": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_css_duplicates.ts",
     "validate:dead-css": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_dead_css.ts",
     "validate:duplicate-constants": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_duplicate_constants.ts",
     "validate:ephemeral-storage-isolation": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_ephemeral_storage_isolation.ts",
@@ -167,11 +167,12 @@
     "validate:sql-anti-patterns": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/persistence/validate_sql_anti_patterns.ts"
   },
   "dependencies": {
-    "css-checker-kit": "^0.4.2",
     "fallow": "^3.28.0",
     "html-validate": "^11.16.1",
     "html-validate-vue": "^9.3.1",
     "markdownlint-cli": "^0.49.1",
+    "postcss": "^8.5.28",
+    "postcss-scss": "^4.0.9",
     "rollup-plugin-visualizer": "^7.1.1",
     "typescript": "^6.0.3"
   },

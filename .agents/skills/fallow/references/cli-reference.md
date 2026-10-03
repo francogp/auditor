@@ -9,6 +9,7 @@ Complete command and flag specifications for all fallow CLI commands.
 - [Commands](#commands)
 - [`dead-code`: Dead Code Analysis](#dead-code-dead-code-analysis)
 - [`dupes`: Duplication Detection](#dupes-duplication-detection)
+- [`similar-code`: Semantic Code Duplication](#similar-code-semantic-code-duplication)
 - [`fix`: Auto-Remove Unused Code](#fix-auto-remove-unused-code)
 - [`list`: Project Introspection](#list-project-introspection)
 - [`init`: Config Generation](#init-config-generation)
@@ -269,6 +270,60 @@ fallow dupes --format json --quiet --changed-since main
 # Incremental CI
 fallow dupes --format json --quiet --save-baseline fallow-baselines/dupes.json
 fallow dupes --format json --quiet --baseline fallow-baselines/dupes.json --threshold 5
+```
+
+---
+
+## `similar-code`: Semantic Code Duplication
+
+Finds semantically similar functions and methods across the codebase using local vector embeddings (`jina-embeddings-v2-base-code`). Complements AST-level token clones from `fallow dupes`.
+
+Official upstream specification: [Fallow Similar Code Analysis Specification](https://git.mitgai.net/fallow-rs/fallow/blob/main/docs/similar-code-analysis.md).
+
+### Subcommands
+
+| Subcommand | Description | Key Flags |
+|---|---|---|
+| `status` | Checks if local model weights and tokenizer are downloaded and initialized. | `--format json`, `--quiet` |
+| `setup` | Downloads the pinned embedding model (~160MB ONNX) to the user cache directory. | `--local`, `--yes` |
+| `inspect` | Evaluates a specific candidate pair using the raw discovery envelope. | `<candidate_id>`, `--candidates <file>`, `--format json` |
+| `review` | Joins candidate pairs and human/AI verdicts into an authoritative verdict report. | `--candidates <file>`, `--verdicts <file>` |
+
+### Flags
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--threshold` | `float` | `0.85` | Cosine similarity threshold for pairing candidates (`0.0` to `1.0`). |
+| `--min-lines` | `int` | `4` | Minimum function lines of code to consider for embedding. |
+| `--top` | `int` | (all) | Maximum number of candidate pairs to report. |
+| `--file` | `string` | (all) | Scope discovery to functions within a specific file path. |
+| `--threads` | `int` | (auto) | Number of CPU worker threads to allocate for parallel embedding inference. |
+| `--format` | `string` | `human` | Output format: `human`, `json`. |
+
+### Hardware Runtime & Cache Architecture
+
+- **Inference Runtime**: Powered by Hugging Face Candle. Operates exclusively in **CPU mode** (no GPU or CUDA support).
+- **Parallelism**: Control thread allocation via `--threads <N>`.
+- **Cache Storage Locations**:
+  - Windows: `%LOCALAPPDATA%\fallow\similar-code` (`models/` and `vectors/`)
+  - Linux: `~/.cache/fallow/similar-code` (or `$XDG_CACHE_HOME/fallow/similar-code`)
+  - macOS: `~/Library/Caches/fallow/similar-code`
+- **Cache Hierarchy**:
+  - `models/`: Downloaded ONNX model weights and tokenizer vocabularies.
+  - `vectors/`: SQLite/vector database caching function embeddings across runs.
+- **Windows OS Error 3 Pre-Creation Invariant**: Ensure parent folders `models/` and `vectors/` are pre-created prior to execution to avoid Windows filesystem initialization errors.
+
+### Usage Examples
+
+```bash
+# Check model readiness
+fallow similar-code status --format json --quiet
+
+# Download model locally
+npx fallow similar-code setup --local --yes
+
+# Run semantic duplication scan with 8 worker threads
+fallow similar-code --threshold 0.95 --threads 8 --format json --quiet > scratch/similar.json
 ```
 
 ---

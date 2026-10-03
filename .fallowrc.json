@@ -17,11 +17,12 @@
     "tests/**"
   ],
   "ignoreDependencies": [
-    "css-checker-kit",
     "fallow",
     "html-validate",
     "html-validate-vue",
     "markdownlint-cli",
+    "postcss",
+    "postcss-scss",
     "rollup-plugin-visualizer",
     "typescript"
   ],

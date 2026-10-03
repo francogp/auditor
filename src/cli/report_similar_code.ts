@@ -10,7 +10,7 @@
 
 import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
-import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
 import { isMainModule } from './cliUtils.ts';
 import {
@@ -57,7 +57,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
 
   const modelReady = checkOrInitializeModel(fallowBin, projectRoot);
   if (!modelReady) {
-    console.error(styleText('red', '❌ El modelo de embeddings para similar-code no está disponible.'));
+    console.error('\n' + renderSimilarCodeWarningBanner() + '\n');
     process.exit(1);
   }
 

@@ -316,7 +316,7 @@ if ($updateToLatest) {
             npm install -g "npm@$targetNpmVer"
             Write-Host "  [OK] npm instalado en v$targetNpmVer" -ForegroundColor Green
         } catch {
-            Write-Host "  [WARN] Advertencia al instalar npm@$targetNpmVer: $_" -ForegroundColor Yellow
+            Write-Host "  [WARN] Advertencia al instalar npm@${targetNpmVer}: $_" -ForegroundColor Yellow
         }
     } else {
         Write-Host "[NPM] Preservando versión activa de npm ($currentNpmVer)." -ForegroundColor Gray
@@ -354,11 +354,60 @@ if (Test-Path $nodeModulesDir) {
     Get-ChildItem -Path $nodeModulesDir -Include "*.node", "*.dll", "*.exe" -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 }
 
-# 11. Validar y compilar herramientas nativas auxiliares si existe el script
-if ($pkgContent.scripts -and $pkgContent.scripts.'validate:tools') {
-    Write-Host ""
-    Write-Host "[BUILD-TOOLS] Validando herramientas nativas auxiliares..." -ForegroundColor Cyan
-    npm run validate:tools
+# 11. Inicializar Directorios Básicos del Auditor y del Proyecto
+Write-Host ""
+Write-Host "[DIRECTORIES] Inicializando directorios básicos del auditor y del proyecto..." -ForegroundColor Cyan
+
+$requiredDirs = @(
+    "scratch",
+    "scratch\audits",
+    "scratch\audits\architecture",
+    "scratch\audits\documentation",
+    "scratch\audits\domain_data",
+    "scratch\audits\persistence",
+    ".agents",
+    ".agents\skills",
+    "dist",
+    "scripts\setup\plugins"
+)
+
+foreach ($dir in $requiredDirs) {
+    $targetPath = Join-Path $PSScriptRoot $dir
+    if (-not (Test-Path $targetPath)) {
+        New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+        Write-Host "  [+] Creado directorio: $dir" -ForegroundColor Green
+    } else {
+        Write-Host "  [✓] Directorio detectado: $dir" -ForegroundColor Gray
+    }
+}
+
+# Inicializar directorio de caché persistente de Fallow similar-code si no existe
+$fallowBase = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $HOME "AppData\Local" }
+$fallowUserCache = Join-Path $fallowBase "fallow\similar-code"
+if (-not (Test-Path $fallowUserCache)) {
+    New-Item -ItemType Directory -Path (Join-Path $fallowUserCache "models") -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $fallowUserCache "vectors") -Force | Out-Null
+    Write-Host "  [+] Creado directorio de caché Fallow: $fallowUserCache" -ForegroundColor Green
+}
+
+# Verificación de exclusión de scratch/ en .gitignore
+$projectGitignore = Join-Path $PSScriptRoot ".gitignore"
+if (Test-Path $projectGitignore) {
+    $gitignoreContent = [System.IO.File]::ReadAllText($projectGitignore)
+    if ($gitignoreContent -notmatch "(?m)^scratch/?\s*$") {
+        Write-Host "  [+] Asegurando exclusión de scratch/ en .gitignore..." -ForegroundColor Cyan
+        $separator = if ($gitignoreContent.EndsWith("`n")) { "`n" } else { "`n`n" }
+        $entry = "${separator}# Scratch & Temporary Audits`nscratch/`n"
+        [System.IO.File]::AppendAllText($projectGitignore, $entry, (New-Object System.Text.UTF8Encoding $false))
+        Write-Host "  [OK] scratch/ agregado a .gitignore" -ForegroundColor Green
+    } else {
+        Write-Host "  [✓] scratch/ ya está excluido en .gitignore" -ForegroundColor Gray
+    }
+} else {
+    Write-Host "  [+] Creando .gitignore básico con exclusión de scratch/..." -ForegroundColor Cyan
+    $newGitignore = "# Dependencies`nnode_modules/`n`n# Scratch & Temporary Audits`nscratch/`n*.log`n"
+    [System.IO.File]::WriteAllText($projectGitignore, $newGitignore, (New-Object System.Text.UTF8Encoding $false))
+    Write-Host "  [OK] .gitignore creado con scratch/" -ForegroundColor Green
 }
 
 # 12. Ejecutar Plugins Específicos del Proyecto (scripts\setup\plugins\*.ps1)

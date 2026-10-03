@@ -1120,27 +1120,36 @@ function runChangedSinceFallow(changedSince, ctx, isSecurityActive, logProgress)
     }
     return violations;
 }
+function logFallowStepProgress(stepNumber, title, violationsCount, logProgress) {
+    const badge = violationsCount > 0 ? ` (🐛 ${violationsCount})` : '';
+    logProgress(styleText('cyan', `   ├─ [${stepNumber}/5] Fallow: ${title}${badge}...`));
+}
 function runFullFallowSuites(ctx, isSecurityActive, logProgress) {
     let violations = [];
     if (ctx.isFallowDupesActive) {
-        logProgress(styleText('cyan', '   ├─ [1/5] Fallow: Análisis de duplicación de código (dupes)...'));
-        violations = violations.concat(runFallow('dupes', FALLOW_DUPES_CONFIG, 'dupes'));
+        const res = runFallow('dupes', FALLOW_DUPES_CONFIG, 'dupes');
+        logFallowStepProgress(1, 'Duplicación de código', res.length, logProgress);
+        violations = violations.concat(res);
     }
     if (ctx.isFallowTripletsActive) {
-        logProgress(styleText('cyan', '   ├─ [2/5] Fallow: Análisis de triplicación de código (triplets)...'));
-        violations = violations.concat(runFallow('dupes', FALLOW_TRIPLETS_CONFIG, 'triplets'));
+        const res = runFallow('dupes', FALLOW_TRIPLETS_CONFIG, 'triplets');
+        logFallowStepProgress(2, 'Triplicación de código', res.length, logProgress);
+        violations = violations.concat(res);
     }
     if (isSecurityActive) {
-        logProgress(styleText('cyan', '   ├─ [3/5] Fallow: Análisis de seguridad (CWE)...'));
-        violations = violations.concat(runFallow('security'));
+        const res = runFallow('security');
+        logFallowStepProgress(3, 'Análisis de seguridad CWE', res.length, logProgress);
+        violations = violations.concat(res);
     }
     if (ctx.isFallowDeadCodeActive) {
-        logProgress(styleText('cyan', '   ├─ [4/5] Fallow: Análisis de código muerto...'));
-        violations = violations.concat(runFallow('dead-code'));
+        const res = runFallow('dead-code');
+        logFallowStepProgress(4, 'Análisis de código muerto', res.length, logProgress);
+        violations = violations.concat(res);
     }
     if (ctx.isFallowHealthActive) {
-        logProgress(styleText('cyan', '   └─ [5/5] Fallow: Cálculo de métricas de salud...'));
-        violations = violations.concat(runFallow('health'));
+        const res = runFallow('health');
+        logProgress(styleText('cyan', '   └─ [5/5] Fallow: Cálculo de métricas de salud (completado)...'));
+        violations = violations.concat(res);
     }
     return violations;
 }
@@ -1287,7 +1296,7 @@ async function executeProjectAuditPhases(ctx, logProgress) {
     let all = [];
     let files = [];
     if (ctx.values['css-only']) {
-        logProgress(styleText('cyan', '[1/1] 🎨 Ejecutando análisis exclusivo de css-checker (SCSS duplicados)...'));
+        logProgress(styleText('cyan', '[1/1] 🎨 Ejecutando análisis exclusivo de CSS AST (duplicados y calidad)...'));
         all = await runCssChecker(ctx.values.path || '.', new Set(CANONICAL_IGNORE_DIRS));
         return { all, files };
     }
@@ -1297,7 +1306,7 @@ async function executeProjectAuditPhases(ctx, logProgress) {
     all = all.concat(astResult.violations);
     all = all.concat(runFallowSuites(ctx, logProgress));
     if (ctx.isCssCheckerActive) {
-        logProgress(styleText('cyan', '[5/6] 🎨 Ejecutando análisis de css-checker (SCSS duplicados)...'));
+        logProgress(styleText('cyan', '[5/6] 🎨 Ejecutando análisis AST de CSS/SCSS (duplicados y calidad)...'));
         all = all.concat(await runCssChecker(ctx.values.path || '.', getEffectiveIgnoreDirs()));
     }
     if (ctx.isConstantDetectorActive) {
@@ -1376,6 +1385,9 @@ async function main(cliArgs) {
     const startTime = performance.now();
     const ctx = parseProjectCliContext(cliArgs);
     function logProgress(msg) {
+        if (process.env.AUDIT_SUBPROCESS === 'true') {
+            return;
+        }
         if (ctx.isHumanMode) {
             console.log(msg);
         }
@@ -1424,22 +1436,23 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
             name: 'Project Architecture & Style Rules',
             description: 'Audita reglas de arquitectura, TypeScript y estilo',
             family: 'architecture',
+            packageName: 'Arquitectura',
             ruleDescriptions: {
                 'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',
-                'domain-type-violation': 'Violación de tipos de dominio estrictos',
-                'strict-null-violation': 'Violación comprobación estricta de null',
+                'domain-type-violation': 'Violación de tipo de dominio',
+                'strict-null-violation': 'Violación de chequeo de null',
                 'no-tautological-integration-mocks': 'Mocks tautológicos en integración',
                 'playwright-id-locators-only': 'Locators Playwright sin atributo ID',
-                'no-playwright-force-click': 'Clicks forzados (.click({force:true}))',
+                'no-playwright-force-click': 'Clicks forzados prohibidos',
                 'fallow-duplicate-code': 'Código duplicado detectado',
                 'fallow-triplicate-code': 'Código triplicado crítico',
-                'fallow-complexity': 'Función supera umbral de complejidad',
+                'fallow-complexity': 'Complejidad de función excesiva',
                 'fallow-cognitive-complexity': 'Complejidad cognitiva excesiva',
                 'fallow-cyclomatic-complexity': 'Complejidad ciclomática excesiva',
                 'fallow-unused-export': 'Export no utilizado detectado',
                 'fallow-unresolved-imports': 'Import no resuelto detectado',
                 'fallow-circular-dependencies': 'Dependencia circular detectada',
-                'fallow-unlisted-dependencies': 'Dependencia no listada en package.json',
+                'fallow-unlisted-dependencies': 'Dependencia no listada en package',
                 'fallow-boundary-violations': 'Violación de límite arquitectónico',
                 'fallow-stale-suppressions': 'Supresión obsoleta de Fallow'
             }

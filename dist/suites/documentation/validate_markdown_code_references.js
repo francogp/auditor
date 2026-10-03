@@ -205,7 +205,9 @@ function discoverRegisteredSkills(rootDir) {
     const allSkills = new Set();
     addSkillsFromDir(path.join(rootDir, '.agents/skills'), allSkills);
     addSkillsFromDir(path.join(rootDir, 'skills'), allSkills);
+    addSkillsFromDir(path.join(rootDir, 'node_modules/@francogp/auditor/.agents/skills'), allSkills);
     addSkillsFromDir(path.join(rootDir, 'node_modules/@francogp/auditor/skills'), allSkills);
+    addSkillsFromDir(path.resolve(import.meta.dirname, '../../../.agents/skills'), allSkills);
     addSkillsFromDir(path.resolve(import.meta.dirname, '../../../skills'), allSkills);
     const config = getAuditConfig(rootDir);
     if (config.documentation?.skillsRoots) {
@@ -483,13 +485,11 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         return checked;
     }
     async runAudit() {
-        this.context.logStep(1, 2, 'Cargando scripts de package.json y descubriendo archivos Markdown...');
         const registeredScripts = loadRegisteredScripts(this.rootDir);
         const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
         const allSkills = discoverRegisteredSkills(this.rootDir);
         const mdFiles = this.collectMarkdownFiles();
         this.filesScannedCount = mdFiles.length;
-        this.context.logStep(2, 2, `Verificando referencias de código en ${mdFiles.length} archivos Markdown...`);
         let referencesChecked = 0;
         const seenViolations = new Set();
         for (const filePath of mdFiles) {

@@ -80,6 +80,9 @@ function formatTaskTitle(filename) {
     if (filename === 'audit_project' || filename === 'audit_project.ts' || filename === 'audit_project.js') {
         return 'Project Architecture & Style Rules';
     }
+    if (filename === 'validate_css_duplicates' || filename === 'validate_css_duplicates.ts' || filename === 'validate_css_duplicates.js') {
+        return 'CSS Duplication & Hygiene';
+    }
     const base = filename.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '');
     return base
         .split(/[_-]/)

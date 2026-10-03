@@ -17,12 +17,16 @@ import {
   type AuditFamily,
   type AuditFinding,
   type FindingSeverity,
-  type StandardAuditResult
+  type StandardAuditResult,
+  type ICompositeAuditor,
+  type SubAuditorStep,
+  type SubAuditorReport
 } from './auditContract.ts';
 import {
   renderBanner,
   renderAuditTaskRow,
-  renderFindingsDetail
+  renderFindingsDetail,
+  renderSimilarCodeWarningBanner
 } from './unifiedTheme.ts';
 import { isMainModule } from '../cli/cliUtils.ts';
 import { getAuditConfig, loadAuditConfig } from './auditConfig.ts';
@@ -359,6 +363,10 @@ function renderConsoleSummary(
     console.log(renderFindingsDetail(result.findings));
   }
 
+  if (result.findings.some(f => f.ruleId === 'fallow-similar-code-failed' && (f.context === 'manual-setup-required' || f.context === 'model-not-ready'))) {
+    console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
+  }
+
   const relPath = path.relative(process.cwd(), targetJsonPath);
   console.log(`\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`);
   console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
@@ -492,9 +500,10 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly name: string;
   readonly description: string;
   readonly family: AuditFamily;
-  readonly packageName?: string;
+  readonly packageName: string;
   readonly ruleIds?: readonly TRuleId[];
-  readonly ruleDescriptions?: Readonly<Partial<Record<TRuleId, string>>>;
+  readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
+  readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
   readonly allowedExtensions?: ReadonlySet<string>;
   readonly extraIgnorePatterns?: readonly string[];
@@ -525,6 +534,9 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
   if (!options.name || options.name.trim().length === 0) {
     throw new Error(`Auditor [${options.id}] must define a name`);
   }
+  if (!options.packageName || options.packageName.trim().length === 0) {
+    throw new Error(`Auditor [${options.id}] must define a packageName`);
+  }
   if (!options.description || options.description.trim().length === 0) {
     throw new Error(`Auditor [${options.id}] must define a human-friendly description`);
   }
@@ -533,6 +545,11 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
       `Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`
     );
   }
+  if (options.ruleIds && options.ruleIds.length > 0) {
+    if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object') {
+      throw new Error(`Auditor [${options.id}] must define 'ruleDescriptions' for its declared rules.`);
+    }
+  }
 }
 
 function validateAuditorRuleDescriptions<TRuleId extends string>(
@@ -540,25 +557,32 @@ function validateAuditorRuleDescriptions<TRuleId extends string>(
   formatFn: (ruleId: TRuleId, desc: string) => string
 ): void {
   if (!options.ruleDescriptions) return;
-  for (const [ruleId, desc] of Object.entries(options.ruleDescriptions)) {
-    const descText = typeof desc === 'string' ? desc : '';
-    const formatted = formatFn(ruleId as TRuleId, descText);
-    if (formatted && (formatted.length > MAX_AUDITOR_DESCRIPTION_LENGTH || formatted.includes('\n'))) {
+
+  const declaredRules: readonly string[] = options.ruleIds && options.ruleIds.length > 0 ? options.ruleIds : Object.keys(options.ruleDescriptions);
+  for (const rawRuleId of declaredRules) {
+    const ruleId = rawRuleId as TRuleId;
+    const desc = options.ruleDescriptions[ruleId];
+    if (!desc || typeof desc !== 'string' || !desc.trim()) {
+      throw new Error(`Auditor [${options.id}] is missing a rule description for rule '${ruleId}'.`);
+    }
+    const formatted = formatFn(ruleId, desc);
+    if (formatted.length > MAX_AUDITOR_DESCRIPTION_LENGTH || formatted.includes('\n')) {
       throw new Error(
-        `Auditor [${options.id}] rule description for '${ruleId}' ('${formatted}') exceeds ${MAX_AUDITOR_DESCRIPTION_LENGTH} characters or contains newlines.`
+        `Auditor [${options.id}] rule description for '${ruleId}' ('${formatted}', length: ${formatted.length}) exceeds ${MAX_AUDITOR_DESCRIPTION_LENGTH} characters or contains newlines.`
       );
     }
   }
 }
 
-export abstract class BaseAuditor<TRuleId extends string = string> {
+export abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
   public readonly id: string;
   public readonly name: string;
   public readonly description: string;
   public readonly family: AuditFamily;
-  public readonly packageName?: string;
+  public readonly packageName: string;
   public readonly ruleIds: readonly TRuleId[];
-  public readonly ruleDescriptions?: Readonly<Partial<Record<TRuleId, string>>>;
+  public readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
+  public readonly explicitSubAuditors?: readonly SubAuditorStep[];
   public readonly roots: readonly string[];
   public readonly allowedExtensions: ReadonlySet<string>;
   public readonly extraIgnorePatterns: readonly string[];
@@ -569,6 +593,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
   protected readonly projectRoot: string;
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
+  protected readonly subAuditorReports: SubAuditorReport[] = [];
   protected filesScannedCount = 0;
 
   constructor(options: AuditorOptions<TRuleId>) {
@@ -582,6 +607,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
     this.family = options.family;
     this.ruleIds = options.ruleIds ?? [];
     this.ruleDescriptions = options.ruleDescriptions;
+    this.explicitSubAuditors = options.subAuditors;
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
     this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
@@ -595,7 +621,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
       this.countsByRule.set(ruleId, 0);
     }
 
-
     this.context = setupAuditor({
       id: this.id,
       name: this.name,
@@ -608,6 +633,44 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
     });
   }
 
+  public getSubAuditors(): readonly SubAuditorStep[] {
+    if (this.explicitSubAuditors && this.explicitSubAuditors.length > 0) {
+      return this.explicitSubAuditors;
+    }
+    return this.ruleIds.map(ruleId => ({
+      id: ruleId,
+      name: this.formatRuleDescription(ruleId),
+      description: this.ruleDescriptions?.[ruleId]
+    }));
+  }
+
+  public logSubAudit(
+    stepNumber: number,
+    totalSteps: number,
+    name: string,
+    result: number | 'passed' | 'warning' | 'failed' | string,
+    detail?: string
+  ): void {
+    const count = typeof result === 'number' ? result : 0;
+    let badge = '';
+    if (typeof result === 'number') {
+      if (result > 0) {
+        badge = ` (🐛 ${result})`;
+      }
+    } else if (result !== 'passed') {
+      badge = ` (${result})`;
+    }
+    const extra = detail ? (badge ? ` - ${detail}` : ` (${detail})`) : '';
+    this.context.logStep(stepNumber, totalSteps, `${name}${badge}${extra}`);
+    this.subAuditorReports.push({
+      id: `${this.id}_step_${stepNumber}`,
+      name,
+      status: count > 0 ? 'warning' : 'passed',
+      count,
+      detail
+    });
+  }
+
   public getCountsByRule(): ReadonlyMap<TRuleId, number> {
     return this.countsByRule;
   }
@@ -615,8 +678,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
   public formatRuleDescription(ruleId: TRuleId, rawDescription?: string): string {
     const raw = rawDescription || this.ruleDescriptions?.[ruleId] || ruleId;
     if (this.packageName && !raw.toLowerCase().startsWith(this.packageName.toLowerCase() + ':')) {
-      const combined = `${this.packageName}: ${raw}`;
-      return combined.length <= MAX_AUDITOR_DESCRIPTION_LENGTH ? combined : raw;
+      return `${this.packageName}: ${raw}`;
     }
     return raw;
   }
@@ -712,15 +774,29 @@ export abstract class BaseAuditor<TRuleId extends string = string> {
       this.context.setMetric(`Rule: ${ruleId}`, count);
     }
 
-    return await this.context.finish({
-      'Files Scanned': this.filesScannedCount
-    });
+    return this.finishAudit();
   }
 
   public async finishAudit(): Promise<StandardAuditResult> {
-    return await this.context.finish({
+    this.ensureSubAuditorsLogged();
+    const result = await this.context.finish({
       'Files Scanned': this.filesScannedCount
     });
+    if (this.subAuditorReports.length > 0) {
+      result.subAuditors = [...this.subAuditorReports];
+    }
+    return result;
+  }
+
+  protected ensureSubAuditorsLogged(): void {
+    if (this.subAuditorReports.length > 0) return;
+    const subAuditors = this.getSubAuditors();
+    const totalSteps = Math.max(1, subAuditors.length);
+    for (let i = 0; i < subAuditors.length; i++) {
+      const sub = subAuditors[i]!;
+      const count = this.countsByRule.get(sub.id as TRuleId) ?? 0;
+      this.logSubAudit(i + 1, totalSteps, sub.name, count);
+    }
   }
 
   public importAuditFindings(
@@ -777,6 +853,8 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
         // catch-ok: Ignore read errors on inaccessible files
       }
     }
+
+    this.ensureSubAuditorsLogged();
   }
 }
 

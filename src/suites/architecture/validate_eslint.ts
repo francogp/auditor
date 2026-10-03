@@ -68,7 +68,6 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
 
   public override async runAudit(): Promise<void> {
     const isFixMode = this.isFixModeRequested();
-    this.context.logStep(1, 2, `Ejecutando ESLint (modo: ${isFixMode ? 'auto-fix' : 'verificación'})...`);
 
     const binPath = path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
     const args: string[] = ['--config', 'eslint.config.js', '.', '--cache', '-f', 'json']; // no-domain: Non-domain utility collection or data structure
@@ -83,8 +82,6 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       timeout: EXECUTION_TIMEOUT_MS
     });
     const findings = parseEslintResults(combinedOutput, this.projectRoot);
-
-    this.context.logStep(2, 2, `Procesando violaciones de ESLint (${findings.length} problemas)...`);
 
     this.importAuditFindings(findings, 'eslint-violation', 'eslint');
 

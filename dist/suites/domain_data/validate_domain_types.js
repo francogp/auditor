@@ -745,10 +745,8 @@ export class DomainTypesAuditor extends BaseAuditor {
     async runAudit() {
         const config = getAuditConfig(this.projectRoot);
         if (config.domain?.enabled === false) {
-            this.context.logStep(1, 1, 'Domain audit disabled in configuration, skipping...');
             return;
         }
-        this.context.logStep(1, 2, 'Extracting library domain types and scanning files...');
         const allFindings = [];
         const scannedFiles = [];
         const libraryTypes = await extractLibraryDomainTypes(ROOT);
@@ -760,7 +758,6 @@ export class DomainTypesAuditor extends BaseAuditor {
             scannedFiles.push({ file: rel, content });
         }
         this.filesScannedCount = scannedFiles.length;
-        this.context.logStep(2, 2, `Analyzing domain unions and contracts in ${scannedFiles.length} files...`);
         const repeatedUnions = detectRepeatedStringUnions(scannedFiles);
         for (const [signatureKey, occurrences] of repeatedUnions) {
             for (const occurrence of occurrences) {

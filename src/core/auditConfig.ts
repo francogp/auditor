@@ -89,6 +89,18 @@ export interface AuditTemplatesConfig {
   readonly safeTemplateFunctions?: readonly string[];
 }
 
+export interface AuditCssDuplicatesConfig {
+  readonly enabled?: boolean;
+  readonly minDeclarations?: number;
+  readonly checkSimilar?: boolean;
+  readonly similarityThreshold?: number;
+  readonly checkLongLines?: boolean;
+  readonly longLineLengthThreshold?: number;
+  readonly checkColors?: boolean;
+  readonly checkEmptyRules?: boolean;
+  readonly checkUnused?: boolean;
+}
+
 export interface AuditStylesConfig {
   readonly globalUtilityClasses?: readonly string[];
   readonly canonicalButtonVariants?: readonly string[];
@@ -104,6 +116,7 @@ export interface AuditStylesConfig {
     readonly buttonsScssFile?: string;
     readonly canonicalVariants?: readonly string[];
   };
+  readonly duplicates?: AuditCssDuplicatesConfig;
 }
 
 export interface AuditE2eConfig {

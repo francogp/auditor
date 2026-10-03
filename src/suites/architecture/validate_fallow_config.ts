@@ -346,22 +346,18 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
   }
 
   public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 4, 'Verificando existencia y sintaxis de .fallowrc.json...');
     const config = loadFallowConfig(this.configPath, this);
     if (!config) return;
 
-    this.context.logStep(2, 4, 'Validando puntos de entrada (entry) contra globs prohibidos...');
     const bannedGlobs = getBannedEntryGlobs(this.projectRoot);
     validateFallowEntries(config.entry, bannedGlobs, this);
 
-    this.context.logStep(3, 4, 'Validando existencia real de archivos y exports en ignoreExports...');
     this.filesScannedCount = Array.isArray(config.ignoreExports) ? config.ignoreExports.length : 0;
     const { fileCount, exportCount } = validateFallowIgnoreExports(config.ignoreExports, this.projectRoot, this);
 
     this.context.setMetric('Archivos en ignoreExports', fileCount);
     this.context.setMetric('Exports Validados', exportCount);
 
-    this.context.logStep(4, 4, 'Verificando diagnósticos de workspace en Fallow...');
     try {
       const candidates = [
         path.resolve(this.projectRoot, 'node_modules/fallow/bin/fallow'),

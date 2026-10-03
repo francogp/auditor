@@ -7,7 +7,7 @@
  *   1. Always outputs the clean Box-Drawing summary table to console.
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport } from './auditContract.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
@@ -74,9 +74,10 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly name: string;
     readonly description: string;
     readonly family: AuditFamily;
-    readonly packageName?: string;
+    readonly packageName: string;
     readonly ruleIds?: readonly TRuleId[];
-    readonly ruleDescriptions?: Readonly<Partial<Record<TRuleId, string>>>;
+    readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
+    readonly subAuditors?: readonly SubAuditorStep[];
     readonly roots?: readonly string[];
     readonly allowedExtensions?: ReadonlySet<string>;
     readonly extraIgnorePatterns?: readonly string[];
@@ -94,14 +95,15 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly message: string;
     readonly context: string;
 }
-export declare abstract class BaseAuditor<TRuleId extends string = string> {
+export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
     readonly id: string;
     readonly name: string;
     readonly description: string;
     readonly family: AuditFamily;
-    readonly packageName?: string;
+    readonly packageName: string;
     readonly ruleIds: readonly TRuleId[];
-    readonly ruleDescriptions?: Readonly<Partial<Record<TRuleId, string>>>;
+    readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
+    readonly explicitSubAuditors?: readonly SubAuditorStep[];
     readonly roots: readonly string[];
     readonly allowedExtensions: ReadonlySet<string>;
     readonly extraIgnorePatterns: readonly string[];
@@ -111,8 +113,11 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> {
     protected readonly projectRoot: string;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
+    protected readonly subAuditorReports: SubAuditorReport[];
     protected filesScannedCount: number;
     constructor(options: AuditorOptions<TRuleId>);
+    getSubAuditors(): readonly SubAuditorStep[];
+    logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string): void;
     getCountsByRule(): ReadonlyMap<TRuleId, number>;
     formatRuleDescription(ruleId: TRuleId, rawDescription?: string): string;
     getRuleLabel(ruleId: string): string;
@@ -127,6 +132,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> {
     abstract runAudit(astContext?: SharedAstContext): Promise<void> | void;
     execute(astContext?: SharedAstContext): Promise<StandardAuditResult>;
     finishAudit(): Promise<StandardAuditResult>;
+    protected ensureSubAuditorsLogged(): void;
     importAuditFindings(findings: readonly AuditFinding[], fallbackRuleId: TRuleId, fallbackContext?: string): void;
     static runCli(auditor: BaseAuditor<string>): Promise<void>;
     static runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void>;

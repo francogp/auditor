@@ -227,7 +227,7 @@ Cada sub-auditor tiene una o más skills compañeras que enseñan al agente de I
 | **Inteligencia & Complejidad** | `validate_fallow`, `report_complexity`, `report_fallow` | `fallow`, `fallow-review`, `ponytail`, `ponytail-review`, `ponytail-debt`, `ponytail-audit`, `ponytail-gain` |
 | **Seguridad & Persistencia** | `fallow security`, `validate_sql_anti_patterns`, `validate_ephemeral_storage_isolation` | `vulnerability-scanner`, `red-team-tactics`, `database-design`, `valibot` |
 | **Documentación & DOX** | `validate_dox_integrity`, `validate_markdown_lint`, `validate_markdown_links`, `validate_markdown_code_references` | `dox-navigator`, `learn-with-docs`, `grill-with-docs` |
-| **Entorno & Flujo Git** | `validate_agent_plugin`, `validate_build_tools`, `validate_type_check` | `safe-commit`, `systematic-debugging`, `typescript-6-upgrade`, `mcp-builder`, `skill-creator`, `brainstorming` |
+| **Entorno & Flujo Git** | `validate_agent_plugin`, `validate_type_check` | `safe-commit`, `systematic-debugging`, `typescript-6-upgrade`, `mcp-builder`, `skill-creator`, `brainstorming` |
 
 ### 6.3. Verificación Automática del Plugin (`validate_agent_plugin`)
 
@@ -490,7 +490,7 @@ export default defineAuditConfig({
 > **Mandato de Configuración Explícita Obligatoria (Cero Omisiones Silenciosas)**:
 > Todo proyecto consumidor debe configurar de manera explícita cada subsistema del auditor en `audit.config.ts`, declarando si se utiliza o si se ignora (por ejemplo, `bundle: { enabled: false }`, `styles: { zLayersEnabled: false }` o `persistence: { engine: 'none' }`). Los sub-auditores **nunca deben omitir silenciosamente** verificaciones ante falta de configuración o ausencia de archivos; si un subsistema no está configurado, la auditoría fallará con un error explícito. Esto asegura que al incorporar nuevas suites al motor, los proyectos dependientes sean notificados inmediatamente en lugar de pasar en falso positivo.
 >
-> **Blueprints Reales de Ejemplo**: Para consultar configuraciones completas de producción (como arquitecturas empresariales con backend Supabase o aplicaciones interactivas con persistencia híbrida SQLite + Supabase y Web Workers), revisa [`blueprints.md`](./skills/auditor/references/blueprints.md) y los archivos de ejemplo en [`skills/auditor/references/`](./skills/auditor/references/).
+> **Blueprints Reales de Ejemplo**: Para consultar configuraciones completas de producción (como arquitecturas empresariales con backend Supabase o aplicaciones interactivas con persistencia híbrida SQLite + Supabase y Web Workers), revisa [`blueprints.md`](./.agents/skills/auditor/references/blueprints.md) y los archivos de ejemplo en [`skills/auditor/references/`](./.agents/skills/auditor/references/).
 
 ---
 
@@ -644,12 +644,12 @@ Si tu proyecto utiliza una versión previa local (`packages/auditor`) o el paque
 
 ### 12.1 Blueprints de Configuración y Extensión de Setup para Proyectos Anfitriones
 
-Para facilitar la migración de proyectos reales a `@francogp/auditor`, el directorio de referencias de la skill [`skills/auditor/references/`](./skills/auditor/references/) contiene la documentación y los archivos de configuración completos y validados:
+Para facilitar la migración de proyectos reales a `@francogp/auditor`, el directorio de referencias de la skill [`skills/auditor/references/`](./.agents/skills/auditor/references/) contiene la documentación y los archivos de configuración completos y validados:
 
-- 📖 **Guía de Blueprints**: [`references/blueprints.md`](./skills/auditor/references/blueprints.md) — Explicación de invariantes, subsistemas obligatorios y extensiones.
-- 🛠️ **Guía de Extensión de Setup**: [`references/setup-extension-guide.md`](./skills/auditor/references/setup-extension-guide.md) — Arquitectura de plugins en Linux/macOS y Windows (`scripts/setup/plugins/`) y gancho `env:post-setup`.
-- ⚡ **Arquitectura Empresarial**: [`references/audit.config.enterprise.example.ts`](./skills/auditor/references/audit.config.enterprise.example.ts) — Blueprint con backend Supabase, tipado estricto de dominio y sub-auditores de extensión.
-- 🎮 **Arquitectura Interactiva / Gaming**: [`references/audit.config.gaming.example.ts`](./skills/auditor/references/audit.config.gaming.example.ts) — Blueprint con persistencia híbrida (SQLite + Supabase), Web Workers exentos de bundle budget, familias personalizadas y sub-auditores de extensión.
+- 📖 **Guía de Blueprints**: [`references/blueprints.md`](./.agents/skills/auditor/references/blueprints.md) — Explicación de invariantes, subsistemas obligatorios y extensiones.
+- 🛠️ **Guía de Extensión de Setup**: [`references/setup-extension-guide.md`](./.agents/skills/auditor/references/setup-extension-guide.md) — Arquitectura de plugins en Linux/macOS y Windows (`scripts/setup/plugins/`) y gancho `env:post-setup`.
+- ⚡ **Arquitectura Empresarial**: [`references/audit.config.enterprise.example.ts`](./.agents/skills/auditor/references/audit.config.enterprise.example.ts) — Blueprint con backend Supabase, tipado estricto de dominio y sub-auditores de extensión.
+- 🎮 **Arquitectura Interactiva / Gaming**: [`references/audit.config.gaming.example.ts`](./.agents/skills/auditor/references/audit.config.gaming.example.ts) — Blueprint con persistencia híbrida (SQLite + Supabase), Web Workers exentos de bundle budget, familias personalizadas y sub-auditores de extensión.
 
 ---
 

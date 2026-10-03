@@ -62,8 +62,6 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 1, 'Escaneando jerarquía e integridad de índices AGENTS.md...');
-
     await loadAuditConfig(this.rootDir);
     const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
     this.filesScannedCount = rawViolations.length > 0 ? rawViolations.length : 1;

@@ -13,12 +13,15 @@ export function initAgentSkill(options = {}) {
     const targetDir = path.resolve(options.targetDir || process.cwd());
     const agentsDir = path.join(targetDir, '.agents');
     const pluginsJsonPath = path.join(agentsDir, 'plugins.json');
+    const skillsJsonPath = path.join(agentsDir, 'skills.json');
     const relativePluginEntry = 'node_modules/@francogp/auditor';
+    const relativeSkillsEntry = 'node_modules/@francogp/auditor/.agents/skills';
     if (!fs.existsSync(agentsDir)) {
         if (!options.dryRun) {
             fs.mkdirSync(agentsDir, { recursive: true });
         }
     }
+    // 1. Manage .agents/plugins.json
     let pluginsConfig = { entries: [] };
     if (fs.existsSync(pluginsJsonPath)) {
         try {
@@ -32,22 +35,46 @@ export function initAgentSkill(options = {}) {
             pluginsConfig = { entries: [] };
         }
     }
-    const alreadyRegistered = pluginsConfig.entries?.some(e => e.path === relativePluginEntry || e.path.endsWith('@francogp/auditor'));
-    if (alreadyRegistered) {
-        return {
-            success: true,
-            message: `El plugin @francogp/auditor ya se encuentra registrado en ${pluginsJsonPath}`,
-            created: false
-        };
+    const pluginAlreadyRegistered = pluginsConfig.entries?.some(e => e.path === relativePluginEntry || e.path.endsWith('@francogp/auditor'));
+    let pluginCreated = false;
+    if (!pluginAlreadyRegistered) {
+        pluginsConfig.entries?.push({ path: relativePluginEntry });
+        if (!options.dryRun) {
+            fs.writeFileSync(pluginsJsonPath, JSON.stringify(pluginsConfig, null, 2) + '\n', 'utf8');
+        }
+        pluginCreated = true;
     }
-    pluginsConfig.entries?.push({ path: relativePluginEntry });
-    if (!options.dryRun) {
-        fs.writeFileSync(pluginsJsonPath, JSON.stringify(pluginsConfig, null, 2) + '\n', 'utf8');
+    // 2. Manage .agents/skills.json
+    let skillsConfig = { entries: [] };
+    if (fs.existsSync(skillsJsonPath)) {
+        try {
+            const raw = fs.readFileSync(skillsJsonPath, 'utf8');
+            skillsConfig = JSON.parse(raw);
+            if (!Array.isArray(skillsConfig.entries)) {
+                skillsConfig.entries = [];
+            }
+        }
+        catch {
+            skillsConfig = { entries: [] };
+        }
     }
+    const skillsAlreadyRegistered = skillsConfig.entries?.some(e => e.path === relativeSkillsEntry || e.path.includes('@francogp/auditor'));
+    let skillsCreated = false;
+    if (!skillsAlreadyRegistered) {
+        skillsConfig.entries?.push({ path: relativeSkillsEntry });
+        if (!options.dryRun) {
+            fs.writeFileSync(skillsJsonPath, JSON.stringify(skillsConfig, null, 2) + '\n', 'utf8');
+        }
+        skillsCreated = true;
+    }
+    const anyCreated = pluginCreated || skillsCreated;
+    const message = anyCreated
+        ? `Registrado exitosamente @francogp/auditor en .agents/plugins.json y .agents/skills.json`
+        : `El plugin y las skills de @francogp/auditor ya se encuentran registrados en .agents`;
     return {
         success: true,
-        message: `Registrado exitosamente @francogp/auditor en ${pluginsJsonPath}`,
-        created: true
+        message,
+        created: anyCreated
     };
 }
 // CLI entrypoint

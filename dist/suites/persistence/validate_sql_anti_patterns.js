@@ -106,7 +106,6 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
     runAudit() {
         const config = getAuditConfig(this.projectRoot);
         if (config.persistence?.engine === 'none') {
-            this.context.logStep(1, 1, 'Persistencia desactivada explícitamente en audit.config.ts (persistence.engine: "none"). Omitiendo.');
             this.context.setMetric('Engine', 'none (omitted)');
             return;
         }

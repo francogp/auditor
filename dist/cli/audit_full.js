@@ -23,7 +23,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily } from "../core/auditContract.js";
 import { loadAuditConfig, assertAuditConfigComplete } from "../core/auditConfig.js";
-import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
+import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
@@ -373,6 +373,10 @@ async function renderAndPersistMasterReport(ctx) {
     const sortedCategories = computeAuditCategoryCounts(results);
     printFindingsSummary(results, sortedCategories);
     console.log(renderConsolidatedFooter(results.length, suitesPassed, totalErrors, totalWarnings, totalDuration));
+    const hasSimilarCodeSetupFailure = results.some(r => r.findings?.some(f => f.ruleId === 'fallow-similar-code-failed' && (f.context === 'manual-setup-required' || f.context === 'model-not-ready')));
+    if (hasSimilarCodeSetupFailure) {
+        console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
+    }
     const { meta, consolidatedReport } = buildConsolidatedReport({
         ctx,
         totalErrors,
@@ -491,6 +495,14 @@ async function runMasterAudit() {
             const errCount = currentResult.findings?.filter(f => f.severity === 'error').length ?? (currentResult.status === 'failed' ? 1 : 0);
             const warnCount = currentResult.findings?.filter(f => f.severity === 'warning').length ?? 0;
             currentResult.summary = { errors: errCount, warnings: warnCount, info: 0 };
+        }
+        if (subLines.length === 0 && currentResult.subAuditors && currentResult.subAuditors.length > 0) {
+            const total = currentResult.subAuditors.length;
+            for (let i = 0; i < total; i++) {
+                const s = currentResult.subAuditors[i];
+                const badge = s.count > 0 ? ` (🐛 ${s.count})` : '';
+                subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}`);
+            }
         }
         await coordinator.onTaskComplete({
             taskName: task.name,

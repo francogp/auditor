@@ -1,51 +1,85 @@
 /**
  * scripts/auditors/architecture/validate_css_duplicates.ts
  *
- * CSS & SCSS DUPLICATION AUDITOR (Node.js 26+ Native)
+ * CSS & SCSS HYGIENE AND DUPLICATION AUDITOR (Node.js 26+ Native)
  *
- * Audits stylesheets, component styles, and Vue SFC style blocks using css-checker
- * to detect duplicated CSS rules, selectors, and redundant styles.
+ * Audits stylesheets, component styles, and Vue SFC style blocks using pure PostCSS AST
+ * to detect duplicated CSS rules, similar classes, unvariabled colors, long values,
+ * duplicate selectors, and empty rule blocks.
  *
  * Usage:
- *   node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process scripts/auditors/architecture/validate_css_duplicates.ts
+ *   node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_css_duplicates.ts
  *   npm run validate:css-duplicates
  */
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, CANONICAL_IGNORE_DIRS } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
-import { runCssChecker } from "../../analyzers/cssAnalyzer.js";
+import { runCssAnalysis } from "../../analyzers/cssAnalyzer.js";
 enableCompileCache();
 export const CSS_DUPLICATES_RULES = [
     'css-duplicate-rules',
-    'css-checker-missing'
+    'css-similar-classes',
+    'css-duplicate-long-lines',
+    'css-unvariabled-colors',
+    'css-duplicate-selectors',
+    'css-empty-rules',
+    'css-unused-classes'
 ];
 export class CssDuplicatesAuditor extends BaseAuditor {
     targetDir;
+    lastAnalysisDetails = null;
     constructor(targetDir = '.', projectRoot) {
         const config = getAuditConfig(projectRoot);
         super({
             id: 'validate_css_duplicates',
-            name: 'CSS Duplication Validator',
-            description: 'Detecta clases y reglas CSS/SCSS duplicadas con css-checker',
+            name: 'CSS Duplication & Hygiene Validator',
+            description: 'Audita calidad, duplicación y patrones en estilos CSS y SCSS',
             family: 'architecture',
             ruleIds: CSS_DUPLICATES_RULES,
             packageName: 'CSS',
             ruleDescriptions: {
                 'css-duplicate-rules': 'Reglas duplicadas en estilos',
-                'css-checker-missing': 'Herramienta css-checker ausente'
+                'css-similar-classes': 'Clases similares sin unificar',
+                'css-duplicate-long-lines': 'Valores largos duplicados',
+                'css-unvariabled-colors': 'Colores repetidos sin variable',
+                'css-duplicate-selectors': 'Selectores duplicados',
+                'css-empty-rules': 'Bloques de estilos vacíos',
+                'css-unused-classes': 'Clases de estilos sin uso'
             },
             roots: config.paths.srcRoots ?? ['src'],
             projectRoot
         });
         this.targetDir = targetDir;
     }
+    getAnalysisDetails() {
+        return this.lastAnalysisDetails;
+    }
     async runAudit() {
-        this.context.logStep(1, 1, 'Ejecutando análisis de css-checker (SCSS/CSS duplicados)...');
-        const rawViolations = await runCssChecker(this.targetDir, new Set(CANONICAL_IGNORE_DIRS));
-        this.filesScannedCount = 1;
-        for (const v of rawViolations) {
-            const isMissing = v.message.includes('no está disponible') || v.message.includes('Aviso ejecutando css-checker');
-            const ruleId = isMissing ? 'css-checker-missing' : 'css-duplicate-rules';
+        const config = getAuditConfig(this.projectRoot);
+        const options = config.styles?.duplicates ?? {};
+        const { violations, details, filesScanned } = await runCssAnalysis(this.targetDir, new Set(CANONICAL_IGNORE_DIRS), options, this.projectRoot);
+        this.filesScannedCount = filesScanned;
+        this.lastAnalysisDetails = details;
+        for (const v of violations) {
+            let ruleId = 'css-duplicate-rules';
+            if (v.message.startsWith('Clases CSS similares')) {
+                ruleId = 'css-similar-classes';
+            }
+            else if (v.message.startsWith('Valor CSS largo duplicado')) {
+                ruleId = 'css-duplicate-long-lines';
+            }
+            else if (v.message.startsWith('Color repetido sin variable')) {
+                ruleId = 'css-unvariabled-colors';
+            }
+            else if (v.message.startsWith('Selector duplicado')) {
+                ruleId = 'css-duplicate-selectors';
+            }
+            else if (v.message.startsWith('Bloque CSS vacío')) {
+                ruleId = 'css-empty-rules';
+            }
+            else if (v.message.startsWith('Clase CSS')) {
+                ruleId = 'css-unused-classes';
+            }
             this.addViolation({
                 ruleId,
                 severity: v.severity || 'error',
@@ -55,7 +89,13 @@ export class CssDuplicatesAuditor extends BaseAuditor {
                 context: v.context
             });
         }
-        this.context.setMetric('Violaciones Detectadas', rawViolations.length);
+        this.context.setMetric('Violaciones Detectadas', violations.length);
+        this.context.setMetric('Reglas Duplicadas', details.duplicates.length);
+        this.context.setMetric('Clases Similares', details.similar.length);
+        this.context.setMetric('Valores Largos', details.longValues.length);
+        this.context.setMetric('Colores sin Variable', details.unvariabledColors.length);
+        this.context.setMetric('Selectores Duplicados', details.duplicateSelectors.length);
+        this.context.setMetric('Reglas Vacías', details.emptyRules.length);
     }
 }
 if (process.argv[1] && (process.argv[1].endsWith('validate_css_duplicates.ts') ||

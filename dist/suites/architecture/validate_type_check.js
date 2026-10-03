@@ -97,21 +97,17 @@ export class TypeCheckAuditor extends BaseAuditor {
             path.resolve(import.meta.dirname, '../../../../typescript/bin/tsc')
         ];
         let binPath = fsSync.existsSync(vueTscPath) ? vueTscPath : null;
-        let toolName = 'vue-tsc';
         if (!binPath) {
             for (const cand of tscCandidates) {
                 if (fsSync.existsSync(cand)) {
                     binPath = cand;
-                    toolName = 'tsc';
                     break;
                 }
             }
         }
         if (!binPath) {
             binPath = 'tsc';
-            toolName = 'tsc';
         }
-        this.context.logStep(1, 2, `Ejecutando verificación estricta de tipos (${toolName} --noEmit)...`);
         const spawnArgs = binPath === 'tsc' ? ['--noEmit'] : [binPath, '--noEmit'];
         const spawnCmd = binPath === 'tsc' ? 'tsc' : 'node';
         const proc = spawnSync(spawnCmd, spawnArgs, {
@@ -122,7 +118,6 @@ export class TypeCheckAuditor extends BaseAuditor {
         });
         const combinedOutput = `${proc.stdout || ''}\n${proc.stderr || ''}`;
         const findings = parseTypeScriptDiagnostics(combinedOutput, this.projectRoot);
-        this.context.logStep(2, 2, `Procesando diagnósticos del compilador (${findings.length} errores)...`);
         this.importAuditFindings(findings, 'ts-compiler-error', 'TS');
         this.filesScannedCount = 1; // Project-level whole AST compilation
         this.context.setMetric('total_type_errors', findings.length);

@@ -32,7 +32,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       packageName: 'Datos',
       ruleDescriptions: {
         'composite-missing-entry': 'Entrada faltante en registro canónico',
-        'composite-parity-mismatch': 'Desincronización de entidades entre datasets'
+        'composite-parity-mismatch': 'Desincronización entre datasets'
       },
       requiredFiles: [
         path.resolve(process.cwd(), 'src/data/canonicalData.ts')
@@ -64,6 +64,19 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
     // Set informative domain metrics for the console Box-Drawing summary table
     this.context.setMetric('Data Records Checked', files.length);
+
+    // Note: ensureSubAuditorsLogged() will automatically report each rule in MY_COMPOSITE_RULES
+    // in the main console and attach them to StandardAuditResult.subAuditors.
+    // If you need custom multi-phase sub-auditor steps instead, override getSubAuditors()
+    // and invoke this.logSubAudit(step, total, name, count, detail) as each phase completes.
+  }
+
+  // Optional: Custom sub-auditor declaration for multi-phase suites
+  public override getSubAuditors() {
+    return [
+      { id: 'composite-missing-entry', name: 'Entradas de datos', description: 'Comprueba presencia de entradas' },
+      { id: 'composite-parity-mismatch', name: 'Paridad cruzada', description: 'Comprueba sincronización de entidades' }
+    ];
   }
 }
 
