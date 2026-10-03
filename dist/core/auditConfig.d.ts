@@ -279,6 +279,12 @@ export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig>
  */
 export declare function assertAuditConfigComplete(config: AuditEngineConfig): void;
 /**
+ * Serializes the active configuration so child worker processes automatically inherit it.
+ * Populates process.env.AUDIT_ACTIVE_CONFIG_FILE with an ephemeral file path in scratch/cache/
+ * and process.env.AUDIT_CONFIG_DATA with the inline JSON if within size limits.
+ */
+export declare function serializeAuditConfigToEnv(config: AuditEngineConfig, projectRoot?: string): void;
+/**
  * Synchronously loads audit.config.ts or audit.config.json if possible, or falls back to defaults.
  */
 export declare function loadAuditConfig(projectRoot?: string): Promise<AuditEngineConfig>;
@@ -291,7 +297,7 @@ export declare function getAuditConfig(projectRoot?: string): AuditEngineConfig;
  */
 export declare function setAuditConfig(config: AuditEngineConfig, projectRoot?: string): void;
 /**
- * For testing purposes: resets the cached config.
+ * For testing purposes: resets the cached config and clears inherited environment configuration.
  */
 export declare function resetAuditConfig(): void;
 /**

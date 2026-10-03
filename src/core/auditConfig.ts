@@ -954,10 +954,91 @@ function tryLoadJsonConfig(
 }
 
 /**
+ * Serializes the active configuration so child worker processes automatically inherit it.
+ * Populates process.env.AUDIT_ACTIVE_CONFIG_FILE with an ephemeral file path in scratch/cache/
+ * and process.env.AUDIT_CONFIG_DATA with the inline JSON if within size limits.
+ */
+export function serializeAuditConfigToEnv(config: AuditEngineConfig, projectRoot: string = process.cwd()): void {
+  try {
+    process.env.AUDIT_ACTIVE_CONFIG_ROOT = projectRoot;
+    const serialized = JSON.stringify(config, (_key, value) => {
+      if (value instanceof Set) {
+        return Array.from(value);
+      }
+      return value;
+    });
+
+    // 1. Write ephemeral file in scratch/cache to prevent Windows env var 32KB overflow
+    try {
+      const cacheDir = path.resolve(projectRoot, 'scratch', 'cache');
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+      }
+      const ephemeralConfigFile = path.resolve(cacheDir, 'active_audit_config.json');
+      fs.writeFileSync(ephemeralConfigFile, serialized, 'utf-8');
+      process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
+    } catch {
+      // catch-ok: Fallback to process.env.AUDIT_CONFIG_DATA if scratch directory is read-only
+    }
+
+    // 2. Also populate in-memory environment variable if under 16KB limit (safe for Windows env vars)
+    if (serialized.length < 16384) {
+      process.env.AUDIT_CONFIG_DATA = serialized;
+    }
+  } catch {
+    // catch-ok: Configuration serialization failure should not crash execution
+  }
+}
+
+function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | null {
+  const activeRoot = process.env.AUDIT_ACTIVE_CONFIG_ROOT || process.cwd();
+  // If the caller is requesting configuration for a different project directory (e.g. unit test sandbox),
+  // do not use the inherited environment configuration of the host repository.
+  if (path.resolve(projectRoot) !== path.resolve(activeRoot)) {
+    return null;
+  }
+
+  // 1. Try ephemeral config file if specified
+  const envFilePath = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+  if (envFilePath && fs.existsSync(envFilePath)) {
+    try {
+      const content = fs.readFileSync(envFilePath, 'utf-8');
+      const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
+      cachedConfig = defineAuditConfig(parsed);
+      cachedProjectRoot = projectRoot;
+      return cachedConfig;
+    } catch {
+      // catch-ok: Fall back to inline env variable on file read or parse failure
+    }
+  }
+
+  // 2. Try inline environment variable
+  const rawData = process.env.AUDIT_CONFIG_DATA;
+  if (rawData) {
+    try {
+      const parsed = JSON.parse(rawData) as DeepPartial<AuditEngineConfig> & { name: string };
+      cachedConfig = defineAuditConfig(parsed);
+      cachedProjectRoot = projectRoot;
+      return cachedConfig;
+    } catch {
+      // catch-ok: Fall back on JSON parse error
+    }
+  }
+
+  return null;
+}
+
+/**
  * Synchronously loads audit.config.ts or audit.config.json if possible, or falls back to defaults.
  */
 export async function loadAuditConfig(projectRoot: string = process.cwd()): Promise<AuditEngineConfig> {
   if (cachedConfig && cachedProjectRoot === projectRoot) return cachedConfig;
+
+  // In child worker process or when configured via env: check inherited environment configuration first
+  if (process.env.AUDIT_SUBPROCESS === 'true' || process.env.AUDIT_ACTIVE_CONFIG_FILE || process.env.AUDIT_CONFIG_DATA) {
+    const envConfig = tryLoadConfigFromEnv(projectRoot);
+    if (envConfig) return envConfig;
+  }
 
   const customConfig = process.env.AUDIT_CONFIG;
   const configPath = customConfig ? path.resolve(projectRoot, customConfig) : path.resolve(projectRoot, 'audit.config.ts');
@@ -970,6 +1051,7 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
       if (mod.default) {
         cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
         cachedProjectRoot = projectRoot;
+        serializeAuditConfigToEnv(cachedConfig, projectRoot);
         return cachedConfig;
       }
     } catch (err: unknown) {
@@ -978,7 +1060,10 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
     }
   } else {
     const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
-    if (loaded) return loaded;
+    if (loaded) {
+      serializeAuditConfigToEnv(loaded, projectRoot);
+      return loaded;
+    }
   }
 
   cachedConfig = DEFAULT_AUDIT_CONFIG;
@@ -994,6 +1079,11 @@ export function getAuditConfig(projectRoot: string = process.cwd()): AuditEngine
     return cachedConfig;
   }
 
+  // 1. Check inherited environment configuration from parent orchestrator process
+  const envConfig = tryLoadConfigFromEnv(projectRoot);
+  if (envConfig) return envConfig;
+
+  // 2. Check audit.config.json
   const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
   const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, false);
   if (loaded) return loaded;
@@ -1007,14 +1097,18 @@ export function getAuditConfig(projectRoot: string = process.cwd()): AuditEngine
 export function setAuditConfig(config: AuditEngineConfig, projectRoot: string = process.cwd()): void {
   cachedConfig = config;
   cachedProjectRoot = projectRoot;
+  serializeAuditConfigToEnv(config, projectRoot);
 }
 
 /**
- * For testing purposes: resets the cached config.
+ * For testing purposes: resets the cached config and clears inherited environment configuration.
  */
 export function resetAuditConfig(): void {
   cachedConfig = null;
   cachedProjectRoot = null;
+  delete process.env.AUDIT_CONFIG_DATA;
+  delete process.env.AUDIT_ACTIVE_CONFIG_FILE;
+  delete process.env.AUDIT_ACTIVE_CONFIG_ROOT;
 }
 
 /**

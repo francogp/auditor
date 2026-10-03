@@ -9,7 +9,11 @@ import { describe, it, expect } from 'vitest';
 import {
   defineAuditConfig,
   assertAuditConfigComplete,
-  DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+  DEFAULT_MAX_AUDIT_STALENESS_MINUTES,
+  serializeAuditConfigToEnv,
+  getAuditConfig,
+  setAuditConfig,
+  resetAuditConfig
 } from '../src/core/auditConfig.ts';
 
 describe('Audit Configuration Completeness & Mandato de Configuración Activa por Defecto', () => {
@@ -254,6 +258,61 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       }
     });
     expect(customConfig.runner?.maxStalenessMinutes).toBe(customStalenessMinutes);
+  });
+
+  describe('Parent-to-Worker Configuration Inheritance', () => {
+    it('serializes custom configuration to environment variables and restores it in child process context', () => {
+      // Clean starting state
+      resetAuditConfig();
+
+      const customConfig = defineAuditConfig({
+        name: 'Worker Inheritance Project',
+        templates: {
+          requireInputIds: false
+        },
+        packageHygiene: {
+          enabled: true,
+          ignoreDependencies: ['custom-transitive-dep']
+        },
+        paths: {
+          ignoreGlobs: ['custom/glob/**']
+        }
+      });
+
+      // Orchestrator serializes active config
+      serializeAuditConfigToEnv(customConfig);
+
+      // Verify serialization populated environment variables
+      expect(process.env.AUDIT_CONFIG_DATA || process.env.AUDIT_ACTIVE_CONFIG_FILE).toBeDefined();
+
+      // Reset in-memory cache to simulate fresh child worker process
+      // We manually clear cached in-memory reference while preserving process.env
+      const envData = process.env.AUDIT_CONFIG_DATA;
+      const envFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+      resetAuditConfig();
+      if (envData) process.env.AUDIT_CONFIG_DATA = envData;
+      if (envFile) process.env.AUDIT_ACTIVE_CONFIG_FILE = envFile;
+
+      // Child worker calls getAuditConfig()
+      const restored = getAuditConfig();
+
+      expect(restored.name).toBe('Worker Inheritance Project');
+      expect(restored.templates?.requireInputIds).toBe(false);
+      expect(restored.packageHygiene?.ignoreDependencies).toContain('custom-transitive-dep');
+      expect(restored.paths.ignoreGlobs).toContain('custom/glob/**');
+
+      // Clean up after test
+      resetAuditConfig();
+    });
+
+    it('resetAuditConfig completely purges in-memory cache and environment variables', () => {
+      setAuditConfig(defineAuditConfig({ name: 'Temp Env Project' }));
+      expect(process.env.AUDIT_CONFIG_DATA || process.env.AUDIT_ACTIVE_CONFIG_FILE).toBeDefined();
+
+      resetAuditConfig();
+      expect(process.env.AUDIT_CONFIG_DATA).toBeUndefined();
+      expect(process.env.AUDIT_ACTIVE_CONFIG_FILE).toBeUndefined();
+    });
   });
 });
 
