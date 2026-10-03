@@ -17,7 +17,6 @@
     "tests/**"
   ],
   "ignoreDependencies": [
-    "@projectwallace/stylelint-plugin",
     "fallow",
     "html-validate",
     "html-validate-vue",

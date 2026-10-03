@@ -38,6 +38,7 @@ describe('ValidateAuditConfigAuditor', () => {
             'audit:fix': 'auditor fix',
             'audit:lint': 'auditor preset=lint',
             'audit:md': 'auditor preset=md',
+            'audit:build': 'auditor preset=build',
             'auditor:update': 'auditor-update',
             'auditor:version': 'auditor-version'
           }
@@ -419,6 +420,7 @@ export default defineAuditConfig({
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
+            'audit:build': 'auditor preset=build',
           'auditor:update': 'auditor-update',
           'auditor:version': 'auditor-version'
         }
@@ -460,6 +462,7 @@ export default defineAuditConfig({
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
+            'audit:build': 'auditor preset=build',
           'auditor:update': 'auditor-update',
           'auditor:version': 'auditor-version'
         }
@@ -501,6 +504,7 @@ export default defineAuditConfig({
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
+            'audit:build': 'auditor preset=build',
           'auditor:update': 'auditor-update',
           'auditor:version': 'auditor-version'
         }
@@ -594,6 +598,7 @@ export default defineAuditConfig({
     expect(updatedPkg.scripts['audit:fix']).toBe('auditor fix');
     expect(updatedPkg.scripts['audit:lint']).toBe('auditor preset=lint');
     expect(updatedPkg.scripts['audit:md']).toBe('auditor preset=md');
+    expect(updatedPkg.scripts['audit:build']).toBe('auditor preset=build');
     expect(updatedPkg.scripts['auditor:update']).toBe('auditor-update');
     expect(updatedPkg.scripts['auditor:version']).toBe('auditor-version');
   });
@@ -624,6 +629,7 @@ export default defineAuditConfig({
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
+            'audit:build': 'auditor preset=build',
           'auditor:update': 'auditor-update',
           'auditor:version': 'auditor-version'
         }

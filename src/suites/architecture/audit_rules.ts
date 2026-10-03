@@ -6,7 +6,7 @@
 
 import path from 'node:path';
 import { statSync, existsSync, readdirSync, readFileSync } from 'node:fs';
-import { getAuditConfig, isDataPath, isConstantsPath, isInCodeRoots, isExemptFile, isScriptPath, matchesAnyRoot } from '../../core/auditConfig.ts';
+import { getAuditConfig, isDataPath, isDemoPath, isConstantsPath, isInCodeRoots, isExemptFile, isScriptPath, matchesAnyRoot } from '../../core/auditConfig.ts';
 import { isPathIgnored, matchesSinglePattern } from '../../core/auditorBase.ts';
 
 export const AUDIT_SEVERITIES = ['error', 'warning'] as const;
@@ -895,6 +895,7 @@ function isMagicNumberExemptFile(filePath?: string): boolean {
   return (
     isPathIgnored(filePath!) ||
     isDataPath(filePath!) ||
+    isDemoPath(filePath!) ||
     isConstantsPath(filePath!) ||
     norm.endsWith('config.ts') ||
     norm.endsWith('.scss') ||

@@ -8,7 +8,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { SharedAstContext } from "../core/astContext.js";
 import { isPathIgnored } from "../core/auditorBase.js";
-import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath } from "../core/auditConfig.js";
+import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath, isDemoPath } from "../core/auditConfig.js";
 export const CONSTANT_ANALYZER_DESCRIPTOR = {
     id: 'duplicate-constants',
     name: 'Duplicate Constants Across Modules',
@@ -86,7 +86,7 @@ function isConstantAuditCandidate(filePath, projectRoot, config) {
     const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
     if (isUnderRoot && isPathIgnored(rel))
         return false;
-    if (isDataPath(rel))
+    if (isDataPath(rel) || isDemoPath(rel))
         return false;
     if (!isInCodeRoots(rel, config))
         return false;

@@ -21,8 +21,7 @@ export const CSS_DUPLICATES_RULES = [
     'css-duplicate-properties',
     'css-empty-blocks',
     'css-order-violation',
-    'scss-syntax-issue',
-    'wallace-complexity'
+    'scss-syntax-issue'
 ];
 export class CssDuplicatesAuditor extends BaseAuditor {
     stylelintAuditor;
@@ -43,8 +42,7 @@ export class CssDuplicatesAuditor extends BaseAuditor {
                 'css-duplicate-properties': 'Propiedades duplicadas en la regla',
                 'css-empty-blocks': 'Bloques de estilos vacíos',
                 'css-order-violation': 'Orden de propiedades CSS',
-                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
-                'wallace-complexity': 'Complejidad de estilos excesiva'
+                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida'
             },
             roots,
             projectRoot

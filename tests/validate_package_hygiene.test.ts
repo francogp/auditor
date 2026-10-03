@@ -81,6 +81,27 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       expect(f.message).toContain('phantom-pkg');
     });
 
+    it('filters out unlisted dependencies in ignored paths via isPathIgnored', () => {
+      const report: KnipReport = {
+        issues: [
+          {
+            file: path.join(tempDir, 'external/vendored-lib/index.ts'),
+            unlisted: [{ name: 'ignored-dep', line: 1, col: 1 }]
+          },
+          {
+            file: path.join(tempDir, 'src/valid.ts'),
+            unlisted: [{ name: 'legitimate-unlisted', line: 5, col: 2 }]
+          }
+        ]
+      };
+
+      const isPathIgnored = (rel: string) => rel.startsWith('external/');
+      const findings = parseKnipIssues(report, tempDir, isPathIgnored);
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.file).toBe('src/valid.ts');
+      expect(findings[0]!.context).toBe('legitimate-unlisted');
+    });
+
     it('correctly maps unused binaries', () => {
       const report: KnipReport = {
         issues: [

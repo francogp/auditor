@@ -52,7 +52,7 @@ graph TD
         C2 -->|100% Pass| C3[2.4 npm run build\n🔒 THE BUILD GATE (Single Run)]
         
         C3 -->|Exit code ≠ 0 / Fail| REPAIR
-        C3 -->|Exit 0 ✅| C4[2.5 Build Optimization & Chunk Analysis\nnpm run audit:bundle]
+        C3 -->|Exit 0 ✅| C4[2.5 Post-Build Artifact Audit\nnpm run audit:build]
         C4 -->|Chunk bloat / budget exceeded| REPAIR
         C4 -->|Optimized ✅| C5[2.6 Fallow Health & Quality Gate\nnpm run audit:fallow]
         
@@ -152,9 +152,10 @@ You must execute the 6 gates sequentially. If ANY gate fails, execute the repair
 - Compiles the production bundle with strict exit code 0. Zero bypasses.
 - **Strict Single Build**: This is the ONLY time `npm run build` executes in the entire workflow. Because any version bump was already applied in Step 1.4, this build compiles the definitive version directly into `dist/`.
 
-### 2.5 Production Bundle & Chunk Analysis (`npm run audit:bundle`)
-- Run `npm run audit:bundle` (or `npx auditor-bundle`).
-- Audits compiled chunks in `dist/assets/` against architectural budgets and verifies that no duplicate modules exceed 500 KB across multiple chunks in `scratch/bundle_stats.html`.
+### 2.5 Post-Build Compiled Artifact Audit (`npm run audit:build`)
+- Run `npm run audit:build` (or `npx auditor-build`).
+- Audits compiled production artifacts in `dist/` (client chunk budgets in `dist/assets/`, package export maps, `.d.ts` entrypoints, and bundle budgets).
+- Exclusively runs suites that declare `capabilities.requiresBuild === true`.
 
 ### 2.6 Fallow Health & Quality Gate (`npm run audit:fallow`)
 - Run `npm run audit:fallow`.

@@ -43,8 +43,28 @@ export const TEMPLATE_ID_RULES: readonly TemplateIdRuleId[] = [
 
 // Match static HTML id attributes: id="some-id" or id='some-id' (strictly preceded by whitespace or tag open)
 const STATIC_ID_REGEX = /(?:^|[\s<])id\s*=\s*["']([^"'\s>]+)["']/g;
-// Match interactive form controls: <input, <select, <textarea
-const FORM_CONTROL_REGEX = /<(input|select|textarea)\b([^>]*?)>/gis;
+// Match start of interactive form controls: <input, <select, <textarea
+const FORM_CONTROL_TAG_START_REGEX = /<(input|select|textarea)\b/gi;
+
+function extractFullTag(content: string, startIndex: number): { tag: string; endIndex: number } | null {
+  let inQuote: string | null = null;
+  for (let i = startIndex; i < content.length; i++) {
+    const char = content[i];
+    if (inQuote) {
+      if (char === inQuote) {
+        inQuote = null;
+      }
+    } else if (char === '"' || char === "'") {
+      inQuote = char;
+    } else if (char === '>') {
+      return {
+        tag: content.substring(startIndex, i + 1),
+        endIndex: i + 1
+      };
+    }
+  }
+  return null;
+}
 
 interface IdOccurrence {
   file: string;
@@ -103,12 +123,23 @@ function scanTemplateStaticIds(ctx: TemplateScanContext): void {
 }
 
 function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
+  FORM_CONTROL_TAG_START_REGEX.lastIndex = 0;
   let formMatch: RegExpExecArray | null;
-  FORM_CONTROL_REGEX.lastIndex = 0;
-  while ((formMatch = FORM_CONTROL_REGEX.exec(ctx.templateContent)) !== null) {
-    const tagType = formMatch[1] ?? 'input';
-    const tagFull = formMatch[0];
-    const hasId = /\b(?::)?id\s*=\s*["'][^"'\s>]+["']/i.test(tagFull);
+
+  while ((formMatch = FORM_CONTROL_TAG_START_REGEX.exec(ctx.templateContent)) !== null) {
+    const tagType = (formMatch[1] ?? 'input').toLowerCase();
+    const tagInfo = extractFullTag(ctx.templateContent, formMatch.index);
+    if (!tagInfo) continue;
+
+    const tagFull = tagInfo.tag;
+
+    // Non-interactive hidden inputs do not require interactive IDs or labels
+    if (tagType === 'input' && /\btype\s*=\s*["']hidden["']/i.test(tagFull)) {
+      continue;
+    }
+
+    // Match static id, dynamic :id, or v-bind:id with quotes containing any valid expression/string
+    const hasId = /\b(?:v-bind:id|:id|id)\s*=\s*(?:"[^"]*"|'[^']*')/i.test(tagFull);
 
     const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + formMatch.index);
     if (info.isIgnored) continue;

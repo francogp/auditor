@@ -99,7 +99,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
   });
 
   it('dynamically resolves requiresAst from capabilities.ast (0 hardcoded lists)', async () => {
-    const allTasks = await discoverAuditors();
+    const allTasks = await discoverAuditors({ withBuild: true });
     const astTasks = allTasks.filter(t => t.requiresAst);
     const astSuiteIds = astTasks.map(t => t.id).sort();
 

@@ -5,7 +5,7 @@
  */
 import path from 'node:path';
 import { statSync, existsSync, readdirSync, readFileSync } from 'node:fs';
-import { getAuditConfig, isDataPath, isConstantsPath, isInCodeRoots, isExemptFile, isScriptPath, matchesAnyRoot } from "../../core/auditConfig.js";
+import { getAuditConfig, isDataPath, isDemoPath, isConstantsPath, isInCodeRoots, isExemptFile, isScriptPath, matchesAnyRoot } from "../../core/auditConfig.js";
 import { isPathIgnored, matchesSinglePattern } from "../../core/auditorBase.js";
 export const AUDIT_SEVERITIES = ['error', 'warning'];
 export function matchesRule(descriptor, selectedRules) {
@@ -839,6 +839,7 @@ function isMagicNumberExemptFile(filePath) {
     }
     return (isPathIgnored(filePath) ||
         isDataPath(filePath) ||
+        isDemoPath(filePath) ||
         isConstantsPath(filePath) ||
         norm.endsWith('config.ts') ||
         norm.endsWith('.scss') ||

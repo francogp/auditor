@@ -89,6 +89,33 @@ describe('EphemeralStorageIsolationAuditor', () => {
       expect(violations.length).toBe(0);
       expect(result.summary.errors).toBe(0);
     });
+
+    it('permits canonical database/ folders (backups, migrations, schemas) and AGENTS.md', async () => {
+      await fs.mkdir(path.join(tempDir, 'database', 'backups'), { recursive: true });
+      await fs.mkdir(path.join(tempDir, 'database', 'migrations'), { recursive: true });
+      await fs.mkdir(path.join(tempDir, 'database', 'schemas'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'database', 'AGENTS.md'), '# Database\n');
+
+      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const result = await auditor.execute();
+
+      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
+      expect(violations.length).toBe(0);
+      expect(result.summary.errors).toBe(0);
+    });
+
+    it('detects unlisted directories or files in database/', async () => {
+      await fs.mkdir(path.join(tempDir, 'database', 'unknown_folder'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'database', 'stray_file.txt'), 'content');
+
+      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const result = await auditor.execute();
+
+      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
+      expect(violations.length).toBe(2);
+      expect(violations.some(v => v.file === 'database/unknown_folder')).toBe(true);
+      expect(violations.some(v => v.file === 'database/stray_file.txt')).toBe(true);
+    });
   });
 
   describe('ephemeral-no-gitignore-source-temp', () => {

@@ -120,7 +120,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly unignoreDirs: readonly string[];
     readonly requiredFiles: readonly string[];
     readonly requiresAst: boolean;
-    protected readonly projectRoot: string;
+    readonly projectRoot: string;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
@@ -139,6 +139,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     isLineIgnored(line: string, customTokens?: readonly string[]): boolean;
     protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean;
     protected isFixModeRequested(): boolean;
+    isPathIgnored(relPath: string): boolean;
     protected getLineNumber(content: string, charIndex: number): number;
     protected getLineAt(content: string, lineIndex: number): string;
     protected scanRegexMatches(content: string, regex: RegExp, relPath: string, ruleId: TRuleId, escapeHatches: readonly string[], message: string, filter?: (lineContent: string, match: RegExpExecArray) => boolean, sourceForLines?: string, charOffset?: number): void;

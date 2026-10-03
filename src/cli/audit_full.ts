@@ -120,10 +120,19 @@ function resolveSkipSimilar(): boolean {
   );
 }
 
+function resolveTargetPreset(values: Record<string, unknown>, positionals: readonly string[]): AuditPresetName | undefined {
+  if (values.preset) return values.preset as AuditPresetName;
+  if (values.build) return 'build';
+  if (positionals.includes('build')) return 'build';
+  if (positionals.includes('lint')) return 'lint';
+  if (positionals.includes('md')) return 'md';
+  return undefined;
+}
+
 function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliOptions {
   const args = process.argv.slice(2);
   const BOOLEAN_FLAGS = [
-    'errors-only', 'fix', 'all'
+    'errors-only', 'fix', 'all', 'build', 'with-build'
   ];
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
 
@@ -143,7 +152,9 @@ function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliO
       top: { type: 'string', short: 't' },
       rule: { type: 'string', short: 'r', multiple: true },
       rules: { type: 'string', multiple: true },
-      fix: { type: 'boolean' }
+      fix: { type: 'boolean' },
+      build: { type: 'boolean' },
+      'with-build': { type: 'boolean' }
     },
     allowPositionals: true,
     strict: false
@@ -154,7 +165,7 @@ function parseAuditFullCliArgs(activeFamilies: readonly string[]): AuditFullCliO
     positionals,
     targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
     formattedRules: resolveFormattedRules(values, positionals),
-    targetPreset: values.preset as AuditPresetName | undefined,
+    targetPreset: resolveTargetPreset(values, positionals),
     targetSuites: resolveTargetSuites(values),
     concurrencyLimit: resolveConcurrencyLimit(values.concurrency),
     skipSimilar: resolveSkipSimilar()
@@ -541,11 +552,15 @@ async function runMasterAudit() {
   }
 
   const isFixMode = Boolean(cliOptions.values.fix);
+  const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
+  const withBuild = Boolean(cliOptions.values['with-build'] || cliOptions.values.all);
   const discoveryBase = {
     fixOnly: isFixMode,
+    buildOnly: isBuildMode,
+    withBuild,
     includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
   };
-  const allAvailableTasks = await discoverAuditors();
+  const allAvailableTasks = await discoverAuditors({ withBuild: true });
   const tasksToRun = await discoverAuditors({
     ...discoveryBase,
     family: cliOptions.targetFamily,
@@ -574,6 +589,8 @@ async function runMasterAudit() {
   ];
   if (isFixMode) {
     subtitleDetails.push('Modo: AUTO-FIX 🛠️');
+  } else if (isBuildMode) {
+    subtitleDetails.push('Modo: POST-BUILD 🏗️');
   } else {
     if (cliOptions.targetPreset) subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
     if (cliOptions.values.family) subtitleDetails.push(`Familia: ${String(cliOptions.values.family).toUpperCase()}`);
@@ -582,7 +599,12 @@ async function runMasterAudit() {
   }
 
   const defaultBannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
-  const bannerTitle = isFixMode ? '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]' : defaultBannerTitle;
+  let bannerTitle = defaultBannerTitle;
+  if (isFixMode) {
+    bannerTitle = '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]';
+  } else if (isBuildMode) {
+    bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
+  }
   console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
 
   if (tasksToRun.length === 0) {

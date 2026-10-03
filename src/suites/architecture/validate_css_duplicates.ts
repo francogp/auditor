@@ -28,8 +28,7 @@ export const CSS_DUPLICATES_RULES: readonly CssDuplicatesRuleId[] = [
   'css-duplicate-properties',
   'css-empty-blocks',
   'css-order-violation',
-  'scss-syntax-issue',
-  'wallace-complexity'
+  'scss-syntax-issue'
 ] as const;
 
 export class CssDuplicatesAuditor extends BaseAuditor<CssDuplicatesRuleId> {
@@ -53,8 +52,7 @@ id: 'validate_css_duplicates',
         'css-duplicate-properties': 'Propiedades duplicadas en la regla',
         'css-empty-blocks': 'Bloques de estilos vacíos',
         'css-order-violation': 'Orden de propiedades CSS',
-        'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
-        'wallace-complexity': 'Complejidad de estilos excesiva'
+        'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida'
       },
       roots,
       projectRoot

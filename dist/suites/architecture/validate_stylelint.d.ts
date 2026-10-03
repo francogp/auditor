@@ -5,7 +5,7 @@
  *
  * Audits stylesheets, component styles, and Vue 3 SFCs (<style scoped lang="scss">)
  * using the official Stylelint engine with stylelint-config-standard-scss,
- * stylelint-config-standard-vue, stylelint-order, and @projectwallace/stylelint-plugin.
+ * stylelint-config-standard-vue, and stylelint-order.
  *
  * Performance:
  *   - Ephemeral content-hashed caching at scratch/cache/stylelint_cache.json
@@ -19,7 +19,7 @@
 import { type LinterResult } from 'stylelint';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
-export type StylelintRuleId = 'stylelint-issue' | 'css-duplicate-selectors' | 'css-duplicate-properties' | 'css-empty-blocks' | 'css-order-violation' | 'scss-syntax-issue' | 'wallace-complexity';
+export type StylelintRuleId = 'stylelint-issue' | 'css-duplicate-selectors' | 'css-duplicate-properties' | 'css-empty-blocks' | 'css-order-violation' | 'scss-syntax-issue';
 export declare const STYLELINT_RULES: readonly StylelintRuleId[];
 export declare function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string;
 export declare function categorizeStylelintRule(ruleName: string | undefined): StylelintRuleId;

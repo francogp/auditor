@@ -139,8 +139,8 @@ id: 'validate_ephemeral_storage_isolation',
     const configuredDbDirs = config.persistence?.allowedDatabaseDirs;
     const configuredDbFiles = config.persistence?.allowedDatabaseFiles;
 
-    this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? (configuredDbDirs ? new Set(configuredDbDirs) : DEFAULT_ALLOWED_DATABASE_DIRS);
-    this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
+    this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? (configuredDbDirs && configuredDbDirs.length > 0 ? new Set(configuredDbDirs) : DEFAULT_ALLOWED_DATABASE_DIRS);
+    this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles && configuredDbFiles.length > 0 ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
   }
 
   public override runAudit(): void {

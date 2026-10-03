@@ -5,7 +5,7 @@
  *
  * Audits stylesheets, component styles, and Vue 3 SFCs (<style scoped lang="scss">)
  * using the official Stylelint engine with stylelint-config-standard-scss,
- * stylelint-config-standard-vue, stylelint-order, and @projectwallace/stylelint-plugin.
+ * stylelint-config-standard-vue, and stylelint-order.
  *
  * Performance:
  *   - Ephemeral content-hashed caching at scratch/cache/stylelint_cache.json
@@ -30,8 +30,7 @@ export const STYLELINT_RULES = [
     'css-duplicate-properties',
     'css-empty-blocks',
     'css-order-violation',
-    'scss-syntax-issue',
-    'wallace-complexity'
+    'scss-syntax-issue'
 ];
 export function resolveStylelintConfigFile(projectRoot, configuredConfigFile) {
     if (configuredConfigFile) {
@@ -89,8 +88,6 @@ export function categorizeStylelintRule(ruleName) {
         return 'css-order-violation';
     if (ruleName.startsWith('scss/'))
         return 'scss-syntax-issue';
-    if (ruleName.startsWith('projectwallace/'))
-        return 'wallace-complexity';
     return 'stylelint-issue';
 }
 export class StylelintAuditor extends BaseAuditor {
@@ -124,8 +121,7 @@ export class StylelintAuditor extends BaseAuditor {
                 'css-duplicate-properties': 'Propiedades duplicadas en la regla',
                 'css-empty-blocks': 'Bloques de estilos vacíos',
                 'css-order-violation': 'Orden de propiedades CSS',
-                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
-                'wallace-complexity': 'Complejidad de estilos excesiva'
+                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida'
             },
             roots,
             projectRoot

@@ -154,6 +154,10 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
     if (gitIgnoreEntries.length > 0) {
         GitIgnoreRegistry.registerMany(gitIgnoreEntries);
     }
+    const isBuildPreset = options.preset === 'build' || options.buildOnly;
+    if (isBuildPreset && (!capabilities || !capabilities.requiresBuild)) {
+        return null;
+    }
     if (options.fixOnly && (!capabilities || !capabilities.fix)) {
         return null;
     }
@@ -165,6 +169,13 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
     }
     if (options.includeHeavy === false && capabilities?.heavy) {
         return null;
+    }
+    // Pre-build run (default general audit, audit:for-commit, lint, md): exclude requiresBuild suites
+    // unless explicitly requested via --with-build or targeting a specific suite/task
+    if (!isBuildPreset && !options.withBuild && !options.task && !options.suites) {
+        if (capabilities?.requiresBuild) {
+            return null;
+        }
     }
     const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
     const scriptArg = relScriptPath.startsWith('..') ? path.resolve(fullPath).replace(/\\/g, '/') : relScriptPath;

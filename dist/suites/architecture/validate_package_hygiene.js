@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, getEffectiveScannableRoots } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 enableCompileCache();
@@ -10,19 +10,52 @@ export const PACKAGE_HYGIENE_RULES = [
     'package-unlisted-dependency',
     'package-unused-binary'
 ];
+export function extractReferencedScriptDependencies(projectRoot) {
+    const referenced = new Set();
+    const pkgJsonPath = path.resolve(projectRoot, 'package.json');
+    if (!fs.existsSync(pkgJsonPath))
+        return referenced;
+    try {
+        const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+        const scripts = pkg.scripts ? Object.values(pkg.scripts).join(' ') : '';
+        const allDeps = [
+            ...Object.keys(pkg.dependencies ?? {}),
+            ...Object.keys(pkg.devDependencies ?? {})
+        ];
+        for (const dep of allDeps) {
+            const cleanName = dep.startsWith('@') ? dep.split('/')[1] || dep : dep;
+            const rootBin = cleanName.replace(/-cli$/, '');
+            const escapedDep = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const escapedClean = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const escapedRoot = rootBin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(`(?:^|[\\s"'\`;&|])(?:${escapedDep}|${escapedClean}|${escapedRoot})(?:[\\s"'\`;&|]|$)`, 'i');
+            if (pattern.test(scripts)) {
+                referenced.add(dep);
+            }
+        }
+    }
+    catch {
+        // catch-ok: Ignore parse errors
+    }
+    return referenced;
+}
 /**
  * Parses raw JSON output from Knip into canonical AuditFindings.
  */
-export function parseKnipIssues(report, projectRoot = process.cwd()) {
+export function parseKnipIssues(report, projectRoot = process.cwd(), isPathIgnored) {
     const issues = Array.isArray(report)
         ? report
         : (report && 'issues' in report && Array.isArray(report.issues) ? report.issues : []);
     const findings = [];
+    const scriptReferencedDeps = extractReferencedScriptDependencies(projectRoot);
     for (const fileIssue of issues) {
         const rawFile = fileIssue.file || 'package.json';
         const relFile = path.isAbsolute(rawFile)
             ? path.relative(projectRoot, rawFile).replace(/\\/g, '/')
             : rawFile.replace(/\\/g, '/');
+        if (relFile !== 'package.json' && isPathIgnored?.(relFile)) {
+            continue;
+        }
         // Unused dependencies & devDependencies
         const allUnused = [
             ...(fileIssue.dependencies ?? []),
@@ -30,6 +63,9 @@ export function parseKnipIssues(report, projectRoot = process.cwd()) {
             ...(fileIssue.optionalPeerDependencies ?? [])
         ];
         for (const dep of allUnused) {
+            if (scriptReferencedDeps.has(dep.name)) {
+                continue;
+            }
             findings.push({
                 suiteId: 'validate_package_hygiene',
                 suiteName: 'Package & Dependency Hygiene Auditor',
@@ -118,14 +154,18 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
                 // catch-ok: Best effort cleanup of stale raw report
             }
         }
-        // Read ignoreDependencies from .fallowrc.json if present
+        // Read ignoreDependencies and entry from .fallowrc.json if present
         const fallowConfigPath = path.resolve(this.projectRoot, '.fallowrc.json');
         let fallowIgnoredDeps = [];
+        let fallowEntries = [];
         if (fs.existsSync(fallowConfigPath)) {
             try {
                 const fallowJson = JSON.parse(fs.readFileSync(fallowConfigPath, 'utf-8'));
                 if (Array.isArray(fallowJson.ignoreDependencies)) {
                     fallowIgnoredDeps = fallowJson.ignoreDependencies;
+                }
+                if (Array.isArray(fallowJson.entry)) {
+                    fallowEntries = fallowJson.entry;
                 }
             }
             catch {
@@ -133,24 +173,32 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
             }
         }
         const customIgnoredDeps = config.packageHygiene?.ignoreDependencies ?? [];
-        const allIgnoredDeps = Array.from(new Set([...fallowIgnoredDeps, ...customIgnoredDeps]));
+        const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
+        const allIgnoredDeps = Array.from(new Set([...fallowIgnoredDeps, ...customIgnoredDeps, ...scriptReferencedDeps]));
         const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];
+        const customEntry = config.packageHygiene?.entry;
+        const effectiveEntry = customEntry && customEntry.length > 0
+            ? [...customEntry]
+            : (fallowEntries.length > 0
+                ? fallowEntries
+                : [
+                    'src/index.{ts,js}',
+                    'src/main.{ts,js}',
+                    'index.html',
+                    'audit.config.ts'
+                ]);
+        const scannableRoots = getEffectiveScannableRoots(config);
+        const customProject = config.packageHygiene?.project;
+        const effectiveProject = customProject && customProject.length > 0
+            ? [...customProject]
+            : [
+                ...scannableRoots.map(r => `${r}/**/*.{ts,vue,js,mjs,cjs,json}`),
+                '*.{ts,js,mjs,cjs,json}'
+            ];
         const ephemeralConfig = {
             $schema: 'https://unpkg.com/knip@5/overview/configuration-schema.json',
-            entry: [
-                'src/index.ts',
-                'src/cli/*.ts',
-                'src/core/*.ts',
-                'src/plugin/*.ts',
-                'src/analyzers/*.ts',
-                'src/suites/**/*.ts',
-                'audit.config.ts'
-            ],
-            project: [
-                'src/**/*.{ts,vue,js}',
-                'tests/**/*.{ts,vue,js}',
-                'scripts/**/*.{ts,js}'
-            ],
+            entry: effectiveEntry,
+            project: effectiveProject,
             ignore: [
                 'dist/**',
                 'scratch/**',
@@ -158,6 +206,8 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
                 'skills/**',
                 '.agents/**',
                 '**/*.d.ts',
+                ...(config.paths.ignoredDirs?.flatMap(d => [`${d}/**`, d]) ?? []),
+                ...(config.paths.ignoredPatterns ?? []),
                 ...(config.paths.ignoreGlobs ?? [])
             ],
             ignoreDependencies: allIgnoredDeps,
@@ -192,8 +242,11 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
         if (!report) {
             return;
         }
-        const findings = parseKnipIssues(report, this.projectRoot);
+        const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p));
         for (const finding of findings) {
+            if (finding.file && finding.file !== 'package.json' && this.isPathIgnored(finding.file)) {
+                continue;
+            }
             this.addViolation({
                 ruleId: finding.ruleId ?? 'package-unused-dependency',
                 severity: finding.severity,

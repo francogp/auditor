@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "3.0.1-build.20261003-180352",
+  "version": "3.1.0-build.20261003-192724",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -82,6 +82,7 @@
     "auditor-similar": "./dist/cli/report_similar_code.js",
     "auditor-review": "./dist/cli/report_review.js",
     "auditor-update": "./dist/cli/update_package.js",
+    "auditor-build": "./dist/cli/audit_build.js",
     "auditor-init-agent": "./dist/cli/init_agent.js",
     "auditor-sync-env": "./dist/cli/sync_env_scripts.js",
     "auditor-check-env": "./dist/cli/check_environment.js",
@@ -112,9 +113,10 @@
     "env:setup": "node --experimental-strip-types src/cli/setup_env.ts",
     "env:check": "node --experimental-strip-types src/cli/check_environment.ts",
     "typecheck": "tsc --noEmit",
-    "build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts",
+    "build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run audit:build",
     "audit:changed": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts changed-since=main",
     "audit:lint": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=lint",
+    "audit:build": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=build",
     "audit:errors": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts severity=error",
     "audit:warnings": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts severity=warning",
     "audit:summary": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts",
@@ -182,7 +184,6 @@
     "validate:sql-anti-patterns": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/persistence/validate_sql_anti_patterns.ts"
   },
   "dependencies": {
-    "@projectwallace/stylelint-plugin": "^0.7.0",
     "eslint": "^10.12.0",
     "eslint-plugin-vuejs-accessibility": "^2.6.0",
     "fallow": "^3.28.0",

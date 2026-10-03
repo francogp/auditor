@@ -47,7 +47,6 @@ describe('CssDuplicatesAuditor (Stylelint-backed)', () => {
       expect(auditor.ruleIds).toContain('css-empty-blocks');
       expect(auditor.ruleIds).toContain('css-order-violation');
       expect(auditor.ruleIds).toContain('scss-syntax-issue');
-      expect(auditor.ruleIds).toContain('wallace-complexity');
     });
 
     it('enforces composed rule descriptions <= 50 characters (AGENTS.md rule)', () => {

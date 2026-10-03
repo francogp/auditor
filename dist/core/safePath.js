@@ -6,23 +6,21 @@
  */
 import path from 'node:path';
 import fs from 'node:fs';
-import { getAuditConfig } from "./auditConfig.js";
+import { getAuditConfig, sanitizePath } from "./auditConfig.js";
 const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
-export function sanitizePath(inputPath) {
-    const clean = String(inputPath).replace(/(\.\.[/\\])+/g, '').replace(/[^a-zA-Z0-9_\- /.:\\]/g, '');
-    return path.normalize(clean);
-}
+export { sanitizePath };
 /**
- * Resolves absolute paths safely within project root boundary.
+ * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
+ * Prevents directory traversal attacks (CWE-22).
  */
 export function safeResolve(...pathSegments) {
     const root = path.resolve(process.cwd());
     const resolved = path.resolve(...pathSegments.filter(Boolean));
-    const normalized = path.normalize(resolved);
-    if (!normalized.toLowerCase().startsWith(root.toLowerCase())) {
-        throw new Error(`Security Violation CWE-${CWE_PATH_TRAVERSAL_ID_TEXT}: Path '${normalized}' escapes project root '${root}'`);
+    const rel = path.relative(root, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        throw new Error(`Security Violation CWE-${CWE_PATH_TRAVERSAL_ID_TEXT}: Path '${resolved}' escapes project root '${root}'`);
     }
-    return normalized;
+    return resolved;
 }
 /**
  * Joins path segments safely within project root boundary.
@@ -79,14 +77,13 @@ export async function safeFetch(rawUrl, options, allowedHosts) {
 }
 /**
  * Builds a safe local relative URL with query parameters (SSRF Prevention CWE-918).
+ * Uses WHATWG URL standard API without fragile homebrew regexes.
  */
 export function safeDevUrl(endpoint, params = {}, baseOrigin = 'http://localhost') {
-    const cleanEndpoint = endpoint.replace(/[^a-zA-Z0-9_-]/g, '');
-    const url = new URL(cleanEndpoint, baseOrigin);
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = new URL(normalizedEndpoint, baseOrigin);
     for (const [key, val] of Object.entries(params)) {
-        const cleanKey = key.replace(/[^a-zA-Z0-9_-]/g, '');
-        const cleanVal = val.replace(/[^a-zA-Z0-9_-]/g, '');
-        url.searchParams.set(cleanKey, cleanVal);
+        url.searchParams.set(key, val);
     }
     return url.pathname + url.search;
 }

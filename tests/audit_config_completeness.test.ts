@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
 import {
   defineAuditConfig,
   assertAuditConfigComplete,
@@ -289,9 +290,14 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       // We manually clear cached in-memory reference while preserving process.env
       const envData = process.env.AUDIT_CONFIG_DATA;
       const envFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+      const envRoot = process.env.AUDIT_ACTIVE_CONFIG_ROOT;
       resetAuditConfig();
       if (envData) process.env.AUDIT_CONFIG_DATA = envData;
-      if (envFile) process.env.AUDIT_ACTIVE_CONFIG_FILE = envFile;
+      if (envRoot) process.env.AUDIT_ACTIVE_CONFIG_ROOT = envRoot;
+      if (envData && envFile) {
+        fs.writeFileSync(envFile, envData, 'utf-8');
+        process.env.AUDIT_ACTIVE_CONFIG_FILE = envFile;
+      }
 
       // Child worker calls getAuditConfig()
       const restored = getAuditConfig();

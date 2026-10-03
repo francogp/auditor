@@ -84,10 +84,23 @@ function resolveSkipSimilar() {
         process.env.AUDIT_SKIP_SIMILAR === 'true' ||
         process.env.AUDIT_SKIP_SIMILAR === '1');
 }
+function resolveTargetPreset(values, positionals) {
+    if (values.preset)
+        return values.preset;
+    if (values.build)
+        return 'build';
+    if (positionals.includes('build'))
+        return 'build';
+    if (positionals.includes('lint'))
+        return 'lint';
+    if (positionals.includes('md'))
+        return 'md';
+    return undefined;
+}
 function parseAuditFullCliArgs(activeFamilies) {
     const args = process.argv.slice(2);
     const BOOLEAN_FLAGS = [
-        'errors-only', 'fix', 'all'
+        'errors-only', 'fix', 'all', 'build', 'with-build'
     ];
     const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
     const { values, positionals } = parseArgs({
@@ -106,7 +119,9 @@ function parseAuditFullCliArgs(activeFamilies) {
             top: { type: 'string', short: 't' },
             rule: { type: 'string', short: 'r', multiple: true },
             rules: { type: 'string', multiple: true },
-            fix: { type: 'boolean' }
+            fix: { type: 'boolean' },
+            build: { type: 'boolean' },
+            'with-build': { type: 'boolean' }
         },
         allowPositionals: true,
         strict: false
@@ -116,7 +131,7 @@ function parseAuditFullCliArgs(activeFamilies) {
         positionals,
         targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
         formattedRules: resolveFormattedRules(values, positionals),
-        targetPreset: values.preset,
+        targetPreset: resolveTargetPreset(values, positionals),
         targetSuites: resolveTargetSuites(values),
         concurrencyLimit: resolveConcurrencyLimit(values.concurrency),
         skipSimilar: resolveSkipSimilar()
@@ -419,11 +434,15 @@ async function runMasterAudit() {
         await fs.mkdir(path.join(scratchAuditsDir, family), { recursive: true });
     }
     const isFixMode = Boolean(cliOptions.values.fix);
+    const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
+    const withBuild = Boolean(cliOptions.values['with-build'] || cliOptions.values.all);
     const discoveryBase = {
         fixOnly: isFixMode,
+        buildOnly: isBuildMode,
+        withBuild,
         includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
     };
-    const allAvailableTasks = await discoverAuditors();
+    const allAvailableTasks = await discoverAuditors({ withBuild: true });
     const tasksToRun = await discoverAuditors({
         ...discoveryBase,
         family: cliOptions.targetFamily,
@@ -451,6 +470,9 @@ async function runMasterAudit() {
     if (isFixMode) {
         subtitleDetails.push('Modo: AUTO-FIX 🛠️');
     }
+    else if (isBuildMode) {
+        subtitleDetails.push('Modo: POST-BUILD 🏗️');
+    }
     else {
         if (cliOptions.targetPreset)
             subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
@@ -462,7 +484,13 @@ async function runMasterAudit() {
             subtitleDetails.push('Modo: PARCIAL ⚠️');
     }
     const defaultBannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
-    const bannerTitle = isFixMode ? '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]' : defaultBannerTitle;
+    let bannerTitle = defaultBannerTitle;
+    if (isFixMode) {
+        bannerTitle = '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]';
+    }
+    else if (isBuildMode) {
+        bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
+    }
     console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
     if (tasksToRun.length === 0) {
         console.log(styleText('yellow', '⚠️ No se encontraron auditores que coincidan con los filtros especificados.'));

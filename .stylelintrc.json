@@ -4,8 +4,7 @@
     "stylelint-config-standard"
   ],
   "plugins": [
-    "stylelint-order",
-    "@projectwallace/stylelint-plugin"
+    "stylelint-order"
   ],
   "overrides": [
     {
@@ -67,16 +66,6 @@
         ]
       }
     ],
-    "projectwallace/no-invalid-z-index": true,
-    "projectwallace/no-duplicate-custom-properties": true,
-    "projectwallace/no-duplicate-keyframes": true,
-    "projectwallace/no-unused-custom-properties": true,
-    "projectwallace/no-property-browserhacks": true,
-    "projectwallace/no-value-browserhacks": true,
-    "projectwallace/no-atrule-browserhacks": true,
-    "projectwallace/no-unreachable-if-branches": true,
-    "projectwallace/no-useless-if": true,
-    "projectwallace/no-duplicate-data-urls": true,
     "order/order": [
       "custom-properties",
       "dollar-variables",

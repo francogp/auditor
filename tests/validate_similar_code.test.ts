@@ -125,6 +125,83 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(result.findings).toHaveLength(1);
       expect(result.findings[0]?.ruleId).toBe('fallow-similar-code');
     });
+
+    it('skips candidates when either side is in a test file and includeTestsInCodeAudit is false', async () => {
+      setAuditConfig(defineAuditConfig({
+        name: 'Exclude Tests Project',
+        paths: { includeTestsInCodeAudit: false },
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false }
+      }));
+
+      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const candidates: SimilarCodeCandidate[] = [
+        {
+          left: { path: 'tests/unit/mockHelper.test.ts', name: 'createMock', start_line: 5 },
+          right: { path: 'tests/integration/mockHelper.test.ts', name: 'createMock', start_line: 8 },
+          similarity: 0.99
+        }
+      ];
+
+      const count = evaluateSimilarCodeCandidates(candidates, { ignoreSameFile: true }, auditor);
+      expect(count).toBe(0);
+
+      const result = await auditor.finishAudit();
+      expect(result.findings).toHaveLength(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('skips candidates when either side is in an ignored directory', async () => {
+      setAuditConfig(defineAuditConfig({
+        name: 'Ignored Dirs Project',
+        paths: { ignoredDirs: ['external'] },
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false }
+      }));
+
+      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const candidates: SimilarCodeCandidate[] = [
+        {
+          left: { path: 'external/vendored/feature.ts', name: 'doSomething', start_line: 1 },
+          right: { path: 'src/feature.ts', name: 'doSomething', start_line: 1 },
+          similarity: 0.99
+        }
+      ];
+
+      const count = evaluateSimilarCodeCandidates(candidates, { ignoreSameFile: true }, auditor);
+      expect(count).toBe(0);
+
+      const result = await auditor.finishAudit();
+      expect(result.findings).toHaveLength(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('normalizes absolute candidate paths to relative POSIX paths', async () => {
+      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const absLeft = path.resolve(scratchDir, 'src/utils/calc.ts');
+      const absRight = path.resolve(scratchDir, 'src/services/billing.ts');
+
+      const candidates: SimilarCodeCandidate[] = [
+        {
+          left: { path: absLeft, name: 'calcTax', start_line: 10 },
+          right: { path: absRight, name: 'computeTax', start_line: 45 },
+          similarity: 0.98
+        }
+      ];
+
+      const count = evaluateSimilarCodeCandidates(candidates, { ignoreSameFile: true }, auditor);
+      expect(count).toBe(1);
+
+      const result = await auditor.finishAudit();
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0]?.file).toBe('src/utils/calc.ts');
+    });
   });
 
   describe('Execution Failure Governance (Zero Warning Mandate)', () => {

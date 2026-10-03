@@ -4,6 +4,10 @@
  * UNIFIED AUDIT ENGINE CONFIGURATION (Node.js 26+)
  * Canonical configuration contract, schema defaults, loader, and accessor for the generic auditor.
  */
+/**
+ * Normalizes and cleans file paths safely using Node.js native path primitives.
+ */
+export declare function sanitizePath(inputPath: string): string;
 export interface AuditPathsConfig {
     readonly srcRoots: readonly string[];
     readonly testRoots: readonly string[];
@@ -14,6 +18,7 @@ export interface AuditPathsConfig {
     readonly codeRoots: readonly string[];
     readonly cliRoots?: readonly string[];
     readonly dataRoots?: readonly string[];
+    readonly demoRoots?: readonly string[];
     readonly constantsRoots?: readonly string[];
     readonly componentsRoots?: readonly string[];
     readonly viewsRoots?: readonly string[];
@@ -199,6 +204,8 @@ export interface AuditPackageHygieneConfig {
     readonly enabled?: boolean;
     readonly ignoreDependencies?: readonly string[];
     readonly ignoreBinaries?: readonly string[];
+    readonly entry?: readonly string[];
+    readonly project?: readonly string[];
 }
 export interface AuditPackageDistributionConfig {
     readonly enabled: boolean;
@@ -314,6 +321,11 @@ export declare function isTestPath(filePath: string): boolean;
  * catalogs, domain fixtures) configured in paths.dataRoots.
  */
 export declare function isDataPath(filePath: string): boolean;
+/**
+ * Determines whether a file path belongs to a demo/showcase/mock directory
+ * configured in paths.demoRoots.
+ */
+export declare function isDemoPath(filePath: string): boolean;
 /**
  * Determines whether a file path belongs to a constants definition directory or module
  * configured in paths.constantsRoots or located within a /constants/ directory.

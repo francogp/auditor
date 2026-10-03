@@ -103,8 +103,8 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
         const config = getAuditConfig(options.projectRoot);
         const configuredDbDirs = config.persistence?.allowedDatabaseDirs;
         const configuredDbFiles = config.persistence?.allowedDatabaseFiles;
-        this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? (configuredDbDirs ? new Set(configuredDbDirs) : DEFAULT_ALLOWED_DATABASE_DIRS);
-        this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
+        this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? (configuredDbDirs && configuredDbDirs.length > 0 ? new Set(configuredDbDirs) : DEFAULT_ALLOWED_DATABASE_DIRS);
+        this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles && configuredDbFiles.length > 0 ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
     }
     runAudit() {
         this.scanSourceDirectoriesOnDisk();

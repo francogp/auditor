@@ -9,6 +9,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+/**
+ * Normalizes and cleans file paths safely using Node.js native path primitives.
+ */
+export function sanitizePath(inputPath: string): string {
+  if (!inputPath || typeof inputPath !== 'string') return '';
+  return path.normalize(inputPath.trim());
+}
+
 export interface AuditPathsConfig {
   readonly srcRoots: readonly string[];
   readonly testRoots: readonly string[];
@@ -19,6 +27,7 @@ export interface AuditPathsConfig {
   readonly codeRoots: readonly string[];
   readonly cliRoots?: readonly string[];
   readonly dataRoots?: readonly string[];
+  readonly demoRoots?: readonly string[];
   readonly constantsRoots?: readonly string[];
   readonly componentsRoots?: readonly string[];
   readonly viewsRoots?: readonly string[];
@@ -224,6 +233,8 @@ export interface AuditPackageHygieneConfig {
   readonly enabled?: boolean;
   readonly ignoreDependencies?: readonly string[];
   readonly ignoreBinaries?: readonly string[];
+  readonly entry?: readonly string[];
+  readonly project?: readonly string[];
 }
 
 export interface AuditPackageDistributionConfig {
@@ -316,6 +327,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     codeRoots: ['src', 'scripts'],
     cliRoots: ['src/cli'],
     dataRoots: ['src/data'],
+    demoRoots: [],
     constantsRoots: ['src/constants'],
     componentsRoots: ['src/components'],
     viewsRoots: ['src/views'],
@@ -336,7 +348,9 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     authorizedSaveFiles: [],
     saveKeyPrefixes: [],
     supabaseDir: 'supabase',
-    dockerContainer: 'supabase-db'
+    dockerContainer: 'supabase-db',
+    allowedDatabaseDirs: ['backups', 'migrations', 'schemas'],
+    allowedDatabaseFiles: ['AGENTS.md', '.gitkeep']
   },
   domain: {
     enabled: true,
@@ -492,8 +506,12 @@ function buildPersistenceConfig(raw?: DeepPartial<AuditPersistenceConfig>): Audi
     ...p,
     forbiddenMockModules: p.forbiddenMockModules ?? [],
     positionalArrayColumns: p.positionalArrayColumns ?? [],
-    allowedDatabaseDirs: p.allowedDatabaseDirs ?? [],
-    allowedDatabaseFiles: p.allowedDatabaseFiles ?? [],
+    allowedDatabaseDirs: p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0
+      ? Array.from(new Set(['backups', 'migrations', 'schemas', ...p.allowedDatabaseDirs]))
+      : ['backups', 'migrations', 'schemas'],
+    allowedDatabaseFiles: p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0
+      ? Array.from(new Set(['AGENTS.md', '.gitkeep', ...p.allowedDatabaseFiles]))
+      : ['AGENTS.md', '.gitkeep'],
     allowedHosts: p.allowedHosts ?? ['localhost', '127.0.0.1'],
     prohibitedTemplateIdentifiers: p.prohibitedTemplateIdentifiers ?? []
   };
@@ -719,7 +737,9 @@ function buildPackageHygieneConfig(raw?: DeepPartial<AuditPackageHygieneConfig>)
   return {
     enabled: p.enabled ?? def?.enabled ?? true,
     ignoreDependencies: p.ignoreDependencies ? [...p.ignoreDependencies] : (def?.ignoreDependencies ?? []),
-    ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? [])
+    ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? []),
+    entry: p.entry ? [...p.entry] : undefined,
+    project: p.project ? [...p.project] : undefined
   };
 }
 
@@ -974,7 +994,7 @@ export function serializeAuditConfigToEnv(config: AuditEngineConfig, projectRoot
       if (!fs.existsSync(cacheDir)) {
         fs.mkdirSync(cacheDir, { recursive: true });
       }
-      const ephemeralConfigFile = path.resolve(cacheDir, 'active_audit_config.json');
+      const ephemeralConfigFile = path.resolve(cacheDir, `active_audit_config_${process.pid}.json`);
       fs.writeFileSync(ephemeralConfigFile, serialized, 'utf-8');
       process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
     } catch {
@@ -999,16 +1019,19 @@ function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | null {
   }
 
   // 1. Try ephemeral config file if specified
-  const envFilePath = process.env.AUDIT_ACTIVE_CONFIG_FILE;
-  if (envFilePath && fs.existsSync(envFilePath)) {
-    try {
-      const content = fs.readFileSync(envFilePath, 'utf-8');
-      const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
-      cachedConfig = defineAuditConfig(parsed);
-      cachedProjectRoot = projectRoot;
-      return cachedConfig;
-    } catch {
-      // catch-ok: Fall back to inline env variable on file read or parse failure
+  const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+  if (rawEnvFile) {
+    const envFilePath = sanitizePath(rawEnvFile);
+    if (fs.existsSync(envFilePath)) {
+      try {
+        const content = fs.readFileSync(envFilePath, 'utf-8');
+        const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
+        cachedConfig = defineAuditConfig(parsed);
+        cachedProjectRoot = projectRoot;
+        return cachedConfig;
+      } catch {
+        // catch-ok: Fall back to inline env variable on file read or parse failure
+      }
     }
   }
 
@@ -1106,6 +1129,17 @@ export function setAuditConfig(config: AuditEngineConfig, projectRoot: string = 
 export function resetAuditConfig(): void {
   cachedConfig = null;
   cachedProjectRoot = null;
+  const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+  if (rawEnvFile) {
+    const cleanEnvFile = sanitizePath(rawEnvFile);
+    if (fs.existsSync(cleanEnvFile)) {
+      try {
+        fs.unlinkSync(cleanEnvFile);
+      } catch {
+        // catch-ok: Best effort cleanup
+      }
+    }
+  }
   delete process.env.AUDIT_CONFIG_DATA;
   delete process.env.AUDIT_ACTIVE_CONFIG_FILE;
   delete process.env.AUDIT_ACTIVE_CONFIG_ROOT;
@@ -1173,6 +1207,19 @@ export function isDataPath(filePath: string): boolean {
   const dataRoots = config?.paths?.dataRoots ?? ['src/data'];
 
   return matchesAnyRoot(norm, dataRoots);
+}
+
+/**
+ * Determines whether a file path belongs to a demo/showcase/mock directory
+ * configured in paths.demoRoots.
+ */
+export function isDemoPath(filePath: string): boolean {
+  if (!filePath) return false;
+  const norm = filePath.split('\\').join('/').toLowerCase();
+  const config = getAuditConfig();
+  const demoRoots = config?.paths?.demoRoots ?? [];
+
+  return matchesAnyRoot(norm, demoRoots);
 }
 
 /**

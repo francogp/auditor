@@ -10,7 +10,7 @@ import ts from 'typescript';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
-import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath } from '../core/auditConfig.ts';
+import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath, isDemoPath } from '../core/auditConfig.ts';
 
 export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'duplicate-constants',
@@ -122,7 +122,7 @@ function isConstantAuditCandidate(filePath: string, projectRoot: string, config:
   const isUnderRoot = !path.isAbsolute(filePath) || !path.relative(projectRoot, filePath).startsWith('..');
   const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
   if (isUnderRoot && isPathIgnored(rel)) return false;
-  if (isDataPath(rel)) return false;
+  if (isDataPath(rel) || isDemoPath(rel)) return false;
   if (!isInCodeRoots(rel, config)) return false;
   if (isScriptPath(rel, config)) return false;
   if (isExemptFile(rel, config)) return false;

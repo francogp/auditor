@@ -15,6 +15,14 @@ var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExte
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+/**
+ * Normalizes and cleans file paths safely using Node.js native path primitives.
+ */
+export function sanitizePath(inputPath) {
+    if (!inputPath || typeof inputPath !== 'string')
+        return '';
+    return path.normalize(inputPath.trim());
+}
 export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
 export const DEFAULT_AUDIT_CONFIG = {
     name: 'Generic Project',
@@ -28,6 +36,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         codeRoots: ['src', 'scripts'],
         cliRoots: ['src/cli'],
         dataRoots: ['src/data'],
+        demoRoots: [],
         constantsRoots: ['src/constants'],
         componentsRoots: ['src/components'],
         viewsRoots: ['src/views'],
@@ -48,7 +57,9 @@ export const DEFAULT_AUDIT_CONFIG = {
         authorizedSaveFiles: [],
         saveKeyPrefixes: [],
         supabaseDir: 'supabase',
-        dockerContainer: 'supabase-db'
+        dockerContainer: 'supabase-db',
+        allowedDatabaseDirs: ['backups', 'migrations', 'schemas'],
+        allowedDatabaseFiles: ['AGENTS.md', '.gitkeep']
     },
     domain: {
         enabled: true,
@@ -201,8 +212,12 @@ function buildPersistenceConfig(raw) {
         ...p,
         forbiddenMockModules: p.forbiddenMockModules ?? [],
         positionalArrayColumns: p.positionalArrayColumns ?? [],
-        allowedDatabaseDirs: p.allowedDatabaseDirs ?? [],
-        allowedDatabaseFiles: p.allowedDatabaseFiles ?? [],
+        allowedDatabaseDirs: p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0
+            ? Array.from(new Set(['backups', 'migrations', 'schemas', ...p.allowedDatabaseDirs]))
+            : ['backups', 'migrations', 'schemas'],
+        allowedDatabaseFiles: p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0
+            ? Array.from(new Set(['AGENTS.md', '.gitkeep', ...p.allowedDatabaseFiles]))
+            : ['AGENTS.md', '.gitkeep'],
         allowedHosts: p.allowedHosts ?? ['localhost', '127.0.0.1'],
         prohibitedTemplateIdentifiers: p.prohibitedTemplateIdentifiers ?? []
     };
@@ -385,7 +400,9 @@ function buildPackageHygieneConfig(raw) {
     return {
         enabled: p.enabled ?? def?.enabled ?? true,
         ignoreDependencies: p.ignoreDependencies ? [...p.ignoreDependencies] : (def?.ignoreDependencies ?? []),
-        ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? [])
+        ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? []),
+        entry: p.entry ? [...p.entry] : undefined,
+        project: p.project ? [...p.project] : undefined
     };
 }
 function buildPackageDistributionConfig(raw) {
@@ -609,7 +626,7 @@ export function serializeAuditConfigToEnv(config, projectRoot = process.cwd()) {
             if (!fs.existsSync(cacheDir)) {
                 fs.mkdirSync(cacheDir, { recursive: true });
             }
-            const ephemeralConfigFile = path.resolve(cacheDir, 'active_audit_config.json');
+            const ephemeralConfigFile = path.resolve(cacheDir, `active_audit_config_${process.pid}.json`);
             fs.writeFileSync(ephemeralConfigFile, serialized, 'utf-8');
             process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
         }
@@ -633,17 +650,20 @@ function tryLoadConfigFromEnv(projectRoot) {
         return null;
     }
     // 1. Try ephemeral config file if specified
-    const envFilePath = process.env.AUDIT_ACTIVE_CONFIG_FILE;
-    if (envFilePath && fs.existsSync(envFilePath)) {
-        try {
-            const content = fs.readFileSync(envFilePath, 'utf-8');
-            const parsed = JSON.parse(content);
-            cachedConfig = defineAuditConfig(parsed);
-            cachedProjectRoot = projectRoot;
-            return cachedConfig;
-        }
-        catch {
-            // catch-ok: Fall back to inline env variable on file read or parse failure
+    const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+    if (rawEnvFile) {
+        const envFilePath = sanitizePath(rawEnvFile);
+        if (fs.existsSync(envFilePath)) {
+            try {
+                const content = fs.readFileSync(envFilePath, 'utf-8');
+                const parsed = JSON.parse(content);
+                cachedConfig = defineAuditConfig(parsed);
+                cachedProjectRoot = projectRoot;
+                return cachedConfig;
+            }
+            catch {
+                // catch-ok: Fall back to inline env variable on file read or parse failure
+            }
         }
     }
     // 2. Try inline environment variable
@@ -735,6 +755,18 @@ export function setAuditConfig(config, projectRoot = process.cwd()) {
 export function resetAuditConfig() {
     cachedConfig = null;
     cachedProjectRoot = null;
+    const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
+    if (rawEnvFile) {
+        const cleanEnvFile = sanitizePath(rawEnvFile);
+        if (fs.existsSync(cleanEnvFile)) {
+            try {
+                fs.unlinkSync(cleanEnvFile);
+            }
+            catch {
+                // catch-ok: Best effort cleanup
+            }
+        }
+    }
     delete process.env.AUDIT_CONFIG_DATA;
     delete process.env.AUDIT_ACTIVE_CONFIG_FILE;
     delete process.env.AUDIT_ACTIVE_CONFIG_ROOT;
@@ -793,6 +825,18 @@ export function isDataPath(filePath) {
     const config = getAuditConfig();
     const dataRoots = config?.paths?.dataRoots ?? ['src/data'];
     return matchesAnyRoot(norm, dataRoots);
+}
+/**
+ * Determines whether a file path belongs to a demo/showcase/mock directory
+ * configured in paths.demoRoots.
+ */
+export function isDemoPath(filePath) {
+    if (!filePath)
+        return false;
+    const norm = filePath.split('\\').join('/').toLowerCase();
+    const config = getAuditConfig();
+    const demoRoots = config?.paths?.demoRoots ?? [];
+    return matchesAnyRoot(norm, demoRoots);
 }
 /**
  * Determines whether a file path belongs to a constants definition directory or module

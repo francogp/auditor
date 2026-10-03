@@ -425,13 +425,24 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     logStep: (stepNumber: number, totalSteps: number, description: string) => {
       console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
     },
-    addFinding: (f: AuditFinding) => findings.push(f),
+    addFinding: (f: AuditFinding) => {
+      const normFile = f.file
+        ? (path.isAbsolute(f.file) ? path.relative(projectRoot, f.file).replace(/\\/g, '/') : f.file.replace(/\\/g, '/'))
+        : f.file;
+      findings.push({ ...f, file: normFile });
+    },
     addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => {
-      findings.push({ severity: 'error', message, file, line, context, ruleId, ruleDescription, suiteId, suiteName });
+      const normFile = file
+        ? (path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, '/') : file.replace(/\\/g, '/'))
+        : file;
+      findings.push({ severity: 'error', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
     },
     addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => {
       if (!values['errors-only']) {
-        findings.push({ severity: 'warning', message, file, line, context, ruleId, ruleDescription, suiteId, suiteName });
+        const normFile = file
+          ? (path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, '/') : file.replace(/\\/g, '/'))
+          : file;
+        findings.push({ severity: 'warning', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
       }
     },
     setMetric: (key: string, value: number | string) => {
@@ -636,8 +647,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly unignoreDirs: readonly string[];
   public readonly requiredFiles: readonly string[];
   public readonly requiresAst: boolean;
+  public readonly projectRoot: string;
 
-  protected readonly projectRoot: string;
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
   protected readonly subAuditorReports: SubAuditorReport[] = [];
@@ -761,12 +772,17 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.countsByRule.set(v.ruleId, current + 1);
 
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
+    const normalizedFile = v.file
+      ? (path.isAbsolute(v.file)
+          ? path.relative(this.projectRoot, v.file).replace(/\\/g, '/')
+          : v.file.replace(/\\/g, '/'))
+      : v.file;
 
     if (v.severity === 'error') {
       this.context.addFinding({
         severity: 'error',
         message: v.message,
-        file: v.file,
+        file: normalizedFile,
         line: v.line,
         col: v.col,
         context: v.context,
@@ -780,7 +796,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         this.context.addFinding({
           severity: 'warning',
           message: v.message,
-          file: v.file,
+          file: normalizedFile,
           line: v.line,
           col: v.col,
           context: v.context,
@@ -806,6 +822,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   protected isFixModeRequested(): boolean {
     const rawValues = this.context.values as Record<string, unknown> | undefined;
     return process.argv.includes('fix') || process.argv.includes('--fix') || Boolean(rawValues?.fix);
+  }
+
+  public isPathIgnored(relPath: string): boolean {
+    return this.context.isPathIgnored(relPath);
   }
 
   protected getLineNumber(content: string, charIndex: number): number {

@@ -19,7 +19,7 @@ import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
-import { getAuditConfig } from "../../core/auditConfig.js";
+import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } from "../../cli/cliUtils.js";
 enableCompileCache();
 export const SIMILAR_CODE_RULES = [
@@ -114,11 +114,24 @@ export function evaluateSimilarCodeCandidates(candidates, options, auditor) {
         return 0;
     }
     const ignoreSameFile = options.ignoreSameFile ?? true;
+    const config = getAuditConfig(auditor.projectRoot);
     let reportedCount = 0;
     for (const c of candidates) {
-        const leftPath = (c.left?.path || '').replace(/\\/g, '/');
-        const rightPath = (c.right?.path || '').replace(/\\/g, '/');
+        let leftPath = (c.left?.path || '').replace(/\\/g, '/');
+        if (path.isAbsolute(leftPath)) {
+            leftPath = path.relative(auditor.projectRoot, leftPath).replace(/\\/g, '/');
+        }
+        let rightPath = (c.right?.path || '').replace(/\\/g, '/');
+        if (path.isAbsolute(rightPath)) {
+            rightPath = path.relative(auditor.projectRoot, rightPath).replace(/\\/g, '/');
+        }
         if (ignoreSameFile && leftPath === rightPath) {
+            continue;
+        }
+        if (auditor.isPathIgnored(leftPath) || auditor.isPathIgnored(rightPath)) {
+            continue;
+        }
+        if (!config.paths.includeTestsInCodeAudit && (isTestPath(leftPath) || isTestPath(rightPath))) {
             continue;
         }
         const similarityPct = (c.similarity * 100).toFixed(1);

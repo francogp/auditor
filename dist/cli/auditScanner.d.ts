@@ -9,7 +9,7 @@
 import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 export declare const AUDIT_PRESETS: Record<string, readonly string[]>;
-export type AuditPresetName = 'lint' | 'md' | (string & {});
+export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {});
 export interface DiscoveryOptions {
     baseDir?: string;
     projectRoot?: string;
@@ -22,6 +22,8 @@ export interface DiscoveryOptions {
     fixOnly?: boolean;
     lintOnly?: boolean;
     mdOnly?: boolean;
+    buildOnly?: boolean;
+    withBuild?: boolean;
     includeHeavy?: boolean;
 }
 export interface ExtractedAuditorMetadata {

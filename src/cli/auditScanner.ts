@@ -33,7 +33,7 @@ function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): num
 
 export const AUDIT_PRESETS: Record<string, readonly string[]> = {};
 
-export type AuditPresetName = 'lint' | 'md' | (string & {});
+export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {});
 
 export interface DiscoveryOptions {
   baseDir?: string;
@@ -47,6 +47,8 @@ export interface DiscoveryOptions {
   fixOnly?: boolean;
   lintOnly?: boolean;
   mdOnly?: boolean;
+  buildOnly?: boolean;
+  withBuild?: boolean;
   includeHeavy?: boolean;
 }
 
@@ -203,6 +205,11 @@ async function createAuditTaskDefinition(
     GitIgnoreRegistry.registerMany(gitIgnoreEntries);
   }
 
+  const isBuildPreset = options.preset === 'build' || options.buildOnly;
+  if (isBuildPreset && (!capabilities || !capabilities.requiresBuild)) {
+    return null;
+  }
+
   if (options.fixOnly && (!capabilities || !capabilities.fix)) {
     return null;
   }
@@ -214,6 +221,14 @@ async function createAuditTaskDefinition(
   }
   if (options.includeHeavy === false && capabilities?.heavy) {
     return null;
+  }
+
+  // Pre-build run (default general audit, audit:for-commit, lint, md): exclude requiresBuild suites
+  // unless explicitly requested via --with-build or targeting a specific suite/task
+  if (!isBuildPreset && !options.withBuild && !options.task && !options.suites) {
+    if (capabilities?.requiresBuild) {
+      return null;
+    }
   }
 
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');

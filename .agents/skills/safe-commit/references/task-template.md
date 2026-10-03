@@ -23,7 +23,7 @@
     - [ ] `npm run audit:for-commit` (Gate 2.2: 0 errors, 0 new warnings vs origin/main)
     - [ ] `npm run test` (Gate 2.3: 100% test suites passing)
     - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.4: STRICT Exit Code 0 — zero bypasses, single run)
-    - [ ] `npm run audit:bundle` (Gate 2.5: Build optimization & chunk budget validation)
+    - [ ] `npm run audit:build` (Gate 2.5: Post-build compiled artifact audit)
     - [ ] `npm run audit:fallow` (Gate 2.6: Score ≥ 85 and ≥ BASELINE_HEALTH)
   - [ ] **Loop Repair Action (Triggered on ANY failure above; repeat until all gates pass)**:
     - [ ] `npm run audit:fix` / manual code fixes applied in workspace

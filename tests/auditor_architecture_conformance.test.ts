@@ -134,7 +134,7 @@ describe('Auditor Architecture Conformance', () => {
     it('discovers all sub-auditors dynamically with valid families and executable paths', async () => {
       const config = await loadAuditConfig();
       const activeFamilies = getActiveFamilies(config.customFamilies);
-      const tasks = await discoverAuditors();
+      const tasks = await discoverAuditors({ withBuild: true });
       expect(tasks.length).toBeGreaterThanOrEqual(25);
 
       for (const task of tasks) {

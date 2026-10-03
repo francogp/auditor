@@ -26,7 +26,8 @@
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns, getEffectiveScannableRoots, FileScanAuditor } from '../../core/auditorBase.ts';
 export { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns, getEffectiveScannableRoots };
-export type NativePathRuleId = 'unsafe-path-concat' | 'unsanitized-env-argv-path' | 'untrusted-url-fetch' | 'hardcoded-slash-path';
+export type NativePathRuleId = 'unsafe-path-concat' | 'unsanitized-env-argv-path' | 'untrusted-url-fetch' | 'hardcoded-slash-path' | 'homebrew-path-manipulation';
+export declare const NATIVE_PATH_RULES: readonly NativePathRuleId[];
 export interface NativePathViolation {
     readonly file: string;
     readonly line: number;

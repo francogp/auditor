@@ -466,7 +466,6 @@ See [`LICENSE`](LICENSE) for complete details.
 | **Stylelint** | [`stylelint/stylelint`](https://github.com/stylelint/stylelint) | [MIT License](https://github.com/stylelint/stylelint/blob/main/LICENSE) |
 | **Stylelint SCSS** | [`stylelint-scss/stylelint-scss`](https://github.com/stylelint-scss/stylelint-scss) | [MIT License](https://github.com/stylelint-scss/stylelint-scss/blob/master/LICENSE) |
 | **Stylelint Order** | [`hudochenkov/stylelint-order`](https://github.com/hudochenkov/stylelint-order) | [MIT License](https://github.com/hudochenkov/stylelint-order/blob/master/LICENSE) |
-| **Stylelint Wallace** | [`projectwallace/stylelint-plugin`](https://github.com/projectwallace/stylelint-plugin) | [MIT License](https://github.com/projectwallace/stylelint-plugin/blob/main/license) |
 | **postcss-html** | [`ota-meshi/postcss-html`](https://github.com/ota-meshi/postcss-html) | [MIT License](https://github.com/ota-meshi/postcss-html/blob/master/LICENSE) |
 | **postcss-scss** | [`postcss/postcss-scss`](https://github.com/postcss/postcss-scss) | [MIT License](https://github.com/postcss/postcss-scss/blob/main/LICENSE) |
 | **HTML-Validate** | [`html-validate/html-validate`](https://gitlab.com/html-validate/html-validate) | [MIT License](https://gitlab.com/html-validate/html-validate/-/blob/master/LICENSE) |

@@ -20,10 +20,11 @@ export interface KnipFileIssues {
 export interface KnipReport {
     readonly issues?: readonly KnipFileIssues[];
 }
+export declare function extractReferencedScriptDependencies(projectRoot: string): Set<string>;
 /**
  * Parses raw JSON output from Knip into canonical AuditFindings.
  */
-export declare function parseKnipIssues(report: KnipReport | readonly KnipFileIssues[], projectRoot?: string): AuditFinding[];
+export declare function parseKnipIssues(report: KnipReport | readonly KnipFileIssues[], projectRoot?: string, isPathIgnored?: (relPath: string) => boolean): AuditFinding[];
 export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
     private readonly fixMode;
     constructor(options?: {

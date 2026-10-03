@@ -30,6 +30,7 @@ export const ESSENTIAL_AUDITOR_SCRIPTS = {
     'audit:fix': 'auditor fix',
     'audit:lint': 'auditor preset=lint',
     'audit:md': 'auditor preset=md',
+    'audit:build': 'auditor preset=build',
     'auditor:update': 'auditor-update',
     'auditor:version': 'auditor-version'
 };

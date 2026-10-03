@@ -25,7 +25,7 @@ export const CSS_ANALYZER_DESCRIPTOR = {
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from "../../analyzers/doxAnalyzer.js";
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from "../../analyzers/constantAnalyzer.js";
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from "../../core/auditorBase.js";
-import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath, getEffectiveZLayers } from "../../core/auditConfig.js";
+import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, isDemoPath, resolveZLayersScssPath, getEffectiveZLayers } from "../../core/auditConfig.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 enableCompileCache();
 export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
@@ -472,7 +472,7 @@ function isComplexityExemptPath(filePath) {
     if (norm.startsWith('dist/')) {
         return true;
     }
-    if (isDataPath(norm))
+    if (isDataPath(norm) || isDemoPath(norm))
         return true;
     return false;
 }
@@ -1490,11 +1490,14 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
     async runAudit() {
         const violations = await main();
         for (const v of violations) {
+            const relFile = v.file
+                ? (path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file).replace(/\\/g, '/') : v.file.replace(/\\/g, '/'))
+                : '';
             this.addViolation({
                 ruleId: v.ruleId || getViolationCategory(v),
                 ruleDescription: v.ruleDescription,
                 severity: v.severity,
-                file: v.file,
+                file: relFile,
                 line: v.line,
                 message: v.message,
                 context: v.context

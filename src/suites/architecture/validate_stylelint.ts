@@ -5,7 +5,7 @@
  *
  * Audits stylesheets, component styles, and Vue 3 SFCs (<style scoped lang="scss">)
  * using the official Stylelint engine with stylelint-config-standard-scss,
- * stylelint-config-standard-vue, stylelint-order, and @projectwallace/stylelint-plugin.
+ * stylelint-config-standard-vue, and stylelint-order.
  *
  * Performance:
  *   - Ephemeral content-hashed caching at scratch/cache/stylelint_cache.json
@@ -34,8 +34,7 @@ export type StylelintRuleId =
   | 'css-duplicate-properties'
   | 'css-empty-blocks'
   | 'css-order-violation'
-  | 'scss-syntax-issue'
-  | 'wallace-complexity';
+  | 'scss-syntax-issue';
 
 export const STYLELINT_RULES: readonly StylelintRuleId[] = [
   'stylelint-issue',
@@ -43,8 +42,7 @@ export const STYLELINT_RULES: readonly StylelintRuleId[] = [
   'css-duplicate-properties',
   'css-empty-blocks',
   'css-order-violation',
-  'scss-syntax-issue',
-  'wallace-complexity'
+  'scss-syntax-issue'
 ] as const;
 
 export function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string {
@@ -102,7 +100,6 @@ export function categorizeStylelintRule(ruleName: string | undefined): Stylelint
   if (ruleName === 'block-no-empty') return 'css-empty-blocks';
   if (ruleName.startsWith('order/')) return 'css-order-violation';
   if (ruleName.startsWith('scss/')) return 'scss-syntax-issue';
-  if (ruleName.startsWith('projectwallace/')) return 'wallace-complexity';
   return 'stylelint-issue';
 }
 
@@ -146,8 +143,7 @@ ruleIds: STYLELINT_RULES,
         'css-duplicate-properties': 'Propiedades duplicadas en la regla',
         'css-empty-blocks': 'Bloques de estilos vacíos',
         'css-order-violation': 'Orden de propiedades CSS',
-        'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
-        'wallace-complexity': 'Complejidad de estilos excesiva'
+        'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida'
       },
       roots,
       projectRoot

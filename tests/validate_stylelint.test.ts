@@ -56,7 +56,6 @@ describe('StylelintAuditor Suite', () => {
       expect(auditor.ruleIds).toContain('css-empty-blocks');
       expect(auditor.ruleIds).toContain('css-order-violation');
       expect(auditor.ruleIds).toContain('scss-syntax-issue');
-      expect(auditor.ruleIds).toContain('wallace-complexity');
     });
 
     it('enforces composed rule descriptions <= 50 characters (AGENTS.md rule)', () => {
@@ -76,7 +75,6 @@ describe('StylelintAuditor Suite', () => {
       expect(categorizeStylelintRule('block-no-empty')).toBe('css-empty-blocks');
       expect(categorizeStylelintRule('order/properties-order')).toBe('css-order-violation');
       expect(categorizeStylelintRule('scss/no-duplicate-dollar-variables')).toBe('scss-syntax-issue');
-      expect(categorizeStylelintRule('projectwallace/no-property-overrides')).toBe('wallace-complexity');
       expect(categorizeStylelintRule('unknown-rule')).toBe('stylelint-issue');
     });
   });

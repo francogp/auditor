@@ -48,7 +48,16 @@ export type NativePathRuleId =
   | 'unsafe-path-concat'
   | 'unsanitized-env-argv-path'
   | 'untrusted-url-fetch'
-  | 'hardcoded-slash-path';
+  | 'hardcoded-slash-path'
+  | 'homebrew-path-manipulation';
+
+export const NATIVE_PATH_RULES: readonly NativePathRuleId[] = [
+  'unsafe-path-concat',
+  'unsanitized-env-argv-path',
+  'untrusted-url-fetch',
+  'hardcoded-slash-path',
+  'homebrew-path-manipulation'
+] as const;
 
 export interface NativePathViolation {
   readonly file: string;
@@ -354,6 +363,65 @@ function isIgnoredOrCommentLine(rawLine: string, trimmed: string, prevLine?: str
   return ESCAPE_HATCH_REGEX.test(rawLine) || (!!prevLine && ESCAPE_HATCH_REGEX.test(prevLine));
 }
 
+function checkHomebrewPathManipulation(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number
+): NativePathViolation | null {
+  // 1. Check for homemade regex sanitization on paths (character stripping or traversal stripping)
+  // e.g. .replace(/[^a-zA-Z0-9_\- /.:\\]/g, '') or .replace(/(\.\.[/\\])+/g, '')
+  if (rawLine.includes('.replace(')) {
+    // Whitelist path separator normalization: replace(/\\/g, '/') or replace(/\//g, '\\')
+    const isSeparatorNormalization = /\.replace\s*\(\s*\/(?:\\\\|\/)\/[gi]*\s*,\s*['"][\\/]['"]\s*\)/.test(rawLine);
+
+    if (!isSeparatorNormalization) {
+      // Traversal stripping via regex: targets '..' inside the regex replacing with empty string
+      // e.g. .replace(/(\.\.[/\\])+/g, '') or .replace(/\.\./g, '')
+      const isTraversalStrip =
+        /\.replace\s*\(\s*\/.*(?:\\?\.\\?\.|\.{2}|%2e).*\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
+
+      // Character stripping via negative character classes on path variables
+      // e.g. rawPath.replace(/[^a-zA-Z0-9_\- /.:\\]/g, '')
+      const isPathVar =
+        /\b(?:[a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\b)\s*\.\s*replace/i.test(
+          rawLine
+        );
+      const isExclusionStrip =
+        isPathVar &&
+        /\.replace\s*\(\s*\/\[\^[^\]]+\]\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
+
+      if (isTraversalStrip || isExclusionStrip) {
+        return {
+          file: filePath,
+          line: lineNum,
+          ruleId: 'homebrew-path-manipulation',
+          message: `Manipulación o sanitización casera de rutas con regex detectada. Usa funciones nativas de Node.js 'node:path' ('path.resolve()', 'path.relative()', 'path.normalize()').`,
+          context: trimmed,
+          severity: 'error'
+        };
+      }
+    }
+  }
+
+  // 2. Check for naive string traversal checks like filePath.includes('..')
+  const hasNaiveTraversalCheck =
+    /\b(?:[a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\b)\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine);
+
+  if (hasNaiveTraversalCheck) {
+    return {
+      file: filePath,
+      line: lineNum,
+      ruleId: 'homebrew-path-manipulation',
+      message: `Comprobación ingenua de path traversal con '.includes("..")'. Usa 'path.relative(baseDir, target)' y valida que no empiece con '..' ni sea absoluto con 'node:path'.`,
+      context: trimmed,
+      severity: 'error'
+    };
+  }
+
+  return null;
+}
+
 function evaluateLineNativePathViolations(
   rawLine: string,
   trimmed: string,
@@ -364,6 +432,7 @@ function evaluateLineNativePathViolations(
   content: string
 ): NativePathViolation | null {
   return (
+    checkHomebrewPathManipulation(rawLine, trimmed, filePath, lineNum) ||
     checkUnsafePathConcat(rawLine, trimmed, filePath, lineNum) ||
     checkUnsanitizedEnvArgv(rawLine, trimmed, filePath, lineNum, lines, lineIndex) ||
     checkUntrustedUrlFetch(rawLine, trimmed, filePath, lineNum, content) ||
@@ -414,7 +483,8 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
     'unsafe-path-concat': 0,
     'unsanitized-env-argv-path': 0,
     'untrusted-url-fetch': 0,
-    'hardcoded-slash-path': 0
+    'hardcoded-slash-path': 0,
+    'homebrew-path-manipulation': 0
   };
 
   for (const file of allFiles) {
@@ -440,27 +510,23 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
 }
 
 export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
-id: 'validate_native_paths',
+      id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
       description: 'Garantiza uso de path.posix y evita CWE-22 traversal',
       family: 'architecture',
-      ruleIds: [
-        'unsafe-path-concat',
-        'unsanitized-env-argv-path',
-        'untrusted-url-fetch',
-        'hardcoded-slash-path'
-      ],
+      ruleIds: NATIVE_PATH_RULES,
       packageName: 'Path',
       icon: '🛤️',
       ruleDescriptions: {
         'unsafe-path-concat': 'Concatenación insegura de rutas',
         'unsanitized-env-argv-path': 'Ruta argv/env sin sanitizar',
         'untrusted-url-fetch': 'Llamada HTTP sin sanitizar',
-        'hardcoded-slash-path': 'Separador de ruta hardcodeado'
+        'hardcoded-slash-path': 'Separador de ruta hardcodeado',
+        'homebrew-path-manipulation': 'Manipulación casera de rutas'
       },
       roots: effectiveRoots,
       projectRoot

@@ -287,13 +287,24 @@ export function setupAuditor(config) {
         logStep: (stepNumber, totalSteps, description) => {
             console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
         },
-        addFinding: (f) => findings.push(f),
+        addFinding: (f) => {
+            const normFile = f.file
+                ? (path.isAbsolute(f.file) ? path.relative(projectRoot, f.file).replace(/\\/g, '/') : f.file.replace(/\\/g, '/'))
+                : f.file;
+            findings.push({ ...f, file: normFile });
+        },
         addError: (message, file, line, context, ruleId, ruleDescription, suiteId, suiteName) => {
-            findings.push({ severity: 'error', message, file, line, context, ruleId, ruleDescription, suiteId, suiteName });
+            const normFile = file
+                ? (path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, '/') : file.replace(/\\/g, '/'))
+                : file;
+            findings.push({ severity: 'error', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
         },
         addWarning: (message, file, line, context, ruleId, ruleDescription, suiteId, suiteName) => {
             if (!values['errors-only']) {
-                findings.push({ severity: 'warning', message, file, line, context, ruleId, ruleDescription, suiteId, suiteName });
+                const normFile = file
+                    ? (path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, '/') : file.replace(/\\/g, '/'))
+                    : file;
+                findings.push({ severity: 'warning', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
             }
         },
         setMetric: (key, value) => {
@@ -555,11 +566,16 @@ export class BaseAuditor {
         const current = this.countsByRule.get(v.ruleId) ?? 0;
         this.countsByRule.set(v.ruleId, current + 1);
         const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
+        const normalizedFile = v.file
+            ? (path.isAbsolute(v.file)
+                ? path.relative(this.projectRoot, v.file).replace(/\\/g, '/')
+                : v.file.replace(/\\/g, '/'))
+            : v.file;
         if (v.severity === 'error') {
             this.context.addFinding({
                 severity: 'error',
                 message: v.message,
-                file: v.file,
+                file: normalizedFile,
                 line: v.line,
                 col: v.col,
                 context: v.context,
@@ -574,7 +590,7 @@ export class BaseAuditor {
                 this.context.addFinding({
                     severity: 'warning',
                     message: v.message,
-                    file: v.file,
+                    file: normalizedFile,
                     line: v.line,
                     col: v.col,
                     context: v.context,
@@ -597,6 +613,9 @@ export class BaseAuditor {
     isFixModeRequested() {
         const rawValues = this.context.values;
         return process.argv.includes('fix') || process.argv.includes('--fix') || Boolean(rawValues?.fix);
+    }
+    isPathIgnored(relPath) {
+        return this.context.isPathIgnored(relPath);
     }
     getLineNumber(content, charIndex) {
         return content.slice(0, charIndex).split('\n').length;
