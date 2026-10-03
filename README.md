@@ -218,7 +218,7 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | Tool | Integrated Suite | Capability |
 | :--- | :--- | :--- |
 | **`fallow`** | `audit_project`, `report_fallow`, `validate_similar_code` | Dead code, complexity, AST duplicates, Candle CPU vector similarity, CWE security. |
-| **`stylelint`** | `validate_stylelint`, `validate_css_duplicates` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
+| **`stylelint`** | `validate_stylelint` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |
 | **`publint`** | `validate_package_distribution` | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation. |

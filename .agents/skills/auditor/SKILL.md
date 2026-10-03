@@ -13,6 +13,10 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 
 ## 🏛️ Core Principles & Tooling Mandates
 
+0. **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**:
+   - Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across `@francogp/auditor` is **STRICTLY PROHIBITED**.
+   - Outdated consumers, legacy configurations, and unmigrated sub-auditor calls MUST fail loudly with immediate, explicit, and blocking errors (`throw new Error(...)` or exit code 1) forcing consumers to upgrade to canonical standards.
+   - Maintaining duplicate suites or runtime compatibility bridges that introduce bloat, duplicate findings, or maintenance hazards is completely eradicated.
 1. **Strict OOP Inheritance Mandate**:
    - Every sub-auditor MUST extend either `BaseAuditor<TRuleId>` or `FileScanAuditor<TRuleId>` from `@francogp/auditor`.
    - Creating standalone procedural scripts, custom CLI loggers, or ad-hoc result printers is **STRICTLY FORBIDDEN**.
@@ -164,7 +168,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - All configurations and subsystems in `@francogp/auditor` are ACTIVATED BY DEFAULT (`enabled: true`, `persistence.engine: 'supabase'`, `zLayersEnabled: true`, `requireInputIds: true`, `similarCode.enabled: true`, `packageScripts.enabled: true`, etc.).
     - If a host project specifies nothing for a subsystem in `audit.config.ts`, that subsystem is automatically active with complete default configurations.
     - Sub-auditors MUST NEVER silently bypass checks due to missing files or missing configuration; non-applicable subsystems in tool packages or non-web packages must be explicitly deactivated (`enabled: false`, `engine: 'none'`).
-31. **Official Stylelint Engine & Pure In-Memory Execution (`validate_stylelint`, `validate_css_duplicates`)**:
+31. **Official Stylelint Engine & Pure In-Memory Execution (`validate_stylelint`)**:
     - All stylesheet and component style hygiene, duplicate class rules, similar selectors, empty blocks, property order, and SCSS syntax are analyzed strictly through the official Stylelint engine with Vue SFC and SCSS support (`stylelint`, `stylelint-scss`, `stylelint-order`) and in-memory PostCSS AST processing. Sub-auditors MUST NOT rely on unmaintained, platform-dependent external Go binaries (such as `css-checker-kit`), preventing Smart App Control blocks, `ignore-scripts` install crashes, and OS-level execution failures.
 32. **Data Catalog Complexity Exemption (`paths.dataRoots`)**:
     - Files inside `paths.dataRoots` (constant catalogs and tabular mini-databases) are exempted from function complexity and LOC alerts in `audit_project.ts` via `isComplexityExemptPath`, while preserving 100% of domain type checks, O(1) structures, and Fallow dead-code analysis.

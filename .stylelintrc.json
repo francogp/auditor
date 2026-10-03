@@ -20,6 +20,12 @@
     }
   ],
   "rules": {
+    "selector-class-pattern": [
+      "^([a-z0-9]+([-_][a-z0-9]+)*|([a-z0-9]+(-[a-z0-9]+)*(__[a-z0-9]+(-[a-z0-9]+)*)?(--[a-z0-9]+(-[a-z0-9]+)*)?)|[A-Z0-9_]+)$",
+      {
+        "message": "Expected class selector to be kebab-case, BEM, or snake_case domain identifier (selector-class-pattern)"
+      }
+    ],
     "no-duplicate-selectors": [
       true,
       {

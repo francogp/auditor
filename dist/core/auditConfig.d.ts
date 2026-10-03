@@ -49,6 +49,7 @@ export interface AuditPersistenceConfig {
     readonly dockerContainer?: string;
     readonly allowedHosts?: readonly string[];
     readonly prohibitedTemplateIdentifiers?: readonly string[];
+    readonly exemptRlsTables?: readonly string[];
 }
 export interface O1CatalogPatternConfig {
     readonly name: string;

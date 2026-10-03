@@ -957,6 +957,8 @@ function isExemptLiteralOrProtocol(line: string): boolean {
   if (/\b(?:VARCHAR|CHAR|INT|TIMESTAMP|DECIMAL)\s*\(\s*\d+/i.test(line)) return true;
   if (/https?:\/\/|localhost|127\.0\.0\.1|utf-8/i.test(line)) return true;
   if (/\b(?:width|minWidth|maxWidth|height|minHeight|maxHeight|colSpan|rowSpan)\s*:\s*-?[\d.]+/i.test(line)) return true;
+  if (/v-gsap(?:-[a-z0-9-]+)?=/i.test(line)) return true;
+  if (/\b(?:x|y|z|scale|scaleX|scaleY|rotation|rotate|duration|delay|stagger|radius|top|left|right|bottom|fontSize|zIndex)\s*:\s*-?[\d.]+/i.test(line)) return true;
   return false;
 }
 

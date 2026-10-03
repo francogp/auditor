@@ -130,4 +130,24 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       expect(lightweightIds).not.toContain(heavyId);
     }
   });
+
+  it('separates pre-build and post-build suites cleanly via withBuild and buildOnly', async () => {
+    const defaultTasks = await discoverAuditors({ withBuild: false });
+    const buildTasks = await discoverAuditors({ buildOnly: true });
+    const allTasks = await discoverAuditors({ withBuild: true });
+
+    // Pre-build tasks must never include requiresBuild suites
+    for (const task of defaultTasks) {
+      expect(task.capabilities?.requiresBuild, `Suite ${task.id} should not require build in pre-build audit`).toBe(false);
+    }
+
+    // Build-only tasks must strictly include requiresBuild suites
+    expect(buildTasks.length).toBeGreaterThan(0);
+    for (const task of buildTasks) {
+      expect(task.capabilities?.requiresBuild, `Suite ${task.id} must require build in buildOnly mode`).toBe(true);
+    }
+
+    // withBuild includes the union of both
+    expect(allTasks.length).toBe(defaultTasks.length + buildTasks.length);
+  });
 });

@@ -374,7 +374,9 @@ async function renderAndPersistMasterReport(ctx) {
     const suitesPassed = results.filter(r => r.status === 'passed' && (r.summary?.errors ?? 0) === 0).length;
     const suitesSkipped = results.filter(r => r.status === 'skipped').length;
     const anyFailed = totalErrors > 0 || (suitesPassed + suitesSkipped) < results.length;
-    const isFullAudit = tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
+    const isFixMode = Boolean(cliOptions.values.fix);
+    const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
+    const isFullAudit = !isBuildMode && !isFixMode && tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
     const byFamily = groupResultsByFamily(results, activeFamilies);
     const sortedCategories = computeAuditCategoryCounts(results);
     printFindingsSummary(results, sortedCategories);
@@ -404,7 +406,7 @@ async function renderAndPersistMasterReport(ctx) {
             metrics: r.metrics, errors: r.summary.errors, warnings: r.summary.warnings
         }))
     }, null, 2), 'utf-8');
-    if (!isFullAudit) {
+    if (!isFullAudit && !isBuildMode && !isFixMode) {
         console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
         console.log(styleText('yellow', `   latest_audit.json se actualizó con meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`));
         console.log(styleText('dim', `   Los inspectores de calidad exigirán una corrida completa ('npm run audit').\n`));
@@ -442,7 +444,7 @@ async function runMasterAudit() {
         withBuild,
         includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
     };
-    const allAvailableTasks = await discoverAuditors({ withBuild: true });
+    const allAvailableTasks = await discoverAuditors(isBuildMode ? { buildOnly: true } : { withBuild });
     const tasksToRun = await discoverAuditors({
         ...discoveryBase,
         family: cliOptions.targetFamily,

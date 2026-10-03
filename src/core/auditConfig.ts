@@ -59,6 +59,7 @@ export interface AuditPersistenceConfig {
   readonly dockerContainer?: string;
   readonly allowedHosts?: readonly string[];
   readonly prohibitedTemplateIdentifiers?: readonly string[];
+  readonly exemptRlsTables?: readonly string[];
 }
 
 export interface O1CatalogPatternConfig {
@@ -350,7 +351,8 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     supabaseDir: 'supabase',
     dockerContainer: 'supabase-db',
     allowedDatabaseDirs: ['backups', 'migrations', 'schemas'],
-    allowedDatabaseFiles: ['AGENTS.md', '.gitkeep']
+    allowedDatabaseFiles: ['AGENTS.md', '.gitkeep'],
+    exemptRlsTables: ['_migrations', 'schema_migrations', 'supabase_migrations']
   },
   domain: {
     enabled: true,

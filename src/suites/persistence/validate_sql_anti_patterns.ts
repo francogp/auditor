@@ -290,8 +290,18 @@ id: 'validate_sql_anti_patterns',
 
   private scanRlsPolicyIntegrity(migrations: readonly { relPath: string; content: string }[]): void {
     const { rlsTables, tablesWithPolicies } = this.collectRlsMigrations(migrations);
+    const config = getAuditConfig(this.projectRoot);
+    const exemptTables = new Set([
+      '_migrations',
+      'schema_migrations',
+      'supabase_migrations',
+      ...(config.persistence?.exemptRlsTables ?? []).map(t => t.toLowerCase())
+    ]);
 
     for (const [table, loc] of rlsTables.entries()) {
+      if (exemptTables.has(table)) {
+        continue;
+      }
       if (!tablesWithPolicies.has(table)) {
         this.addViolation({
           ruleId: 'sql-rls-policy-grant-integrity',

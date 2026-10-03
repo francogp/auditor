@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "3.1.0-build.20261003-192724",
+  "version": "3.2.0-build.20261003-201013",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -156,7 +156,6 @@
     "validate:stylelint": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_stylelint.ts",
     "validate:stylelint:fix": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_stylelint.ts fix",
     "stylelint:fix": "npm run validate:stylelint:fix",
-    "validate:css-duplicates": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_css_duplicates.ts",
     "validate:dead-css": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_dead_css.ts",
     "validate:duplicate-constants": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_duplicate_constants.ts",
     "validate:ephemeral-storage-isolation": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_ephemeral_storage_isolation.ts",

@@ -49,7 +49,6 @@ Architecture & Tooling Engineers.
 - [`validate_bundle_budget.ts`](./validate_bundle_budget.ts): Production bundle chunk size and runtime leak gate.
 - [`validate_component_styles.ts`](./validate_component_styles.ts): Component-to-style 1:1 binding and orphan SCSS detection.
 - [`validate_console_cleanliness.ts`](./validate_console_cleanliness.ts): Prohibition of `console.log` and `debugger` in source code.
-- [`validate_css_duplicates.ts`](./validate_css_duplicates.ts): Stylelint-backed auditor validating duplicate rules, similar selectors, empty blocks, and styling standards.
 - [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components powered by shared AST analysis.
 - [`validate_duplicate_constants.ts`](./validate_duplicate_constants.ts): AST analysis of duplicate/divergent constants.
 - [`validate_ephemeral_storage_isolation.ts`](./validate_ephemeral_storage_isolation.ts): Strict isolation of temporary files in `scratch/`.

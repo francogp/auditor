@@ -40,8 +40,8 @@
   - [ ] Pre-commit Sanity Check (`npm run audit:md`)
   - [ ] Synthesize final Elegant Protocol commit message
   - [ ] Atomic Commit & Tag:
-    - [ ] If version bumped: `git add . && git commit -m "<message>" && git tag -a v<base_version> -m "Release v<base_version>"`
-    - [ ] If version unchanged: `git add . && git commit -m "<message>"`
+    - [ ] If version bumped: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`
+    - [ ] If version unchanged: `git add . && git commit -F scratch/release_notes.txt`
   - [ ] Mark Phase 4 `[x]`
   - [ ] Render final Safe Commit Completion Template (Autonomous push prohibited; display `git push` command for user)
 
