@@ -27,7 +27,19 @@ export interface ParsedCssRule {
     readonly selector: string;
     readonly declarations: readonly CssDeclaration[];
     readonly rawBlock: string;
+    readonly scoped?: boolean;
 }
+export interface CachedFileCssEntry {
+    readonly mtimeMs: number;
+    readonly size: number;
+    readonly rules: readonly ParsedCssRule[];
+}
+export interface CssAstCacheData {
+    readonly version: number;
+    readonly entries: Record<string, CachedFileCssEntry>;
+}
+export declare const CSS_CACHE_VERSION = 1;
+export declare const DEFAULT_CSS_CACHE_FILE = "scratch/cache/css_ast_cache.json";
 export interface DuplicateRuleOccurrence {
     readonly file: string;
     readonly line: number;
@@ -97,7 +109,7 @@ export interface CssAnalysisDetails {
     readonly unvariabledColors: ColorGroup[];
     readonly duplicateSelectors: DuplicateSelectorGroup[];
     readonly emptyRules: EmptyRuleRecord[];
-    readonly unusedClasses: UnusedClassRecord[];
+    readonly unusedClasses?: UnusedClassRecord[];
 }
 export interface CssAnalysisOptions {
     readonly minDeclarations?: number;
@@ -107,17 +119,25 @@ export interface CssAnalysisOptions {
     readonly longLineLengthThreshold?: number;
     readonly checkColors?: boolean;
     readonly checkEmptyRules?: boolean;
-    readonly checkUnused?: boolean;
     readonly checkDuplicateSelectors?: boolean;
 }
 export declare const DEFAULT_CSS_SIMILARITY_THRESHOLD = 80;
 export declare const DEFAULT_CSS_LONG_LINE_THRESHOLD = 20;
+export declare function extractClassNamesFromSelector(selector: string): string[];
 export declare function extractCssBlocksFromVue(content: string): Array<{
     code: string;
     startLine: number;
+    scoped: boolean;
 }>;
-export declare function parseCssContent(content: string, filePath: string, linePaddingCount?: number): ParsedCssRule[];
-export declare function collectAllProjectCssRules(targetDir: string, ignoreDirs: ReadonlySet<string>, projectRoot?: string): Promise<{
+export declare function parseCssContent(content: string, filePath: string, linePaddingCount?: number, scoped?: boolean): ParsedCssRule[];
+export declare function clearInMemoryCssCache(): void;
+export declare function getInMemoryCssCache(): ReadonlyMap<string, CachedFileCssEntry>;
+export declare function loadCssAstCacheFromDisk(cacheFilePath: string): Promise<void>;
+export declare function saveCssAstCacheToDisk(cacheFilePath: string): Promise<void>;
+export declare function collectAllProjectCssRules(targetDir: string, ignoreDirs: ReadonlySet<string>, projectRoot?: string, options?: {
+    readonly useCache?: boolean;
+    readonly cacheFilePath?: string;
+}): Promise<{
     rules: ParsedCssRule[];
     fileCount: number;
 }>;
@@ -127,7 +147,6 @@ export declare function detectLongValues(rules: readonly ParsedCssRule[], length
 export declare function detectUnvariabledColors(rules: readonly ParsedCssRule[]): ColorGroup[];
 export declare function detectDuplicateSelectors(rules: readonly ParsedCssRule[]): DuplicateSelectorGroup[];
 export declare function detectEmptyRules(rules: readonly ParsedCssRule[]): EmptyRuleRecord[];
-export declare function detectUnusedClasses(rules: readonly ParsedCssRule[], projectRoot: string): Promise<UnusedClassRecord[]>;
 export type CssProgressCallback = (step: number, total: number, checkName: string, count: number) => void;
 export declare function runCssAnalysis(targetDir: string | undefined, ignoreDirs: ReadonlySet<string>, options?: CssAnalysisOptions, projectRoot?: string, onProgress?: CssProgressCallback): Promise<{
     violations: Violation[];

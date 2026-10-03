@@ -29,8 +29,7 @@ export type CssDuplicatesRuleId =
   | 'css-duplicate-long-lines'
   | 'css-unvariabled-colors'
   | 'css-duplicate-selectors'
-  | 'css-empty-rules'
-  | 'css-unused-classes';
+  | 'css-empty-rules';
 
 export const CSS_DUPLICATES_RULES: readonly CssDuplicatesRuleId[] = [
   'css-duplicate-rules',
@@ -38,8 +37,7 @@ export const CSS_DUPLICATES_RULES: readonly CssDuplicatesRuleId[] = [
   'css-duplicate-long-lines',
   'css-unvariabled-colors',
   'css-duplicate-selectors',
-  'css-empty-rules',
-  'css-unused-classes'
+  'css-empty-rules'
 ] as const;
 
 export interface CssAuditJsonResult {
@@ -81,8 +79,7 @@ export class CssDuplicatesAuditor extends BaseAuditor<CssDuplicatesRuleId> {
         'css-duplicate-long-lines': 'Valores largos duplicados',
         'css-unvariabled-colors': 'Colores repetidos sin variable',
         'css-duplicate-selectors': 'Selectores duplicados',
-        'css-empty-rules': 'Bloques de estilos vacíos',
-        'css-unused-classes': 'Clases de estilos sin uso'
+        'css-empty-rules': 'Bloques de estilos vacíos'
       },
       roots: config.paths.srcRoots ?? ['src'],
       projectRoot
@@ -120,8 +117,6 @@ export class CssDuplicatesAuditor extends BaseAuditor<CssDuplicatesRuleId> {
         ruleId = 'css-duplicate-selectors';
       } else if (v.message.startsWith('Bloque CSS vacío')) {
         ruleId = 'css-empty-rules';
-      } else if (v.message.startsWith('Clase CSS')) {
-        ruleId = 'css-unused-classes';
       }
 
       this.addViolation({

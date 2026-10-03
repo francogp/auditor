@@ -23,6 +23,8 @@ export const CSS_ANALYZER_DESCRIPTOR = {
     category: 'css-checker: SCSS/CSS duplicado y calidad',
     aliases: ['css-checker', 'css', 'scss', 'duplicate-css', 'scss-duplicados', 'css-hygiene']
 };
+export const CSS_CACHE_VERSION = 1;
+export const DEFAULT_CSS_CACHE_FILE = 'scratch/cache/css_ast_cache.json';
 export const DEFAULT_CSS_SIMILARITY_THRESHOLD = 80;
 export const DEFAULT_CSS_LONG_LINE_THRESHOLD = 20;
 const DEFAULT_OPTIONS = {
@@ -33,7 +35,6 @@ const DEFAULT_OPTIONS = {
     longLineLengthThreshold: DEFAULT_CSS_LONG_LINE_THRESHOLD,
     checkColors: true,
     checkEmptyRules: true,
-    checkUnused: false,
     checkDuplicateSelectors: true
 };
 const COLOR_REGEX = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b|\b(?:rgba?|hsla?)\([^)]+\)/gi;
@@ -42,19 +43,33 @@ function normalizeDeclaration(prop, val) {
     const cleanVal = val.trim().replace(/\s+/g, ' ');
     return `${cleanProp}: ${cleanVal}`;
 }
+export function extractClassNamesFromSelector(selector) {
+    const classRegex = /(?:^|[^\w-])\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
+    const classes = [];
+    let match;
+    while ((match = classRegex.exec(selector)) !== null) {
+        const className = match[1];
+        if (className) {
+            classes.push(className);
+        }
+    }
+    return classes;
+}
 export function extractCssBlocksFromVue(content) {
     const blocks = [];
-    const styleRegex = /<style\b[^>]*>([\s\S]*?)<\/style>/gi;
+    const styleRegex = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi;
     let match;
     while ((match = styleRegex.exec(content)) !== null) {
         const preContent = content.slice(0, match.index);
         const startLine = preContent.split('\n').length;
-        const styleBody = match[1] ?? '';
-        blocks.push({ code: styleBody, startLine });
+        const attrs = match[1] ?? '';
+        const scoped = /\bscoped\b/i.test(attrs);
+        const styleBody = match[2] ?? '';
+        blocks.push({ code: styleBody, startLine, scoped });
     }
     return blocks;
 }
-export function parseCssContent(content, filePath, linePaddingCount = 0) {
+export function parseCssContent(content, filePath, linePaddingCount = 0, scoped = false) {
     const rules = [];
     const paddedContent = '\n'.repeat(Math.max(0, linePaddingCount)) + content;
     try {
@@ -77,7 +92,8 @@ export function parseCssContent(content, filePath, linePaddingCount = 0) {
                 line: startLine,
                 selector: rule.selector.trim(),
                 declarations: decls,
-                rawBlock: rule.toString()
+                rawBlock: rule.toString(),
+                scoped
             });
         });
     }
@@ -86,7 +102,48 @@ export function parseCssContent(content, filePath, linePaddingCount = 0) {
     }
     return rules;
 }
-export async function collectAllProjectCssRules(targetDir, ignoreDirs, projectRoot = process.cwd()) {
+const inMemoryCssCache = new Map();
+// singleton-ok: In-memory CSS AST cache disk load flag container
+const cssCacheState = {
+    loadedFromDisk: false
+};
+export function clearInMemoryCssCache() {
+    inMemoryCssCache.clear();
+    cssCacheState.loadedFromDisk = false;
+}
+export function getInMemoryCssCache() {
+    return inMemoryCssCache;
+}
+export async function loadCssAstCacheFromDisk(cacheFilePath) {
+    try {
+        const raw = await fs.readFile(cacheFilePath, 'utf-8');
+        const data = JSON.parse(raw);
+        if (data && data.version === CSS_CACHE_VERSION && data.entries) {
+            for (const [key, val] of Object.entries(data.entries)) {
+                inMemoryCssCache.set(key, val);
+            }
+        }
+    }
+    catch {
+        // catch-ok: Cache file doesn't exist yet or is invalid JSON; start with fresh cache
+    }
+    cssCacheState.loadedFromDisk = true;
+}
+export async function saveCssAstCacheToDisk(cacheFilePath) {
+    try {
+        const dir = path.dirname(cacheFilePath);
+        await fs.mkdir(dir, { recursive: true });
+        const data = {
+            version: CSS_CACHE_VERSION,
+            entries: Object.fromEntries(inMemoryCssCache.entries())
+        };
+        await fs.writeFile(cacheFilePath, JSON.stringify(data), 'utf-8');
+    }
+    catch {
+        // catch-ok: Non-fatal cache write failure (e.g. read-only environment)
+    }
+}
+export async function collectAllProjectCssRules(targetDir, ignoreDirs, projectRoot = process.cwd(), options) {
     const searchDir = path.resolve(projectRoot, targetDir === '.' ? 'src' : targetDir);
     const pattern = '**/*.{scss,css,vue}';
     const entries = [];
@@ -100,6 +157,11 @@ export async function collectAllProjectCssRules(targetDir, ignoreDirs, projectRo
     if (fileCount === 0) {
         return { rules: [], fileCount: 0 };
     }
+    const useCache = options?.useCache ?? true;
+    const cacheFilePath = options?.cacheFilePath ?? path.resolve(projectRoot, DEFAULT_CSS_CACHE_FILE);
+    if (useCache && !cssCacheState.loadedFromDisk) {
+        await loadCssAstCacheFromDisk(cacheFilePath);
+    }
     const concurrency = Math.max(1, os.availableParallelism ? os.availableParallelism() : os.cpus().length);
     const rulesByWorker = Array.from({ length: concurrency }, () => []);
     let nextIdx = 0;
@@ -111,18 +173,35 @@ export async function collectAllProjectCssRules(targetDir, ignoreDirs, projectRo
             const fullPath = path.join(searchDir, entry);
             const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
             try {
+                const stat = await fs.stat(fullPath);
+                if (useCache) {
+                    const cached = inMemoryCssCache.get(relPath);
+                    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+                        workerRules.push(...cached.rules);
+                        continue;
+                    }
+                }
                 const content = await fs.readFile(fullPath, 'utf-8');
+                const fileRules = [];
                 if (fullPath.endsWith('.vue')) {
                     const blocks = extractCssBlocksFromVue(content);
                     for (const block of blocks) {
-                        const parsed = parseCssContent(block.code, relPath, block.startLine - 1);
-                        workerRules.push(...parsed);
+                        const parsed = parseCssContent(block.code, relPath, block.startLine - 1, block.scoped);
+                        fileRules.push(...parsed);
                     }
                 }
                 else {
-                    const parsed = parseCssContent(content, relPath, 0);
-                    workerRules.push(...parsed);
+                    const parsed = parseCssContent(content, relPath, 0, false);
+                    fileRules.push(...parsed);
                 }
+                if (useCache) {
+                    inMemoryCssCache.set(relPath, {
+                        mtimeMs: stat.mtimeMs,
+                        size: stat.size,
+                        rules: fileRules
+                    });
+                }
+                workerRules.push(...fileRules);
             }
             catch {
                 // catch-ok: ignore file read or syntax errors in individual CSS/Vue snippets
@@ -130,6 +209,9 @@ export async function collectAllProjectCssRules(targetDir, ignoreDirs, projectRo
         }
     }
     await Promise.all(Array.from({ length: concurrency }, (_, i) => worker(i)));
+    if (useCache) {
+        await saveCssAstCacheToDisk(cacheFilePath);
+    }
     const rules = rulesByWorker.flat();
     return { rules, fileCount };
 }
@@ -392,69 +474,29 @@ export function detectEmptyRules(rules) {
     }
     return empty;
 }
-export async function detectUnusedClasses(rules, projectRoot) {
-    const classNames = new Set();
-    const classRules = [];
-    for (const rule of rules) {
-        const matches = rule.selector.match(/\.([a-zA-Z0-9_-]+)/g);
-        if (matches) {
-            for (const m of matches) {
-                const cls = m.slice(1);
-                classNames.add(cls);
-                classRules.push({ name: cls, file: rule.file, line: rule.line });
-            }
-        }
-    }
-    if (classNames.size === 0)
-        return [];
-    // Search templates and script files for class references
-    const usedTokens = new Set();
-    const pattern = '**/*.{vue,html,ts,js,tsx,jsx}';
-    const searchDir = path.resolve(projectRoot, 'src');
-    try {
-        for await (const entry of fs.glob(pattern, { cwd: searchDir })) {
-            const fullPath = path.join(searchDir, entry);
-            const text = await fs.readFile(fullPath, 'utf-8');
-            const tokens = text.match(/[a-zA-Z0-9_-]+/g);
-            if (tokens) {
-                for (const t of tokens)
-                    usedTokens.add(t);
-            }
-        }
-    }
-    catch {
-        // catch-ok: Ignore template scanning errors
-    }
-    const unused = [];
-    for (const cr of classRules) {
-        if (!usedTokens.has(cr.name)) {
-            unused.push({
-                className: cr.name,
-                file: cr.file,
-                line: cr.line
-            });
-        }
-    }
-    return unused;
-}
+const TOTAL_CSS_ANALYSIS_STEPS = 6;
+const CSS_STEP_DUPLICATE_RULES = 1;
+const CSS_STEP_SIMILAR_CLASSES = 2;
+const CSS_STEP_LONG_VALUES = 3;
+const CSS_STEP_UNVARIABLED_COLORS = 4;
+const CSS_STEP_DUPLICATE_SELECTORS = 5;
+const CSS_STEP_EMPTY_RULES = 6;
 export async function runCssAnalysis(targetDir = '.', ignoreDirs, options = {}, projectRoot = process.cwd(), onProgress) {
     const opt = { ...DEFAULT_OPTIONS, ...options };
     const { rules, fileCount } = await collectAllProjectCssRules(targetDir, ignoreDirs, projectRoot);
     const duplicates = detectDuplicateRules(rules, opt.minDeclarations);
-    onProgress?.(1, 7, 'Reglas duplicadas en estilos', duplicates.length);
+    onProgress?.(CSS_STEP_DUPLICATE_RULES, TOTAL_CSS_ANALYSIS_STEPS, 'Reglas duplicadas en estilos', duplicates.length);
     const similar = opt.checkSimilar ? detectSimilarClasses(rules, opt.similarityThreshold, opt.minDeclarations) : [];
     const simPct = opt.similarityThreshold > 1 ? opt.similarityThreshold : Math.round(opt.similarityThreshold * 100);
-    onProgress?.(2, 7, `Clases similares (umbral >= ${simPct}%)`, similar.length);
+    onProgress?.(CSS_STEP_SIMILAR_CLASSES, TOTAL_CSS_ANALYSIS_STEPS, `Clases similares (umbral >= ${simPct}%)`, similar.length);
     const longValues = opt.checkLongLines ? detectLongValues(rules, opt.longLineLengthThreshold) : [];
-    onProgress?.(3, 7, `Valores largos repetidos (>= ${opt.longLineLengthThreshold} chars)`, longValues.length);
+    onProgress?.(CSS_STEP_LONG_VALUES, TOTAL_CSS_ANALYSIS_STEPS, `Valores largos repetidos (>= ${opt.longLineLengthThreshold} chars)`, longValues.length);
     const unvariabledColors = opt.checkColors ? detectUnvariabledColors(rules) : [];
-    onProgress?.(4, 7, 'Colores repetidos sin variable', unvariabledColors.length);
+    onProgress?.(CSS_STEP_UNVARIABLED_COLORS, TOTAL_CSS_ANALYSIS_STEPS, 'Colores repetidos sin variable', unvariabledColors.length);
     const duplicateSelectors = opt.checkDuplicateSelectors ? detectDuplicateSelectors(rules) : [];
-    onProgress?.(5, 7, 'Selectores duplicados en mismo archivo', duplicateSelectors.length);
+    onProgress?.(CSS_STEP_DUPLICATE_SELECTORS, TOTAL_CSS_ANALYSIS_STEPS, 'Selectores duplicados en mismo archivo', duplicateSelectors.length);
     const emptyRules = opt.checkEmptyRules ? detectEmptyRules(rules) : [];
-    onProgress?.(6, 7, 'Bloques y reglas vacías', emptyRules.length);
-    const unusedClasses = opt.checkUnused ? await detectUnusedClasses(rules, projectRoot) : [];
-    onProgress?.(7, 7, 'Clases de estilos sin uso en plantillas', unusedClasses.length);
+    onProgress?.(CSS_STEP_EMPTY_RULES, TOTAL_CSS_ANALYSIS_STEPS, 'Bloques y reglas vacías', emptyRules.length);
     const violations = [];
     // 1. Duplicate Rules -> severity: error
     for (const dup of duplicates) {
@@ -526,17 +568,6 @@ export async function runCssAnalysis(targetDir = '.', ignoreDirs, options = {}, 
             fixable: false
         });
     }
-    // 7. Unused Classes -> severity: warning
-    for (const uc of unusedClasses) {
-        violations.push({
-            file: path.resolve(projectRoot, uc.file),
-            line: uc.line,
-            message: `Clase CSS '${uc.className}' no encontrada en componentes ni plantillas del proyecto`,
-            context: `clase css huérfana`,
-            severity: 'warning',
-            fixable: false
-        });
-    }
     const details = {
         duplicates,
         similar,
@@ -544,7 +575,7 @@ export async function runCssAnalysis(targetDir = '.', ignoreDirs, options = {}, 
         unvariabledColors,
         duplicateSelectors,
         emptyRules,
-        unusedClasses
+        unusedClasses: []
     };
     return { violations, details, filesScanned: fileCount };
 }

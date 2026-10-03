@@ -1,23 +1,24 @@
 /**
- * scripts/auditors/architecture/validate_dead_css.ts
+ * packages/auditor/src/suites/architecture/validate_dead_css.ts
  *
  * SCOPED DEAD CSS AUDITOR (Node.js 26+ Native)
  *
  * Enforces lean CSS bundles by detecting orphaned/unused classes inside <style scoped>
- * blocks of Vue components across src/components and src/views.
+ * blocks of Vue components across src/components and src/views using pure PostCSS AST.
  *
  * Escape Hatch:
  *   // css-ok: <justification> or // dead-css-ok: <justification>
  *
  * Usage:
- *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_dead_css.ts
+ *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_dead_css.ts
  *   npm run validate:dead-css
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { collectAllProjectCssRules, extractClassNamesFromSelector } from "../../analyzers/cssAnalyzer.js";
 enableCompileCache();
 export const DEAD_CSS_RULES = [
     'dead-scoped-css'
@@ -41,6 +42,8 @@ const VUE_TRANSITION_SUFFIXES = [
     '-leave-active',
     '-leave-to'
 ];
+const EXCLUDED_EXTENSIONS = new Set(['scss', 'css', 'vue', 'png', 'webp']);
+const MAX_PREV_COMMENT_LINES = 2;
 function collectGlobalCodeTokens(projectRoot, srcFiles) {
     const globalTokens = new Set();
     for (const relPath of srcFiles) {
@@ -81,39 +84,6 @@ function extractComponentLogic(rawContent) {
     }
     return { componentLogic, dynamicPrefixes };
 }
-function isLineIgnoredInCss(line, prevLines) {
-    if (!line || line.startsWith('//') || line.startsWith('/*') || line.startsWith('*'))
-        return true;
-    if (line.includes('css-ok') || line.includes('dead-css-ok'))
-        return true;
-    if (prevLines.some(l => l.includes('css-ok') || l.includes('dead-css-ok')))
-        return true;
-    if (/^@(?:use|import|forward|include|extend)\b/.test(line))
-        return true;
-    if (/^[a-zA-Z-]+:\s*[^;{]+;?$/.test(line) && !line.includes('{'))
-        return true;
-    return false;
-}
-const EXCLUDED_EXTENSIONS = new Set(['scss', 'css', 'vue', 'png', 'webp']);
-function cleanCssLine(rawLine) {
-    let line = rawLine.replace(/\/\*[\s\S]*?\*\//g, '');
-    line = line.replace(/\/\/[^\n]*/g, '');
-    line = line.replace(/'[^']*'/g, "''").replace(/"[^"]*"/g, '""');
-    return line.replace(/::?(?:deep|slotted)\([^)]*\)/g, '');
-}
-function extractClassNamesFromLine(line) {
-    const cleaned = cleanCssLine(line);
-    const classRegex = /(?:^|[^\w-])\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
-    const classes = [];
-    let match;
-    while ((match = classRegex.exec(cleaned)) !== null) {
-        const className = match[1];
-        if (className && !EXCLUDED_EXTENSIONS.has(className)) {
-            classes.push(className);
-        }
-    }
-    return classes;
-}
 function isClassExempt(className, globalUtilityClasses, dynamicPrefixes) {
     if (globalUtilityClasses.has(className))
         return true;
@@ -123,53 +93,37 @@ function isClassExempt(className, globalUtilityClasses, dynamicPrefixes) {
         return true;
     return false;
 }
-function auditScopedStyleBlock(params) {
-    let checked = 0;
-    const lines = params.styleContent.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-        const line = (lines[i] ?? '').trim();
-        const lineNum = params.linesBeforeStyle + i;
-        const prevLines = lines.slice(Math.max(0, i - 2), i);
-        if (isLineIgnoredInCss(line, prevLines))
+function auditComponentScopedCss(params) {
+    const { componentLogic, dynamicPrefixes } = extractComponentLogic(params.rawContent);
+    const contentLines = params.rawContent.split('\n');
+    let checkedCount = 0;
+    for (const rule of params.scopedRules) {
+        if (rule.rawBlock.includes('css-ok') || rule.rawBlock.includes('dead-css-ok'))
             continue;
-        const classNames = extractClassNamesFromLine(line);
+        const lineIdx = rule.line - 1;
+        const blockLineCount = rule.rawBlock.split('\n').length;
+        const endLineIdx = lineIdx + blockLineCount;
+        const surroundingLines = contentLines.slice(Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES), endLineIdx);
+        if (surroundingLines.some(l => l.includes('css-ok') || l.includes('dead-css-ok')))
+            continue;
+        const classNames = extractClassNamesFromSelector(rule.selector);
         for (const className of classNames) {
-            if (isClassExempt(className, params.globalUtilityClasses, params.dynamicPrefixes))
+            if (EXCLUDED_EXTENSIONS.has(className))
                 continue;
-            checked++;
-            if (!params.componentLogic.includes(className) && !params.globalTokens.has(className)) {
+            if (isClassExempt(className, params.globalUtilityClasses, dynamicPrefixes))
+                continue;
+            checkedCount++;
+            if (!componentLogic.includes(className) && !params.globalTokens.has(className)) {
                 params.auditor.addViolation({
                     ruleId: 'dead-scoped-css',
                     severity: 'error',
                     file: params.relFile,
-                    line: lineNum,
+                    line: rule.line,
                     message: `Clase CSS scoped '.${className}' es código muerto (huérfana): no se encuentra en el componente ni en el código de la aplicación.`,
                     context: className
                 });
             }
         }
-    }
-    return checked;
-}
-function auditComponentDeadCss(params) {
-    const { componentLogic, dynamicPrefixes } = extractComponentLogic(params.rawContent);
-    const scopedStyleRegex = /<style\b[^>]*\bscoped\b[^>]*>([\s\S]*?)<\/style>/gi;
-    let styleMatch;
-    let checkedCount = 0;
-    while ((styleMatch = scopedStyleRegex.exec(params.rawContent)) !== null) {
-        const styleContent = styleMatch[1] || '';
-        const styleStartIndex = styleMatch.index;
-        const linesBeforeStyle = params.rawContent.substring(0, styleStartIndex).split('\n').length;
-        checkedCount += auditScopedStyleBlock({
-            styleContent,
-            linesBeforeStyle,
-            componentLogic,
-            dynamicPrefixes,
-            globalTokens: params.globalTokens,
-            globalUtilityClasses: params.globalUtilityClasses,
-            relFile: params.relFile,
-            auditor: params.auditor
-        });
     }
     return checkedCount;
 }
@@ -199,6 +153,19 @@ export class DeadCssAuditor extends BaseAuditor {
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
         const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
+        // Retrieve all project CSS rules parsed via PostCSS AST (leveraging incremental cache and multicore)
+        const { rules } = await collectAllProjectCssRules('.', new Set(CANONICAL_IGNORE_DIRS), this.projectRoot);
+        const scopedRulesByFile = new Map();
+        for (const rule of rules) {
+            if (rule.scoped) {
+                let list = scopedRulesByFile.get(rule.file);
+                if (!list) {
+                    list = [];
+                    scopedRulesByFile.set(rule.file, list);
+                }
+                list.push(rule);
+            }
+        }
         let scopedClassesChecked = 0;
         for (const relPath of componentFiles) {
             if (relPath.includes('.spec.') || relPath.includes('.test.'))
@@ -207,9 +174,11 @@ export class DeadCssAuditor extends BaseAuditor {
             const fullPath = path.resolve(this.projectRoot, relPath);
             const relFile = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
             const rawContent = fs.readFileSync(fullPath, 'utf-8');
-            scopedClassesChecked += auditComponentDeadCss({
+            const scopedRules = scopedRulesByFile.get(relFile) ?? [];
+            scopedClassesChecked += auditComponentScopedCss({
                 rawContent,
                 relFile,
+                scopedRules,
                 globalTokens,
                 globalUtilityClasses,
                 auditor: this

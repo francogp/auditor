@@ -28,7 +28,7 @@ Architecture & Tooling Engineers.
 - **Dynamic Persistence Mock Detection**: Forbidden integration mock targets in `validate_test_hygiene.ts` derive dynamically based on `config.persistence.engine` (`supabase`, `sqlite`, `hybrid`).
 - **Zero Untested Rules & Rule Description Testing Mandate**: Every rule ID declared across these suites is verified with positive and negative test cases. `validate_auditor_tests.ts` statically inspects `ruleDescriptions` across sub-auditor sources and strictly requires that the corresponding test file in `tests/` references 100% of declared rule IDs.
 - **Fallow Vector Semantic Cache Architecture & Setup Banner**: `validate_similar_code.ts` executes Fallow ML embeddings on Candle CPU (CPU-only, no GPU/CUDA) via `--threads ${os.availableParallelism()}`. Vector cache resides in `%LOCALAPPDATA%\fallow\similar-code` on Windows (`~/.cache/fallow/similar-code` on Linux). Subdirectories `models/` and `vectors/` are pre-created (`ensureFallowCacheDirs`) to prevent Windows `os error 3`, reducing run times from >230s down to ~2s. Setup failure displays a Box-Drawing warning banner with the manual command (`npx fallow similar-code setup --local --yes`).
-- **Pure PostCSS AST Style Analysis**: `validate_css_duplicates.ts` evaluates 7 CSS hygiene rules in memory via PostCSS and `postcss-scss`, completely eliminating external native Go binaries.
+- **Pure PostCSS AST Style Analysis & Unified Dead CSS**: `validate_css_duplicates.ts` evaluates 6 CSS hygiene rules in memory via PostCSS and `postcss-scss`, completely eliminating external native Go binaries. `validate_dead_css.ts` delegates 100% of stylesheet and SFC style extraction to the unified PostCSS AST engine (`collectAllProjectCssRules`), eliminating handcrafted line-by-line regex parsing.
 - **Explicit Audit Config Path Verification**: `validate_audit_config.ts` enforces that every file, directory, migration path, style sheet, domain catalog, persistence definition, and extension explicitly cited in `audit.config.ts` physically exists on disk (`severity: 'error'`), ignoring unconfigured defaults.
 - **Living Standard Engines**: HTML standards validation delegates to `html-validate` instead of ad-hoc regex.
 - **Strict Fallow Error Severity**: All Fallow-derived findings are treated strictly as `severity: 'error'`.
@@ -44,8 +44,8 @@ Architecture & Tooling Engineers.
 - [`validate_bundle_budget.ts`](./validate_bundle_budget.ts): Production bundle chunk size and runtime leak gate.
 - [`validate_component_styles.ts`](./validate_component_styles.ts): Component-to-style 1:1 binding and orphan SCSS detection.
 - [`validate_console_cleanliness.ts`](./validate_console_cleanliness.ts): Prohibition of `console.log` and `debugger` in source code.
-- [`validate_css_duplicates.ts`](./validate_css_duplicates.ts): Pure PostCSS AST auditor validating 7 CSS hygiene rules: duplicate rules, similar selectors, unvariabled tokens, and styling standards.
-- [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components.
+- [`validate_css_duplicates.ts`](./validate_css_duplicates.ts): Pure PostCSS AST auditor validating 6 CSS hygiene rules: duplicate rules, similar selectors, unvariabled tokens, and styling standards.
+- [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components powered by shared PostCSS AST analysis.
 - [`validate_duplicate_constants.ts`](./validate_duplicate_constants.ts): AST analysis of duplicate/divergent constants.
 - [`validate_ephemeral_storage_isolation.ts`](./validate_ephemeral_storage_isolation.ts): Strict isolation of temporary files in `scratch/`.
 - [`validate_error_suppression.ts`](./validate_error_suppression.ts): Prohibition of silent error suppression and blind schema fallbacks.

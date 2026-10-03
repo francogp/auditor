@@ -14,6 +14,9 @@
  * - Clean Path Verification (errors === 0, status === 'passed')
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   CssDuplicatesAuditor,
@@ -27,7 +30,12 @@ import {
   detectLongValues,
   detectUnvariabledColors,
   detectDuplicateSelectors,
-  detectEmptyRules
+  detectEmptyRules,
+  collectAllProjectCssRules,
+  clearInMemoryCssCache,
+  getInMemoryCssCache,
+  loadCssAstCacheFromDisk,
+  saveCssAstCacheToDisk
 } from '../src/analyzers/cssAnalyzer.ts';
 
 describe('CssDuplicatesAuditor & PostCSS AST Engine', () => {
@@ -50,16 +58,16 @@ describe('CssDuplicatesAuditor & PostCSS AST Engine', () => {
       expect(auditor.description.length).toBeLessThanOrEqual(60);
     });
 
-    it('declares all 7 canonical rules matching CSS_DUPLICATES_RULES constant', () => {
+    it('declares all 6 canonical rules matching CSS_DUPLICATES_RULES constant', () => {
       const auditor = new CssDuplicatesAuditor();
       expect(auditor.ruleIds).toEqual(CSS_DUPLICATES_RULES);
+      expect(auditor.ruleIds).toHaveLength(6);
       expect(auditor.ruleIds).toContain('css-duplicate-rules');
       expect(auditor.ruleIds).toContain('css-similar-classes');
       expect(auditor.ruleIds).toContain('css-duplicate-long-lines');
       expect(auditor.ruleIds).toContain('css-unvariabled-colors');
       expect(auditor.ruleIds).toContain('css-duplicate-selectors');
       expect(auditor.ruleIds).toContain('css-empty-rules');
-      expect(auditor.ruleIds).toContain('css-unused-classes');
     });
 
     it('enforces composed rule descriptions <= 50 characters (AGENTS.md rule)', () => {
@@ -420,6 +428,82 @@ $primary: #3b82f6;
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
       expect(Array.isArray(result.findings)).toBe(true);
+    });
+  });
+
+  describe('Test 10: Incremental AST Caching & Invalidation', () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-css-cache-test-'));
+      clearInMemoryCssCache();
+    });
+
+    afterEach(async () => {
+      clearInMemoryCssCache();
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('populates in-memory cache on cold parse and reuses cached rules on warm run', async () => {
+      const srcDir = path.join(tempDir, 'src');
+      await fs.mkdir(srcDir, { recursive: true });
+      const testCss = path.join(srcDir, 'test.scss');
+      await fs.writeFile(testCss, '.btn { color: red; font-size: 14px; }', 'utf-8');
+
+      // Cold run: parses from disk and populates cache
+      const resultFirst = await collectAllProjectCssRules(tempDir, new Set(), tempDir);
+      const EXPECTED_INITIAL_RULES = 1;
+      expect(resultFirst.rules).toHaveLength(EXPECTED_INITIAL_RULES);
+      expect(resultFirst.rules[0]?.selector).toBe('.btn');
+
+      const cache = getInMemoryCssCache();
+      expect(cache.size).toBe(1);
+
+      // Warm run: should hit memory cache directly
+      const resultSecond = await collectAllProjectCssRules(tempDir, new Set(), tempDir);
+      expect(resultSecond.rules).toHaveLength(EXPECTED_INITIAL_RULES);
+      expect(resultSecond.rules[0]?.selector).toBe('.btn');
+
+      // Modify file -> cache invalidation on changed mtime/size
+      const FILE_WRITE_DELAY_MS = 50;
+      await new Promise(r => setTimeout(r, FILE_WRITE_DELAY_MS));
+      await fs.writeFile(testCss, '.btn { color: blue; }\n.card { padding: 10px; }', 'utf-8');
+
+      const resultThird = await collectAllProjectCssRules(tempDir, new Set(), tempDir);
+      const EXPECTED_UPDATED_RULES = 2;
+      expect(resultThird.rules).toHaveLength(EXPECTED_UPDATED_RULES);
+      expect(resultThird.rules.map(r => r.selector)).toEqual(['.btn', '.card']);
+    });
+
+    it('persists cache to disk and reloads on fresh memory state', async () => {
+      const srcDir = path.join(tempDir, 'src');
+      await fs.mkdir(srcDir, { recursive: true });
+      const testCss = path.join(srcDir, 'style.css');
+      await fs.writeFile(testCss, '.badge { background: green; }', 'utf-8');
+
+      const cacheFile = path.join(tempDir, 'scratch', 'cache', 'css_ast_cache.json');
+
+      // Populate memory and save to disk
+      await collectAllProjectCssRules(tempDir, new Set(), tempDir);
+      await saveCssAstCacheToDisk(cacheFile);
+
+      // Verify file exists on disk
+      const diskContent = await fs.readFile(cacheFile, 'utf-8');
+      expect(diskContent).toContain('.badge');
+
+      // Clear memory cache to simulate new process
+      clearInMemoryCssCache();
+      expect(getInMemoryCssCache().size).toBe(0);
+
+      // Load from disk
+      await loadCssAstCacheFromDisk(cacheFile);
+      expect(getInMemoryCssCache().size).toBe(1);
+
+      // Collecting rules should use loaded cache without reparsing
+      const result = await collectAllProjectCssRules(tempDir, new Set(), tempDir);
+      const EXPECTED_LOADED_RULES = 1;
+      expect(result.rules).toHaveLength(EXPECTED_LOADED_RULES);
+      expect(result.rules[0]?.selector).toBe('.badge');
     });
   });
 });

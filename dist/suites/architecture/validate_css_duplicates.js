@@ -22,8 +22,7 @@ export const CSS_DUPLICATES_RULES = [
     'css-duplicate-long-lines',
     'css-unvariabled-colors',
     'css-duplicate-selectors',
-    'css-empty-rules',
-    'css-unused-classes'
+    'css-empty-rules'
 ];
 export class CssDuplicatesAuditor extends BaseAuditor {
     targetDir;
@@ -43,8 +42,7 @@ export class CssDuplicatesAuditor extends BaseAuditor {
                 'css-duplicate-long-lines': 'Valores largos duplicados',
                 'css-unvariabled-colors': 'Colores repetidos sin variable',
                 'css-duplicate-selectors': 'Selectores duplicados',
-                'css-empty-rules': 'Bloques de estilos vacíos',
-                'css-unused-classes': 'Clases de estilos sin uso'
+                'css-empty-rules': 'Bloques de estilos vacíos'
             },
             roots: config.paths.srcRoots ?? ['src'],
             projectRoot
@@ -76,9 +74,6 @@ export class CssDuplicatesAuditor extends BaseAuditor {
             }
             else if (v.message.startsWith('Bloque CSS vacío')) {
                 ruleId = 'css-empty-rules';
-            }
-            else if (v.message.startsWith('Clase CSS')) {
-                ruleId = 'css-unused-classes';
             }
             this.addViolation({
                 ruleId,

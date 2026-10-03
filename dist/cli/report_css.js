@@ -76,8 +76,7 @@ export async function runCssReport(projectRoot = process.cwd()) {
         checkLongLines: category === 'all' || category === 'long-lines',
         checkColors: category === 'all' || category === 'colors',
         checkDuplicateSelectors: category === 'all' || category === 'selectors',
-        checkEmptyRules: category === 'all' || category === 'empty',
-        checkUnused: category === 'all' || category === 'unused'
+        checkEmptyRules: category === 'all' || category === 'empty'
     };
     const startTime = performance.now();
     const { violations, details, filesScanned } = await runCssAnalysis('.', new Set(CANONICAL_IGNORE_DIRS), options, projectRoot);
@@ -98,8 +97,7 @@ export async function runCssReport(projectRoot = process.cwd()) {
                     'css-duplicate-long-lines': details.longValues.length,
                     'css-unvariabled-colors': details.unvariabledColors.length,
                     'css-duplicate-selectors': details.duplicateSelectors.length,
-                    'css-empty-rules': details.emptyRules.length,
-                    'css-unused-classes': details.unusedClasses.length
+                    'css-empty-rules': details.emptyRules.length
                 }
             },
             findings: filteredViolations.map(v => ({
@@ -107,8 +105,7 @@ export async function runCssReport(projectRoot = process.cwd()) {
                     v.context.includes('similitud') ? 'css-similar-classes' :
                         v.context.includes('valor largo') ? 'css-duplicate-long-lines' :
                             v.context.includes('color') ? 'css-unvariabled-colors' :
-                                v.context.includes('selector repetido') ? 'css-duplicate-selectors' :
-                                    v.context.includes('regla css vacía') ? 'css-empty-rules' : 'css-unused-classes',
+                                v.context.includes('selector repetido') ? 'css-duplicate-selectors' : 'css-empty-rules',
                 severity: v.severity,
                 file: path.relative(projectRoot, v.file).replace(/\\/g, '/'),
                 line: v.line,

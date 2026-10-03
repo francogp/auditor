@@ -13,7 +13,7 @@
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { type CssAnalysisDetails } from '../../analyzers/cssAnalyzer.ts';
-export type CssDuplicatesRuleId = 'css-duplicate-rules' | 'css-similar-classes' | 'css-duplicate-long-lines' | 'css-unvariabled-colors' | 'css-duplicate-selectors' | 'css-empty-rules' | 'css-unused-classes';
+export type CssDuplicatesRuleId = 'css-duplicate-rules' | 'css-similar-classes' | 'css-duplicate-long-lines' | 'css-unvariabled-colors' | 'css-duplicate-selectors' | 'css-empty-rules';
 export declare const CSS_DUPLICATES_RULES: readonly CssDuplicatesRuleId[];
 export interface CssAuditJsonResult {
     readonly summary: {

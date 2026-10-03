@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "2.1.0-build.20261002-230529",
+  "version": "2.2.0-build.20261002-233110",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
