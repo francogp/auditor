@@ -9,6 +9,15 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from './cliUtils.ts';
+
+export const MAX_FUNCTION_NAME_CHARS = 18;
+export const MAX_RECOMMENDED_LOC = 60;
+export const MAX_RECOMMENDED_COGNITIVE = 20;
+export const MAX_RECOMMENDED_CYCLOMATIC = 25;
+export const MAX_FILE_PATH_DISPLAY_LENGTH = 27;
+export const FILE_PATH_TAIL_CHARS = 24;
+export const MAX_RECOMMENDATION_CHARS = 48;
 
 interface ComplexityFinding {
   name: string;
@@ -85,9 +94,7 @@ function runFallowHealth(): FallowHealthRaw {
     const stdout = execSync(cmd, {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
-      maxBuffer: 50 * 1024 * 1024,
-      timeout: 30000,
-      killSignal: 'SIGKILL'
+      maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
     });
     return parseJsonObjectOutput<FallowHealthRaw>(stdout) ?? {};
   } catch (e: unknown) {
@@ -297,11 +304,11 @@ function renderBoxReport(
 
   const hotspotRows: HotspotRow[] = filtered.slice(0, topLimit).map((f, idx) => ({
     index: String(idx + 1),
-    name: f.name.length > 18 ? f.name.slice(0, 17) + '…' : f.name,
-    lines: styleText(f.lines > 60 ? 'red' : 'green', String(f.lines)),
-    cog: f.cog > 0 ? styleText(f.cog > 20 ? 'red' : 'yellow', String(f.cog)) : styleText('dim', '-'),
-    cyc: f.cyc > 0 ? styleText(f.cyc > 25 ? 'red' : 'yellow', String(f.cyc)) : styleText('dim', '-'),
-    fileLoc: f.file.length > 27 ? '…' + f.file.slice(-24) + `:${f.line}` : `${f.file}:${f.line}`
+    name: f.name.length > MAX_FUNCTION_NAME_CHARS ? f.name.slice(0, MAX_FUNCTION_NAME_CHARS - 1) + '…' : f.name,
+    lines: styleText(f.lines > MAX_RECOMMENDED_LOC ? 'red' : 'green', String(f.lines)),
+    cog: f.cog > 0 ? styleText(f.cog > MAX_RECOMMENDED_COGNITIVE ? 'red' : 'yellow', String(f.cog)) : styleText('dim', '-'),
+    cyc: f.cyc > 0 ? styleText(f.cyc > MAX_RECOMMENDED_CYCLOMATIC ? 'red' : 'yellow', String(f.cyc)) : styleText('dim', '-'),
+    fileLoc: f.file.length > MAX_FILE_PATH_DISPLAY_LENGTH ? '…' + f.file.slice(-FILE_PATH_TAIL_CHARS) + `:${f.line}` : `${f.file}:${f.line}`
   }));
 
   console.log(renderBoxTable(hotspotCols, hotspotRows));
@@ -320,14 +327,14 @@ function renderBoxReport(
       { header: '#', width: 3, align: 'center', key: 'index' },
       { header: 'PRI', width: 5, align: 'right', key: 'pri' },
       { header: 'TIPO', width: 14, align: 'left', key: 'category' },
-      { header: 'RECOMENDACIÓN DE REFACTORIZACIÓN', width: 48, align: 'left', key: 'recommendation' }
+      { header: 'RECOMENDACIÓN DE REFACTORIZACIÓN', width: MAX_RECOMMENDATION_CHARS, align: 'left', key: 'recommendation' }
     ];
 
     const targetRows: TargetRow[] = targets.map((t, idx) => ({
       index: String(idx + 1),
       pri: t.priority ? t.priority.toFixed(1) : '-',
       category: t.category.replace(/_/g, ' '),
-      recommendation: t.recommendation.length > 48 ? t.recommendation.slice(0, 47) + '…' : t.recommendation
+      recommendation: t.recommendation.length > MAX_RECOMMENDATION_CHARS ? t.recommendation.slice(0, MAX_RECOMMENDATION_CHARS - 1) + '…' : t.recommendation
     }));
 
     console.log(renderBoxTable(targetCols, targetRows));

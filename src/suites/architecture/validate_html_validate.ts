@@ -30,7 +30,7 @@ export const HTML_VALIDATE_RULES: readonly HtmlValidateRuleId[] = [
 ] as const;
 
 const MAX_BUFFER_BYTES = 52428800 as const;
-const EXECUTION_TIMEOUT_MS = 120000 as const;
+const EXECUTION_TIMEOUT_MS = 0 as const;
 
 export type RawHtmlValidateMessage = RawLintMessage;
 export type RawHtmlValidateFileReport = RawLintFileReport;

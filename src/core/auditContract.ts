@@ -6,7 +6,11 @@
  * required for all sub-auditors and the general audit orchestrator.
  */
 
-import type { CustomAuditFamilyConfig } from './auditConfig.ts';
+import {
+  getAuditConfig,
+  DEFAULT_MAX_AUDIT_STALENESS_MINUTES,
+  type CustomAuditFamilyConfig
+} from './auditConfig.ts';
 
 export const BUILTIN_AUDIT_FAMILIES = [
   'architecture',
@@ -64,6 +68,9 @@ export const FAMILY_METADATA: Record<string, FamilyMetadata> = {
   }
 };
 
+export const DEFAULT_CUSTOM_FAMILY_ORDER = 90;
+export const FALLBACK_FAMILY_ORDER = 99;
+
 export function resolveFamilyMetadata(familyKey: string, customFamilies?: readonly CustomAuditFamilyConfig[]): FamilyMetadata {
   if (FAMILY_METADATA[familyKey]) {
     return FAMILY_METADATA[familyKey]!;
@@ -73,7 +80,7 @@ export function resolveFamilyMetadata(familyKey: string, customFamilies?: readon
     return {
       key: custom.key,
       title: custom.title,
-      order: custom.order ?? 90,
+      order: custom.order ?? DEFAULT_CUSTOM_FAMILY_ORDER,
       icon: custom.icon ?? '⚙️',
       description: custom.description ?? `Validaciones específicas de la familia ${custom.key}.`
     };
@@ -81,7 +88,7 @@ export function resolveFamilyMetadata(familyKey: string, customFamilies?: readon
   return {
     key: familyKey,
     title: familyKey.toUpperCase(),
-    order: 99,
+    order: FALLBACK_FAMILY_ORDER,
     icon: '⚙️',
     description: `Familia de auditoría ${familyKey}.`
   };
@@ -213,11 +220,13 @@ export interface ConsolidatedAuditReport {
   allFindings: AuditFinding[];
 }
 
-export const MAX_AUDIT_STALENESS_MS = 5 * 60 * 1000; // 5 minutes
+export const ONE_MINUTE_MS = 60000;
+export const MAX_AUDIT_STALENESS_MS = DEFAULT_MAX_AUDIT_STALENESS_MINUTES * ONE_MINUTE_MS;
 
 export interface AssertAuditorOptions {
   maxAgeMs?: number;
   allowStale?: boolean;
+  projectRoot?: string;
 }
 
 function assertAuditFreshness(
@@ -226,14 +235,16 @@ function assertAuditFreshness(
   options: AssertAuditorOptions
 ): void {
   if (options.allowStale) return;
-  const maxAge = options.maxAgeMs ?? MAX_AUDIT_STALENESS_MS;
+  const config = getAuditConfig(options.projectRoot);
+  const configuredMinutes = config.runner?.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES;
+  const maxAge = options.maxAgeMs ?? (configuredMinutes * ONE_MINUTE_MS);
   try {
     const auditInstant = Temporal.Instant.from(meta.timestamp);
     const now = Temporal.Now.instant();
     const elapsedMs = now.since(auditInstant).total({ unit: 'millisecond' });
     if (elapsedMs > maxAge) {
       const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
-      const limitMins = Math.round(maxAge / (60 * 1000));
+      const limitMins = Math.round(maxAge / ONE_MINUTE_MS);
       throw new Error(
         `[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). ` +
         `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run audit' para refrescar el reporte.`

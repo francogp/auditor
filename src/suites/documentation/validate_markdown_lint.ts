@@ -29,7 +29,7 @@ export const MARKDOWN_LINT_RULES: readonly MarkdownLintRuleId[] = [
 ] as const;
 
 const MAX_BUFFER_BYTES = 52428800 as const;
-const EXECUTION_TIMEOUT_MS = 60000 as const;
+const EXECUTION_TIMEOUT_MS = 0 as const;
 const DEFAULT_ERROR_LINE = 1 as const;
 
 export const DEFAULT_MARKDOWN_IGNORE_GLOBS = [

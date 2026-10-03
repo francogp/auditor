@@ -8,6 +8,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from './cliUtils.ts';
 
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
@@ -75,9 +76,7 @@ function runFallowCommand(command: string, extraArgs: string[] = []): Record<str
     const stdout = execSync(cmd, {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
-      maxBuffer: 50 * 1024 * 1024,
-      timeout: 45000,
-      killSignal: 'SIGKILL'
+      maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
     });
     return parseJsonObjectOutput<Record<string, unknown>>(stdout);
   } catch (e: unknown) {

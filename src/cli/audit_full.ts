@@ -25,7 +25,8 @@ import {
   type ConsolidatedAuditReport,
   resolveFamilyMetadata,
   getActiveFamilies,
-  groupResultsByFamily
+  groupResultsByFamily,
+  FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig, assertAuditConfigComplete, type AuditEngineConfig } from '../core/auditConfig.ts';
 import {
@@ -47,7 +48,7 @@ enableCompileCache();
 const CPU_CORE_DIVISOR = 2 as const;
 const MIN_CONCURRENCY = 1 as const;
 const DECIMAL_RADIX = 10 as const;
-const DEFAULT_SUBPROCESS_TIMEOUT_MS = 60000 as const;
+const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0 as const;
 
 interface AuditFullCliOptions {
   values: Record<string, unknown>;
@@ -302,7 +303,7 @@ async function parseSubprocessOutput(
   const findings: AuditFinding[] = [];
 
   if (!isSuccess) {
-    const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? 60000, task);
+    const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? DEFAULT_SUBPROCESS_TIMEOUT_MS, task);
     findings.push({
       severity: 'error',
       message: errorMsg,
@@ -361,6 +362,8 @@ interface MasterReportContext {
   scratchAuditsDir: string;
 }
 
+const ERROR_WEIGHT_FACTOR = 1000;
+
 function computeAuditCategoryCounts(results: readonly StandardAuditResult[]): Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]> {
   const categoryCounts = new Map<string, { errors: number; warnings: number; findings: AuditFinding[] }>();
   for (const suite of results) {
@@ -377,7 +380,7 @@ function computeAuditCategoryCounts(results: readonly StandardAuditResult[]): Ar
   }
 
   return Array.from(categoryCounts.entries()).sort((a, b) => {
-    return (b[1].errors * 1000 + b[1].warnings) - (a[1].errors * 1000 + a[1].warnings);
+    return (b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings) - (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings);
   });
 }
 
@@ -565,8 +568,8 @@ async function runMasterAudit() {
   const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
 
   tasksToRun.sort((a, b) => {
-    const orderA = (a.order ?? 99);
-    const orderB = (b.order ?? 99);
+    const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
+    const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
     if (orderA !== orderB) return orderA - orderB;
     return a.id.localeCompare(b.id);
   });

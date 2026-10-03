@@ -21,7 +21,7 @@ import { enableCompileCache } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily } from "../core/auditContract.js";
+import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
 import { loadAuditConfig, assertAuditConfigComplete } from "../core/auditConfig.js";
 import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
@@ -33,7 +33,7 @@ enableCompileCache();
 const CPU_CORE_DIVISOR = 2;
 const MIN_CONCURRENCY = 1;
 const DECIMAL_RADIX = 10;
-const DEFAULT_SUBPROCESS_TIMEOUT_MS = 60000;
+const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
 function resolveTargetFamily(familyOption, positionals, activeFamilies) {
     const positionalFamily = positionals.find(p => activeFamilies.includes(p));
     return familyOption || positionalFamily;
@@ -239,7 +239,7 @@ async function parseSubprocessOutput(task, proc, scratchAuditsDir) {
     const isSuccess = !proc.timedOut && proc.status === 0;
     const findings = [];
     if (!isSuccess) {
-        const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? 60000, task);
+        const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? DEFAULT_SUBPROCESS_TIMEOUT_MS, task);
         findings.push({
             severity: 'error',
             message: errorMsg,
@@ -276,6 +276,7 @@ async function runAuditWorkers(tasks, concurrency, taskExecutor) {
     await Promise.all(workers);
     return results;
 }
+const ERROR_WEIGHT_FACTOR = 1000;
 function computeAuditCategoryCounts(results) {
     const categoryCounts = new Map();
     for (const suite of results) {
@@ -293,7 +294,7 @@ function computeAuditCategoryCounts(results) {
         }
     }
     return Array.from(categoryCounts.entries()).sort((a, b) => {
-        return (b[1].errors * 1000 + b[1].warnings) - (a[1].errors * 1000 + a[1].warnings);
+        return (b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings) - (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings);
     });
 }
 function printFindingsSummary(results, sortedCategories) {
@@ -441,8 +442,8 @@ async function runMasterAudit() {
     const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
     const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
     tasksToRun.sort((a, b) => {
-        const orderA = (a.order ?? 99);
-        const orderB = (b.order ?? 99);
+        const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
+        const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
         if (orderA !== orderB)
             return orderA - orderB;
         return a.id.localeCompare(b.id);

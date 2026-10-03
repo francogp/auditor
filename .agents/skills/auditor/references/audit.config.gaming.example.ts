@@ -273,6 +273,11 @@ export default defineAuditConfig({
     }
   ],
 
+  runner: {
+    timeoutMs: 0, // 0 = disabled: suites run to completion without arbitrary kills; set e.g. 3600000 for 1h safety ceiling
+    maxStalenessMinutes: 10 // Configurable audit report freshness limit in minutes (default: 5)
+  },
+
   extensions: [
     './scripts/auditors/architecture/validate_battle_ui_branching.ts', // Validates simplification of complex branching in battle UI
     './scripts/auditors/architecture/validate_client_sim_decoupling.ts', // Ensures strict decoupling between simulation engine and client UI

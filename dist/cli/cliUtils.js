@@ -35,6 +35,8 @@ export function isMainModule(metaUrl) {
         return false;
     }
 }
+export const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
+export const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
 /**
  * Runs a Node.js CLI binary with standard permission warning suppressions and returns combined stdout + stderr.
  */
@@ -48,8 +50,8 @@ export function executeNodeCli(binPath, args, options) {
     ], {
         cwd: options?.cwd || process.cwd(),
         encoding: 'utf-8',
-        maxBuffer: options?.maxBuffer ?? 50 * 1024 * 1024,
-        timeout: options?.timeout ?? 120000
+        maxBuffer: options?.maxBuffer ?? DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+        timeout: options?.timeout ?? DEFAULT_SUBPROCESS_TIMEOUT_MS
     });
     return `${proc.stdout || ''}\n${proc.stderr || ''}`;
 }

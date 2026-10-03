@@ -110,6 +110,8 @@ export interface CssAnalysisOptions {
     readonly checkUnused?: boolean;
     readonly checkDuplicateSelectors?: boolean;
 }
+export declare const DEFAULT_CSS_SIMILARITY_THRESHOLD = 80;
+export declare const DEFAULT_CSS_LONG_LINE_THRESHOLD = 20;
 export declare function extractCssBlocksFromVue(content: string): Array<{
     code: string;
     startLine: number;

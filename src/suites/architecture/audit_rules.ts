@@ -908,31 +908,35 @@ function isInsideStringOrComment(content: string, matchIndex: number, lineStartP
   return false;
 }
 
-function isInsideConstBracketBlock(content: string, matchIndex: number): boolean {
-  const contentUpToMatch = content.substring(0, matchIndex);
-  const lastConstPos = Math.max(
-    contentUpToMatch.lastIndexOf('\nconst '),
-    contentUpToMatch.lastIndexOf('\n  const '),
-    contentUpToMatch.lastIndexOf('\n    const ')
-  );
-  if (lastConstPos === -1) return false;
-  const fromLastConst = contentUpToMatch.substring(lastConstPos);
-  const openCount = (fromLastConst.split('{').length - 1) + (fromLastConst.split('[').length - 1);
-  const closeCount = (fromLastConst.split('}').length - 1) + (fromLastConst.split(']').length - 1);
-  return openCount > closeCount;
+function isNamedConstantDeclaration(trimmed: string): boolean {
+  if (/^(?:(?:export\s+)?(?:declare\s+)?(?:(?:public|private|protected|static|readonly)\s+)*const\s+[A-Z0-9_]+\b|(?:(?:public|private|protected|static)\s+)*readonly\s+[A-Z0-9_]+\b)/.test(trimmed)) {
+    return true;
+  }
+  if (/^[A-Z0-9_]{2,}\s*[:=]\s*-?[\d.]+/.test(trimmed)) {
+    return true;
+  }
+  return false;
 }
 
-const EXEMPT_SYNTAX_KEYWORDS = ['const ', 'readonly ', 'import ', 'enum ', 'type ', 'interface '];
+function isExemptSyntaxDeclaration(trimmed: string): boolean {
+  if (/^(?:export\s+)?(?:type|interface|enum)\s+[A-Za-z0-9_]+/.test(trimmed)) return true;
+  if (/^import\s+/.test(trimmed)) return true;
+  return false;
+}
 
-function hasExemptSyntaxKeyword(trimmed: string): boolean {
-  return EXEMPT_SYNTAX_KEYWORDS.some(kw => trimmed.includes(kw));
+function isRegexQuantifierOrEscape(content: string, match: RegExpExecArray): boolean {
+  if (match.index > 0 && (content[match.index - 1] === '\\' || content[match.index - 1] === '{')) return true;
+  const afterIdx = match.index + match[0].length;
+  if (afterIdx < content.length && (content[afterIdx] === '}' || content[afterIdx - 1] === '}')) return true;
+  return false;
 }
 
 function isExemptLiteralOrProtocol(line: string): boolean {
-  if (/rgba?\s*\(|hsl\s*\(|#[0-9a-fA-F]{3,8}\b|0x[0-9a-fA-F]+/i.test(line)) return true;
+  if (/rgba?\s*\(|hsl\s*\(|#[0-9a-fA-F]{3,8}\b|0x[0-9a-fA-F]+|0o[0-7]+|0b[01]+/i.test(line)) return true;
   if (/<svg|<path|<rect|<circle|<g\b|viewBox=|d=["']M/i.test(line)) return true;
   if (/\b(?:VARCHAR|CHAR|INT|TIMESTAMP|DECIMAL)\s*\(\s*\d+/i.test(line)) return true;
   if (/https?:\/\/|localhost|127\.0\.0\.1|utf-8/i.test(line)) return true;
+  if (/\b(?:width|minWidth|maxWidth|height|minHeight|maxHeight|colSpan|rowSpan)\s*:\s*-?[\d.]+/i.test(line)) return true;
   return false;
 }
 
@@ -944,11 +948,10 @@ function isInsideVueStyle(content: string, matchIndex: number, filePath: string)
 }
 
 function isMagicNumberSyntaxExempt(content: string, match: RegExpExecArray, line: string, trimmed: string, filePath: string): boolean {
-  if (hasExemptSyntaxKeyword(trimmed)) return true;
-  if (/^\w[\w]*\s*:\s*-?[\d.]+[,]?\s*$/.test(trimmed)) return true;
-  if (match.index > 0 && content[match.index - 1] === '\\') return true;
+  if (isNamedConstantDeclaration(trimmed)) return true;
+  if (isExemptSyntaxDeclaration(trimmed)) return true;
+  if (isRegexQuantifierOrEscape(content, match)) return true;
   if (match[2] === '10' && /\bparseInt\s*\([^,]+,\s*[0-9]+\s*\)/.test(line)) return true;
-  if (isInsideConstBracketBlock(content, match.index)) return true;
   if (isExemptLiteralOrProtocol(line)) return true;
   return isInsideVueStyle(content, match.index, filePath);
 }
@@ -1303,6 +1306,8 @@ export const noSassAtImport: AuditRule = {
   }
 };
 
+export const GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS = 400;
+
 export const noLayoutAnimationInGsap: AuditRule = {
   id: 'noLayoutAnimationInGsap',
   name: 'No Layout Animation In GSAP',
@@ -1316,9 +1321,9 @@ export const noLayoutAnimationInGsap: AuditRule = {
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!isAuditableCodeFile(filePath)) return false;
 
-    // Look ahead within the GSAP call (up to 400 chars) for tween config object
+    // Look ahead within the GSAP call for tween config object
     const startIdx = match.index ?? 0;
-    const chunk = content.slice(startIdx, startIdx + 400);
+    const chunk = content.slice(startIdx, startIdx + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
     const layoutPropRegex = /\b(backgroundPosition|backgroundPositionX|backgroundPositionY)\s*:/;
     const found = layoutPropRegex.exec(chunk);
     if (!found) return false;

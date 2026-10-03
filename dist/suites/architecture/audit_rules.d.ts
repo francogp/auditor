@@ -115,6 +115,7 @@ export declare const noImportantOnTransforms: AuditRule;
 export declare const noImportantOnFilters: AuditRule;
 export declare const noRawJsonImportsOutsideData: AuditRule;
 export declare const noSassAtImport: AuditRule;
+export declare const GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS = 400;
 export declare const noLayoutAnimationInGsap: AuditRule;
 export declare function getNamedTimerConstantsRegex(): RegExp;
 export declare const namedTimerConstants: AuditRule;

@@ -19,7 +19,7 @@ import {
   defineAuditConfig,
   resetAuditConfig
 } from '../src/core/auditConfig.ts';
-import { zeroTimerLogic } from '../src/suites/architecture/audit_rules.ts';
+import { zeroTimerLogic, magicNumbers } from '../src/suites/architecture/audit_rules.ts';
 
 describe('ProjectArchitectureAuditor & Fallow Integration', () => {
   let tempDir: string;
@@ -340,6 +340,53 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
 
       zeroTimerLogic.regex.lastIndex = 0;
       expect(zeroTimerLogic.regex.test(invalidDirectSleep)).toBe(true);
+    });
+  });
+
+  describe('magicNumbers Rule', () => {
+    const fakeFilePath = 'src/services/sampleService.ts';
+
+    function checkCode(code: string): boolean {
+      const regex = new RegExp(magicNumbers.regex.source, magicNumbers.regex.flags);
+      let match;
+      while ((match = regex.exec(code)) !== null) {
+        if (magicNumbers.check?.(code, match, fakeFilePath)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    it('flags inline literals assigned to lowerCamelCase const variables', () => {
+      expect(checkCode('const timeout = 60000;')).toBe(true);
+      expect(checkCode('const maxRetries = 45;')).toBe(true);
+    });
+
+    it('flags inline literals in function calls or fallback expressions previously masked by const keyword', () => {
+      const snippet = 'const errorMsg = extractSubprocessErrorMessage(proc, task.timeoutMs ?? 60000, task);';
+      expect(checkCode(snippet)).toBe(true);
+    });
+
+    it('flags inline literals in object literal properties', () => {
+      const snippet = 'const opts = {\n  timeout: 60000\n};';
+      expect(checkCode(snippet)).toBe(true);
+    });
+
+    it('does NOT flag declared UPPER_SNAKE_CASE named constants', () => {
+      expect(checkCode('const DEFAULT_TIMEOUT_MS = 60000;')).toBe(false);
+      expect(checkCode('export const MAX_RETRY_COUNT = 45;')).toBe(false);
+      expect(checkCode('readonly POLLING_INTERVAL_MS = 5000;')).toBe(false);
+      expect(checkCode('export const CONFIG = {\n  DEFAULT_TIMEOUT_MS: 60000\n};')).toBe(false);
+    });
+
+    it('does NOT flag exempt numeric values (0, 1, 100, 200, 404, 500)', () => {
+      expect(checkCode('const count = 100;')).toBe(false);
+      expect(checkCode('const status = 404;')).toBe(false);
+    });
+
+    it('strictly prohibits inline comments from bypassing magic numbers', () => {
+      expect(checkCode('const delay = 555; // number-ok: animation step duration')).toBe(true);
+      expect(checkCode('const delay = 555; // magic-ok: bypass')).toBe(true);
     });
   });
 

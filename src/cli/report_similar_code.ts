@@ -12,13 +12,17 @@ import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from './cliUtils.ts';
 import {
   resolveFallowBinary,
   checkOrInitializeModel,
+  DEFAULT_SIMILAR_CODE_THRESHOLD,
   type SimilarCodeOutput,
   type SimilarCodeCandidate
 } from '../suites/architecture/validate_similar_code.ts';
+
+const MAX_FUNCTION_NAME_COL_WIDTH = 16;
+const MAX_LOCATION_COL_WIDTH = 20;
 
 interface SimilarCodeRow {
   index: string;
@@ -35,7 +39,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   const { values } = parseArgs({
     args: process.argv.slice(2),
     options: {
-      threshold: { type: 'string', default: String(fallowCfg?.threshold ?? 0.95) },
+      threshold: { type: 'string', default: String(fallowCfg?.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD) },
       'min-lines': { type: 'string', default: String(fallowCfg?.minLines ?? 3) },
       'include-same-file': { type: 'boolean', default: false },
       json: { type: 'boolean', default: false }
@@ -44,7 +48,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
     allowPositionals: true
   });
 
-  const threshold = parseFloat(String(values.threshold || '0.95'));
+  const threshold = parseFloat(String(values.threshold || String(DEFAULT_SIMILAR_CODE_THRESHOLD)));
   const minLines = parseInt(String(values['min-lines'] || '3'), 10);
   const ignoreSameFile = !values['include-same-file'];
   const isJson = Boolean(values.json);
@@ -75,8 +79,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
-      maxBuffer: 50 * 1024 * 1024,
-      timeout: 180000
+      maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
     });
 
     const jsonStart = stdout.indexOf('{');
@@ -119,7 +122,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
 
   const rows: SimilarCodeRow[] = candidates.map((c, idx) => {
     const pct = `${(c.similarity * 100).toFixed(1)}%`;
-    const simFormatted = c.similarity >= 0.95 ? styleText('red', pct) : styleText('yellow', pct);
+    const simFormatted = c.similarity >= DEFAULT_SIMILAR_CODE_THRESHOLD ? styleText('red', pct) : styleText('yellow', pct);
     const leftFile = c.left.path.split('/').pop() || c.left.path;
     const rightFile = c.right.path.split('/').pop() || c.right.path;
     const loc = `${leftFile}:${c.left.start_line} ~ ${rightFile}:${c.right.start_line}`;
@@ -127,9 +130,9 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
     return {
       index: String(idx + 1),
       similarity: simFormatted,
-      funcA: c.left.name.length > 16 ? c.left.name.slice(0, 15) + '…' : c.left.name,
-      funcB: c.right.name.length > 16 ? c.right.name.slice(0, 15) + '…' : c.right.name,
-      location: loc.length > 20 ? loc.slice(0, 19) + '…' : loc
+      funcA: c.left.name.length > MAX_FUNCTION_NAME_COL_WIDTH ? c.left.name.slice(0, MAX_FUNCTION_NAME_COL_WIDTH - 1) + '…' : c.left.name,
+      funcB: c.right.name.length > MAX_FUNCTION_NAME_COL_WIDTH ? c.right.name.slice(0, MAX_FUNCTION_NAME_COL_WIDTH - 1) + '…' : c.right.name,
+      location: loc.length > MAX_LOCATION_COL_WIDTH ? loc.slice(0, MAX_LOCATION_COL_WIDTH - 1) + '…' : loc
     };
   });
 

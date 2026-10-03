@@ -5,7 +5,7 @@
  * Defines the immutable data structures, family types, and standard outputs
  * required for all sub-auditors and the general audit orchestrator.
  */
-import type { CustomAuditFamilyConfig } from './auditConfig.ts';
+import { type CustomAuditFamilyConfig } from './auditConfig.ts';
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "documentation"];
 export declare const AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
@@ -18,6 +18,8 @@ export interface FamilyMetadata {
     description: string;
 }
 export declare const FAMILY_METADATA: Record<string, FamilyMetadata>;
+export declare const DEFAULT_CUSTOM_FAMILY_ORDER = 90;
+export declare const FALLBACK_FAMILY_ORDER = 99;
 export declare function resolveFamilyMetadata(familyKey: string, customFamilies?: readonly CustomAuditFamilyConfig[]): FamilyMetadata;
 export declare function getActiveFamilies(customFamilies?: readonly CustomAuditFamilyConfig[]): readonly string[];
 export type FindingSeverity = 'error' | 'warning' | 'info';
@@ -129,10 +131,12 @@ export interface ConsolidatedAuditReport {
     }>;
     allFindings: AuditFinding[];
 }
+export declare const ONE_MINUTE_MS = 60000;
 export declare const MAX_AUDIT_STALENESS_MS: number;
 export interface AssertAuditorOptions {
     maxAgeMs?: number;
     allowStale?: boolean;
+    projectRoot?: string;
 }
 /**
  * Asserts that a required auditor was executed in the consolidated audit report

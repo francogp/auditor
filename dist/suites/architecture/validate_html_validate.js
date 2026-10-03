@@ -23,7 +23,7 @@ export const HTML_VALIDATE_RULES = [
     'html-validate-issue'
 ];
 const MAX_BUFFER_BYTES = 52428800;
-const EXECUTION_TIMEOUT_MS = 120000;
+const EXECUTION_TIMEOUT_MS = 0;
 /**
  * Parses raw JSON output or an array of file reports from html-validate into canonical AuditFindings.
  * Elevates both warnings and errors to severity: 'error' (Zero-Warning Policy).

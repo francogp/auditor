@@ -29,6 +29,33 @@ import {
   type CssAnalysisOptions
 } from '../analyzers/cssAnalyzer.ts';
 
+const DEFAULT_CSS_SIMILARITY_THRESHOLD = 80;
+const DEFAULT_CSS_MIN_DECLARATIONS = 2;
+const DEFAULT_CSS_LONG_LINE_LENGTH_THRESHOLD = 20;
+
+const MAX_ITEM_DISPLAY_CHARS = 25;
+const MAX_ITEM_TRUNCATE_CHARS = 24;
+const MAX_LOCATION_DISPLAY_CHARS = 22;
+const MAX_LOCATION_TRUNCATE_CHARS = 21;
+
+const COL_WIDTH_INDEX = 3;
+const COL_WIDTH_CATEGORY = 14;
+const COL_WIDTH_ITEM = 26;
+const COL_WIDTH_DETAIL = 12;
+const COL_WIDTH_LOCATION = 22;
+
+function truncateItem(item: string): string {
+  return item.length > MAX_ITEM_DISPLAY_CHARS
+    ? `${item.slice(0, MAX_ITEM_TRUNCATE_CHARS)}…`
+    : item;
+}
+
+function truncateLocation(loc: string): string {
+  return loc.length > MAX_LOCATION_DISPLAY_CHARS
+    ? `${loc.slice(0, MAX_LOCATION_TRUNCATE_CHARS)}…`
+    : loc;
+}
+
 interface TableRow {
   index: string;
   category: string;
@@ -45,9 +72,9 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
     args: process.argv.slice(2),
     options: {
       category: { type: 'string', default: 'all' },
-      'sim-threshold': { type: 'string', default: String(cfg?.similarityThreshold ?? 80) },
-      'min-decls': { type: 'string', default: String(cfg?.minDeclarations ?? 2) },
-      'min-length': { type: 'string', default: String(cfg?.longLineLengthThreshold ?? 20) },
+      'sim-threshold': { type: 'string', default: String(cfg?.similarityThreshold ?? DEFAULT_CSS_SIMILARITY_THRESHOLD) },
+      'min-decls': { type: 'string', default: String(cfg?.minDeclarations ?? DEFAULT_CSS_MIN_DECLARATIONS) },
+      'min-length': { type: 'string', default: String(cfg?.longLineLengthThreshold ?? DEFAULT_CSS_LONG_LINE_LENGTH_THRESHOLD) },
       json: { type: 'boolean', default: false },
       'errors-only': { type: 'boolean', default: false }
     },
@@ -58,9 +85,9 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
   const category = String(values.category || 'all').toLowerCase();
   const isJson = Boolean(values.json);
   const errorsOnly = Boolean(values['errors-only']);
-  const similarityThreshold = parseInt(String(values['sim-threshold'] || '80'), 10);
-  const minDeclarations = parseInt(String(values['min-decls'] || '2'), 10);
-  const longLineLengthThreshold = parseInt(String(values['min-length'] || '20'), 10);
+  const similarityThreshold = parseInt(String(values['sim-threshold'] || DEFAULT_CSS_SIMILARITY_THRESHOLD), 10);
+  const minDeclarations = parseInt(String(values['min-decls'] || DEFAULT_CSS_MIN_DECLARATIONS), 10);
+  const longLineLengthThreshold = parseInt(String(values['min-length'] || DEFAULT_CSS_LONG_LINE_LENGTH_THRESHOLD), 10);
 
   const options: CssAnalysisOptions = {
     minDeclarations,
@@ -138,9 +165,9 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
       rows.push({
         index: String(rowIdx++),
         category: styleText('red', 'DUPLICADO'),
-        item: dup.signature.length > 25 ? dup.signature.slice(0, 24) + '…' : dup.signature,
+        item: truncateItem(dup.signature),
         count: `${dup.occurrences.length} lugares`,
-        location: loc.length > 22 ? loc.slice(0, 21) + '…' : loc
+        location: truncateLocation(loc)
       });
     }
   }
@@ -153,7 +180,7 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
         category: styleText('yellow', 'SIMILAR'),
         item: `${sim.left.selector} ~ ${sim.right.selector}`,
         count: `${sim.similarity}% simil`,
-        location: loc.length > 22 ? loc.slice(0, 21) + '…' : loc
+        location: truncateLocation(loc)
       });
     }
   }
@@ -167,7 +194,7 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
         category: styleText('cyan', 'COLOR RAW'),
         item: c.color,
         count: `${c.occurrences.length} reglas`,
-        location: loc.length > 22 ? loc.slice(0, 21) + '…' : loc
+        location: truncateLocation(loc)
       });
     }
   }
@@ -179,9 +206,9 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
       rows.push({
         index: String(rowIdx++),
         category: styleText('magenta', 'VALOR LARGO'),
-        item: lv.value.length > 25 ? lv.value.slice(0, 24) + '…' : lv.value,
+        item: truncateItem(lv.value),
         count: `${lv.occurrences.length} lugares`,
-        location: loc.length > 22 ? loc.slice(0, 21) + '…' : loc
+        location: truncateLocation(loc)
       });
     }
   }
@@ -192,9 +219,9 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
       rows.push({
         index: String(rowIdx++),
         category: styleText('red', 'SELECTOR DUP'),
-        item: ds.selector.length > 25 ? ds.selector.slice(0, 24) + '…' : ds.selector,
+        item: truncateItem(ds.selector),
         count: `${ds.lines.length} veces`,
-        location: loc.length > 22 ? loc.slice(0, 21) + '…' : loc
+        location: truncateLocation(loc)
       });
     }
   }
@@ -205,9 +232,9 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
       rows.push({
         index: String(rowIdx++),
         category: styleText('gray', 'REGLA VACÍA'),
-        item: er.selector.length > 25 ? er.selector.slice(0, 24) + '…' : er.selector,
+        item: truncateItem(er.selector),
         count: '0 props',
-        location: loc.length > 22 ? loc.slice(0, 21) + '…' : loc
+        location: truncateLocation(loc)
       });
     }
   }
@@ -218,11 +245,11 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
   }
 
   const cols: readonly TableColumn<TableRow>[] = [
-    { header: '#', width: 3, align: 'center', key: 'index' },
-    { header: 'CATEGORÍA', width: 14, align: 'left', key: 'category' },
-    { header: 'PATRÓN / ELEMENTO', width: 26, align: 'left', key: 'item' },
-    { header: 'DETALLE', width: 12, align: 'right', key: 'count' },
-    { header: 'UBICACIÓN', width: 22, align: 'left', key: 'location' }
+    { header: '#', width: COL_WIDTH_INDEX, align: 'center', key: 'index' },
+    { header: 'CATEGORÍA', width: COL_WIDTH_CATEGORY, align: 'left', key: 'category' },
+    { header: 'PATRÓN / ELEMENTO', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
+    { header: 'DETALLE', width: COL_WIDTH_DETAIL, align: 'right', key: 'count' },
+    { header: 'UBICACIÓN', width: COL_WIDTH_LOCATION, align: 'left', key: 'location' }
   ];
 
   console.log(renderBoxTable(cols, rows));

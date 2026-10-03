@@ -80,35 +80,76 @@ Host projects **MUST NOT** rewrite or duplicate the 25 generic audit scripts in 
 - `auditor` (master orchestrator `audit_full.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
 - `auditor-commit` (safe-commit gatekeeper `audit_for_commit.ts`)
-- `auditor-findings` (interactive findings reporter `report_findings.ts`)
+- `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
 - `auditor-fallow` (Fallow intelligence suite `report_fallow.ts`)
 - `auditor-complexity` (complexity hotspot analysis `report_complexity.ts`)
 - `auditor-similar` (semantic code clone detection `report_similar_code.ts`)
 - `auditor-review` (architectural review brief `report_review.ts`)
 - `auditor-bundle` (chunk budget validation `audit_bundle.ts`)
-- `auditor-init-agent` (agent plugin registrator)
-- `auditor-sync-env` (environment script synchronizer)
+- `auditor-css` (PostCSS style duplication & orphan reporter `report_css.ts`)
+- `auditor-update` (package updater and skill synchronizer `update_package.ts`)
+- `auditor-init-agent` (agent plugin and skills registrator `init_agent.ts`)
+- `auditor-sync-env` (environment script synchronizer `sync_env_scripts.ts`)
+- `auditor-setup-env` (environment setup runner `setup_env.ts`)
+- `auditor-check-env` (runtime environment validator `check_environment.ts`)
 
-### Canonical `scripts` Configuration in Host `package.json`:
+### Canonical Recommended `scripts` in Host `package.json`:
+For a drop-in ready JSON template, see [`recommended_package_scripts_template.json`](../assets/templates/recommended_package_scripts_template.json).
+
 ```json
 {
   "scripts": {
+    "// --- GLOBAL & COMMITS ---": "",
     "audit": "auditor",
-    "audit:lint": "auditor preset=lint",
     "audit:for-commit": "auditor-commit",
+    "audit:changed": "auditor changed-since=main",
+    "audit:skip-similar": "auditor --skip-similar",
+    "audit:fix": "auditor fix",
+
+    "// --- FINDINGS & REPORTS ---": "",
     "audit:findings": "auditor-findings",
     "audit:errors": "auditor-findings severity=error",
     "audit:warnings": "auditor-findings severity=warning",
     "audit:summary": "auditor-findings",
+    "audit:files": "auditor-findings files",
+
+    "// --- PRESETS & LINT ---": "",
+    "audit:lint": "auditor preset=lint",
     "audit:md": "auditor preset=md",
-    "audit:fallow": "auditor-fallow category=all",
+    "lint": "npm run audit:lint",
+    "lint:fix": "auditor preset=lint fix",
+    "lint:md": "auditor preset=md",
+
+    "// --- SPECIALIZED ANALYZERS ---": "",
     "audit:complexity": "auditor-complexity",
     "audit:similar": "auditor-similar",
     "audit:review": "auditor-review",
-    "lint": "npm run audit:lint",
-    "lint:fix": "auditor preset=lint fix",
-    
-    // ONLY define bespoke extension scripts:
+    "audit:css": "auditor-css",
+    "audit:bundle": "auditor-bundle",
+
+    "// --- FALLOW INTELLIGENCE ---": "",
+    "audit:fallow": "auditor-fallow category=all",
+    "audit:fallow:dupes": "auditor-fallow category=dupes",
+    "audit:fallow:circular": "auditor-fallow category=circular",
+    "audit:fallow:exports": "auditor-fallow category=exports",
+    "audit:fallow:security": "auditor-fallow category=security",
+    "audit:fallow:dead-code": "auditor-fallow category=dead-code",
+
+    "// --- SUITE FAMILIES ---": "",
+    "audit:family:architecture": "auditor family=architecture",
+    "audit:family:domain": "auditor family=domain_data",
+    "audit:family:persistence": "auditor family=persistence",
+    "audit:family:documentation": "auditor family=documentation",
+
+    "// --- PACKAGE & ENVIRONMENT GOVERNANCE ---": "",
+    "auditor:update": "auditor-update",
+    "auditor:version": "auditor-version",
+    "init-agent": "auditor-init-agent",
+    "sync:env": "auditor-sync-env",
+    "env:setup": "auditor-setup-env",
+    "env:check": "auditor-check-env",
+
+    "// --- BESPOKE EXTENSIONS (IF APPLICABLE) ---": "",
     "validate:script-hardcoding": "auditor task=validate_script_hardcoding"
   }
 }
@@ -120,17 +161,32 @@ Host extensions declared in `audit.config.ts` are automatically discovered and e
 
 ## 5. Universal Standard `build` Script Contract
 
-Tool packages distributing CLI tools or pre-compiled distribution bundles (`dist/`) MUST strictly use the universal standard npm convention:
+- **Tooling Packages (TypeScript CLI / Library Packages)**:
+  Tool packages distributing CLI tools or pre-compiled distribution bundles (`dist/`) MUST strictly use the cross-platform Node.js executable script:
 
-```json
-{
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli/*.js"
+  ```json
+  {
+    "scripts": {
+      "build": "tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts"
+    }
   }
-}
-```
+  ```
 
-Custom non-standard script names like `compile` or `build:dist` are strictly prohibited to maintain consistency and eliminate cognitive friction across tooling. Architectural audits and quality gates remain decoupled under `npm run audit`.
+  Using platform-specific shell commands like `chmod` that fail on Windows is strictly forbidden; executable permissions are set via cross-platform Node.js filesystem APIs. Inventing arbitrary non-standard script names (such as `compile` or `build:dist`) is strictly forbidden across the framework.
+
+- **Web Application Host Projects (Vite / Vue / Webpack)**:
+  Host web applications compile their production assets through standard bundlers decoupled from static analysis:
+
+  ```json
+  {
+    "scripts": {
+      "build": "vite build"
+    }
+  }
+  ```
+  *(Or with pre-build gating in CI: `"build": "auditor --skip-similar && vite build"`).*
+
+Architectural audits and quality gates remain decoupled under `npm run audit`.
 
 ---
 

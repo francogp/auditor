@@ -48,6 +48,9 @@ export default defineAuditConfig({
   constants: {
     allowedNumericPrefixes: ['BASE_']
   },
+  runner: {
+    timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
+  },
   presets: {
     commit: [
       'validate_dox_integrity',

@@ -20,6 +20,8 @@ export function printConsoleHeader(title: string): void {
   console.log(styleText('bold', `\n--- 🛡️  ${title} ---`));
 }
 
+export const MAX_REPORT_SAMPLE_ITEMS = 30;
+
 export function printConsoleSummary(summary: ValidationSummary, verbose: boolean = true): void {
   console.log(`\n════════════════════════════════════`);
   console.log(`    ${summary.title.toUpperCase()}`);
@@ -34,7 +36,7 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
   } else {
     if (summary.warnings.length) {
       console.log(styleText('yellow', `⚠️  WARNINGS (${summary.warnings.length}):`));
-      const limit = 30;
+      const limit = MAX_REPORT_SAMPLE_ITEMS;
       summary.warnings.slice(0, limit).forEach(w => console.log(`   ${w}`));
       if (summary.warnings.length > limit) {
         console.log(styleText('cyan', `   ... y ${summary.warnings.length - limit} advertencias más (usa -o para ver todas)`));
@@ -44,7 +46,7 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
 
     if (summary.errors.length) {
       console.log(styleText('red', `❌ ERRORS (${summary.errors.length}):`));
-      const limit = 30;
+      const limit = MAX_REPORT_SAMPLE_ITEMS;
       summary.errors.slice(0, limit).forEach(e => console.log(`   ${e}`));
       if (summary.errors.length > limit) {
         console.log(styleText('cyan', `   ... y ${summary.errors.length - limit} errores más (usa -o para ver todos)`));

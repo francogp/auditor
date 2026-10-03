@@ -43,6 +43,8 @@ export declare function checkExactCase(startDir: string, relativePath: string): 
     exactMatch: boolean;
     actualCasing?: string;
 };
+export declare const TARGET_NODE_MAJOR_VERSION = "26";
+export declare const TARGET_NPM_MAJOR_VERSION = "12";
 export declare class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeReferenceRuleId> {
     private readonly rootDir;
     private readonly scanRoots;

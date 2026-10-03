@@ -65,8 +65,11 @@ export interface BundleAuditSummary {
   readonly duplicateViolations: readonly string[];
 }
 
-export const DEFAULT_HEAVY_CHUNK_THRESHOLD = 10 * 1024; // 10 KB
-export const DEFAULT_UNBUDGETED_CHUNK_LIMIT = 500 * 1024; // 500 KB
+export const BYTES_PER_KB = 1024;
+export const DEFAULT_HEAVY_CHUNK_THRESHOLD = 10 * BYTES_PER_KB;
+export const DEFAULT_UNBUDGETED_CHUNK_LIMIT = 500 * BYTES_PER_KB;
+export const DEFAULT_TOP_MODULES_LIMIT = 15;
+export const DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES = 500 * BYTES_PER_KB;
 
 export function parseVisualizerData(content: string): VisualizerData | null {
   const match = content.match(/window\.data\s*=\s*(\{.*?\});<\/script>/s) || content.match(/const\s+data\s*=\s*(\{.*?\});/s);
@@ -111,7 +114,7 @@ export function auditSingleChunk(
 ): ChunkAuditResult {
   const stat = fs.statSync(fullPath);
   const sizeBytes = stat.size;
-  const sizeKB = (sizeBytes / 1024).toFixed(1);
+  const sizeKB = (sizeBytes / BYTES_PER_KB).toFixed(1);
 
   for (const budget of budgets) {
     const isMatch = budget.prefix
@@ -256,8 +259,8 @@ export async function runBundleAudit(projectRoot: string = process.cwd()): Promi
 
   const statsFilePath = path.resolve(projectRoot, bundleConfig?.statsFile ?? 'scratch/bundle_stats.html');
   const distAssetsDir = path.resolve(projectRoot, bundleConfig?.distDir ?? 'dist/assets');
-  const dupeLimitBytes = bundleConfig?.duplicateModuleThresholdBytes ?? 500 * 1024;
-  const topLimit = bundleConfig?.topModulesLimit ?? 15;
+  const dupeLimitBytes = bundleConfig?.duplicateModuleThresholdBytes ?? DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES;
+  const topLimit = bundleConfig?.topModulesLimit ?? DEFAULT_TOP_MODULES_LIMIT;
 
   const { topModules, duplicateViolations, dupeErrors } = auditVisualizerStats(statsFilePath, dupeLimitBytes, topLimit);
   const { chunkResults, chunkErrors, chunkWarnings } = auditCompiledChunks(
@@ -313,7 +316,7 @@ export async function executeCli(): Promise<void> {
 
   // Render Top Modules Table if stats data exists
   if (result.topModules.length > 0) {
-    const topLimit = bundleConfig?.topModulesLimit ?? 15;
+    const topLimit = bundleConfig?.topModulesLimit ?? DEFAULT_TOP_MODULES_LIMIT;
     const sample = result.topModules.slice(0, topLimit);
 
     interface ModuleRow extends Record<string, unknown> {

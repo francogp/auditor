@@ -20,11 +20,13 @@ import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } from "../../cli/cliUtils.js";
 enableCompileCache();
 export const SIMILAR_CODE_RULES = [
     'fallow-similar-code',
     'fallow-similar-code-failed'
 ];
+export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export function resolveFallowBinary(projectRoot = process.cwd()) {
     const candidates = [
         path.resolve(projectRoot, 'node_modules/fallow/bin/fallow'),
@@ -86,7 +88,7 @@ export function checkOrInitializeModel(fallowBin, projectRoot) {
             cwd: projectRoot,
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
-            timeout: 15000
+            timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
         });
         const parsed = JSON.parse(statusOut);
         if (parsed.model_ready === true) {
@@ -184,7 +186,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
         return fallowBin;
     }
     executeAnalysis(fallowBin, similarCfg) {
-        const threshold = similarCfg.threshold ?? 0.95;
+        const threshold = similarCfg.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD;
         const minLines = similarCfg.minLines ?? 3;
         const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
         const rawOutputFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/similar-code-raw.json');
@@ -199,8 +201,8 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
                 cwd: this.projectRoot,
                 encoding: 'utf8',
                 stdio: ['pipe', 'pipe', 'pipe'],
-                maxBuffer: 50 * 1024 * 1024,
-                timeout: 0
+                maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+                timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
             });
             this.processRawOutputFile(rawOutputFile, ignoreSameFile);
         }

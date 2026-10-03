@@ -30,8 +30,12 @@ import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxA
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
 import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath, getEffectiveZLayers } from '../../core/auditConfig.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
+
+export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
+export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
 
@@ -720,7 +724,7 @@ function runFallow(command: string, extraArgs: string[] = [], logicalCategory?: 
   const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
 
   try {
-    const stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 50 * 1024 * 1024, timeout: 45000, killSignal: 'SIGKILL' });
+    const stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES });
     const parsed = tryParseFallowJson(stdout, targetCategory);
     if (parsed) return parsed;
   } catch (e: unknown) {
@@ -1230,9 +1234,9 @@ function mapFallowTargets(data: FallowAuditData, violations: Violation[]): void 
     if (maxPriority === 'all') {
       meetsThreshold = priority > 0;
     } else if (maxPriority === 'high') {
-      meetsThreshold = priority >= 20;
+      meetsThreshold = priority >= FALLOW_HIGH_PRIORITY_THRESHOLD;
     } else {
-      meetsThreshold = priority >= 30;
+      meetsThreshold = priority >= FALLOW_CRITICAL_PRIORITY_THRESHOLD;
     }
 
     if (meetsThreshold) {

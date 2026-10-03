@@ -14,6 +14,7 @@
  *   7. Unused Classes (css-unused-classes): Selectors never referenced in template/JS files.
  */
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import scssSyntax from 'postcss-scss';
 export const CSS_ANALYZER_DESCRIPTOR = {
@@ -22,12 +23,14 @@ export const CSS_ANALYZER_DESCRIPTOR = {
     category: 'css-checker: SCSS/CSS duplicado y calidad',
     aliases: ['css-checker', 'css', 'scss', 'duplicate-css', 'scss-duplicados', 'css-hygiene']
 };
+export const DEFAULT_CSS_SIMILARITY_THRESHOLD = 80;
+export const DEFAULT_CSS_LONG_LINE_THRESHOLD = 20;
 const DEFAULT_OPTIONS = {
     minDeclarations: 2,
     checkSimilar: true,
-    similarityThreshold: 80,
+    similarityThreshold: DEFAULT_CSS_SIMILARITY_THRESHOLD,
     checkLongLines: true,
-    longLineLengthThreshold: 20,
+    longLineLengthThreshold: DEFAULT_CSS_LONG_LINE_THRESHOLD,
     checkColors: true,
     checkEmptyRules: true,
     checkUnused: false,
@@ -84,30 +87,50 @@ export function parseCssContent(content, filePath, linePaddingCount = 0) {
     return rules;
 }
 export async function collectAllProjectCssRules(targetDir, ignoreDirs, projectRoot = process.cwd()) {
-    const rules = [];
-    let fileCount = 0;
     const searchDir = path.resolve(projectRoot, targetDir === '.' ? 'src' : targetDir);
     const pattern = '**/*.{scss,css,vue}';
+    const entries = [];
     for await (const entry of fs.glob(pattern, {
         cwd: searchDir,
         exclude: (p) => Array.from(ignoreDirs).some(d => p.includes(d))
     })) {
-        const fullPath = path.join(searchDir, entry);
-        const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-        const content = await fs.readFile(fullPath, 'utf-8');
-        fileCount++;
-        if (fullPath.endsWith('.vue')) {
-            const blocks = extractCssBlocksFromVue(content);
-            for (const block of blocks) {
-                const parsed = parseCssContent(block.code, relPath, block.startLine - 1);
-                rules.push(...parsed);
+        entries.push(entry);
+    }
+    const fileCount = entries.length;
+    if (fileCount === 0) {
+        return { rules: [], fileCount: 0 };
+    }
+    const concurrency = Math.max(1, os.availableParallelism ? os.availableParallelism() : os.cpus().length);
+    const rulesByWorker = Array.from({ length: concurrency }, () => []);
+    let nextIdx = 0;
+    async function worker(workerId) {
+        const workerRules = rulesByWorker[workerId];
+        while (nextIdx < entries.length) {
+            const idx = nextIdx++;
+            const entry = entries[idx];
+            const fullPath = path.join(searchDir, entry);
+            const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+            try {
+                const content = await fs.readFile(fullPath, 'utf-8');
+                if (fullPath.endsWith('.vue')) {
+                    const blocks = extractCssBlocksFromVue(content);
+                    for (const block of blocks) {
+                        const parsed = parseCssContent(block.code, relPath, block.startLine - 1);
+                        workerRules.push(...parsed);
+                    }
+                }
+                else {
+                    const parsed = parseCssContent(content, relPath, 0);
+                    workerRules.push(...parsed);
+                }
+            }
+            catch {
+                // catch-ok: ignore file read or syntax errors in individual CSS/Vue snippets
             }
         }
-        else {
-            const parsed = parseCssContent(content, relPath, 0);
-            rules.push(...parsed);
-        }
     }
+    await Promise.all(Array.from({ length: concurrency }, (_, i) => worker(i)));
+    const rules = rulesByWorker.flat();
     return { rules, fileCount };
 }
 export function detectDuplicateRules(rules, minDeclarations) {
@@ -149,43 +172,105 @@ export function detectDuplicateRules(rules, minDeclarations) {
     return duplicates;
 }
 export function detectSimilarClasses(rules, thresholdPercent, minDeclarations = 2) {
-    const eligibleRules = rules.filter(r => r.declarations.length >= minDeclarations);
+    const preparedRules = [];
+    for (const r of rules) {
+        if (r.declarations.length < minDeclarations)
+            continue;
+        const declArray = r.declarations.map(d => normalizeDeclaration(d.prop, d.value));
+        const declSet = new Set(declArray);
+        if (declSet.size >= minDeclarations) {
+            preparedRules.push({
+                rule: r,
+                declArray: Array.from(declSet),
+                declSet,
+                size: declSet.size
+            });
+        }
+    }
+    // Build inverted index: normalized declaration -> array of rule indices containing it
+    const declIndex = new Map();
+    for (let i = 0; i < preparedRules.length; i++) {
+        const prep = preparedRules[i];
+        for (const decl of prep.declArray) {
+            let list = declIndex.get(decl);
+            if (!list) {
+                list = [];
+                declIndex.set(decl, list);
+            }
+            list.push(i);
+        }
+    }
     const comparisons = [];
     const seenPairs = new Set();
-    for (let i = 0; i < eligibleRules.length; i++) {
-        const a = eligibleRules[i];
-        const setA = new Set(a.declarations.map(d => normalizeDeclaration(d.prop, d.value)));
-        for (let j = i + 1; j < eligibleRules.length; j++) {
-            const b = eligibleRules[j];
-            // Skip if exactly the same selector in same file (handled by duplicate selectors)
-            if (a.file === b.file && a.selector === b.selector)
+    for (let i = 0; i < preparedRules.length; i++) {
+        const a = preparedRules[i];
+        // Count shared declarations only for candidate rules j > i that share at least 1 property
+        const candidateSharedCounts = new Map();
+        for (const decl of a.declArray) {
+            const candidateIndices = declIndex.get(decl);
+            if (!candidateIndices)
                 continue;
-            const pairKey = `${a.file}:${a.line}<->${b.file}:${b.line}`;
+            for (const j of candidateIndices) {
+                if (j > i) {
+                    candidateSharedCounts.set(j, (candidateSharedCounts.get(j) ?? 0) + 1);
+                }
+            }
+        }
+        for (const [j, sharedCount] of candidateSharedCounts.entries()) {
+            if (sharedCount < minDeclarations)
+                continue;
+            const b = preparedRules[j];
+            // Skip if exactly the same selector in same file (handled by duplicate selectors)
+            if (a.rule.file === b.rule.file && a.rule.selector === b.rule.selector)
+                continue;
+            // Skip if 100% identical declarations (handled by duplicate rules)
+            if (sharedCount === a.size && sharedCount === b.size)
+                continue;
+            // Quick theoretical ceiling check
+            const maxPossibleUnion = a.size + b.size - sharedCount;
+            const maxPossibleSimilarity = Math.round((sharedCount / maxPossibleUnion) * 100);
+            if (maxPossibleSimilarity < thresholdPercent)
+                continue;
+            const pairKey = `${a.rule.file}:${a.rule.line}<->${b.rule.file}:${b.rule.line}`;
             if (seenPairs.has(pairKey))
                 continue;
-            const setB = new Set(b.declarations.map(d => normalizeDeclaration(d.prop, d.value)));
-            const common = Array.from(setA).filter(item => setB.has(item));
-            const unionSize = new Set([...setA, ...setB]).size;
+            const common = [];
+            const uniqueA = [];
+            for (const decl of a.declArray) {
+                if (b.declSet.has(decl)) {
+                    common.push(decl);
+                }
+                else {
+                    uniqueA.push(decl);
+                }
+            }
+            const uniqueB = [];
+            for (const decl of b.declArray) {
+                if (!a.declSet.has(decl)) {
+                    uniqueB.push(decl);
+                }
+            }
+            const unionSize = a.size + b.size - common.length;
             if (unionSize === 0)
                 continue;
             const similarity = Math.round((common.length / unionSize) * 100);
-            // Report if high similarity but NOT 100% identical (100% is handled by duplicate rules)
+            // Report if high similarity but NOT 100% identical
             if (similarity >= thresholdPercent && similarity < 100 && common.length >= minDeclarations) {
                 seenPairs.add(pairKey);
                 comparisons.push({
                     similarity,
                     commonDeclarations: common,
                     left: {
-                        file: a.file,
-                        line: a.line,
-                        selector: a.selector,
-                        uniqueDeclarations: Array.from(setA).filter(item => !setB.has(item))
+                        file: a.rule.file,
+                        line: a.rule.line,
+                        selector: a.rule.selector,
+                        uniqueDeclarations: uniqueA
                     },
                     right: {
-                        file: b.file,
-                        line: b.line,
-                        selector: b.selector,
-                        uniqueDeclarations: Array.from(setB).filter(item => !setA.has(item))
+                        file: b.rule.file,
+                        line: b.rule.line,
+                        selector: b.rule.selector,
+                        uniqueDeclarations: uniqueB
                     }
                 });
             }

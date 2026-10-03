@@ -219,11 +219,12 @@ function formatTaskCount(count, icon, color) {
     const text = `${count} ${icon}`.padStart(6);
     return count > 0 ? styleText(color, text) : styleText('dim', text);
 }
+export const TASK_NAME_COL_WIDTH = 38;
 export function renderAuditTaskRow(res) {
     const errors = res.summary?.errors ?? (res.status === 'failed' ? 1 : 0);
     const warnings = res.summary?.warnings ?? 0;
     const badge = computeTaskBadge(res.status, errors, warnings);
-    const nameStr = res.name.length > 38 ? res.name.slice(0, 37) + '…' : res.name.padEnd(38);
+    const nameStr = res.name.length > TASK_NAME_COL_WIDTH ? res.name.slice(0, TASK_NAME_COL_WIDTH - 1) + '…' : res.name.padEnd(TASK_NAME_COL_WIDTH);
     const durationStr = formatDuration(res.durationMs);
     const metricStr = formatTaskMetricCol(res.metrics);
     const errStr = formatTaskCount(errors, '❌', 'red');

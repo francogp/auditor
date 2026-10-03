@@ -14,26 +14,16 @@ import {
   type AuditFamily,
   type AuditTaskDefinition,
   resolveFamilyMetadata,
-  getActiveFamilies
+  getActiveFamilies,
+  FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
-const DEFAULT_TIMEOUT_MS = 60000;
-const HEAVY_TIMEOUT_MS = 300000; // 5 minutes for full repo AST / DB migration validation
+const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
 
-function getTimeoutForTask(filename: string): number {
-  if (filename.includes('validate_similar_code')) {
-    return 0; // No killing timeout: allow embeddings to generate and persist cache to disk
-  }
-  if (
-    filename.includes('audit_project') ||
-    filename.includes('validate_type_check') ||
-    filename.includes('validate_eslint')
-  ) {
-    return HEAVY_TIMEOUT_MS;
-  }
-  return DEFAULT_TIMEOUT_MS;
+function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): number {
+  return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
 }
 
 export const AUDIT_PRESETS = {
@@ -162,7 +152,7 @@ function createAuditTaskDefinition(
     command: 'node',
     args: taskArgs,
     fast: isFast,
-    timeoutMs: getTimeoutForTask(filename),
+    timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
     order: familyMeta.order,
     requiresAst: AST_DEPENDENT_SUITES.has(id),
     isBuiltin
@@ -343,7 +333,7 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
   }
 
   discovered.sort((a, b) => {
-    const familyDiff = (a.order ?? 99) - (b.order ?? 99);
+    const familyDiff = (a.order ?? FALLBACK_FAMILY_ORDER) - (b.order ?? FALLBACK_FAMILY_ORDER);
     if (familyDiff !== 0) return familyDiff;
     return a.id.localeCompare(b.id);
   });

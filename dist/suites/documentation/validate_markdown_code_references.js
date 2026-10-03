@@ -241,9 +241,11 @@ function checkNpmRunCommands(line, lineNum, relPath, registeredScripts, auditor)
     }
     return checked;
 }
+export const TARGET_NODE_MAJOR_VERSION = '26';
+export const TARGET_NPM_MAJOR_VERSION = '12';
+const HARDCODED_RUNTIME_VERSION_REGEX = new RegExp(`(?:Node(?:\\.js)?\\s*(?:>=|>|v)?\\s*${TARGET_NODE_MAJOR_VERSION}\\.[0-9]+|npm\\s*(?:>=|>|v)?\\s*${TARGET_NPM_MAJOR_VERSION}\\.[0-9]+)`, 'i');
 function checkHardcodedRuntimeVersions(line, lineNum, relPath, auditor) {
-    const versionRegex = /(?:Node(?:\.js)?\s*(?:>=|>|v)?\s*26\.[0-9]+|npm\s*(?:>=|>|v)?\s*12\.[0-9]+)/i;
-    const versionMatch = versionRegex.exec(line);
+    const versionMatch = HARDCODED_RUNTIME_VERSION_REGEX.exec(line);
     if (!versionMatch)
         return 0;
     auditor.addViolation({

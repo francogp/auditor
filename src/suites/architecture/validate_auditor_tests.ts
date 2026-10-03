@@ -66,7 +66,8 @@ export function extractSuiteDeclaredRules(source: string): string[] {
 
 import type { AuditTaskDefinition } from '../../core/auditContract.ts';
 
-const DEFAULT_EXTENSION_TASK_TIMEOUT_MS = 60000;
+const DEFAULT_EXTENSION_TASK_TIMEOUT_MS = 0;
+const DEFAULT_EXTENSION_TASK_ORDER = 99;
 
 function isEligibleExtensionAuditorFile(name: string): boolean {
   if (!name.endsWith('.ts') || name.startsWith('_')) return false;
@@ -94,7 +95,7 @@ function registerExtensionAuditorFile(
     args: [],
     fast: true,
     timeoutMs: DEFAULT_EXTENSION_TASK_TIMEOUT_MS,
-    order: 99,
+    order: DEFAULT_EXTENSION_TASK_ORDER,
     isBuiltin: false
   });
 }

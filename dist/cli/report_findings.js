@@ -5,7 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { MAX_AUDIT_STALENESS_MS } from "../core/auditContract.js";
+import { ONE_MINUTE_MS } from "../core/auditContract.js";
+import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from "../core/auditConfig.js";
 import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
@@ -199,9 +200,12 @@ function validateReportFreshnessAndScope(report, args) {
         const auditInstant = Temporal.Instant.from(report.meta.timestamp);
         const now = Temporal.Now.instant();
         const elapsedMs = now.since(auditInstant).total({ unit: 'millisecond' });
-        if (!args.allowStale && elapsedMs > MAX_AUDIT_STALENESS_MS) {
+        const config = getAuditConfig();
+        const configuredMinutes = config.runner?.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES;
+        const effectiveMaxAgeMs = configuredMinutes * ONE_MINUTE_MS;
+        if (!args.allowStale && elapsedMs > effectiveMaxAgeMs) {
             const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
-            const limitMins = Math.round(MAX_AUDIT_STALENESS_MS / (60 * 1000));
+            const limitMins = configuredMinutes;
             console.error(styleText('red', `❌ scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min).\n`) +
                 styleText('yellow', `   El código fuente pudo haber cambiado desde la última auditoría.\n`) +
                 styleText('cyan', `👉 DEBES ejecutar 'npm run audit' para regenerar y validar el reporte.`));

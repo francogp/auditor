@@ -21,7 +21,7 @@ export const TYPE_CHECK_RULES = [
     'ts-compiler-error'
 ];
 const MAX_BUFFER_BYTES = 52428800;
-const EXECUTION_TIMEOUT_MS = 180000; // 3 minutes for full repo typecheck
+const EXECUTION_TIMEOUT_MS = 0;
 const DEFAULT_ERROR_LINE = 1;
 const DECIMAL_RADIX = 10;
 const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+?)(?::(?<line>\d+):(?<col>\d+)|\((?<line2>\d+),(?<col2>\d+)\))(?::\s*|\s*-\s*|\s+)(?<sev>error|warning)\s+(?<code>TS\d+):\s*(?<msg>.+)$/;

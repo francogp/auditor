@@ -12,6 +12,7 @@ import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { isMainModule } from './cliUtils.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { initAgentSkill } from './init_agent.ts';
 
 export interface UpdateAuditorOptions {
   cwd?: string;
@@ -126,6 +127,10 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   }
 
   const newVersion = readInstalledAuditorVersion(projectRoot);
+  const agentInitResult = initAgentSkill({ targetDir: projectRoot });
+  if (!options.silent && agentInitResult.created) {
+    console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
+  }
 
   return {
     success: true,

@@ -165,6 +165,25 @@ export interface AuditFallowConfig {
     readonly maxTargetPriority?: 'critical' | 'high' | 'all';
     readonly similarCode?: AuditFallowSimilarCodeConfig;
 }
+export declare const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
+export interface AuditRunnerConfig {
+    /**
+     * Timeout in milliseconds for sub-auditors execution.
+     * Default: 0 (disabled - sub-auditors run to completion without arbitrary kills).
+     * Set to a positive number (e.g. 3600000 for 1 hour) to enforce a safety ceiling.
+     */
+    readonly timeoutMs?: number;
+    /**
+     * Worker concurrency limit.
+     */
+    readonly concurrency?: number;
+    /**
+     * Maximum allowed age in minutes for scratch/audits/latest_audit.json before being considered stale.
+     * Default: 5 minutes.
+     * In large codebases where full audits take longer, configure e.g. 15 or 30 minutes.
+     */
+    readonly maxStalenessMinutes?: number;
+}
 export interface AuditEngineConfig {
     readonly name: string;
     readonly paths: AuditPathsConfig;
@@ -184,6 +203,7 @@ export interface AuditEngineConfig {
     readonly customFamilies?: readonly CustomAuditFamilyConfig[];
     readonly extensions?: readonly string[];
     readonly presets?: Record<string, readonly string[]>;
+    readonly runner?: AuditRunnerConfig;
     readonly _declaredSubsystems?: ReadonlySet<string>;
     readonly _rawPaths?: Readonly<DeepPartial<AuditEngineConfig['paths']>>;
     readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
@@ -244,6 +264,10 @@ export declare function isExemptFile(filePath: string, config?: AuditEngineConfi
  * dynamically respecting whether test directories are included or excluded.
  */
 export declare function isInCodeRoots(filePath: string, config?: AuditEngineConfig): boolean;
+/**
+ * Determines whether the specified project root is the @francogp/auditor provider repository itself.
+ */
+export declare function isSelfProviderProject(projectRoot: string): boolean;
 /**
  * Checks whether a file path belongs to scriptsRoots.
  */

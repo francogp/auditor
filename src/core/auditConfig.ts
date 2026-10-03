@@ -186,6 +186,27 @@ export interface AuditFallowConfig {
   readonly similarCode?: AuditFallowSimilarCodeConfig;
 }
 
+export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
+
+export interface AuditRunnerConfig {
+  /**
+   * Timeout in milliseconds for sub-auditors execution.
+   * Default: 0 (disabled - sub-auditors run to completion without arbitrary kills).
+   * Set to a positive number (e.g. 3600000 for 1 hour) to enforce a safety ceiling.
+   */
+  readonly timeoutMs?: number;
+  /**
+   * Worker concurrency limit.
+   */
+  readonly concurrency?: number;
+  /**
+   * Maximum allowed age in minutes for scratch/audits/latest_audit.json before being considered stale.
+   * Default: 5 minutes.
+   * In large codebases where full audits take longer, configure e.g. 15 or 30 minutes.
+   */
+  readonly maxStalenessMinutes?: number;
+}
+
 export interface AuditEngineConfig {
   readonly name: string;
   readonly paths: AuditPathsConfig;
@@ -205,6 +226,7 @@ export interface AuditEngineConfig {
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
+  readonly runner?: AuditRunnerConfig;
   readonly _declaredSubsystems?: ReadonlySet<string>;
   readonly _rawPaths?: Readonly<DeepPartial<AuditEngineConfig['paths']>>;
   readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
@@ -307,7 +329,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   },
   customFamilies: [],
   extensions: [],
-  presets: {}
+  presets: {},
+  runner: {
+    timeoutMs: 0,
+    maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+  }
 };
 
 let cachedConfig: AuditEngineConfig | null = null;
@@ -500,6 +526,11 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
     presets: config.presets ?? {},
+    runner: config.runner ? {
+      timeoutMs: config.runner.timeoutMs ?? 0,
+      concurrency: config.runner.concurrency,
+      maxStalenessMinutes: config.runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+    } : { timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
     _declaredSubsystems: declared,
     _rawPaths: rawPaths,
     _rawConfig: rawConfig
@@ -765,6 +796,28 @@ export function isInCodeRoots(filePath: string, config = getAuditConfig()): bool
   }
 
   return true;
+}
+
+/**
+ * Determines whether the specified project root is the @francogp/auditor provider repository itself.
+ */
+export function isSelfProviderProject(projectRoot: string): boolean {
+  const hostPkgPath = path.join(projectRoot, 'package.json');
+  if (!fs.existsSync(hostPkgPath)) return false;
+  try {
+    const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as { name?: string };
+    if (pkgData.name === '@francogp/auditor') {
+      const hasPluginJson = fs.existsSync(path.join(projectRoot, 'plugin.json'));
+      const hasSkillMd =
+        fs.existsSync(path.join(projectRoot, '.agents/skills/auditor/SKILL.md')) ||
+        fs.existsSync(path.join(projectRoot, 'skills/auditor/SKILL.md')) ||
+        fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
+      return hasPluginJson && hasSkillMd;
+    }
+  } catch {
+    // catch-ok: Fallback to false
+  }
+  return false;
 }
 
 /**

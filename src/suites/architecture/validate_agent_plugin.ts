@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
-import { getAuditConfig, loadAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, loadAuditConfig, isSelfProviderProject } from '../../core/auditConfig.ts';
 import { initAgentSkill } from '../../cli/init_agent.ts';
 
 enableCompileCache();
@@ -22,25 +22,6 @@ export type AgentPluginRuleId = 'missing-agent-plugin-registration';
 export const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[] = [
   'missing-agent-plugin-registration'
 ] as const;
-
-function isSelfProviderProject(projectRoot: string): boolean {
-  const hostPkgPath = path.join(projectRoot, 'package.json');
-  if (!fs.existsSync(hostPkgPath)) return false;
-  try {
-    const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as { name?: string };
-    if (pkgData.name === '@francogp/auditor') {
-      const hasPluginJson = fs.existsSync(path.join(projectRoot, 'plugin.json'));
-      const hasSkillMd =
-        fs.existsSync(path.join(projectRoot, '.agents/skills/auditor/SKILL.md')) ||
-        fs.existsSync(path.join(projectRoot, 'skills/auditor/SKILL.md')) ||
-        fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
-      return hasPluginJson && hasSkillMd;
-    }
-  } catch {
-    // catch-ok: Fallback to checking host registration below
-  }
-  return false;
-}
 
 function isPluginRegisteredInAgents(projectRoot: string): boolean {
   const pluginsJsonPath = path.join(projectRoot, '.agents/plugins.json');
@@ -66,7 +47,7 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
     }
   };
 
-  return checkFile(pluginsJsonPath) || checkFile(skillsJsonPath);
+  return checkFile(pluginsJsonPath) && checkFile(skillsJsonPath);
 }
 
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
@@ -79,7 +60,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       ruleIds: AGENT_PLUGIN_RULES,
       packageName: 'Agente',
       ruleDescriptions: {
-        'missing-agent-plugin-registration': 'Plugin no registrado en .agents'
+        'missing-agent-plugin-registration': 'Plugin/skills no registrados en .agents'
       },
       ...options
     });
@@ -114,12 +95,19 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         }
       }
 
+      const pluginsJsonPath = path.join(this.projectRoot, '.agents/plugins.json');
+      const skillsJsonPath = path.join(this.projectRoot, '.agents/skills.json');
+      const missingFiles: string[] = [];
+      if (!fs.existsSync(pluginsJsonPath)) missingFiles.push('.agents/plugins.json');
+      if (!fs.existsSync(skillsJsonPath)) missingFiles.push('.agents/skills.json');
+      const targetFile = missingFiles[0] || '.agents/plugins.json';
+
       this.addViolation({
         ruleId: 'missing-agent-plugin-registration',
         severity: 'error',
-        file: '.agents/plugins.json',
+        file: targetFile,
         line: 1,
-        message: 'El plugin de auditoría para agentes de IA no está registrado en .agents/plugins.json. Ejecuta: npx auditor-init-agent',
+        message: 'El plugin y/o skills de auditoría para agentes no están registrados en .agents/plugins.json y .agents/skills.json. Ejecuta: npx auditor-init-agent',
         context: 'npx auditor-init-agent'
       });
       this.context.setMetric('Agent Plugin Status', 'Missing');

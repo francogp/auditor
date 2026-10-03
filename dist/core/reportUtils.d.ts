@@ -11,6 +11,7 @@ export interface ValidationSummary {
     warnings: string[];
 }
 export declare function printConsoleHeader(title: string): void;
+export declare const MAX_REPORT_SAMPLE_ITEMS = 30;
 export declare function printConsoleSummary(summary: ValidationSummary, verbose?: boolean): void;
 export declare function writeReportFile(outputPathArg: string, summary: ValidationSummary): Promise<void>;
 /**

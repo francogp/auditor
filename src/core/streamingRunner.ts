@@ -76,7 +76,7 @@ export function isNodeInternalWarning(line: string): boolean {
     line.includes('experimental-strip-types');
 }
 
-const DEFAULT_RUNNER_TIMEOUT_MS = 60000;
+const DEFAULT_RUNNER_TIMEOUT_MS = 0; // 0 = disabled (zero arbitrary timeout by default)
 const SIGKILL_ESCALATION_DELAY_MS = 2000;
 const PROGRESS_LINE_REGEX = /^(?:[🎨📘🔍⏳✨🧩💾📊✅❌\-[0-9]|🛡️|⚙️|⚠️|Paso|Progreso|Sub-|Loading|Found)/iu;
 

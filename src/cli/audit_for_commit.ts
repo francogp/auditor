@@ -35,7 +35,7 @@ enableCompileCache();
 
 const CPU_CORE_DIVISOR = 2 as const;
 const MIN_CONCURRENCY = 1 as const;
-const DEFAULT_TIMEOUT_MS = 60000 as const;
+const DEFAULT_TIMEOUT_MS = 0 as const;
 const ESLINT_STDIN_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 
 export interface Violation {

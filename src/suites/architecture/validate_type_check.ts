@@ -28,7 +28,7 @@ export const TYPE_CHECK_RULES: readonly TypeCheckRuleId[] = [
 ] as const;
 
 const MAX_BUFFER_BYTES = 52428800 as const;
-const EXECUTION_TIMEOUT_MS = 180000 as const; // 3 minutes for full repo typecheck
+const EXECUTION_TIMEOUT_MS = 0 as const;
 const DEFAULT_ERROR_LINE = 1 as const;
 const DECIMAL_RADIX = 10 as const;
 

@@ -11,6 +11,7 @@ import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { isMainModule } from "./cliUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { initAgentSkill } from "./init_agent.js";
 export function findHostProjectRoot(startDir = process.cwd(), stopAt) {
     let current = path.resolve(startDir);
     const boundary = stopAt ? path.resolve(stopAt) : undefined;
@@ -100,6 +101,10 @@ export function updateAuditorPackage(options = {}) {
         };
     }
     const newVersion = readInstalledAuditorVersion(projectRoot);
+    const agentInitResult = initAgentSkill({ targetDir: projectRoot });
+    if (!options.silent && agentInitResult.created) {
+        console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
+    }
     return {
         success: true,
         projectRoot,

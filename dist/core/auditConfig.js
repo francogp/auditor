@@ -15,6 +15,7 @@ var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExte
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
 export const DEFAULT_AUDIT_CONFIG = {
     name: 'Generic Project',
     paths: {
@@ -104,7 +105,11 @@ export const DEFAULT_AUDIT_CONFIG = {
     },
     customFamilies: [],
     extensions: [],
-    presets: {}
+    presets: {},
+    runner: {
+        timeoutMs: 0,
+        maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+    }
 };
 let cachedConfig = null;
 let cachedProjectRoot = null;
@@ -270,6 +275,11 @@ export function defineAuditConfig(config) {
         customFamilies: config.customFamilies ?? [],
         extensions: config.extensions ?? [],
         presets: config.presets ?? {},
+        runner: config.runner ? {
+            timeoutMs: config.runner.timeoutMs ?? 0,
+            concurrency: config.runner.concurrency,
+            maxStalenessMinutes: config.runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+        } : { timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
         _declaredSubsystems: declared,
         _rawPaths: rawPaths,
         _rawConfig: rawConfig
@@ -501,6 +511,28 @@ export function isInCodeRoots(filePath, config = getAuditConfig()) {
         return false;
     }
     return true;
+}
+/**
+ * Determines whether the specified project root is the @francogp/auditor provider repository itself.
+ */
+export function isSelfProviderProject(projectRoot) {
+    const hostPkgPath = path.join(projectRoot, 'package.json');
+    if (!fs.existsSync(hostPkgPath))
+        return false;
+    try {
+        const pkgData = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8'));
+        if (pkgData.name === '@francogp/auditor') {
+            const hasPluginJson = fs.existsSync(path.join(projectRoot, 'plugin.json'));
+            const hasSkillMd = fs.existsSync(path.join(projectRoot, '.agents/skills/auditor/SKILL.md')) ||
+                fs.existsSync(path.join(projectRoot, 'skills/auditor/SKILL.md')) ||
+                fs.existsSync(path.join(projectRoot, 'skills/auditor-framework/SKILL.md'));
+            return hasPluginJson && hasSkillMd;
+        }
+    }
+    catch {
+        // catch-ok: Fallback to false
+    }
+    return false;
 }
 /**
  * Checks whether a file path belongs to scriptsRoots.

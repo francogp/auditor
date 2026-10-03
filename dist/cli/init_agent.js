@@ -9,8 +9,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isMainModule } from "./cliUtils.js";
+import { isSelfProviderProject } from "../core/auditConfig.js";
 export function initAgentSkill(options = {}) {
-    const targetDir = path.resolve(options.targetDir || process.cwd());
+    const rawInitCwd = process.env.INIT_CWD;
+    const safeInitCwd = rawInitCwd && !rawInitCwd.includes('..') ? path.resolve(rawInitCwd) : undefined;
+    const targetDir = options.targetDir ? path.resolve(options.targetDir) : (safeInitCwd || process.cwd());
+    if (isSelfProviderProject(targetDir)) {
+        return {
+            success: true,
+            message: 'Repositorio proveedor @francogp/auditor detectado. Registro omitido.',
+            created: false
+        };
+    }
     const agentsDir = path.join(targetDir, '.agents');
     const pluginsJsonPath = path.join(agentsDir, 'plugins.json');
     const skillsJsonPath = path.join(agentsDir, 'skills.json');
@@ -80,18 +90,36 @@ export function initAgentSkill(options = {}) {
 // CLI entrypoint
 if (isMainModule(import.meta.url)) {
     const isDryRun = process.argv.includes('--dry-run');
-    console.log('\n┌────────────────────────────────────────────────────────┐');
-    console.log('│  🤖 Antigravity Agent Skill Registrator (@francogp/auditor) │');
-    console.log('└────────────────────────────────────────────────────────┘\n');
-    const result = initAgentSkill({ dryRun: isDryRun });
-    if (result.success) {
-        console.log(`✅ ${result.message}`);
-        console.log('\nEl agente Antigravity ahora tiene acceso nativo a:');
-        console.log('  - Skills: auditor y skills bundled de @francogp/auditor\n');
+    const isPostinstall = process.argv.includes('--from-postinstall');
+    if (!isPostinstall) {
+        console.log('\n┌────────────────────────────────────────────────────────┐');
+        console.log('│  🤖 Antigravity Agent Skill Registrator (@francogp/auditor) │');
+        console.log('└────────────────────────────────────────────────────────┘\n');
     }
-    else {
-        console.error(`❌ Error al registrar plugin: ${result.message}`);
-        process.exit(1);
+    try {
+        const result = initAgentSkill({ dryRun: isDryRun });
+        if (result.success) {
+            if (result.created || !isPostinstall) {
+                console.log(`🤖 ${result.message}`);
+            }
+            if (!isPostinstall) {
+                console.log('\nEl agente Antigravity ahora tiene acceso nativo a:');
+                console.log('  - Skills: auditor y skills bundled de @francogp/auditor\n');
+            }
+        }
+        else {
+            if (!isPostinstall) {
+                console.error(`❌ Error al registrar plugin: ${result.message}`);
+                process.exit(1);
+            }
+        }
+    }
+    catch (err) {
+        // catch-ok: In postinstall, never crash npm install / npm ci if filesystem permissions are restricted
+        if (!isPostinstall) {
+            console.error(err);
+            process.exit(1);
+        }
     }
 }
 //# sourceMappingURL=init_agent.js.map

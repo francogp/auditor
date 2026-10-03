@@ -8,6 +8,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { getAuditConfig, isInCodeRoots } from "../core/auditConfig.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "./cliUtils.js";
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
 const VALID_CATEGORY_ALIASES = new Set([
@@ -70,9 +71,7 @@ function runFallowCommand(command, extraArgs = []) {
         const stdout = execSync(cmd, {
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
-            maxBuffer: 50 * 1024 * 1024,
-            timeout: 45000,
-            killSignal: 'SIGKILL'
+            maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
         });
         return parseJsonObjectOutput(stdout);
     }

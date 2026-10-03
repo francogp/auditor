@@ -9,21 +9,12 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { resolveFamilyMetadata, getActiveFamilies } from "../core/auditContract.js";
+import { resolveFamilyMetadata, getActiveFamilies, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
 import { loadAuditConfig } from "../core/auditConfig.js";
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
-const DEFAULT_TIMEOUT_MS = 60000;
-const HEAVY_TIMEOUT_MS = 300000; // 5 minutes for full repo AST / DB migration validation
-function getTimeoutForTask(filename) {
-    if (filename.includes('validate_similar_code')) {
-        return 0; // No killing timeout: allow embeddings to generate and persist cache to disk
-    }
-    if (filename.includes('audit_project') ||
-        filename.includes('validate_type_check') ||
-        filename.includes('validate_eslint')) {
-        return HEAVY_TIMEOUT_MS;
-    }
-    return DEFAULT_TIMEOUT_MS;
+const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
+function getTimeoutForTask(_filename, configRunnerTimeout) {
+    return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
 }
 export const AUDIT_PRESETS = {
     lint: [
@@ -123,7 +114,7 @@ function createAuditTaskDefinition(fullPath, filename, family, config, options, 
         command: 'node',
         args: taskArgs,
         fast: isFast,
-        timeoutMs: getTimeoutForTask(filename),
+        timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
         order: familyMeta.order,
         requiresAst: AST_DEPENDENT_SUITES.has(id),
         isBuiltin
@@ -258,7 +249,7 @@ export async function discoverAuditors(options = {}) {
         });
     }
     discovered.sort((a, b) => {
-        const familyDiff = (a.order ?? 99) - (b.order ?? 99);
+        const familyDiff = (a.order ?? FALLBACK_FAMILY_ORDER) - (b.order ?? FALLBACK_FAMILY_ORDER);
         if (familyDiff !== 0)
             return familyDiff;
         return a.id.localeCompare(b.id);

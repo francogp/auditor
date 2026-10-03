@@ -36,6 +36,9 @@ export function isMainModule(metaUrl: string): boolean {
   }
 }
 
+export const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
+export const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
+
 export interface ExecuteNodeCliOptions {
   cwd?: string;
   maxBuffer?: number;
@@ -62,8 +65,8 @@ export function executeNodeCli(
     {
       cwd: options?.cwd || process.cwd(),
       encoding: 'utf-8',
-      maxBuffer: options?.maxBuffer ?? 50 * 1024 * 1024,
-      timeout: options?.timeout ?? 120000
+      maxBuffer: options?.maxBuffer ?? DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+      timeout: options?.timeout ?? DEFAULT_SUBPROCESS_TIMEOUT_MS
     }
   );
   return `${proc.stdout || ''}\n${proc.stderr || ''}`;

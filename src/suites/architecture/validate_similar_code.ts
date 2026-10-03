@@ -21,6 +21,7 @@ import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditFallowSimilarCodeConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
@@ -30,6 +31,8 @@ export const SIMILAR_CODE_RULES: readonly SimilarCodeRuleId[] = [
   'fallow-similar-code',
   'fallow-similar-code-failed'
 ] as const;
+
+export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 
 export interface SimilarCodeCandidateLocation {
   path: string;
@@ -131,7 +134,7 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string): 
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
-      timeout: 15000
+      timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
     });
     const parsed = JSON.parse(statusOut) as SimilarCodeStatusOutput;
     if (parsed.model_ready === true) {
@@ -250,7 +253,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
   }
 
   private executeAnalysis(fallowBin: string, similarCfg: AuditFallowSimilarCodeConfig): void {
-    const threshold = similarCfg.threshold ?? 0.95;
+    const threshold = similarCfg.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD;
     const minLines = similarCfg.minLines ?? 3;
     const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
 
@@ -268,8 +271,8 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         cwd: this.projectRoot,
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
-        maxBuffer: 50 * 1024 * 1024,
-        timeout: 0
+        maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+        timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
       });
 
       this.processRawOutputFile(rawOutputFile, ignoreSameFile);

@@ -50,8 +50,11 @@ export interface BundleAuditSummary {
     readonly chunkResults: readonly ChunkAuditResult[];
     readonly duplicateViolations: readonly string[];
 }
+export declare const BYTES_PER_KB = 1024;
 export declare const DEFAULT_HEAVY_CHUNK_THRESHOLD: number;
 export declare const DEFAULT_UNBUDGETED_CHUNK_LIMIT: number;
+export declare const DEFAULT_TOP_MODULES_LIMIT = 15;
+export declare const DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES: number;
 export declare function parseVisualizerData(content: string): VisualizerData | null;
 export declare function aggregateModuleSizes(data: VisualizerData, heavyChunkThreshold?: number): readonly AggregatedModule[];
 export declare function auditSingleChunk(filename: string, fullPath: string, budgets: readonly ChunkBudgetConfig[], unbudgetedLimit?: number): ChunkAuditResult;

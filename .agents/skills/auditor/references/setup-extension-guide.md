@@ -10,7 +10,7 @@ This guide documents the canonical architecture, extension mechanisms, and gover
    - Node.js runtime verification and synchronization (Node.js 26+).
    - Package manager governance (`npm`).
    - Hermetic dependency installation (`npm ci`).
-   - Native build tools discovery (`css-checker`, etc.).
+   - Environment preparation and cache initialization (Fallow vectors cache, native tool prerequisites).
 2. **Zero Core Modification & Strict Prohibition on Local Host Patches**: Domain-specific requirements of a host project (e.g. Docker databases, local SSL certificates, database seeds, background daemons) **MUST NEVER** be introduced by mutating the framework base scripts. Furthermore, when encountering bugs, version synchronization gaps, or improvements in setup scripts, **AGENTS ARE STRICTLY FORBIDDEN** from applying local patches or workarounds in the host project; agents MUST notify the user so the issue is resolved upstream in `@francogp/auditor`.
 3. **Mandatory Idempotency**: All extension scripts must be 100% idempotent; executing the setup repeatedly must yield identical end states without errors, duplicates, or data corruption.
 

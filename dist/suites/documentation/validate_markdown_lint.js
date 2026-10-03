@@ -22,7 +22,7 @@ export const MARKDOWN_LINT_RULES = [
     'markdownlint-issue'
 ];
 const MAX_BUFFER_BYTES = 52428800;
-const EXECUTION_TIMEOUT_MS = 60000;
+const EXECUTION_TIMEOUT_MS = 0;
 const DEFAULT_ERROR_LINE = 1;
 export const DEFAULT_MARKDOWN_IGNORE_GLOBS = [
     'node_modules/**',

@@ -23,7 +23,7 @@ export const ESLINT_RULES = [
     'eslint-violation'
 ];
 const MAX_BUFFER_BYTES = 52428800;
-const EXECUTION_TIMEOUT_MS = 120000;
+const EXECUTION_TIMEOUT_MS = 0;
 /**
  * Parses raw JSON output or an array of file reports from ESLint into canonical AuditFindings.
  * Elevates both warnings (severity 1) and errors (severity 2) to severity: 'error' (Zero-Warning Policy).

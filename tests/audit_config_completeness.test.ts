@@ -8,7 +8,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   defineAuditConfig,
-  assertAuditConfigComplete
+  assertAuditConfigComplete,
+  DEFAULT_MAX_AUDIT_STALENESS_MINUTES
 } from '../src/core/auditConfig.ts';
 
 describe('Audit Configuration Completeness & Mandato de Configuración Explícita', () => {
@@ -205,6 +206,22 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
     expect(config.fallow?.maxTargetPriority).toBe('high');
     expect(config.fallow?.similarCode?.threshold).toBe(0.92);
     expect(config.fallow?.similarCode?.minLines).toBe(5);
+  });
+
+  it('correctly maps runner.maxStalenessMinutes with fallback to DEFAULT_MAX_AUDIT_STALENESS_MINUTES', () => {
+    const defaultConfig = defineAuditConfig({
+      name: 'Default Runner Config'
+    });
+    expect(defaultConfig.runner?.maxStalenessMinutes).toBe(DEFAULT_MAX_AUDIT_STALENESS_MINUTES);
+
+    const customStalenessMinutes = 15;
+    const customConfig = defineAuditConfig({
+      name: 'Custom Runner Config',
+      runner: {
+        maxStalenessMinutes: customStalenessMinutes
+      }
+    });
+    expect(customConfig.runner?.maxStalenessMinutes).toBe(customStalenessMinutes);
   });
 });
 

@@ -20,7 +20,10 @@ import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from "../../analyzers/doxA
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from "../../analyzers/constantAnalyzer.js";
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from "../../core/auditorBase.js";
 import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, resolveZLayersScssPath, getEffectiveZLayers } from "../../core/auditConfig.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 enableCompileCache();
+export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
+export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
 async function getFilesToAudit(dir) {
     const files = []; // no-domain: Non-domain utility collection or data structure
@@ -403,7 +406,7 @@ function runFallow(command, extraArgs = [], logicalCategory) {
     const args = ['--format', 'json', ...extraArgs];
     const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
     try {
-        const stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 50 * 1024 * 1024, timeout: 45000, killSignal: 'SIGKILL' });
+        const stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES });
         const parsed = tryParseFallowJson(stdout, targetCategory);
         if (parsed)
             return parsed;
@@ -891,10 +894,10 @@ function mapFallowTargets(data, violations) {
             meetsThreshold = priority > 0;
         }
         else if (maxPriority === 'high') {
-            meetsThreshold = priority >= 20;
+            meetsThreshold = priority >= FALLOW_HIGH_PRIORITY_THRESHOLD;
         }
         else {
-            meetsThreshold = priority >= 30;
+            meetsThreshold = priority >= FALLOW_CRITICAL_PRIORITY_THRESHOLD;
         }
         if (meetsThreshold) {
             violations.push({

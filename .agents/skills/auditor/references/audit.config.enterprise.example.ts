@@ -164,6 +164,11 @@ export default defineAuditConfig({
     fallbackIdPatterns: ['tariffId', 'formulaId', 'stepId', 'serverId', 'rateId', 'categoryId'] // Business identifier patterns that must be typed with domain types
   },
 
+  runner: {
+    timeoutMs: 0, // 0 = disabled: suites run to completion without arbitrary kills; set e.g. 3600000 for 1h safety ceiling
+    maxStalenessMinutes: 10 // Configurable audit report freshness limit in minutes (default: 5)
+  },
+
   extensions: [
     './scripts/auditors/domain_data/validate_script_hardcoding.ts', // Local sub-auditor prohibiting hardcoded fiscal calculation scripts
     './scripts/auditors/architecture/validate_emoji_typography.ts' // Local sub-auditor validating typographic consistency and proper emoji / icon usage

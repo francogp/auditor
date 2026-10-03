@@ -40,6 +40,7 @@ export declare function renderSimilarCodeWarningBanner(): string;
 export declare function renderFamilyHeader(meta: FamilyMetadata): string;
 export declare function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'info'): string;
 export declare function formatDuration(ms: number): string;
+export declare const TASK_NAME_COL_WIDTH = 38;
 export declare function renderAuditTaskRow(res: StandardAuditResult): string;
 export declare function renderFindingsDetail(findings: AuditFinding[], maxLimit?: number): string;
 export declare function renderConsolidatedFooter(suitesTotal: number, suitesPassed: number, totalErrors: number, totalWarnings: number, totalDurationMs: number, errorFindings?: AuditFinding[]): string;

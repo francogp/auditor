@@ -52,7 +52,8 @@ export function extractSuiteDeclaredRules(source) {
     }
     return Array.from(rules);
 }
-const DEFAULT_EXTENSION_TASK_TIMEOUT_MS = 60000;
+const DEFAULT_EXTENSION_TASK_TIMEOUT_MS = 0;
+const DEFAULT_EXTENSION_TASK_ORDER = 99;
 function isEligibleExtensionAuditorFile(name) {
     if (!name.endsWith('.ts') || name.startsWith('_'))
         return false;
@@ -77,7 +78,7 @@ function registerExtensionAuditorFile(fullPath, entryName, projectRoot, tasks) {
         args: [],
         fast: true,
         timeoutMs: DEFAULT_EXTENSION_TASK_TIMEOUT_MS,
-        order: 99,
+        order: DEFAULT_EXTENSION_TASK_ORDER,
         isBuiltin: false
     });
 }

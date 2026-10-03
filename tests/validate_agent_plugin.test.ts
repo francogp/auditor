@@ -108,12 +108,40 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
         'utf8'
       );
+      await fs.writeFile(
+        path.join(agentsDir, 'skills.json'),
+        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor/.agents/skills' }] }, null, 2),
+        'utf8'
+      );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+
+    it('detects missing registration when plugins.json exists but skills.json is missing', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const agentsDir = path.join(tempDir, '.agents');
+      await fs.mkdir(agentsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(agentsDir, 'plugins.json'),
+        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
+        'utf8'
+      );
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(1);
+      expect(result.status).toBe('failed');
+      const violation = result.findings.find(f => f.ruleId === 'missing-agent-plugin-registration');
+      expect(violation).toBeDefined();
     });
 
     it('runs on the @francogp/auditor provider repository itself and reports zero errors', async () => {

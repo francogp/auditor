@@ -29,7 +29,7 @@ import { isMainModule } from "./cliUtils.js";
 enableCompileCache();
 const CPU_CORE_DIVISOR = 2;
 const MIN_CONCURRENCY = 1;
-const DEFAULT_TIMEOUT_MS = 60000;
+const DEFAULT_TIMEOUT_MS = 0;
 const ESLINT_STDIN_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 // Extensiones a auditar
 const AUDIT_EXTENSIONS = ['.vue', '.ts', '.js', '.scss', '.css'];
