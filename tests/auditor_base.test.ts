@@ -18,8 +18,10 @@ import {
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
   collectRepositoryFiles,
-  BaseAuditor
+  BaseAuditor,
+  type AuditorOptions
 } from '../src/core/auditorBase.ts';
+import type { AuditorCapabilities } from '../src/core/auditContract.ts';
 
 describe('auditorBase infrastructure', () => {
   describe('SSoT Ignore Sets Integrity', () => {
@@ -146,7 +148,15 @@ describe('auditorBase infrastructure', () => {
             description: 'Test auditor for projectRoot verification',
             family: 'architecture',
             packageName: 'Test',
+            icon: '🧪',
             ruleIds: ['test-rule'],
+            capabilities: {
+              fix: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false
+            },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
             },
@@ -170,6 +180,112 @@ describe('auditorBase infrastructure', () => {
 
       expect(result.metrics?.['Total Files Scanned']).toBe(1);
       expect(auditor.getFilesScanned()).toBe(1);
+    });
+  });
+
+  describe('AuditorCapabilities Contract & Runtime Validation', () => {
+    class MinimalAuditor extends BaseAuditor<'dummy'> {
+      constructor(options: Partial<AuditorOptions<'dummy'>>) {
+        super(options as AuditorOptions<'dummy'>);
+      }
+      public override async runAudit(): Promise<void> {}
+    }
+
+    const validBaseOptions = {
+      id: 'test_cap_validation',
+      name: 'Capabilities Validation Tester',
+      description: 'Valida capacidades operacionales estrictas',
+      family: 'architecture' as const,
+      packageName: 'Test',
+      icon: '🧪',
+      ruleIds: ['dummy' as const],
+      ruleDescriptions: { dummy: 'Regla dummy' }
+    };
+
+    it('enforces mandatory thematic icon/emoji during instantiation', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          icon: ''
+        });
+      }).toThrow(/must define a mandatory thematic icon\/emoji/);
+
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          icon: undefined
+        });
+      }).toThrow(/must define a mandatory thematic icon\/emoji/);
+    });
+
+    it('defaults cleanly to DEFAULT_AUDITOR_CAPABILITIES when capabilities is omitted', () => {
+      const auditor = new MinimalAuditor({
+        ...validBaseOptions
+      });
+      expect(auditor.capabilities).toEqual({
+        fix: false,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false
+      });
+      expect(auditor.requiresAst).toBe(false);
+    });
+
+    it('merges partial capabilities with DEFAULT_AUDITOR_CAPABILITIES', () => {
+      const auditor = new MinimalAuditor({
+        ...validBaseOptions,
+        capabilities: { fix: true }
+      });
+      expect(auditor.capabilities).toEqual({
+        fix: true,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false
+      });
+    });
+
+    it('throws when declared capability is not a boolean or unknown', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          capabilities: {
+            fix: 'true' as unknown as boolean
+          }
+        });
+      }).toThrow(/capability 'fix' must be a boolean/);
+
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          capabilities: {
+            unknownFlag: true
+          } as unknown as Partial<AuditorCapabilities>
+        });
+      }).toThrow(/declared unknown capability 'unknownFlag'/);
+    });
+
+    it('successfully exposes capabilities and auto-derives requiresAst on BaseAuditor instance', () => {
+      const expectedCaps = {
+        fix: true,
+        lint: false,
+        md: false,
+        ast: true,
+        changedSince: false,
+        heavy: true,
+        requiresBuild: false
+      };
+      const auditor = new MinimalAuditor({
+        ...validBaseOptions,
+        capabilities: { fix: true, ast: true, heavy: true }
+      });
+      expect(auditor.capabilities).toEqual(expectedCaps);
+      expect(auditor.requiresAst).toBe(true);
     });
   });
 });

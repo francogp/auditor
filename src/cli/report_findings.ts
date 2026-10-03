@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import type { FindingSeverity, ConsolidatedAuditReport } from '../core/auditContract.ts';
+import type { ConsolidatedAuditReport, AuditFinding } from '../core/auditContract.ts';
 import { ONE_MINUTE_MS } from '../core/auditContract.ts';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
 import {
@@ -19,15 +19,7 @@ const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
 const ERROR_WEIGHT_FACTOR = 1000;
 
-interface Finding {
-  severity: FindingSeverity;
-  message: string;
-  file?: string;
-  line?: number;
-  context?: string;
-  ruleId?: string;
-  ruleDescription?: string;
-}
+type Finding = AuditFinding;
 
 type AuditReport = ConsolidatedAuditReport;
 
@@ -467,7 +459,7 @@ function renderFindingsDetailSample(
     const allErrors = allFindings.filter(f => f.severity === 'error');
     if (allErrors.length > 0) {
       const limit = args.top === 'all' ? allErrors.length : (typeof args.top === 'number' ? args.top : DEFAULT_SAMPLE_ERROR_LIMIT);
-      console.log(renderSampleFindings(allErrors as any, limit));
+      console.log(renderSampleFindings(allErrors, limit));
     }
   }
 }

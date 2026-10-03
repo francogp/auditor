@@ -31,11 +31,13 @@ export class DoxIntegrityAuditor extends BaseAuditor {
     constructor(rootDir) {
         const projectRoot = rootDir || process.cwd();
         super({
+            capabilities: { md: true },
             id: 'validate_dox_integrity',
             name: 'DOX & AGENTS.md Integrity Validator',
             description: 'Valida jerarquía, enlaces e integridad de AGENTS.md',
             family: 'documentation',
             packageName: 'DOX',
+            icon: '📚',
             ruleIds: DOX_RULES,
             ruleDescriptions: {
                 'dox-missing-agents-md': 'Falta AGENTS.md en directorio',

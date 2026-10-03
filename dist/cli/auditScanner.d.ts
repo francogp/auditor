@@ -6,23 +6,36 @@
  * infers families, generates canonical task definitions, and guarantees that ZERO auditors
  * are ever left behind from the orchestrator.
  */
-import { type AuditTaskDefinition } from '../core/auditContract.ts';
-export declare const AUDIT_PRESETS: {
-    readonly lint: readonly ["validate_domain_types", "validate_o1_data_structures", "validate_component_styles", "audit_project", "validate_vue_sfc_hygiene", "validate_console_cleanliness", "validate_audit_headers", "validate_type_check", "validate_markdown_lint", "validate_eslint", "validate_html_validate"];
-    readonly md: readonly ["validate_markdown_links", "validate_markdown_code_references", "validate_markdown_lint", "validate_markdown_syntax", "validate_dox_integrity"];
-};
-export declare const AST_DEPENDENT_SUITE_IDS: readonly ["validate_pinia_reactivity", "validate_reactive_leaks", "validate_bundle_budget", "validate_duplicate_constants"];
-export type AstDependentSuiteId = (typeof AST_DEPENDENT_SUITE_IDS)[number];
-export declare const AST_DEPENDENT_SUITES: ReadonlySet<string>;
-export type AuditPresetName = keyof typeof AUDIT_PRESETS;
+import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement } from '../core/auditContract.ts';
+import { loadAuditConfig } from '../core/auditConfig.ts';
+export declare const AUDIT_PRESETS: Record<string, readonly string[]>;
+export type AuditPresetName = 'lint' | 'md' | (string & {});
 export interface DiscoveryOptions {
     baseDir?: string;
+    projectRoot?: string;
     family?: string;
     task?: string;
     suites?: string[];
     preset?: string;
     fastOnly?: boolean;
     skipSimilar?: boolean;
+    fixOnly?: boolean;
+    lintOnly?: boolean;
+    mdOnly?: boolean;
+    includeHeavy?: boolean;
 }
+export interface ExtractedAuditorMetadata {
+    readonly capabilities: AuditorCapabilities;
+    readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+    readonly icon?: string;
+}
+export declare function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata>;
+export declare function extractCapabilitiesFromFile(fullPath: string): Promise<AuditorCapabilities>;
+export declare function extractGitIgnoreRequirementsFromFile(fullPath: string): Promise<readonly GitIgnoreRequirement[]>;
 export declare function discoverAuditors(options?: DiscoveryOptions): Promise<AuditTaskDefinition[]>;
+/**
+ * Dynamically collects gitignore requirements from all discovered subauditors,
+ * registered extensions, and audit.config.ts, guaranteeing that zero rules are hardcoded.
+ */
+export declare function collectAllGitIgnoreRequirements(projectRoot?: string, config?: Awaited<ReturnType<typeof loadAuditConfig>>): Promise<GitIgnoreRequirement[]>;
 //# sourceMappingURL=auditScanner.d.ts.map

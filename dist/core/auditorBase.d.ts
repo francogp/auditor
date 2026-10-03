@@ -7,7 +7,8 @@
  *   1. Always outputs the clean Box-Drawing summary table to console.
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport } from './auditContract.ts';
+import './permissionGuard.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type GitIgnoreRequirement } from './auditContract.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
@@ -30,6 +31,7 @@ export declare function assertSafePathComponent(component: string): void;
  * Loads directory ignore patterns from .fallowrc.json if present.
  */
 export declare function loadFallowIgnorePatterns(projectRoot?: string): string[];
+export declare function matchesSinglePattern(normalized: string, pattern: string): boolean;
 /**
  * Determines whether a relative POSIX path belongs to an ignored directory or matches directory ignore patterns.
  */
@@ -67,6 +69,7 @@ export interface AuditorContext {
     finish: (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => Promise<StandardAuditResult>;
 }
 export declare function setupAuditor(config: AuditorConfig): AuditorContext;
+export declare const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities;
 export declare const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export declare const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 export interface AuditorOptions<TRuleId extends string = string> {
@@ -75,6 +78,9 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly description: string;
     readonly family: AuditFamily;
     readonly packageName: string;
+    readonly icon: string;
+    readonly capabilities?: Partial<AuditorCapabilities>;
+    readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
     readonly ruleIds?: readonly TRuleId[];
     readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
     readonly subAuditors?: readonly SubAuditorStep[];
@@ -92,6 +98,7 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly severity: FindingSeverity;
     readonly file: string;
     readonly line: number;
+    readonly col?: number;
     readonly message: string;
     readonly context: string;
 }
@@ -101,6 +108,9 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly description: string;
     readonly family: AuditFamily;
     readonly packageName: string;
+    readonly icon: string;
+    readonly capabilities: AuditorCapabilities;
+    readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
     readonly ruleIds: readonly TRuleId[];
     readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
     readonly explicitSubAuditors?: readonly SubAuditorStep[];
@@ -115,6 +125,9 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
     protected filesScannedCount: number;
+    protected isSkipped: boolean;
+    protected skipReason?: string;
+    markSkipped(reason: string): void;
     constructor(options: AuditorOptions<TRuleId>);
     getSubAuditors(): readonly SubAuditorStep[];
     logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string): void;

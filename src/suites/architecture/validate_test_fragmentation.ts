@@ -62,7 +62,7 @@ export interface TestSuiteDistribution {
 }
 
 export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationRuleId> {
-  private readonly minTestLines: number;
+private readonly minTestLines: number;
   private readonly fragmentationWhitelist: ReadonlySet<string>;
   private distribution: TestSuiteDistribution = {
     micro: 0,
@@ -82,12 +82,13 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
       ...(config.paths.e2eRoots ?? [])
     ];
     super({
-      id: 'validate_test_fragmentation',
+id: 'validate_test_fragmentation',
       name: 'Test Anti-Fragmentation Validator',
       description: 'Previene micro-tests (<60 líns) y JSDOM innecesario',
       family: 'architecture',
       ruleIds: TEST_FRAGMENTATION_RULES,
       packageName: 'Tests',
+      icon: '🧪',
       ruleDescriptions: {
         'no-fragmented-tests': 'Archivo fragmentado (<60 líneas)',
         'unnecessary-jsdom': 'JSDOM innecesario sin Vue/DOM'

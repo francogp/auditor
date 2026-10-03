@@ -10,14 +10,19 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   type AuditFamily,
   type AuditTaskDefinition,
+  type AuditorCapabilities,
+  type GitIgnoreRequirement,
   resolveFamilyMetadata,
   getActiveFamilies,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
+import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.ts';
+import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
@@ -26,50 +31,108 @@ function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): num
   return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
 }
 
-export const AUDIT_PRESETS = {
-  lint: [
-    'validate_domain_types',
-    'validate_o1_data_structures',
-    'validate_component_styles',
-    'audit_project',
-    'validate_vue_sfc_hygiene',
-    'validate_console_cleanliness',
-    'validate_audit_headers',
-    'validate_type_check',
-    'validate_markdown_lint',
-    'validate_eslint',
-    'validate_html_validate'
-  ],
-  md: [
-    'validate_markdown_links',
-    'validate_markdown_code_references',
-    'validate_markdown_lint',
-    'validate_markdown_syntax',
-    'validate_dox_integrity'
-  ]
-} as const;
+export const AUDIT_PRESETS: Record<string, readonly string[]> = {};
 
-export const AST_DEPENDENT_SUITE_IDS = [
-  'validate_pinia_reactivity',
-  'validate_reactive_leaks',
-  'validate_bundle_budget',
-  'validate_duplicate_constants'
-] as const;
-
-export type AstDependentSuiteId = (typeof AST_DEPENDENT_SUITE_IDS)[number];
-
-export const AST_DEPENDENT_SUITES: ReadonlySet<string> = new Set(AST_DEPENDENT_SUITE_IDS);
-
-export type AuditPresetName = keyof typeof AUDIT_PRESETS;
+export type AuditPresetName = 'lint' | 'md' | (string & {});
 
 export interface DiscoveryOptions {
   baseDir?: string;
+  projectRoot?: string;
   family?: string;
   task?: string;
   suites?: string[];
   preset?: string;
   fastOnly?: boolean;
   skipSimilar?: boolean;
+  fixOnly?: boolean;
+  lintOnly?: boolean;
+  mdOnly?: boolean;
+  includeHeavy?: boolean;
+}
+
+export interface ExtractedAuditorMetadata {
+  readonly capabilities: AuditorCapabilities;
+  readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  readonly icon?: string;
+}
+
+export async function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata> {
+  const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
+    capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+    gitIgnoreEntries: []
+  };
+
+  if (fullPath.endsWith('validate_audit_config.ts') || fullPath.endsWith('validate_audit_config.js')) {
+    result.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, fix: true, lint: true };
+    result.icon = '⚙️';
+    return result;
+  }
+
+  try {
+    const fileUrl = pathToFileURL(fullPath).href;
+    const mod = (await import(fileUrl)) as Record<string, unknown>;
+
+    if (typeof mod.icon === 'string') {
+      result.icon = mod.icon;
+    }
+    if (Array.isArray(mod.gitIgnoreEntries)) {
+      result.gitIgnoreEntries = mod.gitIgnoreEntries as readonly GitIgnoreRequirement[];
+    } else if (Array.isArray(mod.GITIGNORE_ENTRIES)) {
+      result.gitIgnoreEntries = mod.GITIGNORE_ENTRIES as readonly GitIgnoreRequirement[];
+    }
+
+    for (const val of Object.values(mod)) {
+      if (typeof val === 'function') {
+        const withStatic = val as {
+          capabilities?: Partial<AuditorCapabilities>;
+          gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+          icon?: string;
+        };
+
+        if (withStatic.capabilities && typeof withStatic.capabilities === 'object') {
+          result.capabilities = {
+            ...DEFAULT_AUDITOR_CAPABILITIES,
+            ...withStatic.capabilities
+          };
+        }
+        if (typeof withStatic.icon === 'string') {
+          result.icon = withStatic.icon;
+        }
+        if (Array.isArray(withStatic.gitIgnoreEntries)) {
+          result.gitIgnoreEntries = withStatic.gitIgnoreEntries;
+        }
+
+        if (val.prototype instanceof BaseAuditor) {
+          try {
+            const instance = new (val as new () => BaseAuditor)();
+            if (instance?.capabilities && typeof instance.capabilities === 'object') {
+              result.capabilities = instance.capabilities;
+            }
+            if (instance?.icon && typeof instance.icon === 'string') {
+              result.icon = instance.icon;
+            }
+            if (Array.isArray(instance?.gitIgnoreEntries)) {
+              result.gitIgnoreEntries = instance.gitIgnoreEntries;
+            }
+          } catch {
+            // catch-ok: Sub-auditor constructor may require specific options
+          }
+        }
+      }
+    }
+  } catch {
+    // catch-ok: Dynamic import failed (e.g. syntax error in custom extension)
+  }
+
+  return result;
+}
+
+export async function extractCapabilitiesFromFile(fullPath: string): Promise<AuditorCapabilities> {
+  return (await extractAuditorMetadataFromFile(fullPath)).capabilities;
+}
+
+export async function extractGitIgnoreRequirementsFromFile(fullPath: string): Promise<readonly GitIgnoreRequirement[]> {
+  return (await extractAuditorMetadataFromFile(fullPath)).gitIgnoreEntries;
 }
 
 const DEFAULT_PERMISSIONS = [
@@ -103,6 +166,9 @@ function formatTaskTitle(filename: string): string {
   if (filename === 'validate_css_duplicates' || filename === 'validate_css_duplicates.ts' || filename === 'validate_css_duplicates.js') {
     return 'CSS Duplication & Hygiene';
   }
+  if (filename === 'validate_stylelint' || filename === 'validate_stylelint.ts' || filename === 'validate_stylelint.js') {
+    return 'CSS & SCSS Stylelint Hygiene';
+  }
   const base = filename.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '');
   return base
     .split(/[_-]/)
@@ -110,7 +176,7 @@ function formatTaskTitle(filename: string): string {
     .join(' ');
 }
 
-function createAuditTaskDefinition(
+async function createAuditTaskDefinition(
   fullPath: string,
   filename: string,
   family: AuditFamily,
@@ -118,7 +184,7 @@ function createAuditTaskDefinition(
   options: DiscoveryOptions,
   isBuiltin: boolean,
   targetSuiteIds: Set<string> | null
-): AuditTaskDefinition | null {
+): Promise<AuditTaskDefinition | null> {
   const id = filename;
   const isFast = family === 'architecture' || filename.includes('domain_types');
 
@@ -130,19 +196,41 @@ function createAuditTaskDefinition(
   if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) return null;
   if (options.fastOnly && !isFast) return null;
 
+  const metadata = await extractAuditorMetadataFromFile(fullPath);
+  const capabilities = metadata.capabilities;
+  const gitIgnoreEntries = metadata.gitIgnoreEntries;
+  if (gitIgnoreEntries.length > 0) {
+    GitIgnoreRegistry.registerMany(gitIgnoreEntries);
+  }
+
+  if (options.fixOnly && (!capabilities || !capabilities.fix)) {
+    return null;
+  }
+  if ((options.lintOnly || options.preset === 'lint') && (!capabilities || !capabilities.lint)) {
+    return null;
+  }
+  if ((options.mdOnly || options.preset === 'md') && (!capabilities || !capabilities.md)) {
+    return null;
+  }
+  if (options.includeHeavy === false && capabilities?.heavy) {
+    return null;
+  }
+
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+  const scriptArg = relScriptPath.startsWith('..') ? path.resolve(fullPath).replace(/\\/g, '/') : relScriptPath;
   const taskPermissions = getPermissionsForTask(filename, fullPath);
-  const taskArgs = [...taskPermissions, relScriptPath, '--json'];
+  const taskArgs = [...taskPermissions, scriptArg, '--json'];
 
   if (isBuiltin && id === 'audit_project') {
-    if (options.preset === 'lint') {
+    if (options.preset === 'lint' || options.lintOnly) {
       taskArgs.push('--rule', 'fallow');
-    } else if (options.preset === 'md') {
+    } else if (options.preset === 'md' || options.mdOnly) {
       taskArgs.push('--rule', 'dox');
     }
   }
 
   const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
+  const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : '🧩');
 
   return {
     id,
@@ -154,8 +242,11 @@ function createAuditTaskDefinition(
     fast: isFast,
     timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
     order: familyMeta.order,
-    requiresAst: AST_DEPENDENT_SUITES.has(id),
-    isBuiltin
+    requiresAst: capabilities?.ast ?? false,
+    isBuiltin,
+    icon: effectiveIcon,
+    capabilities: capabilities ?? undefined,
+    gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined
   };
 }
 
@@ -164,7 +255,7 @@ function resolveTargetSuiteIds(
   combinedPresets: Record<string, readonly string[]>
 ): Set<string> | null {
   let targetSuiteIds: Set<string> | null = null;
-  if (options.preset && options.preset in combinedPresets) {
+  if (options.preset && options.preset !== 'lint' && options.preset !== 'md' && options.preset in combinedPresets) {
     targetSuiteIds = new Set(combinedPresets[options.preset]);
   }
   if (options.suites && options.suites.length > 0) {
@@ -200,6 +291,7 @@ interface DirectoryScanParams {
   activeFamilies: readonly AuditFamily[];
   targetSuiteIds: Set<string> | null;
   discovered: AuditTaskDefinition[];
+  isBuiltin?: boolean;
 }
 
 async function scanSuiteDirectory(params: DirectoryScanParams): Promise<void> {
@@ -211,25 +303,27 @@ async function scanSuiteDirectory(params: DirectoryScanParams): Promise<void> {
     return;
   }
 
+  const isBuiltin = params.isBuiltin ?? true;
+
   for (const entry of entries) {
     const fullPath = path.join(params.currentDir, entry);
     const stat = await fs.stat(fullPath);
 
     if (stat.isDirectory()) {
       if (!entry.startsWith('_') && entry !== 'node_modules' && entry !== 'lib') {
-        await scanSuiteDirectory({ ...params, currentDir: fullPath });
+        await scanSuiteDirectory({ ...params, currentDir: fullPath, isBuiltin });
       }
     } else if (stat.isFile() && !isIgnoredFileEntry(entry)) {
       const relPath = path.relative(params.rootDir, fullPath).replace(/\\/g, '/');
       const family = inferFamilyFromRelPath(relPath, params.activeFamilies);
       const filename = path.basename(entry, path.extname(entry));
-      const task = createAuditTaskDefinition(
+      const task = await createAuditTaskDefinition(
         fullPath,
         filename,
         family,
         params.config,
         params.options,
-        true,
+        isBuiltin,
         params.targetSuiteIds
       );
       if (task) params.discovered.push(task);
@@ -256,11 +350,11 @@ function detectExtensionFamily(extPath: string, activeFamilies: readonly AuditFa
   return 'domain_data';
 }
 
-function scanSingleExtensionFile(fullPath: string, extPath: string, params: ExtensionScanParams): void {
+async function scanSingleExtensionFile(fullPath: string, extPath: string, params: ExtensionScanParams): Promise<void> {
   const filename = path.basename(extPath, path.extname(extPath));
   const family = detectExtensionFamily(extPath, params.activeFamilies);
 
-  const task = createAuditTaskDefinition(
+  const task = await createAuditTaskDefinition(
     fullPath,
     filename,
     family,
@@ -273,7 +367,8 @@ function scanSingleExtensionFile(fullPath: string, extPath: string, params: Exte
 }
 
 async function scanConfigExtensionEntry(extPath: string, params: ExtensionScanParams): Promise<void> {
-  const fullPath = path.resolve(process.cwd(), extPath);
+  const rootDir = params.options.projectRoot || process.cwd();
+  const fullPath = path.resolve(rootDir, extPath);
   if (!fsSync.existsSync(fullPath)) return;
   const stat = await fs.stat(fullPath);
 
@@ -285,10 +380,11 @@ async function scanConfigExtensionEntry(extPath: string, params: ExtensionScanPa
       options: params.options,
       activeFamilies: params.activeFamilies,
       targetSuiteIds: params.targetSuiteIds,
-      discovered: params.discovered
+      discovered: params.discovered,
+      isBuiltin: false
     });
   } else if (stat.isFile() && (extPath.endsWith('.ts') || extPath.endsWith('.js'))) {
-    scanSingleExtensionFile(fullPath, extPath, params);
+    await scanSingleExtensionFile(fullPath, extPath, params);
   }
 }
 
@@ -299,7 +395,7 @@ async function scanConfigExtensions(params: ExtensionScanParams): Promise<void> 
 }
 
 export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<AuditTaskDefinition[]> {
-  const config = await loadAuditConfig();
+  const config = await loadAuditConfig(options.projectRoot);
   const activeFamilies = getActiveFamilies(config.customFamilies);
   const discovered: AuditTaskDefinition[] = [];
 
@@ -321,7 +417,7 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
     discovered
   });
 
-  if (!options.baseDir && config.extensions && config.extensions.length > 0) {
+  if ((!options.baseDir || options.baseDir === BUILTIN_SUITES_DIR) && config.extensions && config.extensions.length > 0) {
     await scanConfigExtensions({
       extensions: config.extensions,
       config,
@@ -339,5 +435,32 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
   });
 
   return discovered;
+}
+
+/**
+ * Dynamically collects gitignore requirements from all discovered subauditors,
+ * registered extensions, and audit.config.ts, guaranteeing that zero rules are hardcoded.
+ */
+export async function collectAllGitIgnoreRequirements(
+  projectRoot: string = process.cwd(),
+  config?: Awaited<ReturnType<typeof loadAuditConfig>>
+): Promise<GitIgnoreRequirement[]> {
+  const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
+  await discoverAuditors({ projectRoot });
+
+  const customEntries = effectiveConfig.gitIgnore?.extraRequiredEntries ?? [];
+  for (const entry of customEntries) {
+    if (typeof entry === 'string') {
+      GitIgnoreRegistry.register({
+        id: entry,
+        pattern: entry,
+        reason: `Entrada requerida configurada en audit.config.ts (${entry})`
+      });
+    } else if (entry && typeof entry === 'object' && entry.id && entry.pattern) {
+      GitIgnoreRegistry.register(entry);
+    }
+  }
+
+  return GitIgnoreRegistry.getRequirements();
 }
 

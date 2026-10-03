@@ -2,40 +2,32 @@
 /**
  * packages/auditor/src/cli/report_css.ts
  *
- * CLI TOOL: REPORTE DE CALIDAD, DUPLICACIÓN Y PATRONES CSS (POSTCSS AST)
+ * CLI TOOL: REPORTE DE CALIDAD, DUPLICACIÓN Y PATRONES CSS (STYLELINT ENGINE)
  *
  * Generates an 80-column Box-Drawing report or structured JSON output of CSS issues:
- * duplicate rules, similar classes, unvariabled colors, long lines, and duplicate selectors.
+ * duplicate selectors, duplicate properties, empty blocks, order, and SCSS syntax.
  *
  * Usage:
  *   auditor-css
- *   auditor-css --category=duplicates
- *   auditor-css --category=similar
- *   auditor-css --category=colors
- *   auditor-css --category=long-lines
  *   auditor-css --category=selectors
+ *   auditor-css --category=properties
  *   auditor-css --category=empty
  *   auditor-css --json
+ *   auditor-css --errors-only
  */
 import { parseArgs, styleText } from 'node:util';
 import path from 'node:path';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
-import { getAuditConfig } from "../core/auditConfig.js";
-import { CANONICAL_IGNORE_DIRS } from "../core/auditorBase.js";
 import { isMainModule } from "./cliUtils.js";
-import { runCssAnalysis } from "../analyzers/cssAnalyzer.js";
-const DEFAULT_CSS_SIMILARITY_THRESHOLD = 80;
-const DEFAULT_CSS_MIN_DECLARATIONS = 2;
-const DEFAULT_CSS_LONG_LINE_LENGTH_THRESHOLD = 20;
-const MAX_ITEM_DISPLAY_CHARS = 25;
-const MAX_ITEM_TRUNCATE_CHARS = 24;
-const MAX_LOCATION_DISPLAY_CHARS = 22;
-const MAX_LOCATION_TRUNCATE_CHARS = 21;
+import { StylelintAuditor } from "../suites/architecture/validate_stylelint.js";
+const MAX_ITEM_DISPLAY_CHARS = 30;
+const MAX_ITEM_TRUNCATE_CHARS = 29;
+const MAX_LOCATION_DISPLAY_CHARS = 24;
+const MAX_LOCATION_TRUNCATE_CHARS = 23;
 const COL_WIDTH_INDEX = 3;
 const COL_WIDTH_CATEGORY = 14;
-const COL_WIDTH_ITEM = 26;
-const COL_WIDTH_DETAIL = 12;
-const COL_WIDTH_LOCATION = 22;
+const COL_WIDTH_ITEM = 31;
+const COL_WIDTH_LOCATION = 24;
 function truncateItem(item) {
     return item.length > MAX_ITEM_DISPLAY_CHARS
         ? `${item.slice(0, MAX_ITEM_TRUNCATE_CHARS)}…`
@@ -47,164 +39,90 @@ function truncateLocation(loc) {
         : loc;
 }
 export async function runCssReport(projectRoot = process.cwd()) {
-    const config = getAuditConfig(projectRoot);
-    const cfg = config.styles?.duplicates;
-    const { values } = parseArgs({
+    const { values, positionals } = parseArgs({
         args: process.argv.slice(2),
         options: {
             category: { type: 'string', default: 'all' },
-            'sim-threshold': { type: 'string', default: String(cfg?.similarityThreshold ?? DEFAULT_CSS_SIMILARITY_THRESHOLD) },
-            'min-decls': { type: 'string', default: String(cfg?.minDeclarations ?? DEFAULT_CSS_MIN_DECLARATIONS) },
-            'min-length': { type: 'string', default: String(cfg?.longLineLengthThreshold ?? DEFAULT_CSS_LONG_LINE_LENGTH_THRESHOLD) },
             json: { type: 'boolean', default: false },
-            'errors-only': { type: 'boolean', default: false }
+            'errors-only': { type: 'boolean', default: false },
+            fix: { type: 'boolean', default: false }
         },
         strict: false,
         allowPositionals: true
     });
+    const isFix = Boolean(values.fix) || positionals.includes('fix');
     const category = String(values.category || 'all').toLowerCase();
     const isJson = Boolean(values.json);
     const errorsOnly = Boolean(values['errors-only']);
-    const similarityThreshold = parseInt(String(values['sim-threshold'] || DEFAULT_CSS_SIMILARITY_THRESHOLD), 10);
-    const minDeclarations = parseInt(String(values['min-decls'] || DEFAULT_CSS_MIN_DECLARATIONS), 10);
-    const longLineLengthThreshold = parseInt(String(values['min-length'] || DEFAULT_CSS_LONG_LINE_LENGTH_THRESHOLD), 10);
-    const options = {
-        minDeclarations,
-        similarityThreshold,
-        longLineLengthThreshold,
-        checkSimilar: category === 'all' || category === 'similar',
-        checkLongLines: category === 'all' || category === 'long-lines',
-        checkColors: category === 'all' || category === 'colors',
-        checkDuplicateSelectors: category === 'all' || category === 'selectors',
-        checkEmptyRules: category === 'all' || category === 'empty'
-    };
-    const startTime = performance.now();
-    const { violations, details, filesScanned } = await runCssAnalysis('.', new Set(CANONICAL_IGNORE_DIRS), options, projectRoot);
-    const durationMs = Math.round(performance.now() - startTime);
-    const filteredViolations = errorsOnly
-        ? violations.filter(v => v.severity === 'error')
-        : violations;
+    const auditor = new StylelintAuditor({ projectRoot });
+    const result = await auditor.execute();
+    const filteredFindings = result.findings.filter(f => {
+        if (errorsOnly && f.severity !== 'error')
+            return false;
+        if (category === 'all')
+            return true;
+        if (category === 'selectors' && f.ruleId === 'css-duplicate-selectors')
+            return true;
+        if (category === 'properties' && f.ruleId === 'css-duplicate-properties')
+            return true;
+        if (category === 'empty' && f.ruleId === 'css-empty-blocks')
+            return true;
+        if (category === 'order' && f.ruleId === 'css-order-violation')
+            return true;
+        if (category === 'syntax' && f.ruleId === 'scss-syntax-issue')
+            return true;
+        return false;
+    });
     if (isJson) {
-        const jsonOutput = {
+        console.log(JSON.stringify({
             summary: {
-                filesScanned,
-                totalErrors: violations.filter(v => v.severity === 'error').length,
-                totalWarnings: violations.filter(v => v.severity === 'warning').length,
-                durationMs,
-                countsByRule: {
-                    'css-duplicate-rules': details.duplicates.length,
-                    'css-similar-classes': details.similar.length,
-                    'css-duplicate-long-lines': details.longValues.length,
-                    'css-unvariabled-colors': details.unvariabledColors.length,
-                    'css-duplicate-selectors': details.duplicateSelectors.length,
-                    'css-empty-rules': details.emptyRules.length
-                }
+                filesScanned: auditor.getFilesScanned(),
+                totalErrors: result.summary.errors,
+                totalWarnings: result.summary.warnings,
+                durationMs: result.durationMs
             },
-            findings: filteredViolations.map(v => ({
-                ruleId: v.context.includes('duplicación') ? 'css-duplicate-rules' :
-                    v.context.includes('similitud') ? 'css-similar-classes' :
-                        v.context.includes('valor largo') ? 'css-duplicate-long-lines' :
-                            v.context.includes('color') ? 'css-unvariabled-colors' :
-                                v.context.includes('selector repetido') ? 'css-duplicate-selectors' : 'css-empty-rules',
-                severity: v.severity,
-                file: path.relative(projectRoot, v.file).replace(/\\/g, '/'),
-                line: v.line,
-                message: v.message,
-                context: v.context
-            })),
-            details
-        };
-        console.log(JSON.stringify(jsonOutput, null, 2));
+            findings: filteredFindings
+        }, null, 2));
         return;
     }
-    renderBanner('REPORTE DE CALIDAD Y DUPLICACIÓN CSS (POSTCSS AST)', 'Análisis estático de estilos y patrones');
-    console.log(styleText('dim', `🔍 Analizados ${filesScanned} archivos en ${durationMs}ms (Categoría: ${category}, MinDecls: ${minDeclarations}, SimThreshold: ${similarityThreshold}%)\n`));
+    renderBanner('REPORTE DE CALIDAD Y DUPLICACIÓN CSS (STYLELINT ENGINE)', 'Análisis estático oficial de estilos y patrones SCSS/Vue');
+    console.log(styleText('dim', `🔍 Analizados ${auditor.getFilesScanned()} archivos en ${result.durationMs}ms (Categoría: ${category})\n`));
+    if (isFix) {
+        console.log(styleText('cyan', '✨ Modo auto-fix: Stylelint aplicó correcciones automáticas sobre los archivos.\n'));
+    }
+    if (filteredFindings.length === 0) {
+        console.log(styleText('green', '✨ No se detectaron problemas ni violaciones de estilos CSS/SCSS.\n'));
+        return;
+    }
     const rows = [];
     let rowIdx = 1;
-    if (category === 'all' || category === 'duplicates') {
-        for (const dup of details.duplicates) {
-            const first = dup.occurrences[0];
-            const loc = `${first.file.split('/').pop()}:${first.line}`;
-            rows.push({
-                index: String(rowIdx++),
-                category: styleText('red', 'DUPLICADO'),
-                item: truncateItem(dup.signature),
-                count: `${dup.occurrences.length} lugares`,
-                location: truncateLocation(loc)
-            });
-        }
-    }
-    if (category === 'all' || category === 'similar') {
-        for (const sim of details.similar) {
-            const loc = `${sim.left.file.split('/').pop()}:${sim.left.line}`;
-            rows.push({
-                index: String(rowIdx++),
-                category: styleText('yellow', 'SIMILAR'),
-                item: `${sim.left.selector} ~ ${sim.right.selector}`,
-                count: `${sim.similarity}% simil`,
-                location: truncateLocation(loc)
-            });
-        }
-    }
-    if (category === 'all' || category === 'colors') {
-        for (const c of details.unvariabledColors) {
-            const first = c.occurrences[0];
-            const loc = `${first.file.split('/').pop()}:${first.line}`;
-            rows.push({
-                index: String(rowIdx++),
-                category: styleText('cyan', 'COLOR RAW'),
-                item: c.color,
-                count: `${c.occurrences.length} reglas`,
-                location: truncateLocation(loc)
-            });
-        }
-    }
-    if (category === 'all' || category === 'long-lines') {
-        for (const lv of details.longValues) {
-            const first = lv.occurrences[0];
-            const loc = `${first.file.split('/').pop()}:${first.line}`;
-            rows.push({
-                index: String(rowIdx++),
-                category: styleText('magenta', 'VALOR LARGO'),
-                item: truncateItem(lv.value),
-                count: `${lv.occurrences.length} lugares`,
-                location: truncateLocation(loc)
-            });
-        }
-    }
-    if (category === 'all' || category === 'selectors') {
-        for (const ds of details.duplicateSelectors) {
-            const loc = `${ds.file.split('/').pop()}:${ds.lines[0]}`;
-            rows.push({
-                index: String(rowIdx++),
-                category: styleText('red', 'SELECTOR DUP'),
-                item: truncateItem(ds.selector),
-                count: `${ds.lines.length} veces`,
-                location: truncateLocation(loc)
-            });
-        }
-    }
-    if (category === 'all' || category === 'empty') {
-        for (const er of details.emptyRules) {
-            const loc = `${er.file.split('/').pop()}:${er.line}`;
-            rows.push({
-                index: String(rowIdx++),
-                category: styleText('gray', 'REGLA VACÍA'),
-                item: truncateItem(er.selector),
-                count: '0 props',
-                location: truncateLocation(loc)
-            });
-        }
-    }
-    if (rows.length === 0) {
-        console.log(styleText('green', '✨ No se detectaron problemas ni duplicados de estilos CSS/SCSS.\n'));
-        return;
+    for (const f of filteredFindings) {
+        const loc = `${path.basename(f.file || '')}:${f.line || 1}`;
+        let catLabel = 'ESTILO';
+        if (f.ruleId === 'css-duplicate-selectors')
+            catLabel = 'SELECTOR DUP';
+        else if (f.ruleId === 'css-duplicate-properties')
+            catLabel = 'PROP DUP';
+        else if (f.ruleId === 'css-empty-blocks')
+            catLabel = 'BLOQUE VACÍO';
+        else if (f.ruleId === 'css-order-violation')
+            catLabel = 'ORDEN CSS';
+        else if (f.ruleId === 'scss-syntax-issue')
+            catLabel = 'SINTAXIS SCSS';
+        else if (f.ruleId === 'wallace-complexity')
+            catLabel = 'COMPLEJIDAD';
+        const color = f.severity === 'error' ? 'red' : 'yellow';
+        rows.push({
+            index: String(rowIdx++),
+            category: styleText(color, catLabel),
+            item: truncateItem(f.message),
+            location: truncateLocation(loc)
+        });
     }
     const cols = [
         { header: '#', width: COL_WIDTH_INDEX, align: 'center', key: 'index' },
         { header: 'CATEGORÍA', width: COL_WIDTH_CATEGORY, align: 'left', key: 'category' },
-        { header: 'PATRÓN / ELEMENTO', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
-        { header: 'DETALLE', width: COL_WIDTH_DETAIL, align: 'right', key: 'count' },
+        { header: 'MENSAJE / REGLA', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
         { header: 'UBICACIÓN', width: COL_WIDTH_LOCATION, align: 'left', key: 'location' }
     ];
     console.log(renderBoxTable(cols, rows));

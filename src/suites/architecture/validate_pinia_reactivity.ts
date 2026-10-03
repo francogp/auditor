@@ -62,19 +62,21 @@ function isStoreDestructuring(
 }
 
 export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleId> {
-  private readonly storesRoots: readonly string[];
+private readonly storesRoots: readonly string[];
   private readonly authorizedStateMutationFiles: ReadonlySet<string>;
 
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
     super({
+      capabilities: { ast: true },
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',
       description: 'Protege reactividad e integridad de stores de Pinia',
       family: 'architecture',
       ruleIds: PINIA_REACTIVITY_RULES,
       packageName: 'Pinia',
+      icon: '🍍',
       ruleDescriptions: {
         'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',
         'no-direct-state-mutation-outside-actions': 'Mutación directa de $state'

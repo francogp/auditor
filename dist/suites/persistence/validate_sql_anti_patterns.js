@@ -88,6 +88,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
             family: 'persistence',
             ruleIds: SQL_ANTI_PATTERN_RULES,
             packageName: 'SQL',
+            icon: '💾',
             ruleDescriptions: {
                 'sql-no-positional-arrays': 'Mutación de array JSON en SQL',
                 'sql-plpgsql-declared-variables': 'Variable PL/pgSQL sin declarar',

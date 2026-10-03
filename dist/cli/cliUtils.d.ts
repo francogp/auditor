@@ -22,4 +22,27 @@ export declare function executeNodeCli(binPath: string, args: string[], options?
  * Resolves a binary or script path inside node_modules, searching project root and parent traversals.
  */
 export declare function resolveNodeModuleBin(projectRoot: string, relativeBinPath: string): string;
+/**
+ * Resolves the executable binary file of a package, inspecting package.json or createRequire.
+ */
+export declare function resolvePackageBin(packageName: string, options?: {
+    projectRoot?: string;
+    fallbackRelativeBin?: string;
+}): string | null;
+export interface ExecuteCliToFileOptions {
+    cwd?: string;
+    maxBuffer?: number;
+    shell?: boolean;
+    timeout?: number;
+}
+/**
+ * Runs a CLI tool via spawnSync, piping output directly to an isolated ephemeral file descriptor.
+ * Completely avoids stdout truncation and in-memory heap spikes.
+ */
+export declare function executeCliToFile(command: string, args: string[], outputFilePath: string, options?: ExecuteCliToFileOptions): void;
+/**
+ * Runs a CLI tool via spawnSync, pipes output to an isolated ephemeral file descriptor,
+ * and parses the resulting JSON content cleanly without stdout truncation or heap spikes.
+ */
+export declare function executeCliAndReadJson<T>(command: string, args: string[], outputFilePath: string, options?: ExecuteCliToFileOptions): T | null;
 //# sourceMappingURL=cliUtils.d.ts.map

@@ -226,8 +226,8 @@ export function renderSimilarCodeWarningBanner(): string {
   lines.push(yellow('║  ') + padVisual(boldWhite('Para instalarlo manualmente, ejecuta el siguiente comando en tu terminal:'), innerWidth) + yellow('  ║'));
   lines.push(yellow('║  ') + padVisual(cyan('  👉  npx fallow similar-code setup --local --yes'), innerWidth) + yellow('  ║'));
   lines.push(yellow('║  ') + padVisual('', innerWidth) + yellow('  ║'));
-  lines.push(yellow('║  ') + padVisual(dim('Nota para IA / CI: puedes omitir esta suite usando el flag --skip-similar'), innerWidth) + yellow('  ║'));
-  lines.push(yellow('║  ') + padVisual(dim('o exportando la variable de entorno AUDIT_SKIP_SIMILAR=1.'), innerWidth) + yellow('  ║'));
+  lines.push(yellow('║  ') + padVisual(dim('Nota para CI: puedes omitir esta suite en entornos remotos o GitHub Pages'), innerWidth) + yellow('  ║'));
+  lines.push(yellow('║  ') + padVisual(dim('exportando la variable AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1.'), innerWidth) + yellow('  ║'));
   lines.push(yellow(`╚═${line}═╝`));
 
   return lines.join('\n');
@@ -238,7 +238,7 @@ export function renderFamilyHeader(meta: FamilyMetadata): string {
   return styleText('bold', `\n${meta.icon} [FAMILIA ${meta.order}] ${meta.title}\n${styleText('dim', `  ${line}`)}`);
 }
 
-export function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'info'): string {
+export function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'info' | 'skipped'): string {
   switch (status) {
     case 'passed':
       return `[ ${styleText('green', '✅ PASS')} ]`;
@@ -248,6 +248,8 @@ export function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'inf
       return `[ ${styleText('yellow', '⚠️ WARN')} ]`;
     case 'info':
       return `[ ${styleText('cyan', 'ℹ️ INFO')} ]`;
+    case 'skipped':
+      return `[ ${styleText('cyan', '⏭️ SKIP')} ]`;
   }
 }
 
@@ -271,6 +273,7 @@ function formatTaskMetricCol(metrics?: Record<string, string | number>): string 
 }
 
 function computeTaskBadge(status: string, errors: number, warnings: number): string {
+  if (status === 'skipped') return formatStatusBadge('skipped');
   if (status !== 'passed' || errors > 0) return formatStatusBadge('failed');
   if (warnings > 0) return formatStatusBadge('warning');
   return formatStatusBadge('passed');
@@ -371,7 +374,8 @@ export function renderConsolidatedFooter(
   totalErrors: number,
   totalWarnings: number,
   totalDurationMs: number,
-  errorFindings?: AuditFinding[]
+  errorFindings?: AuditFinding[],
+  suitesSkipped: number = 0
 ): string {
   const line = '═'.repeat(TERMINAL_WIDTH - 4);
   const lines: string[] = [];
@@ -382,7 +386,8 @@ export function renderConsolidatedFooter(
     : styleText(['bold', 'red'], '🚨 AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
 
   lines.push(`  ${statusText}`);
-  lines.push(styleText('dim', `  Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas`));
+  const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas ⏭️)` : '';
+  lines.push(styleText('dim', `  Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`));
   lines.push(`  Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`);
 
   if (errorFindings && errorFindings.length > 0) {
@@ -403,7 +408,7 @@ function renderMarkdownFamilyTables(byFamily: Map<string, StandardAuditResult[]>
     md += `| :---: | :--- | :---: | :--- | :---: | :---: |\n`;
 
     for (const t of tasks) {
-      const icon = t.status === 'passed' && t.summary.errors === 0 ? '✅ Pass' : '❌ Fail';
+      const icon = t.status === 'skipped' ? '⏭️ Skip' : (t.status === 'passed' && t.summary.errors === 0 ? '✅ Pass' : '❌ Fail');
       const metricEntries = Object.entries(t.metrics);
       const metricStr = metricEntries.length > 0 ? `${metricEntries[0]![1]} ${metricEntries[0]![0]}` : '-';
       md += `| ${icon} | **${t.name}** | \`${t.durationMs}ms\` | ${metricStr} | ${t.summary.errors} | ${t.summary.warnings} |\n`;
@@ -413,7 +418,7 @@ function renderMarkdownFamilyTables(byFamily: Map<string, StandardAuditResult[]>
   return md;
 }
 
-function renderMarkdownFindingsTable(allFindings: readonly any[]): string {
+function renderMarkdownFindingsTable(allFindings: readonly AuditFinding[]): string {
   if (allFindings.length === 0) return '';
   let md = `## 📋 Detalle de Incidencias\n\n`;
   md += `| Severidad | Archivo | Línea | Regla | Mensaje |\n`;

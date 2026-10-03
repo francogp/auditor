@@ -35,12 +35,13 @@ describe('cliUtils', () => {
     }
   });
 
-  it('returns false when scriptArg contains relative directory traversal', () => {
+  it('correctly resolves relative paths to the main module', () => {
     const originalArgv1 = process.argv[1] ?? '';
     try {
-      process.argv[1] = '../secret/script.ts';
-      const metaUrl = pathToFileURL(path.resolve('/secret/script.ts')).href;
-      expect(isMainModule(metaUrl)).toBe(false);
+      const scriptPath = path.resolve('test-script.ts');
+      process.argv[1] = './test-script.ts';
+      const metaUrl = pathToFileURL(scriptPath).href;
+      expect(isMainModule(metaUrl)).toBe(true);
     } finally {
       process.argv[1] = originalArgv1;
     }

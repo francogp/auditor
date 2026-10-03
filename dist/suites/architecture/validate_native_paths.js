@@ -351,6 +351,7 @@ export class NativePathsAuditor extends FileScanAuditor {
                 'hardcoded-slash-path'
             ],
             packageName: 'Path',
+            icon: '🛤️',
             ruleDescriptions: {
                 'unsafe-path-concat': 'Concatenación insegura de rutas',
                 'unsanitized-env-argv-path': 'Ruta argv/env sin sanitizar',

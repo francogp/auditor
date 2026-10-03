@@ -5,7 +5,7 @@
  * Defines the immutable data structures, family types, and standard outputs
  * required for all sub-auditors and the general audit orchestrator.
  */
-import { type CustomAuditFamilyConfig } from './auditConfig.ts';
+import { type CustomAuditFamilyConfig, type AuditEngineConfig } from './auditConfig.ts';
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "documentation"];
 export declare const AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
@@ -28,13 +28,14 @@ export interface AuditFinding {
     message: string;
     file?: string;
     line?: number;
+    col?: number;
     ruleId?: string;
     ruleDescription?: string;
     suiteId?: string;
     suiteName?: string;
     context?: string;
 }
-export declare const AUDIT_STATUSES: readonly ["passed", "failed"];
+export declare const AUDIT_STATUSES: readonly ["passed", "failed", "skipped"];
 export type AuditExecutionStatus = (typeof AUDIT_STATUSES)[number];
 export interface SubAuditorStep {
     readonly id: string;
@@ -67,6 +68,31 @@ export interface StandardAuditResult {
         totalFilesScanned?: number;
     };
     subAuditors?: readonly SubAuditorReport[];
+    isBuiltin?: boolean;
+    icon?: string;
+}
+export interface AuditorCapabilities {
+    /** Whether the sub-auditor implements automated repairs when invoked with --fix */
+    readonly fix: boolean;
+    /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run audit:lint) */
+    readonly lint: boolean;
+    /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run audit:md) */
+    readonly md: boolean;
+    /** Whether the sub-auditor requires the shared in-memory TypeScript AST context */
+    readonly ast: boolean;
+    /** Whether the sub-auditor supports incremental git diff scoping via --changed-since */
+    readonly changedSince: boolean;
+    /** Whether the sub-auditor is computationally heavy or resource-intensive (e.g. vector ML, type check) */
+    readonly heavy: boolean;
+    /** Whether the sub-auditor requires pre-compiled production artifacts in dist/ */
+    readonly requiresBuild: boolean;
+}
+export interface GitIgnoreRequirement {
+    readonly id: string;
+    readonly pattern: string;
+    readonly samplePath?: string;
+    readonly reason: string;
+    readonly isApplicable?: (config: AuditEngineConfig) => boolean;
 }
 export interface AuditTaskDefinition {
     id: string;
@@ -82,6 +108,9 @@ export interface AuditTaskDefinition {
     shell?: boolean;
     requiresAst?: boolean;
     isBuiltin?: boolean;
+    icon?: string;
+    capabilities?: AuditorCapabilities;
+    gitIgnoreEntries?: readonly GitIgnoreRequirement[];
 }
 export interface AuditTaskDescriptor {
     id?: string;
@@ -93,6 +122,7 @@ export interface AuditTaskDescriptor {
     permissions?: string[];
     extraArgs?: string[];
     requiresAst?: boolean;
+    capabilities?: AuditorCapabilities;
 }
 export type AuditRunMode = 'full' | 'preset' | 'family' | 'suites' | 'single';
 export interface AuditRunMetadata {

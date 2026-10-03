@@ -166,8 +166,7 @@ function parseCommitCliArgs(config) {
             preset: { type: 'string' },
             family: { type: 'string' },
             task: { type: 'string' },
-            suites: { type: 'string' },
-            'skip-similar': { type: 'boolean' }
+            suites: { type: 'string' }
         },
         strict: false
     });
@@ -176,7 +175,10 @@ function parseCommitCliArgs(config) {
     const familyArg = typeof values.family === 'string' ? values.family : undefined;
     const taskArg = typeof values.task === 'string' ? values.task : undefined;
     const suitesArg = typeof values.suites === 'string' ? values.suites.split(',') : undefined;
-    const skipSimilar = Boolean(values['skip-similar']) || normalized.includes('--skip-similar');
+    const skipSimilar = process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === 'true' ||
+        process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === '1' ||
+        process.env.AUDIT_SKIP_SIMILAR === 'true' ||
+        process.env.AUDIT_SKIP_SIMILAR === '1';
     return { effectivePreset, familyArg, taskArg, suitesArg, skipSimilar };
 }
 function printModifiedFiles(modifiedFiles) {
@@ -261,7 +263,8 @@ async function executeSingleCommitTask(task, coordinator) {
         subLines,
         durationMs: proc.durationMs,
         isSuccess,
-        hasWarnings: (findingsSummary?.warnings ?? 0) > 0
+        hasWarnings: (findingsSummary?.warnings ?? 0) > 0,
+        isBuiltin: task.isBuiltin !== false
     });
     return localViolations;
 }

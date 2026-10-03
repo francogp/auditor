@@ -86,7 +86,7 @@ Host projects **MUST NOT** rewrite or duplicate the 25 generic audit scripts in 
 - `auditor-similar` (semantic code clone detection `report_similar_code.ts`)
 - `auditor-review` (architectural review brief `report_review.ts`)
 - `auditor-bundle` (chunk budget validation `audit_bundle.ts`)
-- `auditor-css` (PostCSS style duplication & orphan reporter `report_css.ts`)
+- `auditor-css` (Stylelint style duplication & orphan reporter `report_css.ts`)
 - `auditor-update` (package updater and skill synchronizer `update_package.ts`)
 - `auditor-init-agent` (agent plugin and skills registrator `init_agent.ts`)
 - `auditor-sync-env` (environment script synchronizer `sync_env_scripts.ts`)
@@ -103,7 +103,6 @@ For a drop-in ready JSON template, see [`recommended_package_scripts_template.js
     "audit": "auditor",
     "audit:for-commit": "auditor-commit",
     "audit:changed": "auditor changed-since=main",
-    "audit:skip-similar": "auditor --skip-similar",
     "audit:fix": "auditor fix",
 
     "// --- FINDINGS & REPORTS ---": "",
@@ -167,7 +166,7 @@ Host extensions declared in `audit.config.ts` are automatically discovered and e
   ```json
   {
     "scripts": {
-      "build": "tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts"
+      "build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts"
     }
   }
   ```
@@ -175,37 +174,48 @@ Host extensions declared in `audit.config.ts` are automatically discovered and e
   Using platform-specific shell commands like `chmod` that fail on Windows is strictly forbidden; executable permissions are set via cross-platform Node.js filesystem APIs. Inventing arbitrary non-standard script names (such as `compile` or `build:dist`) is strictly forbidden across the framework.
 
 - **Web Application Host Projects (Vite / Vue / Webpack)**:
-  Host web applications compile their production assets through standard bundlers decoupled from static analysis:
+  Host web applications compile their production assets through standard bundlers chained with the auditor:
 
   ```json
   {
     "scripts": {
-      "build": "vite build"
+      "build": "npm run audit && vite build"
     }
   }
   ```
-  *(Or with pre-build gating in CI: `"build": "auditor --skip-similar && vite build"`).*
-
-Architectural audits and quality gates remain decoupled under `npm run audit`.
 
 ---
 
-## 6. GitHub Pages & CI Deployments (`--skip-similar`)
+## 6. Host Extension Governance & Zero-Tolerance Backward Compatibility
+
+When authoring or maintaining host extensions in `scripts/auditors/`:
+
+1. **Mandatory Thematic Emojis (`AuditorOptions.icon`)**:
+   Every host extension sub-auditor extending `BaseAuditor` or `FileScanAuditor` **MUST** declare `icon: string` (e.g. `icon: '⚔️'`, `icon: '🎮'`, `icon: '🎒'`). If omitted or empty, `validateAuditorOptions` throws an explicit, loud runtime `Error`. Generic cogs (`⚙️`) are reserved exclusively for internal configuration validators.
+2. **Strict Booleans in `audit.config.ts`**:
+   Configurations MUST use strict compile-time booleans (`true` / `false`). Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and will fail validation immediately.
+3. **Anti-Abuse in `constants.exemptGlobs`**:
+   Glob patterns must target specific maintenance scripts or tabular seed data. Broad directory wildcards like `**/*` or `src/**` are rejected.
+
+---
+
+## 7. Specifically Defined Remote CI & GitHub Pages Deployments ONLY (Environment Variable Bypass)
 
 In consumer host projects deploying to GitHub Pages or executing in lightweight CI environments:
 - Running the full auditor executes `validate_similar_code`, which queries or downloads local Fallow vector embeddings models (`jina-embeddings-v2-base-code`).
-- In cloud runners or GitHub Actions with strict timeouts, restricted network access, or headless GitHub Pages builds, pass the `--skip-similar` flag (or `AUDIT_SKIP_SIMILAR=1`) to cleanly omit vector embeddings analysis while executing 100% of all other architectural, style, type, and security suites:
+- There is NO CLI flag to skip similar code. To cleanly omit vector embeddings analysis in headless remote containers or GitHub Actions with strict timeouts, pass the explicit environment variable `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1`:
 
-```bash
-# In package.json or deployment command:
-auditor --skip-similar
-
-# Or in GitHub Actions workflow step:
+```yaml
+# In GitHub Actions workflow step:
 - name: Audit & Build
-  run: npx auditor --skip-similar && npm run build
+  run: npx auditor && npm run build
   env:
-    AUDIT_SKIP_SIMILAR: 1
+    AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS: 1
 ```
+
+> [!CAUTION]
+> **Strict Local Execution Mandate & Absolute Bypassing Prohibition in Local/Development**:
+> AI agents and developers MUST NEVER set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`) during local development, interactive coding turns, bug triage, or local verification runs. Vector semantic duplication executes locally on Candle CPU in ~2 seconds leveraging disk cache. Bypassing vector analysis is strictly and exclusively reserved for specifically defined remote deployment environments.
 
 ---
 

@@ -431,18 +431,20 @@ export function auditMarkdownLinks(options: MarkdownLinkAuditOptions = {}): Mark
 }
 
 export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
-  private readonly scanRoots: readonly string[];
+private readonly scanRoots: readonly string[];
 
   constructor(scanRoots?: readonly string[], projectRoot?: string) {
     const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
     const config = getAuditConfig(projectRoot);
     super({
+      capabilities: { md: true },
       id: 'validate_markdown_links',
       name: 'Markdown & DOX Relative Links Auditor',
       description: 'Enlaces relativos y rutas válidas en markdown',
       family: 'documentation',
       ruleIds: MARKDOWN_LINK_RULES,
       packageName: 'Doc',
+      icon: '🔗',
       ruleDescriptions: {
         'markdown-broken-relative-link': 'Enlace relativo roto',
         'markdown-absolute-path': 'Ruta absoluta prohibida',

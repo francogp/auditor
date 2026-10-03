@@ -16,12 +16,19 @@ Architecture & Tooling Engineers.
 
 - [`auditor_architecture_conformance.test.ts`](./auditor_architecture_conformance.test.ts): Meta-test verifying 100% companion test coverage and rule descriptors.
 - [`auditor_base.test.ts`](./auditor_base.test.ts): Tests for `BaseAuditor` and `FileScanAuditor` base class lifecycle.
+- [`auditor_capabilities.test.ts`](./auditor_capabilities.test.ts): Tests for dynamic sub-auditor capability detection, zero-boilerplate inheritance, and fix mode filtering.
 - [`audit_bundle.test.ts`](./audit_bundle.test.ts): Tests for `audit_bundle.ts` treemap parsing and budget enforcement.
 - [`audit_for_commit.test.ts`](./audit_for_commit.test.ts): Tests for differential pre-commit gate.
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
 - [`cli_utils.test.ts`](./cli_utils.test.ts): Unit tests for CLI entrypoint detection and utilities.
+- [`validate_accessibility.test.ts`](./validate_accessibility.test.ts): Tests for WCAG 2.2 accessibility verification via `eslint-plugin-vuejs-accessibility`.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for audit configuration path and file physical existence verification.
+- [`validate_eslint_config.test.ts`](./validate_eslint_config.test.ts): Tests for ESLint Domain-Type-First configuration enforcement.
+- [`validate_package_distribution.test.ts`](./validate_package_distribution.test.ts): Tests for package export map and type distribution hygiene via Publint.
+- [`validate_package_hygiene.test.ts`](./validate_package_hygiene.test.ts): Tests for orphan dependency and unused script detection via Knip.
 - [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.
+- [`validate_stylelint.test.ts`](./validate_stylelint.test.ts): Tests for Stylelint CSS/SCSS hygiene, nesting, Vue 3 SFCs, and configuration overrides.
+- [`validate_type_coverage.test.ts`](./validate_type_coverage.test.ts): Tests for quantitative TypeScript type coverage threshold enforcement.
 - [`version_bump.test.ts`](./version_bump.test.ts): Tests for SemVer bump calculation, build timestamp formatting, and git diff heuristics.
 
 ## Child DOX Index

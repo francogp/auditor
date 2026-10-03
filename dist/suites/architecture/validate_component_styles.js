@@ -285,11 +285,13 @@ export class ComponentStylesAuditor extends BaseAuditor {
             ...(config.paths.stylesRoots ?? ['src/styles'])
         ];
         super({
+            capabilities: { lint: true },
             id: 'validate_component_styles',
             name: 'Vue Component Style Linkage & SCSS Auditor',
             description: 'Valida enlaces de estilos de componentes y huérfanos SCSS',
             family: 'architecture',
             packageName: 'Estilos',
+            icon: '🎨',
             ruleIds: COMPONENT_STYLE_RULES,
             ruleDescriptions: {
                 'broken-style-link': 'Enlace de estilo roto o inexistente',

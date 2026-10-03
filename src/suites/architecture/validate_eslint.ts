@@ -18,7 +18,7 @@ import path from 'node:path';
 import { executeNodeCli } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { parseLintResultsToFindings, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
 
 enableCompileCache();
@@ -52,13 +52,26 @@ export function parseEslintResults(input: string | object[], cwd: string = proce
 }
 
 export class EslintAuditor extends BaseAuditor<EslintRuleId> {
+  public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
+    {
+      id: '.eslintcache',
+      pattern: '.eslintcache',
+      samplePath: '.eslintcache',
+      reason: 'Archivo de caché incremental generado por ESLint',
+      isApplicable: (config) => config._rawConfig?.eslint?.enabled !== false
+    }
+  ];
+
   constructor() {
     super({
+      capabilities: { fix: true, lint: true },
+      gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
       id: 'validate_eslint',
       name: 'ESLint Code Hygiene Validator',
       description: 'Reglas de estilo, buenas prácticas y sintaxis con ESLint',
       family: 'architecture',
       packageName: 'ESLint',
+      icon: '📜',
       ruleIds: ESLINT_RULES,
       ruleDescriptions: {
         'eslint-violation': 'Error de sintaxis o regla'

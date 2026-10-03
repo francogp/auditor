@@ -76,7 +76,7 @@ export function getActiveFamilies(customFamilies) {
     const customKeys = (customFamilies ?? []).map(f => f.key);
     return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
 }
-export const AUDIT_STATUSES = ['passed', 'failed'];
+export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
 export const ONE_MINUTE_MS = 60000;
 export const MAX_AUDIT_STALENESS_MS = DEFAULT_MAX_AUDIT_STALENESS_MINUTES * ONE_MINUTE_MS;
 function assertAuditFreshness(meta, consumerName, options) {

@@ -51,6 +51,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         dockerContainer: 'supabase-db'
     },
     domain: {
+        enabled: true,
         timezoneVariable: 'APP_TIMEZONE',
         finiteDomainTypes: [],
         infraIdWhitelist: [],
@@ -58,17 +59,39 @@ export const DEFAULT_AUDIT_CONFIG = {
         o1CatalogPatterns: [],
         allowedNumericConstantPrefixes: [
             'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'
-        ]
+        ],
+        caseNormalizationExemptTokens: [],
+        allowedStoreSetterPrefixes: ['set', 'update', 'clear']
+    },
+    gitIgnore: {
+        enabled: true,
+        extraRequiredEntries: []
     },
     templates: {
-        requireInputIds: false
+        requireInputIds: true
     },
     styles: {
         globalUtilityClasses: [],
         canonicalButtonVariants: [],
-        heavyEffectPaths: []
+        heavyEffectPaths: [],
+        zLayersEnabled: true,
+        lineHeightOverlapCheck: true,
+        stylelint: {
+            enabled: true,
+            rules: {},
+            ignoreGlobs: []
+        }
+    },
+    stylelint: {
+        enabled: true,
+        rules: {},
+        ignoreGlobs: []
+    },
+    eslint: {
+        enabled: true
     },
     bundle: {
+        enabled: true,
         statsFile: 'scratch/bundle_stats.html',
         distDir: 'dist/assets',
         exemptChunkPrefixes: [],
@@ -92,7 +115,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         enforceTargets: false,
         maxTargetPriority: 'critical',
         similarCode: {
-            enabled: false,
+            enabled: true,
             threshold: 0.95,
             ignoreSameFile: true,
             minLines: 3
@@ -101,7 +124,33 @@ export const DEFAULT_AUDIT_CONFIG = {
     constants: {
         ignoredNames: [],
         exemptMagicNumbers: [],
-        allowedNumericPrefixes: []
+        allowedNumericPrefixes: [],
+        exemptGlobs: []
+    },
+    packageHygiene: {
+        enabled: true,
+        ignoreDependencies: [],
+        ignoreBinaries: []
+    },
+    packageDistribution: {
+        enabled: false,
+        level: 'warning'
+    },
+    packageScripts: {
+        enabled: true,
+        enforceBuildAudit: true,
+        recommendedScripts: true,
+        extraRequiredScripts: []
+    },
+    accessibility: {
+        enabled: true,
+        rules: {}
+    },
+    typeCoverage: {
+        enabled: true,
+        atLeast: 95,
+        strict: true,
+        ignoreFiles: []
     },
     customFamilies: [],
     extensions: [],
@@ -114,8 +163,21 @@ export const DEFAULT_AUDIT_CONFIG = {
 let cachedConfig = null;
 let cachedProjectRoot = null;
 function collectDeclaredSubsystems(config) {
-    const declared = new Set();
-    const keys = ['persistence', 'domain', 'styles', 'templates', 'bundle', 'agentPlugin', 'security', 'fallow'];
+    const declared = new Set(config._declaredSubsystems ?? []);
+    const keys = [
+        'persistence',
+        'domain',
+        'styles',
+        'templates',
+        'bundle',
+        'agentPlugin',
+        'security',
+        'fallow',
+        'packageDistribution',
+        'packageHygiene',
+        'accessibility',
+        'typeCoverage'
+    ];
     for (const k of keys) {
         if (config[k] !== undefined)
             declared.add(k);
@@ -162,30 +224,40 @@ function buildTemplatesConfig(raw) {
     return {
         ...DEFAULT_AUDIT_CONFIG.templates,
         ...t,
+        requireInputIds: t.requireInputIds ?? DEFAULT_AUDIT_CONFIG.templates?.requireInputIds ?? true,
         tooltipComponents: t.tooltipComponents ?? [],
         forbiddenTemplateCallPatterns: t.forbiddenTemplateCallPatterns ?? [],
         safeTemplateFunctions: t.safeTemplateFunctions ?? []
     };
 }
-function buildStylesConfig(raw) {
+function buildStylesConfig(raw, rawStylelintTop) {
     const s = raw ?? {};
+    const rawSl = s.stylelint ?? rawStylelintTop;
+    const parsedRules = rawSl?.rules ? { ...rawSl.rules } : undefined;
+    const stylelint = {
+        enabled: rawSl?.enabled ?? DEFAULT_AUDIT_CONFIG.styles?.stylelint?.enabled ?? true,
+        configFile: rawSl?.configFile,
+        rules: parsedRules,
+        ignoreGlobs: rawSl?.ignoreGlobs ? [...rawSl.ignoreGlobs] : []
+    };
     return {
         globalUtilityClasses: s.globalUtilityClasses ?? [],
         canonicalButtonVariants: s.canonicalButtonVariants ?? [],
-        zLayersEnabled: s.zLayersEnabled,
+        zLayersEnabled: s.zLayersEnabled ?? DEFAULT_AUDIT_CONFIG.styles?.zLayersEnabled ?? true,
         zLayersScssFile: s.zLayersScssFile,
         baseScssFile: s.baseScssFile ?? s.zLayersScssFile,
         zLayersTsFile: s.zLayersTsFile,
         zLayers: s.zLayers,
-        lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? true,
+        lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? DEFAULT_AUDIT_CONFIG.styles?.lineHeightOverlapCheck ?? true,
         heavyEffectPaths: s.heavyEffectPaths ?? [],
-        buttonGovernance: s.buttonGovernance
+        buttonGovernance: s.buttonGovernance,
+        stylelint
     };
 }
 function buildBundleConfig(raw) {
     const b = raw ?? {};
     return {
-        enabled: b.enabled,
+        enabled: b.enabled ?? DEFAULT_AUDIT_CONFIG.bundle?.enabled ?? true,
         statsFile: b.statsFile ?? DEFAULT_AUDIT_CONFIG.bundle?.statsFile,
         distDir: b.distDir ?? DEFAULT_AUDIT_CONFIG.bundle?.distDir,
         exemptChunkPrefixes: b.exemptChunkPrefixes ?? [],
@@ -211,13 +283,65 @@ function buildAgentAndSecurityConfig(config) {
         }
     };
 }
+export const FORBIDDEN_PRODUCTION_ROOTS = [
+    'src/logic',
+    'src/domain',
+    'src/stores',
+    'src/components',
+    'src/views',
+    'src/composables',
+    'src/services',
+    'src/models',
+    'src/controllers',
+    'src/api',
+    'src/server'
+];
+export const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
+export function validateConstantsExemptGlobs(globs) {
+    if (globs.length > MAX_CONSTANTS_EXEMPT_GLOBS) {
+        throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' excede el límite máximo de ${MAX_CONSTANTS_EXEMPT_GLOBS} patrones (${globs.length} configurados).\n` +
+            `No abuses de las excepciones. Si tienes tantas incidencias, extrae constantes nominadas descriptivas o usa fábricas de prueba.`);
+    }
+    for (const rawGlob of globs) {
+        const glob = rawGlob.trim().replace(/\\/g, '/');
+        // 1. Universal wildcards check
+        if (!glob ||
+            glob === '*' ||
+            glob === '**' ||
+            glob === '*.*' ||
+            glob === '.*' ||
+            /^src(?:\/\*+|\/)?$/i.test(glob) ||
+            /^scripts(?:\/\*+|\/)?$/i.test(glob) ||
+            /^\*+\/\*+$/.test(glob)) {
+            throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contiene un comodín global no permitido: '${rawGlob}'.\n` +
+                `Está ESTRICTAMENTE PROHIBIDO usar comodines globales ('*', '**', 'src/**', 'scripts/**') para evadir el mandato de números mágicos.`);
+        }
+        // 2. Production roots check
+        const normalizedLower = glob.toLowerCase().replace(/^\/+/, '');
+        for (const prodRoot of FORBIDDEN_PRODUCTION_ROOTS) {
+            if (normalizedLower === prodRoot ||
+                normalizedLower.startsWith(prodRoot + '/') ||
+                normalizedLower.includes('/' + prodRoot + '/') ||
+                normalizedLower.startsWith('**/' + prodRoot)) {
+                throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contiene una ruta de lógica de producción protegida: '${rawGlob}'.\n` +
+                    `Está ESTRICTAMENTE PROHIBIDO eximir directorios de producción (como '${prodRoot}').\n` +
+                    `Las excepciones de números mágicos solo están permitidas para scripts de semillas, fixtures o demostraciones aisladas (ej: 'scripts/database/seeds/**', 'ui-demo/**').`);
+            }
+        }
+    }
+}
 function buildConstantsAndDocConfig(config) {
     const c = config.constants;
+    const exemptGlobs = c?.exemptGlobs ? [...c.exemptGlobs] : [];
+    if (exemptGlobs.length > 0) {
+        validateConstantsExemptGlobs(exemptGlobs);
+    }
     return {
         constants: {
             ignoredNames: c?.ignoredNames ?? [],
             exemptMagicNumbers: c?.exemptMagicNumbers ?? [],
-            allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
+            allowedNumericPrefixes: c?.allowedNumericPrefixes ?? [],
+            exemptGlobs
         },
         documentation: {
             knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? [],
@@ -235,7 +359,7 @@ function buildFallowSimilarCodeConfig(raw) {
     const def = DEFAULT_AUDIT_CONFIG.fallow?.similarCode;
     const s = raw ?? {};
     return {
-        enabled: s.enabled ?? def?.enabled ?? false,
+        enabled: s.enabled ?? def?.enabled ?? true,
         threshold: s.threshold ?? def?.threshold ?? 0.95,
         ignoreSameFile: s.ignoreSameFile ?? def?.ignoreSameFile ?? true,
         minLines: s.minLines ?? def?.minLines ?? 3
@@ -255,6 +379,84 @@ function buildFallowConfig(raw, rootSecurity) {
         similarCode: buildFallowSimilarCodeConfig(f.similarCode)
     };
 }
+function buildPackageHygieneConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.packageHygiene;
+    const p = raw ?? {};
+    return {
+        enabled: p.enabled ?? def?.enabled ?? true,
+        ignoreDependencies: p.ignoreDependencies ? [...p.ignoreDependencies] : (def?.ignoreDependencies ?? []),
+        ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? [])
+    };
+}
+function buildPackageDistributionConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
+    const p = raw ?? {};
+    return {
+        enabled: p.enabled ?? def?.enabled ?? false,
+        pkgDir: p.pkgDir ?? def?.pkgDir,
+        level: p.level ?? def?.level ?? 'warning'
+    };
+}
+function buildPackageScriptsConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.packageScripts;
+    const p = raw ?? {};
+    if (p.recommendedScripts !== undefined && typeof p.recommendedScripts !== 'boolean') {
+        throw new Error(`[AuditConfig] Error de tipo en 'packageScripts.recommendedScripts': se recibió '${String(p.recommendedScripts)}'. ` +
+            `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'essential' está estrictamente prohibido.`);
+    }
+    if (p.enforceBuildAudit !== undefined && typeof p.enforceBuildAudit !== 'boolean') {
+        throw new Error(`[AuditConfig] Error de tipo en 'packageScripts.enforceBuildAudit': se recibió '${String(p.enforceBuildAudit)}'. ` +
+            `Debe ser un valor booleano estricto (true o false).`);
+    }
+    return {
+        enabled: p.enabled ?? def?.enabled ?? true,
+        enforceBuildAudit: p.enforceBuildAudit ?? def?.enforceBuildAudit ?? true,
+        recommendedScripts: p.recommendedScripts ?? def?.recommendedScripts ?? true,
+        extraRequiredScripts: p.extraRequiredScripts ? [...p.extraRequiredScripts] : (def?.extraRequiredScripts ?? [])
+    };
+}
+function buildAccessibilityConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.accessibility;
+    const a = raw ?? {};
+    const parsedRules = {};
+    const sourceRules = a.rules ?? def?.rules ?? {};
+    for (const [key, val] of Object.entries(sourceRules)) {
+        if (typeof val !== 'boolean') {
+            throw new Error(`[AuditConfig] Error de tipo en 'accessibility.rules.${key}': se recibió '${String(val)}'. ` +
+                `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'error' está estrictamente prohibido.`);
+        }
+        parsedRules[key] = val;
+    }
+    return {
+        enabled: a.enabled ?? def?.enabled ?? true,
+        rules: parsedRules
+    };
+}
+function buildTypeCoverageConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.typeCoverage;
+    const t = raw ?? {};
+    return {
+        enabled: t.enabled ?? def?.enabled ?? true,
+        atLeast: t.atLeast ?? def?.atLeast ?? 95,
+        strict: t.strict ?? def?.strict ?? true,
+        ignoreFiles: t.ignoreFiles ? [...t.ignoreFiles] : (def?.ignoreFiles ?? [])
+    };
+}
+function buildGitIgnoreConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.gitIgnore;
+    const g = raw ?? {};
+    return {
+        enabled: g.enabled ?? def?.enabled ?? true,
+        extraRequiredEntries: g.extraRequiredEntries ? [...g.extraRequiredEntries] : (def?.extraRequiredEntries ?? [])
+    };
+}
+function buildEslintConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.eslint;
+    const e = raw ?? {};
+    return {
+        enabled: e.enabled ?? def?.enabled ?? true
+    };
+}
 export function defineAuditConfig(config) {
     const declared = collectDeclaredSubsystems(config);
     const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -266,10 +468,27 @@ export function defineAuditConfig(config) {
         paths: buildPathsConfig(config.paths),
         persistence: buildPersistenceConfig(config.persistence),
         domain: buildDomainConfig(config.domain),
+        gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
         templates: buildTemplatesConfig(config.templates),
-        styles: buildStylesConfig(config.styles),
+        styles: buildStylesConfig(config.styles, config.stylelint),
+        stylelint: config.stylelint ? {
+            enabled: config.stylelint.enabled ?? true,
+            configFile: config.stylelint.configFile,
+            rules: config.stylelint.rules ? Object.assign({}, config.stylelint.rules) : undefined,
+            ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : []
+        } : {
+            enabled: true,
+            rules: {},
+            ignoreGlobs: []
+        },
+        eslint: buildEslintConfig(config.eslint),
         bundle: buildBundleConfig(config.bundle),
         fallow: buildFallowConfig(config.fallow, config.security),
+        packageHygiene: buildPackageHygieneConfig(config.packageHygiene),
+        packageDistribution: buildPackageDistributionConfig(config.packageDistribution),
+        packageScripts: buildPackageScriptsConfig(config.packageScripts),
+        accessibility: buildAccessibilityConfig(config.accessibility),
+        typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
         ...agentAndSecurity,
         ...constantsAndDoc,
         customFamilies: config.customFamilies ?? [],
@@ -285,44 +504,71 @@ export function defineAuditConfig(config) {
         _rawConfig: rawConfig
     };
 }
-function checkInfrastructureSubsystems(declared, config, missing) {
-    if (!declared?.has('persistence') || !config.persistence?.engine) {
-        missing.push("  - 'persistence': Debe declarar explícitamente 'persistence: { engine: \"supabase\" | \"sqlite\" | \"postgres\" | \"hybrid\" | \"none\" }'.");
+const VALID_PERSISTENCE_ENGINES = ['supabase', 'sqlite', 'postgres', 'hybrid', 'none'];
+const VALID_DISTRIBUTION_LEVELS = ['suggestion', 'warning', 'error'];
+const VALID_TARGET_PRIORITIES = ['critical', 'high', 'all'];
+function checkInfrastructureSubsystems(config, missing) {
+    if (!config.persistence?.engine || !VALID_PERSISTENCE_ENGINES.includes(config.persistence.engine)) {
+        missing.push(`  - 'persistence': Motor de persistencia no válido ('${config.persistence?.engine}'). Debe ser uno de: ${VALID_PERSISTENCE_ENGINES.join(' | ')}.`);
     }
-    if (!declared?.has('bundle') || config.bundle?.enabled === undefined) {
-        missing.push("  - 'bundle': Debe declarar explícitamente 'bundle: { enabled: true }' (con 'exemptChunkPrefixes' si aplica) o 'bundle: { enabled: false }'.");
+    if (typeof config.bundle?.enabled !== 'boolean') {
+        missing.push("  - 'bundle': El campo 'enabled' debe ser booleano (true o false).");
+    }
+    if (typeof config.packageDistribution?.enabled !== 'boolean') {
+        missing.push("  - 'packageDistribution': El campo 'enabled' debe ser booleano (true o false).");
+    }
+    else if (config.packageDistribution.level && !VALID_DISTRIBUTION_LEVELS.includes(config.packageDistribution.level)) {
+        missing.push(`  - 'packageDistribution': Nivel de distribución no válido ('${config.packageDistribution.level}'). Debe ser uno de: ${VALID_DISTRIBUTION_LEVELS.join(' | ')}.`);
+    }
+    if (config.packageScripts?.recommendedScripts !== undefined && typeof config.packageScripts.recommendedScripts !== 'boolean') {
+        missing.push("  - 'packageScripts': El campo 'recommendedScripts' debe ser un booleano estricto (true o false).");
+    }
+    if (config.packageScripts?.enforceBuildAudit !== undefined && typeof config.packageScripts.enforceBuildAudit !== 'boolean') {
+        missing.push("  - 'packageScripts': El campo 'enforceBuildAudit' debe ser un booleano estricto (true o false).");
+    }
+    if (config.constants?.exemptGlobs) {
+        try {
+            validateConstantsExemptGlobs(config.constants.exemptGlobs);
+        }
+        catch (err) {
+            missing.push(`  - 'constants': ${err instanceof Error ? err.message : String(err)}`);
+        }
     }
 }
-function checkUiSubsystems(declared, config, missing) {
+function checkUiSubsystems(config, missing) {
     const s = config.styles;
-    const hasZStyles = s?.zLayersEnabled !== undefined || s?.zLayersScssFile || (s?.globalUtilityClasses && s.globalUtilityClasses.length > 0);
-    if (!declared?.has('styles') || !hasZStyles) {
-        missing.push("  - 'styles': Debe declarar explícitamente 'styles: { zLayersEnabled: true, zLayersScssFile: \"...\" }' o 'styles: { zLayersEnabled: false }'.");
+    if (typeof s?.zLayersEnabled !== 'boolean') {
+        missing.push("  - 'styles': El campo 'zLayersEnabled' debe ser booleano (true o false).");
     }
-    if (!declared?.has('templates') || config.templates?.requireInputIds === undefined) {
-        missing.push("  - 'templates': Debe declarar explícitamente 'templates: { requireInputIds: false }' o 'templates: { requireInputIds: true }'.");
+    if (typeof config.templates?.requireInputIds !== 'boolean') {
+        missing.push("  - 'templates': El campo 'requireInputIds' debe ser booleano (true o false).");
     }
-    if (!declared?.has('agentPlugin') || config.agentPlugin?.enabled === undefined) {
-        missing.push("  - 'agentPlugin': Debe declarar explícitamente 'agentPlugin: { enabled: true }' o 'agentPlugin: { enabled: false }'.");
+    if (typeof config.agentPlugin?.enabled !== 'boolean') {
+        missing.push("  - 'agentPlugin': El campo 'enabled' debe ser booleano (true o false).");
+    }
+    if (config.fallow?.maxTargetPriority && !VALID_TARGET_PRIORITIES.includes(config.fallow.maxTargetPriority)) {
+        missing.push(`  - 'fallow': Prioridad de objetivo no válida ('${config.fallow.maxTargetPriority}'). Debe ser una de: ${VALID_TARGET_PRIORITIES.join(' | ')}.`);
+    }
+    if (config.runner?.maxStalenessMinutes !== undefined && config.runner.maxStalenessMinutes <= 0) {
+        missing.push("  - 'runner': 'maxStalenessMinutes' debe ser un número positivo mayor a 0.");
     }
 }
 function checkSubsystemDeclarations(config) {
-    const declared = config._declaredSubsystems;
     const missing = [];
-    checkInfrastructureSubsystems(declared, config, missing);
-    checkUiSubsystems(declared, config, missing);
+    checkInfrastructureSubsystems(config, missing);
+    checkUiSubsystems(config, missing);
     return missing;
 }
 /**
- * Validates that all required subsystems are explicitly declared in audit.config.ts.
- * Enforces the "Mandato de Configuración Explícita y Cero Omisiones Silenciosas".
+ * Validates that all required subsystems have valid active or explicitly disabled settings.
+ * Enforces the "Active by Default Subsystem Mandate & Zero Silent Skips".
  */
 export function assertAuditConfigComplete(config) {
     const missing = checkSubsystemDeclarations(config);
     if (missing.length > 0) {
-        throw new Error(`[AuditConfig] Configuración obligatoria incompleta en audit.config.ts (Mandato de Configuración Explícita y Cero Omisiones Silenciosas):\n` +
+        throw new Error(`[AuditConfig] Configuración inválida o incompleta en audit.config.ts (Mandato de Configuración Activa por Defecto):\n` +
             missing.join('\n') +
-            `\n\nTodos los subsistemas deben estar explícitamente configurados (activos o ignorados con enabled: false o engine: 'none').`);
+            `\n\nTodos los subsistemas deben estar correctamente configurados (activos por defecto o desactivados con enabled: false o engine: 'none').`);
     }
 }
 function tryLoadJsonConfig(jsonConfigPath, projectRoot, logWarning = false) {
@@ -357,12 +603,7 @@ export async function loadAuditConfig(projectRoot = process.cwd()) {
             const fileUrl = pathToFileURL(configPath).href;
             const mod = (await import(__rewriteRelativeImportExtension(fileUrl)));
             if (mod.default) {
-                if (mod.default._declaredSubsystems) {
-                    cachedConfig = mod.default;
-                }
-                else {
-                    cachedConfig = defineAuditConfig(mod.default);
-                }
+                cachedConfig = defineAuditConfig(mod.default);
                 cachedProjectRoot = projectRoot;
                 return cachedConfig;
             }

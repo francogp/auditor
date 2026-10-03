@@ -316,19 +316,20 @@ export function validateFallowWorkspaceDiagnostics(
 }
 
 export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
-  private readonly configPath: string;
+private readonly configPath: string;
 
   constructor(targetPath?: string) {
     const isJsonFile = typeof targetPath === 'string' && targetPath.endsWith('.json');
     const projectRoot = isJsonFile ? path.dirname(targetPath) : (targetPath || process.cwd());
 
     super({
-      id: 'validate_fallow_config',
+id: 'validate_fallow_config',
       name: 'Fallow Configuration & Exports Hygiene Validator',
       description: 'Valida integridad de .fallowrc.json y sus ignoreExports',
       family: 'architecture',
       ruleIds: FALLOW_CONFIG_RULES,
       packageName: 'Fallow',
+      icon: '🌾',
       ruleDescriptions: {
         'fallow-config-missing': 'Falta archivo .fallowrc.json',
         'fallow-config-syntax': 'JSON inválido en .fallowrc.json',

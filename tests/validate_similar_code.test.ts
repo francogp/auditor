@@ -182,8 +182,7 @@ describe('ValidateSimilarCodeAuditor', () => {
       const banner = renderSimilarCodeWarningBanner();
       expect(banner).toContain('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE');
       expect(banner).toContain('npx fallow similar-code setup --local --yes');
-      expect(banner).toContain('--skip-similar');
-      expect(banner).toContain('AUDIT_SKIP_SIMILAR=1');
+      expect(banner).toContain('AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1');
       expect(banner).toContain('╔══════════════════════════════════════════════════════════════════════════════╗');
       expect(banner).toContain('╚══════════════════════════════════════════════════════════════════════════════╝');
     });
@@ -200,32 +199,41 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
   });
 
-  describe('Skip-Similar Flag & CI/Deploy Bypassing', () => {
-    it('detects CLI flags and environment variables in isSimilarCodeSkipped', () => {
-      expect(isSimilarCodeSkipped(['--skip-similar'])).toBe(true);
-      expect(isSimilarCodeSkipped(['skip-similar'])).toBe(true);
-      expect(isSimilarCodeSkipped(['--preset=lint'])).toBe(false);
+  describe('Skip-Similar Environment Variable & CI/Deploy Bypassing', () => {
+    it('detects environment variables in isSimilarCodeSkipped', () => {
+      delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;
+      delete process.env.AUDIT_SKIP_SIMILAR;
+      expect(isSimilarCodeSkipped()).toBe(false);
+
+      process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS = '1';
+      expect(isSimilarCodeSkipped()).toBe(true);
+      delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;
+
+      process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS = 'true';
+      expect(isSimilarCodeSkipped()).toBe(true);
+      delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;
 
       process.env.AUDIT_SKIP_SIMILAR = '1';
-      expect(isSimilarCodeSkipped([])).toBe(true);
+      expect(isSimilarCodeSkipped()).toBe(true);
       delete process.env.AUDIT_SKIP_SIMILAR;
 
       process.env.AUDIT_SKIP_SIMILAR = 'true';
-      expect(isSimilarCodeSkipped([])).toBe(true);
+      expect(isSimilarCodeSkipped()).toBe(true);
       delete process.env.AUDIT_SKIP_SIMILAR;
     });
 
     it('skips execution cleanly with zero errors when isSimilarCodeSkipped is active', async () => {
-      process.env.AUDIT_SKIP_SIMILAR = 'true';
+      process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS = 'true';
       const auditor = new ValidateSimilarCodeAuditor(scratchDir);
 
       await auditor.runAudit();
-      delete process.env.AUDIT_SKIP_SIMILAR;
+      delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;
 
       const result = await auditor.finishAudit();
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.status).toBe('skipped');
+      expect(result.metrics['Estado']).toBe('OMITIDO ⏭️');
     });
 
     it('excludes validate_similar_code from discovery when skipSimilar is true', async () => {

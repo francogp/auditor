@@ -388,6 +388,49 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       expect(checkCode('const delay = 555; // number-ok: animation step duration')).toBe(true);
       expect(checkCode('const delay = 555; // magic-ok: bypass')).toBe(true);
     });
+
+    it('does NOT flag files matching patterns configured in constants.exemptGlobs', () => {
+      const config = defineAuditConfig({
+        name: 'test-app',
+        paths: { srcRoots: ['src'] },
+        persistence: { engine: 'none', schemaQualified: false },
+        styles: { zLayersEnabled: false },
+        constants: {
+          exemptGlobs: ['scripts/database/seeds/**', 'ui-demo/**']
+        }
+      });
+      setAuditConfig(config);
+
+      const seedPath = 'scripts/database/seeds/seed_test_users.ts';
+      const demoPath = 'ui-demo/src/components/Card.vue';
+      const prodPath = 'src/logic/battle/calc.ts';
+
+      const regex = new RegExp(magicNumbers.regex.source, magicNumbers.regex.flags);
+      const code = 'const level = 50;';
+
+      let match;
+      let seedFlagged = false;
+      while ((match = regex.exec(code)) !== null) {
+        if (magicNumbers.check?.(code, match, seedPath)) seedFlagged = true;
+      }
+      expect(seedFlagged).toBe(false);
+
+      regex.lastIndex = 0;
+      let demoFlagged = false;
+      while ((match = regex.exec(code)) !== null) {
+        if (magicNumbers.check?.(code, match, demoPath)) demoFlagged = true;
+      }
+      expect(demoFlagged).toBe(false);
+
+      regex.lastIndex = 0;
+      let prodFlagged = false;
+      while ((match = regex.exec(code)) !== null) {
+        if (magicNumbers.check?.(code, match, prodPath)) prodFlagged = true;
+      }
+      expect(prodFlagged).toBe(true);
+
+      resetAuditConfig();
+    });
   });
 
   describe('Clean execution', () => {

@@ -81,6 +81,14 @@ export default defineAuditConfig({
       enabled: true, // Enables strict button governance to unify variants across the entire application
       buttonsScssFile: 'src/styles/_buttons.scss', // Source SCSS file declaring canonical button classes
       canonicalVariants: ['btn-primary', 'btn-secondary', 'btn-dark', 'btn-success', 'btn-danger'] // Allowed canonical button variants
+    },
+    stylelint: {
+      enabled: true, // Enables Stylelint & SCSS hygiene verification
+      configFile: undefined, // Optional custom config path (e.g. '.stylelintrc.json'); auto-discovers local or defaults to canonical
+      rules: {
+        // Optional rule overrides passed directly to Stylelint (e.g. 'alpha-value-notation': 'number')
+      },
+      ignoreGlobs: [] // Additional globs to ignore during CSS/SCSS linting
     }
   },
 
@@ -112,7 +120,11 @@ export default defineAuditConfig({
   constants: {
     ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constants ignored by duplicate detector
     allowedNumericPrefixes: ['BASE_', 'TAX_'], // Permitted prefixes for numeric constants
-    exemptMagicNumbers: [21, 10.5, 27] // Fiscal tax rate numbers exempt from magic number alerts
+    exemptMagicNumbers: [21, 10.5, 27], // Fiscal tax rate numbers exempt from magic number alerts
+    exemptGlobs: [
+      'scripts/maintenance/**', // Specific maintenance scripts exempt from magic numbers
+      'src/data/seed/**' // Tabular seed databases exempt from magic numbers
+    ]
   },
 
   documentation: {

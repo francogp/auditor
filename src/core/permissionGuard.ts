@@ -1,4 +1,46 @@
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import { styleText } from 'node:util';
+
+/**
+ * Polyfills fs.fsync / fs.fsyncSync / FileHandle.prototype.sync as safe no-ops under Node.js --permission model.
+ * Under Node.js permission model, fsync is unconditionally disabled with ERR_ACCESS_DENIED,
+ * causing tools like Stylelint --fix or atomic file writers to fail even when --allow-fs-write=* is granted.
+ */
+export function polyfillPermissionModelFsync(): void {
+  const permission = (process as NodeJS.Process).permission;
+  if (!permission || typeof permission.has !== 'function') {
+    return;
+  }
+
+  try {
+    Reflect.set(fs, 'fsyncSync', () => {});
+    const noopCallback = (_fd: number, callback?: (err: Error | null) => void): void => {
+      if (typeof callback === 'function') callback(null);
+    };
+    Reflect.set(fs, 'fsync', noopCallback);
+    Reflect.set(fsPromises, 'fsync', async () => {});
+  } catch {
+    // catch-ok: fallback if properties are non-configurable
+  }
+
+  try {
+    fsPromises.open(process.execPath, 'r').then(h => {
+      const proto = Object.getPrototypeOf(h);
+      if (proto && typeof proto.sync === 'function') {
+        proto.sync = async () => {};
+      }
+      return h.close();
+    }).catch(() => {
+      // catch-ok: fallback if execPath cannot be opened
+    });
+  } catch {
+    // catch-ok
+  }
+}
+
+// Automatically initialize polyfill on module load
+polyfillPermissionModelFsync();
 
 export interface PermissionRequirements {
   fsRead?: string[];

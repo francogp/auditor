@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, isMainModule, type GitIgnoreRequirement } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -22,11 +22,21 @@ export const MY_COMPOSITE_RULES: readonly MyCompositeRuleId[] = [
 ] as const;
 
 export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
+  // Optional gitignore requirements for tool caches or ephemeral artifacts:
+  public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
+    // { id: 'my-cache', pattern: '.my-cache/', reason: 'Caché de mi herramienta' }
+  ];
+
   constructor() {
     super({
+      // Optional capabilities: all default to false automatically.
+      // Example: capabilities: { lint: true, fix: true },
+      // Optional gitignore requirements registered dynamically without hardcoding:
+      gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
       id: 'validate_my_composite',
       name: 'My Composite Auditor',
       description: 'Valida integridad y paridad cruzada en bases de datos',
+      icon: '🏛️', // Mandatory thematic emoji representing this auditor
       family: 'domain_data', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_COMPOSITE_RULES,
       packageName: 'Datos',

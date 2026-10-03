@@ -122,18 +122,19 @@ function isTextSelectorCandidate(currentSelector: string, leafSelector: string):
 }
 
 export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleId> {
-  private totalRulesChecked = 0;
+private totalRulesChecked = 0;
 
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? config.paths?.srcRoots ?? ['src'];
     super({
-      id: 'validate_typography_line_height',
+id: 'validate_typography_line_height',
       name: 'Typography Line-Height & Interlinear Spacing Validator',
       description: 'Detecta colisiones de line-height en tipografías multilínea',
       family: 'architecture',
       ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
       packageName: 'Tipografía',
+      icon: '🔤',
       ruleDescriptions: {
         'line-height-overlap': 'Colisión de line-height'
       },

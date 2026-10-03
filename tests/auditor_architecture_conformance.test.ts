@@ -218,6 +218,43 @@ describe('Auditor Architecture Conformance', () => {
     });
   });
 
+  describe('AuditorCapabilities Declaration & Conformance Mandate', () => {
+    it('100% of discovered tasks possess complete AuditorCapabilities with 7 booleans', async () => {
+      const allTasks = await discoverAuditors();
+      expect(allTasks.length).toBeGreaterThanOrEqual(38);
+
+      for (const task of allTasks) {
+        expect(task.capabilities, `Task '${task.id}' missing capabilities`).toBeDefined();
+        expect(typeof task.capabilities?.fix).toBe('boolean');
+        expect(typeof task.capabilities?.lint).toBe('boolean');
+        expect(typeof task.capabilities?.md).toBe('boolean');
+        expect(typeof task.capabilities?.ast).toBe('boolean');
+        expect(typeof task.capabilities?.changedSince).toBe('boolean');
+        expect(typeof task.capabilities?.heavy).toBe('boolean');
+        expect(typeof task.capabilities?.requiresBuild).toBe('boolean');
+      }
+    });
+
+    it('expected auto-repair suites declare capabilities.fix = true', async () => {
+      const allTasks = await discoverAuditors();
+      const fixIds = allTasks.filter(t => t.capabilities?.fix).map(t => t.id).sort();
+      const EXPECTED_FIX_SUITES = [
+        'audit_project',
+        'validate_accessibility',
+        'validate_agent_plugin',
+        'validate_audit_config',
+        'validate_eslint',
+        'validate_html_validate',
+        'validate_markdown_lint',
+        'validate_package_hygiene',
+        'validate_stylelint',
+        'validate_z_index'
+      ].sort();
+
+      expect(fixIds).toEqual(EXPECTED_FIX_SUITES);
+    });
+  });
+
   describe('Visual Column Alignment Tests', () => {
     it('status badges have identical visual character widths across all states', async () => {
       const { formatStatusBadge, getVisualWidth } = await import('../src/core/unifiedTheme.ts');

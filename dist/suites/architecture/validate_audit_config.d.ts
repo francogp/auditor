@@ -9,16 +9,25 @@
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { type AuditEngineConfig } from '../../core/auditConfig.ts';
-export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension';
+export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-build-audit' | 'audit-config-invalid-build-script' | 'audit-config-missing-recommended-script';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
+export declare const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>>;
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
+export interface ValidateAuditConfigOptions {
+    projectRoot?: string;
+    fix?: boolean;
+}
 export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
-    constructor(targetPath?: string);
+    private readonly fixMode;
+    constructor(targetPathOrOptions?: string | ValidateAuditConfigOptions);
+    private isFixActive;
     runAudit(): Promise<void>;
+    private verifyGitIgnore;
     private checkPathExists;
     private verifyPathRoots;
     private verifyPersistencePaths;
     private verifyDomainAndStylePaths;
     private verifyExtensionPaths;
+    private verifyPackageScripts;
 }
 //# sourceMappingURL=validate_audit_config.d.ts.map

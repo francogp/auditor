@@ -2,20 +2,18 @@
 /**
  * packages/auditor/src/cli/report_css.ts
  *
- * CLI TOOL: REPORTE DE CALIDAD, DUPLICACIÓN Y PATRONES CSS (POSTCSS AST)
+ * CLI TOOL: REPORTE DE CALIDAD, DUPLICACIÓN Y PATRONES CSS (STYLELINT ENGINE)
  *
  * Generates an 80-column Box-Drawing report or structured JSON output of CSS issues:
- * duplicate rules, similar classes, unvariabled colors, long lines, and duplicate selectors.
+ * duplicate selectors, duplicate properties, empty blocks, order, and SCSS syntax.
  *
  * Usage:
  *   auditor-css
- *   auditor-css --category=duplicates
- *   auditor-css --category=similar
- *   auditor-css --category=colors
- *   auditor-css --category=long-lines
  *   auditor-css --category=selectors
+ *   auditor-css --category=properties
  *   auditor-css --category=empty
  *   auditor-css --json
+ *   auditor-css --errors-only
  */
 export declare function runCssReport(projectRoot?: string): Promise<void>;
 //# sourceMappingURL=report_css.d.ts.map

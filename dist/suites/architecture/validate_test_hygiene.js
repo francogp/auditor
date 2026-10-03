@@ -61,6 +61,7 @@ export class TestHygieneAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: TEST_HYGIENE_RULES,
             packageName: 'Tests',
+            icon: '🧪',
             ruleDescriptions: {
                 'no-tautological-integration-mocks': 'Mock tautológico en integración',
                 'playwright-id-locators-only': 'Locator Playwright sin ID',

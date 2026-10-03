@@ -32,6 +32,7 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
       id: 'validate_overscroll_lock',
       name: 'Mobile Overscroll Behavior Lock Validator',
       description: 'Bloqueo de overscroll-behavior en hoja base para juegos móviles',
+      icon: '📱',
       family: 'architecture',
       ruleIds: OVERSCROLL_LOCK_RULES,
       packageName: 'Móvil',

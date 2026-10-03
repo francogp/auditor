@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, isMainModule, type GitIgnoreRequirement } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -22,11 +22,19 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
 ] as const;
 
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
+  // Optional gitignore requirements for tool caches or ephemeral artifacts:
+  public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [];
+
   constructor(roots: readonly string[] = ['src']) {
     super({
+      // Optional capabilities: all default to false automatically.
+      // Example: capabilities: { lint: true, fix: true },
+      // Optional gitignore requirements registered dynamically without hardcoding:
+      gitIgnoreEntries: MyFeatureAuditor.gitIgnoreEntries,
       id: 'validate_my_feature',
       name: 'My Feature Auditor',
       description: 'Valida tokens prohibidos y atributos en src/',
+      icon: '🔍', // Mandatory thematic emoji representing this auditor
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',

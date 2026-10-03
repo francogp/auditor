@@ -30,18 +30,20 @@ export const DUPLICATE_CONSTANTS_RULES: readonly DuplicateConstantsRuleId[] = [
 ] as const;
 
 export class DuplicateConstantsAuditor extends BaseAuditor<DuplicateConstantsRuleId> {
-  constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
+constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = options.roots ?? config.paths.srcRoots ?? ['src'];
 
     super({
+      capabilities: { ast: true },
       id: 'validate_duplicate_constants',
       name: 'Duplicate Constants Validator',
       description: 'Detecta constantes duplicadas entre módulos usando AST',
       family: 'architecture',
       ruleIds: DUPLICATE_CONSTANTS_RULES,
       packageName: 'Constantes',
+      icon: '🔢',
       ruleDescriptions: {
         'duplicate-constant-identical': 'Constante idéntica duplicada',
         'duplicate-constant-divergent': 'Constante dispar entre módulos'

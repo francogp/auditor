@@ -63,7 +63,7 @@ const TIMEOUT_INFLATION_REGEX = /(?:testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:
 const VI_MOCK_REGEX = /vi\.mock\(\s*['"]([^'"]+)['"]/g;
 
 export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
-  constructor() {
+constructor() {
     const config = getAuditConfig();
     const testRoots = [
       ...config.paths.integrationRoots,
@@ -72,12 +72,13 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
     ];
 
     super({
-      id: 'validate_test_hygiene',
+id: 'validate_test_hygiene',
       name: 'Test Hygiene & Simulation Integrity Validator',
       description: 'Audita higiene en tests, mocks y locators de Playwright',
       family: 'architecture',
       ruleIds: TEST_HYGIENE_RULES,
       packageName: 'Tests',
+      icon: '🧪',
       ruleDescriptions: {
         'no-tautological-integration-mocks': 'Mock tautológico en integración',
         'playwright-id-locators-only': 'Locator Playwright sin ID',

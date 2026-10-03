@@ -174,8 +174,8 @@ export function analyzeVersionBump(options = {}) {
         }
     }
     // Heuristic evaluation
-    let recommendedBump = 'patch';
-    let rationale = '';
+    let recommendedBump;
+    let rationale;
     if (metrics.hasBreakingChanges) {
         recommendedBump = 'major';
         rationale = 'Cambio de ruptura (breaking change) declarado explícitamente en el commit.';

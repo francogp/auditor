@@ -89,6 +89,15 @@ export interface AuditCssDuplicatesConfig {
     readonly checkEmptyRules?: boolean;
     readonly checkUnused?: boolean;
 }
+export interface AuditStylelintConfig {
+    readonly enabled?: boolean;
+    readonly configFile?: string;
+    readonly rules?: Record<string, unknown>;
+    readonly ignoreGlobs?: readonly string[];
+}
+export interface AuditEslintConfig {
+    readonly enabled?: boolean;
+}
 export interface AuditStylesConfig {
     readonly globalUtilityClasses?: readonly string[];
     readonly canonicalButtonVariants?: readonly string[];
@@ -105,6 +114,7 @@ export interface AuditStylesConfig {
         readonly canonicalVariants?: readonly string[];
     };
     readonly duplicates?: AuditCssDuplicatesConfig;
+    readonly stylelint?: AuditStylelintConfig;
 }
 export interface AuditE2eConfig {
     readonly idLocatorsOnly?: boolean;
@@ -140,6 +150,7 @@ export interface AuditConstantsConfig {
     readonly ignoredNames?: readonly string[];
     readonly exemptMagicNumbers?: readonly number[];
     readonly allowedNumericPrefixes?: readonly string[];
+    readonly exemptGlobs?: readonly string[];
 }
 export interface AuditSecurityConfig {
     readonly enabled?: boolean;
@@ -184,13 +195,52 @@ export interface AuditRunnerConfig {
      */
     readonly maxStalenessMinutes?: number;
 }
+export interface AuditPackageHygieneConfig {
+    readonly enabled?: boolean;
+    readonly ignoreDependencies?: readonly string[];
+    readonly ignoreBinaries?: readonly string[];
+}
+export interface AuditPackageDistributionConfig {
+    readonly enabled: boolean;
+    readonly pkgDir?: string;
+    readonly level?: 'suggestion' | 'warning' | 'error';
+}
+export interface AuditAccessibilityConfig {
+    readonly enabled?: boolean;
+    readonly rules?: Record<string, boolean>;
+}
+export interface AuditTypeCoverageConfig {
+    readonly enabled?: boolean;
+    readonly atLeast?: number;
+    readonly strict?: boolean;
+    readonly ignoreFiles?: readonly string[];
+}
+export interface AuditGitIgnoreCustomEntry {
+    readonly id: string;
+    readonly pattern: string;
+    readonly reason: string;
+    readonly samplePath?: string;
+}
+export interface AuditGitIgnoreConfig {
+    readonly enabled?: boolean;
+    readonly extraRequiredEntries?: readonly (string | AuditGitIgnoreCustomEntry)[];
+}
+export interface AuditPackageScriptsConfig {
+    readonly enabled?: boolean;
+    readonly enforceBuildAudit?: boolean;
+    readonly recommendedScripts?: boolean;
+    readonly extraRequiredScripts?: readonly string[];
+}
 export interface AuditEngineConfig {
     readonly name: string;
     readonly paths: AuditPathsConfig;
     readonly persistence: AuditPersistenceConfig;
     readonly domain: AuditDomainConfig;
+    readonly gitIgnore?: AuditGitIgnoreConfig;
     readonly templates?: AuditTemplatesConfig;
     readonly styles?: AuditStylesConfig;
+    readonly stylelint?: AuditStylelintConfig;
+    readonly eslint?: AuditEslintConfig;
     readonly bundle?: AuditBundleConfig;
     readonly agentPlugin?: AuditAgentPluginConfig;
     readonly animation?: AuditAnimationConfig;
@@ -200,6 +250,11 @@ export interface AuditEngineConfig {
     readonly pinia?: AuditPiniaConfig;
     readonly fallow?: AuditFallowConfig;
     readonly e2e?: AuditE2eConfig;
+    readonly packageHygiene?: AuditPackageHygieneConfig;
+    readonly packageDistribution?: AuditPackageDistributionConfig;
+    readonly packageScripts?: AuditPackageScriptsConfig;
+    readonly accessibility?: AuditAccessibilityConfig;
+    readonly typeCoverage?: AuditTypeCoverageConfig;
     readonly customFamilies?: readonly CustomAuditFamilyConfig[];
     readonly extensions?: readonly string[];
     readonly presets?: Record<string, readonly string[]>;
@@ -212,12 +267,15 @@ export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 export declare const DEFAULT_AUDIT_CONFIG: AuditEngineConfig;
+export declare const FORBIDDEN_PRODUCTION_ROOTS: readonly string[];
+export declare const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
+export declare function validateConstantsExemptGlobs(globs: readonly string[]): void;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
     name: string;
 }): AuditEngineConfig;
 /**
- * Validates that all required subsystems are explicitly declared in audit.config.ts.
- * Enforces the "Mandato de Configuración Explícita y Cero Omisiones Silenciosas".
+ * Validates that all required subsystems have valid active or explicitly disabled settings.
+ * Enforces the "Active by Default Subsystem Mandate & Zero Silent Skips".
  */
 export declare function assertAuditConfigComplete(config: AuditEngineConfig): void;
 /**

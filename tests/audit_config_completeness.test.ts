@@ -1,8 +1,8 @@
 /**
  * packages/auditor/tests/audit_config_completeness.test.ts
  *
- * Unit tests for Mandatory Explicit Configuration & Zero Silent Skips Mandate.
- * Validates assertAuditConfigComplete enforces all subsystems are declared.
+ * Unit tests for Active by Default Subsystem Mandate & Zero Silent Skips.
+ * Validates that all subsystems default to active and omitting declarations is valid.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -12,7 +12,32 @@ import {
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES
 } from '../src/core/auditConfig.ts';
 
-describe('Audit Configuration Completeness & Mandato de Configuración Explícita', () => {
+describe('Audit Configuration Completeness & Mandato de Configuración Activa por Defecto', () => {
+  it('succeeds and activates all subsystems by default when an empty config is provided ("si no dice nada")', () => {
+    const config = defineAuditConfig({
+      name: 'Empty Config Project'
+    });
+
+    expect(() => assertAuditConfigComplete(config)).not.toThrow();
+    expect(config.persistence.engine).toBe('supabase');
+    expect(config.bundle?.enabled).toBe(true);
+    expect(config.styles?.zLayersEnabled).toBe(true);
+    expect(config.templates?.requireInputIds).toBe(true);
+    expect(config.agentPlugin?.enabled).toBe(true);
+    expect(config.packageHygiene?.enabled).toBe(true);
+    expect(config.packageDistribution?.enabled).toBe(false);
+    expect(config.packageScripts?.enabled).toBe(true);
+    expect(config.accessibility?.enabled).toBe(true);
+    expect(config.typeCoverage?.enabled).toBe(true);
+    expect(config.gitIgnore?.enabled).toBe(true);
+    expect(config.domain.enabled).toBe(true);
+    expect(config.fallow?.enabled).toBe(true);
+    expect(config.fallow?.security?.enabled).toBe(true);
+    expect(config.fallow?.similarCode?.enabled).toBe(true);
+    expect(config.eslint?.enabled).toBe(true);
+    expect(config.stylelint?.enabled).toBe(true);
+  });
+
   it('succeeds when all subsystems are explicitly declared as active', () => {
     const config = defineAuditConfig({
       name: 'Full Active Project',
@@ -33,6 +58,9 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
       },
       agentPlugin: {
         enabled: true
+      },
+      packageDistribution: {
+        enabled: true
       }
     });
 
@@ -46,6 +74,9 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
         engine: 'none'
       },
       bundle: {
+        enabled: false
+      },
+      packageDistribution: {
         enabled: false
       },
       styles: {
@@ -62,69 +93,69 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
     expect(() => assertAuditConfigComplete(config)).not.toThrow();
   });
 
-  it('throws an informative error when persistence subsystem is omitted', () => {
+  it('throws an informative error when persistence engine is invalid', () => {
     const config = defineAuditConfig({
-      name: 'Missing Persistence Project',
-      bundle: { enabled: false },
-      styles: { zLayersEnabled: false },
-      templates: { requireInputIds: false },
-      agentPlugin: { enabled: false }
+      name: 'Invalid Persistence Project',
+      persistence: { engine: 'invalid-db' as any }
     });
 
     expect(() => assertAuditConfigComplete(config)).toThrowError(/persistence/i);
   });
 
-  it('throws an informative error when bundle subsystem is omitted', () => {
+  it('throws an informative error when bundle.enabled is not a boolean', () => {
     const config = defineAuditConfig({
-      name: 'Missing Bundle Project',
-      persistence: { engine: 'sqlite' },
-      styles: { zLayersEnabled: false },
-      templates: { requireInputIds: false },
-      agentPlugin: { enabled: false }
+      name: 'Invalid Bundle Project',
+      bundle: { enabled: 'not-a-bool' as any }
     });
 
     expect(() => assertAuditConfigComplete(config)).toThrowError(/bundle/i);
   });
 
-  it('throws an informative error when styles subsystem is omitted', () => {
+  it('throws an informative error when packageDistribution.level is invalid', () => {
     const config = defineAuditConfig({
-      name: 'Missing Styles Project',
-      persistence: { engine: 'sqlite' },
-      bundle: { enabled: false },
-      templates: { requireInputIds: false },
-      agentPlugin: { enabled: false }
+      name: 'Invalid Package Distribution Project',
+      packageDistribution: { enabled: true, level: 'super-critical' as any }
+    });
+
+    expect(() => assertAuditConfigComplete(config)).toThrowError(/packageDistribution/i);
+  });
+
+  it('throws an informative error when styles.zLayersEnabled is not a boolean', () => {
+    const config = defineAuditConfig({
+      name: 'Invalid Styles Project',
+      styles: { zLayersEnabled: 'not-a-bool' as any }
     });
 
     expect(() => assertAuditConfigComplete(config)).toThrowError(/styles/i);
   });
 
-  it('throws an informative error when templates subsystem is omitted', () => {
+  it('throws an informative error when templates.requireInputIds is not a boolean', () => {
     const config = defineAuditConfig({
-      name: 'Missing Templates Project',
-      persistence: { engine: 'sqlite' },
-      bundle: { enabled: false },
-      styles: { zLayersEnabled: false },
-      agentPlugin: { enabled: false }
+      name: 'Invalid Templates Project',
+      templates: { requireInputIds: 'not-a-bool' as any }
     });
 
     expect(() => assertAuditConfigComplete(config)).toThrowError(/templates/i);
   });
 
-  it('throws an informative error when agentPlugin subsystem is omitted', () => {
+  it('throws an informative error when agentPlugin.enabled is not a boolean', () => {
     const config = defineAuditConfig({
-      name: 'Missing Agent Plugin Project',
-      persistence: { engine: 'sqlite' },
-      bundle: { enabled: false },
-      styles: { zLayersEnabled: false },
-      templates: { requireInputIds: false }
+      name: 'Invalid Agent Plugin Project',
+      agentPlugin: { enabled: 'not-a-bool' as any }
     });
 
     expect(() => assertAuditConfigComplete(config)).toThrowError(/agentPlugin/i);
   });
 
-  it('aggregates all missing subsystems into a single comprehensive diagnostic message', () => {
+  it('aggregates multiple invalid subsystem configurations into a single diagnostic message', () => {
     const config = defineAuditConfig({
-      name: 'Empty Config Project'
+      name: 'Multiple Invalid Project',
+      persistence: { engine: 'invalid-db' as any },
+      bundle: { enabled: 'not-a-bool' as any },
+      packageDistribution: { enabled: true, level: 'invalid-level' as any },
+      styles: { zLayersEnabled: 'not-a-bool' as any },
+      templates: { requireInputIds: 'not-a-bool' as any },
+      agentPlugin: { enabled: 'not-a-bool' as any }
     });
 
     try {
@@ -134,10 +165,11 @@ describe('Audit Configuration Completeness & Mandato de Configuración Explícit
       const msg = (err as Error).message;
       expect(msg).toContain('persistence');
       expect(msg).toContain('bundle');
+      expect(msg).toContain('packageDistribution');
       expect(msg).toContain('styles');
       expect(msg).toContain('templates');
       expect(msg).toContain('agentPlugin');
-      expect(msg).toContain('Mandato de Configuración Explícita');
+      expect(msg).toContain('Mandato de Configuración Activa por Defecto');
     }
   });
 

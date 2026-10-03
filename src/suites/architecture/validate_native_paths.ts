@@ -440,11 +440,11 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
 }
 
 export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
-      id: 'validate_native_paths',
+id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
       description: 'Garantiza uso de path.posix y evita CWE-22 traversal',
       family: 'architecture',
@@ -455,6 +455,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
         'hardcoded-slash-path'
       ],
       packageName: 'Path',
+      icon: '🛤️',
       ruleDescriptions: {
         'unsafe-path-concat': 'Concatenación insegura de rutas',
         'unsanitized-env-argv-path': 'Ruta argv/env sin sanitizar',

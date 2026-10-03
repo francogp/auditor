@@ -107,7 +107,6 @@ export declare const noInlineAnonymousObjectType: AuditRule;
 export declare const noFloatingPromises: AuditRule;
 export declare const noLeakedGlobalState: AuditRule;
 export declare const missingInteractiveId: AuditRule;
-export declare const sassTraps: AuditRule;
 export declare const strictDomainParamTypes: AuditRule;
 export declare const noInlineTypeImports: AuditRule;
 export declare const noInlineLiteralUnions: AuditRule;
@@ -156,7 +155,6 @@ export declare const auditRulesConfig: {
     noFloatingPromises: AuditRule;
     noLeakedGlobalState: AuditRule;
     missingInteractiveId: AuditRule;
-    sassTraps: AuditRule;
     noImportantOnTransforms: AuditRule;
     noImportantOnFilters: AuditRule;
     noRawJsonImportsOutsideData: AuditRule;

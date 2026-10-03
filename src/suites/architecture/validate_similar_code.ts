@@ -80,18 +80,13 @@ export function isFastPresetActive(): boolean {
   );
 }
 
-export function isSimilarCodeSkipped(argv: readonly string[] = process.argv): boolean {
-  if (
+export function isSimilarCodeSkipped(): boolean {
+  return (
+    process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === 'true' ||
+    process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === '1' ||
     process.env.AUDIT_SKIP_SIMILAR === 'true' ||
     process.env.AUDIT_SKIP_SIMILAR === '1'
-  ) {
-    return true;
-  }
-
-  return argv.some(arg => {
-    const lower = arg.toLowerCase().trim();
-    return lower === '--skip-similar' || lower === 'skip-similar';
-  });
+  );
 }
 
 import { sanitizePath } from '../../core/safePath.ts';
@@ -203,16 +198,18 @@ export function evaluateSimilarCodeCandidates(
 }
 
 export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
-  constructor(targetPath?: string) {
+constructor(targetPath?: string) {
     const projectRoot = targetPath || process.cwd();
 
     super({
+      capabilities: { heavy: true },
       id: 'validate_similar_code',
       name: 'Fallow Similar Code Semantics Validator',
       description: 'Detecta duplicados semánticos de funciones',
       family: 'architecture',
       ruleIds: SIMILAR_CODE_RULES,
       packageName: 'Fallow',
+      icon: '🔍',
       ruleDescriptions: {
         'fallow-similar-code': 'Duplicado semántico',
         'fallow-similar-code-failed': 'Fallo de ejecución similar-code'
@@ -320,14 +317,17 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     const similarCfg = config.fallow?.similarCode;
 
     if (!similarCfg?.enabled) {
+      this.markSkipped('Deshabilitado en audit.config.ts (fallow.similarCode.enabled: false)');
       return;
     }
 
     if (isSimilarCodeSkipped()) {
+      this.markSkipped('Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)');
       return;
     }
 
     if (isFastPresetActive()) {
+      this.markSkipped('Omitido en preset rápido');
       return;
     }
 

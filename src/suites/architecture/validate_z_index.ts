@@ -126,16 +126,18 @@ export function auditZIndexParity(
 }
 
 export class ZIndexAuditor extends BaseAuditor<ZIndexRuleId> {
-  private readonly scssPath?: string;
+private readonly scssPath?: string;
   private readonly isExplicit: boolean;
 
   constructor(scssPath?: string) {
     super({
+      capabilities: { fix: true },
       id: 'validate_z_index',
       name: 'Z-Index Consistency Validator',
       description: 'Valida paridad entre Z_LAYERS (TS) y variables CSS (SCSS)',
       family: 'architecture',
       packageName: 'Z-Index',
+      icon: '🥞',
       ruleIds: Z_INDEX_RULES,
       ruleDescriptions: {
         'z-index-missing-var': 'Falta variable en _base.scss',

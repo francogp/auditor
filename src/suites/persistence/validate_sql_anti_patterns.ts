@@ -90,7 +90,7 @@ function isIntegerRangeLoop(executionBody: string, matchIndex: number): boolean 
 }
 
 export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
-  private readonly configuredMigrationsDir: string;
+private readonly configuredMigrationsDir: string;
   private readonly authorizedSaveFiles: ReadonlySet<string>;
   private readonly saveKeyPrefixes: readonly string[];
 
@@ -104,12 +104,13 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     const srcRoots = config.paths.srcRoots || ['src'];
 
     super({
-      id: 'validate_sql_anti_patterns',
+id: 'validate_sql_anti_patterns',
       name: 'SQL & Persistence Anti-Patterns Validator',
       description: 'Antipatrones SQL, variables sin declarar o camelCase',
       family: 'persistence',
       ruleIds: SQL_ANTI_PATTERN_RULES,
       packageName: 'SQL',
+      icon: '💾',
       ruleDescriptions: {
         'sql-no-positional-arrays': 'Mutación de array JSON en SQL',
         'sql-plpgsql-declared-variables': 'Variable PL/pgSQL sin declarar',

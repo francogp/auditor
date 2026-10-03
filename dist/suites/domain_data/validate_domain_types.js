@@ -56,7 +56,7 @@ const P_TYPECAST_INLINE_ANY = /\bas\s+any\b/g;
 const P_TYPECAST_READONLY_STRING_ARRAY = /\bas\s+(?:readonly\s+)?string\[\]/g;
 const P_TYPECAST_INLINE_DOMAIN_ID = /\bas\s+(?:[A-Z]\w*Id|keyof\s+typeof\s+[A-Z_a-z]\w*)\b/g;
 const P_TYPECAST_RECORD_STRING = /\bas\s+Record\s*<\s*string\s*,/g;
-const P_TYPECAST_ARRAY_ANY_UNKNOWN = /\bas\s+(?:any|unknown)\[\]/g;
+const P_TYPECAST_ARRAY_ANY_UNKNOWN = /\bas\s+(?:unknown|any)\[\]/g;
 const P_OBJECT_KEYS_CAST = /\bObject\.(?:keys|entries)\s*\([^)]+\)\s+as\s+(?:\([|\w\s]+\)|[A-Za-z]\w*)\[\]/g;
 // Java-Style & Phase 2/3 Advanced Strict Typing Patterns
 const P_INLINE_ANONYMOUS_OBJECT_PARAM = /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*(?:;|,)\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g;
@@ -274,7 +274,8 @@ export async function auditFile(filePath) {
     findings.push(...findMatches(content, rel, P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS, 'Ambiguous type alias mixes empty-string sentinel with null/undefined', 'ERROR'));
     findings.push(...findMatches(content, rel, P_AMBIGUOUS_EMPTY_NULL_FIELD, 'Ambiguous field type mixes empty-string sentinel with null/undefined', 'ERROR', (_match, _line, file) => isContractFile(file)));
     findings.push(...findMatches(content, rel, P_TYPECAST_UNKNOWN, 'Double type assertion (`as unknown` + `as T`) used to bypass domain contracts — use typed boundary guards or Window augmentations', 'ERROR'));
-    findings.push(...findMatches(content, rel, P_TYPECAST_INLINE_ANY, 'Type assertion `as any` used to bypass TypeScript checks — strictly forbidden by Zero-Any policy', 'ERROR', (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('eslint-disable')));
+    findings.push(...findMatches(content, rel, P_TYPECAST_INLINE_ANY, 'Type assertion `as any` used to bypass TypeScript checks — strictly forbidden by Zero-Any policy', // type-ok: Sub-auditor violation message describing forbidden cast
+    'ERROR', (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('eslint-disable')));
     findings.push(...findMatches(content, rel, P_TYPECAST_READONLY_STRING_ARRAY, 'Type assertion `as readonly string[]` or `as string[]` used to bypass tuple domain inclusion check — use strict domain type parameter or `isDomainId` guard', // no-domain: Non-domain utility collection or data structure
     'ERROR', (_match, line, _file) => {
         if (line.includes('// domain-ok: Open dynamic text or non-domain string payload') || line.includes('// no-domain: Non-domain utility collection or data structure'))
@@ -284,7 +285,8 @@ export async function auditFile(filePath) {
     findings.push(...findMatches(content, rel, P_TYPECAST_INLINE_DOMAIN_ID, 'Inline type assertion `as DomainId` used to force dynamic string into domain type — use boundary guard `isDomainId()` or `requireDomainId()`', 'ERROR', (_match, line) => !/\bfunction\s+(?:is|require)[A-Z_a-z]\w*/.test(line) && !/\bis[A-Z_a-z]\w*\s*=\s*/.test(line) && !line.includes('// domain-ok: Open dynamic text or non-domain string payload')));
     findings.push(...findMatches(content, rel, P_TYPECAST_RECORD_STRING, 'Type assertion `as Record<string, ...>` used to bypass strict domain map keys — use typed boundary guard', // open-record: Generic key-value data dictionary container
     'ERROR', (_match, line) => !line.includes('// open-record: Generic key-value data dictionary container') && !line.includes('// no-domain: Non-domain utility collection or data structure')));
-    findings.push(...findMatches(content, rel, P_TYPECAST_ARRAY_ANY_UNKNOWN, 'Type assertion `as any[]` or `as unknown[]` erases element domain types — define explicit interface or discriminated union', 'ERROR', (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('// no-domain: Non-domain utility collection or data structure')));
+    findings.push(...findMatches(content, rel, P_TYPECAST_ARRAY_ANY_UNKNOWN, 'Type assertion `as any[]` or `as unknown[]` erases element domain types — define explicit interface or discriminated union', // type-ok: Sub-auditor violation message describing forbidden cast
+    'ERROR', (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('// no-domain: Non-domain utility collection or data structure')));
     findings.push(...findMatches(content, rel, P_OBJECT_KEYS_CAST, 'Type assertion on `Object.keys(...)` or `Object.entries(...)` to `as DomainId[]` — use typed helper or `isDomainId` filtering', 'ERROR', (_match, line) => !/\bfunction\s+is[A-Z_a-z]\w*/.test(line) && !line.includes('// domain-ok: Open dynamic text or non-domain string payload')));
     findings.push(...findMatches(content, rel, P_INLINE_ANONYMOUS_OBJECT_PARAM, 'Inline anonymous object type in function parameter prohibited — define a named interface or type contract', 'ERROR', (_match, line) => !line.includes('// type-ok: Type contract declaration') && !line.includes('// domain-ok: Open dynamic text or non-domain string payload') && !line.includes('withDefaults')));
     findings.push(...findMatches(content, rel, P_UNNAMED_POSITIONAL_TUPLE_RETURN, 'Positional array return without tuple type annotation — declare explicit tuple return type `: readonly [T1, T2]` or `as const`', 'WARN', (_match, line) => !line.includes('// type-ok: Type contract declaration') && !line.includes('as const')));
@@ -727,12 +729,14 @@ export class DomainTypesAuditor extends BaseAuditor {
             ? [...(config.paths.codeRoots ?? ['src', 'scripts']), ...(config.paths.testRoots ?? ['tests'])]
             : (config.paths.codeRoots ?? ['src', 'scripts']));
         super({
+            capabilities: { lint: true },
             id: 'validate_domain_types',
             name: 'Domain Types Integrity Audit',
             description: 'Uso de strings crudos en vez de tipos de dominio',
             family: 'domain_data',
             ruleIds: DOMAIN_TYPES_RULES,
             packageName: 'Dominio',
+            icon: '🔒',
             ruleDescriptions: {
                 'domain-type-violation': 'String crudo en vez de tipo de dominio'
             },

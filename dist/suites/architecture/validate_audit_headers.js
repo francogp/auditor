@@ -167,12 +167,14 @@ export class AuditHeadersAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
         super({
+            capabilities: { lint: true },
             id: 'validate_audit_headers',
             name: 'Audit Headers & Suppression Validator',
             description: 'Prohíbe supresiones a nivel de archivo e ignores globales',
             family: 'architecture',
             ruleIds: HEADER_RULES,
             packageName: 'Header',
+            icon: '📰',
             ruleDescriptions: {
                 'file-level-fallow-ignore': 'fallow-ignore-file prohibido',
                 'file-level-eslint-disable': 'eslint-disable global prohibido',

@@ -17,13 +17,22 @@
     "tests/**"
   ],
   "ignoreDependencies": [
+    "@projectwallace/stylelint-plugin",
     "fallow",
     "html-validate",
     "html-validate-vue",
+    "knip",
     "markdownlint-cli",
-    "postcss",
-    "postcss-scss",
+    "postcss-html",
+    "publint",
     "rollup-plugin-visualizer",
+    "stylelint",
+    "stylelint-config-standard",
+    "stylelint-config-standard-scss",
+    "stylelint-config-standard-vue",
+    "stylelint-order",
+    "stylelint-scss",
+    "type-coverage",
     "typescript"
   ],
   "health": {

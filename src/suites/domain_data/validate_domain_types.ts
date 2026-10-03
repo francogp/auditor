@@ -60,7 +60,7 @@ const P_TYPECAST_INLINE_ANY = /\bas\s+any\b/g;
 const P_TYPECAST_READONLY_STRING_ARRAY = /\bas\s+(?:readonly\s+)?string\[\]/g;
 const P_TYPECAST_INLINE_DOMAIN_ID = /\bas\s+(?:[A-Z]\w*Id|keyof\s+typeof\s+[A-Z_a-z]\w*)\b/g;
 const P_TYPECAST_RECORD_STRING = /\bas\s+Record\s*<\s*string\s*,/g;
-const P_TYPECAST_ARRAY_ANY_UNKNOWN = /\bas\s+(?:any|unknown)\[\]/g;
+const P_TYPECAST_ARRAY_ANY_UNKNOWN = /\bas\s+(?:unknown|any)\[\]/g;
 const P_OBJECT_KEYS_CAST = /\bObject\.(?:keys|entries)\s*\([^)]+\)\s+as\s+(?:\([|\w\s]+\)|[A-Za-z]\w*)\[\]/g;
 
 // Java-Style & Phase 2/3 Advanced Strict Typing Patterns
@@ -483,7 +483,7 @@ export async function auditFile(filePath: string): Promise<Finding[]> {
     content,
     rel,
     P_TYPECAST_INLINE_ANY,
-    'Type assertion `as any` used to bypass TypeScript checks — strictly forbidden by Zero-Any policy',
+    'Type assertion `as any` used to bypass TypeScript checks — strictly forbidden by Zero-Any policy', // type-ok: Sub-auditor violation message describing forbidden cast
     'ERROR',
     (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('eslint-disable')
   ));
@@ -522,7 +522,7 @@ export async function auditFile(filePath: string): Promise<Finding[]> {
     content,
     rel,
     P_TYPECAST_ARRAY_ANY_UNKNOWN,
-    'Type assertion `as any[]` or `as unknown[]` erases element domain types — define explicit interface or discriminated union',
+    'Type assertion `as any[]` or `as unknown[]` erases element domain types — define explicit interface or discriminated union', // type-ok: Sub-auditor violation message describing forbidden cast
     'ERROR',
     (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('// no-domain: Non-domain utility collection or data structure')
   ));
@@ -1183,7 +1183,7 @@ export const DOMAIN_TYPES_RULES: readonly DomainTypesRuleId[] = [
 ] as const;
 
 export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? (
       config.paths.includeTestsInCodeAudit
@@ -1191,12 +1191,14 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
         : (config.paths.codeRoots ?? ['src', 'scripts'])
     );
     super({
-      id: 'validate_domain_types',
+      capabilities: { lint: true },
+id: 'validate_domain_types',
       name: 'Domain Types Integrity Audit',
       description: 'Uso de strings crudos en vez de tipos de dominio',
       family: 'domain_data',
       ruleIds: DOMAIN_TYPES_RULES,
       packageName: 'Dominio',
+      icon: '🔒',
       ruleDescriptions: {
         'domain-type-violation': 'String crudo en vez de tipo de dominio'
       },

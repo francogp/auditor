@@ -54,7 +54,7 @@ export function updateAuditorPackage(options = {}) {
             error: `No se encontró package.json en ${projectRoot}`
         };
     }
-    let hostPkg = {};
+    let hostPkg;
     try {
         hostPkg = JSON.parse(fs.readFileSync(hostPkgJsonPath, 'utf-8'));
     }

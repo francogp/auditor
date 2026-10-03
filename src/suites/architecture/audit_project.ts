@@ -25,7 +25,14 @@ import {
   auditRulesConfig as config
 } from './audit_rules.ts';
 import { auditZIndexParity } from './validate_z_index.ts';
-import { runCssChecker, CSS_ANALYZER_DESCRIPTOR } from '../../analyzers/cssAnalyzer.ts';
+import { StylelintAuditor } from './validate_stylelint.ts';
+
+export const CSS_ANALYZER_DESCRIPTOR: RuleDescriptor = {
+  id: 'css-analyzer',
+  name: 'CSS / SCSS Stylelint Analyzer',
+  category: 'Stylelint: Calidad y duplicación CSS/SCSS',
+  aliases: ['css-checker', 'css', 'scss', 'duplicate-css', 'scss-duplicados', 'css-hygiene', 'stylelint']
+};
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxAnalyzer.ts';
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
@@ -283,7 +290,6 @@ async function auditFile(
     config.zIndexAudit,
     config.manualAnimations,
     config.emptyVueTransitions,
-    config.sassTraps,
     config.noImportantOnTransforms,
     config.noImportantOnFilters,
     config.noSassAtImport
@@ -1230,7 +1236,7 @@ function mapFallowTargets(data: FallowAuditData, violations: Violation[]): void 
 
   for (const t of targets) {
     const priority = t.priority ?? 0;
-    let meetsThreshold = false;
+    let meetsThreshold: boolean;
     if (maxPriority === 'all') {
       meetsThreshold = priority > 0;
     } else if (maxPriority === 'high') {
@@ -1335,7 +1341,7 @@ interface ProjectCliContext {
   isHumanMode: boolean;
 }
 
-function extractSelectedRules(values: any, positionals: string[]): Set<string> {
+function extractSelectedRules(values: Record<string, unknown>, positionals: string[]): Set<string> {
   const collectedRules = [
     ...(Array.isArray(values.rule) ? values.rule : [values.rule]),
     ...(Array.isArray(values.rules) ? values.rules : [values.rules]),
@@ -1362,7 +1368,7 @@ function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRule> {
   return activeConfigRules;
 }
 
-function computeSubsystemFlags(values: any, selectedRules: Set<string>) {
+function computeSubsystemFlags(values: Record<string, unknown>, selectedRules: Set<string>) {
   const hasSpecificRules = selectedRules.size > 0;
   return {
     isZIndexActive: (!hasSpecificRules || matchesRule(Z_INDEX_CONSISTENCY_DESCRIPTOR, selectedRules)) && getAuditConfig().styles?.zLayersEnabled !== false,
@@ -1729,6 +1735,30 @@ async function exportProjectReportOutput(
   logProgress(styleText('cyan', `✨ Reporte completo escrito en: ${values.output}`));
 }
 
+async function runStylelintFindings(
+  logProgress: (msg: string) => void,
+  stepLabel: string
+): Promise<Violation[]> {
+  logProgress(styleText('cyan', stepLabel));
+  const stylelint = new StylelintAuditor({ projectRoot: process.cwd() });
+  const res = await stylelint.execute();
+  const violations: Violation[] = [];
+  for (const f of res.findings) {
+    violations.push({
+      file: path.resolve(process.cwd(), f.file || 'src'),
+      line: f.line || 1,
+      message: f.message || 'Stylelint violation',
+      context: f.context || f.ruleId || 'stylelint',
+      severity: f.severity === 'info' ? 'warning' : f.severity,
+      fixable: false,
+      packageName: 'Stylelint',
+      ruleId: f.ruleId,
+      ruleDescription: f.ruleDescription
+    });
+  }
+  return violations;
+}
+
 async function executeProjectAuditPhases(
   ctx: ProjectCliContext,
   logProgress: (msg: string) => void
@@ -1737,8 +1767,10 @@ async function executeProjectAuditPhases(
   let files: string[] = [];
 
   if (ctx.values['css-only']) {
-    logProgress(styleText('cyan', '[1/1] 🎨 Ejecutando análisis exclusivo de CSS AST (duplicados y calidad)...'));
-    all = await runCssChecker(ctx.values.path as string || '.', new Set(CANONICAL_IGNORE_DIRS));
+    all = await runStylelintFindings(
+      logProgress,
+      '[1/1] 🎨 Ejecutando análisis de estilos con Stylelint (duplicados y calidad)...'
+    );
     return { all, files };
   }
 
@@ -1750,8 +1782,11 @@ async function executeProjectAuditPhases(
   all = all.concat(runFallowSuites(ctx, logProgress));
 
   if (ctx.isCssCheckerActive) {
-    logProgress(styleText('cyan', '[5/6] 🎨 Ejecutando análisis AST de CSS/SCSS (duplicados y calidad)...'));
-    all = all.concat(await runCssChecker(ctx.values.path as string || '.', getEffectiveIgnoreDirs()));
+    const styleViolations = await runStylelintFindings(
+      logProgress,
+      '[5/6] 🎨 Ejecutando análisis de calidad y duplicación CSS/SCSS (Stylelint)...'
+    );
+    all = all.concat(styleViolations);
   }
 
   if (ctx.isConstantDetectorActive) {
@@ -1900,13 +1935,15 @@ async function main(cliArgs?: string[]): Promise<Violation[]> {
 }
 
 export class ProjectArchitectureAuditor extends BaseAuditor<string> {
-  constructor() {
+constructor() {
     super({
+      capabilities: { fix: true, lint: true, md: true, ast: true, changedSince: true, heavy: true },
       id: 'audit_project',
       name: 'Project Architecture & Style Rules',
       description: 'Audita reglas de arquitectura, TypeScript y estilo',
       family: 'architecture',
       packageName: 'Arquitectura',
+      icon: '🏛️',
       ruleDescriptions: {
         'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',
         'domain-type-violation': 'Violación de tipo de dominio',

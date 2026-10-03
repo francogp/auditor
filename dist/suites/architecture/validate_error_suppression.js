@@ -51,6 +51,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: ERROR_SUPPRESSION_RULES,
             packageName: 'Error',
+            icon: '🚫',
             ruleDescriptions: {
                 'no-empty-catch': 'Bloque catch vacío o silencioso',
                 'no-silent-promise-catch': 'Promesa con .catch() silencioso',

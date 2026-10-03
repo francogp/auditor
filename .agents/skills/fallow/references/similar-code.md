@@ -92,6 +92,11 @@ With the vector cache active, subsequent runs retrieve cached embeddings in ~1.9
 
 ---
 
-## 4. CI & Lightweight Deployment Bypass (`--skip-similar`)
+## 4. Specifically Defined Remote Deployments Only (Environment Variable Bypass)
 
-In CI pipelines, containerized environments, or GitHub Pages builds where downloading model weights is undesirable, pass `--skip-similar` or set `AUDIT_SKIP_SIMILAR=1`. This cleanly bypasses vector semantic duplication checks with 0 errors without modifying `audit.config.ts`.
+In specifically defined remote CI pipelines, containerized environments, or GitHub Pages deployment workflows where downloading model weights is undesirable in headless ephemeral runners, set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`). This cleanly bypasses vector semantic duplication checks with 0 errors without modifying `audit.config.ts`. There is NO CLI flag.
+
+> [!CAUTION]
+> **Strict Local Execution Mandate & Absolute Bypassing Prohibition**:
+> AI agents and developers MUST NEVER set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` or `AUDIT_SKIP_SIMILAR=1` during local development, interactive coding turns, bug triage, or local verification runs. In local environments, vector semantic duplication runs via Candle CPU in ~2s leveraging local disk caches. Running vector analysis locally is mandatory to catch semantic duplication before pushing code.
+

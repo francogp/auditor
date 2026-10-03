@@ -50,19 +50,21 @@ const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[a-zA-Z0-9_-]+="[^"\n]*\\"
 export const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\.[a-zA-Z0-9_]+\s*\(/g;
 
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
       ...(config.paths.componentsRoots ?? ['src/components']),
       ...(config.paths.viewsRoots ?? ['src/views'])
     ];
     super({
+      capabilities: { lint: true },
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
       description: 'Verifica estándares de Vue SFC y <script setup lang="ts">',
       family: 'architecture',
       ruleIds: VUE_SFC_HYGIENE_RULES,
       packageName: 'Vue',
+      icon: '💚',
       ruleDescriptions: {
         'script-setup-required': 'Componente sin script setup',
         'no-script-setup-exports': 'Export dentro de script setup',

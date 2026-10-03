@@ -38,6 +38,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       id: 'validate_button_governance',
       name: 'Button Governance Validator (Rule 23)',
       description: 'Valida gobernanza de botones y variantes canónicas',
+      icon: '🔘',
       family: 'architecture',
       ruleIds: BUTTON_GOVERNANCE_RULES,
       packageName: 'Botones',

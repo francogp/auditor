@@ -425,12 +425,14 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         const effectiveRoot = rootDir || process.cwd();
         const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
         super({
+            capabilities: { md: true },
             id: 'validate_markdown_code_references',
             name: 'Markdown Code References Validator',
             description: 'Valida rutas, scripts, casing y skills en markdown',
             family: 'documentation',
             ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
             packageName: 'Doc',
+            icon: '💻',
             ruleDescriptions: {
                 'markdown-broken-source-ref': 'Ruta de código inexistente',
                 'markdown-unregistered-npm-script': 'Comando npm no registrado',

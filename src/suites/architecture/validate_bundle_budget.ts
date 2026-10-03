@@ -22,6 +22,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig, isTestPath, type AuditEngineConfig } from '../../core/auditConfig.ts';
 
@@ -222,14 +223,27 @@ function auditCompiledChunks(
 }
 
 export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
+  public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
+    {
+      id: 'dist',
+      pattern: 'dist/',
+      samplePath: 'dist/index.js',
+      reason: 'Directorio de artefactos y bundle compilado de producción',
+      isApplicable: (config) => config.bundle?.enabled !== false && config.packageDistribution?.enabled !== true
+    }
+  ];
+
   constructor(projectRoot: string = process.cwd()) {
     super({
+      capabilities: { requiresBuild: true, ast: true },
+      gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
       id: 'validate_bundle_budget',
       name: 'Bundle Budget & Client Leak Auditor',
       description: 'Audita límites de tamaño de bundles y fugas de imports',
       family: 'architecture',
       ruleIds: BUNDLE_BUDGET_RULES,
       packageName: 'Bundle',
+      icon: '📦',
       ruleDescriptions: {
         'bundle-runtime-leak': 'Fuga de test/script en producción',
         'bundle-heavy-import': 'Librería pesada en capas de UI',

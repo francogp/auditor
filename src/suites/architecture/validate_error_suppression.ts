@@ -52,19 +52,20 @@ const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\
 const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 
 export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig();
     const codeRoots = roots ?? (config.paths.codeRoots && config.paths.codeRoots.length > 0
       ? config.paths.codeRoots
       : ['src', 'scripts']);
 
     super({
-      id: 'validate_error_suppression',
+id: 'validate_error_suppression',
       name: 'Zero Error Suppression Auditor',
       description: 'Prohíbe supresión de errores, catch vacíos y fallbacks',
       family: 'architecture',
       ruleIds: ERROR_SUPPRESSION_RULES,
       packageName: 'Error',
+      icon: '🚫',
       ruleDescriptions: {
         'no-empty-catch': 'Bloque catch vacío o silencioso',
         'no-silent-promise-catch': 'Promesa con .catch() silencioso',

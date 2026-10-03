@@ -127,8 +127,7 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
 }
 
 export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
-
-  private readonly globalIdMap = new Map<string, IdOccurrence[]>();
+private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   private readonly requireInputIds: boolean;
 
   constructor(roots?: readonly string[], options?: { requireInputIds?: boolean }, projectRoot?: string) {
@@ -138,12 +137,13 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
       ...(config.paths.viewsRoots ?? ['src/views'])
     ];
     super({
-      id: 'validate_template_ids',
+id: 'validate_template_ids',
       name: 'Template Static ID Uniqueness & Collision Validator',
       description: 'Verifica IDs estáticos e inputs en templates Vue',
       family: 'architecture',
       ruleIds: TEMPLATE_ID_RULES,
       packageName: 'Template',
+      icon: '🆔',
       ruleDescriptions: {
         'template-duplicate-static-id': 'ID estático duplicado',
         'template-shared-static-id': 'ID compartido entre componentes',

@@ -106,7 +106,7 @@ function scanLinesForEphemeralRefs(
 }
 
 export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStorageRuleId> {
-  private readonly allowedDatabaseDirs: ReadonlySet<string>;
+private readonly allowedDatabaseDirs: ReadonlySet<string>;
   private readonly allowedDatabaseFiles: ReadonlySet<string>;
 
   constructor(optionsOrRoot?: EphemeralStorageIsolationAuditorOptions | string) {
@@ -118,12 +118,13 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
     const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 
     super({
-      id: 'validate_ephemeral_storage_isolation',
+id: 'validate_ephemeral_storage_isolation',
       name: 'Ephemeral Storage & Scratch Isolation Validator',
       description: 'Aislamiento estricto de archivos temporales en scratch/',
       family: 'architecture',
       ruleIds: EPHEMERAL_STORAGE_RULES,
       packageName: 'Aislamiento',
+      icon: '📁',
       ruleDescriptions: {
         'ephemeral-no-source-temp-dirs': 'Carpeta temporal en código',
         'ephemeral-no-gitignore-source-temp': 'Entrada temporal en .gitignore',

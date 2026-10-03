@@ -41,7 +41,7 @@ export interface SimilarCodeStatusOutput {
 }
 export declare function resolveFallowBinary(projectRoot?: string): string | null;
 export declare function isFastPresetActive(): boolean;
-export declare function isSimilarCodeSkipped(argv?: readonly string[]): boolean;
+export declare function isSimilarCodeSkipped(): boolean;
 export declare function resolveFallowUserCacheDir(): string;
 export declare function ensureSimilarCodeCacheDir(_projectRoot?: string): string;
 export declare function checkOrInitializeModel(fallowBin: string, projectRoot: string): boolean;

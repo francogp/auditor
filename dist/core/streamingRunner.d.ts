@@ -16,6 +16,9 @@ export interface TaskStreamProgressParams {
     durationMs: number;
     isSuccess: boolean;
     hasWarnings?: boolean;
+    isSkipped?: boolean;
+    isBuiltin?: boolean;
+    icon?: string;
 }
 export declare class TaskStreamCoordinator {
     private completedCount;

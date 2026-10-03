@@ -39,12 +39,14 @@ function isTablePrecededProperly(prevLine) {
 export class MarkdownSyntaxAuditor extends FileScanAuditor {
     constructor(roots = ['.'], projectRoot) {
         super({
+            capabilities: { md: true },
             id: 'validate_markdown_syntax',
             name: 'Markdown Syntax & NPM Script SSoT Validator',
             description: 'Comandos no autorizados o tablas mal formateadas en docs',
             family: 'documentation',
             ruleIds: MARKDOWN_SYNTAX_RULES,
             packageName: 'Doc',
+            icon: '📝',
             ruleDescriptions: {
                 'npm-script-exclusivity-in-docs': 'Comando directo en vez de npm run',
                 'markdown-table-preceding-blank-line': 'Falta línea en blanco antes de tabla'

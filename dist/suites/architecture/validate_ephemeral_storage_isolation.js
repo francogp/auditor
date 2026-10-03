@@ -90,6 +90,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
             family: 'architecture',
             ruleIds: EPHEMERAL_STORAGE_RULES,
             packageName: 'Aislamiento',
+            icon: '📁',
             ruleDescriptions: {
                 'ephemeral-no-source-temp-dirs': 'Carpeta temporal en código',
                 'ephemeral-no-gitignore-source-temp': 'Entrada temporal en .gitignore',

@@ -51,11 +51,13 @@ function resolveHtmlValidateConfig(projectRoot) {
 export class HtmlValidateAuditor extends BaseAuditor {
     constructor() {
         super({
+            capabilities: { fix: true, lint: true },
             id: 'validate_html_validate',
             name: 'HTML5 Standards & Markup Hygiene Validator',
             description: 'Valida estándares y elementos obsoletos con html-validate',
             family: 'architecture',
             packageName: 'HTML',
+            icon: '🌐',
             ruleIds: HTML_VALIDATE_RULES,
             ruleDescriptions: {
                 'html-validate-issue': 'Violación de estándar HTML5'
@@ -89,7 +91,7 @@ export class HtmlValidateAuditor extends BaseAuditor {
             maxBuffer: MAX_BUFFER_BYTES,
             timeout: EXECUTION_TIMEOUT_MS
         });
-        let findings = [];
+        let findings;
         if (fs.existsSync(reportFile)) {
             try {
                 const rawJson = fs.readFileSync(reportFile, 'utf-8');

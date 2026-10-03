@@ -13,6 +13,7 @@ export * from './core/unifiedTheme.ts';
 export * from './core/reportUtils.ts';
 export * from './core/safePath.ts';
 export * from './core/gitignoreMatcher.ts';
+export * from './core/gitIgnoreRegistry.ts';
 export * from './cli/auditScanner.ts';
 export * from './cli/check_environment.ts';
 export * from './cli/init_agent.ts';

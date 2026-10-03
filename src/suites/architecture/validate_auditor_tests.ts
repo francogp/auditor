@@ -263,14 +263,15 @@ function auditAuditorTask(params: {
 }
 
 export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+constructor(projectRoot: string = process.cwd()) {
     super({
-      id: 'validate_auditor_tests',
+id: 'validate_auditor_tests',
       name: 'Auditor Test Existence & Completeness Validator',
       description: 'Valida existencia y cobertura completa de tests en auditores',
       family: 'architecture',
       ruleIds: AUDITOR_TEST_RULES,
       packageName: 'Auditor',
+      icon: '🧪',
       ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
       projectRoot
     });

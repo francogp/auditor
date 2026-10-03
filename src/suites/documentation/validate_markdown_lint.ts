@@ -112,11 +112,13 @@ export function parseMarkdownLintIssues(input: string | object[], cwd: string = 
 export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
   constructor(projectRoot?: string) {
     super({
+      capabilities: { fix: true, lint: true, md: true },
       id: 'validate_markdown_lint',
       name: 'Markdownlint Style & Hygiene Validator',
       description: 'Estilo, espaciado y formato en documentación markdown',
       family: 'documentation',
       packageName: 'Markdownlint',
+      icon: '📘',
       ruleIds: MARKDOWN_LINT_RULES,
       ruleDescriptions: {
         'markdownlint-issue': 'Formato o estilo inválido'

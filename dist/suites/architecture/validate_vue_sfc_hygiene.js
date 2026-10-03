@@ -46,12 +46,14 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
         super({
+            capabilities: { lint: true },
             id: 'validate_vue_sfc_hygiene',
             name: 'Vue SFC & Script Setup Hygiene Auditor',
             description: 'Verifica estándares de Vue SFC y <script setup lang="ts">',
             family: 'architecture',
             ruleIds: VUE_SFC_HYGIENE_RULES,
             packageName: 'Vue',
+            icon: '💚',
             ruleDescriptions: {
                 'script-setup-required': 'Componente sin script setup',
                 'no-script-setup-exports': 'Export dentro de script setup',

@@ -24,10 +24,26 @@ export default defineAuditConfig({
     enabled: false
   },
   styles: {
-    zLayersEnabled: false
+    zLayersEnabled: false,
+    stylelint: {
+      enabled: true
+    }
   },
   templates: {
     requireInputIds: false
+  },
+  packageDistribution: {
+    enabled: true
+  },
+  packageHygiene: {
+    enabled: true
+  },
+  accessibility: {
+    enabled: false // Herramienta CLI sin vistas SFC Vue interactivas en frontend
+  },
+  typeCoverage: {
+    enabled: true,
+    atLeast: 98
   },
   agentPlugin: {
     enabled: true

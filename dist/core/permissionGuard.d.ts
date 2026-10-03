@@ -1,3 +1,9 @@
+/**
+ * Polyfills fs.fsync / fs.fsyncSync / FileHandle.prototype.sync as safe no-ops under Node.js --permission model.
+ * Under Node.js permission model, fsync is unconditionally disabled with ERR_ACCESS_DENIED,
+ * causing tools like Stylelint --fix or atomic file writers to fail even when --allow-fs-write=* is granted.
+ */
+export declare function polyfillPermissionModelFsync(): void;
 export interface PermissionRequirements {
     fsRead?: string[];
     fsWrite?: string[];

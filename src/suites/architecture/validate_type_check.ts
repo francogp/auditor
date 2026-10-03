@@ -91,13 +91,15 @@ export function parseTypeScriptDiagnostics(output: string, cwd: string = process
 }
 
 export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
-  constructor() {
+constructor() {
     super({
+      capabilities: { heavy: true, lint: true },
       id: 'validate_type_check',
       name: 'TypeScript & Vue Type Validator',
       description: 'Errores de tipado y compilación en TypeScript y SFCs Vue',
       family: 'architecture',
       packageName: 'TypeScript',
+      icon: '🏷️',
       ruleIds: TYPE_CHECK_RULES,
       ruleDescriptions: {
         'ts-compiler-error': 'Error de compilación o tipo'

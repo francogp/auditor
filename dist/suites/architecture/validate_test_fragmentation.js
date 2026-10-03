@@ -64,6 +64,7 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: TEST_FRAGMENTATION_RULES,
             packageName: 'Tests',
+            icon: '🧪',
             ruleDescriptions: {
                 'no-fragmented-tests': 'Archivo fragmentado (<60 líneas)',
                 'unnecessary-jsdom': 'JSDOM innecesario sin Vue/DOM'

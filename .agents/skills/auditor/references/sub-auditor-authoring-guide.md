@@ -46,6 +46,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       id: 'validate_my_feature',
       name: 'My Feature Validator',
       description: 'Valida tokens prohibidos y atributos de la característica X',
+      icon: '🔍', // Mandatory thematic emoji
       family: 'architecture',
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
@@ -120,6 +121,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       id: 'validate_my_data',
       name: 'My Data Validator',
       description: 'Valida integridad y campos obligatorios en base de datos',
+      icon: '📊', // Mandatory thematic emoji
       family: 'domain_data',
       ruleIds: MY_DATA_RULES,
       packageName: 'Datos',
@@ -191,6 +193,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       id: 'validate_my_ast_rule',
       name: 'My AST Rule Validator',
       description: 'Valida llamadas prohibidas en el AST de TypeScript',
+      icon: '🌳', // Mandatory thematic emoji
       family: 'architecture',
       ruleIds: MY_AST_RULES,
       packageName: 'AST',
@@ -291,36 +294,99 @@ Any unlogged steps will be backfilled automatically by `ensureSubAuditorsLogged(
 
 ---
 
-## 6. Pure PostCSS AST Analysis for Styles (Zero External Binaries)
+## 6. Official Stylelint Engine & Pure In-Memory Analysis (Zero External Binaries)
 
 Sub-auditors validating styles, stylesheets (`.css`, `.scss`), or Vue SFC `<style>` blocks **MUST NOT** spawn external native binaries (such as `css-checker-kit`, Go binaries, or unmaintained tools). These binaries cause Smart App Control (SAC) blocks on Windows, fail under `ignore-scripts: true`, and create platform fragility.
 
-Instead, execute pure in-memory AST analysis using `postcss` and `postcss-scss`:
+Instead, stylesheet and component style hygiene, duplicate class rules, similar selectors, empty blocks, property order, and SCSS syntax are analyzed strictly through the official Stylelint engine with Vue SFC and SCSS support (`stylelint`, `stylelint-scss`, `stylelint-order`, `@projectwallace/stylelint-plugin`) and in-memory PostCSS AST processing:
 
 ```typescript
-import postcss from 'postcss';
-import postcssScss from 'postcss-scss';
+import stylelint from 'stylelint';
 
-export function analyzeCssString(cssContent: string, filePath: string) {
-  // Parse in-memory with SCSS syntax support
-  const root = postcss().process(cssContent, { syntax: postcssScss }).root;
-
-  root.walkRules(rule => {
-    // Inspect selector: rule.selector
-    // Inspect declarations inside the rule:
-    rule.walkDecls(decl => {
-      // Check property: decl.prop
-      // Check value: decl.value
-    });
+export async function lintStyleContent(code: string, codeFilename: string) {
+  const result = await stylelint.lint({
+    code,
+    codeFilename,
+    config: {
+      extends: ['stylelint-config-standard-scss', 'stylelint-config-recommended-vue/scss']
+    }
   });
+  return result.results;
 }
 ```
 
-This pattern powers [`src/analyzers/cssAnalyzer.ts`](../../../../src/analyzers/cssAnalyzer.ts) and [`src/suites/architecture/validate_css_duplicates.ts`](../../../../src/suites/architecture/validate_css_duplicates.ts), evaluating all 7 CSS hygiene rules cleanly in milliseconds across all platforms.
+This pattern powers [`src/suites/architecture/validate_stylelint.ts`](../../../../src/suites/architecture/validate_stylelint.ts) and [`src/suites/architecture/validate_css_duplicates.ts`](../../../../src/suites/architecture/validate_css_duplicates.ts), evaluating all CSS hygiene and duplication rules cleanly in milliseconds across all platforms.
 
 ---
 
-## 7. Registering Host Extensions in `audit.config.ts`
+## 7. Sub-Auditor Capabilities Contract (`AuditorCapabilities`) & Zero-Boilerplate Defaults
+
+Every sub-auditor declares its execution capabilities dynamically. The orchestrator inspects these capabilities to coordinate specialized execution modes (such as `auditor fix`, fast presets, differential runs, or AST sharing) without maintaining hardcoded suite lists.
+
+### The 5 Standard Capabilities:
+
+```typescript
+export interface AuditorCapabilities {
+  /** Supports automatic fixing/repair of detected violations (--fix / auditor fix). */
+  readonly fix: boolean;
+  /** Requires in-memory TypeScript AST parsing engine (SharedAstContext). */
+  readonly ast: boolean;
+  /** Supports differential file scanning (--changed-since / changed-since=origin/main). */
+  readonly changedSince: boolean;
+  /** Heavy computation / long-running suite, excluded by default from fast presets. */
+  readonly heavy: boolean;
+  /** Requires compilation / distribution artifacts (dist/) to exist prior to audit. */
+  readonly requiresBuild: boolean;
+}
+```
+
+### Zero-Boilerplate Contract & Immutable Defaults:
+
+`BaseAuditor` guarantees immutable defaults (`DEFAULT_AUDITOR_CAPABILITIES` with all 5 flags set to `false`). Sub-auditors **MUST NEVER** repeat redundant `false` flags across their constructor. Only active capabilities need to be declared:
+
+```typescript
+// Case 1: Standard sub-auditor with NO special capabilities (inherits all false automatically)
+export class MyValidator extends BaseAuditor<MyRuleId> {
+  constructor() {
+    super({
+      id: 'validate_my_validator',
+      // No capabilities block needed at all!
+      ...
+    });
+  }
+}
+
+// Case 2: Auto-repair capable sub-auditor (only declare fix: true!)
+export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
+  constructor() {
+    super({
+      id: 'validate_my_auto_fix',
+      capabilities: { fix: true },
+      ...
+    });
+  }
+}
+
+// Case 3: AST-driven sub-auditor (only declare ast: true!)
+export class MyAstValidator extends BaseAuditor<MyRuleId> {
+  constructor() {
+    super({
+      id: 'validate_my_ast',
+      capabilities: { ast: true },
+      ...
+    });
+  }
+}
+```
+
+### Auto-Coordination in the Runner:
+- **`auditor fix` / `auditor --fix`**: Automatically discovers only suites with `capabilities.fix === true` and executes them under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal banner.
+- **Fast presets (`preset=lint`, `preset=md`)**: Automatically bypass suites with `capabilities.heavy === true`.
+- **Pre-heat AST**: Automatically initializes `SharedAstContext` before executing any suite with `capabilities.ast === true`.
+
+---
+
+## 8. Registering Host Extensions in `audit.config.ts`
 
 Host applications implementing custom rules in `scripts/auditors/<family>/validate_<name>.ts` register them dynamically in `audit.config.ts`:
 
@@ -343,10 +409,108 @@ When `npx auditor` or `npm run audit` runs, `auditScanner.ts` automatically disc
 
 ---
 
-## 8. Mandatory Hermetic Unit Testing
+## 9. Dynamic GitIgnore Requirements Contract (`gitIgnoreEntries`)
+
+Sub-auditors and extensions MUST NOT rely on hardcoded tool lists in the general framework. If a sub-auditor, tool, or CLI runner produces intermediate artifacts (e.g. `.mytoolcache`, `dist/`), it must declare its required patterns via `gitIgnoreEntries`:
+
+```typescript
+import { BaseAuditor, type GitIgnoreRequirement } from '@francogp/auditor';
+
+export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
+  public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
+    {
+      id: 'my-cache',
+      pattern: '.my-cache/',
+      samplePath: '.my-cache/cache.json',
+      reason: 'Caché de herramienta personalizada'
+    }
+  ];
+
+  constructor() {
+    super({
+      id: 'validate_my_custom',
+      name: 'My Custom Validator',
+      description: 'Valida reglas personalizadas',
+      family: 'architecture',
+      packageName: 'MiModulo',
+      gitIgnoreEntries: MyCustomAuditor.gitIgnoreEntries
+    });
+  }
+}
+```
+
+The orchestrator and `validate_audit_config` will:
+1. Dynamically discover this requirement from your extension or subauditor without hardcoding.
+2. Assert that `.gitignore` contains the pattern matching your entry (`severity: 'error'`).
+3. Automatically append missing entries to `.gitignore` when running with `--fix` (`npx auditor fix`).
+
+---
+
+## 10. Mandatory Hermetic Unit Testing
 
 Every sub-auditor MUST have a companion unit test file in `tests/<suite_name>.test.ts` (or `tests/node/auditors/` for host extensions) adhering to:
 
 1. **Negative Verification**: Asserts that clean code yields `0 errors` and `status: 'passed'`.
 2. **RuleId Coverage**: Every declared rule ID has dedicated dirty snippet assertions.
 3. **Zero Live Scanning**: Use `auditor.testScanFile(...)` followed by `await auditor.finishAudit()`, or initialize `BaseAuditor({ projectRoot: tempDir })`. Never run `auditor.execute()` on `process.cwd()`.
+
+---
+
+## 11. Mandatory Thematic Emoji Contract (`AuditorOptions.icon`)
+
+Every sub-auditor (built-in framework suites and user host extensions alike) **MUST** declare a non-empty thematic emoji in `AuditorOptions.icon`:
+
+```typescript
+super({
+  id: 'validate_combat_invariants',
+  name: 'Combat Engine & Invariants Auditor',
+  description: 'Invariantes de combate y bifurcación p1/p2',
+  icon: '🛡️', // MANDATORY: thematic emoji representing the suite
+  family: 'fsm',
+  ruleIds: COMBAT_INVARIANTS_RULES,
+  packageName: 'Combate',
+  ruleDescriptions: COMBAT_INVARIANTS_DESCRIPTIONS
+});
+```
+
+- **Strict Instantiation Validation**: If `icon` is omitted, `undefined`, or whitespace-only, `validateAuditorOptions` throws an explicit, loud runtime `Error: Auditor [<id>] must define a mandatory thematic icon/emoji`.
+- **Zero Fallback Compromise**: Core suites and host extensions are prohibited from relying on generic cogs (`⚙️`) or generic folders (`📁`). Every suite author chooses a meaningful visual symbol matching their domain (e.g. ⚔️, 🛡️, 🎒, 🔴, 🔤, 💾, 📊).
+- **Scanner Propagation**: The streaming runner and terminal tables render this icon directly on progress lines and finding breakdowns.
+
+---
+
+## 12. Transparent Skip Reporting Contract (`markSkipped`, `status: 'skipped'`)
+
+When an auditor must be bypassed (e.g. due to environmental guards, configuration flags, or fast presets), it **MUST NOT** pretend to have passed (`status: 'passed'`) with a green checkmark `✅`. Doing so creates cognitive friction and conceals skipped checks.
+
+Instead, sub-auditors call `this.markSkipped(reason)`:
+
+```typescript
+if (isSkippedByEnvironment()) {
+  this.markSkipped('Omitido por variable de entorno AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1');
+  return;
+}
+```
+
+- **Contract Transition**: Sets `result.status = 'skipped'`, updates `result.metrics['Estado'] = 'OMITIDO ⏭️'`, and records the skip justification.
+- **Console Stream**: Displays `⏭️  SKIP` in cyan with the suite's thematic icon and skip reason.
+- **Summary Accounting**: The Box-Drawing summary table and total footer clearly reflect skipped suites: `(1 Omitida ⏭️)` rather than masking them as passed.
+
+---
+
+## 13. Anti-Abuse Protection for `constants.exemptGlobs`
+
+When configuring path-based constant exceptions, host projects configure `constants.exemptGlobs`:
+
+```typescript
+constants: {
+  exemptGlobs: [
+    'scripts/maintenance/**',
+    'src/data/seed/**'
+  ]
+}
+```
+
+- **Strict Specificity Guard**: Broad wildcards matching entire repositories or primary source trees (`**/*`, `*`, `src/**`, `src/*`) are strictly rejected with an explicit validation error, preventing evasion of the Named Constants Mandate.
+- **Safe Scope**: Use specific maintenance scripts, seed files, or test generator catalogs where inline numbers are strictly non-semantic tabular data.
+

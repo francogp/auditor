@@ -4,7 +4,7 @@
  * SCOPED DEAD CSS AUDITOR (Node.js 26+ Native)
  *
  * Enforces lean CSS bundles by detecting orphaned/unused classes inside <style scoped>
- * blocks of Vue components across src/components and src/views using pure PostCSS AST.
+ * blocks of Vue components across src/components and src/views.
  *
  * Escape Hatch:
  *   // css-ok: <justification> or // dead-css-ok: <justification>
@@ -17,13 +17,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, CANONICAL_IGNORE_DIRS } from '../../core/auditorBase.ts';
+import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import {
-  collectAllProjectCssRules,
-  extractClassNamesFromSelector,
-  type ParsedCssRule
-} from '../../analyzers/cssAnalyzer.ts';
 
 enableCompileCache();
 
@@ -57,6 +52,58 @@ const VUE_TRANSITION_SUFFIXES = [
 
 const EXCLUDED_EXTENSIONS = new Set(['scss', 'css', 'vue', 'png', 'webp']);
 const MAX_PREV_COMMENT_LINES = 2;
+
+export interface ParsedScopedCssRule {
+  readonly line: number;
+  readonly selector: string;
+  readonly rawBlock: string;
+}
+
+export function extractClassNamesFromSelector(selector: string): string[] {
+  const classRegex = /(?:^|[^\w-])\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
+  const classes: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = classRegex.exec(selector)) !== null) {
+    const className = match[1];
+    if (className) {
+      classes.push(className);
+    }
+  }
+  return classes;
+}
+
+export function extractScopedRulesFromVueContent(rawContent: string): ParsedScopedCssRule[] {
+  const rules: ParsedScopedCssRule[] = [];
+  const styleRegex = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = styleRegex.exec(rawContent)) !== null) {
+    const attrs = match[1] ?? '';
+    if (!/\bscoped\b/i.test(attrs)) continue;
+
+    const preContent = rawContent.slice(0, match.index);
+    const startLine = preContent.split('\n').length;
+    const body = match[2] ?? '';
+    const lines = body.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      if (/(?:^|[^\w-])\.[a-zA-Z_-][a-zA-Z0-9_-]*/.test(line)) {
+        const colonIdx = line.indexOf(':');
+        const dotIdx = line.indexOf('.');
+        if (colonIdx === -1 || colonIdx > dotIdx) {
+          rules.push({
+            line: startLine + i,
+            selector: line.trim(),
+            rawBlock: line
+          });
+        }
+      }
+    }
+  }
+
+  return rules;
+}
 
 function collectGlobalCodeTokens(projectRoot: string, srcFiles: readonly string[]): Set<string> {
   const globalTokens = new Set<string>();
@@ -115,7 +162,7 @@ function isClassExempt(
 function auditComponentScopedCss(params: {
   rawContent: string;
   relFile: string;
-  scopedRules: readonly ParsedCssRule[];
+  scopedRules: readonly ParsedScopedCssRule[];
   globalTokens: ReadonlySet<string>;
   globalUtilityClasses: ReadonlySet<string>;
   auditor: DeadCssAuditor;
@@ -155,14 +202,15 @@ function auditComponentScopedCss(params: {
 }
 
 export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+constructor(projectRoot: string = process.cwd()) {
     super({
-      id: 'validate_dead_css',
+id: 'validate_dead_css',
       name: 'Scoped Dead CSS Auditor',
       description: 'Detecta clases CSS scoped huérfanas en componentes Vue',
       family: 'architecture',
       ruleIds: DEAD_CSS_RULES,
       packageName: 'CSS',
+      icon: '💀',
       ruleDescriptions: {
         'dead-scoped-css': 'Clase scoped huérfana sin uso'
       },
@@ -183,20 +231,6 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
     ];
     const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
 
-    // Retrieve all project CSS rules parsed via PostCSS AST (leveraging incremental cache and multicore)
-    const { rules } = await collectAllProjectCssRules('.', new Set(CANONICAL_IGNORE_DIRS), this.projectRoot);
-    const scopedRulesByFile = new Map<string, ParsedCssRule[]>();
-    for (const rule of rules) {
-      if (rule.scoped) {
-        let list = scopedRulesByFile.get(rule.file);
-        if (!list) {
-          list = [];
-          scopedRulesByFile.set(rule.file, list);
-        }
-        list.push(rule);
-      }
-    }
-
     let scopedClassesChecked = 0;
 
     for (const relPath of componentFiles) {
@@ -205,7 +239,7 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
       const fullPath = path.resolve(this.projectRoot, relPath);
       const relFile = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
       const rawContent = fs.readFileSync(fullPath, 'utf-8');
-      const scopedRules = scopedRulesByFile.get(relFile) ?? [];
+      const scopedRules = extractScopedRulesFromVueContent(rawContent);
 
       scopedClassesChecked += auditComponentScopedCss({
         rawContent,

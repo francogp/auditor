@@ -1,6 +1,6 @@
 # Purpose
 
-Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 38 domain-agnostic suites organized across 4 canonical families: `architecture/`, `documentation/`, `domain_data/`, and `persistence/`.
+Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 42 domain-agnostic suites organized across 4 canonical families: `architecture/`, `documentation/`, `domain_data/`, and `persistence/`.
 
 ## Ownership
 
@@ -11,6 +11,7 @@ Architecture & Tooling Engineers.
 - **Family Organization**: Every suite resides in its canonical family directory.
 - **Suite Naming Convention**: Generic suites follow `validate_<topic>.ts`.
 - **Inheritance Mandate**: Every suite extends `BaseAuditor` or `FileScanAuditor`.
+- **Mandatory Thematic Emojis (`icon`)**: Every suite declares its dedicated thematic emoji representing its domain.
 - **Zero Untested Rules**: Every suite has a corresponding test in `tests/<suite_filename>.test.ts`.
 
 ## Key Files

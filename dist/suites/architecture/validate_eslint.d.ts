@@ -14,7 +14,7 @@
  *   npm run lint
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
 export type EslintRuleId = 'eslint-violation';
 export declare const ESLINT_RULES: readonly EslintRuleId[];
@@ -26,6 +26,7 @@ export type RawEslintFileReport = RawLintFileReport;
  */
 export declare function parseEslintResults(input: string | object[], cwd?: string): AuditFinding[];
 export declare class EslintAuditor extends BaseAuditor<EslintRuleId> {
+    static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
     constructor();
     runAudit(): Promise<void>;
 }

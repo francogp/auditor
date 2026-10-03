@@ -223,6 +223,7 @@ export class AuditorTestsAuditor extends BaseAuditor {
             family: 'architecture',
             ruleIds: AUDITOR_TEST_RULES,
             packageName: 'Auditor',
+            icon: '🧪',
             ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
             projectRoot
         });

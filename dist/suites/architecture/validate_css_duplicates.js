@@ -1,100 +1,66 @@
 /**
- * scripts/auditors/architecture/validate_css_duplicates.ts
+ * packages/auditor/src/suites/architecture/validate_css_duplicates.ts
  *
  * CSS & SCSS HYGIENE AND DUPLICATION AUDITOR (Node.js 26+ Native)
  *
- * Audits stylesheets, component styles, and Vue SFC style blocks using pure PostCSS AST
- * to detect duplicated CSS rules, similar classes, unvariabled colors, long values,
- * duplicate selectors, and empty rule blocks.
+ * Powered by Stylelint engine with Vue SFC and SCSS support.
+ * Serves as standard auditor suite and backwards-compatible alias for validate_stylelint.
  *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_css_duplicates.ts
  *   npm run validate:css-duplicates
  */
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, CANONICAL_IGNORE_DIRS } from "../../core/auditorBase.js";
+import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
-import { runCssAnalysis } from "../../analyzers/cssAnalyzer.js";
+import { StylelintAuditor } from "./validate_stylelint.js";
 enableCompileCache();
 export const CSS_DUPLICATES_RULES = [
-    'css-duplicate-rules',
-    'css-similar-classes',
-    'css-duplicate-long-lines',
-    'css-unvariabled-colors',
+    'stylelint-issue',
     'css-duplicate-selectors',
-    'css-empty-rules'
+    'css-duplicate-properties',
+    'css-empty-blocks',
+    'css-order-violation',
+    'scss-syntax-issue',
+    'wallace-complexity'
 ];
 export class CssDuplicatesAuditor extends BaseAuditor {
-    targetDir;
-    lastAnalysisDetails = null;
-    constructor(targetDir = '.', projectRoot) {
+    stylelintAuditor;
+    constructor(_targetDir = '.', projectRoot) {
         const config = getAuditConfig(projectRoot);
+        const roots = config.paths.srcRoots ?? ['src'];
         super({
             id: 'validate_css_duplicates',
             name: 'CSS Duplication & Hygiene Validator',
-            description: 'Audita calidad, duplicación y patrones en estilos CSS y SCSS',
+            description: 'Audita calidad, sintaxis y patrones CSS/SCSS con Stylelint',
             family: 'architecture',
             ruleIds: CSS_DUPLICATES_RULES,
-            packageName: 'CSS',
+            packageName: 'Stylelint',
+            icon: '🎨',
             ruleDescriptions: {
-                'css-duplicate-rules': 'Reglas duplicadas en estilos',
-                'css-similar-classes': 'Clases similares sin unificar',
-                'css-duplicate-long-lines': 'Valores largos duplicados',
-                'css-unvariabled-colors': 'Colores repetidos sin variable',
-                'css-duplicate-selectors': 'Selectores duplicados',
-                'css-empty-rules': 'Bloques de estilos vacíos'
+                'stylelint-issue': 'Violación de estándar CSS o SCSS',
+                'css-duplicate-selectors': 'Selectores duplicados en el bloque',
+                'css-duplicate-properties': 'Propiedades duplicadas en la regla',
+                'css-empty-blocks': 'Bloques de estilos vacíos',
+                'css-order-violation': 'Orden de propiedades CSS',
+                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
+                'wallace-complexity': 'Complejidad de estilos excesiva'
             },
-            roots: config.paths.srcRoots ?? ['src'],
+            roots,
             projectRoot
         });
-        this.targetDir = targetDir;
-    }
-    getAnalysisDetails() {
-        return this.lastAnalysisDetails;
+        this.stylelintAuditor = new StylelintAuditor({
+            projectRoot,
+            id: 'validate_css_duplicates',
+            name: 'CSS Duplication & Hygiene Validator'
+        });
     }
     async runAudit() {
-        const config = getAuditConfig(this.projectRoot);
-        const options = config.styles?.duplicates ?? {};
-        const { violations, details, filesScanned } = await runCssAnalysis(this.targetDir, new Set(CANONICAL_IGNORE_DIRS), options, this.projectRoot);
-        this.filesScannedCount = filesScanned;
-        this.lastAnalysisDetails = details;
-        for (const v of violations) {
-            let ruleId = 'css-duplicate-rules';
-            if (v.message.startsWith('Clases CSS similares')) {
-                ruleId = 'css-similar-classes';
-            }
-            else if (v.message.startsWith('Valor CSS largo duplicado')) {
-                ruleId = 'css-duplicate-long-lines';
-            }
-            else if (v.message.startsWith('Color repetido sin variable')) {
-                ruleId = 'css-unvariabled-colors';
-            }
-            else if (v.message.startsWith('Selector duplicado')) {
-                ruleId = 'css-duplicate-selectors';
-            }
-            else if (v.message.startsWith('Bloque CSS vacío')) {
-                ruleId = 'css-empty-rules';
-            }
-            this.addViolation({
-                ruleId,
-                severity: v.severity || 'error',
-                file: v.file,
-                line: v.line || 1,
-                message: v.message,
-                context: v.context
-            });
-        }
-        this.context.setMetric('Violaciones Detectadas', violations.length);
-        this.context.setMetric('Reglas Duplicadas', details.duplicates.length);
-        this.context.setMetric('Clases Similares', details.similar.length);
-        this.context.setMetric('Valores Largos', details.longValues.length);
-        this.context.setMetric('Colores sin Variable', details.unvariabledColors.length);
-        this.context.setMetric('Selectores Duplicados', details.duplicateSelectors.length);
-        this.context.setMetric('Reglas Vacías', details.emptyRules.length);
+        const res = await this.stylelintAuditor.execute();
+        this.importAuditFindings(res.findings, 'stylelint-issue');
+        this.filesScannedCount = this.stylelintAuditor.getFilesScanned();
     }
 }
-if (process.argv[1] && (process.argv[1].endsWith('validate_css_duplicates.ts') ||
-    (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename))) {
-    await BaseAuditor.runCli(new CssDuplicatesAuditor());
-}
+// Canonical CLI Entrypoint
+await BaseAuditor.runCliIfMain(import.meta.url, new CssDuplicatesAuditor());
 //# sourceMappingURL=validate_css_duplicates.js.map

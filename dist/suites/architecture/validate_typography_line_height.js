@@ -98,6 +98,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
             packageName: 'Tipografía',
+            icon: '🔤',
             ruleDescriptions: {
                 'line-height-overlap': 'Colisión de line-height'
             },

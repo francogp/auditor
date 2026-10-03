@@ -25,9 +25,11 @@ export const MY_AST_RULES: readonly MyAstRuleId[] = [
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   constructor() {
     super({
+      capabilities: { ast: true },
       id: 'validate_my_ast',
       name: 'My AST Validator',
       description: 'Valida contratos AST en TypeScript y Vue SFC',
+      icon: '🌳', // Mandatory thematic emoji representing this auditor
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_AST_RULES,
       packageName: 'AST',

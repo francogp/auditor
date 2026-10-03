@@ -8,5 +8,5 @@
  *   2. Renders the complete Box-Drawing summary table grouped by family.
  *   3. Persists the complete structured JSON report to scratch/audits/latest_audit.json.
  */
-export {};
+import '../core/permissionGuard.ts';
 //# sourceMappingURL=audit_full.d.ts.map

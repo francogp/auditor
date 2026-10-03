@@ -17,6 +17,7 @@
  *   npm run validate:bundle-budget
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 export type BundleBudgetRuleId = 'bundle-runtime-leak' | 'bundle-heavy-import' | 'bundle-chunk-size';
 export declare const BUNDLE_BUDGET_RULES: readonly BundleBudgetRuleId[];
@@ -29,6 +30,7 @@ export declare function getForbiddenValueImportsUI(projectRoot?: string): readon
     reason: string;
 }[];
 export declare class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
+    static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
     constructor(projectRoot?: string);
     runAudit(astContext?: SharedAstContext): Promise<void>;
 }

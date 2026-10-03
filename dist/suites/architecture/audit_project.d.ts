@@ -6,7 +6,8 @@
  * Final Safe Version: Context-aware GPU checking.
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { type Violation } from './audit_rules.ts';
+import { type Violation, type RuleDescriptor } from './audit_rules.ts';
+export declare const CSS_ANALYZER_DESCRIPTOR: RuleDescriptor;
 export declare const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
 export declare const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 interface FallowInstance {

@@ -5,6 +5,8 @@ node_modules/
 .vite/
 .vitest-cache/
 coverage/
+.eslintcache
+.stylelintcache
 
 # Scratch & Temporary Audits
 scratch/

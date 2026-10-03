@@ -38,16 +38,18 @@ export const DOX_RULES: readonly DoxRuleId[] = [
 ] as const;
 
 export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
-  private readonly rootDir: string;
+private readonly rootDir: string;
 
   constructor(rootDir?: string) {
     const projectRoot = rootDir || process.cwd();
     super({
+      capabilities: { md: true },
       id: 'validate_dox_integrity',
       name: 'DOX & AGENTS.md Integrity Validator',
       description: 'Valida jerarquía, enlaces e integridad de AGENTS.md',
       family: 'documentation',
       packageName: 'DOX',
+      icon: '📚',
       ruleIds: DOX_RULES,
       ruleDescriptions: {
         'dox-missing-agents-md': 'Falta AGENTS.md en directorio',

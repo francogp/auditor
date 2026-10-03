@@ -171,8 +171,8 @@ export function renderSimilarCodeWarningBanner() {
     lines.push(yellow('║  ') + padVisual(boldWhite('Para instalarlo manualmente, ejecuta el siguiente comando en tu terminal:'), innerWidth) + yellow('  ║'));
     lines.push(yellow('║  ') + padVisual(cyan('  👉  npx fallow similar-code setup --local --yes'), innerWidth) + yellow('  ║'));
     lines.push(yellow('║  ') + padVisual('', innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(dim('Nota para IA / CI: puedes omitir esta suite usando el flag --skip-similar'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(dim('o exportando la variable de entorno AUDIT_SKIP_SIMILAR=1.'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(dim('Nota para CI: puedes omitir esta suite en entornos remotos o GitHub Pages'), innerWidth) + yellow('  ║'));
+    lines.push(yellow('║  ') + padVisual(dim('exportando la variable AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1.'), innerWidth) + yellow('  ║'));
     lines.push(yellow(`╚═${line}═╝`));
     return lines.join('\n');
 }
@@ -190,6 +190,8 @@ export function formatStatusBadge(status) {
             return `[ ${styleText('yellow', '⚠️ WARN')} ]`;
         case 'info':
             return `[ ${styleText('cyan', 'ℹ️ INFO')} ]`;
+        case 'skipped':
+            return `[ ${styleText('cyan', '⏭️ SKIP')} ]`;
     }
 }
 export function formatDuration(ms) {
@@ -209,6 +211,8 @@ function formatTaskMetricCol(metrics) {
     return cleanMetric.padEnd(METRIC_COL_WIDTH);
 }
 function computeTaskBadge(status, errors, warnings) {
+    if (status === 'skipped')
+        return formatStatusBadge('skipped');
     if (status !== 'passed' || errors > 0)
         return formatStatusBadge('failed');
     if (warnings > 0)
@@ -294,7 +298,7 @@ function renderSampleErrors(errorFindings) {
     }
     return lines;
 }
-export function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalWarnings, totalDurationMs, errorFindings) {
+export function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalWarnings, totalDurationMs, errorFindings, suitesSkipped = 0) {
     const line = '═'.repeat(TERMINAL_WIDTH - 4);
     const lines = [];
     lines.push(styleText('bold', `\n╠═${line}═╣`));
@@ -302,7 +306,8 @@ export function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors,
         ? styleText(['bold', 'green'], '🎉 ¡SUITE DE AUDITORÍA GLOBAL APROBADA!')
         : styleText(['bold', 'red'], '🚨 AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
     lines.push(`  ${statusText}`);
-    lines.push(styleText('dim', `  Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas`));
+    const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas ⏭️)` : '';
+    lines.push(styleText('dim', `  Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`));
     lines.push(`  Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`);
     if (errorFindings && errorFindings.length > 0) {
         lines.push(...renderSampleErrors(errorFindings));
@@ -319,7 +324,7 @@ function renderMarkdownFamilyTables(byFamily) {
         md += `| Estado | Auditoría | Duración | Métrica Principal | Errores | Advertencias |\n`;
         md += `| :---: | :--- | :---: | :--- | :---: | :---: |\n`;
         for (const t of tasks) {
-            const icon = t.status === 'passed' && t.summary.errors === 0 ? '✅ Pass' : '❌ Fail';
+            const icon = t.status === 'skipped' ? '⏭️ Skip' : (t.status === 'passed' && t.summary.errors === 0 ? '✅ Pass' : '❌ Fail');
             const metricEntries = Object.entries(t.metrics);
             const metricStr = metricEntries.length > 0 ? `${metricEntries[0][1]} ${metricEntries[0][0]}` : '-';
             md += `| ${icon} | **${t.name}** | \`${t.durationMs}ms\` | ${metricStr} | ${t.summary.errors} | ${t.summary.warnings} |\n`;

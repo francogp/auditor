@@ -13,6 +13,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
+import './permissionGuard.ts';
 import {
   type AuditFamily,
   type AuditFinding,
@@ -20,8 +21,11 @@ import {
   type StandardAuditResult,
   type ICompositeAuditor,
   type SubAuditorStep,
-  type SubAuditorReport
+  type SubAuditorReport,
+  type AuditorCapabilities,
+  type GitIgnoreRequirement
 } from './auditContract.ts';
+import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
 import {
   renderBanner,
   renderAuditTaskRow,
@@ -157,7 +161,7 @@ function matchesDirectorySegments(
   return false;
 }
 
-function matchesSinglePattern(normalized: string, pattern: string): boolean {
+export function matchesSinglePattern(normalized: string, pattern: string): boolean {
   let cleanPattern = pattern.toLowerCase();
   const matchesAnywhere = cleanPattern.startsWith('**/');
   if (matchesAnywhere) {
@@ -367,6 +371,12 @@ function renderConsoleSummary(
     console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
   }
 
+  if (result.status === 'skipped') {
+    const reason = (result.metrics?.['Skip-Reason'] as string) || 'Omitido';
+    console.log(styleText('cyan', `\n⏭️ Auditoría omitida: ${reason}\n`));
+    return;
+  }
+
   const relPath = path.relative(process.cwd(), targetJsonPath);
   console.log(`\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`);
   console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
@@ -492,6 +502,16 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
   };
 }
 
+export const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities = Object.freeze({
+  fix: false,
+  lint: false,
+  md: false,
+  ast: false,
+  changedSince: false,
+  heavy: false,
+  requiresBuild: false
+});
+
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 
@@ -501,6 +521,9 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly description: string;
   readonly family: AuditFamily;
   readonly packageName: string;
+  readonly icon: string;
+  readonly capabilities?: Partial<AuditorCapabilities>;
+  readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   readonly ruleIds?: readonly TRuleId[];
   readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
   readonly subAuditors?: readonly SubAuditorStep[];
@@ -519,6 +542,7 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly severity: FindingSeverity;
   readonly file: string;
   readonly line: number;
+  readonly col?: number;
   readonly message: string;
   readonly context: string;
 }
@@ -537,6 +561,9 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
   if (!options.packageName || options.packageName.trim().length === 0) {
     throw new Error(`Auditor [${options.id}] must define a packageName`);
   }
+  if (!options.icon || typeof options.icon !== 'string' || options.icon.trim().length === 0) {
+    throw new Error(`Auditor [${options.id}] must define a mandatory thematic icon/emoji`);
+  }
   if (!options.description || options.description.trim().length === 0) {
     throw new Error(`Auditor [${options.id}] must define a human-friendly description`);
   }
@@ -544,6 +571,23 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
     throw new Error(
       `Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`
     );
+  }
+  if (options.capabilities !== undefined) {
+    if (typeof options.capabilities !== 'object' || options.capabilities === null) {
+      throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
+    }
+    const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild'] as const;
+    for (const [key, val] of Object.entries(options.capabilities)) {
+      if (!KNOWN_CAPABILITIES.includes(key as typeof KNOWN_CAPABILITIES[number])) {
+        throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
+      }
+      if (typeof val !== 'boolean') {
+        throw new Error(`Auditor [${options.id}] capability '${key}' must be a boolean.`);
+      }
+    }
+  }
+  if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
+    throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
   }
   if (options.ruleIds && options.ruleIds.length > 0) {
     if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object') {
@@ -580,6 +624,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly description: string;
   public readonly family: AuditFamily;
   public readonly packageName: string;
+  public readonly icon: string;
+  public readonly capabilities: AuditorCapabilities;
+  public readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   public readonly ruleIds: readonly TRuleId[];
   public readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
   public readonly explicitSubAuditors?: readonly SubAuditorStep[];
@@ -595,16 +642,34 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
   protected readonly subAuditorReports: SubAuditorReport[] = [];
   protected filesScannedCount = 0;
+  protected isSkipped = false;
+  protected skipReason?: string;
+
+  public markSkipped(reason: string): void {
+    this.isSkipped = true;
+    this.skipReason = reason;
+  }
 
   constructor(options: AuditorOptions<TRuleId>) {
     validateAuditorOptions(options);
 
-    this.requiresAst = options.requiresAst ?? false;
+    const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
+    this.capabilities = {
+      ...DEFAULT_AUDITOR_CAPABILITIES,
+      ...options.capabilities,
+      ast: astRequired
+    };
+    this.requiresAst = astRequired;
     this.packageName = options.packageName;
+    this.icon = options.icon;
     this.id = options.id;
     this.name = options.name;
     this.description = options.description;
     this.family = options.family;
+    this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
+    if (this.gitIgnoreEntries.length > 0) {
+      GitIgnoreRegistry.registerMany(this.gitIgnoreEntries);
+    }
     this.ruleIds = options.ruleIds ?? [];
     this.ruleDescriptions = options.ruleDescriptions;
     this.explicitSubAuditors = options.subAuditors;
@@ -698,9 +763,33 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
 
     if (v.severity === 'error') {
-      this.context.addError(v.message, v.file, v.line, v.context, v.ruleId, ruleDesc, this.id, this.name);
+      this.context.addFinding({
+        severity: 'error',
+        message: v.message,
+        file: v.file,
+        line: v.line,
+        col: v.col,
+        context: v.context,
+        ruleId: v.ruleId,
+        ruleDescription: ruleDesc,
+        suiteId: this.id,
+        suiteName: this.name
+      });
     } else {
-      this.context.addWarning(v.message, v.file, v.line, v.context, v.ruleId, ruleDesc, this.id, this.name);
+      if (!this.context.values['errors-only']) {
+        this.context.addFinding({
+          severity: 'warning',
+          message: v.message,
+          file: v.file,
+          line: v.line,
+          col: v.col,
+          context: v.context,
+          ruleId: v.ruleId,
+          ruleDescription: ruleDesc,
+          suiteId: this.id,
+          suiteName: this.name
+        });
+      }
     }
   }
 
@@ -778,10 +867,33 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public async finishAudit(): Promise<StandardAuditResult> {
+    if (this.isSkipped) {
+      const skipMessage = this.skipReason || 'Omitido';
+      this.context.logProgress(`⏭️  ${skipMessage}`);
+      this.context.setMetric('Estado', 'OMITIDO ⏭️');
+      if (this.skipReason) {
+        this.context.setMetric('Skip-Reason', this.skipReason);
+      }
+      const result = await this.context.finish({
+        'Files Scanned': 0
+      });
+      result.status = 'skipped';
+      result.icon = this.icon;
+      result.subAuditors = [{
+        id: `${this.id}_skipped`,
+        name: skipMessage,
+        status: 'passed',
+        count: 0,
+        detail: 'skipped'
+      }];
+      return result;
+    }
+
     this.ensureSubAuditorsLogged();
     const result = await this.context.finish({
       'Files Scanned': this.filesScannedCount
     });
+    result.icon = this.icon;
     if (this.subAuditorReports.length > 0) {
       result.subAuditors = [...this.subAuditorReports];
     }
@@ -817,7 +929,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public static async runCli(auditor: BaseAuditor<string>): Promise<void> {
-    await auditor.execute();
+    const result = await auditor.execute();
+    process.exit(result.summary.errors > 0 ? 1 : 0);
   }
 
   public static async runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void> {

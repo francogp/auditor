@@ -56,6 +56,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       id: 'validate_render_performance',
       name: 'Render & GPU Performance Hygiene Validator',
       description: 'Valida higiene GPU, blend-modes e insets en capas de clima',
+      icon: '⚡',
       family: 'architecture',
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',

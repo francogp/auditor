@@ -109,6 +109,7 @@ export class TemplateIdAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: TEMPLATE_ID_RULES,
             packageName: 'Template',
+            icon: '🆔',
             ruleDescriptions: {
                 'template-duplicate-static-id': 'ID estático duplicado',
                 'template-shared-static-id': 'ID compartido entre componentes',

@@ -48,26 +48,32 @@ function hasOnceOption(node: ts.CallExpression): boolean {
   return false;
 }
 
+function resolveReactiveRoots(config: ReturnType<typeof getAuditConfig>, customRoots?: readonly string[]): readonly string[] {
+  if (customRoots && customRoots.length > 0) return customRoots;
+  return [
+    ...(config.paths.componentsRoots ?? ['src/components']),
+    ...(config.paths.viewsRoots ?? ['src/views']),
+    ...(config.paths.composablesRoots ?? ['src/composables'])
+  ];
+}
+
 export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views']),
-      ...(config.paths.composablesRoots ?? ['src/composables'])
-    ];
+    const effectiveRoots = resolveReactiveRoots(config, roots);
     super({
+      capabilities: { ast: true },
       id: 'validate_reactive_leaks',
       name: 'Reactive & DOM Event Leak Auditor',
       description: 'Detecta posibles fugas de memoria y listeners sin limpiar',
       family: 'architecture',
       ruleIds: REACTIVE_LEAK_RULES,
       packageName: 'Fuga',
+      icon: '💧',
       ruleDescriptions: {
         'dom-event-leak': 'addEventListener sin limpiar',
         'interval-leak': 'setInterval sin limpiar'
       },
-      requiresAst: true,
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
       projectRoot

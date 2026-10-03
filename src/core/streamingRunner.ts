@@ -20,6 +20,9 @@ export interface TaskStreamProgressParams {
   durationMs: number;
   isSuccess: boolean;
   hasWarnings?: boolean;
+  isSkipped?: boolean;
+  isBuiltin?: boolean;
+  icon?: string;
 }
 
 export class TaskStreamCoordinator {
@@ -49,11 +52,15 @@ export class TaskStreamCoordinator {
       const totalStr = String(this.totalTasks).padStart(2, '0');
       const pctStr = `${pct}%`.padStart(4, ' ');
 
-      const statusBadge = params.isSuccess
-        ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
-        : styleText('red', '❌');
+      const statusBadge = params.isSkipped
+        ? styleText('cyan', '⏭️  SKIP')
+        : params.isSuccess
+          ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
+          : styleText('red', '❌');
 
-      console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ⚙️  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
+      const taskIcon = params.icon ?? (params.isBuiltin === false ? '🧩' : '⚙️');
+
+      console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
 
       const subIndent = `${this.indent}   `;
       for (const line of params.subLines) {
@@ -66,10 +73,14 @@ export class TaskStreamCoordinator {
 }
 
 export function isNodeInternalWarning(line: string): boolean {
+  if (/^\s*\^+\s*$/.test(line)) return true;
+  if (/^\s*await BaseAuditor\.runCli/i.test(line)) return true;
+  if (line.includes('(node:') || line.includes('[RuntimeWarning]') || line.includes('RuntimeWarning:')) return true;
   return line.includes('[PERM0001]') ||
     line.includes('[PERM0002]') ||
     line.includes('[PERM0006]') ||
     line.includes('[DEP0190]') ||
+    line.includes('Detected unsettled top-level await') ||
     line.includes('SecurityWarning: The flag --allow') ||
     line.includes('DeprecationWarning: Passing args') ||
     line.includes('trace-warnings') ||
@@ -92,9 +103,20 @@ function emitStreamLines(
   predicate: (trimmed: string) => boolean,
   callback?: (line: string) => void
 ): void {
+  let skipSnippetLines = 0;
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || isNodeInternalWarning(trimmed)) continue;
+    if (!trimmed) continue;
+    if (isNodeInternalWarning(trimmed)) {
+      if (trimmed.includes('Detected unsettled top-level await') || trimmed.includes('RuntimeWarning')) {
+        skipSnippetLines = 2;
+      }
+      continue;
+    }
+    if (skipSnippetLines > 0) {
+      skipSnippetLines--;
+      continue;
+    }
     if (predicate(trimmed)) {
       callback?.(trimmed);
     }

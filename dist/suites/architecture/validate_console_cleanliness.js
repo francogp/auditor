@@ -40,12 +40,14 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
         super({
+            capabilities: { lint: true },
             id: 'validate_console_cleanliness',
             name: 'Console & Debugger Cleanliness Auditor',
             description: 'Prohíbe console.log directo y debugger en src/',
             family: 'architecture',
             ruleIds: CONSOLE_CLEANLINESS_RULES,
             packageName: 'Consola',
+            icon: '🧹',
             ruleDescriptions: {
                 'no-debugger-statement': 'Instrucciones debugger en src/',
                 'no-console-log-in-src': 'Llamadas directas a console.log()'

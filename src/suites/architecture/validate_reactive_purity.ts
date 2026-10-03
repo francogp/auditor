@@ -64,19 +64,20 @@ function extractComputedGetterBody(firstArg: ts.Node, sf: ts.SourceFile): ts.Nod
 }
 
 export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
       ...(config.paths.storesRoots ?? ['src/stores']),
       ...(config.paths.composablesRoots ?? ['src/composables'])
     ];
     super({
-      id: 'validate_reactive_purity',
+id: 'validate_reactive_purity',
       name: 'Reactive Computed Purity Auditor',
       description: 'Verifica pureza reactiva y ausencia de efectos en computeds',
       family: 'architecture',
       ruleIds: REACTIVE_PURITY_RULES,
       packageName: 'Computed',
+      icon: '🧼',
       ruleDescriptions: {
         'computed-state-mutation': 'Mutación de estado prohibida',
         'computed-side-effect': 'Efecto secundario prohibido'

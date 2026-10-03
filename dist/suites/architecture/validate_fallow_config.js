@@ -250,6 +250,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
             family: 'architecture',
             ruleIds: FALLOW_CONFIG_RULES,
             packageName: 'Fallow',
+            icon: '🌾',
             ruleDescriptions: {
                 'fallow-config-missing': 'Falta archivo .fallowrc.json',
                 'fallow-config-syntax': 'JSON inválido en .fallowrc.json',

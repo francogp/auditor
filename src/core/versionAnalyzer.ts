@@ -236,8 +236,8 @@ export function analyzeVersionBump(options: VersionAnalysisOptions = {}): Versio
   }
 
   // Heuristic evaluation
-  let recommendedBump: VersionBumpType = 'patch';
-  let rationale = '';
+  let recommendedBump: VersionBumpType;
+  let rationale: string;
 
   if (metrics.hasBreakingChanges) {
     recommendedBump = 'major';

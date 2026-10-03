@@ -7,7 +7,7 @@
 import path from 'node:path';
 import { statSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { getAuditConfig, isDataPath, isConstantsPath, isInCodeRoots, isExemptFile, isScriptPath, matchesAnyRoot } from '../../core/auditConfig.ts';
-import { isPathIgnored } from '../../core/auditorBase.ts';
+import { isPathIgnored, matchesSinglePattern } from '../../core/auditorBase.ts';
 
 export const AUDIT_SEVERITIES = ['error', 'warning'] as const;
 export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
@@ -523,7 +523,13 @@ export const explicitResource: AuditRule = {
   regex: /const (\w+) = (new DatabaseSync|fs\.openSync)/g,
   message: `Recurso detectado sin 'using'. Usa Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
   fix: (match: string) => match.replace('const', 'using'),
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => !!filePath && isScriptPath(filePath)
+  check: (content: string, match: RegExpExecArray, filePath?: string) => {
+    if (!filePath || !isScriptPath(filePath)) return false;
+    const { line, trimmed } = getLineAtMatch(content, match.index ?? 0);
+    if (isCommentLine(trimmed)) return false;
+    if (/\/\/\s*(?:resource-ok|fs-ok):\s*\S+/i.test(line)) return false;
+    return true;
+  }
 };
 
 export const manualAnimations: AuditRule = {
@@ -859,13 +865,19 @@ function checkUnindexedChildSubdirs(dir: string, indexedSubdirs: Set<string>): b
 }
 
 export const forbiddenTypeCasts: AuditRule = {
-  regex: /\bas\s+unknown\s+as\b|\bas\s+any\s+as\b/g,
-  message: (match: string) => `Casteo arbitrario prohibido detectado: '${match}'. Viola las directivas de integridad de tipos (@/domain-type-first y Regla 7 de AGENTS.md). Define e importa la interfaz o unión de tipos explícita.`,
+  regex: /\bas\s+unknown\s+as\b|\bas\s+any\s+as\b|\bas\s+any\b|:\s*any\b|<any>/g,
+  message: (match: string) => `Casteo arbitrario o tipo 'any' prohibido detectado: '${match}'. Viola las directivas de integridad de tipos (/domain-type-first y Regla 7 de AGENTS.md). Define e importa la interfaz o unión de tipos explícita.`,
   severity: 'error',
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
+  check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     if (isExemptFile(filePath)) return false;
-    return isInCodeRoots(filePath);
+    if (!isInCodeRoots(filePath)) return false;
+
+    const { line, trimmed } = getLineAtMatch(content, match.index ?? 0);
+    if (isCommentLine(trimmed)) return false;
+    if (/\/\/\s*(?:any-ok|type-ok|domain-ok):\s*\S+/i.test(line)) return false;
+
+    return true;
   },
   fixable: false
 };
@@ -873,6 +885,13 @@ export const forbiddenTypeCasts: AuditRule = {
 function isMagicNumberExemptFile(filePath?: string): boolean {
   if (!isAuditableCodeFile(filePath)) return true;
   const norm = normalizeFilePath(filePath!);
+  const config = getAuditConfig();
+  const exemptGlobs = config.constants?.exemptGlobs ?? [];
+  for (const glob of exemptGlobs) {
+    if (matchesSinglePattern(norm, glob)) {
+      return true;
+    }
+  }
   return (
     isPathIgnored(filePath!) ||
     isDataPath(filePath!) ||
@@ -1106,24 +1125,6 @@ export const missingInteractiveId: AuditRule = {
     return true;
   },
   fixable: false
-};
-
-export const sassTraps: AuditRule = {
-  regex: /(?<![.$])\b(scale|grayscale|invert|opacity|brightness|blur|rotate|translate|saturate|drop-shadow|translatex|translatey|translatez|skewx|skewy|matrix|rgba|rgb)\s*\(/g,
-  message: (match: string) => `Función SASS/CSS propensa a colisión detectada en minúscula: '${match}'. ERROR: Para prevenir errores y advertencias de deprecación en Dart Sass, capitaliza la función manualmente (ej: Grayscale, Rgba, Scale).`,
-  severity: 'error',
-  fixable: false,
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return true;
-    const norm = normalizeFilePath(filePath);
-    if (!norm.endsWith('.scss') && !norm.endsWith('.css') && !norm.endsWith('.vue')) return false;
-    const matchIndex = match.index ?? 0;
-    if (matchIndex > 0) {
-      const prevChar = content[matchIndex - 1];
-      if (prevChar === '.' || prevChar === '$') return false;
-    }
-    return true;
-  }
 };
 
 const BASE_INFRA_AND_UUID_IDENTIFIERS: ReadonlySet<string> = new Set<string>([ // runtime-set: Fast O(1) membership lookup set
@@ -1384,7 +1385,7 @@ export const namedTimerConstants: AuditRule = {
 };
 
 export const auditRulesConfig = {
-  viewport, gpuGaps, legacyDates, hardcodedTimezone, nodePrefix, esmExtensions, tsIgnore, timersPromises, explicitResource, zIndexAudit, zIndexConstantDeclaration, manualAnimations, emptyVueTransitions, manualTimersFrontend, zeroTimerLogic, noPlaywrightWaitForTimeout, jsonStringifyInWatch, intersectionObserverRoot, dbInTemplates, functionCallsInTemplates, forbiddenFallbacks, forbiddenTypeCasts, doxIndexIntegrity, noDomainIdFallbacks, strictDomainParamTypes, noInlineTypeImports, noInlineLiteralUnions, magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName, noLiteralBooleanType, noInlineAnonymousObjectType, noFloatingPromises, noLeakedGlobalState, missingInteractiveId, sassTraps,
+  viewport, gpuGaps, legacyDates, hardcodedTimezone, nodePrefix, esmExtensions, tsIgnore, timersPromises, explicitResource, zIndexAudit, zIndexConstantDeclaration, manualAnimations, emptyVueTransitions, manualTimersFrontend, zeroTimerLogic, noPlaywrightWaitForTimeout, jsonStringifyInWatch, intersectionObserverRoot, dbInTemplates, functionCallsInTemplates, forbiddenFallbacks, forbiddenTypeCasts, doxIndexIntegrity, noDomainIdFallbacks, strictDomainParamTypes, noInlineTypeImports, noInlineLiteralUnions, magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName, noLiteralBooleanType, noInlineAnonymousObjectType, noFloatingPromises, noLeakedGlobalState, missingInteractiveId,
   noImportantOnTransforms, noImportantOnFilters, noRawJsonImportsOutsideData, noSassAtImport,
   noLayoutAnimationInGsap, namedTimerConstants
 };

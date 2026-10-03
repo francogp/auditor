@@ -12,6 +12,8 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
+import "./permissionGuard.js";
+import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfig.js";
@@ -115,7 +117,7 @@ function matchesDirectorySegments(normalized, segments, unignoreSet, configIgnor
     }
     return false;
 }
-function matchesSinglePattern(normalized, pattern) {
+export function matchesSinglePattern(normalized, pattern) {
     let cleanPattern = pattern.toLowerCase();
     const matchesAnywhere = cleanPattern.startsWith('**/');
     if (matchesAnywhere) {
@@ -238,6 +240,11 @@ function renderConsoleSummary(result, config, targetJsonPath) {
     if (result.findings.some(f => f.ruleId === 'fallow-similar-code-failed' && (f.context === 'manual-setup-required' || f.context === 'model-not-ready'))) {
         console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
     }
+    if (result.status === 'skipped') {
+        const reason = result.metrics?.['Skip-Reason'] || 'Omitido';
+        console.log(styleText('cyan', `\n⏭️ Auditoría omitida: ${reason}\n`));
+        return;
+    }
     const relPath = path.relative(process.cwd(), targetJsonPath);
     console.log(`\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`);
     console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
@@ -352,6 +359,15 @@ export function setupAuditor(config) {
         }
     };
 }
+export const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
+    fix: false,
+    lint: false,
+    md: false,
+    ast: false,
+    changedSince: false,
+    heavy: false,
+    requiresBuild: false
+});
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 /**
@@ -368,11 +384,31 @@ function validateAuditorOptions(options) {
     if (!options.packageName || options.packageName.trim().length === 0) {
         throw new Error(`Auditor [${options.id}] must define a packageName`);
     }
+    if (!options.icon || typeof options.icon !== 'string' || options.icon.trim().length === 0) {
+        throw new Error(`Auditor [${options.id}] must define a mandatory thematic icon/emoji`);
+    }
     if (!options.description || options.description.trim().length === 0) {
         throw new Error(`Auditor [${options.id}] must define a human-friendly description`);
     }
     if (options.description.length > MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH || options.description.includes('\n')) {
         throw new Error(`Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`);
+    }
+    if (options.capabilities !== undefined) {
+        if (typeof options.capabilities !== 'object' || options.capabilities === null) {
+            throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
+        }
+        const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild'];
+        for (const [key, val] of Object.entries(options.capabilities)) {
+            if (!KNOWN_CAPABILITIES.includes(key)) {
+                throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
+            }
+            if (typeof val !== 'boolean') {
+                throw new Error(`Auditor [${options.id}] capability '${key}' must be a boolean.`);
+            }
+        }
+    }
+    if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
+        throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
     }
     if (options.ruleIds && options.ruleIds.length > 0) {
         if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object') {
@@ -402,6 +438,9 @@ export class BaseAuditor {
     description;
     family;
     packageName;
+    icon;
+    capabilities;
+    gitIgnoreEntries;
     ruleIds;
     ruleDescriptions;
     explicitSubAuditors;
@@ -416,14 +455,31 @@ export class BaseAuditor {
     countsByRule = new Map();
     subAuditorReports = [];
     filesScannedCount = 0;
+    isSkipped = false;
+    skipReason;
+    markSkipped(reason) {
+        this.isSkipped = true;
+        this.skipReason = reason;
+    }
     constructor(options) {
         validateAuditorOptions(options);
-        this.requiresAst = options.requiresAst ?? false;
+        const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
+        this.capabilities = {
+            ...DEFAULT_AUDITOR_CAPABILITIES,
+            ...options.capabilities,
+            ast: astRequired
+        };
+        this.requiresAst = astRequired;
         this.packageName = options.packageName;
+        this.icon = options.icon;
         this.id = options.id;
         this.name = options.name;
         this.description = options.description;
         this.family = options.family;
+        this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
+        if (this.gitIgnoreEntries.length > 0) {
+            GitIgnoreRegistry.registerMany(this.gitIgnoreEntries);
+        }
         this.ruleIds = options.ruleIds ?? [];
         this.ruleDescriptions = options.ruleDescriptions;
         this.explicitSubAuditors = options.subAuditors;
@@ -500,10 +556,34 @@ export class BaseAuditor {
         this.countsByRule.set(v.ruleId, current + 1);
         const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
         if (v.severity === 'error') {
-            this.context.addError(v.message, v.file, v.line, v.context, v.ruleId, ruleDesc, this.id, this.name);
+            this.context.addFinding({
+                severity: 'error',
+                message: v.message,
+                file: v.file,
+                line: v.line,
+                col: v.col,
+                context: v.context,
+                ruleId: v.ruleId,
+                ruleDescription: ruleDesc,
+                suiteId: this.id,
+                suiteName: this.name
+            });
         }
         else {
-            this.context.addWarning(v.message, v.file, v.line, v.context, v.ruleId, ruleDesc, this.id, this.name);
+            if (!this.context.values['errors-only']) {
+                this.context.addFinding({
+                    severity: 'warning',
+                    message: v.message,
+                    file: v.file,
+                    line: v.line,
+                    col: v.col,
+                    context: v.context,
+                    ruleId: v.ruleId,
+                    ruleDescription: ruleDesc,
+                    suiteId: this.id,
+                    suiteName: this.name
+                });
+            }
         }
     }
     isLineIgnored(line, customTokens = []) {
@@ -561,10 +641,32 @@ export class BaseAuditor {
         return this.finishAudit();
     }
     async finishAudit() {
+        if (this.isSkipped) {
+            const skipMessage = this.skipReason || 'Omitido';
+            this.context.logProgress(`⏭️  ${skipMessage}`);
+            this.context.setMetric('Estado', 'OMITIDO ⏭️');
+            if (this.skipReason) {
+                this.context.setMetric('Skip-Reason', this.skipReason);
+            }
+            const result = await this.context.finish({
+                'Files Scanned': 0
+            });
+            result.status = 'skipped';
+            result.icon = this.icon;
+            result.subAuditors = [{
+                    id: `${this.id}_skipped`,
+                    name: skipMessage,
+                    status: 'passed',
+                    count: 0,
+                    detail: 'skipped'
+                }];
+            return result;
+        }
         this.ensureSubAuditorsLogged();
         const result = await this.context.finish({
             'Files Scanned': this.filesScannedCount
         });
+        result.icon = this.icon;
         if (this.subAuditorReports.length > 0) {
             result.subAuditors = [...this.subAuditorReports];
         }
@@ -594,7 +696,8 @@ export class BaseAuditor {
         }
     }
     static async runCli(auditor) {
-        await auditor.execute();
+        const result = await auditor.execute();
+        process.exit(result.summary.errors > 0 ? 1 : 0);
     }
     static async runCliIfMain(metaUrl, auditor) {
         if (isMainModule(metaUrl)) {

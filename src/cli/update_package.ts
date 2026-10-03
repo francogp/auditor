@@ -71,7 +71,7 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
-  let hostPkg: Record<string, unknown> = {};
+  let hostPkg: Record<string, unknown>;
   try {
     hostPkg = JSON.parse(fs.readFileSync(hostPkgJsonPath, 'utf-8'));
   } catch (err) {

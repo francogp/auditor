@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc",
+  "extends": [
+    "stylelint-config-standard"
+  ],
+  "plugins": [
+    "stylelint-order",
+    "@projectwallace/stylelint-plugin"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.scss"],
+      "extends": ["stylelint-config-standard-scss"]
+    },
+    {
+      "files": ["**/*.vue"],
+      "extends": [
+        "stylelint-config-standard-scss",
+        "stylelint-config-standard-vue/scss"
+      ]
+    }
+  ],
+  "rules": {
+    "no-duplicate-selectors": [
+      true,
+      {
+        "disallowInList": true
+      }
+    ],
+    "declaration-block-no-duplicate-properties": [
+      true,
+      {
+        "ignore": [
+          "consecutive-duplicates-with-different-values"
+        ]
+      }
+    ],
+    "block-no-empty": true,
+    "no-empty-source": true,
+    "property-no-deprecated": true,
+    "declaration-property-value-keyword-no-deprecated": true,
+    "declaration-block-no-shorthand-property-overrides": true,
+    "rule-empty-line-before": [
+      "always",
+      {
+        "except": ["first-nested"],
+        "ignore": ["after-comment", "inside-block"]
+      }
+    ],
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": [
+          "deep",
+          "slotted",
+          "global"
+        ]
+      }
+    ],
+    "selector-pseudo-element-no-unknown": [
+      true,
+      {
+        "ignorePseudoElements": [
+          "v-deep",
+          "v-slotted",
+          "v-global"
+        ]
+      }
+    ],
+    "projectwallace/no-invalid-z-index": true,
+    "projectwallace/no-duplicate-custom-properties": true,
+    "projectwallace/no-duplicate-keyframes": true,
+    "projectwallace/no-unused-custom-properties": true,
+    "projectwallace/no-property-browserhacks": true,
+    "projectwallace/no-value-browserhacks": true,
+    "projectwallace/no-atrule-browserhacks": true,
+    "projectwallace/no-unreachable-if-branches": true,
+    "projectwallace/no-useless-if": true,
+    "projectwallace/no-duplicate-data-urls": true,
+    "order/order": [
+      "custom-properties",
+      "dollar-variables",
+      {
+        "type": "at-rule",
+        "name": "include"
+      },
+      "declarations",
+      {
+        "type": "rule",
+        "selector": "^&:\\w"
+      },
+      "rules"
+    ],
+    "order/properties-order": [
+      [
+        "position",
+        "top",
+        "right",
+        "bottom",
+        "left",
+        "z-index",
+        "display",
+        "flex-direction",
+        "flex-wrap",
+        "justify-content",
+        "align-items",
+        "align-content",
+        "gap",
+        "grid-template-columns",
+        "grid-template-rows",
+        "width",
+        "min-width",
+        "max-width",
+        "height",
+        "min-height",
+        "max-height",
+        "margin",
+        "padding",
+        "border",
+        "border-radius",
+        "background",
+        "background-color",
+        "color",
+        "font-family",
+        "font-size",
+        "font-weight",
+        "line-height",
+        "text-align",
+        "opacity",
+        "transform",
+        "transition",
+        "animation"
+      ],
+      {
+        "unspecified": "bottom"
+      }
+    ]
+  }
+}

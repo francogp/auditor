@@ -169,14 +169,26 @@ function auditCompiledChunks(distAssetsDir, bundleConfig, projectRoot, auditor) 
     return chunksAudited;
 }
 export class BundleBudgetAuditor extends BaseAuditor {
+    static gitIgnoreEntries = [
+        {
+            id: 'dist',
+            pattern: 'dist/',
+            samplePath: 'dist/index.js',
+            reason: 'Directorio de artefactos y bundle compilado de producción',
+            isApplicable: (config) => config.bundle?.enabled !== false && config.packageDistribution?.enabled !== true
+        }
+    ];
     constructor(projectRoot = process.cwd()) {
         super({
+            capabilities: { requiresBuild: true, ast: true },
+            gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
             id: 'validate_bundle_budget',
             name: 'Bundle Budget & Client Leak Auditor',
             description: 'Audita límites de tamaño de bundles y fugas de imports',
             family: 'architecture',
             ruleIds: BUNDLE_BUDGET_RULES,
             packageName: 'Bundle',
+            icon: '📦',
             ruleDescriptions: {
                 'bundle-runtime-leak': 'Fuga de test/script en producción',
                 'bundle-heavy-import': 'Librería pesada en capas de UI',

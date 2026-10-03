@@ -87,7 +87,15 @@ export default defineAuditConfig({
       CRITICAL: 999999 // Critical layer reserved for system fatal errors and crash screens
     },
     globalUtilityClasses: ['btn-game-retro'], // Global CSS utility classes authorized as exceptions to strict BEM
-    heavyEffectPaths: ['src/styles/weather', 'src/styles/atmosphere'] // Style modules with authorized heavy CSS directives (weather, atmospheric effects)
+    heavyEffectPaths: ['src/styles/weather', 'src/styles/atmosphere'], // Style modules with authorized heavy CSS directives (weather, atmospheric effects)
+    stylelint: {
+      enabled: true, // Enables Stylelint & SCSS hygiene verification
+      configFile: undefined, // Optional custom config path (e.g. '.stylelintrc.json'); auto-discovers local or defaults to canonical
+      rules: {
+        // Optional rule overrides passed directly to Stylelint (e.g. 'alpha-value-notation': 'number')
+      },
+      ignoreGlobs: [] // Additional globs to ignore during CSS/SCSS linting
+    }
   },
 
   bundle: {
@@ -253,6 +261,14 @@ export default defineAuditConfig({
         alternative: 'OFFICIAL_SERVERS_BY_ID[serverId]', // Recommended key-indexed O(1) access alternative
         definingFile: 'src/data/system/official_servers.ts' // Defining file for indexed catalog
       }
+    ]
+  },
+
+  constants: {
+    exemptGlobs: [
+      'scripts/maintenance/**', // Specific maintenance scripts exempt from magic numbers
+      'scripts/data/generate_*.ts', // Data generators exempt from magic numbers
+      'src/data/seed/**' // Seed databases exempt from magic numbers
     ]
   },
 

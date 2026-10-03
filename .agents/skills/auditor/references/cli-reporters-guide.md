@@ -18,7 +18,6 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 | `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`). | `npm run audit:findings severity=error` |
 | `top=<N\|all>` | Limits displayed items (default: 20). | `npm run audit:findings top=all` |
 | `search=<term>` | Searches within finding messages and context snippets. | `npm run audit:findings search=token` |
-| `skip-similar` / `--skip-similar` | Completely bypasses Fallow similar-code vector duplication analysis during GitHub Pages or CI builds (or via `AUDIT_SKIP_SIMILAR=1`), avoiding heavy AI model downloads and timeouts. | `npx auditor --skip-similar` |
 | `json` | Emits structured JSON including `breakdownByDir` and `files` maps. | `npm run audit:findings json` |
 
 ---
@@ -34,3 +33,22 @@ All inspection routines MUST use the official NPM scripts declared in `package.j
 - `npm run audit:summary`: Compact summary overview of latest audit results.
 - `npm run audit:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `--threshold <N>`).
 - `npm run audit:review`: Graph-grounded architectural review brief for changed files against base branch via Fallow code-review graphs.
+
+---
+
+## 3. Suite Execution States & Transparent `SKIP` Reporting
+
+The auditor streaming runner (`streamingRunner.ts`) and summary tables display 4 explicit execution states:
+
+| Status Badge | Color | Description |
+| :--- | :--- | :--- |
+| `✅ PASS` | Green | Suite completed successfully with 0 errors and 0 warnings. |
+| `⚠️  WARN` | Yellow | Suite completed with warnings but 0 blocking errors. |
+| `❌ FAIL` | Red | Suite encountered one or more blocking architectural violations (`severity: 'error'`). |
+| `⏭️  SKIP` | Cyan | Suite was intentionally bypassed (via environment guard, configuration, or fast preset). Displays reason and suite thematic icon. |
+
+### Vector Semantic Duplication Governance (`validate_similar_code`)
+- **No CLI Skip Flags**: There is no CLI flag (`--skip-similar` or `--skip-similar-code`) to bypass similar-code vector analysis.
+- **Fast Local Execution**: Executes on Candle CPU in ~2s leveraging persistent disk cache (`%LOCALAPPDATA%\fallow\similar-code` on Windows, `~/.cache/fallow/similar-code` on Linux).
+- **Environment Variable Guard**: Bypassing vector analysis via `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`) is strictly reserved for headless remote CI/deploy workflows (e.g. GitHub Pages deploy). It is strictly forbidden in local development or interactive agent turns. When active in remote CI, it transparently renders `⏭️  SKIP` with justification rather than masking as passed.
+

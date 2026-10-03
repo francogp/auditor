@@ -4,25 +4,30 @@ This document contains complete, validated, and domain-agnostic configuration bl
 
 ---
 
-## 🏛️ Mandatory Explicit Configuration Mandate
+## 🏛️ Active by Default Subsystem Mandate & Zero Silent Skips
 
-Every host project using `@francogp/auditor` must explicitly configure all engine subsystems in its `audit.config.ts`:
+All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFAULT** (`enabled: true`, `persistence.engine: 'supabase'`, `zLayersEnabled: true`, `requireInputIds: true`, `similarCode.enabled: true`, `packageScripts.enabled: true`, etc.). If a host project omits any subsystem in `audit.config.ts`, that subsystem automatically defaults to active with complete standard defaults. Host projects only need to declare configurations to customize settings or explicitly deactivate non-applicable subsystems (`enabled: false`, `engine: 'none'`). Sub-auditors never silently bypass checks due to missing files or missing configuration:
 
-1. `persistence`: Database engine (`'supabase'`, `'sqlite'`, `'hybrid'`, `'postgres'`, `'custom'`, or `'none'`). Configures `prohibitedTemplateIdentifiers`, `authorizedSaveFiles`, and `allowedHosts` according to host infrastructure.
-2. `bundle`: Bundle chunk budgets and size thresholds (`enabled: true` with `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets`, or `enabled: false`). Heavy Web Worker chunks or simulation data modules are declared in `exemptChunkPrefixes`. Forbidden UI value imports are extended in `forbiddenUiImports`.
-3. `fallow.security` (or `security`): Fallow CWE static vulnerability gating (`enabled: boolean`). Enables disabling alerts for pure CLI tools and runners.
-4. `styles`: Z-layers (`zLayersEnabled: boolean`, direct scale in `zLayers`, SCSS file in `zLayersScssFile`, TS file in `zLayersTsFile`), base SCSS file (`baseScssFile`), line-height overlap check (`lineHeightOverlapCheck: boolean`), and utility classes.
-5. `templates`: HTML/Vue template hygiene requirements (`requireInputIds: boolean`, permitted safe functions `safeTemplateFunctions?: string[]`, forbidden render loop patterns `forbiddenTemplateCallPatterns?: string[]`).
+1. `persistence`: Database engine (defaults to `'supabase'`; or `'sqlite'`, `'postgres'`, `'hybrid'`, `'none'`). Configures `prohibitedTemplateIdentifiers`, `authorizedSaveFiles`, and `allowedHosts` according to host infrastructure.
+2. `bundle`: Bundle chunk budgets and size thresholds (defaults to `enabled: true` with `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets`, or `enabled: false`). Heavy Web Worker chunks or simulation data modules are declared in `exemptChunkPrefixes`. Forbidden UI value imports are extended in `forbiddenUiImports`.
+3. `fallow.security` (or `security`): Fallow CWE static vulnerability gating (defaults to `enabled: true`). Disables alerts for pure CLI tools and runners (`enabled: false`).
+4. `styles`: Z-layers (defaults to `zLayersEnabled: true`, direct scale in `zLayers`, SCSS file in `zLayersScssFile`, TS file in `zLayersTsFile`), base SCSS file (`baseScssFile`), line-height overlap check (`lineHeightOverlapCheck: true`), and utility classes.
+5. `templates`: HTML/Vue template hygiene requirements (defaults to `requireInputIds: true`, permitted safe functions `safeTemplateFunctions?: string[]`, forbidden render loop patterns `forbiddenTemplateCallPatterns?: string[]`).
 6. `animation`: Mandatory GSAP animation governance. `gsapSleep` and `delayedCall` are universal framework standards for UI delays; additional custom timer functions are declared in `customTimerFunctions?: string[]`.
-7. `constants`: Duplicate constant ignore names (`ignoredNames?: string[]`), allowed numeric prefixes (`allowedNumericPrefixes?: string[]`), and exempt magic numbers (`exemptMagicNumbers?: number[]`).
+7. `constants`: Duplicate constant ignore names (`ignoredNames?: string[]`), allowed numeric prefixes (`allowedNumericPrefixes?: string[]`), exempt magic numbers (`exemptMagicNumbers?: number[]`), and anti-abuse specific file exemption globs (`exemptGlobs?: string[]`).
 8. `documentation`: Known valid abstract code reference paths (`knownValidAbstractPaths?: string[]`).
 9. `pinia`: Authorized external store mutation files (`authorizedMutationFiles?: string[]`).
 10. `paths`: Directory structure, CLI roots (`cliRoots?: string[]`), and test fragmentation whitelist (`testFragmentationWhitelist?: string[]`).
 11. `domain`: Finite domain types (`finiteDomainTypes`), infra ID whitelists (`infraIdWhitelist`), normalization-exempt tokens (`caseNormalizationExemptTokens`), allowed store setter prefixes (`allowedStoreSetterPrefixes`), and allowed numeric constant prefixes (`allowedNumericConstantPrefixes`).
-12. `agentPlugin`: AI agent plugin integration (`enabled: boolean`).
-13. `fallow`: Deep static intelligence, security, and semantic code similarity (`enabled: boolean`, `security?: { enabled: boolean }`, `enforceTargets?: boolean`, `maxTargetPriority?: 'critical' | 'high' | 'all'`, `similarCode?: { enabled?: boolean, threshold?: number, ignoreSameFile?: boolean }`).
+12. `agentPlugin`: AI agent plugin integration (defaults to `enabled: true`).
+13. `fallow`: Deep static intelligence, security, and semantic code similarity (defaults to `enabled: true`, `security: { enabled: true }`, `similarCode: { enabled: true, threshold: 0.95, ignoreSameFile: true }`).
+14. `packageScripts`: Build script chaining and recommended scripts governance (defaults to `enabled: true`, `enforceBuildAudit: true`, `recommendedScripts: true`).
+15. `gitIgnore`: Dynamic gitignore entry verification (defaults to `enabled: true`, `extraRequiredEntries: []`).
+16. `packageHygiene`: Knip-powered dependency and binary script hygiene (defaults to `enabled: true`).
+17. `accessibility`: Web accessibility standards (defaults to `enabled: true`).
+18. `typeCoverage`: Strict TypeScript type coverage (defaults to `enabled: true`, `atLeast: 95`).
 
-Any omitted subsystem will trigger an immediate runtime failure (`assertAuditConfigComplete`) to alert developers about missing or incomplete configurations following framework updates.
+When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics.
 
 ---
 

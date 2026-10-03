@@ -401,7 +401,7 @@ function auditOrphanedScss(
 }
 
 export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
-  private readonly collectedViolations: ComponentStyleViolation[] = [];
+private readonly collectedViolations: ComponentStyleViolation[] = [];
   private vueCount = 0;
   private scssCount = 0;
 
@@ -415,11 +415,13 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     ];
 
     super({
-      id: 'validate_component_styles',
+      capabilities: { lint: true },
+id: 'validate_component_styles',
       name: 'Vue Component Style Linkage & SCSS Auditor',
       description: 'Valida enlaces de estilos de componentes y huérfanos SCSS',
       family: 'architecture',
       packageName: 'Estilos',
+      icon: '🎨',
       ruleIds: COMPONENT_STYLE_RULES,
       ruleDescriptions: {
         'broken-style-link': 'Enlace de estilo roto o inexistente',
