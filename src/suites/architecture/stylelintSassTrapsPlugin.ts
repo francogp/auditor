@@ -32,15 +32,7 @@ export const SASS_COLLISION_FUNCTION_MAP: Readonly<Record<string, string>> = Obj
   brightness: 'Brightness',
   contrast: 'Contrast',
   'drop-shadow': 'Drop-Shadow',
-  'hue-rotate': 'hue-Rotate',
-  translatex: 'TranslateX',
-  translatey: 'TranslateY',
-  translatez: 'TranslateZ',
-  translate3d: 'Translate3d',
-  radialgradient: 'Radial-Gradient',
-  lineargradient: 'Linear-Gradient',
-  'radial-gradient': 'Radial-Gradient',
-  'linear-gradient': 'Linear-Gradient'
+  'hue-rotate': 'hue-Rotate'
 });
 
 export const sassTrapsMessages = stylelint.utils.ruleMessages(SASS_TRAPS_RULE_NAME, {
@@ -72,7 +64,11 @@ const ruleFunction: stylelint.RuleBase = (primary, _secondary, _context) => {
             word: node.value,
             fix: () => {
               node.value = expected;
-              decl.value = parsed.toString();
+              const formatted = parsed.toString();
+              if (decl.raws && (decl.raws as { value?: { raw: string } }).value) {
+                (decl.raws as { value: { raw: string } }).value.raw = formatted;
+              }
+              decl.value = formatted;
             }
           });
         }
