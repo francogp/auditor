@@ -48,7 +48,7 @@ export const sassTrapsMessages = stylelint.utils.ruleMessages(SASS_TRAPS_RULE_NA
     `Expected "${actual}" to be "${expected}" (Sass collision casing)`
 });
 
-const ruleFunction: stylelint.RuleBase = (primary, _secondary, context) => {
+const ruleFunction: stylelint.RuleBase = (primary, _secondary, _context) => {
   return (root, result) => {
     if (!primary) return;
 
@@ -56,7 +56,6 @@ const ruleFunction: stylelint.RuleBase = (primary, _secondary, context) => {
       if (!decl.value || !decl.value.includes('(')) return;
 
       const parsed = valueParser(decl.value);
-      let modified = false;
 
       parsed.walk((node) => {
         if (node.type !== 'function') return;
@@ -65,24 +64,19 @@ const ruleFunction: stylelint.RuleBase = (primary, _secondary, context) => {
         const expected = SASS_COLLISION_FUNCTION_MAP[lower];
 
         if (expected && node.value !== expected) {
-          if (context && context.fix) {
-            node.value = expected;
-            modified = true;
-          } else {
-            stylelint.utils.report({
-              result,
-              ruleName: SASS_TRAPS_RULE_NAME,
-              message: sassTrapsMessages.expected(node.value, expected),
-              node: decl,
-              word: node.value
-            });
-          }
+          stylelint.utils.report({
+            result,
+            ruleName: SASS_TRAPS_RULE_NAME,
+            message: sassTrapsMessages.expected(node.value, expected),
+            node: decl,
+            word: node.value,
+            fix: () => {
+              node.value = expected;
+              decl.value = parsed.toString();
+            }
+          });
         }
       });
-
-      if (modified) {
-        decl.value = parsed.toString();
-      }
     });
   };
 };

@@ -92,8 +92,8 @@
       }
     ],
     "order/order": [
-      "custom-properties",
       "dollar-variables",
+      "custom-properties",
       {
         "type": "at-rule",
         "name": "include"
