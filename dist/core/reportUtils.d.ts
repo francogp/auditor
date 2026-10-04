@@ -17,7 +17,7 @@ export declare function writeReportFile(outputPathArg: string, summary: Validati
 /**
  * Parses raw JSON output containing an array, stripping Node.js permission and runtime noise.
  */
-export declare function parseJsonArrayOutput<T = unknown>(input: string | object[], options?: {
+export declare function parseJsonArrayOutput<T = unknown>(input: string | unknown[], options?: {
     throwOnError?: boolean;
     toolName?: string;
 }): T[];

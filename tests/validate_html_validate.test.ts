@@ -8,6 +8,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import {
   HtmlValidateAuditor,
   HTML_VALIDATE_RULES,
@@ -125,5 +128,32 @@ describe('HtmlValidateAuditor & parseHtmlValidateResults', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('executes runAudit cleanly when targets are empty in a sandbox root', async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-html-test-'));
+      try {
+        const auditor = new HtmlValidateAuditor();
+        Object.defineProperty(auditor, 'projectRoot', { value: tempDir });
+        await auditor.runAudit();
+        expect(auditor.getFilesScanned()).toBe(0);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('executes runAudit against a sandbox containing a clean src/clean.html', async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-html-test-'));
+      try {
+        fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
+        fs.writeFileSync(path.join(tempDir, 'src/clean.html'), '<!DOCTYPE html>\n<html lang="en"><head><title>App</title></head><body><h1>Hello</h1></body></html>\n', 'utf-8');
+        const auditor = new HtmlValidateAuditor();
+        Object.defineProperty(auditor, 'projectRoot', { value: tempDir });
+        await auditor.runAudit();
+        expect(auditor.getFilesScanned()).toBe(1);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 });
+

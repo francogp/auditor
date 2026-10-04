@@ -189,5 +189,81 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(result.newVersion).toBe('2.0.1-build.20261002-180000');
       expect(result.bumpType).toBe('patch');
     });
+
+    it('automatically synchronizes public/version.json preserving v prefix when it exists', () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'pokeborrador-host', version: '0.6.0' }, null, 2), 'utf-8');
+
+      const publicDir = path.join(tempDir, 'public');
+      fs.mkdirSync(publicDir, { recursive: true });
+      const versionJsonPath = path.join(publicDir, 'version.json');
+      fs.writeFileSync(versionJsonPath, JSON.stringify({ version: 'v0.6.0-build.20261002-172710' }, null, 2), 'utf-8');
+
+      const fixedDate = Temporal.ZonedDateTime.from('2026-10-04T02:30:00-03:00[America/Buenos_Aires]');
+      const result = applyVersionBump({
+        cwd: tempDir,
+        bumpType: 'patch',
+        customNow: fixedDate
+      });
+
+      expect(result.newVersion).toBe('0.6.1-build.20261004-023000');
+      expect(result.syncedFiles).toContain(versionJsonPath);
+
+      const updatedVersionJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8'));
+      expect(updatedVersionJson.version).toBe('v0.6.1-build.20261004-023000');
+    });
+
+    it('synchronizes custom JSON and TS targets specified in syncTargets', () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'custom-app', version: '1.0.0' }, null, 2), 'utf-8');
+
+      const fixedDate = Temporal.ZonedDateTime.from('2026-10-04T02:30:00-03:00[America/Buenos_Aires]');
+      const result = applyVersionBump({
+        cwd: tempDir,
+        bumpType: 'minor',
+        customNow: fixedDate,
+        syncTargets: [
+          'metadata/version.json',
+          { path: 'src/config/appVersion.ts', tsExportName: 'CURRENT_APP_VERSION' }
+        ]
+      });
+
+      expect(result.newVersion).toBe('1.1.0-build.20261004-023000');
+
+      // Check metadata/version.json
+      const metaPath = path.join(tempDir, 'metadata/version.json');
+      expect(fs.existsSync(metaPath)).toBe(true);
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      expect(meta.version).toBe('1.1.0-build.20261004-023000');
+
+      // Check src/config/appVersion.ts
+      const tsPath = path.join(tempDir, 'src/config/appVersion.ts');
+      expect(fs.existsSync(tsPath)).toBe(true);
+      const tsContent = fs.readFileSync(tsPath, 'utf-8');
+      expect(tsContent).toContain("export const CURRENT_APP_VERSION = '1.1.0-build.20261004-023000';");
+    });
+
+    it('respects autoSyncPublicVersionJson: false', () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'no-sync-app', version: '1.0.0' }, null, 2), 'utf-8');
+
+      const publicDir = path.join(tempDir, 'public');
+      fs.mkdirSync(publicDir, { recursive: true });
+      const versionJsonPath = path.join(publicDir, 'version.json');
+      fs.writeFileSync(versionJsonPath, JSON.stringify({ version: 'v1.0.0' }, null, 2), 'utf-8');
+
+      const fixedDate = Temporal.ZonedDateTime.from('2026-10-04T02:30:00-03:00[America/Buenos_Aires]');
+      const result = applyVersionBump({
+        cwd: tempDir,
+        bumpType: 'patch',
+        customNow: fixedDate,
+        autoSyncPublicVersionJson: false
+      });
+
+      expect(result.syncedFiles).not.toContain(versionJsonPath);
+      const unchanged = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8'));
+      expect(unchanged.version).toBe('v1.0.0');
+    });
   });
 });
+

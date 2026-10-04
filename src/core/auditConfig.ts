@@ -201,12 +201,26 @@ export interface AuditFallowSimilarCodeConfig {
   readonly timeoutMs?: number;
 }
 
+export interface AuditFallowFlagsConfig {
+  readonly enabled?: boolean;
+  readonly maxFlagAgeDays?: number;
+  readonly trackRetirement?: boolean;
+}
+
+export interface AuditFallowCoverageConfig {
+  readonly enabled?: boolean;
+  readonly path?: string;
+  readonly root?: string;
+}
+
 export interface AuditFallowConfig {
   readonly enabled?: boolean;
   readonly security?: AuditSecurityConfig;
   readonly enforceTargets?: boolean;
   readonly maxTargetPriority?: 'critical' | 'high' | 'all';
   readonly similarCode?: AuditFallowSimilarCodeConfig;
+  readonly flags?: AuditFallowFlagsConfig;
+  readonly coverage?: AuditFallowCoverageConfig;
 }
 
 export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
@@ -275,6 +289,20 @@ export interface AuditPackageScriptsConfig {
   readonly extraRequiredScripts?: readonly string[];
 }
 
+export interface AuditVersionTargetConfig {
+  readonly path: string;
+  readonly type?: 'json' | 'ts';
+  readonly jsonField?: string;
+  readonly prefixV?: boolean;
+  readonly tsExportName?: string;
+}
+
+export interface AuditVersionConfig {
+  readonly enabled?: boolean;
+  readonly autoSyncPublicVersionJson?: boolean;
+  readonly syncTargets?: readonly (string | AuditVersionTargetConfig)[];
+}
+
 export interface AuditEngineConfig {
   readonly name: string;
   readonly paths: AuditPathsConfig;
@@ -299,6 +327,7 @@ export interface AuditEngineConfig {
   readonly packageScripts?: AuditPackageScriptsConfig;
   readonly accessibility?: AuditAccessibilityConfig;
   readonly typeCoverage?: AuditTypeCoverageConfig;
+  readonly version?: AuditVersionConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
@@ -423,6 +452,13 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
       threshold: 0.95,
       ignoreSameFile: true,
       minLines: 3
+    },
+    flags: {
+      enabled: true,
+      trackRetirement: true
+    },
+    coverage: {
+      enabled: true
     }
   },
   constants: {
@@ -456,6 +492,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     strict: true,
     ignoreFiles: []
   },
+  version: {
+    enabled: true,
+    autoSyncPublicVersionJson: true,
+    syncTargets: []
+  },
   customFamilies: [],
   extensions: [],
   presets: {},
@@ -482,7 +523,8 @@ function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>): Set<
     'packageDistribution',
     'packageHygiene',
     'accessibility',
-    'typeCoverage'
+    'typeCoverage',
+    'version'
   ] as const;
   for (const k of keys) {
     if (config[k] !== undefined) declared.add(k);
@@ -729,7 +771,17 @@ function buildFallowConfig(
     },
     enforceTargets: f.enforceTargets ?? def?.enforceTargets ?? false,
     maxTargetPriority: f.maxTargetPriority ?? def?.maxTargetPriority ?? 'critical',
-    similarCode: buildFallowSimilarCodeConfig(f.similarCode)
+    similarCode: buildFallowSimilarCodeConfig(f.similarCode),
+    flags: {
+      enabled: f.flags?.enabled ?? def?.flags?.enabled ?? true,
+      maxFlagAgeDays: f.flags?.maxFlagAgeDays ?? def?.flags?.maxFlagAgeDays,
+      trackRetirement: f.flags?.trackRetirement ?? def?.flags?.trackRetirement ?? true
+    },
+    coverage: {
+      enabled: f.coverage?.enabled ?? def?.coverage?.enabled ?? true,
+      path: f.coverage?.path ?? def?.coverage?.path,
+      root: f.coverage?.root ?? def?.coverage?.root
+    }
   };
 }
 
@@ -826,6 +878,16 @@ function buildEslintConfig(raw?: DeepPartial<AuditEslintConfig>): AuditEslintCon
   };
 }
 
+function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): AuditVersionConfig {
+  const def = DEFAULT_AUDIT_CONFIG.version;
+  const v = raw ?? {};
+  return {
+    enabled: v.enabled ?? def?.enabled ?? true,
+    autoSyncPublicVersionJson: v.autoSyncPublicVersionJson ?? def?.autoSyncPublicVersionJson ?? true,
+    syncTargets: v.syncTargets ? [...v.syncTargets] as readonly (string | AuditVersionTargetConfig)[] : (def?.syncTargets ?? [])
+  };
+}
+
 export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
   const declared = collectDeclaredSubsystems(config);
   const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -859,6 +921,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     packageScripts: buildPackageScriptsConfig(config.packageScripts),
     accessibility: buildAccessibilityConfig(config.accessibility),
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
+    version: buildVersionConfig(config.version),
     ...agentAndSecurity,
     ...constantsAndDoc,
     customFamilies: config.customFamilies ?? [],

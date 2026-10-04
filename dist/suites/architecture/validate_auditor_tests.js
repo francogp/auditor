@@ -59,7 +59,7 @@ function isEligibleExtensionAuditorFile(name) {
         return false;
     if (name.includes('.test.') || name.includes('.spec.'))
         return false;
-    if (name.startsWith('report_') || name === 'audit_rules.ts')
+    if (name.startsWith('report_') || name === 'audit_rules.ts' || name.endsWith('Plugin.ts') || name.endsWith('Plugin.js'))
         return false;
     return true;
 }
@@ -106,16 +106,25 @@ function scanExtensionAuditors(projectRoot, tasks) {
 async function discoverAuditorTasks(projectRoot) {
     const hasLocalSuites = fs.existsSync(path.join(projectRoot, 'src/suites')) || fs.existsSync(path.join(projectRoot, 'packages/auditor/src/suites'));
     const isHostProject = fs.existsSync(path.join(projectRoot, 'scripts/auditors')) || !hasLocalSuites;
+    if (isHostProject && !hasLocalSuites) {
+        const tasks = [];
+        scanExtensionAuditors(projectRoot, tasks);
+        const config = getAuditConfig(projectRoot);
+        if (config.extensions && config.extensions.length > 0) {
+            for (const ext of config.extensions) {
+                const fullPath = path.resolve(projectRoot, ext);
+                if (fs.existsSync(fullPath)) {
+                    registerExtensionAuditorFile(fullPath, path.basename(ext), projectRoot, tasks);
+                }
+            }
+        }
+        return tasks;
+    }
     const suitesDir = fs.existsSync(path.join(projectRoot, 'src/suites'))
         ? path.join(projectRoot, 'src/suites')
         : path.join(projectRoot, 'packages/auditor/src/suites');
-    const discoveryOptions = hasLocalSuites && !isHostProject
-        ? { baseDir: suitesDir }
-        : {};
-    const allTasks = await discoverAuditors(discoveryOptions);
-    const tasks = isHostProject
-        ? allTasks.filter(t => t.isBuiltin === false)
-        : allTasks.filter(t => t.isBuiltin !== false);
+    const allTasks = await discoverAuditors({ baseDir: suitesDir });
+    const tasks = allTasks.filter(t => t.isBuiltin !== false);
     scanExtensionAuditors(projectRoot, tasks);
     return tasks;
 }

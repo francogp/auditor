@@ -268,6 +268,8 @@ export function setupAuditor(config) {
     const isSubprocess = process.env.AUDIT_SUBPROCESS === 'true';
     const findings = [];
     const metrics = {};
+    let customLogProgress;
+    let customLogStep;
     return {
         values: values,
         ignorePatterns: combinedIgnores,
@@ -282,10 +284,26 @@ export function setupAuditor(config) {
             return all;
         },
         logProgress: (msg) => {
-            console.log(msg);
+            if (customLogProgress) {
+                customLogProgress(msg);
+            }
+            else {
+                console.log(msg);
+            }
         },
         logStep: (stepNumber, totalSteps, description) => {
-            console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+            if (customLogStep) {
+                customLogStep(stepNumber, totalSteps, description);
+            }
+            else {
+                console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+            }
+        },
+        setStepLogger: (logger) => {
+            customLogStep = logger;
+        },
+        setProgressLogger: (logger) => {
+            customLogProgress = logger;
         },
         addFinding: (f) => {
             const normFile = f.file
@@ -714,9 +732,24 @@ export class BaseAuditor {
             });
         }
     }
+    setStepLogger(logger) {
+        this.context.setStepLogger?.(logger);
+    }
+    setProgressLogger(logger) {
+        this.context.setProgressLogger?.(logger);
+    }
+    static isExecutingCli = false;
     static async runCli(auditor) {
-        const result = await auditor.execute();
-        process.exit(result.summary.errors > 0 ? 1 : 0);
+        if (BaseAuditor.isExecutingCli)
+            return;
+        BaseAuditor.isExecutingCli = true;
+        try {
+            const result = await auditor.execute();
+            process.exit(result.summary.errors > 0 ? 1 : 0);
+        }
+        finally {
+            BaseAuditor.isExecutingCli = false;
+        }
     }
     static async runCliIfMain(metaUrl, auditor) {
         if (isMainModule(metaUrl)) {

@@ -1,31 +1,83 @@
+/**
+ * tests/make_executable.test.ts
+ *
+ * Unit tests for make_executable CLI utility (purgeOrphanedDistFiles & makeCliBinariesExecutable).
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import path from 'node:path';
 import fs from 'node:fs';
-import { makeCliBinariesExecutable } from '../src/cli/make_executable.ts';
+import path from 'node:path';
+import os from 'node:os';
+import { purgeOrphanedDistFiles, makeCliBinariesExecutable } from '../src/cli/make_executable.ts';
 
-const TEST_DIR = path.resolve(process.cwd(), 'scratch/test_make_executable_tmp');
+describe('make_executable CLI Utility', () => {
+  let tempDir: string;
+  let tempDist: string;
+  let tempSrc: string;
 
-describe('make_executable CLI utility', () => {
   beforeEach(() => {
-    fs.mkdirSync(TEST_DIR, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-make-exec-test-'));
+    tempDist = path.join(tempDir, 'dist');
+    tempSrc = path.join(tempDir, 'src');
+    fs.mkdirSync(tempDist, { recursive: true });
+    fs.mkdirSync(tempSrc, { recursive: true });
   });
 
   afterEach(() => {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // catch-ok
+    }
   });
 
-  it('runs safely on non-existent directory without error', () => {
-    expect(() => makeCliBinariesExecutable(path.join(TEST_DIR, 'non_existent'))).not.toThrow();
+  describe('purgeOrphanedDistFiles', () => {
+    it('purges files from dist that have no matching source file in src', () => {
+      // Create src structure
+      fs.mkdirSync(path.join(tempSrc, 'cli'), { recursive: true });
+      fs.writeFileSync(path.join(tempSrc, 'cli/active.ts'), 'export const active = true;\n', 'utf-8');
+
+      // Create dist structure with active and orphaned files
+      fs.mkdirSync(path.join(tempDist, 'cli'), { recursive: true });
+      fs.writeFileSync(path.join(tempDist, 'cli/active.js'), 'export const active = true;\n', 'utf-8');
+      fs.writeFileSync(path.join(tempDist, 'cli/active.d.ts'), 'export declare const active = true;\n', 'utf-8');
+      fs.writeFileSync(path.join(tempDist, 'cli/orphan.js'), 'export const orphan = true;\n', 'utf-8');
+      fs.writeFileSync(path.join(tempDist, 'cli/orphan.d.ts'), 'export declare const orphan = true;\n', 'utf-8');
+
+      purgeOrphanedDistFiles(tempDist, tempSrc);
+
+      expect(fs.existsSync(path.join(tempDist, 'cli/active.js'))).toBe(true);
+      expect(fs.existsSync(path.join(tempDist, 'cli/active.d.ts'))).toBe(true);
+      expect(fs.existsSync(path.join(tempDist, 'cli/orphan.js'))).toBe(false);
+      expect(fs.existsSync(path.join(tempDist, 'cli/orphan.d.ts'))).toBe(false);
+    });
+
+    it('purges entire orphaned subdirectories in dist', () => {
+      fs.mkdirSync(path.join(tempDist, 'obsoleteSubdir'), { recursive: true });
+      fs.writeFileSync(path.join(tempDist, 'obsoleteSubdir/old.js'), '', 'utf-8');
+
+      purgeOrphanedDistFiles(tempDist, tempSrc);
+
+      expect(fs.existsSync(path.join(tempDist, 'obsoleteSubdir'))).toBe(false);
+    });
+
+    it('returns early when distDir or srcDir does not exist', () => {
+      expect(() => purgeOrphanedDistFiles('/non_existent_dist', tempSrc)).not.toThrow();
+      expect(() => purgeOrphanedDistFiles(tempDist, '/non_existent_src')).not.toThrow();
+    });
   });
 
-  it('applies executable permissions to .js files and ignores non-js files', () => {
-    const jsFile = path.join(TEST_DIR, 'test_binary.js');
-    const txtFile = path.join(TEST_DIR, 'readme.txt');
+  describe('makeCliBinariesExecutable', () => {
+    it('sets permissions for all .js files in dist/cli', () => {
+      const cliDist = path.join(tempDist, 'cli');
+      fs.mkdirSync(cliDist, { recursive: true });
+      fs.writeFileSync(path.join(cliDist, 'auditor.js'), 'console.log("cli");', 'utf-8');
 
-    fs.writeFileSync(jsFile, 'console.log("hello");\n', 'utf-8');
-    fs.writeFileSync(txtFile, 'text content\n', 'utf-8');
+      expect(() => makeCliBinariesExecutable(cliDist)).not.toThrow();
+    });
 
-    expect(() => makeCliBinariesExecutable(TEST_DIR)).not.toThrow();
-    expect(fs.existsSync(jsFile)).toBe(true);
+    it('handles non-existent dist directory gracefully', () => {
+      expect(() => makeCliBinariesExecutable('/non_existent_cli_dist')).not.toThrow();
+    });
   });
 });

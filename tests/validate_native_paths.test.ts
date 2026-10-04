@@ -35,6 +35,7 @@ describe('NativePathsAuditor', () => {
       expect(auditor.ruleIds).toContain('unsanitized-env-argv-path');
       expect(auditor.ruleIds).toContain('untrusted-url-fetch');
       expect(auditor.ruleIds).toContain('hardcoded-slash-path');
+      expect(auditor.ruleIds).toContain('homebrew-path-manipulation');
     });
   });
 
@@ -89,6 +90,19 @@ describe('NativePathsAuditor', () => {
       `;
       const violations = scanFileForNativePathViolations('src/logic/splitter.ts', code);
       const violation = violations.find(v => v.ruleId === 'hardcoded-slash-path');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+    });
+
+    it('detects homebrew regex sanitization and naive traversal checks (homebrew-path-manipulation)', () => {
+      const code = `
+        const cleanPath = userPath.replace(/\\.\\./g, '');
+        if (filePath.includes('..')) {
+          throw new Error('Traversal');
+        }
+      `;
+      const violations = scanFileForNativePathViolations('src/logic/sanitizer.ts', code);
+      const violation = violations.find(v => v.ruleId === 'homebrew-path-manipulation');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

@@ -67,6 +67,8 @@ export interface AuditorContext {
     setMetric: (key: string, value: number | string) => void;
     checkFiles: () => Promise<void>;
     finish: (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => Promise<StandardAuditResult>;
+    setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
+    setProgressLogger?: (logger: (msg: string) => void) => void;
 }
 export declare function setupAuditor(config: AuditorConfig): AuditorContext;
 export declare const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities;
@@ -148,6 +150,9 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     finishAudit(): Promise<StandardAuditResult>;
     protected ensureSubAuditorsLogged(): void;
     importAuditFindings(findings: readonly AuditFinding[], fallbackRuleId: TRuleId, fallbackContext?: string): void;
+    setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string) => void): void;
+    setProgressLogger(logger: (msg: string) => void): void;
+    private static isExecutingCli;
     static runCli(auditor: BaseAuditor<string>): Promise<void>;
     static runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void>;
 }

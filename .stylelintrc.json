@@ -97,9 +97,15 @@
       "custom-properties",
       {
         "type": "at-rule",
-        "name": "include"
+        "name": "include",
+        "hasBlock": false
       },
       "declarations",
+      {
+        "type": "at-rule",
+        "name": "include",
+        "hasBlock": true
+      },
       {
         "type": "rule",
         "selector": "^&:\\w"

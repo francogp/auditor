@@ -79,7 +79,7 @@ export async function writeReportFile(outputPathArg: string, summary: Validation
  * Parses raw JSON output containing an array, stripping Node.js permission and runtime noise.
  */
 export function parseJsonArrayOutput<T = unknown>(
-  input: string | object[],
+  input: string | unknown[],
   options?: { throwOnError?: boolean; toolName?: string }
 ): T[] {
   if (!input) return [];

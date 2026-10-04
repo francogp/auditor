@@ -9,7 +9,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { getAuditConfig } from "../core/auditConfig.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "./cliUtils.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from "./cliUtils.js";
 export const MAX_FUNCTION_NAME_CHARS = 18;
 export const MAX_RECOMMENDED_LOC = 60;
 export const MAX_RECOMMENDED_COGNITIVE = 20;
@@ -66,7 +66,9 @@ function runFallowHealth() {
         const fallowBin = candidates.find(c => fs.existsSync(c)) || candidates[0];
         if (!fs.existsSync(fallowBin))
             return {};
-        const cmd = `node "${fallowBin}" health --format json`;
+        const covArgs = resolveCoverageArgs();
+        const covPart = covArgs.length > 0 ? ` ${covArgs.join(' ')}` : '';
+        const cmd = `node "${fallowBin}" health --format json${covPart}`;
         const stdout = execSync(cmd, {
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
@@ -265,7 +267,7 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
     }
     console.log('');
 }
-function main() {
+export function runComplexityReport() {
     const { top, layerFilter, jsonOutput } = parseCommandLineArgs();
     const { findings, targets, maintainability } = loadComplexityFindings();
     if (jsonOutput) {
@@ -274,5 +276,7 @@ function main() {
     }
     renderBoxReport(findings, targets, maintainability, top, layerFilter);
 }
-main();
+if (isMainModule(import.meta.url)) {
+    runComplexityReport();
+}
 //# sourceMappingURL=report_complexity.js.map

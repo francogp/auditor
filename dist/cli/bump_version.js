@@ -16,9 +16,10 @@ import { styleText } from 'node:util';
 import { analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
 import { AUDITOR_VERSION, AUDITOR_BUILD_ID, AUDITOR_BUILD_DATE } from "../core/version.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { getAuditConfig } from "../core/auditConfig.js";
 import { isMainModule } from "./cliUtils.js";
 /**
- * Applies a SemVer bump and persists it to package.json and version.ts.
+ * Applies a SemVer bump and persists it to package.json, version.ts, and configured sync targets.
  */
 export function applyVersionBump(options = {}) {
     const cwd = options.cwd ?? process.cwd();
@@ -37,6 +38,15 @@ export function applyVersionBump(options = {}) {
     const nextBase = calculateNextBaseVersion(analysis.baseVersion, resolvedBump);
     const { buildId, buildDate } = generateBuildId(options.customNow);
     const newVersion = `${nextBase}-build.${buildId}`;
+    const syncedFiles = [pkgPath];
+    // Load auditConfig safely if available
+    let auditConfig = null;
+    try {
+        auditConfig = getAuditConfig(cwd);
+    }
+    catch {
+        // catch-ok: Fallback when audit.config.ts is absent in temp directory
+    }
     // 1. Update package.json
     const rawPkg = fs.readFileSync(pkgPath, 'utf-8');
     const pkg = JSON.parse(rawPkg);
@@ -61,9 +71,71 @@ export const AUDITOR_BUILD_DATE = '${buildDate}';
         try {
             fs.mkdirSync(path.dirname(targetVersionTs), { recursive: true });
             fs.writeFileSync(targetVersionTs, versionTsContent, 'utf-8');
+            syncedFiles.push(targetVersionTs);
         }
         catch {
             // catch-ok: If versionTs cannot be written (e.g. read-only dir), package.json remains updated
+        }
+    }
+    // 3. Resolve and process additional synchronization targets
+    const configTargets = options.syncTargets ?? auditConfig?.version?.syncTargets ?? [];
+    const normalizedTargets = configTargets.map(t => typeof t === 'string' ? { path: t } : t);
+    const shouldAutoSyncPublic = options.autoSyncPublicVersionJson ?? auditConfig?.version?.autoSyncPublicVersionJson ?? true;
+    const publicVersionPath = path.resolve(cwd, 'public/version.json');
+    if (shouldAutoSyncPublic && fs.existsSync(publicVersionPath)) {
+        const alreadyDeclared = normalizedTargets.some(t => path.resolve(cwd, t.path) === publicVersionPath);
+        if (!alreadyDeclared) {
+            normalizedTargets.push({ path: 'public/version.json' });
+        }
+    }
+    for (const target of normalizedTargets) {
+        const targetAbsPath = path.resolve(cwd, target.path);
+        if (targetAbsPath === pkgPath || targetAbsPath === targetVersionTs)
+            continue;
+        const isTs = target.type === 'ts' || target.path.endsWith('.ts');
+        try {
+            if (isTs) {
+                const exportName = target.tsExportName ?? 'APP_VERSION';
+                const tsContent = `/**
+ * Version and build metadata automatically synchronized by auditor-version.
+ */
+export const ${exportName} = '${newVersion}';
+export const BUILD_ID = '${buildId}';
+export const BUILD_DATE = '${buildDate}';
+`;
+                fs.mkdirSync(path.dirname(targetAbsPath), { recursive: true });
+                fs.writeFileSync(targetAbsPath, tsContent, 'utf-8');
+                syncedFiles.push(targetAbsPath);
+            }
+            else {
+                const jsonField = target.jsonField ?? 'version';
+                let jsonObj = {};
+                let startsWithV = false;
+                if (fs.existsSync(targetAbsPath)) {
+                    try {
+                        const rawContent = fs.readFileSync(targetAbsPath, 'utf-8');
+                        jsonObj = JSON.parse(rawContent);
+                        const currentVal = jsonObj[jsonField];
+                        if (typeof currentVal === 'string' && currentVal.startsWith('v')) {
+                            startsWithV = true;
+                        }
+                    }
+                    catch {
+                        // catch-ok: Overwrite with fresh JSON if existing was invalid
+                    }
+                }
+                const usePrefixV = target.prefixV ?? startsWithV;
+                const versionValue = usePrefixV
+                    ? (newVersion.startsWith('v') ? newVersion : `v${newVersion}`)
+                    : (newVersion.startsWith('v') ? newVersion.slice(1) : newVersion);
+                jsonObj[jsonField] = versionValue;
+                fs.mkdirSync(path.dirname(targetAbsPath), { recursive: true });
+                fs.writeFileSync(targetAbsPath, `${JSON.stringify(jsonObj, null, 2)}\n`, 'utf-8');
+                syncedFiles.push(targetAbsPath);
+            }
+        }
+        catch {
+            // catch-ok: non-fatal if target file cannot be written
         }
     }
     return {
@@ -73,7 +145,8 @@ export const AUDITOR_BUILD_DATE = '${buildDate}';
         buildId,
         buildDate,
         packageJsonPath: pkgPath,
-        versionTsPath: targetVersionTs
+        versionTsPath: targetVersionTs,
+        syncedFiles
     };
 }
 function renderAnalysisTable(analysis) {
@@ -126,14 +199,22 @@ export function runBumpCli() {
         else if (args[1] && ['major', 'minor', 'patch', 'auto'].includes(args[1].toLowerCase())) {
             bumpType = args[1].toLowerCase();
         }
-        const result = applyVersionBump({ bumpType });
+        const noSyncPublic = args.includes('--no-sync-public');
+        const syncArg = args.find(a => a.startsWith('--sync='));
+        const syncTargets = syncArg ? syncArg.split('=')[1]?.split(',').filter(Boolean) : undefined;
+        const result = applyVersionBump({
+            bumpType,
+            autoSyncPublicVersionJson: noSyncPublic ? false : undefined,
+            syncTargets
+        });
         if (isJson) {
             console.log(JSON.stringify(result, null, 2));
         }
         else {
             console.log(styleText('green', `✔ Versión actualizada exitosamente:`));
             console.log(`  ${result.previousVersion} → ${styleText(['bold', 'cyan'], result.newVersion)} (Salto: ${result.bumpType.toUpperCase()})`);
-            console.log(`  📄 Archivos actualizados: package.json y ${path.relative(process.cwd(), result.versionTsPath)}\n`);
+            const relFiles = result.syncedFiles.map(f => path.relative(process.cwd(), f) || f);
+            console.log(`  📄 Archivos sincronizados: ${relFiles.join(', ')}\n`);
         }
         return;
     }

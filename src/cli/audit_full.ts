@@ -46,6 +46,7 @@ import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator }
 import { SharedAstContext } from '../core/astContext.ts';
 import { BaseAuditor } from '../core/auditorBase.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
+import { isMainModule } from './cliUtils.ts';
 import '../core/permissionGuard.ts';
 
 enableCompileCache();
@@ -208,7 +209,8 @@ function buildTaskArgs(
 
 async function executeTaskInProcess(
   task: AuditTaskDefinition,
-  sharedAstContext: SharedAstContext
+  sharedAstContext: SharedAstContext,
+  onSubLine?: (line: string) => void
 ): Promise<{ result: StandardAuditResult; durationMs: number } | null> {
   const taskStart = performance.now();
   try {
@@ -223,6 +225,14 @@ async function executeTaskInProcess(
     }
     if (AuditorClass) {
       const auditor = new AuditorClass();
+      if (onSubLine) {
+        auditor.setStepLogger((stepNumber, totalSteps, description) => {
+          onSubLine(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+        });
+        auditor.setProgressLogger((msg) => {
+          onSubLine(msg);
+        });
+      }
       const result = await auditor.execute(sharedAstContext);
       const durationMs = Math.round(performance.now() - taskStart);
       result.durationMs = durationMs;
@@ -553,7 +563,7 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
   return anyFailed;
 }
 
-async function runMasterAudit() {
+export async function runMasterAudit(): Promise<void> {
   if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
     console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
     process.exit(0);
@@ -655,7 +665,7 @@ async function runMasterAudit() {
     let taskDuration = 0;
 
     if (task.requiresAst && sharedAstContext) {
-      const inProcess = await executeTaskInProcess(task, sharedAstContext);
+      const inProcess = await executeTaskInProcess(task, sharedAstContext, (line) => subLines.push(line));
       if (inProcess) {
         parsedResult = inProcess.result;
         taskDuration = inProcess.durationMs;
@@ -717,7 +727,9 @@ async function runMasterAudit() {
   }
 }
 
-runMasterAudit().catch(err => {
-  console.error(styleText('red', `\n💥 Error fatal en audit_full: ${(err as Error).message}`));
-  process.exit(1);
-});
+if (isMainModule(import.meta.url)) {
+  runMasterAudit().catch(err => {
+    console.error(styleText('red', `\n💥 Error fatal en audit_full: ${(err as Error).message}`));
+    process.exit(1);
+  });
+}

@@ -45,4 +45,18 @@ export declare function executeCliToFile(command: string, args: string[], output
  * and parses the resulting JSON content cleanly without stdout truncation or heap spikes.
  */
 export declare function executeCliAndReadJson<T>(command: string, args: string[], outputFilePath: string, options?: ExecuteCliToFileOptions): T | null;
+/**
+  * Resolves coverage CLI arguments for Fallow commands (health, complexity).
+  * Discovers configured coverage path or default 'coverage/coverage-final.json'.
+  */
+export declare function resolveCoverageArgs(projectRoot?: string): string[];
+export interface FallowExecutionResult<T> {
+    readonly parsed: T | null;
+    readonly status: number;
+    readonly rawOutput: string;
+}
+/**
+  * Executes a Fallow sub-command with JSON formatting, returning parsed object payload and exit code.
+  */
+export declare function executeFallowJsonCommand<T = Record<string, unknown>>(fallowBin: string, subCommandArgs: readonly string[], projectRoot?: string): FallowExecutionResult<T>;
 //# sourceMappingURL=cliUtils.d.ts.map

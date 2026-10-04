@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { discoverAuditors, extractCapabilitiesFromFile } from '../src/cli/auditScanner.ts';
+import { discoverAuditors, extractCapabilitiesFromFile, extractAuditorMetadataFromFile } from '../src/cli/auditScanner.ts';
 import path from 'node:path';
 
 describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
@@ -149,5 +149,20 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
     // withBuild includes the union of both
     expect(allTasks.length).toBe(defaultTasks.length + buildTasks.length);
+  });
+
+  it('safely extracts metadata using self-import guard when scanning the currently executing script', async () => {
+    const originalArgv = [...process.argv];
+    const testAuditorPath = path.resolve('src/suites/architecture/validate_auditor_tests.ts');
+    process.argv[1] = testAuditorPath;
+
+    try {
+      const meta = await extractAuditorMetadataFromFile(testAuditorPath);
+      expect(meta).toBeDefined();
+      expect(meta.capabilities).toBeDefined();
+      expect(meta.icon).toBe('🧪');
+    } finally {
+      process.argv = originalArgv;
+    }
   });
 });

@@ -9,4 +9,5 @@
  *   3. Persists the complete structured JSON report to scratch/audits/latest_audit.json.
  */
 import '../core/permissionGuard.ts';
+export declare function runMasterAudit(): Promise<void>;
 //# sourceMappingURL=audit_full.d.ts.map

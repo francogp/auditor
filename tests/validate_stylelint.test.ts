@@ -153,6 +153,39 @@ describe('StylelintAuditor Suite', () => {
       expect(emptyBlockFindings).toHaveLength(0);
     });
 
+    it('honors order/order allowing blockless mixins before declarations and block mixins after declarations', async () => {
+      const scssFile = path.join(tempDir, 'src/responsive_order.scss');
+      const scssContent = `
+@mixin reset-box {
+  box-sizing: border-box;
+}
+
+@mixin respond-desktop {
+  @media (width >= 1024px) {
+    @content;
+  }
+}
+
+.responsive-card {
+  @include reset-box;
+
+  width: 100px;
+
+  @include respond-desktop {
+    width: 200px;
+  }
+}
+`;
+      await fs.writeFile(scssFile, scssContent, 'utf-8');
+
+      const auditor = new StylelintAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const orderViolations = result.findings.filter(f => f.ruleId === 'css-order-violation');
+      expect(orderViolations).toHaveLength(0);
+      expect(result.summary.errors).toBe(0);
+    });
+
     it('accurately catches real duplicate selectors at same scope', async () => {
       const scssFile = path.join(tempDir, 'src/dup.scss');
       const scssContent = `

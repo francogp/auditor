@@ -244,6 +244,12 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Stylelint natively governs this via the native plugin `sass-traps/collision-casing` mapped to `'scss-sass-collision-casing'`.
     - `.stylelintrc.json` MUST keep `function-name-case: ['lower', { ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate'] }]` and `value-keyword-case: ['lower', { camelCaseSvgKeywords: true, ignoreProperties: ['/--.*/'], ignoreFunctions: ['v-bind'] }]` so neither rule is disabled while preserving unquoted `v-bind(...)` in Vue SFC.
     - In `--fix` mode, `validate_stylelint` automatically repairs colliding lowercase functions to their canonical capitalized casing on the PostCSS AST.
+55. **Stylelint Mixin Block Ordering Governance (`order/order`, `hasBlock`)**:
+    - In `.stylelintrc.json`, `order/order` MUST partition `@include` mixins by `hasBlock`:
+      - Blockless mixins (`hasBlock: false`, e.g. utility `@include button-reset;`, `@include flex-center;`) MUST precede standard declarations (`declarations`) so declarations can override mixin defaults.
+      - Standard CSS property declarations (`declarations`) come next.
+      - Mixins containing nested blocks (`hasBlock: true`, e.g. responsive media queries `@include respond-to('desktop') { ... }`, `@include media-breakpoint-up(...) { ... }`) MUST come AFTER declarations so that media queries properly override declarations down the CSS cascade without being superseded in mobile-first layouts.
+      - Pseudo-classes and nested rules follow mixins with blocks.
 
 ---
 
@@ -392,6 +398,12 @@ Fallow is integrated into `@francogp/auditor` (`audit_project.ts` and `report_fa
    - Converting informational statistics (`large_functions` or `targets`) into fatal auditor errors is strictly prohibited; doing so forces unnatural micro-fragmentation of clear, declarative functions.
 3. **Module Sizing Protocol**:
    - Modules and components should be decomposed when their **cognitive load** or responsibilities grow unwieldy (Single Responsibility Principle), not by counting lines.
+4. **Pre-flight Architecture Verification (`auditor-guard`) & Feature Flags Governance (`auditor-flags`)**:
+   - `auditor-guard` (`npm run audit:guard <files>`): Inspects architecture boundaries, allowed import zones, forbidden calls, and policy rules for candidate or changed files before modification.
+   - `auditor-flags` (`npm run audit:flags [--retirement]`): Governs feature flags usage, detecting branches, single-read sites, and retirement candidates.
+5. **Vitest Coverage & CRAP Score Integration (`audit:coverage-gaps`)**:
+   - Discovers `coverage/coverage-final.json` or `config.fallow.coverage.path` and forwards `--coverage` to `fallow health`.
+   - Analyzes runtime-reachable exports with zero test references (`npm run audit:coverage-gaps`) and computes test-informed CRAP change risk scores.
 
 ---
 

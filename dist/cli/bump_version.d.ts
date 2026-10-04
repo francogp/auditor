@@ -11,6 +11,7 @@
  *   auditor-version bump [type]   Apply version bump (auto|major|minor|patch)
  */
 import { type VersionBumpType } from '../core/versionAnalyzer.ts';
+import { type AuditVersionTargetConfig } from '../core/auditConfig.ts';
 export interface MetricTableRow {
     readonly label: string;
     readonly value: string;
@@ -21,6 +22,8 @@ export interface ApplyBumpOptions {
     commitMessage?: string;
     versionTsPath?: string;
     customNow?: Temporal.ZonedDateTime;
+    autoSyncPublicVersionJson?: boolean;
+    syncTargets?: readonly (string | AuditVersionTargetConfig)[];
 }
 export interface ApplyBumpResult {
     previousVersion: string;
@@ -30,9 +33,10 @@ export interface ApplyBumpResult {
     buildDate: string;
     packageJsonPath: string;
     versionTsPath: string;
+    syncedFiles: string[];
 }
 /**
- * Applies a SemVer bump and persists it to package.json and version.ts.
+ * Applies a SemVer bump and persists it to package.json, version.ts, and configured sync targets.
  */
 export declare function applyVersionBump(options?: ApplyBumpOptions): ApplyBumpResult;
 export declare function runBumpCli(): void;

@@ -175,12 +175,24 @@ export interface AuditFallowSimilarCodeConfig {
     readonly minLines?: number;
     readonly timeoutMs?: number;
 }
+export interface AuditFallowFlagsConfig {
+    readonly enabled?: boolean;
+    readonly maxFlagAgeDays?: number;
+    readonly trackRetirement?: boolean;
+}
+export interface AuditFallowCoverageConfig {
+    readonly enabled?: boolean;
+    readonly path?: string;
+    readonly root?: string;
+}
 export interface AuditFallowConfig {
     readonly enabled?: boolean;
     readonly security?: AuditSecurityConfig;
     readonly enforceTargets?: boolean;
     readonly maxTargetPriority?: 'critical' | 'high' | 'all';
     readonly similarCode?: AuditFallowSimilarCodeConfig;
+    readonly flags?: AuditFallowFlagsConfig;
+    readonly coverage?: AuditFallowCoverageConfig;
 }
 export declare const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
 export interface AuditRunnerConfig {
@@ -239,6 +251,18 @@ export interface AuditPackageScriptsConfig {
     readonly recommendedScripts?: boolean;
     readonly extraRequiredScripts?: readonly string[];
 }
+export interface AuditVersionTargetConfig {
+    readonly path: string;
+    readonly type?: 'json' | 'ts';
+    readonly jsonField?: string;
+    readonly prefixV?: boolean;
+    readonly tsExportName?: string;
+}
+export interface AuditVersionConfig {
+    readonly enabled?: boolean;
+    readonly autoSyncPublicVersionJson?: boolean;
+    readonly syncTargets?: readonly (string | AuditVersionTargetConfig)[];
+}
 export interface AuditEngineConfig {
     readonly name: string;
     readonly paths: AuditPathsConfig;
@@ -263,6 +287,7 @@ export interface AuditEngineConfig {
     readonly packageScripts?: AuditPackageScriptsConfig;
     readonly accessibility?: AuditAccessibilityConfig;
     readonly typeCoverage?: AuditTypeCoverageConfig;
+    readonly version?: AuditVersionConfig;
     readonly customFamilies?: readonly CustomAuditFamilyConfig[];
     readonly extensions?: readonly string[];
     readonly presets?: Record<string, readonly string[]>;

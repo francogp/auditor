@@ -8,6 +8,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { getAuditConfig } from '../core/auditConfig.ts';
+import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 
 /**
  * Checks whether the current module is being executed directly as the CLI entrypoint.
@@ -210,5 +212,50 @@ export function executeCliAndReadJson<T>(
   }
 
   return null;
+}
+
+/**
+  * Resolves coverage CLI arguments for Fallow commands (health, complexity).
+  * Discovers configured coverage path or default 'coverage/coverage-final.json'.
+  */
+export function resolveCoverageArgs(projectRoot: string = process.cwd()): string[] {
+  const config = getAuditConfig();
+  const configuredPath = config.fallow?.coverage?.path;
+  if (configuredPath && fs.existsSync(path.resolve(projectRoot, configuredPath))) {
+    return ['--coverage', path.resolve(projectRoot, configuredPath)];
+  }
+  const defaultCoveragePath = path.resolve(projectRoot, 'coverage/coverage-final.json');
+  if (fs.existsSync(defaultCoveragePath)) {
+    return ['--coverage', defaultCoveragePath];
+  }
+  return [];
+}
+
+export interface FallowExecutionResult<T> {
+  readonly parsed: T | null;
+  readonly status: number;
+  readonly rawOutput: string;
+}
+
+/**
+  * Executes a Fallow sub-command with JSON formatting, returning parsed object payload and exit code.
+  */
+export function executeFallowJsonCommand<T = Record<string, unknown>>(
+  fallowBin: string,
+  subCommandArgs: readonly string[],
+  projectRoot: string = process.cwd()
+): FallowExecutionResult<T> {
+  const proc = spawnSync('node', [fallowBin, ...subCommandArgs], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe']
+  });
+
+  const parsed = parseJsonObjectOutput<T>(proc.stdout);
+  return {
+    parsed,
+    status: proc.status ?? 0,
+    rawOutput: (proc.stderr || proc.stdout || '').trim()
+  };
 }
 

@@ -327,6 +327,8 @@ export interface AuditorContext {
   setMetric: (key: string, value: number | string) => void;
   checkFiles: () => Promise<void>;
   finish: (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => Promise<StandardAuditResult>;
+  setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
+  setProgressLogger?: (logger: (msg: string) => void) => void;
 }
 
 async function persistAuditJsonReport(
@@ -406,6 +408,9 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
   const findings: AuditFinding[] = [];
   const metrics: Record<string, number | string> = {};
 
+  let customLogProgress: ((msg: string) => void) | undefined;
+  let customLogStep: ((stepNumber: number, totalSteps: number, description: string) => void) | undefined;
+
   return {
     values: values as AuditorContext['values'],
     ignorePatterns: combinedIgnores,
@@ -420,10 +425,24 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       return all;
     },
     logProgress: (msg: string) => {
-      console.log(msg);
+      if (customLogProgress) {
+        customLogProgress(msg);
+      } else {
+        console.log(msg);
+      }
     },
     logStep: (stepNumber: number, totalSteps: number, description: string) => {
-      console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+      if (customLogStep) {
+        customLogStep(stepNumber, totalSteps, description);
+      } else {
+        console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+      }
+    },
+    setStepLogger: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => {
+      customLogStep = logger;
+    },
+    setProgressLogger: (logger: (msg: string) => void) => {
+      customLogProgress = logger;
     },
     addFinding: (f: AuditFinding) => {
       const normFile = f.file
@@ -948,9 +967,25 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
   }
 
+  public setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string) => void): void {
+    this.context.setStepLogger?.(logger);
+  }
+
+  public setProgressLogger(logger: (msg: string) => void): void {
+    this.context.setProgressLogger?.(logger);
+  }
+
+  private static isExecutingCli = false;
+
   public static async runCli(auditor: BaseAuditor<string>): Promise<void> {
-    const result = await auditor.execute();
-    process.exit(result.summary.errors > 0 ? 1 : 0);
+    if (BaseAuditor.isExecutingCli) return;
+    BaseAuditor.isExecutingCli = true;
+    try {
+      const result = await auditor.execute();
+      process.exit(result.summary.errors > 0 ? 1 : 0);
+    } finally {
+      BaseAuditor.isExecutingCli = false;
+    }
   }
 
   public static async runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void> {

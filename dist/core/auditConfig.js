@@ -131,6 +131,13 @@ export const DEFAULT_AUDIT_CONFIG = {
             threshold: 0.95,
             ignoreSameFile: true,
             minLines: 3
+        },
+        flags: {
+            enabled: true,
+            trackRetirement: true
+        },
+        coverage: {
+            enabled: true
         }
     },
     constants: {
@@ -164,6 +171,11 @@ export const DEFAULT_AUDIT_CONFIG = {
         strict: true,
         ignoreFiles: []
     },
+    version: {
+        enabled: true,
+        autoSyncPublicVersionJson: true,
+        syncTargets: []
+    },
     customFamilies: [],
     extensions: [],
     presets: {},
@@ -188,7 +200,8 @@ function collectDeclaredSubsystems(config) {
         'packageDistribution',
         'packageHygiene',
         'accessibility',
-        'typeCoverage'
+        'typeCoverage',
+        'version'
     ];
     for (const k of keys) {
         if (config[k] !== undefined)
@@ -392,7 +405,17 @@ function buildFallowConfig(raw, rootSecurity) {
         },
         enforceTargets: f.enforceTargets ?? def?.enforceTargets ?? false,
         maxTargetPriority: f.maxTargetPriority ?? def?.maxTargetPriority ?? 'critical',
-        similarCode: buildFallowSimilarCodeConfig(f.similarCode)
+        similarCode: buildFallowSimilarCodeConfig(f.similarCode),
+        flags: {
+            enabled: f.flags?.enabled ?? def?.flags?.enabled ?? true,
+            maxFlagAgeDays: f.flags?.maxFlagAgeDays ?? def?.flags?.maxFlagAgeDays,
+            trackRetirement: f.flags?.trackRetirement ?? def?.flags?.trackRetirement ?? true
+        },
+        coverage: {
+            enabled: f.coverage?.enabled ?? def?.coverage?.enabled ?? true,
+            path: f.coverage?.path ?? def?.coverage?.path,
+            root: f.coverage?.root ?? def?.coverage?.root
+        }
     };
 }
 function buildPackageHygieneConfig(raw) {
@@ -475,6 +498,15 @@ function buildEslintConfig(raw) {
         enabled: e.enabled ?? def?.enabled ?? true
     };
 }
+function buildVersionConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.version;
+    const v = raw ?? {};
+    return {
+        enabled: v.enabled ?? def?.enabled ?? true,
+        autoSyncPublicVersionJson: v.autoSyncPublicVersionJson ?? def?.autoSyncPublicVersionJson ?? true,
+        syncTargets: v.syncTargets ? [...v.syncTargets] : (def?.syncTargets ?? [])
+    };
+}
 export function defineAuditConfig(config) {
     const declared = collectDeclaredSubsystems(config);
     const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -507,6 +539,7 @@ export function defineAuditConfig(config) {
         packageScripts: buildPackageScriptsConfig(config.packageScripts),
         accessibility: buildAccessibilityConfig(config.accessibility),
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
+        version: buildVersionConfig(config.version),
         ...agentAndSecurity,
         ...constantsAndDoc,
         customFamilies: config.customFamilies ?? [],

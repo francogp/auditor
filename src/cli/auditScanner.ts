@@ -26,6 +26,7 @@ import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
+const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
 
 function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): number {
   return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
@@ -58,6 +59,41 @@ export interface ExtractedAuditorMetadata {
   readonly icon?: string;
 }
 
+function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
+  const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
+    capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+    gitIgnoreEntries: []
+  };
+
+  try {
+    const content = fsSync.readFileSync(fullPath, 'utf-8');
+    const iconMatch = content.match(/icon\s*:\s*['"]([^'"]+)['"]/);
+    if (iconMatch?.[1]) {
+      result.icon = iconMatch[1];
+    }
+
+    const caps: Record<string, boolean> = {};
+    if (content.includes('requiresBuild: true')) caps.requiresBuild = true;
+    if (content.includes('ast: true') || content.includes('requiresAst: true')) caps.ast = true;
+    if (content.includes('fix: true')) caps.fix = true;
+    if (content.includes('lint: true')) caps.lint = true;
+    if (content.includes('md: true')) caps.md = true;
+    if (content.includes('heavy: true')) caps.heavy = true;
+    if (content.includes('changedSince: true')) caps.changedSince = true;
+
+    if (Object.keys(caps).length > 0) {
+      result.capabilities = {
+        ...DEFAULT_AUDITOR_CAPABILITIES,
+        ...caps
+      };
+    }
+  } catch {
+    // catch-ok: Static metadata extraction fallback
+  }
+
+  return result;
+}
+
 export async function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata> {
   const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
     capabilities: DEFAULT_AUDITOR_CAPABILITIES,
@@ -70,9 +106,24 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
     return result;
   }
 
+  // Self-import guard: Never dynamically import the currently executing script to prevent circular top-level await deadlock
+  const scriptArg = process.argv[1];
+  if (scriptArg) {
+    const currentScriptBase = path.basename(scriptArg, path.extname(scriptArg)).toLowerCase();
+    const targetScriptBase = path.basename(fullPath, path.extname(fullPath)).toLowerCase();
+    if (currentScriptBase === targetScriptBase) {
+      return extractStaticMetadataFromFile(fullPath);
+    }
+  }
+
+  let timer: NodeJS.Timeout | undefined;
   try {
     const fileUrl = pathToFileURL(fullPath).href;
-    const mod = (await import(fileUrl)) as Record<string, unknown>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Import timeout for ${fullPath}`)), DYNAMIC_IMPORT_TIMEOUT_MS);
+      if (timer.unref) timer.unref();
+    });
+    const mod = (await Promise.race([import(fileUrl), timeoutPromise])) as Record<string, unknown>;
 
     if (typeof mod.icon === 'string') {
       result.icon = mod.icon;
@@ -123,7 +174,10 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
       }
     }
   } catch {
-    // catch-ok: Dynamic import failed (e.g. syntax error in custom extension)
+    // catch-ok: Dynamic import failed or timed out, fallback to static analysis
+    return extractStaticMetadataFromFile(fullPath);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 
   return result;
@@ -292,7 +346,15 @@ function isIgnoredFileEntry(entry: string): boolean {
   if (entry.startsWith('_')) return true;
   if (!entry.endsWith('.ts') && !entry.endsWith('.js')) return true;
   if (entry.endsWith('.d.ts') || entry.endsWith('.d.ts.map') || entry.endsWith('.js.map')) return true;
-  return entry.includes('.spec.') || entry.includes('.test.') || entry.startsWith('report_') || entry === 'audit_rules.ts' || entry === 'audit_rules.js';
+  return (
+    entry.includes('.spec.') ||
+    entry.includes('.test.') ||
+    entry.startsWith('report_') ||
+    entry === 'audit_rules.ts' ||
+    entry === 'audit_rules.js' ||
+    entry.endsWith('Plugin.ts') ||
+    entry.endsWith('Plugin.js')
+  );
 }
 
 interface DirectoryScanParams {

@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "3.3.3-build.20261004-014418",
+  "version": "3.4.0-build.20261004-035130",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -88,7 +88,9 @@
     "auditor-check-env": "./dist/cli/check_environment.js",
     "auditor-setup-env": "./dist/cli/setup_env.js",
     "auditor-css": "./dist/cli/report_css.js",
-    "auditor-by-file": "./dist/cli/report_findings.js"
+    "auditor-by-file": "./dist/cli/report_findings.js",
+    "auditor-guard": "./dist/cli/report_guard.js",
+    "auditor-flags": "./dist/cli/report_flags.js"
   },
   "scripts": {
     "audit:by-file": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts by-file",
@@ -101,6 +103,7 @@
     "postinstall": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "audit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
     "audit:for-commit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_for_commit.ts",
     "audit:skip-similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts --skip-similar",
@@ -132,6 +135,9 @@
     "audit:fallow:triplets": "node ./node_modules/fallow/bin/fallow dupes --min-occurrences 3 --min-lines 10 --min-tokens 60",
     "audit:similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_similar_code.ts",
     "audit:review": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_review.ts",
+    "audit:guard": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_guard.ts",
+    "audit:flags": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_flags.ts",
+    "audit:coverage-gaps": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_fallow.ts category=coverage-gaps",
     "audit:complexity": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_complexity.ts",
     "audit:project": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/audit_project.ts",
     "audit:fix": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts fix",
@@ -187,8 +193,8 @@
   "dependencies": {
     "eslint": "^10.12.0",
     "eslint-plugin-vuejs-accessibility": "^2.6.0",
-    "fallow": "^3.28.0",
-    "html-validate": "^11.16.1",
+    "fallow": "^3.31.0",
+    "html-validate": "^11.16.2",
     "html-validate-vue": "^9.3.1",
     "knip": "^6.39.0",
     "markdownlint-cli": "^0.49.1",
@@ -208,11 +214,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.4",
+    "@vitest/coverage-v8": "^5.0.3",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.13.0",
     "jsdom": "^30.1.1",
     "typescript-eslint": "^8.71.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "js-yaml": "^5.4.2"
   }
 }

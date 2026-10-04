@@ -9,7 +9,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from './cliUtils.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from './cliUtils.ts';
 
 export const MAX_FUNCTION_NAME_CHARS = 18;
 export const MAX_RECOMMENDED_LOC = 60;
@@ -81,6 +81,7 @@ interface FallowHealthRaw {
   summary?: { average_maintainability?: number; maintainability_index?: number; analyzed_functions?: number };
 }
 
+
 function runFallowHealth(): FallowHealthRaw {
   try {
     const candidates = [
@@ -90,7 +91,9 @@ function runFallowHealth(): FallowHealthRaw {
     ];
     const fallowBin = candidates.find(c => fs.existsSync(c)) || candidates[0]!;
     if (!fs.existsSync(fallowBin)) return {};
-    const cmd = `node "${fallowBin}" health --format json`;
+    const covArgs = resolveCoverageArgs();
+    const covPart = covArgs.length > 0 ? ` ${covArgs.join(' ')}` : '';
+    const cmd = `node "${fallowBin}" health --format json${covPart}`;
     const stdout = execSync(cmd, {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
@@ -343,7 +346,7 @@ function renderBoxReport(
   console.log('');
 }
 
-function main(): void {
+export function runComplexityReport(): void {
   const { top, layerFilter, jsonOutput } = parseCommandLineArgs();
   const { findings, targets, maintainability } = loadComplexityFindings();
 
@@ -355,4 +358,6 @@ function main(): void {
   renderBoxReport(findings, targets, maintainability, top, layerFilter);
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  runComplexityReport();
+}

@@ -110,6 +110,9 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
     "audit:complexity": "auditor-complexity",
     "audit:similar": "auditor-similar",
     "audit:review": "auditor-review",
+    "audit:guard": "auditor-guard",
+    "audit:flags": "auditor-flags",
+    "audit:coverage-gaps": "auditor-fallow category=coverage-gaps",
     "audit:css": "auditor-css",
     "audit:bundle": "auditor-bundle",
     "audit:package-hygiene": "auditor task=validate_package_hygiene",
@@ -443,6 +446,8 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 | `npx auditor-css` | `src/cli/report_css.ts` | Stylelint and stylesheet hygiene analysis report. |
 | `npx auditor-update` | `src/cli/update_package.ts` | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. |
 | `npx auditor-version` | `src/cli/bump_version.ts` | Displays installed framework version, build timestamp, and git commit hash. |
+| `npx auditor-guard` | `src/cli/report_guard.ts` | Pre-flight architectural boundary and policy inspector for target files (`audit:guard <files>`). |
+| `npx auditor-flags` | `src/cli/report_flags.ts` | Feature flag usage and retirement candidates governance tool (`audit:flags [--retirement]`). |
 | `npx auditor-init-agent` | `src/cli/init_agent.ts` | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery. |
 | `npx auditor-sync-env` | `src/cli/sync_env_scripts.ts` | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project. |
 | `npx auditor-check-env` | `src/cli/check_environment.ts` | Validates Node.js and npm version invariants during host `preinstall`. |

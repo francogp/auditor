@@ -24,10 +24,49 @@ import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from "../core/auditorBase.j
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
+const DYNAMIC_IMPORT_TIMEOUT_MS = 2000;
 function getTimeoutForTask(_filename, configRunnerTimeout) {
     return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
 }
 export const AUDIT_PRESETS = {};
+function extractStaticMetadataFromFile(fullPath) {
+    const result = {
+        capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+        gitIgnoreEntries: []
+    };
+    try {
+        const content = fsSync.readFileSync(fullPath, 'utf-8');
+        const iconMatch = content.match(/icon\s*:\s*['"]([^'"]+)['"]/);
+        if (iconMatch?.[1]) {
+            result.icon = iconMatch[1];
+        }
+        const caps = {};
+        if (content.includes('requiresBuild: true'))
+            caps.requiresBuild = true;
+        if (content.includes('ast: true') || content.includes('requiresAst: true'))
+            caps.ast = true;
+        if (content.includes('fix: true'))
+            caps.fix = true;
+        if (content.includes('lint: true'))
+            caps.lint = true;
+        if (content.includes('md: true'))
+            caps.md = true;
+        if (content.includes('heavy: true'))
+            caps.heavy = true;
+        if (content.includes('changedSince: true'))
+            caps.changedSince = true;
+        if (Object.keys(caps).length > 0) {
+            result.capabilities = {
+                ...DEFAULT_AUDITOR_CAPABILITIES,
+                ...caps
+            };
+        }
+    }
+    catch {
+        // catch-ok: Static metadata extraction fallback
+    }
+    return result;
+}
 export async function extractAuditorMetadataFromFile(fullPath) {
     const result = {
         capabilities: DEFAULT_AUDITOR_CAPABILITIES,
@@ -38,9 +77,24 @@ export async function extractAuditorMetadataFromFile(fullPath) {
         result.icon = '⚙️';
         return result;
     }
+    // Self-import guard: Never dynamically import the currently executing script to prevent circular top-level await deadlock
+    const scriptArg = process.argv[1];
+    if (scriptArg) {
+        const currentScriptBase = path.basename(scriptArg, path.extname(scriptArg)).toLowerCase();
+        const targetScriptBase = path.basename(fullPath, path.extname(fullPath)).toLowerCase();
+        if (currentScriptBase === targetScriptBase) {
+            return extractStaticMetadataFromFile(fullPath);
+        }
+    }
+    let timer;
     try {
         const fileUrl = pathToFileURL(fullPath).href;
-        const mod = (await import(__rewriteRelativeImportExtension(fileUrl)));
+        const timeoutPromise = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`Import timeout for ${fullPath}`)), DYNAMIC_IMPORT_TIMEOUT_MS);
+            if (timer.unref)
+                timer.unref();
+        });
+        const mod = (await Promise.race([import(__rewriteRelativeImportExtension(fileUrl)), timeoutPromise]));
         if (typeof mod.icon === 'string') {
             result.icon = mod.icon;
         }
@@ -86,7 +140,12 @@ export async function extractAuditorMetadataFromFile(fullPath) {
         }
     }
     catch {
-        // catch-ok: Dynamic import failed (e.g. syntax error in custom extension)
+        // catch-ok: Dynamic import failed or timed out, fallback to static analysis
+        return extractStaticMetadataFromFile(fullPath);
+    }
+    finally {
+        if (timer)
+            clearTimeout(timer);
     }
     return result;
 }
@@ -234,7 +293,13 @@ function isIgnoredFileEntry(entry) {
         return true;
     if (entry.endsWith('.d.ts') || entry.endsWith('.d.ts.map') || entry.endsWith('.js.map'))
         return true;
-    return entry.includes('.spec.') || entry.includes('.test.') || entry.startsWith('report_') || entry === 'audit_rules.ts' || entry === 'audit_rules.js';
+    return (entry.includes('.spec.') ||
+        entry.includes('.test.') ||
+        entry.startsWith('report_') ||
+        entry === 'audit_rules.ts' ||
+        entry === 'audit_rules.js' ||
+        entry.endsWith('Plugin.ts') ||
+        entry.endsWith('Plugin.js'));
 }
 async function scanSuiteDirectory(params) {
     let entries; // no-domain: Non-domain utility collection or data structure

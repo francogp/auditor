@@ -8,12 +8,15 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { getAuditConfig, isInCodeRoots } from "../core/auditConfig.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "./cliUtils.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from "./cliUtils.js";
+import { runGuardReport } from "./report_guard.js";
+import { runFlagsReport } from "./report_flags.js";
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
 const VALID_CATEGORY_ALIASES = new Set([
     'dupes', 'duplicates', 'security', 'cwe', 'dead-code', 'deadcode', 'unused',
-    'complexity', 'circular', 'exports', 'orphans', 'boundaries', 'architecture', 'boundary', 'all'
+    'complexity', 'circular', 'exports', 'orphans', 'boundaries', 'architecture', 'boundary',
+    'coverage-gaps', 'coverage_gaps', 'gaps', 'guard', 'flags', 'all'
 ]);
 function parsePositionalOption(pos, currentCategory) {
     if (pos.startsWith('category=')) {
@@ -65,7 +68,14 @@ function parseCommandLineArgs() {
 }
 function runFallowCommand(command, extraArgs = []) {
     try {
-        const args = ['--format', 'json', ...extraArgs]; // no-domain: Non-domain utility collection or data structure
+        const effectiveExtra = [...extraArgs];
+        if (command.startsWith('health') && !effectiveExtra.includes('--coverage')) {
+            const covArgs = resolveCoverageArgs();
+            if (covArgs.length > 0) {
+                effectiveExtra.push(...covArgs);
+            }
+        }
+        const args = ['--format', 'json', ...effectiveExtra]; // no-domain: Non-domain utility collection or data structure
         const fallowBin = path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
         const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
         const stdout = execSync(cmd, {
@@ -523,13 +533,54 @@ function reportAllSummary(json) {
         printTableSummary(metrics);
     }
 }
+function reportCoverageGaps(top, json) {
+    const data = runFallowCommand('health', ['--coverage-gaps']);
+    const rawGaps = data?.coverage_gaps;
+    const isArray = Array.isArray(rawGaps);
+    const gaps = isArray
+        ? rawGaps
+        : (rawGaps?.exports ?? []);
+    const summary = !isArray ? rawGaps?.summary : undefined;
+    if (json) {
+        console.log(JSON.stringify({ summary, totalGaps: gaps.length, gaps: gaps.slice(0, top) }, null, 2));
+        return;
+    }
+    const subtitle = summary?.file_coverage_pct !== undefined
+        ? `Cobertura: ${summary.file_coverage_pct}% (${summary.covered_files}/${summary.runtime_files} archivos) • Brechas: ${gaps.length}`
+        : `Exports alcanzables sin test: ${gaps.length}`;
+    console.log('\n' + renderBanner('BRECHAS DE COBERTURA DE TESTS (FALLOW COVERAGE GAPS)', subtitle));
+    if (gaps.length === 0) {
+        console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se detectaron brechas de cobertura en exports alcanzables.\n'));
+        return;
+    }
+    const rows = gaps.slice(0, top).map((item, idx) => {
+        const loc = `${item.path || 'General'}:${item.line || 1}`;
+        const name = styleText('cyan', item.export_name || 'export');
+        const note = item.actions?.[0]?.note || 'Export en runtime sin referencias desde tests';
+        return {
+            index: String(idx + 1),
+            location: loc,
+            name,
+            note
+        };
+    });
+    const columns = [
+        { header: '#', width: 3, align: 'center', key: 'index' },
+        { header: 'UBICACIÓN', width: 38, align: 'left', key: 'location' },
+        { header: 'SÍMBOLO / EXPORT', width: 24, align: 'left', key: 'name' },
+        { header: 'ESTADO DE COBERTURA', width: 44, align: 'left', key: 'note' }
+    ];
+    console.log('\n' + renderBoxTable(columns, rows));
+    console.log();
+}
 function executeComplexityReport(jsonOutput) {
     const currentDir = import.meta.filename ? path.dirname(import.meta.filename) : path.resolve(process.cwd(), 'src/cli');
     const compScript = path.resolve(currentDir, 'report_complexity.ts');
     execSync(`node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? 'json' : ''}`, { stdio: 'inherit' });
 }
-function main() {
+export function runFallowReportCli() {
     const { category, top, jsonOutput } = parseCommandLineArgs();
+    let exitCode = 0;
     switch (category) {
         case 'dupes':
         case 'duplicates':
@@ -557,6 +608,24 @@ function main() {
         case 'boundary':
             reportBoundaries(jsonOutput);
             break;
+        case 'coverage-gaps':
+        case 'coverage_gaps':
+        case 'gaps':
+            reportCoverageGaps(top, jsonOutput);
+            break;
+        case 'guard': {
+            const posArgs = process.argv.slice(2).filter((a) => !a.startsWith('-') && !a.startsWith('category=') && a !== 'guard');
+            exitCode = runGuardReport(process.cwd(), posArgs, { json: jsonOutput });
+            break;
+        }
+        case 'flags': {
+            exitCode = runFlagsReport(process.cwd(), {
+                retirement: process.argv.includes('--retirement') || process.argv.includes('retirement'),
+                top,
+                json: jsonOutput
+            });
+            break;
+        }
         case 'complexity':
             executeComplexityReport(jsonOutput);
             break;
@@ -565,6 +634,11 @@ function main() {
             reportAllSummary(jsonOutput);
             break;
     }
+    if (exitCode !== 0) {
+        process.exit(exitCode);
+    }
 }
-main();
+if (isMainModule(import.meta.url)) {
+    runFallowReportCli();
+}
 //# sourceMappingURL=report_fallow.js.map

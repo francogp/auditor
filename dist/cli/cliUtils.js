@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { getAuditConfig } from "../core/auditConfig.js";
+import { parseJsonObjectOutput } from "../core/reportUtils.js";
 /**
  * Checks whether the current module is being executed directly as the CLI entrypoint.
  */
@@ -175,5 +177,37 @@ export function executeCliAndReadJson(command, args, outputFilePath, options) {
         return null;
     }
     return null;
+}
+/**
+  * Resolves coverage CLI arguments for Fallow commands (health, complexity).
+  * Discovers configured coverage path or default 'coverage/coverage-final.json'.
+  */
+export function resolveCoverageArgs(projectRoot = process.cwd()) {
+    const config = getAuditConfig();
+    const configuredPath = config.fallow?.coverage?.path;
+    if (configuredPath && fs.existsSync(path.resolve(projectRoot, configuredPath))) {
+        return ['--coverage', path.resolve(projectRoot, configuredPath)];
+    }
+    const defaultCoveragePath = path.resolve(projectRoot, 'coverage/coverage-final.json');
+    if (fs.existsSync(defaultCoveragePath)) {
+        return ['--coverage', defaultCoveragePath];
+    }
+    return [];
+}
+/**
+  * Executes a Fallow sub-command with JSON formatting, returning parsed object payload and exit code.
+  */
+export function executeFallowJsonCommand(fallowBin, subCommandArgs, projectRoot = process.cwd()) {
+    const proc = spawnSync('node', [fallowBin, ...subCommandArgs], {
+        cwd: projectRoot,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    const parsed = parseJsonObjectOutput(proc.stdout);
+    return {
+        parsed,
+        status: proc.status ?? 0,
+        rawOutput: (proc.stderr || proc.stdout || '').trim()
+    };
 }
 //# sourceMappingURL=cliUtils.js.map

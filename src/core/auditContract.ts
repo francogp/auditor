@@ -155,6 +155,7 @@ export interface StandardAuditResult {
   subAuditors?: readonly SubAuditorReport[];
   isBuiltin?: boolean;
   icon?: string;
+  packageName?: string;
 }
 
 export interface AuditorCapabilities {
@@ -262,10 +263,10 @@ export interface ConsolidatedAuditReport {
     suitesFailed: number;
     durationMs: number;
   };
-  families: Record<AuditFamily, {
+  families: Partial<Record<AuditFamily, {
     title: string;
     suites: StandardAuditResult[];
-  }>;
+  }>>;
   allFindings: AuditFinding[];
   findingsByFile?: Record<string, AuditFinding[]>;
 }
