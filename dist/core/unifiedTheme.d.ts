@@ -5,7 +5,7 @@
  * Provides the single source of truth for visual presentation, Unicode Box-Drawing,
  * fixed-width column alignment, status badges, and Markdown generation.
  */
-import { type StandardAuditResult, type AuditFinding, type FamilyMetadata } from './auditContract.ts';
+import { type StandardAuditResult, type AuditFinding, type AuditFileSummary, type FamilyMetadata } from './auditContract.ts';
 /**
  * Calculates the visual monospace terminal display width of a string,
  * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
@@ -43,6 +43,15 @@ export declare function formatDuration(ms: number): string;
 export declare const TASK_NAME_COL_WIDTH = 38;
 export declare function renderAuditTaskRow(res: StandardAuditResult): string;
 export declare function renderFindingsDetail(findings: AuditFinding[], maxLimit?: number): string;
+export interface RenderByFileTreeOptions {
+    maxFiles?: number | 'all';
+    maxFindingsPerFile?: number | 'all';
+    showRule?: boolean;
+}
+/**
+ * Renders audit findings structured by file and ordered by line number in a Box-Drawing tree format.
+ */
+export declare function renderFindingsByFileTree(fileSummaries: readonly AuditFileSummary[], options?: RenderByFileTreeOptions): string;
 export declare function renderConsolidatedFooter(suitesTotal: number, suitesPassed: number, totalErrors: number, totalWarnings: number, totalDurationMs: number, errorFindings?: AuditFinding[], suitesSkipped?: number): string;
 export declare function renderMarkdownReport(results: StandardAuditResult[], suitesPassed: number, totalDurationMs: number): string;
 //# sourceMappingURL=unifiedTheme.d.ts.map

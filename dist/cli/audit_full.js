@@ -21,7 +21,7 @@ import { enableCompileCache } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
+import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily, sortFindingsByFileAndLine, groupFindingsByFileMap, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
 import { loadAuditConfig, assertAuditConfigComplete } from "../core/auditConfig.js";
 import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
@@ -330,6 +330,13 @@ function buildConsolidatedReport(params) {
         skipSimilar: ctx.cliOptions.skipSimilar || undefined,
         environment: { nodeVersion: process.version, platform: process.platform, cwd: process.cwd() }
     };
+    const rawFindings = ctx.results.flatMap(r => r.findings);
+    const sortedFindings = sortFindingsByFileAndLine(rawFindings);
+    const fileSummaryMap = groupFindingsByFileMap(sortedFindings);
+    const findingsByFile = {};
+    for (const [file, summary] of Object.entries(fileSummaryMap)) {
+        findingsByFile[file] = summary.findings;
+    }
     const consolidatedReport = {
         meta,
         status: anyFailed ? 'failed' : 'passed',
@@ -346,9 +353,10 @@ function buildConsolidatedReport(params) {
             f,
             { title: resolveFamilyMetadata(f, ctx.config.customFamilies).title, suites: byFamily.get(f) ?? [] }
         ])),
-        allFindings: ctx.results.flatMap(r => r.findings)
+        allFindings: sortedFindings,
+        findingsByFile
     };
-    return { meta, consolidatedReport };
+    return { meta, consolidatedReport, fileSummaryMap };
 }
 async function exportCustomOutputReport(cliOptions, consolidatedReport, results, suitesPassed, totalDuration) {
     if (!cliOptions.values.output)
@@ -385,7 +393,7 @@ async function renderAndPersistMasterReport(ctx) {
     if (hasSimilarCodeSetupFailure) {
         console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
     }
-    const { meta, consolidatedReport } = buildConsolidatedReport({
+    const { meta, consolidatedReport, fileSummaryMap } = buildConsolidatedReport({
         ctx,
         totalErrors,
         totalWarnings,
@@ -396,6 +404,7 @@ async function renderAndPersistMasterReport(ctx) {
     });
     const latestAuditPath = path.join(scratchAuditsDir, 'latest_audit.json');
     const latestSummaryPath = path.join(scratchAuditsDir, 'latest_summary.json');
+    const latestByFilePath = path.join(scratchAuditsDir, 'by_file.json');
     await fs.writeFile(latestAuditPath, JSON.stringify(consolidatedReport, null, 2), 'utf-8');
     await fs.writeFile(latestSummaryPath, JSON.stringify({
         meta,
@@ -406,6 +415,14 @@ async function renderAndPersistMasterReport(ctx) {
             metrics: r.metrics, errors: r.summary.errors, warnings: r.summary.warnings
         }))
     }, null, 2), 'utf-8');
+    const byFileReport = {
+        meta,
+        status: consolidatedReport.status,
+        summary: consolidatedReport.summary,
+        totalAffectedFiles: Object.keys(fileSummaryMap).length,
+        files: fileSummaryMap
+    };
+    await fs.writeFile(latestByFilePath, JSON.stringify(byFileReport, null, 2), 'utf-8');
     if (!isFullAudit && !isBuildMode && !isFixMode) {
         console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
         console.log(styleText('yellow', `   latest_audit.json se actualizó con meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`));

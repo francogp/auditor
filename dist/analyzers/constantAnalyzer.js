@@ -38,6 +38,16 @@ function isValidConstantIdentifier(name, ignoredNames) {
         return false;
     return /^[A-Z0-9_]+$/.test(name);
 }
+function unwrapExpression(expr) {
+    let current = expr;
+    while (ts.isAsExpression(current) ||
+        ts.isTypeAssertionExpression(current) ||
+        ts.isParenthesizedExpression(current) ||
+        ts.isNonNullExpression(current)) {
+        current = current.expression;
+    }
+    return current;
+}
 function processVariableDeclaration(decl, sourceFile, filePath, isExported, ignoredNames) {
     if (!ts.isIdentifier(decl.name))
         return null;
@@ -45,7 +55,8 @@ function processVariableDeclaration(decl, sourceFile, filePath, isExported, igno
     if (!isValidConstantIdentifier(constName, ignoredNames))
         return null;
     const line = sourceFile.getLineAndCharacterOfPosition(decl.getStart(sourceFile)).line + 1;
-    const rawValue = decl.initializer ? decl.initializer.getText(sourceFile).trim() : '';
+    const unwrappedInitializer = decl.initializer ? unwrapExpression(decl.initializer) : null;
+    const rawValue = unwrappedInitializer ? unwrappedInitializer.getText(sourceFile).trim() : '';
     return {
         name: constName,
         file: filePath,

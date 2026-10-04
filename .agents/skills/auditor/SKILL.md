@@ -138,6 +138,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - All audit result inspections, category breakdowns, severity filtering, and complexity hotspot analyses MUST be conducted strictly through the framework's native CLI tools:
       - `npm run audit`: Global execution and consolidated Box-Drawing table.
       - `npm run audit:findings` / `npm run audit:errors` / `npm run audit:warnings` / `npm run audit:summary` / `npm run audit:files`: Filtering and breakdown of findings.
+      - `npm run audit:by-file`: Hierarchical Box-Drawing tree inspection of findings grouped strictly by file and ordered by line ascending (`├── L12: [Rule] Message`), with filters (`file=`, `category=`, `severity=`, `top=`, `json`).
       - `npm run audit:complexity`: Cognitive/cyclomatic complexity hotspots and Fallow refactoring targets.
       - `npm run audit:similar`: Semantic and structural clone detection using Fallow ML vector embeddings in Box-Drawing tables.
       - `npm run audit:review`: Graph-grounded architectural review brief for changed code using Fallow code review graphs.
@@ -228,6 +229,15 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and fail validation immediately with loud errors.
 50. **Anti-Abuse Protection for `constants.exemptGlobs`**:
     - Broad wildcards matching primary source trees (`**/*`, `src/**`) are strictly rejected. Glob patterns must target specific maintenance scripts or tabular seed data.
+51. **Hierarchical By-File & Line Grouping Mandate (`audit:by-file`, `scratch/audits/by_file.json`)**:
+    - All audit findings in `latest_audit.json` (`allFindings`) MUST be sorted stably by relative file path (case-insensitive ASC) and line number ascending (`f.line ?? 0`), with structured index `findingsByFile` and an ephemeral lightweight index `scratch/audits/by_file.json`.
+    - The framework exposes the canonical CLI tool `npm run audit:by-file` (binary `auditor-by-file`) rendering a Box-Drawing tree (`├── L<line>: [Rule] Message`) with filters (`file=`, `category=`, `severity=`, `top=`, `json`) to allow developers and AI agents to inspect and repair all violations in a file in a single pass without thrashing or repeated file reads.
+52. **Canonical Magic Numbers Heuristics & Radix Exemption Contract**:
+    - The `magicNumbers` analyzer strictly prohibits naked numeric literals in business logic (`severity: 'error'`).
+    - Provides canonical exemptions for: (1) standard identity values, HTTP status codes, and the universal upper-bound sentinel (`0, 1, 100, 200, 404, 500, 9999`), (2) standard radix arguments (`2, 8, 10, 16, 36`) in `parseInt`, `Number.parseInt`, and `toString(radix)`, (3) descriptive property assignments in module-level constant objects (`const UPPER_CASE = { ... }` or `as const`), and (4) deterministic PRNG / trigonometric hashing patterns (`Math.sin(seed) * N`, `seed * N`). Domain-specific sentinels are configured dynamically via `config.constants.exemptMagicNumbers`.
+53. **AST Constant Unwrapping & Duplicate Analysis Invariance**:
+    - In `validate_duplicate_constants` (`constantAnalyzer.ts`), constant declaration initializers MUST be unwrapped through `ts.isAsExpression`, `ts.isTypeAssertionExpression`, and `ts.isParenthesizedExpression` before comparative evaluation.
+    - Const declarations with identical unwrapped values (e.g. `const FOO = 0.75;` and `const FOO = 0.75 as const;`) MUST be classified as identical duplicates (`duplicate-constant-identical`), strictly preventing false divergent alarms (`duplicate-constant-divergent`).
 
 ---
 

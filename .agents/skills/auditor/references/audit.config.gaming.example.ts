@@ -132,7 +132,7 @@ export default defineAuditConfig({
   constants: {
     ignoredNames: ['DEFAULT_GENERATION', 'INITIAL_COINS'], // Global constants exempt from duplicate analysis
     allowedNumericPrefixes: ['GEN_', 'ISO_', 'BASE_'], // Permitted prefixes for numeric constants
-    exemptMagicNumbers: [100, 200, 300, 500] // Canonical generation limits exempt from magic number alerts
+    exemptMagicNumbers: [100, 200, 300, 500, 9999999999] // Canonical generation limits or far-future sentinels (0, 1, 100, 200, 404, 500, 9999 are built-in defaults)
   },
 
   documentation: {

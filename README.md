@@ -106,6 +106,7 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
     "audit:lint": "auditor preset=lint",
     "audit:md": "auditor preset=md",
     "audit:findings": "auditor-findings",
+    "audit:by-file": "auditor-by-file",
     "audit:complexity": "auditor-complexity",
     "audit:similar": "auditor-similar",
     "audit:review": "auditor-review",
@@ -434,6 +435,7 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 | `npx auditor-commit` | `src/cli/audit_for_commit.ts` | Pre-commit gatekeeper. Demands 0 errors and blocks new warnings against `origin/main`. |
 | `npx auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
 | `npx auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
+| `npx auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |
 | `npx auditor-fallow` | `src/cli/report_fallow.ts` | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`). |
 | `npx auditor-complexity` | `src/cli/report_complexity.ts` | Cognitive/cyclomatic complexity hotspots and refactoring targets report. |
 | `npx auditor-similar` | `src/cli/report_similar_code.ts` | Semantic clone and function similarity analysis via Fallow vector embeddings. |

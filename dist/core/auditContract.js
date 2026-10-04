@@ -5,6 +5,7 @@
  * Defines the immutable data structures, family types, and standard outputs
  * required for all sub-auditors and the general audit orchestrator.
  */
+import path from 'node:path';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from "./auditConfig.js";
 export const BUILTIN_AUDIT_FAMILIES = [
     'architecture',
@@ -77,6 +78,75 @@ export function getActiveFamilies(customFamilies) {
     return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
 }
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
+/**
+ * Normalizes a file path from an AuditFinding into a clean relative POSIX path.
+ */
+export function normalizeFindingPath(filePath, cwd = process.cwd()) {
+    if (!filePath)
+        return 'General';
+    const rel = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
+    return rel.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || 'General';
+}
+/**
+ * Stably sorts an array of AuditFinding instances by:
+ * 1. Normalized relative file path (case-insensitive ASC)
+ * 2. Line number (ASC, missing/undefined at top = 0)
+ * 3. Column number (ASC)
+ * 4. Severity ('error' first, then 'warning')
+ * 5. Rule ID (ASC)
+ */
+export function sortFindingsByFileAndLine(findings, cwd = process.cwd()) {
+    return [...findings].sort((a, b) => {
+        const fileA = normalizeFindingPath(a.file, cwd).toLowerCase();
+        const fileB = normalizeFindingPath(b.file, cwd).toLowerCase();
+        if (fileA !== fileB) {
+            return fileA.localeCompare(fileB);
+        }
+        const lineA = a.line ?? 0;
+        const lineB = b.line ?? 0;
+        if (lineA !== lineB) {
+            return lineA - lineB;
+        }
+        const colA = a.col ?? 0;
+        const colB = b.col ?? 0;
+        if (colA !== colB) {
+            return colA - colB;
+        }
+        const sevScoreA = a.severity === 'error' ? 0 : 1;
+        const sevScoreB = b.severity === 'error' ? 0 : 1;
+        if (sevScoreA !== sevScoreB) {
+            return sevScoreA - sevScoreB;
+        }
+        return (a.ruleId ?? '').localeCompare(b.ruleId ?? '');
+    });
+}
+/**
+ * Groups an array of AuditFindings into a map indexed by normalized relative file path,
+ * where findings within each file are guaranteed sorted by line number ascending.
+ */
+export function groupFindingsByFileMap(findings, cwd = process.cwd()) {
+    const sorted = sortFindingsByFileAndLine(findings, cwd);
+    const map = {};
+    for (const f of sorted) {
+        const norm = normalizeFindingPath(f.file, cwd);
+        if (!map[norm]) {
+            map[norm] = {
+                file: norm,
+                errors: 0,
+                warnings: 0,
+                findings: []
+            };
+        }
+        if (f.severity === 'error') {
+            map[norm].errors++;
+        }
+        else {
+            map[norm].warnings++;
+        }
+        map[norm].findings.push(f);
+    }
+    return map;
+}
 export const ONE_MINUTE_MS = 60000;
 export const MAX_AUDIT_STALENESS_MS = DEFAULT_MAX_AUDIT_STALENESS_MINUTES * ONE_MINUTE_MS;
 function assertAuditFreshness(meta, consumerName, options) {

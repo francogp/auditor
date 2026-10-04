@@ -236,6 +236,7 @@ export function renderAuditTaskRow(res) {
     return `  ${badge} │ ${styleText('bold', nameStr)} │ ${styleText('dim', durationStr)} │ ${metricStr} │ ${errStr} │ ${warnStr}`;
 }
 const DEFAULT_MAX_FINDINGS_PREVIEW = 30;
+const DEFAULT_MAX_FILES_TREE = 10;
 function groupFindingsByFile(findings) {
     const byFile = new Map();
     for (const rawF of findings) {
@@ -275,6 +276,49 @@ export function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_P
     }
     if (findings.length > maxLimit) {
         lines.push(styleText('cyan', `\n  ... y 🐛 ${findings.length - maxLimit} más. Usa --output=<archivo> para volcado completo.`));
+    }
+    return lines.join('\n');
+}
+/**
+ * Renders audit findings structured by file and ordered by line number in a Box-Drawing tree format.
+ */
+export function renderFindingsByFileTree(fileSummaries, options = {}) {
+    if (!fileSummaries || fileSummaries.length === 0)
+        return '';
+    const lines = [];
+    const maxFiles = options.maxFiles === 'all'
+        ? fileSummaries.length
+        : (typeof options.maxFiles === 'number' ? options.maxFiles : DEFAULT_MAX_FILES_TREE);
+    const displayedFiles = fileSummaries.slice(0, maxFiles);
+    for (const fs of displayedFiles) {
+        const errorBadge = fs.errors > 0 ? styleText('red', `${fs.errors} error${fs.errors > 1 ? 'es' : ''}`) : '';
+        const warnBadge = fs.warnings > 0 ? styleText('yellow', `${fs.warnings} advertencia${fs.warnings > 1 ? 's' : ''}`) : '';
+        const badges = [errorBadge, warnBadge].filter(Boolean).join(', ');
+        const badgeText = badges ? ` (${badges})` : ` (${fs.findings.length} incidencia${fs.findings.length > 1 ? 's' : ''})`;
+        lines.push(`\n  📄 ${styleText('bold', fs.file)}${badgeText}`);
+        const findingsLimit = options.maxFindingsPerFile === 'all'
+            ? fs.findings.length
+            : (typeof options.maxFindingsPerFile === 'number' ? options.maxFindingsPerFile : fs.findings.length);
+        const displayedFindings = fs.findings.slice(0, findingsLimit);
+        for (let i = 0; i < displayedFindings.length; i++) {
+            const item = displayedFindings[i];
+            const isLast = (i === displayedFindings.length - 1) && (displayedFindings.length === fs.findings.length);
+            const branch = isLast ? '└── ' : '├── ';
+            const locLabel = item.line !== undefined ? `L${item.line}` : '[GLOBAL]';
+            const locPadded = padVisual(locLabel, 8);
+            const sevIcon = item.severity === 'error' ? styleText('red', '❌ ') : styleText('yellow', '⚠️  ');
+            const ruleTag = item.ruleDescription
+                ? `[${item.ruleDescription}] `
+                : (item.ruleId ? `[${item.ruleId}] ` : '');
+            const contextStr = item.context ? ` (${styleText('dim', `"${item.context}"`)})` : '';
+            lines.push(`     ${styleText('dim', branch)}${styleText('cyan', locPadded)} ${sevIcon}${styleText('bold', ruleTag)}${item.message}${contextStr}`);
+        }
+        if (fs.findings.length > displayedFindings.length) {
+            lines.push(`     ${styleText('dim', '└── ')}... y ${fs.findings.length - displayedFindings.length} incidencia(s) más en este archivo.`);
+        }
+    }
+    if (fileSummaries.length > displayedFiles.length) {
+        lines.push(styleText('dim', `\n  ... y ${fileSummaries.length - displayedFiles.length} archivo(s) más con incidencias. Usa top=all o filtra con file=<patron>.`));
     }
     return lines.join('\n');
 }

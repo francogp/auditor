@@ -143,6 +143,19 @@ export interface AuditRunMetadata {
         cwd: string;
     };
 }
+export interface AuditFileSummary {
+    file: string;
+    errors: number;
+    warnings: number;
+    findings: AuditFinding[];
+}
+export interface AuditByFileReport {
+    meta: AuditRunMetadata;
+    status: AuditExecutionStatus;
+    summary: ConsolidatedAuditReport['summary'];
+    totalAffectedFiles: number;
+    files: Record<string, AuditFileSummary>;
+}
 export interface ConsolidatedAuditReport {
     meta: AuditRunMetadata;
     status: AuditExecutionStatus;
@@ -160,7 +173,26 @@ export interface ConsolidatedAuditReport {
         suites: StandardAuditResult[];
     }>;
     allFindings: AuditFinding[];
+    findingsByFile?: Record<string, AuditFinding[]>;
 }
+/**
+ * Normalizes a file path from an AuditFinding into a clean relative POSIX path.
+ */
+export declare function normalizeFindingPath(filePath?: string, cwd?: string): string;
+/**
+ * Stably sorts an array of AuditFinding instances by:
+ * 1. Normalized relative file path (case-insensitive ASC)
+ * 2. Line number (ASC, missing/undefined at top = 0)
+ * 3. Column number (ASC)
+ * 4. Severity ('error' first, then 'warning')
+ * 5. Rule ID (ASC)
+ */
+export declare function sortFindingsByFileAndLine(findings: readonly AuditFinding[], cwd?: string): AuditFinding[];
+/**
+ * Groups an array of AuditFindings into a map indexed by normalized relative file path,
+ * where findings within each file are guaranteed sorted by line number ascending.
+ */
+export declare function groupFindingsByFileMap(findings: readonly AuditFinding[], cwd?: string): Record<string, AuditFileSummary>;
 export declare const ONE_MINUTE_MS = 60000;
 export declare const MAX_AUDIT_STALENESS_MS: number;
 export interface AssertAuditorOptions {

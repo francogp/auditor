@@ -23,9 +23,13 @@ import {
   type AuditRunMetadata,
   type AuditRunMode,
   type ConsolidatedAuditReport,
+  type AuditByFileReport,
+  type AuditFileSummary,
   resolveFamilyMetadata,
   getActiveFamilies,
   groupResultsByFamily,
+  sortFindingsByFileAndLine,
+  groupFindingsByFileMap,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig, assertAuditConfigComplete, type AuditEngineConfig } from '../core/auditConfig.ts';
@@ -406,7 +410,7 @@ function buildConsolidatedReport(params: {
   anyFailed: boolean;
   isFullAudit: boolean;
   byFamily: Map<AuditFamily, StandardAuditResult[]>;
-}): { meta: AuditRunMetadata; consolidatedReport: ConsolidatedAuditReport } {
+}): { meta: AuditRunMetadata; consolidatedReport: ConsolidatedAuditReport; fileSummaryMap: Record<string, AuditFileSummary> } {
   const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily } = params;
   const meta: AuditRunMetadata = {
     version: AUDITOR_VERSION,
@@ -422,6 +426,14 @@ function buildConsolidatedReport(params: {
     skipSimilar: ctx.cliOptions.skipSimilar || undefined,
     environment: { nodeVersion: process.version, platform: process.platform, cwd: process.cwd() }
   };
+
+  const rawFindings = ctx.results.flatMap(r => r.findings);
+  const sortedFindings = sortFindingsByFileAndLine(rawFindings);
+  const fileSummaryMap = groupFindingsByFileMap(sortedFindings);
+  const findingsByFile: Record<string, AuditFinding[]> = {};
+  for (const [file, summary] of Object.entries(fileSummaryMap)) {
+    findingsByFile[file] = summary.findings;
+  }
 
   const consolidatedReport: ConsolidatedAuditReport = {
     meta,
@@ -441,10 +453,11 @@ function buildConsolidatedReport(params: {
         { title: resolveFamilyMetadata(f, ctx.config.customFamilies).title, suites: byFamily.get(f) ?? [] }
       ])
     ) as Record<AuditFamily, { title: string; suites: StandardAuditResult[] }>,
-    allFindings: ctx.results.flatMap(r => r.findings)
+    allFindings: sortedFindings,
+    findingsByFile
   };
 
-  return { meta, consolidatedReport };
+  return { meta, consolidatedReport, fileSummaryMap };
 }
 
 async function exportCustomOutputReport(
@@ -493,7 +506,7 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
     console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
   }
 
-  const { meta, consolidatedReport } = buildConsolidatedReport({
+  const { meta, consolidatedReport, fileSummaryMap } = buildConsolidatedReport({
     ctx,
     totalErrors,
     totalWarnings,
@@ -505,6 +518,7 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
 
   const latestAuditPath = path.join(scratchAuditsDir, 'latest_audit.json');
   const latestSummaryPath = path.join(scratchAuditsDir, 'latest_summary.json');
+  const latestByFilePath = path.join(scratchAuditsDir, 'by_file.json');
 
   await fs.writeFile(latestAuditPath, JSON.stringify(consolidatedReport, null, 2), 'utf-8');
   await fs.writeFile(latestSummaryPath, JSON.stringify({
@@ -516,6 +530,14 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
       metrics: r.metrics, errors: r.summary.errors, warnings: r.summary.warnings
     }))
   }, null, 2), 'utf-8');
+  const byFileReport: AuditByFileReport = {
+    meta,
+    status: consolidatedReport.status,
+    summary: consolidatedReport.summary,
+    totalAffectedFiles: Object.keys(fileSummaryMap).length,
+    files: fileSummaryMap
+  };
+  await fs.writeFile(latestByFilePath, JSON.stringify(byFileReport, null, 2), 'utf-8');
 
   if (!isFullAudit && !isBuildMode && !isFixMode) {
     console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));

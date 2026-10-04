@@ -14,6 +14,7 @@
     "audit:warnings": "auditor-findings severity=warning",
     "audit:summary": "auditor-findings",
     "audit:files": "auditor-findings files",
+    "audit:by-file": "auditor-by-file",
     "audit:complexity": "auditor-complexity",
     "audit:similar": "auditor-similar",
     "audit:review": "auditor-review",

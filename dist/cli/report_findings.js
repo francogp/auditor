@@ -5,9 +5,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { ONE_MINUTE_MS } from "../core/auditContract.js";
+import { ONE_MINUTE_MS, sortFindingsByFileAndLine, groupFindingsByFileMap } from "../core/auditContract.js";
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from "../core/auditConfig.js";
-import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
+import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings, renderFindingsByFileTree } from "../core/unifiedTheme.js";
+import { isMainModule } from "./cliUtils.js";
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
@@ -16,8 +17,14 @@ const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
 const SUMMARY_FLAGS = new Set(['summary', '--summary', 'summary=true']);
 const FILES_FLAGS = new Set(['files', '--files', 'files=true']);
 const BREAKDOWN_FLAGS = new Set(['breakdown', '--breakdown', 'breakdown=true', 'by-dir', 'dirs']);
+const BY_FILE_FLAGS = new Set(['by-file', '--by-file', 'by_file', 'group=file', 'group-by=file', 'byfile']);
 const STALE_FLAGS = new Set(['allow-stale', '--allow-stale', 'stale']);
 const PARTIAL_FLAGS = new Set(['allow-partial', '--allow-partial', 'partial']);
+function isInvokedAsByFile() {
+    const scriptArg = process.argv[1] ?? '';
+    const scriptName = path.basename(scriptArg).toLowerCase();
+    return scriptName.includes('auditor-by-file');
+}
 function parseFlagArg(arg, opts) {
     if (JSON_FLAGS.has(arg)) {
         opts.jsonOutput = true;
@@ -33,6 +40,10 @@ function parseFlagArg(arg, opts) {
     }
     if (BREAKDOWN_FLAGS.has(arg)) {
         opts.breakdown = true;
+        return true;
+    }
+    if (BY_FILE_FLAGS.has(arg)) {
+        opts.byFile = true;
         return true;
     }
     if (STALE_FLAGS.has(arg)) {
@@ -101,8 +112,9 @@ function parseFilterAndValue(arg, opts) {
         opts.search = arg.slice(7).toLowerCase();
         return true;
     }
-    if (arg.startsWith('file=')) {
-        opts.filePattern = arg.slice(5).toLowerCase();
+    if (arg.startsWith('file=') || arg.startsWith('f=')) {
+        const prefixLen = arg.startsWith('file=') ? 5 : 2;
+        opts.filePattern = arg.slice(prefixLen).toLowerCase();
         return true;
     }
     if (arg.startsWith('top=')) {
@@ -122,6 +134,7 @@ function parseReportOptions() {
         dirPattern: '',
         scope: 'all',
         breakdown: false,
+        byFile: isInvokedAsByFile(),
         top: DEFAULT_TOP_LIMIT,
         jsonOutput: false,
         summaryOnly: false,
@@ -436,6 +449,68 @@ function renderFilesOnlyView(matchingFindings, report, args) {
     console.log('\n' + renderBanner(bannerTitle, `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Archivos afectados: ${sortedFiles.length}`));
     console.log('\n' + renderFindingsBreakdownTable(filesToDisplay, 'ARCHIVO AFECTADO') + '\n');
 }
+function renderByFileView(matchingFindings, report, args) {
+    const sortedFindings = sortFindingsByFileAndLine(matchingFindings);
+    const fileSummaryMap = groupFindingsByFileMap(sortedFindings);
+    const fileSummaries = Object.values(fileSummaryMap);
+    fileSummaries.sort((a, b) => {
+        const scoreB = b.errors * ERROR_WEIGHT_FACTOR + b.warnings;
+        const scoreA = a.errors * ERROR_WEIGHT_FACTOR + a.warnings;
+        if (scoreB !== scoreA)
+            return scoreB - scoreA;
+        return a.file.localeCompare(b.file);
+    });
+    const totalErrors = matchingFindings.filter(f => f.severity === 'error').length;
+    const totalWarnings = matchingFindings.filter(f => f.severity === 'warning').length;
+    if (args.jsonOutput) {
+        const byFileReport = {
+            meta: report.meta,
+            status: report.status,
+            summary: {
+                ...report.summary,
+                totalViolations: matchingFindings.length,
+                errors: totalErrors,
+                warnings: totalWarnings
+            },
+            totalAffectedFiles: fileSummaries.length,
+            files: Object.fromEntries(fileSummaries.map(fs => [fs.file, fs]))
+        };
+        console.log(JSON.stringify(byFileReport, null, 2));
+        return;
+    }
+    const filterLabels = [];
+    if (args.filePattern)
+        filterLabels.push(`archivo: "${args.filePattern}"`);
+    if (args.category !== 'all')
+        filterLabels.push(`categoría: "${args.category}"`);
+    if (args.severity !== 'all')
+        filterLabels.push(`severidad: ${args.severity}`);
+    if (args.dirPattern)
+        filterLabels.push(`directorio: "${args.dirPattern}"`);
+    if (args.search)
+        filterLabels.push(`búsqueda: "${args.search}"`);
+    const subtitle = filterLabels.length > 0
+        ? `Filtros: ${filterLabels.join(', ')} | Archivos: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`
+        : `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Archivos afectados: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`;
+    console.log('\n' + renderBanner('HALLAZGOS DE AUDITORÍA AGRUPADOS POR ARCHIVO Y LÍNEA', subtitle));
+    if (fileSummaries.length === 0) {
+        console.log(styleText('green', '\n✨ No se encontraron incidencias que coincidan con los filtros activos.\n'));
+        return;
+    }
+    if (fileSummaries.length > 1 && !args.filePattern) {
+        const tableEntries = fileSummaries.map(fs => [
+            fs.file,
+            { errors: fs.errors, warnings: fs.warnings }
+        ]);
+        const tableLimit = typeof args.top === 'number' ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
+        console.log('\n' + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), 'ARCHIVO AFECTADO') + '\n');
+    }
+    const treeOutput = renderFindingsByFileTree(fileSummaries, {
+        maxFiles: args.top,
+        maxFindingsPerFile: 'all'
+    });
+    console.log(treeOutput + '\n');
+}
 export function runReport() {
     const args = parseReportOptions();
     const report = loadAuditReport();
@@ -444,6 +519,10 @@ export function runReport() {
     validateReportFreshnessAndScope(report, args);
     const { categoryCounts, allFindings } = collectReportCategoryCounts(report);
     const { filteredCategories, matchingFindings } = filterMatchingFindings(categoryCounts, args);
+    if (args.byFile) {
+        renderByFileView(matchingFindings, report, args);
+        return;
+    }
     if (args.jsonOutput) {
         renderFindingsJson(matchingFindings, filteredCategories, report, args);
         return;
@@ -466,5 +545,7 @@ export function runReport() {
         return;
     renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 }
-runReport();
+if (isMainModule(import.meta.url)) {
+    runReport();
+}
 //# sourceMappingURL=report_findings.js.map

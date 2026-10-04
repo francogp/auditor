@@ -959,6 +959,8 @@ function isExemptLiteralOrProtocol(line: string): boolean {
   if (/\b(?:width|minWidth|maxWidth|height|minHeight|maxHeight|colSpan|rowSpan)\s*:\s*-?[\d.]+/i.test(line)) return true;
   if (/v-gsap(?:-[a-z0-9-]+)?=/i.test(line)) return true;
   if (/\b(?:x|y|z|scale|scaleX|scaleY|rotation|rotate|duration|delay|stagger|radius|top|left|right|bottom|fontSize|zIndex)\s*:\s*-?[\d.]+/i.test(line)) return true;
+  if (/Math\.(?:sin|cos|tan)\s*\([^)]+\)\s*\*\s*\d+/i.test(line)) return true;
+  if (/\b(?:seed|rng|hash)\s*\*\s*\d+/i.test(line)) return true;
   return false;
 }
 
@@ -969,12 +971,88 @@ function isInsideVueStyle(content: string, matchIndex: number, filePath: string)
   return styleOpenIndex !== -1 && styleOpenIndex > styleCloseIndex;
 }
 
+const MAX_OBJECT_DECLARATION_LOOKBACK_CHARS = 250;
+
+function isInsideNamedConstantObject(content: string, matchIndex: number, trimmed: string): boolean {
+  if (!/^\s*(?:[a-zA-Z0-9_$]+|['"][a-zA-Z0-9_$-]+['"])\s*:\s*-?[\d.]+/.test(trimmed)) {
+    return false;
+  }
+
+  let depth = 0;
+  let openBraceIndex = -1;
+
+  for (let i = matchIndex - 1; i >= 0; i--) {
+    const ch = content[i];
+    if (ch === '}') {
+      depth++;
+    } else if (ch === '{') {
+      if (depth > 0) {
+        depth--;
+      } else {
+        openBraceIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (openBraceIndex === -1) return false;
+
+  const lookbackStart = Math.max(0, openBraceIndex - MAX_OBJECT_DECLARATION_LOOKBACK_CHARS);
+  const precedingText = content.substring(lookbackStart, openBraceIndex).trim();
+
+  const namedConstPattern = /(?:(?:export\s+)?(?:(?:public|private|protected|static|declare)\s+)*(?:const|readonly)\s+)([A-Z0-9_]{2,})\b(?:\s*:\s*[^=]+)?\s*=\s*$/;
+  if (namedConstPattern.test(precedingText)) {
+    return true;
+  }
+
+  if (/(?:[a-zA-Z0-9_$]+|['"][a-zA-Z0-9_$-]+['"])\s*:\s*$/.test(precedingText)) {
+    let outerDepth = 0;
+    for (let i = openBraceIndex - 1; i >= 0; i--) {
+      const ch = content[i];
+      if (ch === '}') {
+        outerDepth++;
+      } else if (ch === '{') {
+        if (outerDepth > 0) {
+          outerDepth--;
+        } else {
+          const outerLookbackStart = Math.max(0, i - MAX_OBJECT_DECLARATION_LOOKBACK_CHARS);
+          const outerPreceding = content.substring(outerLookbackStart, i).trim();
+          if (namedConstPattern.test(outerPreceding)) {
+            return true;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+const STANDARD_RADIX_STRINGS: ReadonlySet<string> = new Set(['2', '8', '10', '16', '36']); // runtime-set: Standard positional numeral system radices
+const RADIX_PARSE_INT_REGEX = /(?:\bNumber\.)?\bparseInt\s*\([^,]+,\s*(\d+)\s*\)/;
+const RADIX_TO_STRING_REGEX = /\.toString\s*\(\s*(\d+)\s*\)/;
+
+function isStandardRadixUsage(matchValue: string | undefined, line: string): boolean {
+  if (!matchValue || !STANDARD_RADIX_STRINGS.has(matchValue)) {
+    return false;
+  }
+  const parseMatch = RADIX_PARSE_INT_REGEX.exec(line);
+  if (parseMatch && parseMatch[1] === matchValue) return true;
+
+  const toStringMatch = RADIX_TO_STRING_REGEX.exec(line);
+  if (toStringMatch && toStringMatch[1] === matchValue) return true;
+
+  return false;
+}
+
 function isMagicNumberSyntaxExempt(content: string, match: RegExpExecArray, line: string, trimmed: string, filePath: string): boolean {
   if (isNamedConstantDeclaration(trimmed)) return true;
   if (isExemptSyntaxDeclaration(trimmed)) return true;
   if (isRegexQuantifierOrEscape(content, match)) return true;
-  if (match[2] === '10' && /\bparseInt\s*\([^,]+,\s*[0-9]+\s*\)/.test(line)) return true;
+  if (isStandardRadixUsage(match[2], line)) return true;
   if (isExemptLiteralOrProtocol(line)) return true;
+  if (isInsideNamedConstantObject(content, match.index, trimmed)) return true;
   return isInsideVueStyle(content, match.index, filePath);
 }
 
@@ -987,8 +1065,8 @@ function isExemptNumericValue(matchValue?: string): boolean {
   return customExempt.includes(num);
 }
 
-/** Standard numeric identity values and HTTP status codes exempt from magic number audit */
-export const EXEMPT_AUDIT_NUMERIC_LITERALS: ReadonlySet<number> = new Set([0, 1, 100, 200, 404, 500]); // runtime-set: Fast O(1) membership lookup set
+/** Standard numeric identity values, infinite sentinels and HTTP status codes exempt from magic number audit */
+export const EXEMPT_AUDIT_NUMERIC_LITERALS: ReadonlySet<number> = new Set([0, 1, 100, 200, 404, 500, 9999]); // runtime-set: Fast O(1) membership lookup set
 
 export const magicNumbers: AuditRule = {
   regex: /([^A-Z0-9_\w#$])(\d{2,})(\b)/g,

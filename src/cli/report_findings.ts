@@ -5,14 +5,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import type { ConsolidatedAuditReport, AuditFinding } from '../core/auditContract.ts';
-import { ONE_MINUTE_MS } from '../core/auditContract.ts';
+import type {
+  ConsolidatedAuditReport,
+  AuditFinding,
+  AuditFileSummary,
+  AuditByFileReport
+} from '../core/auditContract.ts';
+import {
+  ONE_MINUTE_MS,
+  sortFindingsByFileAndLine,
+  groupFindingsByFileMap
+} from '../core/auditContract.ts';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
 import {
   renderBanner,
   renderFindingsBreakdownTable,
-  renderSampleFindings
+  renderSampleFindings,
+  renderFindingsByFileTree
 } from '../core/unifiedTheme.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
@@ -33,6 +44,7 @@ interface ReportOptions {
   dirPattern: string;
   scope: 'all' | 'host' | 'packages';
   breakdown: boolean;
+  byFile: boolean;
   top: number | 'all';
   jsonOutput: boolean;
   summaryOnly: boolean;
@@ -45,14 +57,22 @@ const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
 const SUMMARY_FLAGS = new Set(['summary', '--summary', 'summary=true']);
 const FILES_FLAGS = new Set(['files', '--files', 'files=true']);
 const BREAKDOWN_FLAGS = new Set(['breakdown', '--breakdown', 'breakdown=true', 'by-dir', 'dirs']);
+const BY_FILE_FLAGS = new Set(['by-file', '--by-file', 'by_file', 'group=file', 'group-by=file', 'byfile']);
 const STALE_FLAGS = new Set(['allow-stale', '--allow-stale', 'stale']);
 const PARTIAL_FLAGS = new Set(['allow-partial', '--allow-partial', 'partial']);
+
+function isInvokedAsByFile(): boolean {
+  const scriptArg = process.argv[1] ?? '';
+  const scriptName = path.basename(scriptArg).toLowerCase();
+  return scriptName.includes('auditor-by-file');
+}
 
 function parseFlagArg(arg: string, opts: ReportOptions): boolean {
   if (JSON_FLAGS.has(arg)) { opts.jsonOutput = true; return true; }
   if (SUMMARY_FLAGS.has(arg)) { opts.summaryOnly = true; return true; }
   if (FILES_FLAGS.has(arg)) { opts.filesOnly = true; return true; }
   if (BREAKDOWN_FLAGS.has(arg)) { opts.breakdown = true; return true; }
+  if (BY_FILE_FLAGS.has(arg)) { opts.byFile = true; return true; }
   if (STALE_FLAGS.has(arg)) { opts.allowStale = true; return true; }
   if (PARTIAL_FLAGS.has(arg)) { opts.allowPartial = true; return true; }
   return false;
@@ -101,8 +121,9 @@ function parseFilterAndValue(arg: string, opts: ReportOptions): boolean {
     opts.search = arg.slice(7).toLowerCase();
     return true;
   }
-  if (arg.startsWith('file=')) {
-    opts.filePattern = arg.slice(5).toLowerCase();
+  if (arg.startsWith('file=') || arg.startsWith('f=')) {
+    const prefixLen = arg.startsWith('file=') ? 5 : 2;
+    opts.filePattern = arg.slice(prefixLen).toLowerCase();
     return true;
   }
   if (arg.startsWith('top=')) {
@@ -123,6 +144,7 @@ function parseReportOptions(): ReportOptions {
     dirPattern: '',
     scope: 'all',
     breakdown: false,
+    byFile: isInvokedAsByFile(),
     top: DEFAULT_TOP_LIMIT,
     jsonOutput: false,
     summaryOnly: false,
@@ -483,6 +505,76 @@ function renderFilesOnlyView(matchingFindings: Finding[], report: AuditReport, a
   console.log('\n' + renderFindingsBreakdownTable(filesToDisplay, 'ARCHIVO AFECTADO') + '\n');
 }
 
+function renderByFileView(
+  matchingFindings: Finding[],
+  report: AuditReport,
+  args: ReportOptions
+): void {
+  const sortedFindings = sortFindingsByFileAndLine(matchingFindings);
+  const fileSummaryMap = groupFindingsByFileMap(sortedFindings);
+  const fileSummaries: AuditFileSummary[] = Object.values(fileSummaryMap);
+
+  fileSummaries.sort((a, b) => {
+    const scoreB = b.errors * ERROR_WEIGHT_FACTOR + b.warnings;
+    const scoreA = a.errors * ERROR_WEIGHT_FACTOR + a.warnings;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return a.file.localeCompare(b.file);
+  });
+
+  const totalErrors = matchingFindings.filter(f => f.severity === 'error').length;
+  const totalWarnings = matchingFindings.filter(f => f.severity === 'warning').length;
+
+  if (args.jsonOutput) {
+    const byFileReport: AuditByFileReport = {
+      meta: report.meta,
+      status: report.status,
+      summary: {
+        ...report.summary,
+        totalViolations: matchingFindings.length,
+        errors: totalErrors,
+        warnings: totalWarnings
+      },
+      totalAffectedFiles: fileSummaries.length,
+      files: Object.fromEntries(fileSummaries.map(fs => [fs.file, fs]))
+    };
+    console.log(JSON.stringify(byFileReport, null, 2));
+    return;
+  }
+
+  const filterLabels: string[] = [];
+  if (args.filePattern) filterLabels.push(`archivo: "${args.filePattern}"`);
+  if (args.category !== 'all') filterLabels.push(`categoría: "${args.category}"`);
+  if (args.severity !== 'all') filterLabels.push(`severidad: ${args.severity}`);
+  if (args.dirPattern) filterLabels.push(`directorio: "${args.dirPattern}"`);
+  if (args.search) filterLabels.push(`búsqueda: "${args.search}"`);
+
+  const subtitle = filterLabels.length > 0
+    ? `Filtros: ${filterLabels.join(', ')} | Archivos: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`
+    : `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Archivos afectados: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`;
+
+  console.log('\n' + renderBanner('HALLAZGOS DE AUDITORÍA AGRUPADOS POR ARCHIVO Y LÍNEA', subtitle));
+
+  if (fileSummaries.length === 0) {
+    console.log(styleText('green', '\n✨ No se encontraron incidencias que coincidan con los filtros activos.\n'));
+    return;
+  }
+
+  if (fileSummaries.length > 1 && !args.filePattern) {
+    const tableEntries = fileSummaries.map(fs => [
+      fs.file,
+      { errors: fs.errors, warnings: fs.warnings }
+    ] as [string, { errors: number; warnings: number }]);
+    const tableLimit = typeof args.top === 'number' ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
+    console.log('\n' + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), 'ARCHIVO AFECTADO') + '\n');
+  }
+
+  const treeOutput = renderFindingsByFileTree(fileSummaries, {
+    maxFiles: args.top,
+    maxFindingsPerFile: 'all'
+  });
+  console.log(treeOutput + '\n');
+}
+
 export function runReport(): void {
   const args = parseReportOptions();
   const report = loadAuditReport();
@@ -491,6 +583,11 @@ export function runReport(): void {
   validateReportFreshnessAndScope(report, args);
   const { categoryCounts, allFindings } = collectReportCategoryCounts(report);
   const { filteredCategories, matchingFindings } = filterMatchingFindings(categoryCounts, args);
+
+  if (args.byFile) {
+    renderByFileView(matchingFindings, report, args);
+    return;
+  }
 
   if (args.jsonOutput) {
     renderFindingsJson(matchingFindings, filteredCategories, report, args);
@@ -523,4 +620,6 @@ export function runReport(): void {
   renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 }
 
-runReport();
+if (isMainModule(import.meta.url)) {
+  runReport();
+}

@@ -75,12 +75,13 @@ npm ci
 
 ## 4. `package.json` Script Inheritance (Zero Duplication)
 
-Host projects **MUST NOT** rewrite or duplicate the 25 generic audit scripts in their `package.json`.
+Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in their `package.json`.
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
 - `auditor` (master orchestrator `audit_full.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
 - `auditor-commit` (safe-commit gatekeeper `audit_for_commit.ts`)
 - `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
+- `auditor-by-file` (hierarchical tree findings reporter grouped by file and line `report_findings.ts`)
 - `auditor-fallow` (Fallow intelligence suite `report_fallow.ts`)
 - `auditor-complexity` (complexity hotspot analysis `report_complexity.ts`)
 - `auditor-similar` (semantic code clone detection `report_similar_code.ts`)
@@ -107,6 +108,7 @@ For a drop-in ready JSON template, see [`recommended_package_scripts_template.js
 
     "// --- FINDINGS & REPORTS ---": "",
     "audit:findings": "auditor-findings",
+    "audit:by-file": "auditor-by-file",
     "audit:errors": "auditor-findings severity=error",
     "audit:warnings": "auditor-findings severity=warning",
     "audit:summary": "auditor-findings",

@@ -120,7 +120,7 @@ export default defineAuditConfig({
   constants: {
     ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constants ignored by duplicate detector
     allowedNumericPrefixes: ['BASE_', 'TAX_'], // Permitted prefixes for numeric constants
-    exemptMagicNumbers: [21, 10.5, 27], // Fiscal tax rate numbers exempt from magic number alerts
+    exemptMagicNumbers: [21, 10.5, 27], // Fiscal tax rate numbers exempt from magic number alerts (0, 1, 100, 200, 404, 500, 9999 are built-in defaults)
     exemptGlobs: [
       'scripts/maintenance/**', // Specific maintenance scripts exempt from magic numbers
       'src/data/seed/**' // Tabular seed databases exempt from magic numbers

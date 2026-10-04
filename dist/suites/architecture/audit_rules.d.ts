@@ -98,7 +98,7 @@ export declare const zIndexConstantDeclaration: AuditRule;
 export declare const forbiddenFallbacks: AuditRule;
 export declare const doxIndexIntegrity: AuditRule;
 export declare const forbiddenTypeCasts: AuditRule;
-/** Standard numeric identity values and HTTP status codes exempt from magic number audit */
+/** Standard numeric identity values, infinite sentinels and HTTP status codes exempt from magic number audit */
 export declare const EXEMPT_AUDIT_NUMERIC_LITERALS: ReadonlySet<number>;
 export declare const magicNumbers: AuditRule;
 export declare const badConstantNames: AuditRule;

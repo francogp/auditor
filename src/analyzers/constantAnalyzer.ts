@@ -52,6 +52,19 @@ function isValidConstantIdentifier(name: string, ignoredNames: ReadonlySet<strin
   return /^[A-Z0-9_]+$/.test(name);
 }
 
+function unwrapExpression(expr: ts.Expression): ts.Expression {
+  let current: ts.Expression = expr;
+  while (
+    ts.isAsExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isParenthesizedExpression(current) ||
+    ts.isNonNullExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
 function processVariableDeclaration(
   decl: ts.VariableDeclaration,
   sourceFile: ts.SourceFile,
@@ -65,7 +78,8 @@ function processVariableDeclaration(
   if (!isValidConstantIdentifier(constName, ignoredNames)) return null;
 
   const line = sourceFile.getLineAndCharacterOfPosition(decl.getStart(sourceFile)).line + 1;
-  const rawValue = decl.initializer ? decl.initializer.getText(sourceFile).trim() : '';
+  const unwrappedInitializer = decl.initializer ? unwrapExpression(decl.initializer) : null;
+  const rawValue = unwrappedInitializer ? unwrappedInitializer.getText(sourceFile).trim() : '';
 
   return {
     name: constName,

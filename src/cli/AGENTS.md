@@ -32,7 +32,7 @@ Architecture & Tooling Engineers.
 - [`report_complexity.ts`](./report_complexity.ts): Cyclomatic and cognitive complexity reporter.
 - [`report_css.ts`](./report_css.ts): Interactive CLI tool (`auditor-css`) reporting CSS duplication, similar selectors, and token hygiene.
 - [`report_fallow.ts`](./report_fallow.ts): Consolidated Fallow static analysis reporter.
-- [`report_findings.ts`](./report_findings.ts): Interactive query tool for inspecting audit findings.
+- [`report_findings.ts`](./report_findings.ts): Interactive query tool (`auditor-findings`, `auditor-by-file`) for inspecting audit findings filtered by category, severity, directory, and hierarchical file/line tree view (`audit:by-file`).
 - [`report_review.ts`](./report_review.ts): Differential architectural review tool leveraging Fallow code-review graphs.
 - [`report_similar_code.ts`](./report_similar_code.ts): Box-drawing report tool for Fallow semantic and structural similar-code candidates.
 - [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
