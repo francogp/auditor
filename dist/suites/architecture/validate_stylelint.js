@@ -23,6 +23,7 @@ import stylelint from 'stylelint';
 import { BaseAuditor, CANONICAL_IGNORE_DIRS } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from "./stylelintSassTrapsPlugin.js";
 enableCompileCache();
 export const STYLELINT_RULES = [
     'stylelint-issue',
@@ -30,7 +31,8 @@ export const STYLELINT_RULES = [
     'css-duplicate-properties',
     'css-empty-blocks',
     'css-order-violation',
-    'scss-syntax-issue'
+    'scss-syntax-issue',
+    'scss-sass-collision-casing'
 ];
 export function resolveStylelintConfigFile(projectRoot, configuredConfigFile) {
     if (configuredConfigFile) {
@@ -78,6 +80,8 @@ export function resolveStylelintConfigFile(projectRoot, configuredConfigFile) {
 export function categorizeStylelintRule(ruleName) {
     if (!ruleName)
         return 'stylelint-issue';
+    if (ruleName === SASS_TRAPS_RULE_NAME)
+        return 'scss-sass-collision-casing';
     if (ruleName === 'no-duplicate-selectors')
         return 'css-duplicate-selectors';
     if (ruleName === 'declaration-block-no-duplicate-properties')
@@ -121,7 +125,8 @@ export class StylelintAuditor extends BaseAuditor {
                 'css-duplicate-properties': 'Propiedades duplicadas en la regla',
                 'css-empty-blocks': 'Bloques de estilos vacíos',
                 'css-order-violation': 'Orden de propiedades CSS',
-                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida'
+                'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
+                'scss-sass-collision-casing': 'Función CSS colisiona con Sass'
             },
             roots,
             projectRoot
@@ -157,13 +162,33 @@ export class StylelintAuditor extends BaseAuditor {
             ...(config.paths.ignoreGlobs ?? []),
             ...(stylelintConfig?.ignoreGlobs ?? [])
         ];
-        const hasCustomRules = Boolean(stylelintConfig?.rules && Object.keys(stylelintConfig.rules).length > 0);
-        const lintConfig = hasCustomRules
-            ? {
-                extends: [configFile],
-                rules: stylelintConfig.rules
+        const lintConfig = {
+            extends: [configFile],
+            plugins: [sassTrapsPlugin],
+            rules: {
+                'function-name-case': [
+                    'lower',
+                    {
+                        ignoreFunctions: [
+                            '/^[A-Z]/',
+                            'Drop-Shadow',
+                            'Drop-shadow',
+                            'hue-Rotate',
+                            'Hue-Rotate'
+                        ]
+                    }
+                ],
+                'value-keyword-case': [
+                    'lower',
+                    {
+                        camelCaseSvgKeywords: true,
+                        ignoreProperties: ['/--.*/']
+                    }
+                ],
+                [SASS_TRAPS_RULE_NAME]: true,
+                ...(stylelintConfig?.rules ?? {})
             }
-            : undefined;
+        };
         let linterResult;
         try {
             linterResult = await stylelint.lint({
@@ -172,7 +197,6 @@ export class StylelintAuditor extends BaseAuditor {
                     cwd: this.projectRoot,
                     ignore: ignoreGlobs
                 },
-                configFile: lintConfig ? undefined : configFile,
                 config: lintConfig,
                 cache: true,
                 cacheLocation,

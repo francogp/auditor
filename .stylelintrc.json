@@ -20,6 +20,25 @@
     }
   ],
   "rules": {
+    "function-name-case": [
+      "lower",
+      {
+        "ignoreFunctions": [
+          "/^[A-Z]/",
+          "Drop-Shadow",
+          "Drop-shadow",
+          "hue-Rotate",
+          "Hue-Rotate"
+        ]
+      }
+    ],
+    "value-keyword-case": [
+      "lower",
+      {
+        "camelCaseSvgKeywords": true,
+        "ignoreProperties": ["/--.*/"]
+      }
+    ],
     "selector-class-pattern": [
       "^([a-z0-9]+([-_][a-z0-9]+)*|([a-z0-9]+(-[a-z0-9]+)*(__[a-z0-9]+(-[a-z0-9]+)*)?(--[a-z0-9]+(-[a-z0-9]+)*)?)|[A-Z0-9_]+)$",
       {

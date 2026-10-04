@@ -86,7 +86,8 @@ export default defineAuditConfig({
       enabled: true, // Enables Stylelint & SCSS hygiene verification
       configFile: undefined, // Optional custom config path (e.g. '.stylelintrc.json'); auto-discovers local or defaults to canonical
       rules: {
-        // Optional rule overrides passed directly to Stylelint (e.g. 'alpha-value-notation': 'number')
+        // Optional rule overrides passed directly to Stylelint (e.g. 'alpha-value-notation': 'number').
+        // Note: 'sass-traps/collision-casing' is automatically enforced and auto-repaired by default.
       },
       ignoreGlobs: [] // Additional globs to ignore during CSS/SCSS linting
     }

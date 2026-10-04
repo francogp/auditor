@@ -279,6 +279,86 @@ describe('StylelintAuditor Suite', () => {
     });
   });
 
+  describe('Sass Collision Casing & Auto-Fix', () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sass-traps-'));
+      await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('detects lowercase functions that collide with Dart Sass built-ins as scss-sass-collision-casing', async () => {
+      const scssFile = path.join(tempDir, 'src/button.scss');
+      await fs.writeFile(
+        scssFile,
+        `.btn {
+  transform: scale(1.1);
+  filter: saturate(0.9) brightness(1.2);
+}`,
+        'utf-8'
+      );
+
+      const auditor = new StylelintAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const collisionFindings = result.findings.filter(f => f.ruleId === 'scss-sass-collision-casing');
+      expect(collisionFindings.length).toBeGreaterThanOrEqual(2);
+      expect(collisionFindings.some(f => f.message.includes('Scale'))).toBe(true);
+      expect(collisionFindings.some(f => f.message.includes('Saturate'))).toBe(true);
+    });
+
+    it('auto-repairs colliding lowercase functions to PascalCase/CamelCase in fix mode', async () => {
+      const scssFile = path.join(tempDir, 'src/badge.scss');
+      await fs.writeFile(
+        scssFile,
+        `.badge {
+  transform: scale(1.1);
+  filter: saturate(0.9);
+}`,
+        'utf-8'
+      );
+
+      const oldArgv = process.argv;
+      process.argv = ['node', 'validate_stylelint.ts', 'fix'];
+      try {
+        const auditor = new StylelintAuditor({ projectRoot: tempDir });
+        await auditor.execute();
+
+        const repairedContent = await fs.readFile(scssFile, 'utf-8');
+        expect(repairedContent).toContain('Scale(1.1)');
+        expect(repairedContent).toContain('Saturate(0.9)');
+        expect(repairedContent).not.toContain('scale(1.1)');
+        expect(repairedContent).not.toContain('saturate(0.9)');
+      } finally {
+        process.argv = oldArgv;
+      }
+    });
+
+    it('accepts capitalized Sass Collision functions cleanly without function-name-case violations', async () => {
+      const scssFile = path.join(tempDir, 'src/clean.scss');
+      await fs.writeFile(
+        scssFile,
+        `.clean {
+  transform: Scale(1.05);
+  filter: Saturate(1.2) Brightness(1.1) Grayscale(0.5) Drop-Shadow(0 4px 8px rgb(0 0 0 / 30%));
+}`,
+        'utf-8'
+      );
+
+      const auditor = new StylelintAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const functionCaseErrors = result.findings.filter(f => f.message.includes('function-name-case'));
+      expect(functionCaseErrors).toHaveLength(0);
+      const collisionFindings = result.findings.filter(f => f.ruleId === 'scss-sass-collision-casing');
+      expect(collisionFindings).toHaveLength(0);
+    });
+  });
+
   describe('Clean Path Verification (StandardAuditResult)', () => {
     it('executes cleanly on source roots reporting passed status with 0 errors', async () => {
       const auditor = new StylelintAuditor();
@@ -295,3 +375,4 @@ describe('StylelintAuditor Suite', () => {
     });
   });
 });
+

@@ -238,6 +238,12 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 53. **AST Constant Unwrapping & Duplicate Analysis Invariance**:
     - In `validate_duplicate_constants` (`constantAnalyzer.ts`), constant declaration initializers MUST be unwrapped through `ts.isAsExpression`, `ts.isTypeAssertionExpression`, and `ts.isParenthesizedExpression` before comparative evaluation.
     - Const declarations with identical unwrapped values (e.g. `const FOO = 0.75;` and `const FOO = 0.75 as const;`) MUST be classified as identical duplicates (`duplicate-constant-identical`), strictly preventing false divergent alarms (`duplicate-constant-divergent`).
+54. **Sass Function Collision Prevention & Casing Governance (`sass-traps/collision-casing`, `scss-sass-collision-casing`)**:
+    - Standard CSS functions that share names with Dart Sass built-in color and math functions (`scale`, `scaleX`, `scaleY`, `scaleZ`, `scale3d`, `saturate`, `grayscale`, `invert`, `alpha`, `brightness`, `contrast`, `drop-shadow`, `hue-rotate`, `translateX`, `translateY`, `translateZ`, `translate3d`, `radial-gradient`, `linear-gradient`) MUST be written with PascalCase/CamelCase initials (e.g. `Scale(1.1)`, `Saturate(0.9)`, `Drop-Shadow(...)`, `hue-Rotate(...)`) inside SCSS and Vue SFC `<style>` blocks.
+    - Writing them in lowercase causes Dart Sass compiler crashes (`[sass] $color: 1.1 is not a color.`, `[sass] Missing argument $amount.`).
+    - Stylelint natively governs this via the native plugin `sass-traps/collision-casing` mapped to `'scss-sass-collision-casing'`.
+    - `.stylelintrc.json` MUST keep `function-name-case: ['lower', { ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate'] }]` and `value-keyword-case: ['lower', { camelCaseSvgKeywords: true, ignoreProperties: ['/--.*/'] }]` so neither rule is disabled.
+    - In `--fix` mode, `validate_stylelint` automatically repairs colliding lowercase functions to their canonical capitalized casing on the PostCSS AST.
 
 ---
 

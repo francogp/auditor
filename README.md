@@ -470,6 +470,7 @@ See [`LICENSE`](LICENSE) for complete details.
 | **Stylelint Order** | [`hudochenkov/stylelint-order`](https://github.com/hudochenkov/stylelint-order) | [MIT License](https://github.com/hudochenkov/stylelint-order/blob/master/LICENSE) |
 | **postcss-html** | [`ota-meshi/postcss-html`](https://github.com/ota-meshi/postcss-html) | [MIT License](https://github.com/ota-meshi/postcss-html/blob/master/LICENSE) |
 | **postcss-scss** | [`postcss/postcss-scss`](https://github.com/postcss/postcss-scss) | [MIT License](https://github.com/postcss/postcss-scss/blob/main/LICENSE) |
+| **postcss-value-parser** | [`TrySound/postcss-value-parser`](https://github.com/TrySound/postcss-value-parser) | [MIT License](https://github.com/TrySound/postcss-value-parser/blob/master/LICENSE) |
 | **HTML-Validate** | [`html-validate/html-validate`](https://gitlab.com/html-validate/html-validate) | [MIT License](https://gitlab.com/html-validate/html-validate/-/blob/master/LICENSE) |
 | **HTML-Validate Vue** | [`html-validate/html-validate-vue`](https://gitlab.com/html-validate/html-validate-vue) | [MIT License](https://gitlab.com/html-validate/html-validate-vue/-/blob/master/LICENSE) |
 | **Markdownlint CLI** | [`igorshubovych/markdownlint-cli`](https://github.com/igorshubovych/markdownlint-cli) | [MIT License](https://github.com/igorshubovych/markdownlint-cli/blob/master/LICENSE) |

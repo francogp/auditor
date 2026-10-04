@@ -25,6 +25,7 @@ import { BaseAuditor, CANONICAL_IGNORE_DIRS } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
+import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from './stylelintSassTrapsPlugin.ts';
 
 enableCompileCache();
 
@@ -34,7 +35,8 @@ export type StylelintRuleId =
   | 'css-duplicate-properties'
   | 'css-empty-blocks'
   | 'css-order-violation'
-  | 'scss-syntax-issue';
+  | 'scss-syntax-issue'
+  | 'scss-sass-collision-casing';
 
 export const STYLELINT_RULES: readonly StylelintRuleId[] = [
   'stylelint-issue',
@@ -42,7 +44,8 @@ export const STYLELINT_RULES: readonly StylelintRuleId[] = [
   'css-duplicate-properties',
   'css-empty-blocks',
   'css-order-violation',
-  'scss-syntax-issue'
+  'scss-syntax-issue',
+  'scss-sass-collision-casing'
 ] as const;
 
 export function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string {
@@ -95,6 +98,7 @@ export function resolveStylelintConfigFile(projectRoot: string, configuredConfig
 
 export function categorizeStylelintRule(ruleName: string | undefined): StylelintRuleId {
   if (!ruleName) return 'stylelint-issue';
+  if (ruleName === SASS_TRAPS_RULE_NAME) return 'scss-sass-collision-casing';
   if (ruleName === 'no-duplicate-selectors') return 'css-duplicate-selectors';
   if (ruleName === 'declaration-block-no-duplicate-properties') return 'css-duplicate-properties';
   if (ruleName === 'block-no-empty') return 'css-empty-blocks';
@@ -136,14 +140,15 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       family: 'architecture',
       packageName: 'Stylelint',
       icon: '🎨',
-ruleIds: STYLELINT_RULES,
+      ruleIds: STYLELINT_RULES,
       ruleDescriptions: {
         'stylelint-issue': 'Violación de estándar CSS o SCSS',
         'css-duplicate-selectors': 'Selectores duplicados en el bloque',
         'css-duplicate-properties': 'Propiedades duplicadas en la regla',
         'css-empty-blocks': 'Bloques de estilos vacíos',
         'css-order-violation': 'Orden de propiedades CSS',
-        'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida'
+        'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
+        'scss-sass-collision-casing': 'Función CSS colisiona con Sass'
       },
       roots,
       projectRoot
@@ -187,13 +192,33 @@ ruleIds: STYLELINT_RULES,
       ...(stylelintConfig?.ignoreGlobs ?? [])
     ];
 
-    const hasCustomRules = Boolean(stylelintConfig?.rules && Object.keys(stylelintConfig.rules).length > 0);
-    const lintConfig = hasCustomRules
-      ? {
-          extends: [configFile],
-          rules: stylelintConfig!.rules
-        }
-      : undefined;
+    const lintConfig: stylelint.Config = {
+      extends: [configFile],
+      plugins: [sassTrapsPlugin],
+      rules: {
+        'function-name-case': [
+          'lower',
+          {
+            ignoreFunctions: [
+              '/^[A-Z]/',
+              'Drop-Shadow',
+              'Drop-shadow',
+              'hue-Rotate',
+              'Hue-Rotate'
+            ]
+          }
+        ],
+        'value-keyword-case': [
+          'lower',
+          {
+            camelCaseSvgKeywords: true,
+            ignoreProperties: ['/--.*/']
+          }
+        ],
+        [SASS_TRAPS_RULE_NAME]: true,
+        ...(stylelintConfig?.rules ?? {})
+      }
+    };
 
     let linterResult: LinterResult;
     try {
@@ -203,8 +228,7 @@ ruleIds: STYLELINT_RULES,
           cwd: this.projectRoot,
           ignore: ignoreGlobs
         },
-        configFile: lintConfig ? undefined : configFile,
-        config: lintConfig as stylelint.Config | undefined,
+        config: lintConfig,
         cache: true,
         cacheLocation,
         cacheStrategy: 'content',
