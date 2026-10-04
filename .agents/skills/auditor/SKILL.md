@@ -242,7 +242,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Standard CSS functions that share names with Dart Sass built-in color and math functions (`scale`, `scaleX`, `scaleY`, `scaleZ`, `scale3d`, `saturate`, `grayscale`, `invert`, `alpha`, `brightness`, `contrast`, `drop-shadow`, `hue-rotate`, `translateX`, `translateY`, `translateZ`, `translate3d`, `radial-gradient`, `linear-gradient`) MUST be written with PascalCase/CamelCase initials (e.g. `Scale(1.1)`, `Saturate(0.9)`, `Drop-Shadow(...)`, `hue-Rotate(...)`) inside SCSS and Vue SFC `<style>` blocks.
     - Writing them in lowercase causes Dart Sass compiler crashes (`[sass] $color: 1.1 is not a color.`, `[sass] Missing argument $amount.`).
     - Stylelint natively governs this via the native plugin `sass-traps/collision-casing` mapped to `'scss-sass-collision-casing'`.
-    - `.stylelintrc.json` MUST keep `function-name-case: ['lower', { ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate'] }]` and `value-keyword-case: ['lower', { camelCaseSvgKeywords: true, ignoreProperties: ['/--.*/'] }]` so neither rule is disabled.
+    - `.stylelintrc.json` MUST keep `function-name-case: ['lower', { ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate'] }]` and `value-keyword-case: ['lower', { camelCaseSvgKeywords: true, ignoreProperties: ['/--.*/'], ignoreFunctions: ['v-bind'] }]` so neither rule is disabled while preserving unquoted `v-bind(...)` in Vue SFC.
     - In `--fix` mode, `validate_stylelint` automatically repairs colliding lowercase functions to their canonical capitalized casing on the PostCSS AST.
 
 ---

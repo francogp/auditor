@@ -212,7 +212,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
           'lower',
           {
             camelCaseSvgKeywords: true,
-            ignoreProperties: ['/--.*/']
+            ignoreProperties: ['/--.*/'],
+            ignoreFunctions: ['v-bind']
           }
         ],
         [SASS_TRAPS_RULE_NAME]: true,

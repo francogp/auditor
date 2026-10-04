@@ -36,7 +36,8 @@
       "lower",
       {
         "camelCaseSvgKeywords": true,
-        "ignoreProperties": ["/--.*/"]
+        "ignoreProperties": ["/--.*/"],
+        "ignoreFunctions": ["v-bind"]
       }
     ],
     "selector-class-pattern": [
