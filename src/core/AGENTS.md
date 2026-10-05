@@ -57,19 +57,23 @@ Architecture & Tooling Engineers.
 - **Strict Booleans and Zero Backward Compatibility**: Configurations in `audit.config.ts` MUST use strict types and compile-time booleans (`true`/`false`). Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and fail validation immediately with loud errors.
 - **Anti-Abuse Protection for `constants.exemptGlobs`**: Broad wildcards matching primary source trees (`**/*`, `src/**`) are strictly rejected. Glob patterns must target specific maintenance scripts or tabular seed data.
 - **Permission Boundaries**: File operations adhere to Node.js 26 `--permission` flags with paths verified via `permissionGuard.ts` and `safePath.ts`.
+- **Respect for unignoreDirs in Path Matching**: In `isPathIgnored()`, when an unignore directory set is specified (e.g. `unignoreDirs: ['.agents']`), ignore pattern matching MUST NOT ignore paths that contain an unignored ancestor directory, ensuring documentation and skill suites thoroughly scan documented assets even when general code scanners ignore them.
 
 ## Key Files
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader (`getAuditConfig`, `defineAuditConfig`).
 - [`auditContract.ts`](./auditContract.ts): Core TypeScript interfaces for findings, suites, and results.
+- [`auditCoverage.ts`](./auditCoverage.ts): Audit file and rule coverage map tracking and verification engine.
 - [`auditorBase.ts`](./auditorBase.ts): Abstract base classes (`BaseAuditor`, `FileScanAuditor`) and canonical ignore directories.
+- [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.
 - [`gitIgnoreRegistry.ts`](./gitIgnoreRegistry.ts): Centralized registry for dynamic `.gitignore` requirements declared across sub-auditors and extensions.
 - [`gitignoreMatcher.ts`](./gitignoreMatcher.ts): Gitignore parsing and fast path matching utility.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
+- [`testCoverageCore.ts`](./testCoverageCore.ts): Centralized Istanbul/C8 coverage analysis engine and metric calculations.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
 - [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.
 - [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, and SemVer bump calculation engine.

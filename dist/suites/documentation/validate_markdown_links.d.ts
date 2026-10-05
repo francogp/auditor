@@ -49,6 +49,7 @@ export { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories } from './vali
 export declare const DEFAULT_MARKDOWN_IGNORE_PATTERNS: readonly ["coverage/**"];
 export declare function getGitIgnoreMatcher(rootDir: string): GitIgnoreMatcher;
 export declare function getGitIgnoredPaths(rootDir: string): Set<string>;
+export declare function clearRepoFileIndexCache(): void;
 export declare function clearGitIgnoredPathsCache(): void;
 /**
  * Collects all relevant markdown files (.md) recursively.

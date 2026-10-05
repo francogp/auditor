@@ -15,6 +15,8 @@ Architecture & Tooling Engineers.
 - **Dynamic Markdown Scan Roots**: `validate_markdown_code_references.ts` and `validate_markdown_links.ts` dynamically resolve database paths (`migrationsDir` or `supabase`) only when configured in `config.persistence`, avoiding hardcoded directory assumptions.
 - **Abstract Documentation Reference Recognition**: `validate_markdown_code_references.ts` recognizes custom abstract reference paths declared in `config.documentation.knownValidAbstractPaths` to prevent false positives on virtual documentation links.
 - **Npm Script Exclusivity**: Documented operational commands must correspond to defined `package.json` scripts.
+- **Bidirectional DOX Code Indexing Mandate (`dox-unindexed-file`)**: Every non-test source code file (`.ts`, `.vue`, `.js`, etc.) residing in a directory governed by `AGENTS.md` MUST be documented under `## Key Files` with its architectural role.
+- **Non-Destructive Actionable Diagnostics for Broken Documentation Links**: Broken markdown and DOX links must provide intelligent relocation recommendations searching the repository file index (`buildRepositoryFileIndex`), reporting `"pero aparentemente fue localizado en: ..."` without applying dangerous automated file mutations.
 
 ## Key Files
 

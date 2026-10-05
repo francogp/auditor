@@ -64,6 +64,29 @@ describe('MarkdownLinkAuditor', () => {
       expect(broken?.error).toContain('Target path does not exist on disk');
     });
 
+    it('suggests relocated path when a broken link targets a file that exists elsewhere', async () => {
+      const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-relocated-'));
+      try {
+        await fs.mkdir(path.join(sandbox, 'src/core'), { recursive: true });
+        await fs.mkdir(path.join(sandbox, 'docs'), { recursive: true });
+        // File exists in src/core/service.ts
+        await fs.writeFile(path.join(sandbox, 'src/core/service.ts'), 'export const service = true;\n', 'utf-8');
+
+        // Markdown in docs links to ./service.ts (which doesn't exist in docs/)
+        const mdPath = path.join(sandbox, 'docs/guide.md');
+        const markdown = `# Guide\nSee [Service](./service.ts).\n`;
+        await fs.writeFile(mdPath, markdown, 'utf-8');
+
+        const { brokenLinks } = checkMarkdownLinksInContent(markdown, mdPath, sandbox);
+        const broken = brokenLinks.find(b => b.ruleId === 'markdown-broken-relative-link');
+        expect(broken).toBeDefined();
+        expect(broken?.error).toContain('aparentemente fue localizado en: "src/core/service.ts"');
+        expect(broken?.error).toContain('Verifica si corresponde corregir el enlace a: "../src/core/service.ts"');
+      } finally {
+        await fs.rm(sandbox, { recursive: true, force: true });
+      }
+    });
+
     it('detects absolute paths and file:// URLs (markdown-absolute-path)', () => {
       const markdown = `
         # Prohibited links

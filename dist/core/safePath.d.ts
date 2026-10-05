@@ -37,4 +37,9 @@ export declare function safeFetch(rawUrl: string, options?: RequestInit, allowed
  */
 export declare function safeDevUrl(endpoint: string, params?: Record<string, string>, baseOrigin?: string): string;
 export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles } from './auditorBase.ts';
+/**
+ * Builds an index of repository files mapping basename to array of absolute paths.
+ * Ignores common build/temporary directories.
+ */
+export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (fullPath: string) => boolean): Map<string, string[]>;
 //# sourceMappingURL=safePath.d.ts.map

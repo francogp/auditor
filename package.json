@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "4.3.0-build.20261005-124943",
+  "version": "4.4.0-build.20261005-135115",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -91,9 +91,11 @@
     "auditor-guard": "./dist/cli/report_guard.js",
     "auditor-flags": "./dist/cli/report_flags.js",
     "auditor-coverage-map": "./dist/cli/report_coverage_map.js",
+    "auditor-coverage": "./dist/cli/report_test_coverage.js",
     "auditor-test-coverage": "./dist/cli/report_test_coverage.js"
   },
   "scripts": {
+    "audit:coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "audit:test-coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "audit:coverage-map": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/report_coverage_map.ts",
     "audit:by-file": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts by-file",

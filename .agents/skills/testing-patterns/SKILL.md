@@ -248,3 +248,26 @@ Every sub-auditor test suite must follow the triple assertion pattern:
 2. **Negative Pass**: Write valid/compliant code in the sandbox, run the auditor, and assert that `result.summary.errors === 0`, `result.summary.warnings === 0`, and `result.status === 'passed'`.
 3. **Escape Hatch Verification**: Write the violating code accompanied by an escape hatch (e.g. `// <rule>-ok:`, `// domain-ok:`, `// script-ok:`), run the auditor, and assert that zero violations are produced for that line.
 
+---
+
+## 14. Test Execution Code Coverage & Ratcheting (`validate_test_coverage`)
+
+All repositories governed by `@francogp/auditor` enforce test execution coverage through standard Istanbul/C8 coverage artifacts (`coverage/coverage-final.json`).
+
+### 14.1 Metric Thresholds & Single Source of Truth
+- Thresholds are defined in `.auditor/audit.config.ts` under `config.testCoverage.thresholds`:
+  - **Statements**: Minimum percentage of executable statements reached.
+  - **Branches**: Minimum percentage of conditional branches tested.
+  - **Functions**: Minimum percentage of functions invoked.
+  - **Lines**: Minimum percentage of source lines executed.
+- When full 100% coverage is mathematically constrained by environment branches or third-party wrappers, the threshold must be configured to the achievable ceiling (e.g., 80%) rather than artificially lowered.
+
+### 14.2 Zero-Tolerance for Shadow Modules (`uncoveredFiles`)
+- Files present in the source tree but completely absent from the test coverage report (0% coverage) are flagged as `test-coverage-uncovered-file`.
+- Every source module must have companion unit or integration tests, eliminating un-tested shadow modules.
+
+### 14.3 Reporting & Inspection Tools
+- Run coverage verification suite: `npm run audit` or `preset=audit`.
+- Inspect detailed table reports: `npm run audit:coverage` or `npx auditor-coverage`.
+
+

@@ -120,3 +120,12 @@ When developing or refactoring sub-auditors (`BaseAuditor`, `FileScanAuditor`, o
 3. **Negative GREEN**: Write the companion test with a clean fixture to ensure zero false positives (`expect(summary.errors).toBe(0)`, `expect(summary.warnings).toBe(0)`).
 4. **Suppression GREEN**: Write a test verifying that valid suppression comments (e.g. `// <rule>-ok:`) properly bypass the check without false positives.
 5. **No Rule Without a Test**: Every single error and warning that an auditor is designed to catch MUST have an automated test asserting its detection. Untested rules are strictly forbidden.
+
+## Test Coverage Ratcheting & Verification
+
+TDD is complete only when the newly implemented behavior is proven covered:
+
+1. **Coverage Threshold Verification**: Run coverage checks (`npm run audit:coverage` or `npx vitest run --coverage`) to verify that total code coverage meets or exceeds the required threshold (default: **80%** across lines, functions, branches, statements).
+2. **Eliminate Shadow Code**: Ensure all newly introduced branches, edge cases, and error handlers are exercised by tests. Uncovered files or modules are flagged as blocking violations by `validate_test_coverage`.
+3. **Active-By-Default Enforcement**: In `@francogp/auditor`, test coverage is active by default (`testCoverage.enforceInAudit: true`) and produces blocking `severity: 'error'` findings if thresholds are violated. Never bypass coverage; write the missing behavioral test.
+

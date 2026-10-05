@@ -88,4 +88,47 @@ export function safeDevUrl(endpoint, params = {}, baseOrigin = 'http://localhost
     return url.pathname + url.search;
 }
 export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles } from "./auditorBase.js";
+/**
+ * Builds an index of repository files mapping basename to array of absolute paths.
+ * Ignores common build/temporary directories.
+ */
+export function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
+    const index = new Map();
+    function walk(currentDir) {
+        if (isIgnoredFn(currentDir))
+            return;
+        const base = path.basename(currentDir);
+        if (base.startsWith('.') && base !== '.' && base !== '.agents')
+            return;
+        if (base === 'node_modules' || base === 'dist' || base === 'scratch')
+            return;
+        let entries;
+        try {
+            entries = fs.readdirSync(currentDir, { withFileTypes: true });
+        }
+        catch {
+            // catch-ok: unreadable directory
+            return;
+        }
+        for (const entry of entries) {
+            const full = path.join(currentDir, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+            }
+            else if (entry.isFile()) {
+                if (!isIgnoredFn(full)) {
+                    const existing = index.get(entry.name);
+                    if (existing) {
+                        existing.push(full);
+                    }
+                    else {
+                        index.set(entry.name, [full]);
+                    }
+                }
+            }
+        }
+    }
+    walk(rootDir);
+    return index;
+}
 //# sourceMappingURL=safePath.js.map

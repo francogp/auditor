@@ -22,6 +22,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, collectRepositoryFiles } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { buildRepositoryFileIndex } from "../../core/safePath.js";
 import { resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
 export { stripCodeBlocks };
 enableCompileCache();
@@ -64,9 +65,25 @@ export function getGitIgnoredPaths(rootDir) {
     gitIgnoredPathsCache = paths;
     return paths;
 }
+let repoFileIndexCache = null;
+let repoFileIndexCacheRoot = null;
+export function clearRepoFileIndexCache() {
+    repoFileIndexCache = null;
+    repoFileIndexCacheRoot = null;
+}
 export function clearGitIgnoredPathsCache() {
     gitIgnoredPathsCache = null;
     gitIgnoreMatcherInstance = null;
+    clearRepoFileIndexCache();
+}
+function getRepoFileIndex(rootDir, matcher) {
+    if (repoFileIndexCache && repoFileIndexCacheRoot === rootDir) {
+        return repoFileIndexCache;
+    }
+    const index = buildRepositoryFileIndex(rootDir, p => matcher.isIgnored(p));
+    repoFileIndexCache = index;
+    repoFileIndexCacheRoot = rootDir;
+    return index;
 }
 /**
  * Collects all relevant markdown files (.md) recursively.
@@ -114,12 +131,27 @@ function checkTargetExistence(params) {
         };
     }
     if (!fs.existsSync(resolvedTarget)) {
+        const basename = path.basename(resolvedTarget);
+        const repoIndex = getRepoFileIndex(params.rootDir, matcher);
+        const candidateMatches = (repoIndex.get(basename) ?? []).filter(cand => !matcher.isIgnored(cand));
+        let error = `Target path does not exist on disk: "${resolvedRelPath}"`;
+        if (candidateMatches.length > 0) {
+            const sourceDir = path.dirname(params.filePath);
+            const suggestions = candidateMatches.map(cand => {
+                let rel = path.relative(sourceDir, cand).replace(/\\/g, '/');
+                if (!rel.startsWith('.'))
+                    rel = './' + rel;
+                return rel;
+            });
+            const foundIn = candidateMatches.map(cand => path.relative(params.rootDir, cand).replace(/\\/g, '/')).join(', ');
+            error = `Target path does not exist on disk: "${resolvedRelPath}", pero aparentemente fue localizado en: "${foundIn}". Verifica si corresponde corregir el enlace a: "${suggestions.join('" o "')}"`;
+        }
         return {
             sourceFile: params.relSourceFile,
             linkText: params.linkText,
             rawUrl: params.rawUrl,
             resolvedPath: resolvedRelPath,
-            error: `Target path does not exist on disk: "${resolvedRelPath}"`,
+            error,
             ruleId: 'markdown-broken-relative-link',
             line: params.line,
         };
@@ -211,7 +243,7 @@ function checkWorkspacePackageViolations(lines, relSourceFile, filePath, rootDir
         const lineNum = i + 1;
         if (brokenLines.has(lineNum))
             continue;
-        if (/\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa])\b/i.test(lineText)) {
+        if (/\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b/i.test(lineText) || /(?:\be\.g\.)/i.test(lineText)) {
             continue;
         }
         let match;

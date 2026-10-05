@@ -109,3 +109,48 @@ export {
   collectRepositoryFiles
 } from './auditorBase.ts';
 
+/**
+ * Builds an index of repository files mapping basename to array of absolute paths.
+ * Ignores common build/temporary directories.
+ */
+export function buildRepositoryFileIndex(
+  rootDir: string,
+  isIgnoredFn: (fullPath: string) => boolean
+): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+
+  function walk(currentDir: string): void {
+    if (isIgnoredFn(currentDir)) return;
+    const base = path.basename(currentDir);
+    if (base.startsWith('.') && base !== '.' && base !== '.agents') return;
+    if (base === 'node_modules' || base === 'dist' || base === 'scratch') return;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      // catch-ok: unreadable directory
+      return;
+    }
+
+    for (const entry of entries) {
+      const full = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile()) {
+        if (!isIgnoredFn(full)) {
+          const existing = index.get(entry.name);
+          if (existing) {
+            existing.push(full);
+          } else {
+            index.set(entry.name, [full]);
+          }
+        }
+      }
+    }
+  }
+
+  walk(rootDir);
+  return index;
+}
+

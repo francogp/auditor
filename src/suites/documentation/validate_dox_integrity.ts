@@ -28,14 +28,16 @@ export type DoxRuleId =
   | 'dox-unregistered-child'
   | 'dox-absolute-link'
   | 'dox-broken-link'
-  | 'dox-gitignore-target';
+  | 'dox-gitignore-target'
+  | 'dox-unindexed-file';
 
 export const DOX_RULES: readonly DoxRuleId[] = [
   'dox-missing-agents-md',
   'dox-unregistered-child',
   'dox-absolute-link',
   'dox-broken-link',
-  'dox-gitignore-target'
+  'dox-gitignore-target',
+  'dox-unindexed-file'
 ] as const;
 
 export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
@@ -57,7 +59,8 @@ private readonly rootDir: string;
         'dox-unregistered-child': 'AGENTS.md hijo no registrado',
         'dox-absolute-link': 'Enlace con ruta absoluta',
         'dox-broken-link': 'Enlace roto a archivo inexistente',
-        'dox-gitignore-target': 'Enlace a ruta ignorada en git'
+        'dox-gitignore-target': 'Enlace a ruta ignorada en git',
+        'dox-unindexed-file': 'Archivo de código no indexado en DOX'
       },
       coverage: {
         include: ['**/AGENTS.md']

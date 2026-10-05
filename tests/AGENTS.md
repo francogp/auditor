@@ -20,7 +20,9 @@ Architecture & Tooling Engineers.
 - [`audit_bundle.test.ts`](./audit_bundle.test.ts): Tests for `audit_bundle.ts` treemap parsing and budget enforcement.
 - [`audit_ratchet.test.ts`](./audit_ratchet.test.ts): Git-sandbox tests for the warning ratchet (fingerprint stability, new-warning detection, shrink-only baseline, tamper rejection).
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
-- [`cli_utils.test.ts`](./cli_utils.test.ts): Unit tests for CLI entrypoint detection and utilities.
+- [`report_coverage_map.test.ts`](./report_coverage_map.test.ts): Tests for audit coverage map CLI and reporting.
+- [`report_test_coverage.test.ts`](./report_test_coverage.test.ts): Tests for test execution coverage reporting CLI.
+- [`test_coverage_core.test.ts`](./test_coverage_core.test.ts): Tests for coverage metric calculation, unmapped file detection, and parsing.
 - [`validate_accessibility.test.ts`](./validate_accessibility.test.ts): Tests for WCAG 2.2 accessibility verification via `eslint-plugin-vuejs-accessibility`.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for `.auditor/` configuration integrity (paths, scripts, ratchet ref and baseline) and the AST-based migration of root-level configs.
 - [`validate_eslint_config.test.ts`](./validate_eslint_config.test.ts): Tests for ESLint Domain-Type-First configuration enforcement.
@@ -28,6 +30,7 @@ Architecture & Tooling Engineers.
 - [`validate_package_hygiene.test.ts`](./validate_package_hygiene.test.ts): Tests for orphan dependency and unused script detection via Knip.
 - [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.
 - [`validate_stylelint.test.ts`](./validate_stylelint.test.ts): Tests for Stylelint CSS/SCSS hygiene, nesting, Vue 3 SFCs, and configuration overrides.
+- [`validate_test_coverage.test.ts`](./validate_test_coverage.test.ts): Tests for test execution coverage thresholds and uncovered files detection.
 - [`validate_type_coverage.test.ts`](./validate_type_coverage.test.ts): Tests for quantitative TypeScript type coverage threshold enforcement.
 - [`version_bump.test.ts`](./version_bump.test.ts): Tests for SemVer bump calculation, build timestamp formatting, and git diff heuristics.
 

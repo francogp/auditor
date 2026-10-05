@@ -267,7 +267,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 57. **Mandatory README Synchronization & Modernization Mandate**:
     - Whenever releasing framework features, updating generic suites, adjusting canonical package scripts, or performing auditor upgrades in host applications, developers and AI agents MUST review, update, and modernize the root `README.md`.
     - **Script Synchronization**: Verify that all scripts in `package.json` matching `recommended_package_scripts_template.json` (such as `audit:build`, `audit:fix`, `audit:lint`, `audit:similar`, `auditor:update`) are correctly documented in the root `README.md`.
-    - **Suite Count Accuracy**: Ensure suite counts (43 built-in suites) and family breakdowns reflect canonical numbers.
+    - **Suite Count Accuracy**: Ensure suite counts (44 built-in suites) and family breakdowns reflect canonical numbers.
     - **Configuration Examples**: Ensure configuration snippets in `README.md` include all mandatory active subsystems, including the `coverage` ledger (`exemptGlobs` and `acknowledgedDegradations`).
 58. **Single Source of Truth Configuration & `.auditor/` Directory Layout**:
     - Dynamically loads paths, persistence settings, and host extensions via `.auditor/audit.config.ts` (or `.auditor/audit.config.json`).
@@ -281,17 +281,25 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Resolving existing warnings automatically shrinks `.auditor/audit-baseline.json` on the next full audit run, ratcheting code quality monotonically upward.
     - Bypassing the ratchet, disabling `ratchet.enabled`, or hand-editing `.auditor/audit-baseline.json` to absorb new warnings is strictly forbidden.
     - The differential `audit:for-commit` gate was completely removed; `npm run audit` itself is the single, definitive quality gate.
+60. **Bidirectional DOX Source File Indexing & Link Relocation Diagnostics (`dox-unindexed-file`, `validate_markdown_links`)**:
+    - DOX hierarchy (`validate_dox_integrity`) enforces bidirectional synchronization between filesystem and documentation: all non-test source code files (`.ts`, `.vue`, `.js`, etc.) residing in a directory governed by `AGENTS.md` MUST be documented under `## Key Files`. Missing source files trigger `dox-unindexed-file` (`severity: 'error'`).
+    - Relative link verification (`validate_markdown_links` and `doxAnalyzer`) detects broken links to local files. If a referenced target does not exist at the specified path but exists elsewhere in the repository, the error message transparently reports: `"pero aparentemente fue localizado en: ..."` and suggests canonical relative paths.
+    - **Zero Risky Auto-Fix Mandate**: Broken markdown links and missing code index entries MUST NOT be auto-fixed or auto-rewritten by machine tools; diagnostics are provided so the developer or AI agent can make an informed architectural decision.
+61. **Mandatory Test Execution Coverage Enforcement (`validate_test_coverage`, `testCoverage.enforceInAudit`)**:
+    - Test coverage enforcement is **active by default** (`testCoverage.enforceInAudit: true`) across `@francogp/auditor`.
+    - If overall code coverage or category coverage (statements, branches, functions, lines) falls below the threshold (default: **80%**), `validate_test_coverage` fails with blocking `severity: 'error'`.
+    - Untested modules are reported as shadow code. Host projects with mathematical ceilings (e.g. platform-specific wrappers) may configure their achievable ceiling (e.g. 70% or 80%) in `.auditor/audit.config.ts`, but coverage enforcement must remain active and ratcheting.
 
 ---
 
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
 ### 1. Generic Built-In Suites (`src/suites/`)
-43 domain-agnostic suites discovered automatically across 4 canonical families:
-- `architecture/` (34 suites, including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
+44 domain-agnostic suites discovered automatically across 4 canonical families:
+- `architecture/` (35 suites, including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
 - `domain_data/` (2 suites): O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `.auditor/audit.config.ts`)
 - `persistence/` (1 suite): SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
-- `documentation/` (6 suites): Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
+- `documentation/` (6 suites): Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `.auditor/audit.config.ts`
 All domain-specific rules unique to host applications (e.g. specialized domain entities, state machines, business workflows, custom SQLite schemas) reside in `scripts/auditors/` (or designated project folders) and extend `BaseAuditor` imported from `@francogp/auditor`.

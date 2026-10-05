@@ -239,6 +239,9 @@ export function isPathIgnored(
 
   for (const pattern of allPatterns) {
     if (matchesSinglePattern(normalized, pattern)) {
+      if (segments.some(seg => unignoreSet.has(seg))) {
+        continue;
+      }
       return true;
     }
   }

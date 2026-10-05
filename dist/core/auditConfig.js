@@ -202,7 +202,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         extensions: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs'],
         exemptGlobs: [],
         directoryThresholds: {},
-        enforceInAudit: false
+        enforceInAudit: true
     },
     customFamilies: [],
     extensions: [],
@@ -541,7 +541,7 @@ export function buildTestCoverageConfig(raw) {
         extensions: t.extensions ? [...t.extensions] : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
         exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : (def?.exemptGlobs ?? []),
         directoryThresholds: t.directoryThresholds ? { ...t.directoryThresholds } : (def?.directoryThresholds ?? {}),
-        enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? false
+        enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? true
     };
 }
 function buildAccessibilityConfig(raw) {

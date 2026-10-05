@@ -40,6 +40,7 @@ Architecture & Tooling Engineers.
 - [`report_guard.ts`](./report_guard.ts): Pre-flight architecture boundaries and import guard CLI (`auditor-guard`).
 - [`report_review.ts`](./report_review.ts): Differential architectural review tool leveraging Fallow code-review graphs.
 - [`report_similar_code.ts`](./report_similar_code.ts): Box-drawing report tool for Fallow semantic and structural similar-code candidates.
+- [`report_test_coverage.ts`](./report_test_coverage.ts): Test execution coverage reporter (`auditor-coverage`) with Box-Drawing tables and uncovered files detection.
 - [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
 - [`stamp_version.ts`](./stamp_version.ts): Standalone CLI for generating and stamping `src/core/version.ts`.
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.

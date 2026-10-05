@@ -118,6 +118,7 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
     "audit:package-hygiene": "auditor task=validate_package_hygiene",
     "audit:type-coverage": "auditor task=validate_type_coverage",
     "audit:test-coverage": "auditor-test-coverage",
+    "audit:coverage": "auditor-coverage",
     "audit:fallow": "auditor-fallow category=all",
     "auditor:update": "auditor-update",
     "auditor:version": "auditor-version",
@@ -484,6 +485,7 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 | `npx auditor-guard` | `src/cli/report_guard.ts` | Pre-flight architectural boundary and policy inspector for target files (`audit:guard <files>`). |
 | `npx auditor-flags` | `src/cli/report_flags.ts` | Feature flag usage and retirement candidates governance tool (`audit:flags [--retirement]`). |
 | `npx auditor-test-coverage` | `src/cli/report_test_coverage.ts` | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`audit:test-coverage`). |
+| `npx auditor-coverage` | `src/cli/report_test_coverage.ts` | Alias for `auditor-test-coverage` (`audit:coverage`). |
 | `npx auditor-init-agent` | `src/cli/init_agent.ts` | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery. |
 | `npx auditor-sync-env` | `src/cli/sync_env_scripts.ts` | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project. |
 | `npx auditor-check-env` | `src/cli/check_environment.ts` | Validates Node.js and npm version invariants during host `preinstall`. |

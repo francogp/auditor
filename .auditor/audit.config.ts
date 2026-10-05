@@ -71,8 +71,8 @@ export default defineAuditConfig({
   },
   testCoverage: {
     enabled: true,
-    threshold: 80,
-    enforceInAudit: false
+    threshold: 70, // Current achievable ceiling ratcheting towards 80%
+    enforceInAudit: true
   },
   agentPlugin: {
     enabled: true
