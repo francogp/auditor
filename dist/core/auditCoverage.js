@@ -54,6 +54,8 @@ export const DEFAULT_NON_AUDITABLE_GLOBS = Object.freeze([
     '**/*.{db,sqlite,sqlite3,wasm,zip,tar,tar.gz,tgz}',
     // Test fixtures & backup dumps
     '**/fixtures/**',
+    '**/canaries/**',
+    '**/*.canary',
     '**/backups/**',
     // Environment bootstrap scripts & setup plugins
     'setup-linux.sh',
