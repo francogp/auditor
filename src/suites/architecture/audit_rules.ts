@@ -24,6 +24,7 @@ export interface AuditRule extends Partial<RuleDescriptor> {
   regex: RegExp;
   message: string | ((match: string) => string);
   fix?: (match: string) => string;
+  appliesTo?: (filePath: string) => boolean;
   check?: (context: string, match: RegExpExecArray, filePath?: string) => boolean;
   severity?: AuditSeverity;
   fixable?: boolean;
@@ -334,6 +335,10 @@ export const legacyDates: AuditRule = {
   regex: /new Date\(|Date\.now\(\)/g,
   message: "Uso de 'Date' detectado. Usa 'Temporal'.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
+  appliesTo: (filePath: string) => {
+    const lowerPath = normalizeFilePath(filePath);
+    return !lowerPath.endsWith('eslint.config.js') && !isExemptFile(filePath) && isInCodeRoots(filePath);
+  },
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     const lowerPath = normalizeFilePath(filePath);
@@ -354,8 +359,7 @@ export const hardcodedTimezone: AuditRule = {
     return `Timezone hardcodeado detectado: '${match}'. Usa la variable global '${tzVar}'${modMsg} para respetar la configuración del servidor.`;
   },
   severity: 'error',
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => { // string-ok: Internal string formatting or DOM token identifier
-    if (!filePath) return false;
+  appliesTo: (filePath: string) => {
     const config = getAuditConfig();
     if (config?.domain?.enabled === false) return false;
     const helperMod = config.domain?.timezoneHelperModule;
@@ -363,6 +367,7 @@ export const hardcodedTimezone: AuditRule = {
     if (isExemptFile(filePath)) return false;
     return isInCodeRoots(filePath);
   },
+  check: () => true,
   fixable: false
 };
 
@@ -1072,6 +1077,7 @@ export const magicNumbers: AuditRule = {
   regex: /([^A-Z0-9_\w#$])(\d{2,})(\b)/g,
   message: (match: string) => `Número mágico inline detectado: '${match.trim()}'. Viola el Absolute Prohibition on Magic Numbers (Named Constants Mandate). Declara la constante nominada descriptiva (readonly / as const) o impórtala desde un módulo de constantes.`,
   severity: 'error',
+  appliesTo: (filePath: string) => !isMagicNumberExemptFile(filePath),
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (isMagicNumberExemptFile(filePath)) return false;
 

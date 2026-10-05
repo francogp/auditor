@@ -96,6 +96,9 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         'pkg-distribution-missing-types': 'Falta .d.ts para entrypoint público',
         'pkg-distribution-dual-package-hazard': 'Incompatibilidad dual ESM y CJS'
       },
+      coverage: {
+        include: ['package.json', 'dist/**']
+      },
       projectRoot: effectiveRoot
     });
   }
@@ -103,8 +106,16 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.packageDistribution?.enabled === false) {
+      for (const r of PACKAGE_DISTRIBUTION_RULES) {
+        this.markRuleNotApplicable(r, 'Package distribution desactivado');
+      }
       return;
     }
+
+    for (const r of PACKAGE_DISTRIBUTION_RULES) {
+      this.markRuleEvaluated(r);
+    }
+    this.recordScanned('package.json');
 
     const targetPkgDir = config.packageDistribution?.pkgDir
       ? path.resolve(this.projectRoot, config.packageDistribution.pkgDir)

@@ -300,6 +300,14 @@ export class ComponentStylesAuditor extends BaseAuditor {
                 'orphaned-scss': 'Archivo SCSS huérfano sin uso',
                 'ad-hoc-button-styles': 'Clase de botón fuera de estándar'
             },
+            coverage: {
+                include: [
+                    'src/components/**/*.vue',
+                    'src/views/**/*.vue',
+                    'src/styles/**/*.scss',
+                    'src/**/*.scss'
+                ]
+            },
             roots: effectiveRoots,
             projectRoot: effectiveRoot
         });
@@ -332,12 +340,29 @@ export class ComponentStylesAuditor extends BaseAuditor {
         const scssFiles = this.context.collectFiles(this.roots, new Set(['.scss']));
         this.vueCount = vueFiles.length;
         this.scssCount = scssFiles.length;
-        this.filesScannedCount = vueFiles.length + scssFiles.length;
+        if (vueFiles.length === 0) {
+            this.markRuleNotApplicable('broken-style-link', 'No se encontraron componentes .vue');
+            this.markRuleNotApplicable('missing-style-tag', 'No se encontraron componentes .vue');
+            this.markRuleNotApplicable('banned-style-inherited', 'No se encontraron componentes .vue');
+            this.markRuleNotApplicable('ad-hoc-button-styles', 'No se encontraron componentes .vue');
+        }
+        if (scssFiles.length === 0) {
+            this.markRuleNotApplicable('orphaned-scss', 'No se encontraron archivos .scss');
+        }
         const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
         const stylesRoots = config.paths.stylesRoots ?? ['src/styles'];
         seedRootScssGraph(stylesRoots, this.projectRoot, trackScssFile);
         for (const file of vueFiles) {
+            this.recordScanned(file);
+            this.markRuleEvaluated('broken-style-link');
+            this.markRuleEvaluated('missing-style-tag');
+            this.markRuleEvaluated('banned-style-inherited');
+            this.markRuleEvaluated('ad-hoc-button-styles');
             auditVueComponent(file, this.projectRoot, srcDir, trackScssFile, config, this);
+        }
+        for (const file of scssFiles) {
+            this.recordScanned(file);
+            this.markRuleEvaluated('orphaned-scss');
         }
         auditOrphanedScss(stylesRoots, scssFiles, importedScssFiles, this.projectRoot, this);
         const subAuditors = this.getSubAuditors();

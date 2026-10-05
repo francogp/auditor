@@ -208,3 +208,33 @@ export function parseLintResultsToFindings(
 
   return findings;
 }
+
+/**
+ * Extracts scanned file paths from a JSON report containing an array of objects with `filePath`,
+ * falling back to finding file paths if JSON parsing fails or output is not an array.
+ */
+export function extractJsonReportFilePaths(
+  rawJson: string,
+  fallbackFindings?: readonly { file?: string }[]
+): string[] {
+  const result: string[] = [];
+  try {
+    const parsed = JSON.parse(rawJson);
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        if (item && typeof item.filePath === 'string') {
+          result.push(item.filePath);
+        }
+      }
+      return result;
+    }
+  } catch {
+    // catch-ok: fallback to finding files if JSON is malformed
+  }
+  if (fallbackFindings) {
+    for (const f of fallbackFindings) {
+      if (f.file) result.push(f.file);
+    }
+  }
+  return result;
+}

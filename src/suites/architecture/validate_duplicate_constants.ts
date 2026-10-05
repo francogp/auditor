@@ -48,6 +48,9 @@ constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
         'duplicate-constant-identical': 'Constante idéntica duplicada',
         'duplicate-constant-divergent': 'Constante dispar entre módulos'
       },
+      coverage: {
+        include: ['src/**/*.ts', 'src/**/*.vue']
+      },
       requiresAst: true,
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
@@ -61,7 +64,16 @@ constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
       .filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'))
       .map(f => path.resolve(this.projectRoot, f));
 
-    this.filesScannedCount = absFiles.length;
+    if (absFiles.length === 0) {
+      this.markRuleNotApplicable('duplicate-constant-identical', 'No se encontraron archivos de código fuente');
+      this.markRuleNotApplicable('duplicate-constant-divergent', 'No se encontraron archivos de código fuente');
+    } else {
+      for (const absFile of absFiles) {
+        this.recordScanned(absFile);
+        this.markRuleEvaluated('duplicate-constant-identical');
+        this.markRuleEvaluated('duplicate-constant-divergent');
+      }
+    }
 
     const rawViolations = await detectDuplicateConstants(absFiles, astContext, this.projectRoot);
 

@@ -23,6 +23,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily, sortFindingsByFileAndLine, groupFindingsByFileMap, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
 import { loadAuditConfig, assertAuditConfigComplete } from "../core/auditConfig.js";
+import { COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV } from "../core/auditCoverage.js";
 import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
@@ -445,7 +446,9 @@ async function renderAndPersistMasterReport(ctx) {
 export async function runMasterAudit() {
     if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
         console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
-        process.exit(0);
+        const exit = process.exit;
+        exit(0);
+        return;
     }
     process.env.AUDIT_SUBPROCESS = 'true';
     const startTime = performance.now();
@@ -482,6 +485,12 @@ export async function runMasterAudit() {
     const allSuiteIds = allAvailableTasks.map(t => t.id);
     const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
     const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
+    const runId = `run_${Temporal.Now.instant().epochMilliseconds}_${Math.random().toString(36).substring(2, 8)}`;
+    process.env[COVERAGE_RUN_ID_ENV] = runId;
+    process.env[COVERAGE_RUN_MODE_ENV] = runMode;
+    const coverageLedgerDir = path.resolve(process.cwd(), COVERAGE_LEDGER_DIR);
+    await fs.rm(coverageLedgerDir, { recursive: true, force: true });
+    await fs.mkdir(coverageLedgerDir, { recursive: true });
     tasksToRun.sort((a, b) => {
         const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
         const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
@@ -489,6 +498,9 @@ export async function runMasterAudit() {
             return orderA - orderB;
         return a.id.localeCompare(b.id);
     });
+    const workerTasks = tasksToRun.filter(t => !t.capabilities?.postRun);
+    const postRunTasks = tasksToRun.filter(t => t.capabilities?.postRun);
+    process.env[COVERAGE_EXPECTED_SUITES_ENV] = workerTasks.map(t => t.id).join(',');
     const subtitleDetails = [
         `v${AUDITOR_VERSION}`,
         isFixMode
@@ -583,7 +595,12 @@ export async function runMasterAudit() {
         });
         return currentResult;
     }
-    const results = await runAuditWorkers(tasksToRun, cliOptions.concurrencyLimit, executeSingleTask);
+    const workerResults = await runAuditWorkers(workerTasks, cliOptions.concurrencyLimit, executeSingleTask);
+    const postRunResults = [];
+    for (const postTask of postRunTasks) {
+        postRunResults.push(await executeSingleTask(postTask));
+    }
+    const results = [...workerResults, ...postRunResults];
     const totalDuration = Math.round(performance.now() - startTime);
     const anyFailed = await renderAndPersistMasterReport({
         results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration,

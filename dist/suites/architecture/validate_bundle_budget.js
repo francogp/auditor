@@ -164,6 +164,8 @@ function auditCompiledChunks(distAssetsDir, bundleConfig, projectRoot, auditor) 
         const assetPath = path.join(distAssetsDir, asset);
         const stats = fs.statSync(assetPath);
         const relAssetPath = path.relative(projectRoot, assetPath).replace(/\\/g, '/');
+        auditor['recordScanned'](relAssetPath);
+        auditor['markRuleEvaluated']('bundle-chunk-size');
         auditSingleChunkBudget(asset, stats.size, relAssetPath, bundleConfig, auditor);
     }
     return chunksAudited;
@@ -189,6 +191,9 @@ export class BundleBudgetAuditor extends BaseAuditor {
             ruleIds: BUNDLE_BUDGET_RULES,
             packageName: 'Bundle',
             icon: '📦',
+            coverage: {
+                include: ['src/**/*.ts', 'src/**/*.vue', 'src/**/*.js', 'dist/**']
+            },
             ruleDescriptions: {
                 'bundle-runtime-leak': 'Fuga de test/script en producción',
                 'bundle-heavy-import': 'Librería pesada en capas de UI',
@@ -201,6 +206,7 @@ export class BundleBudgetAuditor extends BaseAuditor {
     async runAudit(astContext) {
         const config = getAuditConfig(this.projectRoot);
         if (config.bundle?.enabled === false) {
+            this.markSkipped('Bundle audit desactivado en config');
             this.context.setMetric('Bundle Status', 'Disabled');
             return;
         }
@@ -218,13 +224,24 @@ export class BundleBudgetAuditor extends BaseAuditor {
         const allFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));
         const candidateFiles = allFiles.filter(f => !isTestPath(f) && !path.basename(f).endsWith('.d.ts'));
         const astEngine = astContext ?? new SharedAstContext();
-        for (const relPath of candidateFiles) {
-            this.filesScannedCount++;
-            const fullPath = path.resolve(this.projectRoot, relPath);
-            auditFileImports(relPath, fullPath, this.projectRoot, effectiveUiDirs, forbiddenSegments, effectiveForbiddenUiImports, astEngine, this);
+        if (candidateFiles.length === 0) {
+            this.markRuleNotApplicable('bundle-runtime-leak', 'No se encontraron archivos de código fuente candidatos');
+            this.markRuleNotApplicable('bundle-heavy-import', 'No se encontraron archivos de código fuente candidatos');
+        }
+        else {
+            for (const relPath of candidateFiles) {
+                this.recordScanned(relPath);
+                this.markRuleEvaluated('bundle-runtime-leak');
+                this.markRuleEvaluated('bundle-heavy-import');
+                const fullPath = path.resolve(this.projectRoot, relPath);
+                auditFileImports(relPath, fullPath, this.projectRoot, effectiveUiDirs, forbiddenSegments, effectiveForbiddenUiImports, astEngine, this);
+            }
         }
         const distAssetsDir = path.resolve(this.projectRoot, config.bundle?.distDir ?? 'dist/assets');
         const chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
+        if (chunksAudited === 0) {
+            this.markRuleNotApplicable('bundle-chunk-size', 'No se encontraron artefactos compilados en dist');
+        }
         this.context.setMetric('Files Audited', this.filesScannedCount);
         this.context.setMetric('Compiled Chunks', chunksAudited);
     }

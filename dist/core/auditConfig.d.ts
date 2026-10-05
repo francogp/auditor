@@ -263,6 +263,27 @@ export interface AuditVersionConfig {
     readonly autoSyncPublicVersionJson?: boolean;
     readonly syncTargets?: readonly (string | AuditVersionTargetConfig)[];
 }
+/** Exemption policies whose silencing can be acknowledged (configured, not structural). */
+export declare const ACKNOWLEDGEABLE_EXEMPTION_POLICIES: readonly ["cli", "scripts", "data", "demo", "exemptFiles"];
+export type AcknowledgeableExemptionPolicy = (typeof ACKNOWLEDGEABLE_EXEMPTION_POLICIES)[number];
+export interface AuditCoverageExemption {
+    /** POSIX glob of tracked files that no suite needs to analyze. */
+    readonly glob: string;
+    /** Mandatory justification (>= 15 characters). */
+    readonly reason: string;
+}
+export interface AuditCoverageAcknowledgedDegradation {
+    /** Configured exemption policy whose silencing is intentional for the matched files. */
+    readonly policy: AcknowledgeableExemptionPolicy;
+    readonly glob: string;
+    readonly reason: string;
+}
+export interface AuditCoverageConfig {
+    /** Blind-spot detection (uncovered files, drift, dormant rules, degraded coverage). Active by default. */
+    readonly enabled?: boolean;
+    readonly exemptGlobs?: readonly AuditCoverageExemption[];
+    readonly acknowledgedDegradations?: readonly AuditCoverageAcknowledgedDegradation[];
+}
 export interface AuditEngineConfig {
     readonly name: string;
     readonly paths: AuditPathsConfig;
@@ -288,6 +309,7 @@ export interface AuditEngineConfig {
     readonly accessibility?: AuditAccessibilityConfig;
     readonly typeCoverage?: AuditTypeCoverageConfig;
     readonly version?: AuditVersionConfig;
+    readonly coverage?: AuditCoverageConfig;
     readonly customFamilies?: readonly CustomAuditFamilyConfig[];
     readonly extensions?: readonly string[];
     readonly presets?: Record<string, readonly string[]>;
@@ -303,6 +325,7 @@ export declare const DEFAULT_AUDIT_CONFIG: AuditEngineConfig;
 export declare const FORBIDDEN_PRODUCTION_ROOTS: readonly string[];
 export declare const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
 export declare function validateConstantsExemptGlobs(globs: readonly string[]): void;
+export declare const MIN_COVERAGE_REASON_LENGTH = 15;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
     name: string;
 }): AuditEngineConfig;

@@ -88,10 +88,26 @@ export class TypeCheckAuditor extends BaseAuditor {
             ruleIds: TYPE_CHECK_RULES,
             ruleDescriptions: {
                 'ts-compiler-error': 'Error de compilación o tipo'
+            },
+            coverage: {
+                include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts', 'tests/**/*.ts', 'tsconfig*.json'],
+                source: 'declared-only'
             }
         });
     }
     async runAudit() {
+        this.markRuleEvaluated('ts-compiler-error');
+        try {
+            const rootFiles = fsSync.readdirSync(this.projectRoot);
+            for (const f of rootFiles) {
+                if (f.startsWith('tsconfig') && f.endsWith('.json')) {
+                    this.recordScanned(path.join(this.projectRoot, f));
+                }
+            }
+        }
+        catch {
+            // catch-ok
+        }
         const vueTscPath = path.resolve(this.projectRoot, 'node_modules/vue-tsc/bin/vue-tsc.js');
         const tscCandidates = [
             path.resolve(this.projectRoot, 'node_modules/typescript/bin/tsc'),
@@ -121,7 +137,7 @@ export class TypeCheckAuditor extends BaseAuditor {
         const combinedOutput = `${proc.stdout || ''}\n${proc.stderr || ''}`;
         const findings = parseTypeScriptDiagnostics(combinedOutput, this.projectRoot);
         this.importAuditFindings(findings, 'ts-compiler-error', 'TS');
-        this.filesScannedCount = 1; // Project-level whole AST compilation
+        this.recordExternalScanCount(1); // Project-level whole AST compilation
         this.context.setMetric('total_type_errors', findings.length);
     }
 }

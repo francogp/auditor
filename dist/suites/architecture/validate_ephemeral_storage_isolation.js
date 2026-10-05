@@ -96,6 +96,16 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
                 'ephemeral-no-gitignore-source-temp': 'Entrada temporal en .gitignore',
                 'ephemeral-no-source-temp-references': 'Referencia a carpeta temporal'
             },
+            coverage: {
+                include: [
+                    '.gitignore',
+                    ...effectiveRoots.map(r => `${r}/**/*.{ts,vue,js,sql,sh}`)
+                ],
+                exclude: [
+                    'src/suites/architecture/validate_ephemeral_storage_isolation.ts',
+                    'tests/validate_ephemeral_storage_isolation.test.ts'
+                ]
+            },
             roots: [...effectiveRoots],
             allowedExtensions: new Set(['.ts', '.vue', '.js', '.sql', '.sh']),
             projectRoot: options.projectRoot
@@ -107,7 +117,9 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
         this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles && configuredDbFiles.length > 0 ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
     }
     runAudit() {
+        this.markRuleEvaluated('ephemeral-no-source-temp-dirs');
         this.scanSourceDirectoriesOnDisk();
+        this.markRuleEvaluated('ephemeral-no-gitignore-source-temp');
         this.scanGitignoreRules();
         this.scanSourceCodeReferences();
     }
@@ -185,6 +197,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
         if (!fs.existsSync(gitignorePath))
             return;
         try {
+            this.recordScanned('.gitignore');
             const content = fs.readFileSync(gitignorePath, 'utf-8');
             const lines = content.split('\n');
             for (let i = 0; i < lines.length; i++) {
@@ -209,15 +222,20 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
         }
     }
     scanSourceCodeReferences() {
-        const existingRoots = CANONICAL_SOURCE_ROOTS.filter(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+        const existingRoots = this.roots.filter(r => fs.existsSync(path.resolve(this.projectRoot, r)));
         const scannableFiles = this.context.collectFiles(existingRoots, new Set(['.ts', '.vue', '.js', '.sql', '.sh']));
+        if (scannableFiles.length === 0) {
+            this.markRuleNotApplicable('ephemeral-no-source-temp-references', 'No se encontraron archivos de código fuente');
+            return;
+        }
         for (const filePath of scannableFiles) {
             const relPath = path.relative(this.projectRoot, filePath).split(path.sep).join(path.posix.sep);
             if (isSelfReferentialFile(relPath))
                 continue;
+            this.recordScanned(relPath);
+            this.markRuleEvaluated('ephemeral-no-source-temp-references');
             try {
                 const content = fs.readFileSync(filePath, 'utf-8');
-                this.filesScannedCount++;
                 if (content.includes('/temp') || content.includes('/tmp')) {
                     scanLinesForEphemeralRefs(content.split('\n'), relPath, this);
                 }

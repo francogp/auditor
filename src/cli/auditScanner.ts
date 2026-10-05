@@ -80,6 +80,7 @@ function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetada
     if (content.includes('md: true')) caps.md = true;
     if (content.includes('heavy: true')) caps.heavy = true;
     if (content.includes('changedSince: true')) caps.changedSince = true;
+    if (content.includes('postRun: true')) caps.postRun = true;
 
     if (Object.keys(caps).length > 0) {
       result.capabilities = {

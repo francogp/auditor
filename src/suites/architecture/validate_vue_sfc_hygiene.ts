@@ -79,15 +79,18 @@ constructor(roots?: readonly string[], projectRoot?: string) {
 
   protected override scanFile(relPath: string, content: string): void {
     // 1. Audit Script Setup requirement and Options API prohibition
+    this.markRuleEvaluated('script-setup-required');
     this.auditScriptSetup(relPath, content);
 
     // 2. Audit exports inside <script setup>
+    this.markRuleEvaluated('no-script-setup-exports');
     this.auditScriptSetupExports(relPath, content);
 
     // 3. Audit template quote escaping
+    this.markRuleEvaluated('vue-template-quote-escaping');
     this.auditTemplateQuoteEscaping(relPath, content);
 
-    // 4. Audit data provider calls in template
+    // 4. Audit data provider calls in template (scanRegexMatches auto-marks 'no-data-provider-in-template')
     this.auditDataProviderInTemplate(relPath, content);
   }
 

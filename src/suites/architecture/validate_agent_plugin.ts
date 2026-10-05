@@ -23,6 +23,9 @@ export const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[] = [
   'missing-agent-plugin-registration'
 ] as const;
 
+/** Agent registries read to verify the plugin/skills registration. */
+const AGENT_REGISTRY_FILES = ['.agents/plugins.json', '.agents/skills.json'] as const;
+
 function isPluginRegisteredInAgents(projectRoot: string): boolean {
   const pluginsJsonPath = path.join(projectRoot, '.agents/plugins.json');
   const skillsJsonPath = path.join(projectRoot, '.agents/skills.json');
@@ -64,15 +67,15 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
       ruleDescriptions: {
         'missing-agent-plugin-registration': 'Plugin/skills no registrados en .agents'
       },
+      coverage: { include: [...AGENT_REGISTRY_FILES] },
       ...options
     });
   }
 
   public override async runAudit(): Promise<void> {
-    this.filesScannedCount = 1;
-
     if (isSelfProviderProject(this.projectRoot)) {
       this.context.setMetric('Agent Plugin Status', 'Provider Validated');
+      this.markRuleNotApplicable('missing-agent-plugin-registration', 'Proyecto proveedor de @francogp/auditor (auto-registro)');
       return;
     }
 
@@ -81,10 +84,15 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
       : getAuditConfig();
     if (config.agentPlugin?.enabled === false) {
       this.context.setMetric('Agent Plugin Status', 'Disabled');
+      this.markRuleNotApplicable('missing-agent-plugin-registration', 'config.agentPlugin.enabled = false');
       return;
     }
 
     const isRegistered = isPluginRegisteredInAgents(this.projectRoot);
+    for (const registryFile of AGENT_REGISTRY_FILES) {
+      if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
+    }
+    this.markRuleEvaluated('missing-agent-plugin-registration');
     if (!isRegistered) {
       const isFixMode = process.argv.includes('--fix') || process.argv.includes('fix');
       if (isFixMode) {

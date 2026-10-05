@@ -12,8 +12,10 @@ import path from 'node:path';
 import os from 'node:os';
 import {
   MarkdownCodeReferencesAuditor,
-  MARKDOWN_CODE_REFERENCE_RULES
+  MARKDOWN_CODE_REFERENCE_RULES,
+  resolveMarkdownScanDirectories
 } from '../src/suites/documentation/validate_markdown_code_references.ts';
+import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('MarkdownCodeReferencesAuditor', () => {
   let tempDir: string;
@@ -40,6 +42,7 @@ describe('MarkdownCodeReferencesAuditor', () => {
 
   afterEach(async () => {
     delete process.env.AUDIT_SUBPROCESS;
+    resetAuditConfig();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
@@ -307,4 +310,34 @@ Refer to @/domain-type-first and @/auditor.
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
   });
+
+  it('resolves markdown scan directories dynamically from config including codeRoots, demoRoots, dataRoots, and top-level markdown files', async () => {
+    setAuditConfig(defineAuditConfig({
+      name: 'Custom Markdown Roots Test',
+      paths: {
+        srcRoots: ['src'],
+        codeRoots: ['src', 'scripts', 'database'],
+        demoRoots: ['ui-demo'],
+        dataRoots: ['src/data', 'data'],
+        cliRoots: ['cli'],
+        migrationsDir: 'database/migrations'
+      },
+      persistence: {
+        engine: 'supabase',
+        supabaseDir: 'supabase'
+      }
+    }), tempDir);
+
+    await fs.writeFile(path.join(tempDir, 'CHANGELOG.md'), '# Changelog\n', 'utf-8');
+
+    const dirs = resolveMarkdownScanDirectories(tempDir);
+    expect(dirs).toContain('database');
+    expect(dirs).toContain('ui-demo');
+    expect(dirs).toContain('data');
+    expect(dirs).toContain('cli');
+    expect(dirs).toContain('database/migrations');
+    expect(dirs).toContain('supabase');
+    expect(dirs).toContain('CHANGELOG.md');
+  });
 });
+

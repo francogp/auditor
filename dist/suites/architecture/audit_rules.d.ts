@@ -16,6 +16,7 @@ export interface AuditRule extends Partial<RuleDescriptor> {
     regex: RegExp;
     message: string | ((match: string) => string);
     fix?: (match: string) => string;
+    appliesTo?: (filePath: string) => boolean;
     check?: (context: string, match: RegExpExecArray, filePath?: string) => boolean;
     severity?: AuditSeverity;
     fixable?: boolean;

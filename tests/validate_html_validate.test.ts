@@ -116,7 +116,8 @@ describe('HtmlValidateAuditor & parseHtmlValidateResults', () => {
 
   class CleanHtmlValidateAuditor extends HtmlValidateAuditor {
     public override async runAudit(): Promise<void> {
-      this.filesScannedCount = 1;
+      this.recordScanned('src/clean.vue');
+      this.markRuleEvaluated('html-validate-execution-failure');
       this.context.setMetric('html_violations', 0);
     }
   }

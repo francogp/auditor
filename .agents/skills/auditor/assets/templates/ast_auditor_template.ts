@@ -53,8 +53,9 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     const targetFiles = relFiles.filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'));
 
     for (const relFile of targetFiles) {
-      this.filesScannedCount++;
       const absPath = path.resolve(this.projectRoot, relFile);
+      this.recordScanned(absPath);
+      this.markRuleEvaluated('my-ast-forbidden-pattern');
 
       // Cached O(1) AST retrieval with Vue script extraction & line offset support
       const sourceFile = astEngine.getSourceFile(absPath);
@@ -68,11 +69,10 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       visit(sourceFile);
     }
 
-    this.context.setMetric('AST Files Analyzed', this.filesScannedCount);
+    this.context.setMetric('AST Files Analyzed', targetFiles.length);
   }
 }
 
 // Canonical CLI Entrypoint for standalone and dynamic execution
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyAstAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MyAstAuditor());
+

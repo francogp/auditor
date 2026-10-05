@@ -34,6 +34,12 @@ import {
 } from '../core/auditContract.ts';
 import { loadAuditConfig, assertAuditConfigComplete, type AuditEngineConfig } from '../core/auditConfig.ts';
 import {
+  COVERAGE_LEDGER_DIR,
+  COVERAGE_RUN_ID_ENV,
+  COVERAGE_RUN_MODE_ENV,
+  COVERAGE_EXPECTED_SUITES_ENV
+} from '../core/auditCoverage.ts';
+import {
   renderBanner,
   renderConsolidatedFooter,
   renderMarkdownReport,
@@ -566,7 +572,9 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
 export async function runMasterAudit(): Promise<void> {
   if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
     console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
-    process.exit(0);
+    const exit = process.exit as (code?: number) => void;
+    exit(0);
+    return;
   }
   process.env.AUDIT_SUBPROCESS = 'true';
   const startTime = performance.now();
@@ -610,12 +618,25 @@ export async function runMasterAudit(): Promise<void> {
   const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
   const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
 
+  const runId = `run_${Temporal.Now.instant().epochMilliseconds}_${Math.random().toString(36).substring(2, 8)}`;
+  process.env[COVERAGE_RUN_ID_ENV] = runId;
+  process.env[COVERAGE_RUN_MODE_ENV] = runMode;
+
+  const coverageLedgerDir = path.resolve(process.cwd(), COVERAGE_LEDGER_DIR);
+  await fs.rm(coverageLedgerDir, { recursive: true, force: true });
+  await fs.mkdir(coverageLedgerDir, { recursive: true });
+
   tasksToRun.sort((a, b) => {
     const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
     const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
     if (orderA !== orderB) return orderA - orderB;
     return a.id.localeCompare(b.id);
   });
+
+  const workerTasks = tasksToRun.filter(t => !t.capabilities?.postRun);
+  const postRunTasks = tasksToRun.filter(t => t.capabilities?.postRun);
+
+  process.env[COVERAGE_EXPECTED_SUITES_ENV] = workerTasks.map(t => t.id).join(',');
 
   const subtitleDetails: string[] = [
     `v${AUDITOR_VERSION}`,
@@ -714,7 +735,12 @@ export async function runMasterAudit(): Promise<void> {
     return currentResult;
   }
 
-  const results = await runAuditWorkers(tasksToRun, cliOptions.concurrencyLimit, executeSingleTask);
+  const workerResults = await runAuditWorkers(workerTasks, cliOptions.concurrencyLimit, executeSingleTask);
+  const postRunResults: StandardAuditResult[] = [];
+  for (const postTask of postRunTasks) {
+    postRunResults.push(await executeSingleTask(postTask));
+  }
+  const results = [...workerResults, ...postRunResults];
   const totalDuration = Math.round(performance.now() - startTime);
 
   const anyFailed = await renderAndPersistMasterReport({

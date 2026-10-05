@@ -128,6 +128,11 @@ export class StylelintAuditor extends BaseAuditor {
                 'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
                 'scss-sass-collision-casing': 'Función CSS colisiona con Sass'
             },
+            coverage: {
+                include: ['src/**/*.{css,scss,sass,vue}', '.stylelintrc*', 'stylelint.config.*'],
+                exclude: ['node_modules/**', 'dist/**', 'scratch/**', 'tests/**', '**/*.spec.*', '**/*.test.*'],
+                source: 'runtime'
+            },
             roots,
             projectRoot
         });
@@ -141,10 +146,18 @@ export class StylelintAuditor extends BaseAuditor {
         const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
         if (stylelintConfig?.enabled === false) {
             this.context.setMetric('Stylelint Disabled', 'true');
-            this.filesScannedCount = 0;
+            for (const r of STYLELINT_RULES) {
+                this.markRuleNotApplicable(r, 'Stylelint desactivado en audit.config.ts');
+            }
             return;
         }
         const configFile = resolveStylelintConfigFile(this.projectRoot, stylelintConfig?.configFile);
+        if (fs.existsSync(configFile)) {
+            const relConfig = normalizePosixPath(configFile, this.projectRoot);
+            if (!relConfig.startsWith('..')) {
+                this.recordScanned(configFile);
+            }
+        }
         const isFixMode = this.isFixModeRequested();
         const cacheDir = path.resolve(this.projectRoot, 'scratch/cache');
         const cacheLocation = path.resolve(cacheDir, 'stylelint_cache.json');
@@ -219,7 +232,14 @@ export class StylelintAuditor extends BaseAuditor {
             return;
         }
         this.lastLinterResult = linterResult;
-        this.filesScannedCount = linterResult.results.length;
+        for (const r of STYLELINT_RULES) {
+            this.markRuleEvaluated(r);
+        }
+        for (const fileResult of linterResult.results) {
+            if (fileResult.source) {
+                this.recordScanned(fileResult.source);
+            }
+        }
         let totalWarnings = 0;
         let totalErrors = 0;
         for (const fileResult of linterResult.results) {

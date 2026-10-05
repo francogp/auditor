@@ -27,7 +27,7 @@ export type RawEslintFileReport = RawLintFileReport;
 export declare function parseEslintResults(input: string | object[], cwd?: string): AuditFinding[];
 export declare class EslintAuditor extends BaseAuditor<EslintRuleId> {
     static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-    constructor();
+    constructor(projectRoot?: string);
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_eslint.d.ts.map

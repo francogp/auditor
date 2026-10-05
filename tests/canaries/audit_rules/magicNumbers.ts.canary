@@ -1,0 +1,4 @@
+// @canary rule=magicNumbers
+export function calculateBonus(points: number): number {
+  return points * 42.5;
+}

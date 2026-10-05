@@ -12,9 +12,12 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process scripts/auditors/documentation/validate_markdown_lint.ts
  *   npm run lint:md
  */
+import nodeFs from 'node:fs';
+import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { parseJsonArrayOutput, normalizePosixPath } from "../../core/reportUtils.js";
 enableCompileCache();
@@ -98,10 +101,40 @@ export class MarkdownLintAuditor extends BaseAuditor {
             ruleDescriptions: {
                 'markdownlint-issue': 'Formato o estilo inválido'
             },
+            coverage: {
+                include: ['**/*.md', '.markdownlint.json'],
+                exclude: getMarkdownIgnoreGlobs(projectRoot),
+                source: 'runtime'
+            },
             projectRoot
         });
     }
     async runAudit() {
+        const ignoreGlobs = getMarkdownIgnoreGlobs(this.projectRoot);
+        const configPath = path.resolve(this.projectRoot, '.markdownlint.json');
+        const hasConfigFile = nodeFs.existsSync(configPath);
+        const coverageInclude = ['**/*.md'];
+        if (hasConfigFile) {
+            coverageInclude.push('.markdownlint.json');
+        }
+        this.redeclareCoverage({
+            include: coverageInclude,
+            exclude: ignoreGlobs,
+            source: 'runtime'
+        });
+        if (hasConfigFile) {
+            this.recordScanned(configPath);
+        }
+        const allMdFiles = this.context.collectFiles(['.'], new Set(['.md']));
+        const mdFiles = allMdFiles.filter(f => isDeclaredByCoverage(toPosixRelative(this.projectRoot, f), this.coverageRecorder.declaration));
+        if (mdFiles.length === 0) {
+            this.markRuleNotApplicable('markdownlint-issue', 'No se encontraron archivos markdown');
+            return;
+        }
+        for (const f of mdFiles) {
+            this.recordScanned(f);
+            this.markRuleEvaluated('markdownlint-issue');
+        }
         const isFixMode = this.isFixModeRequested();
         const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
         const args = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
@@ -119,7 +152,6 @@ export class MarkdownLintAuditor extends BaseAuditor {
         });
         const findings = parseMarkdownLintIssues(combinedOutput, this.projectRoot);
         this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
-        this.filesScannedCount = 1;
         this.context.setMetric('markdown_violations', findings.length);
         this.context.setMetric('mode', isFixMode ? 'fix' : 'check');
     }

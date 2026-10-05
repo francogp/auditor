@@ -6,8 +6,12 @@ import vueParser from 'vue-eslint-parser';
 import vueA11y from 'eslint-plugin-vuejs-accessibility';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 
 enableCompileCache();
+
+const INDEX_HTML_FILE = 'index.html';
+const VUE_EXTENSIONS: ReadonlySet<string> = new Set(['.vue']);
 
 export type AccessibilityRuleId =
   | 'a11y-img-alt'
@@ -25,6 +29,9 @@ export const ACCESSIBILITY_RULES: readonly AccessibilityRuleId[] = [
   'a11y-aria-role-invalid',
   'a11y-viewport-zoom-lock'
 ] as const;
+
+/** Canonical rules evaluated through the ESLint vuejs-accessibility engine (all except the index.html viewport check). */
+const ESLINT_BACKED_RULES: readonly AccessibilityRuleId[] = ACCESSIBILITY_RULES.filter(id => id !== 'a11y-viewport-zoom-lock');
 
 /**
  * Maps an eslint-plugin-vuejs-accessibility rule to canonical AccessibilityRuleId.
@@ -78,7 +85,8 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         'a11y-aria-role-invalid': 'Rol o atributo ARIA no conforme',
         'a11y-viewport-zoom-lock': 'Bloqueo de zoom en viewport HTML'
       },
-      projectRoot: effectiveRoot
+      projectRoot: effectiveRoot,
+      coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }
     });
     this.fixMode = options.fix ?? false;
   }
@@ -86,11 +94,11 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.accessibility?.enabled === false) {
+      for (const ruleId of ACCESSIBILITY_RULES) {
+        this.markRuleNotApplicable(ruleId, 'config.accessibility.enabled = false');
+      }
       return;
     }
-
-    // 1. Audit index.html viewport zoom lock (WCAG 1.4.4)
-    this.auditIndexViewport();
 
     // 2. Discover .vue files in components, views, or src roots
     const scannableRoots = [
@@ -98,6 +106,12 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       ...(config.paths.viewsRoots ?? ['src/views']),
       ...(config.paths.srcRoots ?? ['src'])
     ];
+    this.redeclareCoverage({
+      include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include]
+    });
+
+    // 1. Audit index.html viewport zoom lock (WCAG 1.4.4)
+    this.auditIndexViewport();
 
     const vueFiles: string[] = [];
     const seenFiles = new Set<string>();
@@ -109,6 +123,9 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     }
 
     if (vueFiles.length === 0) {
+      for (const ruleId of ESLINT_BACKED_RULES) {
+        this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
+      }
       return;
     }
 
@@ -159,8 +176,20 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       await ESLint.outputFixes(results);
     }
 
+    const activeRules = new Set<AccessibilityRuleId>();
+    for (const [eslintRuleId, level] of Object.entries(effectiveRules)) {
+      if (level !== 'off') activeRules.add(mapA11yRuleId(eslintRuleId));
+    }
+    for (const ruleId of ESLINT_BACKED_RULES) {
+      if (!activeRules.has(ruleId)) {
+        this.markRuleNotApplicable(ruleId, 'Todas sus reglas ESLint están en off (config.accessibility.rules)');
+      }
+    }
+
     for (const res of results) {
       const relFile = path.relative(this.projectRoot, res.filePath).replace(/\\/g, '/');
+      this.recordScanned(relFile);
+      for (const ruleId of activeRules) this.markRuleEvaluated(ruleId);
       for (const msg of res.messages) {
         if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/')) {
           continue;
@@ -180,10 +209,15 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
   }
 
   private auditIndexViewport(): void {
-    const indexPath = path.resolve(this.projectRoot, 'index.html');
-    if (!fs.existsSync(indexPath)) return;
+    const indexPath = path.resolve(this.projectRoot, INDEX_HTML_FILE);
+    if (!fs.existsSync(indexPath)) {
+      this.markRuleNotApplicable('a11y-viewport-zoom-lock', `No existe ${INDEX_HTML_FILE} en la raíz del proyecto`);
+      return;
+    }
 
     const content = fs.readFileSync(indexPath, 'utf-8');
+    this.recordScanned(INDEX_HTML_FILE);
+    this.markRuleEvaluated('a11y-viewport-zoom-lock');
     const viewportMatch = content.match(/<meta\s+name=["']viewport["'][^>]*>/i);
     if (!viewportMatch) return;
 
@@ -198,7 +232,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       this.addViolation({
         ruleId: 'a11y-viewport-zoom-lock',
         severity: 'error',
-        file: 'index.html',
+        file: INDEX_HTML_FILE,
         line: lineNum,
         context: tag.trim(),
         message: 'Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.'

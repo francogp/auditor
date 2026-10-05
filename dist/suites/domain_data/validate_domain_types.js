@@ -26,6 +26,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 enableCompileCache();
 // ─── Config ──────────────────────────────────────────────────────────────────
 const ROOT = process.cwd();
@@ -740,6 +741,10 @@ export class DomainTypesAuditor extends BaseAuditor {
             ruleDescriptions: {
                 'domain-type-violation': 'String crudo en vez de tipo de dominio'
             },
+            coverage: {
+                include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,
+                exclude: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**']
+            },
             roots: effectiveRoots,
             allowedExtensions: EXTENSIONS,
             extraIgnorePatterns: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**'],
@@ -749,19 +754,26 @@ export class DomainTypesAuditor extends BaseAuditor {
     async runAudit() {
         const config = getAuditConfig(this.projectRoot);
         if (config.domain?.enabled === false) {
+            this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
+            this.markRuleNotApplicable('domain-type-violation', 'Dominio desactivado en config');
             return;
         }
         const allFindings = [];
         const scannedFiles = [];
         const libraryTypes = await extractLibraryDomainTypes(ROOT);
         const filePaths = this.context.collectFiles(this.roots, this.allowedExtensions);
+        if (filePaths.length === 0) {
+            this.markRuleNotApplicable('domain-type-violation', 'No se encontraron archivos de código candidatos');
+            return;
+        }
         for (const filePath of filePaths) {
             const rel = toRepoPath(filePath);
+            this.recordScanned(rel);
+            this.markRuleEvaluated('domain-type-violation');
             allFindings.push(...await auditFile(filePath));
             const content = await fs.readFile(filePath, 'utf8');
             scannedFiles.push({ file: rel, content });
         }
-        this.filesScannedCount = scannedFiles.length;
         const repeatedUnions = detectRepeatedStringUnions(scannedFiles);
         for (const [signatureKey, occurrences] of repeatedUnions) {
             for (const occurrence of occurrences) {

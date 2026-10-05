@@ -1,0 +1,8 @@
+// @canary rule=unjustified-error-suppression
+export function riskyOperation(): void {
+  try {
+    JSON.parse('invalid');
+  } catch (err) {
+    // Missing required catch-ok: justification comment
+  }
+}

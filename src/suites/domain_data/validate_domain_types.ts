@@ -27,6 +27,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 
 enableCompileCache();
 
@@ -1202,6 +1203,10 @@ id: 'validate_domain_types',
       ruleDescriptions: {
         'domain-type-violation': 'String crudo en vez de tipo de dominio'
       },
+      coverage: {
+        include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,
+        exclude: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**']
+      },
       roots: effectiveRoots,
       allowedExtensions: EXTENSIONS,
       extraIgnorePatterns: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**'],
@@ -1212,6 +1217,8 @@ id: 'validate_domain_types',
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.domain?.enabled === false) {
+      this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
+      this.markRuleNotApplicable('domain-type-violation', 'Dominio desactivado en config');
       return;
     }
 
@@ -1221,15 +1228,20 @@ id: 'validate_domain_types',
     const libraryTypes = await extractLibraryDomainTypes(ROOT);
 
     const filePaths = this.context.collectFiles(this.roots, this.allowedExtensions);
+    if (filePaths.length === 0) {
+      this.markRuleNotApplicable('domain-type-violation', 'No se encontraron archivos de código candidatos');
+      return;
+    }
+
     for (const filePath of filePaths) {
       const rel = toRepoPath(filePath);
+      this.recordScanned(rel);
+      this.markRuleEvaluated('domain-type-violation');
       allFindings.push(...await auditFile(filePath));
 
       const content = await fs.readFile(filePath, 'utf8');
       scannedFiles.push({ file: rel, content });
     }
-
-    this.filesScannedCount = scannedFiles.length;
 
     const repeatedUnions = detectRepeatedStringUnions(scannedFiles);
     for (const [signatureKey, occurrences] of repeatedUnions) {

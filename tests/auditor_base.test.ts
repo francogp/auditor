@@ -21,6 +21,7 @@ import {
   BaseAuditor,
   type AuditorOptions
 } from '../src/core/auditorBase.ts';
+import { deriveCoverageFromRequiredFiles } from '../src/core/auditCoverage.ts';
 import type { AuditorCapabilities } from '../src/core/auditContract.ts';
 
 describe('auditorBase infrastructure', () => {
@@ -160,6 +161,7 @@ describe('auditorBase infrastructure', () => {
             ruleDescriptions: {
               'test-rule': 'Regla de test'
             },
+            coverage: { include: ['src/**/*.ts'] },
             roots: ['src'],
             allowedExtensions: new Set(['.ts']),
             projectRoot: root
@@ -168,7 +170,10 @@ describe('auditorBase infrastructure', () => {
 
         public override async runAudit(): Promise<void> {
           const files = this.context.collectFiles(this.roots, this.allowedExtensions);
-          this.filesScannedCount = files.length;
+          for (const f of files) {
+            this.recordScanned(f);
+          }
+          this.markRuleEvaluated('test-rule', files.length);
           this.context.setMetric('Total Files Scanned', files.length);
         }
       }
@@ -199,7 +204,8 @@ describe('auditorBase infrastructure', () => {
       packageName: 'Test',
       icon: '🧪',
       ruleIds: ['dummy' as const],
-      ruleDescriptions: { dummy: 'Regla dummy' }
+      ruleDescriptions: { dummy: 'Regla dummy' },
+      coverage: { include: ['src/**/*.ts'] }
     };
 
     it('enforces mandatory thematic icon/emoji during instantiation', () => {
@@ -229,7 +235,8 @@ describe('auditorBase infrastructure', () => {
         ast: false,
         changedSince: false,
         heavy: false,
-        requiresBuild: false
+        requiresBuild: false,
+        postRun: false
       });
       expect(auditor.requiresAst).toBe(false);
     });
@@ -246,7 +253,8 @@ describe('auditorBase infrastructure', () => {
         ast: false,
         changedSince: false,
         heavy: false,
-        requiresBuild: false
+        requiresBuild: false,
+        postRun: false
       });
     });
 
@@ -278,7 +286,8 @@ describe('auditorBase infrastructure', () => {
         ast: true,
         changedSince: false,
         heavy: true,
-        requiresBuild: false
+        requiresBuild: false,
+        postRun: false
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,
@@ -288,4 +297,95 @@ describe('auditorBase infrastructure', () => {
       expect(auditor.requiresAst).toBe(true);
     });
   });
+
+  describe('Assertion and Collection Ergonomics', () => {
+    class AssertionAuditor extends BaseAuditor<'rule-a' | 'rule-b'> {
+      constructor(projectRoot: string) {
+        super({
+          id: 'test_assertion_auditor',
+          name: 'Assertion Tester',
+          description: 'Valida ergonomia de asercion y coleccion',
+          family: 'architecture',
+          packageName: 'Assert',
+          icon: '✅',
+          ruleIds: ['rule-a', 'rule-b'],
+          ruleDescriptions: {
+            'rule-a': 'Regla de asercion A',
+            'rule-b': 'Regla de asercion B'
+          },
+          coverage: { include: ['src/**/*.ts'] },
+          projectRoot
+        });
+      }
+
+      public override async runAudit(): Promise<void> {
+        this.evaluateRuleSync('rule-a', () => {
+          // Sync check passing
+        });
+
+        this.assertRule('rule-b', false, {
+          message: 'Fallo intencional de asercion B',
+          severity: 'error'
+        });
+      }
+
+      public testCollect(roots: readonly string[]): string[] {
+        return this.context.collectFiles(roots);
+      }
+    }
+
+    it('records rule evaluations via evaluateRuleSync and assertRule, and reports violations', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-assert-'));
+      await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'src/index.ts'), 'export const x = 1;');
+
+      try {
+        process.env.AUDIT_SUBPROCESS = 'true';
+        const auditor = new AssertionAuditor(tempDir);
+        const result = await auditor.execute();
+
+        expect(auditor.getCoverageRecorder().getEvaluations('rule-a')).toBe(1);
+        expect(auditor.getCoverageRecorder().getEvaluations('rule-b')).toBe(1);
+        expect(result.summary.errors).toBe(1);
+        expect(result.findings[0]?.message).toBe('Fallo intencional de asercion B');
+      } finally {
+        delete process.env.AUDIT_SUBPROCESS;
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('automatically records scanned files when context.collectFiles is called', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-collect-'));
+      await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'src/a.ts'), 'export const a = 1;');
+      await fs.writeFile(path.join(tempDir, 'src/b.ts'), 'export const b = 2;');
+
+      try {
+        const auditor = new AssertionAuditor(tempDir);
+        expect(auditor.getCoverageRecorder().scannedCount).toBe(0);
+
+        const collected = auditor.testCollect(['src']);
+        expect(collected.length).toBe(2);
+        expect(auditor.getCoverageRecorder().scannedCount).toBe(2);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('derives coverage with allowedExtensions from directory requiredFiles correctly', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-req-files-'));
+      await fs.mkdir(path.join(tempDir, 'migrations'), { recursive: true });
+
+      try {
+        const withoutExts = deriveCoverageFromRequiredFiles(['migrations'], tempDir);
+        expect(withoutExts.include).toEqual(['migrations/**']);
+
+        const withExts = deriveCoverageFromRequiredFiles(['migrations'], tempDir, new Set(['.sql']));
+        expect(withExts.include).toEqual(['migrations/**/*.sql']);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
 });
+

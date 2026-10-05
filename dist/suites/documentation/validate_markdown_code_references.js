@@ -62,13 +62,51 @@ export function resolveMarkdownScanDirectories(projectRoot, explicitRoots) {
         dirs.push(...config.paths.scriptsRoots);
     else
         dirs.push('scripts');
+    if (config.paths?.codeRoots) {
+        for (const r of config.paths.codeRoots) {
+            if (!dirs.includes(r))
+                dirs.push(r);
+        }
+    }
+    if (config.paths?.demoRoots) {
+        for (const r of config.paths.demoRoots) {
+            if (!dirs.includes(r))
+                dirs.push(r);
+        }
+    }
+    if (config.paths?.dataRoots) {
+        for (const r of config.paths.dataRoots) {
+            if (!dirs.includes(r))
+                dirs.push(r);
+        }
+    }
+    if (config.paths?.cliRoots) {
+        for (const r of config.paths.cliRoots) {
+            if (!dirs.includes(r))
+                dirs.push(r);
+        }
+    }
     if (config.persistence?.engine !== 'none') {
-        if (config.paths?.migrationsDir) {
+        if (config.paths?.migrationsDir && !dirs.includes(config.paths.migrationsDir)) {
             dirs.push(config.paths.migrationsDir);
         }
-        else if (config.persistence?.engine === 'supabase') {
-            dirs.push('supabase');
+        if (config.persistence?.supabaseDir && !dirs.includes(config.persistence.supabaseDir)) {
+            dirs.push(config.persistence.supabaseDir);
         }
+    }
+    const effectiveRoot = projectRoot || process.cwd();
+    try {
+        const entries = fs.readdirSync(effectiveRoot, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+                if (!dirs.includes(entry.name)) {
+                    dirs.push(entry.name);
+                }
+            }
+        }
+    }
+    catch {
+        // catch-ok: ignore unreadable projectRoot
     }
     return dirs;
 }
@@ -440,6 +478,9 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
                 'markdown-broken-skill-ref': 'Referencia a skill inexistente',
                 'markdown-case-mismatch': 'Casing incorrecto en ruta'
             },
+            coverage: {
+                include: ['**/*.md']
+            },
             roots: effectiveScanRoots,
             allowedExtensions: new Set(['.md']),
             extraIgnorePatterns: [
@@ -493,10 +534,19 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
         const allSkills = discoverRegisteredSkills(this.rootDir);
         const mdFiles = this.collectMarkdownFiles();
-        this.filesScannedCount = mdFiles.length;
+        if (mdFiles.length === 0) {
+            for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
+                this.markRuleNotApplicable(r, 'No se encontraron archivos markdown');
+            }
+            return;
+        }
         let referencesChecked = 0;
         const seenViolations = new Set();
         for (const filePath of mdFiles) {
+            this.recordScanned(filePath);
+            for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
+                this.markRuleEvaluated(r);
+            }
             referencesChecked += this.scanMarkdownFile(filePath, registeredScripts, allSkills, knownValidAbstractPaths, seenViolations);
         }
         this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);

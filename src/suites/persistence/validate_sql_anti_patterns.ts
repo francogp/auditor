@@ -118,7 +118,10 @@ id: 'validate_sql_anti_patterns',
         'db-payload-snake-case': 'Propiedad sin snake_case en BD',
         'storage-uncoordinated-save-bypass': 'Bypass de persistencia segura'
       },
-      roots: [migrationsDirRel, ...srcRoots],
+      coverage: {
+        include: ['database/**/*.sql', 'migrations/**/*.sql', 'src/**/*.ts', 'src/**/*.vue']
+      },
+      roots: [migrationsDirRel, 'database', ...srcRoots],
       allowedExtensions: new Set(['.sql', '.ts', '.vue']),
       projectRoot
     });
@@ -131,46 +134,96 @@ id: 'validate_sql_anti_patterns',
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
     if (config.persistence?.engine === 'none') {
+      this.markSkipped('Persistencia configurada en none');
+      for (const r of SQL_ANTI_PATTERN_RULES) {
+        this.markRuleNotApplicable(r, 'Persistencia configurada en none');
+      }
       this.context.setMetric('Engine', 'none (omitted)');
       return;
     }
 
     const migrationsDir = path.resolve(this.projectRoot, this.configuredMigrationsDir);
-    const sqlMigrations = this.collectAndScanMigrations(migrationsDir);
+    const sqlMigrations = this.collectAndScanMigrations(migrationsDir, config);
     this.scanSourceFiles(config.paths.srcRoots || ['src']);
     this.scanRlsPolicyIntegrity(sqlMigrations);
   }
 
-  private collectAndScanMigrations(migrationsDir: string): { relPath: string; content: string }[] {
+  private collectAndScanMigrations(migrationsDir: string, config: ReturnType<typeof getAuditConfig>): { relPath: string; content: string }[] {
     const sqlMigrations: { relPath: string; content: string }[] = [];
-    if (!fs.existsSync(migrationsDir)) return sqlMigrations;
-
-    const entries = fs.readdirSync(migrationsDir);
-    for (const entry of entries) {
-      if (!entry.endsWith('.sql')) continue;
-      const fullPath = path.join(migrationsDir, entry);
-      const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-      if (this.context.isPathIgnored(relPath)) continue;
-
-      try {
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        this.filesScannedCount++;
-        sqlMigrations.push({ relPath, content });
-        this.scanSqlFile(relPath, content);
-      } catch {
-        // catch-ok: Ignore read errors
+    const dirsToScan = new Set<string>();
+    if (fs.existsSync(migrationsDir)) {
+      dirsToScan.add(migrationsDir);
+    }
+    const databaseDir = path.resolve(this.projectRoot, 'database');
+    if (fs.existsSync(databaseDir)) {
+      const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? ['migrations', 'schemas'];
+      for (const sub of allowedDbDirs) {
+        const subPath = path.join(databaseDir, sub);
+        if (fs.existsSync(subPath)) {
+          dirsToScan.add(subPath);
+        }
       }
     }
+
+    if (dirsToScan.size === 0) {
+      this.markRuleNotApplicable('sql-no-positional-arrays', 'No existe directorio de migraciones o schemas SQL');
+      this.markRuleNotApplicable('sql-plpgsql-declared-variables', 'No existe directorio de migraciones o schemas SQL');
+      this.markRuleNotApplicable('sql-rls-policy-grant-integrity', 'No existe directorio de migraciones o schemas SQL');
+      return sqlMigrations;
+    }
+
+    for (const dir of dirsToScan) {
+      let entries: string[];
+      try {
+        entries = fs.readdirSync(dir);
+      } catch {
+        // catch-ok: Ignore unreadable directory
+        continue;
+      }
+      for (const entry of entries) {
+        if (!entry.endsWith('.sql')) continue;
+        const fullPath = path.join(dir, entry);
+        const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+        if (this.context.isPathIgnored(relPath)) continue;
+
+        try {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          this.recordScanned(relPath);
+          this.markRuleEvaluated('sql-no-positional-arrays');
+          this.markRuleEvaluated('sql-plpgsql-declared-variables');
+          this.markRuleEvaluated('sql-rls-policy-grant-integrity');
+          sqlMigrations.push({ relPath, content });
+          this.scanSqlFile(relPath, content);
+        } catch {
+          // catch-ok: Ignore read errors
+        }
+      }
+    }
+
+    if (sqlMigrations.length === 0) {
+      this.markRuleNotApplicable('sql-no-positional-arrays', 'No se encontraron archivos .sql en migraciones o schemas');
+      this.markRuleNotApplicable('sql-plpgsql-declared-variables', 'No se encontraron archivos .sql en migraciones o schemas');
+      this.markRuleNotApplicable('sql-rls-policy-grant-integrity', 'No se encontraron archivos .sql en migraciones o schemas');
+    }
+
     return sqlMigrations;
   }
 
   private scanSourceFiles(srcRoots: readonly string[]): void {
     const srcFiles = this.context.collectFiles([...srcRoots], new Set(['.ts', '.vue']));
+    if (srcFiles.length === 0) {
+      this.markRuleNotApplicable('db-payload-snake-case', 'No se encontraron archivos de código fuente');
+      this.markRuleNotApplicable('storage-uncoordinated-save-bypass', 'No se encontraron archivos de código fuente');
+      return;
+    }
+
     for (const file of srcFiles) {
       const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
+      this.recordScanned(relPath);
+      this.markRuleEvaluated('db-payload-snake-case');
+      this.markRuleEvaluated('storage-uncoordinated-save-bypass');
       try {
         const content = fs.readFileSync(file, 'utf-8');
-        this.filesScannedCount++;
         this.scanTypeScriptFile(relPath, content);
       } catch {
         // catch-ok: Ignore read errors

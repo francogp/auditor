@@ -173,6 +173,46 @@ export interface AuditorCapabilities {
   readonly heavy: boolean;
   /** Whether the sub-auditor requires pre-compiled production artifacts in dist/ */
   readonly requiresBuild: boolean;
+  /** Whether the sub-auditor must run AFTER every other suite of the run (e.g. coverage verification over their ledgers) */
+  readonly postRun: boolean;
+}
+
+export const COVERAGE_SOURCES = ['runtime', 'declared-only'] as const;
+/**
+ * - `runtime`: the suite records every file it actually analyzed (`recordScanned`).
+ * - `declared-only`: the suite delegates to an external engine that cannot report its analyzed file list;
+ *   coverage trusts the declared `include`/`exclude` globs instead.
+ */
+export type CoverageSource = (typeof COVERAGE_SOURCES)[number];
+
+/**
+ * Static declaration of the files a suite is responsible for.
+ * Globs are POSIX, relative to the project root, evaluated with native `path.matchesGlob`.
+ */
+export interface AuditorCoverageDeclaration {
+  readonly include: readonly string[];
+  readonly exclude?: readonly string[];
+  readonly source?: CoverageSource;
+}
+
+/**
+ * Per-suite coverage ledger persisted at the end of every orchestrated run
+ * (`scratch/audits/coverage/<suiteId>.json`) and consumed by `validate_audit_coverage`.
+ */
+export interface CoverageLedger {
+  readonly runId: string;
+  readonly suiteId: string;
+  readonly skipped: boolean;
+  readonly declared: AuditorCoverageDeclaration;
+  readonly source: CoverageSource;
+  /** POSIX relative paths actually analyzed (empty for `declared-only`). */
+  readonly scanned: readonly string[];
+  /** Full rule catalog the suite is expected to evaluate. */
+  readonly ruleIds: readonly string[];
+  /** Number of evaluations per rule (file-level gate passed, or tool invocation). */
+  readonly ruleEvaluations: Readonly<Record<string, number>>;
+  /** Rules explicitly declared non-applicable during this run, with their justification. */
+  readonly notApplicable: Readonly<Record<string, string>>;
 }
 
 export interface GitIgnoreRequirement {

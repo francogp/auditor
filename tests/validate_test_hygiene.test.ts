@@ -118,8 +118,9 @@ describe('TestHygieneAuditor', () => {
 
     it('detects test timeout inflation > 30000ms (no-test-timeout-inflation)', () => {
       const auditor = new TestableTestHygieneAuditor();
+      const timeoutMs = 60000;
       const code = `
-        export default { testTimeout: 60000 };
+        export default { testTimeout: ${timeoutMs} };
       `;
       auditor.testScanFile('tests/node/heavy.test.ts', code);
       const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-test-timeout-inflation');

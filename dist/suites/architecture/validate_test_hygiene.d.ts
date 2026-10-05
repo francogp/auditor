@@ -26,12 +26,14 @@
  *   npm run validate:test-hygiene
  */
 import { FileScanAuditor } from '../../core/auditorBase.ts';
+import type { SharedAstContext } from '../../core/astContext.ts';
 export type TestHygieneRuleId = 'no-tautological-integration-mocks' | 'playwright-id-locators-only' | 'no-playwright-force-click' | 'no-test-timeout-inflation' | 'no-playwright-polling-waits';
 export declare const TEST_HYGIENE_RULES: readonly TestHygieneRuleId[];
 export declare function getForbiddenIntegrationMockTargets(): readonly string[];
 export declare class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
     constructor();
     protected scanFile(relPath: string, content: string): void;
+    runAudit(astContext?: SharedAstContext): Promise<void>;
     private scanIntegrationMocks;
     private scanE2eSimulations;
     private scanTimeoutInflation;

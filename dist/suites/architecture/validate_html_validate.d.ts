@@ -25,7 +25,9 @@ export type RawHtmlValidateFileReport = RawLintFileReport;
  */
 export declare function parseHtmlValidateResults(input: string | object[], cwd?: string): AuditFinding[];
 export declare class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
-    constructor();
+    constructor(options?: {
+        projectRoot?: string;
+    });
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_html_validate.d.ts.map

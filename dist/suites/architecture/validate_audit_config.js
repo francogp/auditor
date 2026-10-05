@@ -77,6 +77,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 'audit-config-invalid-build-script': 'Script build usa audit:for-commit',
                 'audit-config-missing-recommended-script': 'Falta script recomendado en package'
             },
+            coverage: {
+                include: ['audit.config.ts', '.gitignore', 'package.json']
+            },
             projectRoot
         });
         this.fixMode = Boolean(options.fix);
@@ -85,6 +88,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         return this.fixMode || this.isFixModeRequested();
     }
     async runAudit() {
+        for (const r of AUDIT_CONFIG_RULES) {
+            this.markRuleEvaluated(r);
+        }
         const configPath = path.resolve(this.projectRoot, 'audit.config.ts');
         if (!fs.existsSync(configPath)) {
             this.addViolation({
@@ -97,6 +103,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             });
             return;
         }
+        this.recordScanned('audit.config.ts');
+        if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore')))
+            this.recordScanned('.gitignore');
+        if (fs.existsSync(path.resolve(this.projectRoot, 'package.json')))
+            this.recordScanned('package.json');
         const config = await loadAuditConfig(this.projectRoot);
         this.verifyPathRoots(config);
         this.verifyPersistencePaths(config);

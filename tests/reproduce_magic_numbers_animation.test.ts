@@ -47,4 +47,25 @@ describe('Reproduction: Magic Numbers on GSAP / UI Animation Properties', () => 
 
     expect(flaggedScript, 'gsap.to with y: 10 should not be flagged as a magic number').toBe(false);
   });
+
+  it('does not flag GSAP timeline stagger and rotation values', () => {
+    const timelineSnippet = `
+      <script setup lang="ts">
+      const tl = gsap.timeline();
+      tl.to('.item', { rotation: 45, stagger: 0.1 });
+      </script>
+    `;
+
+    const regex = new RegExp(magicNumbers.regex.source, magicNumbers.regex.flags);
+    let flagged = false;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(timelineSnippet)) !== null) {
+      if (magicNumbers.check?.(timelineSnippet, match, 'src/components/MyList.vue')) {
+        flagged = true;
+      }
+    }
+
+    expect(flagged, 'gsap.timeline with rotation and stagger should not be flagged').toBe(false);
+  });
 });

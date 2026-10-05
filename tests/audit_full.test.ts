@@ -47,4 +47,16 @@ describe('audit_full Master Orchestrator', () => {
     expect(mockExit).toHaveBeenCalledWith(0);
     expect(consoleLogSpy).toHaveBeenCalled();
   });
+
+  it('formats version output with semantic versioning syntax', async () => {
+    process.argv = ['node', 'audit_full.ts', '-v'];
+    const mockExit = vi.fn() as unknown as typeof process.exit;
+    process.exit = mockExit;
+
+    await runMasterAudit();
+
+    expect(mockExit).toHaveBeenCalledWith(0);
+    const logOutput = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+    expect(logOutput).toMatch(/v?\d+\.\d+\.\d+/);
+  });
 });

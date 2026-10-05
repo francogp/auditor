@@ -109,6 +109,9 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
                 'eslint-config-ts-ignore-allowed': 'Regla ban-ts-comment no es error',
                 'eslint-config-legacy-date-allowed': 'Falta prohibición de objeto Date'
             },
+            coverage: {
+                include: ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts']
+            },
             projectRoot: effectiveRoot
         });
         this.configFilePath = options.configFile;
@@ -130,6 +133,11 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
             }
         }
         if (!resolvedPath) {
+            this.markRuleEvaluated('eslint-config-missing');
+            this.markRuleNotApplicable('eslint-config-any-allowed', 'Archivo de configuración no encontrado');
+            this.markRuleNotApplicable('eslint-config-double-cast-allowed', 'Archivo de configuración no encontrado');
+            this.markRuleNotApplicable('eslint-config-ts-ignore-allowed', 'Archivo de configuración no encontrado');
+            this.markRuleNotApplicable('eslint-config-legacy-date-allowed', 'Archivo de configuración no encontrado');
             this.addViolation({
                 ruleId: 'eslint-config-missing',
                 severity: 'error',
@@ -142,6 +150,10 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
             return;
         }
         const relFileName = path.relative(this.projectRoot, resolvedPath).replace(/\\/g, '/');
+        this.recordScanned(relFileName);
+        for (const r of ESLINT_CONFIG_RULES) {
+            this.markRuleEvaluated(r);
+        }
         const content = fs.readFileSync(resolvedPath, 'utf-8');
         const findings = auditEslintConfigContent(content, relFileName);
         for (const finding of findings) {
@@ -155,7 +167,6 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
                 message: finding.message
             });
         }
-        this.filesScannedCount = 1;
         this.context.setMetric('ESLint Config Checked', relFileName);
         this.context.setMetric('ESLint Violations', findings.length);
     }

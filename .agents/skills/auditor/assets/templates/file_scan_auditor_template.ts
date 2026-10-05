@@ -57,7 +57,10 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       // 1. Support localized suppression comments: // my-feature-ok, // domain-ok
       if (this.isLineIgnored(line, ['my-feature-ok'])) continue;
 
-      // 2. Perform line checks
+      // 2. Mark rule evaluated for this file
+      this.markRuleEvaluated('my-feature-forbidden-pattern');
+
+      // 3. Perform line checks
       if (line.includes('forbiddenToken')) {
         this.addViolation({
           ruleId: 'my-feature-forbidden-pattern',
@@ -73,6 +76,5 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 }
 
 // Canonical CLI Entrypoint for standalone and dynamic execution
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyFeatureAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MyFeatureAuditor());
+

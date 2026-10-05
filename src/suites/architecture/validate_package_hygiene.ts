@@ -174,6 +174,9 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         'package-unlisted-dependency': 'Dependencia fantasma no declarada',
         'package-unused-binary': 'Binario o script no referenciado'
       },
+      coverage: {
+        include: ['package.json']
+      },
       projectRoot: effectiveRoot
     });
     this.fixMode = options.fix ?? false;
@@ -182,8 +185,16 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.packageHygiene?.enabled === false) {
+      for (const r of PACKAGE_HYGIENE_RULES) {
+        this.markRuleNotApplicable(r, 'Package hygiene desactivado');
+      }
       return;
     }
+
+    for (const r of PACKAGE_HYGIENE_RULES) {
+      this.markRuleEvaluated(r);
+    }
+    this.recordScanned('package.json');
 
     const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
     const cacheDir = path.resolve(this.projectRoot, 'scratch/cache');

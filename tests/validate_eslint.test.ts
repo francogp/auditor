@@ -93,7 +93,8 @@ describe('EslintAuditor & parseEslintResults', () => {
 
 class CleanEslintAuditor extends EslintAuditor {
   public override async runAudit(): Promise<void> {
-    this.filesScannedCount = 1;
+    this.recordScanned('src/clean.ts');
+    this.markRuleEvaluated('eslint-execution-failure');
     this.context.setMetric('eslint_violations', 0);
   }
 }

@@ -74,8 +74,7 @@ describe('cliUtils', () => {
     it('returns false when scriptArg is undefined', () => {
       const originalArgv1 = process.argv[1] ?? '';
       try {
-        // @ts-expect-error Testing undefined argv[1]
-        process.argv[1] = undefined;
+        (process.argv as Array<string | undefined>)[1] = undefined;
         expect(isMainModule(pathToFileURL(path.resolve('/workspace/script.ts')).href)).toBe(false);
       } finally {
         process.argv[1] = originalArgv1;

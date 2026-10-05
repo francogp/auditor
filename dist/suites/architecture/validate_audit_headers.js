@@ -193,6 +193,9 @@ export class AuditHeadersAuditor extends FileScanAuditor {
     }
     scanFile(relPath, content) {
         const violations = scanFileForIllegalHeaders(relPath, content);
+        for (const r of HEADER_RULES) {
+            this.markRuleEvaluated(r);
+        }
         for (const v of violations) {
             this.collectedViolations.push(v);
             this.addViolation({
@@ -219,7 +222,7 @@ export function auditAuditHeaders(targetDir = process.cwd()) {
         const relPath = path.relative(targetDir, file).split(path.sep).join(path.posix.sep);
         try {
             const content = fs.readFileSync(file, 'utf-8');
-            auditor['filesScannedCount']++;
+            auditor['recordScanned'](relPath);
             auditor['scanFile'](relPath, content);
         }
         catch {

@@ -78,6 +78,7 @@ export function getActiveFamilies(customFamilies) {
     return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
 }
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
+export const COVERAGE_SOURCES = ['runtime', 'declared-only'];
 /**
  * Normalizes a file path from an AuditFinding into a clean relative POSIX path.
  */

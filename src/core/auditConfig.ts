@@ -303,6 +303,31 @@ export interface AuditVersionConfig {
   readonly syncTargets?: readonly (string | AuditVersionTargetConfig)[];
 }
 
+/** Exemption policies whose silencing can be acknowledged (configured, not structural). */
+export const ACKNOWLEDGEABLE_EXEMPTION_POLICIES = ['cli', 'scripts', 'data', 'demo', 'exemptFiles'] as const;
+export type AcknowledgeableExemptionPolicy = (typeof ACKNOWLEDGEABLE_EXEMPTION_POLICIES)[number];
+
+export interface AuditCoverageExemption {
+  /** POSIX glob of tracked files that no suite needs to analyze. */
+  readonly glob: string;
+  /** Mandatory justification (>= 15 characters). */
+  readonly reason: string;
+}
+
+export interface AuditCoverageAcknowledgedDegradation {
+  /** Configured exemption policy whose silencing is intentional for the matched files. */
+  readonly policy: AcknowledgeableExemptionPolicy;
+  readonly glob: string;
+  readonly reason: string;
+}
+
+export interface AuditCoverageConfig {
+  /** Blind-spot detection (uncovered files, drift, dormant rules, degraded coverage). Active by default. */
+  readonly enabled?: boolean;
+  readonly exemptGlobs?: readonly AuditCoverageExemption[];
+  readonly acknowledgedDegradations?: readonly AuditCoverageAcknowledgedDegradation[];
+}
+
 export interface AuditEngineConfig {
   readonly name: string;
   readonly paths: AuditPathsConfig;
@@ -328,6 +353,7 @@ export interface AuditEngineConfig {
   readonly accessibility?: AuditAccessibilityConfig;
   readonly typeCoverage?: AuditTypeCoverageConfig;
   readonly version?: AuditVersionConfig;
+  readonly coverage?: AuditCoverageConfig;
   readonly customFamilies?: readonly CustomAuditFamilyConfig[];
   readonly extensions?: readonly string[];
   readonly presets?: Record<string, readonly string[]>;
@@ -496,6 +522,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     enabled: true,
     autoSyncPublicVersionJson: true,
     syncTargets: []
+  },
+  coverage: {
+    enabled: true,
+    exemptGlobs: [],
+    acknowledgedDegradations: []
   },
   customFamilies: [],
   extensions: [],
@@ -888,16 +919,88 @@ function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): AuditVersion
   };
 }
 
+export const MIN_COVERAGE_REASON_LENGTH = 15;
+
+/**
+ * Rejects globs that would blanket-exempt the repository, a whole extension, or a whole code/test root.
+ */
+function assertNarrowCoverageGlob(field: string, rawGlob: string, protectedRoots: readonly string[]): void {
+  const glob = (rawGlob ?? '').trim();
+  const universal = /^(?:\*\*?\/?)+(?:\*(?:\.\*)?)?$/.test(glob) || /^\*\*\/\*\.[\w]+$/.test(glob) || /^\*\.\*$/.test(glob);
+  if (!glob || glob.includes('\\') || path.posix.isAbsolute(glob) || universal) {
+    throw new Error(
+      `[AuditConfig Anti-Abuse] '${field}' contiene un glob global o inválido: '${rawGlob}'. ` +
+      `Usa globs POSIX relativos y acotados (ej: 'dist/**', 'LICENSE').`
+    );
+  }
+  for (const root of protectedRoots) {
+    const cleanRoot = root.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '');
+    if (!cleanRoot) continue;
+    if (glob === cleanRoot || new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)) {
+      throw new Error(
+        `[AuditConfig Anti-Abuse] '${field}' no puede eximir una raíz de código completa ('${rawGlob}' cubre '${cleanRoot}').`
+      );
+    }
+  }
+}
+
+function assertCoverageReason(field: string, glob: string, reason: string | undefined): void {
+  if (typeof reason !== 'string' || reason.trim().length < MIN_COVERAGE_REASON_LENGTH) {
+    throw new Error(
+      `[AuditConfig Anti-Abuse] '${field}' para '${glob}' requiere un 'reason' de al menos ${MIN_COVERAGE_REASON_LENGTH} caracteres.`
+    );
+  }
+}
+
+function buildCoverageConfig(
+  raw: DeepPartial<AuditCoverageConfig> | undefined,
+  paths: AuditEngineConfig['paths']
+): AuditCoverageConfig {
+  const c = raw ?? {};
+  const protectedRoots = Array.from(new Set([
+    ...(paths.srcRoots ?? []),
+    ...(paths.codeRoots ?? []),
+    ...(paths.testRoots ?? [])
+  ]));
+  const exemptGlobs: AuditCoverageExemption[] = [];
+  for (const entry of c.exemptGlobs ?? []) {
+    const glob = entry?.glob ?? '';
+    assertNarrowCoverageGlob('coverage.exemptGlobs', glob, protectedRoots);
+    assertCoverageReason('coverage.exemptGlobs', glob, entry?.reason);
+    exemptGlobs.push({ glob, reason: entry!.reason! });
+  }
+  const acknowledgedDegradations: AuditCoverageAcknowledgedDegradation[] = [];
+  for (const entry of c.acknowledgedDegradations ?? []) {
+    const glob = entry?.glob ?? '';
+    const policy = entry?.policy;
+    if (!policy || !ACKNOWLEDGEABLE_EXEMPTION_POLICIES.includes(policy)) {
+      throw new Error(
+        `[AuditConfig] 'coverage.acknowledgedDegradations' declara una política desconocida '${String(policy)}'. ` +
+        `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`
+      );
+    }
+    assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, protectedRoots);
+    assertCoverageReason('coverage.acknowledgedDegradations', glob, entry?.reason);
+    acknowledgedDegradations.push({ policy, glob, reason: entry!.reason! });
+  }
+  return {
+    enabled: c.enabled ?? DEFAULT_AUDIT_CONFIG.coverage?.enabled ?? true,
+    exemptGlobs,
+    acknowledgedDegradations
+  };
+}
+
 export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
   const declared = collectDeclaredSubsystems(config);
   const agentAndSecurity = buildAgentAndSecurityConfig(config);
   const constantsAndDoc = buildConstantsAndDocConfig(config);
   const rawPaths = (config as AuditEngineConfig)._rawPaths ?? config.paths;
   const rawConfig = (config as AuditEngineConfig)._rawConfig ?? config;
+  const paths = buildPathsConfig(config.paths);
 
   return {
     name: config.name,
-    paths: buildPathsConfig(config.paths),
+    paths,
     persistence: buildPersistenceConfig(config.persistence),
     domain: buildDomainConfig(config.domain),
     gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
@@ -922,6 +1025,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     accessibility: buildAccessibilityConfig(config.accessibility),
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
     version: buildVersionConfig(config.version),
+    coverage: buildCoverageConfig(config.coverage, paths),
     ...agentAndSecurity,
     ...constantsAndDoc,
     customFamilies: config.customFamilies ?? [],

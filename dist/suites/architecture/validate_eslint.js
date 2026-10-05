@@ -17,7 +17,8 @@ import path from 'node:path';
 import { executeNodeCli } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
-import { parseLintResultsToFindings } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfig.js";
+import { parseLintResultsToFindings, extractJsonReportFilePaths } from "../../core/reportUtils.js";
 enableCompileCache();
 export const ESLINT_RULES = [
     'eslint-violation'
@@ -49,7 +50,8 @@ export class EslintAuditor extends BaseAuditor {
             isApplicable: (config) => config._rawConfig?.eslint?.enabled !== false
         }
     ];
-    constructor() {
+    constructor(projectRoot) {
+        const effectiveRoot = projectRoot || process.cwd();
         super({
             capabilities: { fix: true, lint: true },
             gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
@@ -62,10 +64,41 @@ export class EslintAuditor extends BaseAuditor {
             ruleIds: ESLINT_RULES,
             ruleDescriptions: {
                 'eslint-violation': 'Error de sintaxis o regla'
-            }
+            },
+            coverage: {
+                include: ['**/*.{js,ts,mjs,cjs,vue}'],
+                exclude: [
+                    'node_modules/**',
+                    'dist/**',
+                    'scratch/**',
+                    '.agents/**',
+                    'tests/**',
+                    'vitest.config.ts',
+                    ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []),
+                    ...(getAuditConfig(effectiveRoot).persistence?.supabaseDir ? [`${getAuditConfig(effectiveRoot).persistence.supabaseDir}/**`] : [])
+                ],
+                source: 'runtime'
+            },
+            projectRoot: effectiveRoot
         });
     }
     async runAudit() {
+        const config = getAuditConfig(this.projectRoot);
+        const exclude = [
+            'node_modules/**',
+            'dist/**',
+            'scratch/**',
+            '.agents/**',
+            'tests/**',
+            'vitest.config.ts',
+            ...(config.paths.ignoreGlobs ?? []),
+            ...(config.persistence?.supabaseDir ? [`${config.persistence.supabaseDir}/**`] : [])
+        ];
+        this.redeclareCoverage({
+            include: ['**/*.{js,ts,mjs,cjs,vue}'],
+            exclude,
+            source: 'runtime'
+        });
         const isFixMode = this.isFixModeRequested();
         const binPath = path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
         const args = ['--config', 'eslint.config.js', '.', '--cache', '-f', 'json']; // no-domain: Non-domain utility collection or data structure
@@ -78,8 +111,10 @@ export class EslintAuditor extends BaseAuditor {
             timeout: EXECUTION_TIMEOUT_MS
         });
         const findings = parseEslintResults(combinedOutput, this.projectRoot);
+        const scannedFiles = extractJsonReportFilePaths(combinedOutput, findings);
+        this.recordScannedMany(scannedFiles);
+        this.markRuleEvaluated('eslint-violation');
         this.importAuditFindings(findings, 'eslint-violation', 'eslint');
-        this.filesScannedCount = 1;
         this.context.setMetric('eslint_violations', findings.length);
         this.context.setMetric('mode', isFixMode ? 'fix' : 'check');
     }

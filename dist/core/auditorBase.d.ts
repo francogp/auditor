@@ -8,7 +8,8 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type GitIgnoreRequirement } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement } from './auditContract.ts';
+import { CoverageRecorder } from './auditCoverage.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
@@ -49,6 +50,7 @@ export interface AuditorConfig {
     extraIgnorePatterns?: string[];
     unignoreDirs?: string[];
     projectRoot?: string;
+    onFilesCollected?: (files: readonly string[]) => void;
 }
 export interface AuditorContext {
     values: {
@@ -93,16 +95,21 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly requiredFiles?: readonly string[];
     readonly requiresAst?: boolean;
     readonly projectRoot?: string;
+    /**
+     * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
+     * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
+     */
+    readonly coverage?: AuditorCoverageDeclaration;
 }
 export interface ViolationInput<TRuleId extends string = string> {
     readonly ruleId: TRuleId;
     readonly ruleDescription?: string;
     readonly severity: FindingSeverity;
-    readonly file: string;
-    readonly line: number;
+    readonly file?: string;
+    readonly line?: number;
     readonly col?: number;
     readonly message: string;
-    readonly context: string;
+    readonly context?: string;
 }
 export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
     readonly id: string;
@@ -126,11 +133,47 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
-    protected filesScannedCount: number;
+    protected readonly coverageRecorder: CoverageRecorder;
     protected isSkipped: boolean;
     protected skipReason?: string;
+    private legacyScanCount;
+    /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
+    protected get filesScannedCount(): number;
+    protected set filesScannedCount(count: number);
     markSkipped(reason: string): void;
     constructor(options: AuditorOptions<TRuleId>);
+    /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
+    getRuleCatalog(): readonly string[];
+    /** Records a file that this suite actually analyzed (absolute or project-relative path). */
+    protected recordScanned(filePath: string): void;
+    protected unrecordScanned(filePath: string): void;
+    protected recordScannedMany(filePaths: Iterable<string>): void;
+    /**
+     * Evaluates an assertion or check block for a declared rule.
+     * Automatically marks the rule as evaluated in the coverage ledger.
+     */
+    evaluateRule(ruleId: TRuleId, evaluateFn: () => void | Promise<void>): Promise<void>;
+    /** Synchronous variant for inline invariant evaluation. */
+    evaluateRuleSync(ruleId: TRuleId, evaluateFn: () => void): void;
+    /**
+     * Asserts a condition for a rule. Automatically marks the rule as evaluated.
+     * If condition is false, adds a violation.
+     */
+    assertRule(ruleId: TRuleId, condition: boolean, violation: Omit<ViolationInput<TRuleId>, 'ruleId'>): void;
+    /** Refines the coverage declaration at runtime (e.g. from config-driven roots loaded after construction). */
+    protected redeclareCoverage(declaration: AuditorCoverageDeclaration): void;
+    /** For `declared-only` suites whose external engine reports a file count but no file list. */
+    protected recordExternalScanCount(count: number): void;
+    /** Adds dynamically discovered rule ids (rule engines without static ruleIds) to the dormancy catalog. */
+    protected declareRuleCatalog(ruleIds: readonly string[]): void;
+    /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
+    protected markRuleEvaluated(ruleId: TRuleId | string, count?: number): void;
+    /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
+    protected markRuleNotApplicable(ruleId: TRuleId | string, reason: string): void;
+    /** Gets evaluation count recorded so far for a given rule. */
+    protected getEvaluations(ruleId: TRuleId | string): number;
+    getCoverageRecorder(): CoverageRecorder;
+    private persistCoverageLedger;
     getSubAuditors(): readonly SubAuditorStep[];
     logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string): void;
     getCountsByRule(): ReadonlyMap<TRuleId, number>;
@@ -162,6 +205,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
     protected abstract scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void | Promise<void>;
+    constructor(options: AuditorOptions<TRuleId>);
     runAudit(astContext?: SharedAstContext): Promise<void>;
 }
 //# sourceMappingURL=auditorBase.d.ts.map

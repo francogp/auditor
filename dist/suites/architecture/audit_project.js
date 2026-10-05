@@ -291,6 +291,8 @@ function collectRuleViolations(rule, content, filePath, getLineNo, violations) {
     }
 }
 function applyRuleFix(rule, content, filePath) {
+    if (rule.appliesTo && !rule.appliesTo(filePath))
+        return content;
     const fixer = rule.fix;
     if (!fixer)
         return content;
@@ -315,6 +317,9 @@ function runRules(filePath, content, rules, violations, fix, offset) {
     let result = content;
     const getLineNo = createLineLocator(content, offset);
     for (const rule of rules) {
+        if (rule.appliesTo && !rule.appliesTo(filePath)) {
+            continue;
+        }
         collectRuleViolations(rule, content, filePath, getLineNo, violations);
         if (fix && rule.fix) {
             result = applyRuleFix(rule, result, filePath);
@@ -1466,6 +1471,9 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
             family: 'architecture',
             packageName: 'Arquitectura',
             icon: '🏛️',
+            coverage: {
+                include: ['**/*.{vue,scss,css,ts,js,md}']
+            },
             ruleDescriptions: {
                 'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',
                 'domain-type-violation': 'Violación de tipo de dominio',
@@ -1488,6 +1496,13 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
+        const files = await getFilesToAudit(this.projectRoot);
+        for (const f of files) {
+            this.recordScanned(f);
+        }
+        for (const r of Object.keys(this.ruleDescriptions ?? {})) {
+            this.markRuleEvaluated(r);
+        }
         const violations = await main();
         for (const v of violations) {
             const relFile = v.file
@@ -1505,16 +1520,5 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
         }
     }
 }
-const isDirectCliExecution = Boolean(process.argv[1] && (process.argv[1].endsWith('audit_project.ts') ||
-    (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename)));
-if (isDirectCliExecution) {
-    main().then(all => {
-        if (all.some(v => v.severity === 'error')) {
-            process.exit(1);
-        }
-    }).catch(err => {
-        console.error(styleText('red', `\n💥 Error fatal en el audit: ${err.stack || err.message}`));
-        process.exit(1);
-    });
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ProjectArchitectureAuditor());
 //# sourceMappingURL=audit_project.js.map

@@ -106,6 +106,25 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+
+      const ledger = auditor.getCoverageRecorder().toLedger({
+        runId: 't', suiteId: auditor.id, skipped: false, ruleIds: auditor.getRuleCatalog()
+      });
+      expect(ledger.scanned).toEqual(['index.html', 'src/components/CleanButton.vue']);
+      for (const ruleId of ledger.ruleIds) {
+        expect(ledger.ruleEvaluations[ruleId]).toBeGreaterThan(0);
+      }
+    });
+
+    it('marks every rule as not applicable when accessibility is disabled', async () => {
+      setAuditConfig(defineAuditConfig({ name: 'A11y Off', accessibility: { enabled: false } }));
+      const auditor = new ValidateAccessibilityAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const ledger = auditor.getCoverageRecorder().toLedger({
+        runId: 't', suiteId: auditor.id, skipped: false, ruleIds: auditor.getRuleCatalog()
+      });
+      expect(ledger.scanned).toEqual([]);
+      expect(Object.keys(ledger.notApplicable).sort()).toEqual([...ledger.ruleIds].sort());
     });
   });
 

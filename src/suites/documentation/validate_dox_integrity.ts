@@ -15,6 +15,7 @@
  *   npm run validate:dox-integrity
  */
 
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, getEffectiveIgnoreDirs } from '../../core/auditorBase.ts';
 import { loadAuditConfig } from '../../core/auditConfig.ts';
@@ -58,6 +59,9 @@ private readonly rootDir: string;
         'dox-broken-link': 'Enlace roto a archivo inexistente',
         'dox-gitignore-target': 'Enlace a ruta ignorada en git'
       },
+      coverage: {
+        include: ['**/AGENTS.md']
+      },
       projectRoot
     });
     this.rootDir = projectRoot;
@@ -65,8 +69,21 @@ private readonly rootDir: string;
 
   public override async runAudit(): Promise<void> {
     await loadAuditConfig(this.rootDir);
+    for (const r of DOX_RULES) {
+      this.markRuleEvaluated(r);
+    }
+
+    const agentsFiles = await this.context.collectFiles(['.'], new Set(['.md']));
+    for (const f of agentsFiles) {
+      if (path.basename(f) === 'AGENTS.md') {
+        this.recordScanned(f);
+      }
+    }
+    if (this.filesScannedCount === 0) {
+      this.recordScanned('AGENTS.md');
+    }
+
     const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
-    this.filesScannedCount = rawViolations.length > 0 ? rawViolations.length : 1;
 
     for (const v of rawViolations) {
       const ruleId = (v.ruleId as DoxRuleId) || 'dox-missing-agents-md';

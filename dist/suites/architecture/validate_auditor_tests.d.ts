@@ -17,6 +17,7 @@ export declare const AUDITOR_TEST_DESCRIPTIONS: Record<AuditorTestRuleId, string
 export declare function extractSuiteDeclaredRules(source: string): string[];
 export declare class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
     constructor(projectRoot?: string);
+    recordScannedFile(filePath: string): void;
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_auditor_tests.d.ts.map

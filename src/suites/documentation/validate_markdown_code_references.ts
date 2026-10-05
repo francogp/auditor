@@ -68,7 +68,7 @@ export const DEFAULT_SCAN_DIRECTORIES = [
 export function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoots?: readonly string[]): readonly string[] {
   if (explicitRoots && explicitRoots.length > 0) return explicitRoots;
   const config = getAuditConfig(projectRoot);
-  const dirs = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
+  const dirs: string[] = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
   if (config.paths?.srcRoots) dirs.push(...config.paths.srcRoots);
   else dirs.push('src');
   if (config.paths?.testRoots) dirs.push(...config.paths.testRoots);
@@ -76,13 +76,50 @@ export function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoo
   if (config.paths?.scriptsRoots) dirs.push(...config.paths.scriptsRoots);
   else dirs.push('scripts');
 
-  if (config.persistence?.engine !== 'none') {
-    if (config.paths?.migrationsDir) {
-      dirs.push(config.paths.migrationsDir);
-    } else if (config.persistence?.engine === 'supabase') {
-      dirs.push('supabase');
+  if (config.paths?.codeRoots) {
+    for (const r of config.paths.codeRoots) {
+      if (!dirs.includes(r)) dirs.push(r);
     }
   }
+  if (config.paths?.demoRoots) {
+    for (const r of config.paths.demoRoots) {
+      if (!dirs.includes(r)) dirs.push(r);
+    }
+  }
+  if (config.paths?.dataRoots) {
+    for (const r of config.paths.dataRoots) {
+      if (!dirs.includes(r)) dirs.push(r);
+    }
+  }
+  if (config.paths?.cliRoots) {
+    for (const r of config.paths.cliRoots) {
+      if (!dirs.includes(r)) dirs.push(r);
+    }
+  }
+
+  if (config.persistence?.engine !== 'none') {
+    if (config.paths?.migrationsDir && !dirs.includes(config.paths.migrationsDir)) {
+      dirs.push(config.paths.migrationsDir);
+    }
+    if (config.persistence?.supabaseDir && !dirs.includes(config.persistence.supabaseDir)) {
+      dirs.push(config.persistence.supabaseDir);
+    }
+  }
+
+  const effectiveRoot = projectRoot || process.cwd();
+  try {
+    const entries = fs.readdirSync(effectiveRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+        if (!dirs.includes(entry.name)) {
+          dirs.push(entry.name);
+        }
+      }
+    }
+  } catch {
+    // catch-ok: ignore unreadable projectRoot
+  }
+
   return dirs;
 }
 
@@ -546,6 +583,9 @@ private readonly rootDir: string;
         'markdown-broken-skill-ref': 'Referencia a skill inexistente',
         'markdown-case-mismatch': 'Casing incorrecto en ruta'
       },
+      coverage: {
+        include: ['**/*.md']
+      },
       roots: effectiveScanRoots,
       allowedExtensions: new Set(['.md']),
       extraIgnorePatterns: [
@@ -612,12 +652,22 @@ private readonly rootDir: string;
     const allSkills = discoverRegisteredSkills(this.rootDir);
 
     const mdFiles = this.collectMarkdownFiles();
-    this.filesScannedCount = mdFiles.length;
+
+    if (mdFiles.length === 0) {
+      for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
+        this.markRuleNotApplicable(r, 'No se encontraron archivos markdown');
+      }
+      return;
+    }
 
     let referencesChecked = 0;
     const seenViolations = new Set<string>();
 
     for (const filePath of mdFiles) {
+      this.recordScanned(filePath);
+      for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
+        this.markRuleEvaluated(r);
+      }
       referencesChecked += this.scanMarkdownFile(
         filePath,
         registeredScripts,

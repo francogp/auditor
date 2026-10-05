@@ -1,0 +1,5 @@
+// @canary rule=unsafe-path-concat
+export function getFilePath(baseDir: string, filename: string): string {
+  const fullPath = baseDir + '/' + filename;
+  return fullPath;
+}

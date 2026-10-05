@@ -18,8 +18,9 @@ import path from 'node:path';
 import { executeNodeCli } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
-import { parseLintResultsToFindings, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
+import { parseLintResultsToFindings, extractJsonReportFilePaths, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
 
 enableCompileCache();
 
@@ -62,7 +63,8 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
     }
   ];
 
-  constructor() {
+  constructor(projectRoot?: string) {
+    const effectiveRoot = projectRoot || process.cwd();
     super({
       capabilities: { fix: true, lint: true },
       gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
@@ -75,11 +77,43 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       ruleIds: ESLINT_RULES,
       ruleDescriptions: {
         'eslint-violation': 'Error de sintaxis o regla'
-      }
+      },
+      coverage: {
+        include: ['**/*.{js,ts,mjs,cjs,vue}'],
+        exclude: [
+          'node_modules/**',
+          'dist/**',
+          'scratch/**',
+          '.agents/**',
+          'tests/**',
+          'vitest.config.ts',
+          ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []),
+          ...(getAuditConfig(effectiveRoot).persistence?.supabaseDir ? [`${getAuditConfig(effectiveRoot).persistence.supabaseDir}/**`] : [])
+        ],
+        source: 'runtime'
+      },
+      projectRoot: effectiveRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
+    const config = getAuditConfig(this.projectRoot);
+    const exclude = [
+      'node_modules/**',
+      'dist/**',
+      'scratch/**',
+      '.agents/**',
+      'tests/**',
+      'vitest.config.ts',
+      ...(config.paths.ignoreGlobs ?? []),
+      ...(config.persistence?.supabaseDir ? [`${config.persistence.supabaseDir}/**`] : [])
+    ];
+    this.redeclareCoverage({
+      include: ['**/*.{js,ts,mjs,cjs,vue}'],
+      exclude,
+      source: 'runtime'
+    });
+
     const isFixMode = this.isFixModeRequested();
 
     const binPath = path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
@@ -96,9 +130,12 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
     });
     const findings = parseEslintResults(combinedOutput, this.projectRoot);
 
+    const scannedFiles = extractJsonReportFilePaths(combinedOutput, findings);
+    this.recordScannedMany(scannedFiles);
+
+    this.markRuleEvaluated('eslint-violation');
     this.importAuditFindings(findings, 'eslint-violation', 'eslint');
 
-    this.filesScannedCount = 1;
     this.context.setMetric('eslint_violations', findings.length);
     this.context.setMetric('mode', isFixMode ? 'fix' : 'check');
   }

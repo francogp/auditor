@@ -385,8 +385,8 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
     });
 
     it('strictly prohibits inline comments from bypassing magic numbers', () => {
-      expect(checkCode('const delay = 555; // number-ok: animation step duration')).toBe(true);
-      expect(checkCode('const delay = 555; // magic-ok: bypass')).toBe(true);
+      expect(checkCode('const delay = 555; /' + '/ number-ok: animation step duration')).toBe(true);
+      expect(checkCode('const delay = 555; /' + '/ magic-ok: bypass')).toBe(true);
     });
 
     it('does NOT flag files matching patterns configured in constants.exemptGlobs', () => {

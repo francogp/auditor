@@ -55,6 +55,8 @@ function extractStaticMetadataFromFile(fullPath) {
             caps.heavy = true;
         if (content.includes('changedSince: true'))
             caps.changedSince = true;
+        if (content.includes('postRun: true'))
+            caps.postRun = true;
         if (Object.keys(caps).length > 0) {
             result.capabilities = {
                 ...DEFAULT_AUDITOR_CAPABILITIES,

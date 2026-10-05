@@ -103,6 +103,10 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
         'type-coverage-below-threshold': 'Cobertura de tipos bajo el umbral',
         'type-coverage-untyped-identifier': 'Identificador untyped any detectado'
       },
+      coverage: {
+        include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
+        source: 'declared-only'
+      },
       projectRoot: effectiveRoot
     });
   }
@@ -110,7 +114,15 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.typeCoverage?.enabled === false) {
+      for (const r of TYPE_COVERAGE_RULES) {
+        this.markRuleNotApplicable(r, 'Type coverage desactivado');
+      }
       return;
+    }
+
+    this.recordExternalScanCount(1);
+    for (const r of TYPE_COVERAGE_RULES) {
+      this.markRuleEvaluated(r);
     }
 
     const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');

@@ -261,17 +261,28 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
                 'fallow-duplicate-entry': 'Entrada o export duplicado',
                 'fallow-workspace-diagnostic': 'Diagnóstico de workspace'
             },
+            coverage: {
+                include: ['.fallowrc.json']
+            },
             projectRoot
         });
         this.configPath = isJsonFile ? targetPath : path.resolve(projectRoot, '.fallowrc.json');
     }
     async runAudit() {
+        this.markRuleEvaluated('fallow-config-missing');
         const config = loadFallowConfig(this.configPath, this);
         if (!config)
             return;
+        this.recordScanned('.fallowrc.json');
+        this.markRuleEvaluated('fallow-config-syntax');
+        this.markRuleEvaluated('fallow-banned-entry-glob');
+        this.markRuleEvaluated('fallow-stale-file');
+        this.markRuleEvaluated('fallow-stale-export');
+        this.markRuleEvaluated('fallow-empty-export-list');
+        this.markRuleEvaluated('fallow-duplicate-entry');
+        this.markRuleEvaluated('fallow-workspace-diagnostic');
         const bannedGlobs = getBannedEntryGlobs(this.projectRoot);
         validateFallowEntries(config.entry, bannedGlobs, this);
-        this.filesScannedCount = Array.isArray(config.ignoreExports) ? config.ignoreExports.length : 0;
         const { fileCount, exportCount } = validateFallowIgnoreExports(config.ignoreExports, this.projectRoot, this);
         this.context.setMetric('Archivos en ignoreExports', fileCount);
         this.context.setMetric('Exports Validados', exportCount);

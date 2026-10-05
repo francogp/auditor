@@ -48,4 +48,15 @@ describe('report_complexity CLI Tool', () => {
     expect(() => runComplexityReport()).not.toThrow();
     expect(consoleLogSpy).toHaveBeenCalled();
   });
+
+  it('runs report with layer=core filter in json mode', () => {
+    process.argv = ['node', 'report_complexity.ts', 'layer=core', '--json'];
+
+    expect(() => runComplexityReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+    const parsed = JSON.parse(output);
+    expect(parsed).toHaveProperty('findings');
+    expect(Array.isArray(parsed.findings)).toBe(true);
+  });
 });

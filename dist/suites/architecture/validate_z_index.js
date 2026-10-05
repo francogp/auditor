@@ -11,6 +11,7 @@
  *   npm run validate:z-index
  */
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers } from "../../core/auditConfig.js";
@@ -91,6 +92,9 @@ export class ZIndexAuditor extends BaseAuditor {
                 'z-index-missing-var': 'Falta variable en _base.scss',
                 'z-index-mismatch': 'Desincronización TS vs SCSS',
                 'z-index-read-error': 'Error al leer estilos base'
+            },
+            coverage: {
+                include: ['src/styles/**/_base.scss', 'src/styles/**/base.scss', 'src/**/visuals.ts']
             }
         });
         const config = getAuditConfig();
@@ -106,9 +110,15 @@ export class ZIndexAuditor extends BaseAuditor {
     async runAudit() {
         const config = getAuditConfig();
         if (!this.isExplicit && config.styles?.zLayersEnabled === false) {
+            for (const r of Z_INDEX_RULES) {
+                this.markRuleNotApplicable(r, 'Z-Layers desactivado en config');
+            }
             return;
         }
         if (!this.scssPath) {
+            this.markRuleEvaluated('z-index-read-error');
+            this.markRuleNotApplicable('z-index-missing-var', 'No se encontró archivo SCSS de capas Z');
+            this.markRuleNotApplicable('z-index-mismatch', 'No se encontró archivo SCSS de capas Z');
             this.addViolation({
                 ruleId: 'z-index-read-error',
                 severity: 'error',
@@ -119,11 +129,16 @@ export class ZIndexAuditor extends BaseAuditor {
             });
             return;
         }
+        const relTarget = path.relative(this.projectRoot, this.scssPath).split(path.sep).join(path.posix.sep);
+        this.redeclareCoverage({ include: [relTarget], source: 'runtime' });
         const isFixMode = this.isFixModeRequested();
         let scssContent;
         try {
             scssContent = await fs.readFile(this.scssPath, 'utf-8');
-            this.filesScannedCount++;
+            this.recordScanned(this.scssPath);
+            this.markRuleEvaluated('z-index-missing-var');
+            this.markRuleEvaluated('z-index-mismatch');
+            this.markRuleEvaluated('z-index-read-error');
         }
         catch (err) {
             this.addViolation({

@@ -14,6 +14,7 @@ import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import "./permissionGuard.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
+import { CoverageRecorder, deriveCoverageFromRoots, deriveCoverageFromRequiredFiles, isDeclaredByCoverage, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfig.js";
@@ -68,7 +69,26 @@ export function getEffectiveScannableRoots(config = getAuditConfig()) {
     const testRoots = config.paths?.testRoots ?? ['tests'];
     const integrationRoots = config.paths?.integrationRoots ?? [];
     const e2eRoots = config.paths?.e2eRoots ?? [];
-    return Array.from(new Set([...codeRoots, ...testRoots, ...integrationRoots, ...e2eRoots]));
+    const demoRoots = config.paths?.demoRoots ?? [];
+    const dataRoots = config.paths?.dataRoots ?? [];
+    const cliRoots = config.paths?.cliRoots ?? [];
+    const extraRoots = [];
+    if (config.persistence?.engine !== 'none') {
+        if (config.persistence?.supabaseDir)
+            extraRoots.push(config.persistence.supabaseDir);
+        if (config.paths?.migrationsDir)
+            extraRoots.push(config.paths.migrationsDir);
+    }
+    return Array.from(new Set([
+        ...codeRoots,
+        ...testRoots,
+        ...integrationRoots,
+        ...e2eRoots,
+        ...demoRoots,
+        ...dataRoots,
+        ...cliRoots,
+        ...extraRoots
+    ]));
 }
 /**
  * Validates that a path component is safe against path traversal.
@@ -130,14 +150,10 @@ export function matchesSinglePattern(normalized, pattern) {
         return (normalized === cleanPattern ||
             normalized.startsWith(cleanPattern + '/') ||
             normalized.endsWith('/' + cleanPattern) ||
-            normalized.includes('/' + cleanPattern + '/') ||
-            cleanPattern.endsWith('/' + normalized));
+            normalized.includes('/' + cleanPattern + '/'));
     }
     return (normalized === cleanPattern ||
-        normalized.startsWith(cleanPattern + '/') ||
-        normalized.endsWith('/' + cleanPattern) ||
-        normalized.includes('/' + cleanPattern) ||
-        cleanPattern.endsWith('/' + normalized));
+        normalized.startsWith(cleanPattern + '/'));
 }
 /**
  * Determines whether a relative POSIX path belongs to an ignored directory or matches directory ignore patterns.
@@ -262,7 +278,11 @@ export function setupAuditor(config) {
         strict: false
     });
     const projectRoot = config.projectRoot || process.cwd();
-    const fallowIgnores = loadFallowIgnorePatterns(projectRoot);
+    const scannableRoots = getEffectiveScannableRoots(getAuditConfig(projectRoot));
+    const fallowIgnores = loadFallowIgnorePatterns(projectRoot).filter(pat => {
+        const norm = pat.replace(/\/\*\*?$/, '').replace(/^\/+/, '');
+        return !scannableRoots.some(r => r === norm || norm.startsWith(`${r}/`));
+    });
     const combinedIgnores = [...fallowIgnores, ...(config.extraIgnorePatterns || [])];
     const unignoreDirs = config.unignoreDirs ?? [];
     const isSubprocess = process.env.AUDIT_SUBPROCESS === 'true';
@@ -281,6 +301,7 @@ export function setupAuditor(config) {
                 const fullRoot = path.resolve(projectRoot, root);
                 all.push(...collectRepositoryFiles(fullRoot, projectRoot, combinedIgnores, allowedExtensions, unignoreDirs));
             }
+            config.onFilesCollected?.(all);
             return all;
         },
         logProgress: (msg) => {
@@ -395,7 +416,8 @@ export const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
     ast: false,
     changedSince: false,
     heavy: false,
-    requiresBuild: false
+    requiresBuild: false,
+    postRun: false
 });
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
@@ -426,7 +448,7 @@ function validateAuditorOptions(options) {
         if (typeof options.capabilities !== 'object' || options.capabilities === null) {
             throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
         }
-        const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild'];
+        const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'];
         for (const [key, val] of Object.entries(options.capabilities)) {
             if (!KNOWN_CAPABILITIES.includes(key)) {
                 throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
@@ -444,6 +466,7 @@ function validateAuditorOptions(options) {
             throw new Error(`Auditor [${options.id}] must define 'ruleDescriptions' for its declared rules.`);
         }
     }
+    validateCoverageDeclaration(options.id, options.coverage);
 }
 function validateAuditorRuleDescriptions(options, formatFn) {
     if (!options.ruleDescriptions)
@@ -483,15 +506,36 @@ export class BaseAuditor {
     context;
     countsByRule = new Map();
     subAuditorReports = [];
-    filesScannedCount = 0;
+    coverageRecorder;
     isSkipped = false;
     skipReason;
+    legacyScanCount = 0;
+    /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
+    get filesScannedCount() {
+        return this.coverageRecorder.scannedCount || this.legacyScanCount;
+    }
+    set filesScannedCount(count) {
+        if (this.coverageRecorder.source === 'declared-only') {
+            this.coverageRecorder.recordExternalScanCount(count);
+        }
+        else {
+            this.legacyScanCount = count;
+        }
+    }
     markSkipped(reason) {
         this.isSkipped = true;
         this.skipReason = reason;
     }
     constructor(options) {
-        validateAuditorOptions(options);
+        const effectiveProjectRoot = options.projectRoot || process.cwd();
+        const effectiveCoverage = options.coverage ?? (options.roots !== undefined
+            ? (options.roots.length > 0
+                ? deriveCoverageFromRoots(options.roots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS)
+                : deriveCoverageFromRoots(getEffectiveScannableRoots(), options.allowedExtensions ?? SCANNABLE_EXTENSIONS))
+            : (options.requiredFiles && options.requiredFiles.length > 0
+                ? deriveCoverageFromRequiredFiles(options.requiredFiles, effectiveProjectRoot, options.allowedExtensions)
+                : undefined));
+        validateAuditorOptions({ ...options, coverage: effectiveCoverage });
         const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
         this.capabilities = {
             ...DEFAULT_AUDITOR_CAPABILITIES,
@@ -517,7 +561,8 @@ export class BaseAuditor {
         this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
         this.unignoreDirs = options.unignoreDirs ?? [];
         this.requiredFiles = options.requiredFiles ?? [];
-        this.projectRoot = options.projectRoot || process.cwd();
+        this.projectRoot = effectiveProjectRoot;
+        this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage);
         validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
         for (const ruleId of this.ruleIds) {
             this.countsByRule.set(ruleId, 0);
@@ -530,8 +575,99 @@ export class BaseAuditor {
             requiredFiles: [...this.requiredFiles],
             extraIgnorePatterns: [...this.extraIgnorePatterns],
             unignoreDirs: [...this.unignoreDirs],
-            projectRoot: this.projectRoot
+            projectRoot: this.projectRoot,
+            onFilesCollected: (files) => {
+                for (const f of files) {
+                    const rel = toPosixRelative(this.projectRoot, f);
+                    if (isDeclaredByCoverage(rel, this.coverageRecorder.declaration)) {
+                        this.recordScanned(rel);
+                    }
+                }
+            }
         });
+    }
+    /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
+    getRuleCatalog() {
+        if (this.ruleIds.length > 0)
+            return this.ruleIds;
+        return Object.keys(this.ruleDescriptions ?? {});
+    }
+    /** Records a file that this suite actually analyzed (absolute or project-relative path). */
+    recordScanned(filePath) {
+        this.coverageRecorder.recordScanned(filePath);
+    }
+    unrecordScanned(filePath) {
+        this.coverageRecorder.unrecordScanned(filePath);
+    }
+    recordScannedMany(filePaths) {
+        for (const f of filePaths)
+            this.coverageRecorder.recordScanned(f);
+    }
+    /**
+     * Evaluates an assertion or check block for a declared rule.
+     * Automatically marks the rule as evaluated in the coverage ledger.
+     */
+    async evaluateRule(ruleId, evaluateFn) {
+        this.markRuleEvaluated(ruleId);
+        await evaluateFn();
+    }
+    /** Synchronous variant for inline invariant evaluation. */
+    evaluateRuleSync(ruleId, evaluateFn) {
+        this.markRuleEvaluated(ruleId);
+        evaluateFn();
+    }
+    /**
+     * Asserts a condition for a rule. Automatically marks the rule as evaluated.
+     * If condition is false, adds a violation.
+     */
+    assertRule(ruleId, condition, violation) {
+        this.markRuleEvaluated(ruleId);
+        if (!condition) {
+            this.addViolation({ ruleId, ...violation });
+        }
+    }
+    /** Refines the coverage declaration at runtime (e.g. from config-driven roots loaded after construction). */
+    redeclareCoverage(declaration) {
+        this.coverageRecorder.redeclare(this.id, declaration);
+    }
+    /** For `declared-only` suites whose external engine reports a file count but no file list. */
+    recordExternalScanCount(count) {
+        this.coverageRecorder.recordExternalScanCount(count);
+    }
+    /** Adds dynamically discovered rule ids (rule engines without static ruleIds) to the dormancy catalog. */
+    declareRuleCatalog(ruleIds) {
+        this.coverageRecorder.declareRuleCatalog(ruleIds);
+    }
+    /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
+    markRuleEvaluated(ruleId, count = 1) {
+        this.coverageRecorder.markRuleEvaluated(ruleId, count);
+    }
+    /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
+    markRuleNotApplicable(ruleId, reason) {
+        this.coverageRecorder.markRuleNotApplicable(ruleId, reason);
+    }
+    /** Gets evaluation count recorded so far for a given rule. */
+    getEvaluations(ruleId) {
+        return this.coverageRecorder.getEvaluations(ruleId);
+    }
+    getCoverageRecorder() {
+        return this.coverageRecorder;
+    }
+    async persistCoverageLedger() {
+        const runId = resolveActiveCoverageRunId();
+        if (!runId)
+            return;
+        for (const [ruleId, count] of this.countsByRule) {
+            if (count > 0 && this.coverageRecorder.getEvaluations(ruleId) === 0) {
+                this.coverageRecorder.markRuleEvaluated(ruleId);
+            }
+        }
+        await writeCoverageLedger(this.projectRoot, this.coverageRecorder.toLedger({
+            runId,
+            suiteId: this.id,
+            skipped: this.isSkipped,
+            ruleIds: this.getRuleCatalog()
+        }));
     }
     getSubAuditors() {
         if (this.explicitSubAuditors && this.explicitSubAuditors.length > 0) {
@@ -645,6 +781,7 @@ export class BaseAuditor {
     scanRegexMatches(content, regex, relPath, ruleId, escapeHatches, message, filter, sourceForLines = content, charOffset = 0) {
         let match;
         const re = new RegExp(regex.source, regex.flags);
+        this.markRuleEvaluated(ruleId);
         while ((match = re.exec(content)) !== null) {
             const line = this.getLineNumber(sourceForLines, charOffset + match.index);
             const lineContent = this.getLineAt(sourceForLines, line);
@@ -665,6 +802,17 @@ export class BaseAuditor {
     async execute(astContext) {
         await loadAuditConfig(this.projectRoot);
         await this.context.checkFiles();
+        for (const rf of this.requiredFiles) {
+            const abs = path.isAbsolute(rf) ? rf : path.resolve(this.projectRoot, rf);
+            try {
+                if (nodeFs.existsSync(abs) && !nodeFs.statSync(abs).isDirectory()) {
+                    this.recordScanned(toPosixRelative(this.projectRoot, rf));
+                }
+            }
+            catch {
+                // catch-ok: ignore missing files
+            }
+        }
         let effectiveAst = astContext;
         if (!effectiveAst && this.requiresAst) {
             const { SharedAstContext } = await import("./astContext.js");
@@ -678,6 +826,7 @@ export class BaseAuditor {
         return this.finishAudit();
     }
     async finishAudit() {
+        await this.persistCoverageLedger();
         if (this.isSkipped) {
             const skipMessage = this.skipReason || 'Omitido';
             this.context.logProgress(`⏭️  ${skipMessage}`);
@@ -762,6 +911,11 @@ export class BaseAuditor {
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export class FileScanAuditor extends BaseAuditor {
+    constructor(options) {
+        super(options.coverage || options.roots !== undefined
+            ? options
+            : { ...options, roots: getEffectiveScannableRoots() });
+    }
     async runAudit(astContext) {
         const files = this.context.collectFiles(this.roots, this.allowedExtensions);
         let effectiveAst = astContext;
@@ -769,16 +923,34 @@ export class FileScanAuditor extends BaseAuditor {
             const { SharedAstContext } = await import("./astContext.js");
             effectiveAst = new SharedAstContext();
         }
+        const catalog = this.getRuleCatalog();
+        if (files.length === 0) {
+            for (const ruleId of catalog) {
+                this.markRuleNotApplicable(ruleId, 'No matching files found in scanned roots');
+            }
+            this.ensureSubAuditorsLogged();
+            return;
+        }
         for (const file of files) {
             const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
+            let content;
             try {
-                const content = nodeFs.readFileSync(file, 'utf-8');
-                this.filesScannedCount++;
-                const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
-                await this.scanFile(relPath, content, sourceFile);
+                content = nodeFs.readFileSync(file, 'utf-8');
             }
             catch {
-                // catch-ok: Ignore read errors on inaccessible files
+                // catch-ok: unreadable files are not recorded as scanned, so coverage reports them as uncovered
+                this.unrecordScanned(relPath);
+                continue;
+            }
+            const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
+            const prevTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
+            await this.scanFile(relPath, content, sourceFile);
+            this.recordScanned(relPath);
+            const newTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
+            if (newTotalEvals === prevTotalEvals) {
+                for (const ruleId of catalog) {
+                    this.markRuleEvaluated(ruleId);
+                }
             }
         }
         this.ensureSubAuditorsLogged();

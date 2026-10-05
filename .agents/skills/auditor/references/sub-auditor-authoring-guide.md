@@ -129,6 +129,10 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
         'my-data-key-missing': 'Clave faltante en registro de datos',
         'my-data-value-invalid': 'Valor no válido en propiedad requerida'
       },
+      coverage: {
+        include: ['src/data/myData.ts'],
+        source: 'runtime'
+      },
       requiredFiles: [
         path.resolve(process.cwd(), 'src/data/myData.ts')
       ]
@@ -136,9 +140,13 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
+    const dataFilePath = path.resolve(this.projectRoot, 'src/data/myData.ts');
+    this.recordScanned(dataFilePath);
+    this.markRuleEvaluated('my-data-key-missing');
+    this.markRuleEvaluated('my-data-value-invalid');
+
     this.context.logStep(1, 2, 'Validating my data keys...');
     for (const [key, value] of Object.entries(MY_DATA)) {
-      this.filesScannedCount++;
       if (!value.requiredField) {
         this.addViolation({
           ruleId: 'my-data-key-missing',
@@ -156,9 +164,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyDataAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MyDataAuditor());
 ```
 
 ---

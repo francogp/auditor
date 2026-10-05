@@ -180,6 +180,9 @@ export class DeadCssAuditor extends BaseAuditor {
             ruleDescriptions: {
                 'dead-scoped-css': 'Clase scoped huérfana sin uso'
             },
+            coverage: {
+                include: ['src/components/**/*.vue', 'src/views/**/*.vue']
+            },
             projectRoot
         });
     }
@@ -194,13 +197,17 @@ export class DeadCssAuditor extends BaseAuditor {
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
         const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
+        if (componentFiles.length === 0) {
+            this.markRuleNotApplicable('dead-scoped-css', 'No se encontraron componentes .vue en el proyecto');
+        }
         let scopedClassesChecked = 0;
         for (const relPath of componentFiles) {
             if (relPath.includes('.spec.') || relPath.includes('.test.'))
                 continue;
-            this.filesScannedCount++;
             const fullPath = path.resolve(this.projectRoot, relPath);
             const relFile = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+            this.recordScanned(relFile);
+            this.markRuleEvaluated('dead-scoped-css');
             const rawContent = fs.readFileSync(fullPath, 'utf-8');
             const scopedRules = extractScopedRulesFromVueContent(rawContent);
             scopedClassesChecked += auditComponentScopedCss({

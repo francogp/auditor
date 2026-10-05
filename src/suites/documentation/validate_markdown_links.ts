@@ -452,6 +452,9 @@ private readonly scanRoots: readonly string[];
         'markdown-gitignored-target': 'Enlace a ruta ignorada en git',
         'markdown-broken-workspace-package': 'Workspace package inexistente',
       },
+      coverage: {
+        include: ['**/*.md']
+      },
       roots: effectiveScanRoots,
       allowedExtensions: new Set(['.md']),
       extraIgnorePatterns: [
@@ -466,12 +469,26 @@ private readonly scanRoots: readonly string[];
   }
 
   public override async runAudit(): Promise<void> {
+    const mdFiles = this.context.collectFiles(this.scanRoots, new Set(['.md']));
+    if (mdFiles.length === 0) {
+      for (const r of MARKDOWN_LINK_RULES) {
+        this.markRuleNotApplicable(r, 'No se encontraron archivos markdown');
+      }
+      return;
+    }
+
+    for (const f of mdFiles) {
+      this.recordScanned(f);
+      for (const r of MARKDOWN_LINK_RULES) {
+        this.markRuleEvaluated(r);
+      }
+    }
+
     const result = auditMarkdownLinks({
       scanPaths: this.scanRoots,
       rootDir: this.projectRoot,
       extraIgnorePatterns: this.extraIgnorePatterns
     });
-    this.filesScannedCount = result.filesScanned;
 
     for (const v of result.violations) {
       this.addViolation({

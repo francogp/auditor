@@ -143,7 +143,7 @@ async function discoverAuditorTasks(projectRoot: string): Promise<AuditTaskDefin
   const suitesDir = fs.existsSync(path.join(projectRoot, 'src/suites'))
     ? path.join(projectRoot, 'src/suites')
     : path.join(projectRoot, 'packages/auditor/src/suites');
-  const allTasks = await discoverAuditors({ baseDir: suitesDir });
+  const allTasks = await discoverAuditors({ baseDir: suitesDir, withBuild: true });
   const tasks = allTasks.filter(t => t.isBuiltin !== false);
 
   scanExtensionAuditors(projectRoot, tasks);
@@ -249,6 +249,8 @@ function auditAuditorTask(params: {
 
   const suiteSource = fs.readFileSync(suiteAbs, 'utf-8');
   const testSource = fs.readFileSync(testFileAbs, 'utf-8');
+  params.auditor.recordScannedFile(suiteAbs);
+  params.auditor.recordScannedFile(testFileAbs);
 
   const { rulesChecked, rulesTested } = auditTaskRuleCoverage({
     suiteSource,
@@ -283,11 +285,40 @@ id: 'validate_auditor_tests',
       packageName: 'Auditor',
       icon: '🧪',
       ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
+      coverage: {
+        include: ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts'],
+        exclude: ['src/suites/architecture/audit_rules.ts', 'src/suites/architecture/stylelintSassTrapsPlugin.ts']
+      },
       projectRoot
     });
   }
 
+  public recordScannedFile(filePath: string): void {
+    this.recordScanned(filePath);
+  }
+
   public override async runAudit(): Promise<void> {
+    for (const r of AUDITOR_TEST_RULES) {
+      this.markRuleEvaluated(r);
+    }
+    const hasCoreSuites = fs.existsSync(path.join(this.projectRoot, 'src/suites'));
+    const isSelfRepo = this.projectRoot.toLowerCase().replace(/\\/g, '/').endsWith('/auditor');
+    const include = isSelfRepo && hasCoreSuites
+      ? ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts']
+      : ['scripts/auditors/**/*.ts', 'tests/**/validate_*.test.ts', 'tests/**/audit_*.test.ts'];
+    const exclude = isSelfRepo && hasCoreSuites
+      ? ['src/suites/architecture/audit_rules.ts', 'src/suites/architecture/stylelintSassTrapsPlugin.ts']
+      : [
+          'scripts/auditors/**/_*',
+          'scripts/auditors/**/report_*',
+          'scripts/auditors/**/*Plugin.ts',
+          'scripts/auditors/**/audit_rules.ts'
+        ];
+    this.redeclareCoverage({
+      include,
+      exclude,
+      source: 'runtime'
+    });
     const tasks = await discoverAuditorTasks(this.projectRoot);
 
     const config = getAuditConfig(this.projectRoot);

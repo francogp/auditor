@@ -39,6 +39,8 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
       ruleDescriptions: {
         'overscroll-behavior-lock': 'Falta overscroll-behavior en hoja base'
       },
+      roots: ['src/styles'],
+      allowedExtensions: new Set(['.scss', '.css']),
       projectRoot
     });
   }
@@ -48,12 +50,14 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
     const targetRelFile = config.styles?.baseScssFile ?? config.styles?.zLayersScssFile;
 
     if (!targetRelFile) {
+      this.markRuleNotApplicable('overscroll-behavior-lock', 'No baseScssFile or zLayersScssFile configured in audit.config.ts');
       this.context.logStep(1, 1, 'Omitiendo auditoría de overscroll: no se configuró styles.baseScssFile ni styles.zLayersScssFile.');
       return;
     }
 
     const absPath = path.resolve(this.projectRoot, targetRelFile);
     if (!fs.existsSync(absPath)) {
+      this.recordScanned(targetRelFile);
       this.addViolation({
         ruleId: 'overscroll-behavior-lock',
         severity: 'error',
@@ -65,23 +69,24 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
       return;
     }
 
+    this.recordScanned(targetRelFile);
     const content = fs.readFileSync(absPath, 'utf-8');
-    if (!content.includes('overscroll-behavior: none !important;')) {
+    const hasLock = content.includes('overscroll-behavior: none !important;');
+    let line = 1;
+    if (!hasLock) {
       const match = content.match(/html\s*,\s*body\s*\{/);
-      let line = 1;
       if (match && match.index !== undefined) {
         line = content.slice(0, match.index).split('\n').length;
       }
-
-      this.addViolation({
-        ruleId: 'overscroll-behavior-lock',
-        severity: 'error',
-        file: targetRelFile,
-        line,
-        message: `Mandato de bloqueo de sobre-desplazamiento móvil violado: '${targetRelFile}' debe declarar 'overscroll-behavior: none !important;' para prevenir pull-to-refresh y navegación gestual accidental en navegadores móviles.`,
-        context: 'html, body { overscroll-behavior: none !important; }'
-      });
     }
+
+    this.assertRule('overscroll-behavior-lock', hasLock, {
+      severity: 'error',
+      file: targetRelFile,
+      line,
+      message: `Mandato de bloqueo de sobre-desplazamiento móvil violado: '${targetRelFile}' debe declarar 'overscroll-behavior: none !important;' para prevenir pull-to-refresh y navegación gestual accidental en navegadores móviles.`,
+      context: 'html, body { overscroll-behavior: none !important; }'
+    });
   }
 }
 

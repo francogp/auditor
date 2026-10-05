@@ -13,9 +13,12 @@
  *   npm run lint:md
  */
 
+import nodeFs from 'node:fs';
+import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseJsonArrayOutput, normalizePosixPath } from '../../core/reportUtils.ts';
@@ -123,11 +126,44 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       ruleDescriptions: {
         'markdownlint-issue': 'Formato o estilo inválido'
       },
+      coverage: {
+        include: ['**/*.md', '.markdownlint.json'],
+        exclude: getMarkdownIgnoreGlobs(projectRoot),
+        source: 'runtime'
+      },
       projectRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
+    const ignoreGlobs = getMarkdownIgnoreGlobs(this.projectRoot);
+    const configPath = path.resolve(this.projectRoot, '.markdownlint.json');
+    const hasConfigFile = nodeFs.existsSync(configPath);
+    const coverageInclude = ['**/*.md'];
+    if (hasConfigFile) {
+      coverageInclude.push('.markdownlint.json');
+    }
+    this.redeclareCoverage({
+      include: coverageInclude,
+      exclude: ignoreGlobs,
+      source: 'runtime'
+    });
+
+    if (hasConfigFile) {
+      this.recordScanned(configPath);
+    }
+
+    const allMdFiles = this.context.collectFiles(['.'], new Set(['.md']));
+    const mdFiles = allMdFiles.filter(f => isDeclaredByCoverage(toPosixRelative(this.projectRoot, f), this.coverageRecorder.declaration));
+    if (mdFiles.length === 0) {
+      this.markRuleNotApplicable('markdownlint-issue', 'No se encontraron archivos markdown');
+      return;
+    }
+    for (const f of mdFiles) {
+      this.recordScanned(f);
+      this.markRuleEvaluated('markdownlint-issue');
+    }
+
     const isFixMode = this.isFixModeRequested();
 
     const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
@@ -150,7 +186,6 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
 
     this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
 
-    this.filesScannedCount = 1;
     this.context.setMetric('markdown_violations', findings.length);
     this.context.setMetric('mode', isFixMode ? 'fix' : 'check');
   }

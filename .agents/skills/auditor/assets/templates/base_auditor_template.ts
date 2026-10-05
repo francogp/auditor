@@ -44,6 +44,10 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
         'composite-missing-entry': 'Entrada faltante en registro canónico',
         'composite-parity-mismatch': 'Desincronización entre datasets'
       },
+      coverage: {
+        include: ['src/data/**/*.{ts,json}'],
+        source: 'runtime'
+      },
       requiredFiles: [
         path.resolve(process.cwd(), 'src/data/canonicalData.ts')
       ]
@@ -53,13 +57,19 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   public override async runAudit(): Promise<void> {
     this.context.logStep(1, 2, 'Loading and indexing canonical datasets...');
 
-    // Option A: Inspect centralized files
-    const files = await this.context.collectFiles(['src/data'], new Set(['.ts']));
-    this.filesScannedCount += files.length;
+    // Option A: Inspect centralized files and record scanned telemetry
+    const files = await this.context.collectFiles(['src/data'], new Set(['.ts', '.json']));
+    for (const file of files) {
+      this.recordScanned(file);
+    }
 
     // Option B: Validate data structures or relationships
     this.context.logStep(2, 2, 'Verifying cross-entity parity...');
     const simulatedMismatch = false;
+
+    // Mark rules evaluated so telemetry verifies active evaluation (prevents coverage-dormant-rule)
+    this.markRuleEvaluated('composite-missing-entry');
+    this.markRuleEvaluated('composite-parity-mismatch');
 
     if (simulatedMismatch) {
       this.addViolation({
@@ -77,20 +87,9 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
     // Note: ensureSubAuditorsLogged() will automatically report each rule in MY_COMPOSITE_RULES
     // in the main console and attach them to StandardAuditResult.subAuditors.
-    // If you need custom multi-phase sub-auditor steps instead, override getSubAuditors()
-    // and invoke this.logSubAudit(step, total, name, count, detail) as each phase completes.
-  }
-
-  // Optional: Custom sub-auditor declaration for multi-phase suites
-  public override getSubAuditors() {
-    return [
-      { id: 'composite-missing-entry', name: 'Entradas de datos', description: 'Comprueba presencia de entradas' },
-      { id: 'composite-parity-mismatch', name: 'Paridad cruzada', description: 'Comprueba sincronización de entidades' }
-    ];
   }
 }
 
 // Canonical CLI Entrypoint for standalone and dynamic execution
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyCompositeAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MyCompositeAuditor());
+

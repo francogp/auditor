@@ -1,0 +1,2 @@
+// @canary rule=missing-audit-header
+export const activeModule = true;

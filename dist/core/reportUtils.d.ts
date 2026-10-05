@@ -55,4 +55,11 @@ export interface ParseLintFindingsOptions {
  * into canonical AuditFindings, elevating both warnings and errors to severity: 'error' (Zero-Warning Policy).
  */
 export declare function parseLintResultsToFindings(input: string | object[], options: ParseLintFindingsOptions): AuditFinding[];
+/**
+ * Extracts scanned file paths from a JSON report containing an array of objects with `filePath`,
+ * falling back to finding file paths if JSON parsing fails or output is not an array.
+ */
+export declare function extractJsonReportFilePaths(rawJson: string, fallbackFindings?: readonly {
+    file?: string;
+}[]): string[];
 //# sourceMappingURL=reportUtils.d.ts.map

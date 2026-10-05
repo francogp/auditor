@@ -14,6 +14,7 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/documentation/validate_dox_integrity.ts
  *   npm run validate:dox-integrity
  */
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, getEffectiveIgnoreDirs } from "../../core/auditorBase.js";
 import { loadAuditConfig } from "../../core/auditConfig.js";
@@ -46,14 +47,28 @@ export class DoxIntegrityAuditor extends BaseAuditor {
                 'dox-broken-link': 'Enlace roto a archivo inexistente',
                 'dox-gitignore-target': 'Enlace a ruta ignorada en git'
             },
+            coverage: {
+                include: ['**/AGENTS.md']
+            },
             projectRoot
         });
         this.rootDir = projectRoot;
     }
     async runAudit() {
         await loadAuditConfig(this.rootDir);
+        for (const r of DOX_RULES) {
+            this.markRuleEvaluated(r);
+        }
+        const agentsFiles = await this.context.collectFiles(['.'], new Set(['.md']));
+        for (const f of agentsFiles) {
+            if (path.basename(f) === 'AGENTS.md') {
+                this.recordScanned(f);
+            }
+        }
+        if (this.filesScannedCount === 0) {
+            this.recordScanned('AGENTS.md');
+        }
         const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
-        this.filesScannedCount = rawViolations.length > 0 ? rawViolations.length : 1;
         for (const v of rawViolations) {
             const ruleId = v.ruleId || 'dox-missing-agents-md';
             this.addViolation({

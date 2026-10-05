@@ -268,6 +268,10 @@ export const legacyDates = {
     regex: /new Date\(|Date\.now\(\)/g,
     message: "Uso de 'Date' detectado. Usa 'Temporal'.",
     severity: 'error', // string-ok: Internal string formatting or DOM token identifier
+    appliesTo: (filePath) => {
+        const lowerPath = normalizeFilePath(filePath);
+        return !lowerPath.endsWith('eslint.config.js') && !isExemptFile(filePath) && isInCodeRoots(filePath);
+    },
     check: (_content, _match, filePath) => {
         if (!filePath)
             return false;
@@ -288,9 +292,7 @@ export const hardcodedTimezone = {
         return `Timezone hardcodeado detectado: '${match}'. Usa la variable global '${tzVar}'${modMsg} para respetar la configuración del servidor.`;
     },
     severity: 'error',
-    check: (_content, _match, filePath) => {
-        if (!filePath)
-            return false;
+    appliesTo: (filePath) => {
         const config = getAuditConfig();
         if (config?.domain?.enabled === false)
             return false;
@@ -301,6 +303,7 @@ export const hardcodedTimezone = {
             return false;
         return isInCodeRoots(filePath);
     },
+    check: () => true,
     fixable: false
 };
 export function getDomainIdFallbackRegex() {
@@ -1022,6 +1025,7 @@ export const magicNumbers = {
     regex: /([^A-Z0-9_\w#$])(\d{2,})(\b)/g,
     message: (match) => `Número mágico inline detectado: '${match.trim()}'. Viola el Absolute Prohibition on Magic Numbers (Named Constants Mandate). Declara la constante nominada descriptiva (readonly / as const) o impórtala desde un módulo de constantes.`,
     severity: 'error',
+    appliesTo: (filePath) => !isMagicNumberExemptFile(filePath),
     check: (content, match, filePath) => {
         if (isMagicNumberExemptFile(filePath))
             return false;

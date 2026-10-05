@@ -165,6 +165,10 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
                 'fallow-similar-code': 'Duplicado semántico',
                 'fallow-similar-code-failed': 'Fallo de ejecución similar-code'
             },
+            coverage: {
+                include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
+                source: 'declared-only'
+            },
             projectRoot
         });
     }
@@ -253,6 +257,9 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
         }
     }
     async runAudit() {
+        this.markRuleEvaluated('fallow-similar-code');
+        this.markRuleEvaluated('fallow-similar-code-failed');
+        this.recordExternalScanCount(1);
         const config = getAuditConfig(this.projectRoot);
         const similarCfg = config.fallow?.similarCode;
         if (!similarCfg?.enabled) {

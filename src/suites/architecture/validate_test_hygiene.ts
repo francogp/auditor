@@ -26,12 +26,15 @@
  *   npm run validate:test-hygiene
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
   BaseAuditor
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { SharedAstContext } from '../../core/astContext.ts';
 
 enableCompileCache();
 
@@ -98,16 +101,36 @@ id: 'validate_test_hygiene',
 
     // 1. Tautological mocks (integration only)
     if (isIntegration) {
+      this.markRuleEvaluated('no-tautological-integration-mocks');
       this.scanIntegrationMocks(relPath, content);
     }
 
     // 2. Playwright E2E simulation rules
     if (isE2e) {
+      this.markRuleEvaluated('playwright-id-locators-only');
+      this.markRuleEvaluated('no-playwright-force-click');
+      this.markRuleEvaluated('no-playwright-polling-waits');
       this.scanE2eSimulations(relPath, content);
     }
 
     // 3. Timeout inflation (all test suites)
+    this.markRuleEvaluated('no-test-timeout-inflation');
     this.scanTimeoutInflation(relPath, content);
+  }
+
+  public override async runAudit(astContext?: SharedAstContext): Promise<void> {
+    await super.runAudit(astContext);
+    const config = getAuditConfig(this.projectRoot);
+    const hasIntegration = (config.paths?.integrationRoots ?? []).some(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+    if (!hasIntegration) {
+      this.markRuleNotApplicable('no-tautological-integration-mocks', 'No existing integrationRoots found on disk');
+    }
+    const hasE2e = (config.paths?.e2eRoots ?? []).some(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+    if (!hasE2e) {
+      this.markRuleNotApplicable('playwright-id-locators-only', 'No existing e2eRoots found on disk');
+      this.markRuleNotApplicable('no-playwright-force-click', 'No existing e2eRoots found on disk');
+      this.markRuleNotApplicable('no-playwright-polling-waits', 'No existing e2eRoots found on disk');
+    }
   }
 
   private scanIntegrationMocks(relPath: string, content: string): void {

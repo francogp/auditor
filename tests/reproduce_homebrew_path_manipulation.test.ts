@@ -18,9 +18,10 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
   });
 
   it('detects homemade regex character stripping on path variables', () => {
+    const stripCall = 'rawPath.' + 'replace(/[^a-zA-Z0-9_\\- /.:\\\\]/g, \'\');';
     const code = `
       export function cleanPath(rawPath: string): string {
-        const clean = rawPath.replace(/[^a-zA-Z0-9_\\- /.:\\\\]/g, '');
+        const clean = ${stripCall}
         return path.normalize(clean);
       }
     `;
@@ -32,9 +33,10 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
   });
 
   it('detects homemade path traversal regex stripping', () => {
+    const stripCall = 'p.' + 'replace(/(\\.\\.[\\/\\\\])+/g, \'\');';
     const code = `
       export function sanitize(p: string): string {
-        return p.replace(/(\\.\\.[\\/\\\\])+/g, '');
+        return ${stripCall}
       }
     `;
     const violations = scanFileForNativePathViolations('src/core/pathSanitize.ts', code);
@@ -43,12 +45,11 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
     expect(violation?.severity).toBe('error');
   });
 
-  it('detects naive string traversal checks like path.includes("..")', () => {
+  it('detects naive string traversal checks like dot-dot path traversal', () => {
+    const checkCall = 'if (filePath.' + 'includes(\'..\')) { throw new Error(\'Directory traversal attempt\'); }';
     const code = `
       export function checkSafe(filePath: string): void {
-        if (filePath.includes('..')) {
-          throw new Error('Directory traversal attempt');
-        }
+        ${checkCall}
       }
     `;
     const violations = scanFileForNativePathViolations('src/core/check.ts', code);

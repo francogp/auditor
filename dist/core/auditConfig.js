@@ -24,6 +24,8 @@ export function sanitizePath(inputPath) {
     return path.normalize(inputPath.trim());
 }
 export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
+/** Exemption policies whose silencing can be acknowledged (configured, not structural). */
+export const ACKNOWLEDGEABLE_EXEMPTION_POLICIES = ['cli', 'scripts', 'data', 'demo', 'exemptFiles'];
 export const DEFAULT_AUDIT_CONFIG = {
     name: 'Generic Project',
     paths: {
@@ -175,6 +177,11 @@ export const DEFAULT_AUDIT_CONFIG = {
         enabled: true,
         autoSyncPublicVersionJson: true,
         syncTargets: []
+    },
+    coverage: {
+        enabled: true,
+        exemptGlobs: [],
+        acknowledgedDegradations: []
     },
     customFamilies: [],
     extensions: [],
@@ -507,15 +514,73 @@ function buildVersionConfig(raw) {
         syncTargets: v.syncTargets ? [...v.syncTargets] : (def?.syncTargets ?? [])
     };
 }
+export const MIN_COVERAGE_REASON_LENGTH = 15;
+/**
+ * Rejects globs that would blanket-exempt the repository, a whole extension, or a whole code/test root.
+ */
+function assertNarrowCoverageGlob(field, rawGlob, protectedRoots) {
+    const glob = (rawGlob ?? '').trim();
+    const universal = /^(?:\*\*?\/?)+(?:\*(?:\.\*)?)?$/.test(glob) || /^\*\*\/\*\.[\w]+$/.test(glob) || /^\*\.\*$/.test(glob);
+    if (!glob || glob.includes('\\') || path.posix.isAbsolute(glob) || universal) {
+        throw new Error(`[AuditConfig Anti-Abuse] '${field}' contiene un glob global o inválido: '${rawGlob}'. ` +
+            `Usa globs POSIX relativos y acotados (ej: 'dist/**', 'LICENSE').`);
+    }
+    for (const root of protectedRoots) {
+        const cleanRoot = root.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '');
+        if (!cleanRoot)
+            continue;
+        if (glob === cleanRoot || new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)) {
+            throw new Error(`[AuditConfig Anti-Abuse] '${field}' no puede eximir una raíz de código completa ('${rawGlob}' cubre '${cleanRoot}').`);
+        }
+    }
+}
+function assertCoverageReason(field, glob, reason) {
+    if (typeof reason !== 'string' || reason.trim().length < MIN_COVERAGE_REASON_LENGTH) {
+        throw new Error(`[AuditConfig Anti-Abuse] '${field}' para '${glob}' requiere un 'reason' de al menos ${MIN_COVERAGE_REASON_LENGTH} caracteres.`);
+    }
+}
+function buildCoverageConfig(raw, paths) {
+    const c = raw ?? {};
+    const protectedRoots = Array.from(new Set([
+        ...(paths.srcRoots ?? []),
+        ...(paths.codeRoots ?? []),
+        ...(paths.testRoots ?? [])
+    ]));
+    const exemptGlobs = [];
+    for (const entry of c.exemptGlobs ?? []) {
+        const glob = entry?.glob ?? '';
+        assertNarrowCoverageGlob('coverage.exemptGlobs', glob, protectedRoots);
+        assertCoverageReason('coverage.exemptGlobs', glob, entry?.reason);
+        exemptGlobs.push({ glob, reason: entry.reason });
+    }
+    const acknowledgedDegradations = [];
+    for (const entry of c.acknowledgedDegradations ?? []) {
+        const glob = entry?.glob ?? '';
+        const policy = entry?.policy;
+        if (!policy || !ACKNOWLEDGEABLE_EXEMPTION_POLICIES.includes(policy)) {
+            throw new Error(`[AuditConfig] 'coverage.acknowledgedDegradations' declara una política desconocida '${String(policy)}'. ` +
+                `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`);
+        }
+        assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, protectedRoots);
+        assertCoverageReason('coverage.acknowledgedDegradations', glob, entry?.reason);
+        acknowledgedDegradations.push({ policy, glob, reason: entry.reason });
+    }
+    return {
+        enabled: c.enabled ?? DEFAULT_AUDIT_CONFIG.coverage?.enabled ?? true,
+        exemptGlobs,
+        acknowledgedDegradations
+    };
+}
 export function defineAuditConfig(config) {
     const declared = collectDeclaredSubsystems(config);
     const agentAndSecurity = buildAgentAndSecurityConfig(config);
     const constantsAndDoc = buildConstantsAndDocConfig(config);
     const rawPaths = config._rawPaths ?? config.paths;
     const rawConfig = config._rawConfig ?? config;
+    const paths = buildPathsConfig(config.paths);
     return {
         name: config.name,
-        paths: buildPathsConfig(config.paths),
+        paths,
         persistence: buildPersistenceConfig(config.persistence),
         domain: buildDomainConfig(config.domain),
         gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
@@ -540,6 +605,7 @@ export function defineAuditConfig(config) {
         accessibility: buildAccessibilityConfig(config.accessibility),
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
         version: buildVersionConfig(config.version),
+        coverage: buildCoverageConfig(config.coverage, paths),
         ...agentAndSecurity,
         ...constantsAndDoc,
         customFamilies: config.customFamilies ?? [],

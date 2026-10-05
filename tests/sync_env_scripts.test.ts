@@ -51,4 +51,14 @@ describe('sync_env_scripts CLI Utility', () => {
     expect(fs.existsSync(path.join(tempDir, 'setup-linux.sh'))).toBe(false);
     expect(fs.existsSync(path.join(tempDir, 'scripts/setup/plugins'))).toBe(false);
   });
+
+  it('runs idempotently when setup scripts are already present and up to date', () => {
+    const firstRun = syncEnvScripts({ targetDir: tempDir });
+    expect(firstRun.success).toBe(true);
+
+    const secondRun = syncEnvScripts({ targetDir: tempDir });
+    expect(secondRun.success).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'setup-linux.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'setup-windows.ps1'))).toBe(true);
+  });
 });
