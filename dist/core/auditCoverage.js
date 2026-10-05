@@ -27,7 +27,16 @@ export function toPosixRelative(projectRoot, filePath) {
     return rel.split(path.sep).join(path.posix.sep).replace(/^\.\//, '');
 }
 export function matchesAnyGlob(relPosixPath, globs) {
-    return globs.some(glob => path.posix.matchesGlob(relPosixPath, glob));
+    return globs.some(glob => {
+        if (path.posix.matchesGlob(relPosixPath, glob))
+            return true;
+        if (glob.startsWith('**') && relPosixPath.startsWith('.')) {
+            const withoutLeadingDot = relPosixPath.replace(/^\.+[/\\]?/, '');
+            if (path.posix.matchesGlob(withoutLeadingDot, glob))
+                return true;
+        }
+        return false;
+    });
 }
 export const DEFAULT_NON_AUDITABLE_GLOBS = Object.freeze([
     // Lockfiles & VCS metadata

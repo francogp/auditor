@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "4.0.1-build.20261004-220749",
+  "version": "4.1.0-build.20261004-224456",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -103,9 +103,12 @@
     "version:bump": "node --experimental-strip-types src/cli/bump_version.ts bump",
     "preinstall": "node --experimental-strip-types src/cli/check_environment.ts",
     "postinstall": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
+    "dev": "vitest",
     "test": "vitest run",
+    "test:node": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "env:post-setup": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
     "audit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
     "audit:for-commit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_for_commit.ts",
     "audit:skip-similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts --skip-similar",
@@ -190,7 +193,8 @@
     "validate:bundle-budget": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_bundle_budget.ts",
     "validate:o1": "node --permission --experimental-strip-types --allow-fs-read=. --allow-fs-write=. src/suites/domain_data/validate_o1_data_structures.ts",
     "validate:domain-types": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/domain_data/validate_domain_types.ts",
-    "validate:sql-anti-patterns": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/persistence/validate_sql_anti_patterns.ts"
+    "validate:sql-anti-patterns": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/persistence/validate_sql_anti_patterns.ts",
+    "validate:documented-commands": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/documentation/validate_documented_commands.ts"
   },
   "dependencies": {
     "eslint": "^10.12.0",

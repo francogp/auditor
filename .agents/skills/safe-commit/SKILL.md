@@ -43,7 +43,7 @@ graph TD
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        C0[2.1 DOX Maintenance AGENTS.md\n& npm run audit:md] -->|Errors| REPAIR[🛠️ Repair:\n1. npm run audit:fix\n2. Manual code / DOX editing]
+        C0[2.1 Full Workspace Auditor\n& npm run audit] -->|Errors| REPAIR[🛠️ Repair:\n1. npm run audit:fix\n2. Manual code / DOX editing]
         C0 -->|0 errors| C1[2.2 npm run audit:for-commit]
         C1 -->|Errors / Warnings| REPAIR
         C1 -->|0 errors, 0 warnings| C2[2.3 npm run test]
@@ -133,9 +133,10 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 You must execute the 6 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from 2.1 until all pass consecutively.
 
-### 2.1 DOX Maintenance & Markdown Audit
-- Run `npm run audit:md`.
-- Verifies that all modified directories have up-to-date `AGENTS.md` and zero broken links.
+### 2.1 Full Workspace Auditor & DOX Integrity (`npm run audit`)
+- Run `npm run audit` (or `npx auditor`).
+- Executes the full workspace static analysis, architecture verification, DOX integrity, and coverage ledger inspection.
+- **Strict Zero-Error Barrier**: You MUST NOT proceed to Gate 2.2 until 100% of findings (errors) are completely eradicated by repairing them at their code source. Weakening rules or bypassing errors is strictly prohibited.
 - MUST exit with 0 errors.
 
 ### 2.2 Auditor Differential Gate (`npm run audit:for-commit`)
@@ -226,7 +227,7 @@ Every completed safe-commit run MUST finish with this standardized Markdown temp
 ### Puertas de Calidad Verificadas (6/6)
 | Puerta | Descripción | Estado |
 |:---|:---|:---:|
-| 2.1 | `npm run audit:md` (DOX y Markdown) | ✅ Aprobado (0 err) |
+| 2.1 | `npm run audit` (Auditoría Global Completa y DOX) | ✅ Aprobado (0 err) |
 | 2.2 | `npm run audit:for-commit` (Gatekeeper Diferencial) | ✅ Aprobado (0 err, 0 new warn) |
 | 2.3 | `npm run test` (Tests Automatizados) | ✅ Aprobado (100% pasando) |
 | 2.4 | `npm run build` (Single Build Mandate) | ✅ Aprobado (Exit 0) |

@@ -19,7 +19,7 @@
   - [ ] Pre-draft commit message (The Elegant Protocol synthesis in `task.md`)
 - [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 6 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:
-    - [ ] `npm run audit:md` (Gate 2.1: DOX Maintenance & fast Markdown audit — 0 errors)
+    - [ ] `npm run audit` (Gate 2.1: Full Workspace Auditor & DOX Integrity — 0 errors, unblocked only when all issues are resolved at code source)
     - [ ] `npm run audit:for-commit` (Gate 2.2: 0 errors, 0 new warnings vs origin/main)
     - [ ] `npm run test` (Gate 2.3: 100% test suites passing)
     - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.4: STRICT Exit Code 0 — zero bypasses, single run)
@@ -59,7 +59,7 @@
 
 ### Verification & Repair Loop Status
 - **Loop Iteration Count**: `0`
-- **audit:md**: `PENDING`
+- **audit (Full Auditor & DOX)**: `PENDING (0 ERRORS REQUIRED)`
 - **audit:for-commit**: `PENDING`
 - **test**: `PENDING`
 - **npm run build (THE GATE)**: `PENDING (MUST BE EXIT 0)`

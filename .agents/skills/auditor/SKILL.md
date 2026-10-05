@@ -250,17 +250,25 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
       - Standard CSS property declarations (`declarations`) come next.
       - Mixins containing nested blocks (`hasBlock: true`, e.g. responsive media queries `@include respond-to('desktop') { ... }`, `@include media-breakpoint-up(...) { ... }`) MUST come AFTER declarations so that media queries properly override declarations down the CSS cascade without being superseded in mobile-first layouts.
       - Pseudo-classes and nested rules follow mixins with blocks.
+56. **Documented Commands Governance & Dual Resolution Protocol (`validate_documented_commands`)**:
+    - Every documented command across ALL repository markdown files (including `README.md`, manuals, guides, blueprints, and AI skills under `.agents/skills/**`) MUST be strictly validated against the project's executable truth (`package.json.scripts`, `node_modules/.bin`, package dependencies, and `config.documentation.allowedNpxBinaries`).
+    - **Skills Verification Mandate**: AI skills under `.agents/skills/**` are first-class execution assets and MUST NEVER be skipped or exempted from command validation. Phantom or unexecutable commands in skills mislead both AI agents and human developers.
+    - **Dual Triage Protocol (Declaration vs Documentation)**:
+      When `validate_documented_commands` reports an unregistered npm script (`documented-cmd-unregistered-npm`), invalid syntax (`documented-cmd-invalid-npm-syntax`), or unregistered npx binary (`documented-cmd-unregistered-npx`), developers and AI agents **MUST NOT** blindly assume it is an error in documentation to be stripped, renamed, or suppressed.
+      Instead, rigorously analyze the author's intent following this decision tree:
+      - **Case A: Missing Declaration (Legitimate Tooling Intent)**: If the command represents an intentional project workflow, hook, lifecycle script, test runner, or utility (e.g. `npm run dev`, `npm run test:node`, `npm run env:post-setup`, `npm run validate:documented-commands`), the correct resolution is to **DECLARE IT in `package.json.scripts` or dependencies** where it belongs, ensuring the project provides what is documented.
+      - **Case B: Documentation Defect (Legacy, Typo, or Misformatted)**: If the command is an obsolete legacy leftover, has invalid syntax (such as invoking a custom script directly without `run`), or references an external/project-specific tool without generic placeholder notation (`<script>`), the correct resolution is to **UPDATE the documentation** to reflect canonical, working commands or use generic placeholders.
 
 ---
 
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
 ### 1. Generic Built-In Suites (`src/suites/`)
-42 domain-agnostic suites discovered automatically across 4 canonical families:
+43 domain-agnostic suites discovered automatically across 4 canonical families:
 - `architecture/` (33 suites + `audit_project.ts` and shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
 - `domain_data/` (2 suites): O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `audit.config.ts`)
 - `persistence/` (1 suite): SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
-- `documentation/` (5 suites): Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards, markdown lint, code references
+- `documentation/` (6 suites): Markdown relative links, DOX hierarchy (AGENTS.md), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `audit.config.ts`
 All domain-specific rules unique to host applications (e.g. specialized domain entities, state machines, business workflows, custom SQLite schemas) reside in `scripts/auditors/` (or designated project folders) and extend `BaseAuditor` imported from `@francogp/auditor`.

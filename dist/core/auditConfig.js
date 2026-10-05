@@ -121,6 +121,11 @@ export const DEFAULT_AUDIT_CONFIG = {
     security: {
         enabled: true
     },
+    documentation: {
+        knownValidAbstractPaths: [],
+        skillsRoots: [],
+        allowedNpxBinaries: []
+    },
     fallow: {
         enabled: true,
         security: {
@@ -381,7 +386,8 @@ function buildConstantsAndDocConfig(config) {
         },
         documentation: {
             knownValidAbstractPaths: config.documentation?.knownValidAbstractPaths ?? [],
-            skillsRoots: config.documentation?.skillsRoots ?? []
+            skillsRoots: config.documentation?.skillsRoots ?? [],
+            allowedNpxBinaries: config.documentation?.allowedNpxBinaries ?? []
         },
         pinia: {
             authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
@@ -561,7 +567,14 @@ function buildCoverageConfig(raw, paths) {
             throw new Error(`[AuditConfig] 'coverage.acknowledgedDegradations' declara una política desconocida '${String(policy)}'. ` +
                 `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`);
         }
-        assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, protectedRoots);
+        const effectiveProtectedRoots = policy === 'scripts'
+            ? protectedRoots.filter(r => !(paths.scriptsRoots ?? ['scripts']).some(sr => r.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '') === sr.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '')))
+            : policy === 'demo'
+                ? protectedRoots.filter(r => !(paths.demoRoots ?? []).some(dr => r.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '') === dr.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '')))
+                : policy === 'data'
+                    ? protectedRoots.filter(r => !(paths.dataRoots ?? []).some(d => r.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '') === d.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '')))
+                    : protectedRoots;
+        assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, effectiveProtectedRoots);
         assertCoverageReason('coverage.acknowledgedDegradations', glob, entry?.reason);
         acknowledgedDegradations.push({ policy, glob, reason: entry.reason });
     }

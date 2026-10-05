@@ -39,7 +39,14 @@ export function toPosixRelative(projectRoot: string, filePath: string): string {
 }
 
 export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean {
-  return globs.some(glob => path.posix.matchesGlob(relPosixPath, glob));
+  return globs.some(glob => {
+    if (path.posix.matchesGlob(relPosixPath, glob)) return true;
+    if (glob.startsWith('**') && relPosixPath.startsWith('.')) {
+      const withoutLeadingDot = relPosixPath.replace(/^\.+[/\\]?/, '');
+      if (path.posix.matchesGlob(withoutLeadingDot, glob)) return true;
+    }
+    return false;
+  });
 }
 
 export const DEFAULT_NON_AUDITABLE_GLOBS: readonly string[] = Object.freeze([

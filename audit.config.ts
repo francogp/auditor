@@ -72,6 +72,9 @@ export default defineAuditConfig({
   agentPlugin: {
     enabled: true
   },
+  documentation: {
+    allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright']
+  },
   fallow: {
     enabled: true,
     security: {

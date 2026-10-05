@@ -18,6 +18,7 @@ Architecture & Tooling Engineers.
 
 ## Key Files
 
+- [`validate_documented_commands.ts`](./validate_documented_commands.ts): Validator for npm and npx commands documented across markdown files.
 - [`validate_dox_integrity.ts`](./validate_dox_integrity.ts): DOX hierarchy completeness, child registration, and relative link validator.
 - [`validate_markdown_code_references.ts`](./validate_markdown_code_references.ts): Verifier for referenced source files, npm scripts, and skill paths.
 - [`validate_markdown_links.ts`](./validate_markdown_links.ts): Markdown relative link integrity auditor.

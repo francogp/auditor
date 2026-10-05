@@ -2,7 +2,7 @@
 
 > **Autonomous static analysis, architectural governance, AI agent skills packaging, and zero-tolerance code quality engine for native Node.js 26+ (`--permission`, `--experimental-strip-types`).**
 
-Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, streaming concurrent runner, standardized Box-Drawing terminal reporting (80 fixed columns, visual width emoji alignment, and mandatory `TOTAL CONSOLIDADO` footer row), 42 built-in generic suites, **native distribution of 43 Antigravity AI agent skills**, **centralized single source of truth (SSoT) dependencies**, and a **cross-platform environment governance system (Linux/Windows) with zero hardcoded paths**.
+Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, streaming concurrent runner, standardized Box-Drawing terminal reporting (80 fixed columns, visual width emoji alignment, and mandatory `TOTAL CONSOLIDADO` footer row), 43 built-in generic suites, **native distribution of 43 Antigravity AI agent skills**, **centralized single source of truth (SSoT) dependencies**, and a **cross-platform environment governance system (Linux/Windows) with zero hardcoded paths**.
 
 ---
 
@@ -26,7 +26,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 
 ## 1. Key Features & Architectural Architecture
 
-- **42 Built-In Generic Suites**: Comprehensive static verification across 4 canonical families (`architecture/`, `domain_data/`, `persistence/`, `documentation/`).
+- **43 Built-In Generic Suites**: Comprehensive static verification across 4 canonical families (`architecture/`, `domain_data/`, `persistence/`, `documentation/`).
 - **Capability-Driven Auto-Coordination (`AuditorCapabilities`)**: Sub-auditors declare capabilities (`lint`, `fix`, `md`, `heavy`, `requiresBuild`, `ast`, `changedSince`) cleanly with immutable zero-boilerplate defaults (`DEFAULT_AUDITOR_CAPABILITIES`). No hardcoded suite lists in runners or scanners.
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
 - **Automated ESLint Configuration Auditor (`validate_eslint_config`)**: Statically analyzes `eslint.config.js` to ensure host projects enforce strict type safety, banning `any`, double casting, and legacy dates.
@@ -142,7 +142,7 @@ npx auditor
 npm run audit
 ```
 
-- Streams real-time progress (`[ 01/42 | 2% ]`) in completion order across background workers.
+- Streams real-time progress (`[ 01/43 | 2% ]`) in completion order across background workers.
 - Renders the Box-Drawing consolidated summary table with the `TOTAL CONSOLIDADO` footer row.
 - Saves full structured results to `scratch/audits/latest_audit.json`.
 
@@ -168,7 +168,7 @@ npx auditor preset=md
 npm run audit:md
 ```
 
-Discovers 5 documentation suites: `validate_dox_integrity`, `validate_markdown_code_references`, `validate_markdown_syntax`, `validate_markdown_links`, and `validate_markdown_lint`.
+Discovers 6 documentation suites: `validate_dox_integrity`, `validate_markdown_code_references`, `validate_markdown_syntax`, `validate_markdown_links`, `validate_markdown_lint`, and `validate_documented_commands`.
 
 ### 4.4. Auto-Fix Mode (`auditor fix`)
 

@@ -134,11 +134,11 @@ Verify all test tiers in strict sequential order. If any test fails, re-enter Ph
 4. **Tier 3 Playwright Pass (If Applicable)**:
    - Re-run the affected simulation suite:
      ```bash
-     npm run sim:e2e filter=<suite_name>
+     npm run <sim_or_e2e_script> filter=<suite_name>
      ```
    - **Step 6B Dual Clean Zero Pass**: If the simulation suite reached the end via checkpoint resumption, execute a clean pass from case 1 in dual mode (`sqlite` + `postgres`):
      ```bash
-     npm run sim:e2e filter=<suite_name> clean=true
+     npm run <sim_or_e2e_script> filter=<suite_name> clean=true
      ```
 5. **Iteration Cap Escalation**:
    - If after 5 attempts the tests do not pass, HALT immediately and emit the structured blocker report detailing all failed hypotheses.
