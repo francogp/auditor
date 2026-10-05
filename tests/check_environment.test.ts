@@ -112,5 +112,26 @@ describe('check_environment CLI Utility', () => {
       // Result depends on current Node version matching auditor floor
       expect(typeof result).toBe('boolean');
     });
+
+    it('returns false and prints remediation when current npm is lower than required', () => {
+      const originalUa = process.env.npm_config_user_agent;
+      try {
+        process.env.npm_config_user_agent = 'npm/8.0.0 node/v26.0.0';
+        fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
+          name: 'modern-app',
+          engines: { node: '>=26.0.0', npm: '>=12.0.0' }
+        }), 'utf-8');
+
+        const result = checkEnvironment(tempDir);
+        expect(result).toBe(false);
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      } finally {
+        if (originalUa !== undefined) {
+          process.env.npm_config_user_agent = originalUa;
+        } else {
+          delete process.env.npm_config_user_agent;
+        }
+      }
+    });
   });
 });

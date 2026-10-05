@@ -132,5 +132,22 @@ describe('TestFragmentationAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('prints distribution summary when requested', () => {
+      const auditor = new TestFragmentationAuditor();
+      auditor.printDistributionSummary();
+    });
+
+    it('executes runAudit with --summary argument', async () => {
+      process.argv.push('--summary');
+      try {
+        const auditor = new TestFragmentationAuditor();
+        const result = await auditor.execute();
+        expect(result.status).toBe('passed');
+      } finally {
+        process.argv.pop();
+      }
+    });
   });
 });
+

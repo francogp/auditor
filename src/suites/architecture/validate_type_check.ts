@@ -91,7 +91,7 @@ export function parseTypeScriptDiagnostics(output: string, cwd: string = process
 }
 
 export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
-constructor() {
+  constructor(projectRoot?: string) {
     super({
       capabilities: { heavy: true, lint: true },
       id: 'validate_type_check',
@@ -107,7 +107,8 @@ constructor() {
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts', 'tests/**/*.ts', 'tsconfig*.json'],
         source: 'declared-only'
-      }
+      },
+      projectRoot
     });
   }
 

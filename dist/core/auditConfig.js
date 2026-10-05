@@ -193,6 +193,17 @@ export const DEFAULT_AUDIT_CONFIG = {
         productionRef: 'origin/main',
         baselineFile: '.auditor/audit-baseline.json'
     },
+    testCoverage: {
+        enabled: true,
+        threshold: 80,
+        path: 'coverage/coverage-final.json',
+        runCommand: 'npm test -- --coverage',
+        roots: ['src'],
+        extensions: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs'],
+        exemptGlobs: [],
+        directoryThresholds: {},
+        enforceInAudit: false
+    },
     customFamilies: [],
     extensions: [],
     presets: {},
@@ -231,6 +242,7 @@ function collectDeclaredSubsystems(config) {
         'packageHygiene',
         'accessibility',
         'typeCoverage',
+        'testCoverage',
         'version',
         'ratchet'
     ];
@@ -508,6 +520,30 @@ export function buildRatchetConfig(raw) {
         baselineFile: normalized
     };
 }
+export function buildTestCoverageConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.testCoverage;
+    const t = raw ?? {};
+    if (t.enabled !== undefined && typeof t.enabled !== 'boolean') {
+        throw new Error(`[AuditConfig] 'testCoverage.enabled' must be a strict boolean, received '${String(t.enabled)}'.`);
+    }
+    if (t.threshold !== undefined && (typeof t.threshold !== 'number' || Number.isNaN(t.threshold) || t.threshold < 0 || t.threshold > 100)) {
+        throw new Error(`[AuditConfig] 'testCoverage.threshold' must be a number between 0 and 100, received '${String(t.threshold)}'.`);
+    }
+    if (t.enforceInAudit !== undefined && typeof t.enforceInAudit !== 'boolean') {
+        throw new Error(`[AuditConfig] 'testCoverage.enforceInAudit' must be a strict boolean, received '${String(t.enforceInAudit)}'.`);
+    }
+    return {
+        enabled: t.enabled ?? def?.enabled ?? true,
+        threshold: t.threshold ?? def?.threshold ?? 80,
+        path: t.path ?? def?.path ?? 'coverage/coverage-final.json',
+        runCommand: t.runCommand ?? def?.runCommand ?? 'npm test -- --coverage',
+        roots: t.roots ? [...t.roots] : (def?.roots ?? ['src']),
+        extensions: t.extensions ? [...t.extensions] : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
+        exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : (def?.exemptGlobs ?? []),
+        directoryThresholds: t.directoryThresholds ? { ...t.directoryThresholds } : (def?.directoryThresholds ?? {}),
+        enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? false
+    };
+}
 function buildAccessibilityConfig(raw) {
     const def = DEFAULT_AUDIT_CONFIG.accessibility;
     const a = raw ?? {};
@@ -675,6 +711,7 @@ export function defineAuditConfig(config) {
         packageScripts: buildPackageScriptsConfig(config.packageScripts),
         accessibility: buildAccessibilityConfig(config.accessibility),
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
+        testCoverage: buildTestCoverageConfig(config.testCoverage),
         version: buildVersionConfig(config.version),
         coverage: buildCoverageConfig(config.coverage, paths),
         ...agentAndSecurity,
@@ -701,6 +738,9 @@ function checkInfrastructureSubsystems(config, missing) {
     }
     if (typeof config.bundle?.enabled !== 'boolean') {
         missing.push("  - 'bundle': El campo 'enabled' debe ser booleano (true o false).");
+    }
+    if (typeof config.testCoverage?.enabled !== 'boolean') {
+        missing.push("  - 'testCoverage': El campo 'enabled' debe ser booleano (true o false).");
     }
     if (typeof config.packageDistribution?.enabled !== 'boolean') {
         missing.push("  - 'packageDistribution': El campo 'enabled' debe ser booleano (true o false).");

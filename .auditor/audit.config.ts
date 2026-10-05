@@ -69,6 +69,11 @@ export default defineAuditConfig({
     enabled: true,
     atLeast: 98
   },
+  testCoverage: {
+    enabled: true,
+    threshold: 80,
+    enforceInAudit: false
+  },
   agentPlugin: {
     enabled: true
   },

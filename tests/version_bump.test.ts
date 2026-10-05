@@ -13,8 +13,10 @@ import {
   parseBaseSemver,
   calculateNextBaseVersion,
   generateBuildId,
-  analyzeVersionBump
+  analyzeVersionBump,
+  collectGitDiffMetrics
 } from '../src/core/versionAnalyzer.ts';
+import { execSync } from 'node:child_process';
 import { applyVersionBump } from '../src/cli/bump_version.ts';
 
 describe('Version Analyzer & SemVer Heuristics', () => {
@@ -265,5 +267,37 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(unchanged.version).toBe('v1.0.0');
     });
   });
+
+  describe('collectGitDiffMetrics', () => {
+    it('returns empty metrics gracefully in non-git directory', () => {
+      const metrics = collectGitDiffMetrics(tempDir);
+      expect(metrics.filesChanged).toBe(0);
+      expect(metrics.insertions).toBe(0);
+      expect(metrics.deletions).toBe(0);
+      expect(metrics.changedFiles).toHaveLength(0);
+    });
+
+    it('collects insertions, deletions, and additions in a git repository', () => {
+      execSync('git init -b main', { cwd: tempDir, stdio: 'ignore' });
+      execSync('git config user.email "test@example.com"', { cwd: tempDir, stdio: 'ignore' });
+      execSync('git config user.name "Test User"', { cwd: tempDir, stdio: 'ignore' });
+
+      // Initial commit
+      const initialFile = path.join(tempDir, 'initial.txt');
+      fs.writeFileSync(initialFile, 'line1\nline2\nline3\n', 'utf-8');
+      execSync('git add initial.txt && git commit -m "initial"', { cwd: tempDir, stdio: 'ignore' });
+
+      // Modify file and add new untracked file
+      fs.writeFileSync(initialFile, 'line1\nmodified line 2\nline3\nline4\n', 'utf-8');
+      const newFile = path.join(tempDir, 'new.txt');
+      fs.writeFileSync(newFile, 'new line\n', 'utf-8');
+
+      const metrics = collectGitDiffMetrics(tempDir);
+      expect(metrics.filesChanged).toBeGreaterThanOrEqual(1);
+      expect(metrics.changedFiles.some(f => f.path === 'initial.txt')).toBe(true);
+      expect(metrics.changedFiles.some(f => f.path === 'new.txt')).toBe(true);
+    });
+  });
 });
+
 

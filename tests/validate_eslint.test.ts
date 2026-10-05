@@ -7,7 +7,7 @@
  * - Verifies clean execution
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   EslintAuditor,
   ESLINT_RULES,
@@ -106,5 +106,45 @@ class CleanEslintAuditor extends EslintAuditor {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('executes actual runAudit and processes findings', async () => {
+      const path = await import('node:path');
+      const cliUtils = await import('../src/cli/cliUtils.ts');
+      const spy = vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue(JSON.stringify([
+        {
+          filePath: path.join(process.cwd(), 'src/test.ts'),
+          messages: [
+            { ruleId: 'no-console', severity: 2, message: 'Unexpected console statement.', line: 5, column: 1 }
+          ]
+        }
+      ]));
+
+      const auditor = new EslintAuditor();
+      const result = await auditor.execute();
+
+      expect(spy).toHaveBeenCalled();
+      expect(result.summary.errors).toBe(1);
+      expect(result.findings[0]!.file).toBe('src/test.ts');
+    });
+
+    it('executes actual runAudit in fix mode when fix mode is requested', async () => {
+      const cliUtils = await import('../src/cli/cliUtils.ts');
+      const spy = vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue('[]');
+
+      process.argv.push('fix');
+      try {
+        const auditor = new EslintAuditor();
+        const result = await auditor.execute();
+
+        expect(spy).toHaveBeenCalled();
+        const args = spy.mock.calls[0]![1];
+        expect(args).toContain('--fix');
+        expect(result.summary.errors).toBe(0);
+        expect(result.status).toBe('passed');
+      } finally {
+        process.argv.pop();
+      }
+    });
   });
 });
+

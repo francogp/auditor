@@ -119,5 +119,71 @@ describe('ComponentStylesAuditor', () => {
         await fs.rm(tempDir, { recursive: true, force: true });
       }
     });
+
+    it('detects broken-style-link, banned-style-inherited, missing-style-tag, and orphaned-scss', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-comp-styles-err-'));
+      try {
+        const compDir = path.join(tempDir, 'src', 'components');
+        const styleDir = path.join(tempDir, 'src', 'styles', 'components');
+        await fs.mkdir(compDir, { recursive: true });
+        await fs.mkdir(styleDir, { recursive: true });
+
+        // Broken style link
+        await fs.writeFile(
+          path.join(compDir, 'BrokenLink.vue'),
+          `<template><div class="card">Broken</div></template>\n<style src="./missing.scss"></style>\n`,
+          'utf-8'
+        );
+
+        // Banned style-inherited
+        await fs.writeFile(
+          path.join(compDir, 'Inherited.vue'),
+          `<template><div class="box">Text</div></template>\n<!-- style-inherited: legacy -->\n`,
+          'utf-8'
+        );
+
+        // Missing style tag with custom classes
+        await fs.writeFile(
+          path.join(compDir, 'NoStyle.vue'),
+          `<template><div class="custom-card-container"><p class="custom-label">Hi</p></div></template>\n`,
+          'utf-8'
+        );
+
+        // Orphaned SCSS
+        await fs.writeFile(
+          path.join(styleDir, '_orphan.scss'),
+          `.orphan-style { color: red; }\n`,
+          'utf-8'
+        );
+
+        // Ad-hoc button style override
+        await fs.writeFile(
+          path.join(compDir, 'BadButton.vue'),
+          `<template><button class="btn btn-primary">Click</button></template>\n<style>\n.btn.custom { color: red; }\n</style>\n`,
+          'utf-8'
+        );
+
+        const auditorDir = path.join(tempDir, '.auditor');
+        await fs.mkdir(auditorDir, { recursive: true });
+        await fs.writeFile(
+          path.join(auditorDir, 'audit.config.json'),
+          JSON.stringify({ styles: { buttonGovernance: { enabled: true } } }),
+          'utf-8'
+        );
+
+        const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
+        const result = await auditor.execute();
+
+        expect(result.summary.errors).toBeGreaterThanOrEqual(4);
+        const ruleIds = result.findings.map(f => f.ruleId);
+        expect(ruleIds).toContain('broken-style-link');
+        expect(ruleIds).toContain('banned-style-inherited');
+        expect(ruleIds).toContain('orphaned-scss');
+        expect(ruleIds).toContain('missing-style-tag');
+        expect(ruleIds).toContain('ad-hoc-button-styles');
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 });

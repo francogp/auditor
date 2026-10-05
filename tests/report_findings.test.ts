@@ -148,4 +148,31 @@ describe('report_findings CLI Tool', () => {
     expect(() => runReport()).not.toThrow();
     expect(consoleLogSpy).toHaveBeenCalled();
   });
+
+  it('renders default details view in human mode', () => {
+    process.argv = ['node', 'report_findings.ts', 'allow-stale'];
+
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('supports search query filtering', () => {
+    process.argv = ['node', 'report_findings.ts', 'search=math', 'allow-stale'];
+
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('renders clean success banner when there are zero findings', () => {
+    fsReadSpy.mockImplementationOnce(() => JSON.stringify({
+      ...mockReport,
+      summary: { totalViolations: 0, errors: 0, warnings: 0, suitesTotal: 1, suitesPassed: 1, suitesFailed: 0, durationMs: 5 },
+      allFindings: [],
+      families: { architecture: { title: 'TEST', suites: [] } }
+    }));
+
+    process.argv = ['node', 'report_findings.ts', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
 });

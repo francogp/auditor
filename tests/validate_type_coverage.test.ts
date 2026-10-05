@@ -96,5 +96,39 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('executes runAudit and imports findings when coverage is below threshold', async () => {
+      const cliUtils = await import('../src/cli/cliUtils.ts');
+      const { vi } = await import('vitest');
+      vi.spyOn(cliUtils, 'executeCliAndReadJson').mockReturnValue({
+        correctCount: 75,
+        totalCount: 100,
+        percent: 75.0,
+        percentString: '75.00',
+        atLeastFailed: true,
+        anys: []
+      });
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Type Coverage Enabled Project',
+          typeCoverage: { enabled: true, atLeast: 80 },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          packageDistribution: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateTypeCoverageAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(1);
+      expect(result.findings[0]!.ruleId).toBe('type-coverage-below-threshold');
+    });
   });
 });
+

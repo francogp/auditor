@@ -68,4 +68,39 @@ describe('report_fallow CLI Tool', () => {
     expect(parsed).toHaveProperty('health');
     expect(parsed).toHaveProperty('deadCode');
   });
+
+  it('renders human terminal table for category=dupes', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=dupes', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('renders human terminal table for category=dead-code', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=dead-code', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('renders human terminal table for category=health', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=health', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('renders human terminal table for category=coverage-gaps', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=coverage-gaps', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('renders human terminal table for category=all', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=all'];
+    expect(() => runFallowReportCli()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('handles unknown category gracefully', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=unknown'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
 });

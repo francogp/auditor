@@ -25,6 +25,7 @@
     "audit:build": "auditor preset=build",
     "audit:package-hygiene": "auditor task=validate_package_hygiene",
     "audit:type-coverage": "auditor task=validate_type_coverage",
+    "audit:test-coverage": "auditor-test-coverage",
     "audit:fallow": "auditor-fallow category=all",
     "audit:fallow:dupes": "auditor-fallow category=dupes",
     "audit:fallow:circular": "auditor-fallow category=circular",

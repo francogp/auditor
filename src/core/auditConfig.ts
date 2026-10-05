@@ -338,9 +338,31 @@ export interface AuditRatchetConfig {
   readonly baselineFile?: string;
 }
 
+export interface AuditTestCoverageConfig {
+  /** Test code execution coverage analysis and verification. Active by default. */
+  readonly enabled?: boolean;
+  /** Target coverage threshold percentage (0-100). Default: 80. */
+  readonly threshold?: number;
+  /** Path to coverage-final.json or coverage-summary.json. Default: 'coverage/coverage-final.json'. */
+  readonly path?: string;
+  /** Test execution command when running with --run or auto-run. Default: 'npm test -- --coverage'. */
+  readonly runCommand?: string;
+  /** Source directories to measure. Default: ['src']. */
+  readonly roots?: readonly string[];
+  /** File extensions to track. Default: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']. */
+  readonly extensions?: readonly string[];
+  /** Glob patterns or paths exempt from test coverage. */
+  readonly exemptGlobs?: readonly string[];
+  /** Per-directory or per-subsystem specific threshold overrides. */
+  readonly directoryThresholds?: Record<string, number>;
+  /** When true, validates that overall test coverage meets the threshold during full audit. Default: false. */
+  readonly enforceInAudit?: boolean;
+}
+
 export interface AuditEngineConfig {
   readonly name: string;
   readonly ratchet?: AuditRatchetConfig;
+  readonly testCoverage?: AuditTestCoverageConfig;
   readonly paths: AuditPathsConfig;
   readonly persistence: AuditPersistenceConfig;
   readonly domain: AuditDomainConfig;
@@ -549,6 +571,17 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     productionRef: 'origin/main',
     baselineFile: '.auditor/audit-baseline.json'
   },
+  testCoverage: {
+    enabled: true,
+    threshold: 80,
+    path: 'coverage/coverage-final.json',
+    runCommand: 'npm test -- --coverage',
+    roots: ['src'],
+    extensions: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs'],
+    exemptGlobs: [],
+    directoryThresholds: {},
+    enforceInAudit: false
+  },
   customFamilies: [],
   extensions: [],
   presets: {},
@@ -593,6 +626,7 @@ function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>): Set<
     'packageHygiene',
     'accessibility',
     'typeCoverage',
+    'testCoverage',
     'version',
     'ratchet'
   ] as const;
@@ -922,6 +956,31 @@ export function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Requi
   };
 }
 
+export function buildTestCoverageConfig(raw?: DeepPartial<AuditTestCoverageConfig>): Required<AuditTestCoverageConfig> {
+  const def = DEFAULT_AUDIT_CONFIG.testCoverage;
+  const t = raw ?? {};
+  if (t.enabled !== undefined && typeof t.enabled !== 'boolean') {
+    throw new Error(`[AuditConfig] 'testCoverage.enabled' must be a strict boolean, received '${String(t.enabled)}'.`);
+  }
+  if (t.threshold !== undefined && (typeof t.threshold !== 'number' || Number.isNaN(t.threshold) || t.threshold < 0 || t.threshold > 100)) {
+    throw new Error(`[AuditConfig] 'testCoverage.threshold' must be a number between 0 and 100, received '${String(t.threshold)}'.`);
+  }
+  if (t.enforceInAudit !== undefined && typeof t.enforceInAudit !== 'boolean') {
+    throw new Error(`[AuditConfig] 'testCoverage.enforceInAudit' must be a strict boolean, received '${String(t.enforceInAudit)}'.`);
+  }
+  return {
+    enabled: t.enabled ?? def?.enabled ?? true,
+    threshold: t.threshold ?? def?.threshold ?? 80,
+    path: t.path ?? def?.path ?? 'coverage/coverage-final.json',
+    runCommand: t.runCommand ?? def?.runCommand ?? 'npm test -- --coverage',
+    roots: t.roots ? [...t.roots] : (def?.roots ?? ['src']),
+    extensions: t.extensions ? [...t.extensions] : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
+    exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : (def?.exemptGlobs ?? []),
+    directoryThresholds: t.directoryThresholds ? { ...t.directoryThresholds } : (def?.directoryThresholds ?? {}),
+    enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? false
+  };
+}
+
 function buildAccessibilityConfig(raw?: DeepPartial<AuditAccessibilityConfig>): AuditAccessibilityConfig {
   const def = DEFAULT_AUDIT_CONFIG.accessibility;
   const a = raw ?? {};
@@ -1114,6 +1173,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     packageScripts: buildPackageScriptsConfig(config.packageScripts),
     accessibility: buildAccessibilityConfig(config.accessibility),
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
+    testCoverage: buildTestCoverageConfig(config.testCoverage),
     version: buildVersionConfig(config.version),
     coverage: buildCoverageConfig(config.coverage, paths),
     ...agentAndSecurity,
@@ -1145,6 +1205,9 @@ function checkInfrastructureSubsystems(
   }
   if (typeof config.bundle?.enabled !== 'boolean') {
     missing.push("  - 'bundle': El campo 'enabled' debe ser booleano (true o false).");
+  }
+  if (typeof config.testCoverage?.enabled !== 'boolean') {
+    missing.push("  - 'testCoverage': El campo 'enabled' debe ser booleano (true o false).");
   }
   if (typeof config.packageDistribution?.enabled !== 'boolean') {
     missing.push("  - 'packageDistribution': El campo 'enabled' debe ser booleano (true o false).");

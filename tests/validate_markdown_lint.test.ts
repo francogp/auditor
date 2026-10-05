@@ -124,5 +124,46 @@ describe('MarkdownLintAuditor', () => {
       const errors = findings.filter(f => f.severity === 'error').length;
       expect(errors).toBe(0);
     });
+
+    it('executes actual runAudit and passes when no issues found', async () => {
+      const { vi } = await import('vitest');
+      const cliUtils = await import('../src/cli/cliUtils.ts');
+      vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue('[]');
+
+      const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('executes actual runAudit with findings and handles fix mode', async () => {
+      const { vi } = await import('vitest');
+      const cliUtils = await import('../src/cli/cliUtils.ts');
+      const spy = vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue(JSON.stringify([
+        {
+          fileName: 'README.md',
+          lineNumber: 10,
+          ruleNames: ['MD001'],
+          ruleDescription: 'Heading level error',
+          errorDetail: 'Expected h2'
+        }
+      ]));
+
+      process.argv.push('fix');
+      try {
+        const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+        const result = await auditor.execute();
+
+        expect(spy).toHaveBeenCalled();
+        const args = spy.mock.calls[0]![1];
+        expect(args).toContain('--fix');
+        expect(result.summary.errors).toBe(1);
+        expect(result.findings[0]!.file).toBe('README.md');
+      } finally {
+        process.argv.pop();
+      }
+    });
   });
 });
+

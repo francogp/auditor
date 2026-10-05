@@ -1,0 +1,16 @@
+/**
+ * @file validate_test_coverage.ts
+ * @description Architecture sub-auditor verifying that repository test execution coverage
+ * meets configured thresholds and has no untracked blind spots when enforceInAudit is enabled.
+ */
+import { BaseAuditor } from '../../core/auditorBase.ts';
+export type TestCoverageRuleId = 'test-coverage-below-threshold' | 'test-coverage-missing-report' | 'test-coverage-untracked-files';
+export declare const TEST_COVERAGE_RULES: readonly TestCoverageRuleId[];
+export interface ValidateTestCoverageOptions {
+    projectRoot?: string;
+}
+export declare class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId> {
+    constructor(options?: ValidateTestCoverageOptions);
+    runAudit(): Promise<void>;
+}
+//# sourceMappingURL=validate_test_coverage.d.ts.map

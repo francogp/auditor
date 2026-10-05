@@ -139,10 +139,11 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 25. **Centralized CLI Entrypoint Verification (`isMainModule`)**:
     - CLI tools and executable scripts MUST use the centralized `isMainModule(import.meta.url)` helper from `@francogp/auditor` to check for direct CLI invocation.
 26. **Prohibition of Ad-Hoc Audit Result Parsing & Mandatory Native CLI Reporters Mandate**:
-    - AI agents and developers MUST NEVER write or execute ad-hoc inline node scripts (`node -e "..."`), python scripts, or bash one-liners to read, inspect, or summarize `scratch/audits/latest_audit.json`.
-    - All audit result inspections, category breakdowns, severity filtering, and complexity hotspot analyses MUST be conducted strictly through the framework's native CLI tools:
+    - AI agents and developers MUST NEVER write or execute ad-hoc inline node scripts (`node -e "..."`), python scripts, or bash one-liners to read, inspect, or summarize `scratch/audits/latest_audit.json` or test coverage files (`coverage/coverage-final.json`).
+    - All audit result inspections, category breakdowns, severity filtering, complexity hotspot analyses, and test coverage evaluations MUST be conducted strictly through the framework's native CLI tools:
       - `npm run audit`: Global execution and consolidated Box-Drawing table.
       - `npm run audit:findings` / `npm run audit:errors` / `npm run audit:warnings` / `npm run audit:summary` / `npm run audit:files`: Filtering and breakdown of findings.
+      - `npm run audit:test-coverage` (`auditor-test-coverage`): Canonical test execution code coverage analysis, directory aggregates, untracked files detection, uncovered line ranges, and complexity hotspot correlation. Full guide: [`references/test-coverage-guide.md`](./references/test-coverage-guide.md).
       - `npm run audit:by-file`: Hierarchical Box-Drawing tree inspection of findings grouped strictly by file and ordered by line ascending (`├── L12: [Rule] Message`), with filters (`file=`, `category=`, `severity=`, `top=`, `json`).
       - `npm run audit:complexity`: Cognitive/cyclomatic complexity hotspots and Fallow refactoring targets.
       - `npm run audit:similar`: Semantic and structural clone detection using Fallow ML vector embeddings in Box-Drawing tables.
@@ -460,6 +461,7 @@ The following reference manuals and configuration blueprints are maintained in `
 - [`references/host-package-governance.md`](./references/host-package-governance.md): Host installation, updates via GitHub npm, CI reproducibility, and script inheritance.
 - [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md): Complete authoring guide with boilerplate implementations for FileScan, Base, and AST sub-auditors.
 - [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md): Complete reference manual for interactive findings reporting and CLI diagnostic options.
+- [`references/test-coverage-guide.md`](./references/test-coverage-guide.md): Complete guide for test execution code coverage analysis, Istanbul/V8 JSON parsing, directory breakdowns, untracked files detection, line ranges, and CI gating.
 - [`references/setup-extension-guide.md`](./references/setup-extension-guide.md): Architecture and plugin guides for extending `setup-linux.sh` and `setup-windows.ps1` in host projects.
 - [`references/blueprints.md`](./references/blueprints.md): Overview of configuration blueprints and mandatory explicit subsystem configuration.
 - [`references/audit.config.enterprise.example.ts`](./references/audit.config.enterprise.example.ts): Reference `.auditor/audit.config.ts` for Enterprise applications (Supabase backend, strict domain types, explicit rules).

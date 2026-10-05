@@ -20,7 +20,7 @@ export declare const TYPE_CHECK_RULES: readonly TypeCheckRuleId[];
  */
 export declare function parseTypeScriptDiagnostics(output: string, cwd?: string): AuditFinding[];
 export declare class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
-    constructor();
+    constructor(projectRoot?: string);
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_type_check.d.ts.map

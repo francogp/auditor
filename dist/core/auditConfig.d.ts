@@ -293,9 +293,30 @@ export interface AuditRatchetConfig {
     /** Repository-relative path of the committed baseline file (default `.auditor/audit-baseline.json`). */
     readonly baselineFile?: string;
 }
+export interface AuditTestCoverageConfig {
+    /** Test code execution coverage analysis and verification. Active by default. */
+    readonly enabled?: boolean;
+    /** Target coverage threshold percentage (0-100). Default: 80. */
+    readonly threshold?: number;
+    /** Path to coverage-final.json or coverage-summary.json. Default: 'coverage/coverage-final.json'. */
+    readonly path?: string;
+    /** Test execution command when running with --run or auto-run. Default: 'npm test -- --coverage'. */
+    readonly runCommand?: string;
+    /** Source directories to measure. Default: ['src']. */
+    readonly roots?: readonly string[];
+    /** File extensions to track. Default: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']. */
+    readonly extensions?: readonly string[];
+    /** Glob patterns or paths exempt from test coverage. */
+    readonly exemptGlobs?: readonly string[];
+    /** Per-directory or per-subsystem specific threshold overrides. */
+    readonly directoryThresholds?: Record<string, number>;
+    /** When true, validates that overall test coverage meets the threshold during full audit. Default: false. */
+    readonly enforceInAudit?: boolean;
+}
 export interface AuditEngineConfig {
     readonly name: string;
     readonly ratchet?: AuditRatchetConfig;
+    readonly testCoverage?: AuditTestCoverageConfig;
     readonly paths: AuditPathsConfig;
     readonly persistence: AuditPersistenceConfig;
     readonly domain: AuditDomainConfig;
@@ -342,6 +363,7 @@ export declare const FORBIDDEN_PRODUCTION_ROOTS: readonly string[];
 export declare const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
 export declare function validateConstantsExemptGlobs(globs: readonly string[]): void;
 export declare function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Required<AuditRatchetConfig>;
+export declare function buildTestCoverageConfig(raw?: DeepPartial<AuditTestCoverageConfig>): Required<AuditTestCoverageConfig>;
 export declare const MIN_COVERAGE_REASON_LENGTH = 15;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
     name: string;

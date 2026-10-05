@@ -19,6 +19,28 @@ import {
   noImportantOnFilters,
   noSassAtImport,
   noLayoutAnimationInGsap,
+  legacyDates,
+  hardcodedTimezone,
+  nodePrefix,
+  esmExtensions,
+  tsIgnore,
+  noAliasConstants,
+  noLiteralSuffixInConstantName,
+  timersPromises,
+  explicitResource,
+  manualAnimations,
+  emptyVueTransitions,
+  manualTimersFrontend,
+  noPlaywrightWaitForTimeout,
+  jsonStringifyInWatch,
+  intersectionObserverRoot,
+  dbInTemplates,
+  forbiddenFallbacks,
+  strictDomainParamTypes,
+  noInlineTypeImports,
+  noInlineLiteralUnions,
+  noRawJsonImportsOutsideData,
+  namedTimerConstants,
   CANONICAL_DEFAULT_Z_LAYERS,
   Z_LAYERS
 } from '../src/suites/architecture/audit_rules.ts';
@@ -126,6 +148,109 @@ describe('Project Architecture Rules & Auditor', () => {
 
       noLayoutAnimationInGsap.regex.lastIndex = 0;
       expect(noLayoutAnimationInGsap.regex.test('gsap.from(elem, { height: 0 });')).toBe(true);
+    });
+
+    it('legacyDates and hardcodedTimezone detect legacy Date and hardcoded timezones', () => {
+      legacyDates.regex.lastIndex = 0;
+      expect(legacyDates.regex.test('const d = new Date();')).toBe(true);
+      legacyDates.regex.lastIndex = 0;
+      expect(legacyDates.regex.test('const ms = Date.now();')).toBe(true);
+
+      hardcodedTimezone.regex.lastIndex = 0;
+      expect(hardcodedTimezone.regex.test("toZonedDateTimeISO('America/Argentina/Buenos_Aires')")).toBe(true);
+      hardcodedTimezone.regex.lastIndex = 0;
+      expect(hardcodedTimezone.regex.test("Temporal.TimeZone.from('UTC')")).toBe(true);
+    });
+
+    it('nodePrefix and esmExtensions enforce Node 26 native imports', () => {
+      nodePrefix.regex.lastIndex = 0;
+      const rawNodeImport = 'import fs from ' + "'fs';";
+      expect(nodePrefix.regex.test(rawNodeImport)).toBe(true);
+      expect(nodePrefix.fix?.(rawNodeImport)).toBe("import fs from 'node:fs';");
+
+      esmExtensions.regex.lastIndex = 0;
+      const rawRelImport = 'import { foo } from ' + "'./foo';";
+      expect(esmExtensions.regex.test(rawRelImport)).toBe(true);
+      expect(esmExtensions.fix?.(rawRelImport)).toBe("import { foo } from './foo.ts';");
+    });
+
+    it('tsIgnore bans @ts-ignore and @ts-nocheck annotations', () => {
+      tsIgnore.regex.lastIndex = 0;
+      expect(tsIgnore.regex.test('// @ts-' + 'ignore')).toBe(true);
+      tsIgnore.regex.lastIndex = 0;
+      expect(tsIgnore.regex.test('// @ts-' + 'nocheck')).toBe(true);
+    });
+
+    it('noAliasConstants and noLiteralSuffixInConstantName detect constant naming defects', () => {
+      noAliasConstants.regex.lastIndex = 0;
+      expect(noAliasConstants.regex.test('const FOO_ALIAS = ORIGINAL_FOO;')).toBe(true);
+
+      noLiteralSuffixInConstantName.regex.lastIndex = 0;
+      expect(noLiteralSuffixInConstantName.regex.test('const TIMEOUT_5000 = 5000;')).toBe(true);
+    });
+
+    it('timersPromises and explicitResource detect resource leaks and manual timers', () => {
+      timersPromises.regex.lastIndex = 0;
+      expect(timersPromises.regex.test('new Promise(r => setTimeout(r, 100))')).toBe(true);
+
+      explicitResource.regex.lastIndex = 0;
+      expect(explicitResource.regex.test('const db = new DatabaseSync(":memory:")')).toBe(true);
+      expect(explicitResource.fix?.('const db = new DatabaseSync(":memory:")')).toBe('using db = new DatabaseSync(":memory:")');
+    });
+
+    it('manualAnimations and emptyVueTransitions detect banned animation patterns', () => {
+      manualAnimations.regex.lastIndex = 0;
+      expect(manualAnimations.regex.test('@keyframes pulse { from { opacity: 0; } }')).toBe(true);
+
+      emptyVueTransitions.regex.lastIndex = 0;
+      expect(emptyVueTransitions.regex.test('.fade-enter-active { }')).toBe(true);
+    });
+
+    it('manualTimersFrontend and noPlaywrightWaitForTimeout detect uncoordinated pauses', () => {
+      manualTimersFrontend.regex.lastIndex = 0;
+      expect(manualTimersFrontend.regex.test('setTimeout(() => {}, 100);')).toBe(true);
+      manualTimersFrontend.regex.lastIndex = 0;
+      expect(manualTimersFrontend.regex.test('setInterval(() => {}, 100);')).toBe(true);
+
+      noPlaywrightWaitForTimeout.regex.lastIndex = 0;
+      expect(noPlaywrightWaitForTimeout.regex.test('await page.waitForTimeout(500);')).toBe(true);
+    });
+
+    it('jsonStringifyInWatch, intersectionObserverRoot, and dbInTemplates detect reactivity and template defects', () => {
+      jsonStringifyInWatch.regex.lastIndex = 0;
+      const watchStr = 'watch(' + '() => JSON.stringify(state));';
+      expect(jsonStringifyInWatch.regex.test(watchStr)).toBe(true);
+
+      intersectionObserverRoot.regex.lastIndex = 0;
+      const ioStr = 'new Intersection' + 'Observer(cb, { root: el });';
+      expect(intersectionObserverRoot.regex.test(ioStr)).toBe(true);
+
+      dbInTemplates.regex.lastIndex = 0;
+      expect(dbInTemplates.regex.test('<div>{{ db.users.find() }}</div>')).toBe(true);
+    });
+
+    it('forbiddenFallbacks, strictDomainParamTypes, and type import rules detect domain defects', () => {
+      forbiddenFallbacks.regex.lastIndex = 0;
+      expect(forbiddenFallbacks.regex.test('const x = user.id || user.name;')).toBe(true);
+      forbiddenFallbacks.regex.lastIndex = 0;
+      expect(forbiddenFallbacks.regex.test('fetchData().catch(() => null)')).toBe(true);
+
+      strictDomainParamTypes.regex.lastIndex = 0;
+      expect(strictDomainParamTypes.regex.test('function getUser(userId: string) {}')).toBe(true);
+      strictDomainParamTypes.regex.lastIndex = 0;
+      expect(strictDomainParamTypes.regex.test('function setItem(itemId: ItemId | string) {}')).toBe(true);
+
+      noInlineTypeImports.regex.lastIndex = 0;
+      expect(noInlineTypeImports.regex.test("const user: import('./user').User = data;")).toBe(true);
+
+      noInlineLiteralUnions.regex.lastIndex = 0;
+      expect(noInlineLiteralUnions.regex.test("const status: 'pending' | 'active' | 'archived' = 'active';")).toBe(true);
+
+      noRawJsonImportsOutsideData.regex.lastIndex = 0;
+      expect(noRawJsonImportsOutsideData.regex.test("import config from './config.json';")).toBe(true);
+
+      namedTimerConstants.regex.lastIndex = 0;
+      expect(namedTimerConstants.regex.test('gsap.delayedCall(3.5, callback);')).toBe(true);
     });
 
     it('Z_LAYERS contains canonical layer values', () => {

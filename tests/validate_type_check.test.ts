@@ -80,5 +80,32 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       const findings = parseTypeScriptDiagnostics('Compiled successfully without diagnostics.', process.cwd());
       expect(findings).toHaveLength(0);
     });
+
+    it('executes actual runAudit and passes when no diagnostics found in sandbox', async () => {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const os = await import('node:os');
+      const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-typecheck-'));
+      try {
+        fs.writeFileSync(path.join(sandbox, 'package.json'), JSON.stringify({ type: 'module' }));
+        fs.writeFileSync(path.join(sandbox, 'tsconfig.json'), JSON.stringify({
+          compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext' },
+          include: ['src/**/*.ts']
+        }));
+        fs.mkdirSync(path.join(sandbox, 'src'), { recursive: true });
+        fs.writeFileSync(path.join(sandbox, 'src/index.ts'), 'export const x: number = 42;\n');
+
+        const auditor = new TypeCheckAuditor(sandbox);
+        const result = await auditor.execute();
+
+        expect(result.summary.errors).toBe(0);
+        expect(result.status).toBe('passed');
+      } finally {
+        fs.rmSync(sandbox, { recursive: true, force: true });
+      }
+    });
   });
 });
+
+
+
