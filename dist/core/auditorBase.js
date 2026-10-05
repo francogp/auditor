@@ -496,6 +496,7 @@ export class BaseAuditor {
     requiredFiles;
     requiresAst;
     projectRoot;
+    configKey;
     context;
     countsByRule = new Map();
     subAuditorReports = [];
@@ -536,6 +537,7 @@ export class BaseAuditor {
         this.name = options.name;
         this.description = options.description;
         this.family = options.family;
+        this.configKey = options.configKey;
         this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
         if (this.gitIgnoreEntries.length > 0) {
             GitIgnoreRegistry.registerMany(this.gitIgnoreEntries);
@@ -880,6 +882,39 @@ export class BaseAuditor {
     }
     setProgressLogger(logger) {
         this.context.setProgressLogger?.(logger);
+    }
+    /**
+     * Genera el DTO canónico AuditorManifestDTO para introspección limpia y tipada,
+     * permitiendo a herramientas externas y agentes consultar dinámicamente qué hace y cómo opera.
+     */
+    toManifest() {
+        const rulesRecord = {};
+        if (this.ruleDescriptions) {
+            for (const [k, v] of Object.entries(this.ruleDescriptions)) {
+                if (typeof v === 'string') {
+                    rulesRecord[k] = v;
+                }
+            }
+        }
+        return {
+            id: this.id,
+            name: this.name,
+            family: this.family,
+            icon: this.icon,
+            description: this.description,
+            capabilities: {
+                fix: this.capabilities.fix,
+                lint: this.capabilities.lint,
+                md: this.capabilities.md,
+                ast: this.capabilities.ast,
+                changedSince: this.capabilities.changedSince,
+                heavy: this.capabilities.heavy,
+                requiresBuild: this.capabilities.requiresBuild,
+                postRun: this.capabilities.postRun
+            },
+            rules: rulesRecord,
+            configKey: this.configKey
+        };
     }
     static isExecutingCli = false;
     static async runCli(auditor) {

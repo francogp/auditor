@@ -2,7 +2,7 @@
 
 ## Executive Overview
 
-`@francogp/auditor` v4+ establishes an uncompromising, zero-tolerance architectural verification framework for TypeScript and Vue applications. The engine coordinates 43 generic static analysis suites, AST context caching, vector semantic duplication (Candle CPU embeddings), official Stylelint governance, strict coverage ledgers, and terminal Box-Drawing reporting with consolidated totals.
+`@francogp/auditor` v4+ establishes an uncompromising, zero-tolerance architectural verification framework for TypeScript and Vue applications. The engine coordinates built-in generic static analysis suites across all architectural families, AST context caching, vector semantic duplication (Candle CPU embeddings), official Stylelint governance, strict coverage ledgers, and terminal Box-Drawing reporting with consolidated totals.
 
 This guide provides a comprehensive migration blueprint for upgrading legacy host projects (v3 or earlier) to canonical v4+ standards.
 

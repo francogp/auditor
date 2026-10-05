@@ -33,6 +33,8 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_AST_RULES,
       packageName: 'AST',
+      // Optional: declare configKey ONLY if your suite uses a dedicated section in audit.config.ts
+      // configKey: 'mySection',
       ruleDescriptions: {
         'my-ast-forbidden-pattern': 'Patrón sintáctico prohibido en AST',
         'my-ast-missing-contract': 'Declaración requerida faltante'

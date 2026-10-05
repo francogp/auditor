@@ -258,7 +258,7 @@ describe('ValidateSimilarCodeAuditor', () => {
     it('renderSimilarCodeWarningBanner generates a striking box containing the manual setup command', () => {
       const banner = renderSimilarCodeWarningBanner();
       expect(banner).toContain('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE');
-      expect(banner).toContain('npx fallow similar-code setup --local --yes');
+      expect(banner).toContain('fallow similar-code setup --local --yes');
       expect(banner).toContain('AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1');
       expect(banner).toContain('╔══════════════════════════════════════════════════════════════════════════════╗');
       expect(banner).toContain('╚══════════════════════════════════════════════════════════════════════════════╝');

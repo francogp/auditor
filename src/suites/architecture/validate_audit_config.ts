@@ -58,6 +58,7 @@ const REMOVED_COMMIT_GATE_SCRIPT = 'audit:for-commit';
 export const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>> = {
   'audit': 'auditor',
   'audit:fix': 'auditor fix',
+  'audit:by-file': 'auditor-by-file',
   'audit:lint': 'auditor preset=lint',
   'audit:md': 'auditor preset=md',
   'audit:build': 'auditor preset=build',
@@ -107,6 +108,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       ruleIds: AUDIT_CONFIG_RULES,
       packageName: 'Config',
       icon: '⚙️',
+      configKey: 'paths',
       ruleDescriptions: {
         'audit-config-missing-path': 'Ruta configurada no existe',
         'audit-config-missing-file': 'Archivo configurado no existe',

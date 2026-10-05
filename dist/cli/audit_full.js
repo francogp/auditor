@@ -26,7 +26,7 @@ import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig } from "
 import { runWarningRatchet, initWarningBaseline } from "./auditRatchet.js";
 import { migrateLegacyAuditConfig } from "./migrateAuditConfig.js";
 import { COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV } from "../core/auditCoverage.js";
-import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
+import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner, renderAutoFixNoticeBanner, renderAuditorsRegistryTable, renderAuditorDetailCard, renderCliHelp } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
@@ -104,12 +104,16 @@ function resolveTargetPreset(values, positionals) {
 function parseAuditFullCliArgs(activeFamilies) {
     const args = process.argv.slice(2);
     const BOOLEAN_FLAGS = [
-        'errors-only', 'fix', 'all', 'build', 'with-build', 'init-baseline'
+        'errors-only', 'fix', 'all', 'build', 'with-build', 'init-baseline', 'help', 'list', 'json'
     ];
     const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
     const { values, positionals } = parseArgs({
         args: normalized,
         options: {
+            help: { type: 'boolean', short: 'h' },
+            list: { type: 'boolean', short: 'l' },
+            info: { type: 'string' },
+            json: { type: 'boolean' },
             family: { type: 'string' },
             task: { type: 'string' },
             tasks: { type: 'string' },
@@ -361,7 +365,11 @@ function buildConsolidatedReport(params) {
             suitesTotal: ctx.results.length,
             suitesPassed,
             suitesFailed: ctx.results.length - suitesPassed,
-            durationMs: ctx.totalDuration
+            durationMs: ctx.totalDuration,
+            ...(params.fixableErrors !== undefined && { fixableErrors: params.fixableErrors }),
+            ...(params.fixableWarnings !== undefined && { fixableWarnings: params.fixableWarnings }),
+            ...(params.autoFixRecommended !== undefined && { autoFixRecommended: params.autoFixRecommended }),
+            ...(params.autoFixRecommended && { autoFixCommand: 'npx auditor fix' })
         },
         families: Object.fromEntries(ctx.activeFamilies.map(f => [
             f,
@@ -480,6 +488,21 @@ async function renderAndPersistMasterReport(ctx) {
     }
     const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
     const anyFailed = totalErrors > 0 || (suitesPassed + suitesSkipped) < results.length || ratchet?.status === 'failed';
+    const fixableSuiteIds = new Set(tasksToRun.filter(t => t.capabilities?.fix).map(t => t.id));
+    const fixableErrors = results.reduce((acc, r) => {
+        const isFixSuite = fixableSuiteIds.has(r.id);
+        const errCount = r.findings?.filter(f => f.severity === 'error' && (isFixSuite || f.fixable)).length ?? 0;
+        return acc + errCount;
+    }, 0);
+    const fixableWarnings = results.reduce((acc, r) => {
+        const isFixSuite = fixableSuiteIds.has(r.id);
+        const warnCount = r.findings?.filter(f => f.severity === 'warning' && (isFixSuite || f.fixable)).length ?? 0;
+        return acc + warnCount;
+    }, 0);
+    const autoFixRecommended = !isFixMode && (fixableErrors > 0 || fixableWarnings > 0);
+    if (autoFixRecommended) {
+        console.log('\n' + renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) + '\n');
+    }
     const { meta, consolidatedReport, fileSummaryMap } = buildConsolidatedReport({
         ctx,
         totalErrors,
@@ -488,7 +511,10 @@ async function renderAndPersistMasterReport(ctx) {
         anyFailed,
         isFullAudit,
         byFamily,
-        ratchet
+        ratchet,
+        fixableErrors,
+        fixableWarnings,
+        autoFixRecommended
     });
     const latestAuditPath = path.join(scratchAuditsDir, 'latest_audit.json');
     const latestSummaryPath = path.join(scratchAuditsDir, 'latest_summary.json');
@@ -557,6 +583,66 @@ export async function runMasterAudit() {
         includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
     };
     const allAvailableTasks = await discoverAuditors(isBuildMode ? { buildOnly: true } : { withBuild });
+    // 1. Manejo dinámico de --help / -h / help
+    if (cliOptions.values.help || cliOptions.positionals.includes('help')) {
+        const requestedSuiteId = typeof cliOptions.values.info === 'string'
+            ? cliOptions.values.info
+            : cliOptions.positionals.find(p => p !== 'help' && !activeFamilies.includes(p));
+        if (requestedSuiteId) {
+            const task = allAvailableTasks.find(t => t.id === requestedSuiteId || t.name.toLowerCase() === requestedSuiteId.toLowerCase());
+            if (!task) {
+                console.error(styleText('red', `\n❌ Suite no encontrada: '${requestedSuiteId}'. Ejecuta 'npx auditor --list' para ver todas las disponibles.\n`));
+                process.exit(1);
+            }
+            console.log(renderAuditorDetailCard(task));
+            process.exit(0);
+        }
+        console.log(renderCliHelp(activeFamilies));
+        process.exit(0);
+    }
+    // 2. Manejo dinámico de --list / list
+    if (cliOptions.values.list || cliOptions.positionals.includes('list')) {
+        if (cliOptions.values.json) {
+            const manifests = allAvailableTasks.map(t => t.manifest ?? {
+                id: t.id,
+                name: t.name,
+                family: t.family,
+                icon: t.icon ?? '🏛️',
+                description: t.description ?? t.name,
+                capabilities: {
+                    fix: Boolean(t.capabilities?.fix),
+                    lint: Boolean(t.capabilities?.lint),
+                    md: Boolean(t.capabilities?.md),
+                    ast: Boolean(t.capabilities?.ast || t.requiresAst),
+                    changedSince: Boolean(t.capabilities?.changedSince),
+                    heavy: Boolean(t.capabilities?.heavy),
+                    requiresBuild: Boolean(t.capabilities?.requiresBuild),
+                    postRun: Boolean(t.capabilities?.postRun)
+                },
+                rules: t.ruleDescriptions ?? {},
+                configKey: t.configKey
+            });
+            console.log(JSON.stringify(manifests, null, 2));
+            process.exit(0);
+        }
+        console.log(renderAuditorsRegistryTable(allAvailableTasks, activeFamilies));
+        process.exit(0);
+    }
+    // 3. Manejo dinámico de --info=<suiteId> / info <suiteId>
+    const infoSuiteId = typeof cliOptions.values.info === 'string'
+        ? cliOptions.values.info
+        : (cliOptions.positionals.includes('info')
+            ? cliOptions.positionals.find(p => p !== 'info' && !activeFamilies.includes(p))
+            : undefined);
+    if (infoSuiteId) {
+        const task = allAvailableTasks.find(t => t.id === infoSuiteId || t.name.toLowerCase() === infoSuiteId.toLowerCase());
+        if (!task) {
+            console.error(styleText('red', `\n❌ Suite no encontrada: '${infoSuiteId}'. Ejecuta 'npx auditor --list' para ver todas las disponibles.\n`));
+            process.exit(1);
+        }
+        console.log(renderAuditorDetailCard(task));
+        process.exit(0);
+    }
     const tasksToRun = await discoverAuditors({
         ...discoveryBase,
         family: cliOptions.targetFamily,

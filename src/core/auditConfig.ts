@@ -1209,6 +1209,9 @@ function checkInfrastructureSubsystems(
   if (typeof config.testCoverage?.enabled !== 'boolean') {
     missing.push("  - 'testCoverage': El campo 'enabled' debe ser booleano (true o false).");
   }
+  if (typeof config.testCoverage?.enforceInAudit !== 'boolean') {
+    missing.push("  - 'testCoverage': El campo 'enforceInAudit' debe ser booleano (true o false). Por defecto es true en todo proyecto gobernado por @francogp/auditor.");
+  }
   if (typeof config.packageDistribution?.enabled !== 'boolean') {
     missing.push("  - 'packageDistribution': El campo 'enabled' debe ser booleano (true o false).");
   } else if (config.packageDistribution.level && !VALID_DISTRIBUTION_LEVELS.includes(config.packageDistribution.level)) {

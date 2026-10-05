@@ -132,6 +132,44 @@ export interface GitIgnoreRequirement {
     readonly reason: string;
     readonly isApplicable?: (config: AuditEngineConfig) => boolean;
 }
+/**
+ * DTO Canónico del Manifiesto de un Sub-Auditor.
+ * Contrato inmutable mínimo y estructurado para que herramientas,
+ * CLIs y agentes de IA conozcan el propósito y ejecución del auditor.
+ */
+export interface AuditorManifestDTO {
+    /** Identificador único de la suite (ej: 'validate_accessibility') */
+    readonly id: string;
+    /** Nombre formal legible (ej: 'Web & Vue Accessibility Standards') */
+    readonly name: string;
+    /** Familia canónica del auditor ('architecture', 'domain_data', 'persistence', 'documentation', etc.) */
+    readonly family: string;
+    /** Emoji temático obligatorio */
+    readonly icon: string;
+    /**
+     * Resumen conciso y obligatorio de para qué sirve y qué valida (máx 60 caracteres).
+     * Obligatorio, directo y sin paredes de texto.
+     */
+    readonly description: string;
+    /** Flags / capacidades de ejecución soportadas */
+    readonly capabilities: {
+        readonly fix: boolean;
+        readonly lint: boolean;
+        readonly md: boolean;
+        readonly ast: boolean;
+        readonly changedSince: boolean;
+        readonly heavy: boolean;
+        readonly requiresBuild: boolean;
+        readonly postRun: boolean;
+    };
+    /** Catálogo de reglas evaluadas con su descripción concisa en español */
+    readonly rules: Readonly<Record<string, string>>;
+    /**
+     * Clave o sección de configuración en .auditor/audit.config.ts si la utiliza de forma específica.
+     * Conciso (ej: 'styles.baseScssFile', 'fallow.security', 'testCoverage.thresholds').
+     */
+    readonly configKey?: string;
+}
 export interface AuditTaskDefinition {
     id: string;
     name: string;
@@ -149,6 +187,9 @@ export interface AuditTaskDefinition {
     icon?: string;
     capabilities?: AuditorCapabilities;
     gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+    manifest?: AuditorManifestDTO;
+    configKey?: string;
+    ruleDescriptions?: Readonly<Record<string, string>>;
 }
 export interface AuditTaskDescriptor {
     id?: string;
@@ -214,6 +255,10 @@ export interface ConsolidatedAuditReport {
         suitesPassed: number;
         suitesFailed: number;
         durationMs: number;
+        fixableErrors?: number;
+        fixableWarnings?: number;
+        autoFixRecommended?: boolean;
+        autoFixCommand?: string;
     };
     families: Partial<Record<AuditFamily, {
         title: string;

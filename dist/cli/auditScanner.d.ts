@@ -6,7 +6,7 @@
  * infers families, generates canonical task definitions, and guarantees that ZERO auditors
  * are ever left behind from the orchestrator.
  */
-import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement } from '../core/auditContract.ts';
+import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement, type AuditorManifestDTO } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 export declare const AUDIT_PRESETS: Record<string, readonly string[]>;
 export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {});
@@ -30,6 +30,10 @@ export interface ExtractedAuditorMetadata {
     readonly capabilities: AuditorCapabilities;
     readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
     readonly icon?: string;
+    readonly manifest?: AuditorManifestDTO;
+    readonly description?: string;
+    readonly ruleDescriptions?: Readonly<Record<string, string>>;
+    readonly configKey?: string;
 }
 export declare function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata>;
 export declare function extractCapabilitiesFromFile(fullPath: string): Promise<AuditorCapabilities>;

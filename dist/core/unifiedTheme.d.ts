@@ -5,7 +5,7 @@
  * Provides the single source of truth for visual presentation, Unicode Box-Drawing,
  * fixed-width column alignment, status badges, and Markdown generation.
  */
-import { type StandardAuditResult, type AuditFinding, type AuditFileSummary, type FamilyMetadata } from './auditContract.ts';
+import { type StandardAuditResult, type AuditFinding, type AuditFileSummary, type FamilyMetadata, type AuditTaskDefinition } from './auditContract.ts';
 /**
  * Calculates the visual monospace terminal display width of a string,
  * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
@@ -37,6 +37,25 @@ export declare function renderBanner(title: string, subtitle?: string): string;
  * developers and AI agents with the exact command to install it manually.
  */
 export declare function renderSimilarCodeWarningBanner(): string;
+/**
+ * Renders a prominent 80-column Box-Drawing warning banner when fixable errors or warnings
+ * are detected at the end of an audit run, directing developers and AI agents to execute
+ * `auditor fix` before taking any action or attempting manual suppression.
+ */
+export declare function renderAutoFixNoticeBanner(fixableErrors: number, fixableWarnings: number): string;
+/**
+ * Renders the full dynamic registry of auditors in an 80-column Box-Drawing table,
+ * grouped by family, with capability flags and concise descriptions.
+ */
+export declare function renderAuditorsRegistryTable(tasks: readonly AuditTaskDefinition[], activeFamilies: readonly string[]): string;
+/**
+ * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
+ */
+export declare function renderAuditorDetailCard(task: AuditTaskDefinition): string;
+/**
+ * Renders the CLI general interactive help (≤ 80 cols).
+ */
+export declare function renderCliHelp(activeFamilies: readonly string[]): string;
 export declare function renderFamilyHeader(meta: FamilyMetadata): string;
 export declare function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'info' | 'skipped'): string;
 export declare function formatDuration(ms: number): string;

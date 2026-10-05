@@ -147,7 +147,12 @@ function parseReportOptions() {
             continue;
         }
         if (!arg.startsWith('-')) {
-            opts.category = arg.toLowerCase();
+            if (arg.toLowerCase() === 'by-file' || arg.toLowerCase() === 'byfile') {
+                opts.byFile = true;
+            }
+            else {
+                opts.category = arg.toLowerCase();
+            }
         }
     }
     return opts;

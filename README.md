@@ -2,7 +2,7 @@
 
 > **Autonomous static analysis, architectural governance, AI agent skills packaging, and zero-tolerance code quality engine for native Node.js 26+ (`--permission`, `--experimental-strip-types`).**
 
-Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, streaming concurrent runner, standardized Box-Drawing terminal reporting (80 fixed columns, visual width emoji alignment, and mandatory `TOTAL CONSOLIDADO` footer row), 44 built-in generic suites, **native distribution of 43 Antigravity AI agent skills**, **centralized single source of truth (SSoT) dependencies**, and a **cross-platform environment governance system (Linux/Windows) with zero hardcoded paths**.
+Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, streaming concurrent runner, standardized Box-Drawing terminal reporting (80 fixed columns, visual width emoji alignment, and mandatory `TOTAL CONSOLIDADO` footer row), built-in generic suites across all architectural families, **native distribution of Antigravity AI agent skills**, **centralized single source of truth (SSoT) dependencies**, and a **cross-platform environment governance system (Linux/Windows) with zero hardcoded paths**.
 
 ---
 
@@ -26,7 +26,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 
 ## 1. Key Features & Architectural Architecture
 
-- **44 Built-In Generic Suites**: Comprehensive static verification across 4 canonical families (`architecture/`, `domain_data/`, `persistence/`, `documentation/`).
+- **Built-In Generic Architectural Suites**: Comprehensive static verification across 4 canonical families (`architecture/`, `domain_data/`, `persistence/`, `documentation/`).
 - **Capability-Driven Auto-Coordination (`AuditorCapabilities`)**: Sub-auditors declare capabilities (`lint`, `fix`, `md`, `heavy`, `requiresBuild`, `ast`, `changedSince`) cleanly with immutable zero-boilerplate defaults (`DEFAULT_AUDITOR_CAPABILITIES`). No hardcoded suite lists in runners or scanners.
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
 - **Automated ESLint Configuration Auditor (`validate_eslint_config`)**: Statically analyzes `eslint.config.js` to ensure host projects enforce strict type safety, banning `any`, double casting, and legacy dates.
@@ -136,57 +136,75 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
 
 ### 4.1. Full Project Audit
 
-Executes all 44 suites and host extensions registered in `.auditor/audit.config.ts`:
+Executes all discovered built-in suites and registered host extensions:
 
 ```bash
-npx auditor
-# or via npm:
 npm run audit
+# or directly with binary in PATH:
+auditor
 ```
 
-- Streams real-time progress (`[ 01/44 | 2% ]`) in completion order across background workers.
+- Streams real-time progress in completion order across background workers.
 - Renders the Box-Drawing consolidated summary table with the `TOTAL CONSOLIDADO` footer row.
 - Saves full structured results to `scratch/audits/latest_audit.json`.
 
-### 4.2. Fast Lint Preset (`preset=lint`)
+### 4.2. Dynamic Discovery & Suite Introspection (`--list`, `--info`)
+
+Discover and inspect suites dynamically without reading source code:
+
+```bash
+# Render 80-column Box-Drawing table of all discovered suites and capabilities:
+auditor --list
+
+# Emit complete manifest catalog in JSON format (AuditorManifestDTO[]):
+auditor --list --json
+
+# Inspect single suite specification, purpose, evaluated rules, and configuration key:
+auditor --info=validate_eslint
+
+# Interactive CLI manual:
+auditor --help
+```
+
+### 4.3. Fast Lint Preset (`preset=lint`)
 
 Dynamically isolates and executes only suites declaring `capabilities: { lint: true }` in milliseconds:
 
 ```bash
-npx auditor preset=lint
-# or:
 npm run audit:lint
+# or:
+auditor preset=lint
 ```
 
-Discovers 12 lint-capable suites: `validate_eslint`, `validate_eslint_config`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_accessibility`, `validate_domain_types`, `validate_vue_sfc_hygiene`, `validate_o1_data_structures`, `validate_audit_headers`, `validate_console_cleanliness`, and `validate_component_styles`.
+Discovers lint-capable suites dynamically (including ESLint, Stylelint, HTML-Validate, Markdownlint, A11y, Domain Types, Vue SFC hygiene, and AST checkers).
 
-### 4.3. Documentation Preset (`preset=md`)
+### 4.4. Documentation Preset (`preset=md`)
 
 Dynamically isolates and executes suites declaring `capabilities: { md: true }`:
 
 ```bash
-npx auditor preset=md
-# or:
 npm run audit:md
+# or:
+auditor preset=md
 ```
 
-Discovers 6 documentation suites: `validate_dox_integrity`, `validate_markdown_code_references`, `validate_markdown_syntax`, `validate_markdown_links`, `validate_markdown_lint`, and `validate_documented_commands`.
+Discovers documentation suites dynamically (including DOX hierarchy, Markdown syntax, link integrity, code references, and authentic documented commands).
 
-### 4.4. Auto-Fix Mode (`auditor fix`)
+### 4.5. Auto-Fix Mode (`auditor fix`)
 
 Dynamically isolates and runs only suites declaring `capabilities: { fix: true }` under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface:
 
 ```bash
-npx auditor fix
-# or:
 npm run audit:fix
+# or:
+auditor fix
 ```
 
 Auto-repair suites include: `validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene` (Knip dependency fixes), `validate_z_index`, and `validate_agent_plugin`.
 
-### 4.5. Built-In Warning Ratchet (0 errors, 0 new warnings)
+### 4.6. Built-In Warning Ratchet (0 errors, 0 new warnings)
 
-Every full default run (`npx auditor` / `npm run audit`) is also the commit gate. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
+Every full default run (`npm run audit` / `auditor`) is also the commit gate. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
 
 ```bash
 git fetch origin
@@ -200,14 +218,14 @@ npm run audit -- --init-baseline  # one-time bootstrap when the production ref h
 - CI checkouts must expose the production ref (for example `fetch-depth: 0`).
 - The former `audit:for-commit` / `auditor-commit` gate is removed; `validate_audit_config` flags leftover scripts (`audit-config-removed-commit-gate`) and `auditor fix` rewrites them.
 
-### 4.6. Post-Build Artifact Preset (`preset=build` / `auditor-build`)
+### 4.7. Post-Build Artifact Preset (`preset=build` / `auditor-build`)
 
 Dynamically isolates and executes suites declaring `capabilities: { requiresBuild: true }` against compiled distribution artifacts in `dist/`:
 
 ```bash
-npx auditor preset=build
-# or:
 npm run audit:build
+# or:
+auditor preset=build
 ```
 
 Executes `validate_package_distribution` (Publint) and `validate_bundle_budget` post-compilation.
@@ -469,27 +487,29 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 
 ## 12. CLI Tools & Reporters Reference
 
+All binaries execute directly or through native `npm run` scripts. Running tools via `npx` is strictly prohibited.
+
 | Binary Command | Script | Description |
 | :--- | :--- | :--- |
-| `npx auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
-| `npx auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
-| `npx auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
-| `npx auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |
-| `npx auditor-fallow` | `src/cli/report_fallow.ts` | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`). |
-| `npx auditor-complexity` | `src/cli/report_complexity.ts` | Cognitive/cyclomatic complexity hotspots and refactoring targets report. |
-| `npx auditor-similar` | `src/cli/report_similar_code.ts` | Semantic clone and function similarity analysis via Fallow vector embeddings. |
-| `npx auditor-review` | `src/cli/report_review.ts` | Graph-grounded architectural review brief for changed code. |
-| `npx auditor-css` | `src/cli/report_css.ts` | Stylelint and stylesheet hygiene analysis report. |
-| `npx auditor-update` | `src/cli/update_package.ts` | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. |
-| `npx auditor-version` | `src/cli/bump_version.ts` | Displays installed framework version, build timestamp, and git commit hash. |
-| `npx auditor-guard` | `src/cli/report_guard.ts` | Pre-flight architectural boundary and policy inspector for target files (`audit:guard <files>`). |
-| `npx auditor-flags` | `src/cli/report_flags.ts` | Feature flag usage and retirement candidates governance tool (`audit:flags [--retirement]`). |
-| `npx auditor-test-coverage` | `src/cli/report_test_coverage.ts` | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`audit:test-coverage`). |
-| `npx auditor-coverage` | `src/cli/report_test_coverage.ts` | Alias for `auditor-test-coverage` (`audit:coverage`). |
-| `npx auditor-init-agent` | `src/cli/init_agent.ts` | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery. |
-| `npx auditor-sync-env` | `src/cli/sync_env_scripts.ts` | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project. |
-| `npx auditor-check-env` | `src/cli/check_environment.ts` | Validates Node.js and npm version invariants during host `preinstall`. |
-| `npx auditor-setup-env` | `src/cli/setup_env.ts` | Detects host OS and runs appropriate setup script (`setup-linux.sh` / `setup-windows.ps1`). |
+| `auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
+| `auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
+| `auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
+| `auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |
+| `auditor-fallow` | `src/cli/report_fallow.ts` | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`). |
+| `auditor-complexity` | `src/cli/report_complexity.ts` | Cognitive/cyclomatic complexity hotspots and refactoring targets report. |
+| `auditor-similar` | `src/cli/report_similar_code.ts` | Semantic clone and function similarity analysis via Fallow vector embeddings. |
+| `auditor-review` | `src/cli/report_review.ts` | Graph-grounded architectural review brief for changed code. |
+| `auditor-css` | `src/cli/report_css.ts` | Stylelint and stylesheet hygiene analysis report. |
+| `auditor-update` | `src/cli/update_package.ts` | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. |
+| `auditor-version` | `src/cli/bump_version.ts` | Displays installed framework version, build timestamp, and git commit hash. |
+| `auditor-guard` | `src/cli/report_guard.ts` | Pre-flight architectural boundary and policy inspector for target files (`audit:guard <files>`). |
+| `auditor-flags` | `src/cli/report_flags.ts` | Feature flag usage and retirement candidates governance tool (`audit:flags [--retirement]`). |
+| `auditor-test-coverage` | `src/cli/report_test_coverage.ts` | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`audit:test-coverage`). |
+| `auditor-coverage` | `src/cli/report_test_coverage.ts` | Alias for `auditor-test-coverage` (`audit:coverage`). |
+| `auditor-init-agent` | `src/cli/init_agent.ts` | Registers `@francogp/auditor` in `.agents/plugins.json` for AI agent skill discovery. |
+| `auditor-sync-env` | `src/cli/sync_env_scripts.ts` | Synchronizes `setup-linux.sh`, `setup-windows.ps1` and setup plugins into host project. |
+| `auditor-check-env` | `src/cli/check_environment.ts` | Validates Node.js and npm version invariants during host `preinstall`. |
+| `auditor-setup-env` | `src/cli/setup_env.ts` | Detects host OS and runs appropriate setup script (`setup-linux.sh` / `setup-windows.ps1`). |
 
 ---
 

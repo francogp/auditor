@@ -22,6 +22,10 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
    - If the number of errors or warnings is massive (even hundreds or thousands of errors), **THEY ARE REAL ARCHITECTURAL, SECURITY, OR HYGIENE DEFECTS THAT MUST BE LEGITIMATELY RESOLVED IN THE SOURCE CODE OR FIXED WITH CANONICAL TOOLS (`auditor fix`)**.
    - Modernizing host configurations means **elevating the codebase to meet strict modern standards and exposing defects that were previously hidden**, NEVER degrading, diluting, or castrating the auditor's rules to fit legacy code.
    - Rushing to silence rules to achieve a fake clean pass is considered a critical architectural violation and gross misconduct.
+0.2. **Absolute Prohibition on NPX & Mandate of Native Node.js 26+ (`node --experimental-strip-types`) / Canonical NPM Scripts**:
+   - Running, recommending, or executing `npx` (e.g., `npx tsx`, `npx auditor`, `npx vitest`) or third-party runtime wrappers across `@francogp/auditor` and consumer host projects is **STRICTLY AND CATEGORICALLY PROHIBITED**.
+   - Node.js 26+ runs TypeScript natively without third-party transpiladores. All internal tool executions, inspections, and scripts MUST use native Node.js (`node --experimental-strip-types <script.ts>`) or canonical npm package scripts (`npm run <script>`, `npm test`).
+   - If a host project lacks an auditor script in `package.json`, agents MUST run `npm run audit:fix` (or `node --experimental-strip-types ...`) to synchronize scripts, NEVER attempt ad-hoc `npx` commands.
 1. **Strict OOP Inheritance Mandate**:
    - Every sub-auditor MUST extend either `BaseAuditor<TRuleId>` or `FileScanAuditor<TRuleId>` from `@francogp/auditor`.
    - Creating standalone procedural scripts, custom CLI loggers, or ad-hoc result printers is **STRICTLY FORBIDDEN**.
@@ -267,7 +271,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 57. **Mandatory README Synchronization & Modernization Mandate**:
     - Whenever releasing framework features, updating generic suites, adjusting canonical package scripts, or performing auditor upgrades in host applications, developers and AI agents MUST review, update, and modernize the root `README.md`.
     - **Script Synchronization**: Verify that all scripts in `package.json` matching `recommended_package_scripts_template.json` (such as `audit:build`, `audit:fix`, `audit:lint`, `audit:similar`, `auditor:update`) are correctly documented in the root `README.md`.
-    - **Suite Count Accuracy**: Ensure suite counts (44 built-in suites) and family breakdowns reflect canonical numbers.
+    - **Suite Synchronization**: Ensure generic suites, capabilities, and family breakdowns reflect canonical standards without hardcoding brittle suite counts.
     - **Configuration Examples**: Ensure configuration snippets in `README.md` include all mandatory active subsystems, including the `coverage` ledger (`exemptGlobs` and `acknowledgedDegradations`).
 58. **Single Source of Truth Configuration & `.auditor/` Directory Layout**:
     - Dynamically loads paths, persistence settings, and host extensions via `.auditor/audit.config.ts` (or `.auditor/audit.config.json`).
@@ -289,17 +293,29 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Test coverage enforcement is **active by default** (`testCoverage.enforceInAudit: true`) across `@francogp/auditor`.
     - If overall code coverage or category coverage (statements, branches, functions, lines) falls below the threshold (default: **80%**), `validate_test_coverage` fails with blocking `severity: 'error'`.
     - Untested modules are reported as shadow code. Host projects with mathematical ceilings (e.g. platform-specific wrappers) may configure their achievable ceiling (e.g. 70% or 80%) in `.auditor/audit.config.ts`, but coverage enforcement must remain active and ratcheting.
+62. **Dynamic Introspection Catalog & Manifest DTO Mandate (`AuditorManifestDTO`, `--list`, `--info`)**:
+    - Every sub-auditor and host extension MUST implement clean dynamic metadata via `BaseAuditor.toManifest(): AuditorManifestDTO`.
+    - **Concise Summaries (Zero Text Walls)**: Descriptions MUST be short and direct (`description <= 60 chars`), avoiding multi-line walls of text so AI agents and CLI tools can digest them instantly.
+    - The CLI provides dynamic introspection out-of-the-box without filesystem crawling:
+      - `node --experimental-strip-types src/cli/audit_full.ts --list` (or `auditor --list`): Box-Drawing table of all discovered suites, flags, and descriptions.
+      - `node --experimental-strip-types src/cli/audit_full.ts --list --json` (or `auditor --list --json`): Emits structured `AuditorManifestDTO[]` in JSON format.
+      - `node --experimental-strip-types src/cli/audit_full.ts --info=<suiteId>` (or `auditor --info=<suiteId>`): Technical specification sheet of a suite (purpose, flags, evaluated rules, configuration).
+      - `node --experimental-strip-types src/cli/audit_full.ts --help` (or `auditor --help`): Interactive CLI manual in 80 columns.
+    - **Zero Hardcoding**: The master orchestrator NEVER hardcodes suite lists or descriptions; all catalog data is extracted dynamically via reflection or AST.
+63. **Auto-Fix First Protocol & Script Sync Gate**:
+    - **Auto-Fix First**: When an audit completes with fixable errors/warnings, `audit_full` renders an emphatic Box-Drawing banner urging `npm run audit:fix` (or `auditor fix`). Agents and developers MUST run auto-fix first to resolve mechanical defects before attempting manual refactoring, and are strictly prohibited from muting or silencing rules in panic.
+    - **Script Sync First**: If a recommended auditor script (`audit:by-file`, `audit:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run audit:fix` (or `node --experimental-strip-types ...`) to synchronize scripts from `recommended_package_scripts_template.json` before attempting manual ad-hoc executions.
 
 ---
 
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
 ### 1. Generic Built-In Suites (`src/suites/`)
-44 domain-agnostic suites discovered automatically across 4 canonical families:
-- `architecture/` (35 suites, including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
-- `domain_data/` (2 suites): O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `.auditor/audit.config.ts`)
-- `persistence/` (1 suite): SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
-- `documentation/` (6 suites): Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
+Domain-agnostic suites discovered automatically across canonical architectural families:
+- `architecture/` (including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
+- `domain_data/`: O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `.auditor/audit.config.ts`)
+- `persistence/`: SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
+- `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `.auditor/audit.config.ts`
 All domain-specific rules unique to host applications (e.g. specialized domain entities, state machines, business workflows, custom SQLite schemas) reside in `scripts/auditors/` (or designated project folders) and extend `BaseAuditor` imported from `@francogp/auditor`.

@@ -61,7 +61,7 @@ export default defineAuditConfig({
       'src/**/*.d.ts',
       'src/types/**'
     ],
-    enforceInAudit: false // Set to true to fail full audit if coverage drops below threshold
+    enforceInAudit: true // Active by default across @francogp/auditor (fails audit if coverage drops below threshold)
   }
 });
 ```

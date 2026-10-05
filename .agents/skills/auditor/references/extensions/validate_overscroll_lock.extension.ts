@@ -31,11 +31,12 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
     super({
       id: 'validate_overscroll_lock',
       name: 'Mobile Overscroll Behavior Lock Validator',
-      description: 'Bloqueo de overscroll-behavior en hoja base para juegos móviles',
+      description: 'Bloqueo de overscroll-behavior en hoja base móvil',
       icon: '📱',
       family: 'architecture',
       ruleIds: OVERSCROLL_LOCK_RULES,
       packageName: 'Móvil',
+      configKey: 'styles.baseScssFile',
       ruleDescriptions: {
         'overscroll-behavior-lock': 'Falta overscroll-behavior en hoja base'
       },

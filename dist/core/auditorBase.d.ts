@@ -8,7 +8,7 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorManifestDTO } from './auditContract.ts';
 import { CoverageRecorder } from './auditCoverage.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
@@ -95,6 +95,8 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly requiredFiles?: readonly string[];
     readonly requiresAst?: boolean;
     readonly projectRoot?: string;
+    /** Section in .auditor/audit.config.ts utilized specifically by this suite (concise key, e.g. 'styles.baseScssFile', 'fallow.security') */
+    readonly configKey?: string;
     /**
      * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
      * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
@@ -130,6 +132,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly requiredFiles: readonly string[];
     readonly requiresAst: boolean;
     readonly projectRoot: string;
+    readonly configKey?: string;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
@@ -199,6 +202,11 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     importAuditFindings(findings: readonly AuditFinding[], fallbackRuleId: TRuleId, fallbackContext?: string): void;
     setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string) => void): void;
     setProgressLogger(logger: (msg: string) => void): void;
+    /**
+     * Genera el DTO canónico AuditorManifestDTO para introspección limpia y tipada,
+     * permitiendo a herramientas externas y agentes consultar dinámicamente qué hace y cómo opera.
+     */
+    toManifest(): AuditorManifestDTO;
     private static isExecutingCli;
     static runCli(auditor: BaseAuditor<string>): Promise<void>;
     static runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void>;

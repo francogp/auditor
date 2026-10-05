@@ -24,7 +24,8 @@ import {
   type SubAuditorReport,
   type AuditorCapabilities,
   type AuditorCoverageDeclaration,
-  type GitIgnoreRequirement
+  type GitIgnoreRequirement,
+  type AuditorManifestDTO
 } from './auditContract.ts';
 import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
 import {
@@ -588,6 +589,8 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly requiredFiles?: readonly string[];
   readonly requiresAst?: boolean;
   readonly projectRoot?: string;
+  /** Section in .auditor/audit.config.ts utilized specifically by this suite (concise key, e.g. 'styles.baseScssFile', 'fallow.security') */
+  readonly configKey?: string;
   /**
    * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
    * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
@@ -697,6 +700,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly requiredFiles: readonly string[];
   public readonly requiresAst: boolean;
   public readonly projectRoot: string;
+  public readonly configKey?: string;
 
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
@@ -745,6 +749,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.name = options.name;
     this.description = options.description;
     this.family = options.family;
+    this.configKey = options.configKey;
     this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
     if (this.gitIgnoreEntries.length > 0) {
       GitIgnoreRegistry.registerMany(this.gitIgnoreEntries);
@@ -1156,6 +1161,40 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   public setProgressLogger(logger: (msg: string) => void): void {
     this.context.setProgressLogger?.(logger);
+  }
+
+  /**
+   * Genera el DTO canónico AuditorManifestDTO para introspección limpia y tipada,
+   * permitiendo a herramientas externas y agentes consultar dinámicamente qué hace y cómo opera.
+   */
+  public toManifest(): AuditorManifestDTO {
+    const rulesRecord: Record<string, string> = {};
+    if (this.ruleDescriptions) {
+      for (const [k, v] of Object.entries(this.ruleDescriptions)) {
+        if (typeof v === 'string') {
+          rulesRecord[k] = v;
+        }
+      }
+    }
+    return {
+      id: this.id,
+      name: this.name,
+      family: this.family,
+      icon: this.icon,
+      description: this.description,
+      capabilities: {
+        fix: this.capabilities.fix,
+        lint: this.capabilities.lint,
+        md: this.capabilities.md,
+        ast: this.capabilities.ast,
+        changedSince: this.capabilities.changedSince,
+        heavy: this.capabilities.heavy,
+        requiresBuild: this.capabilities.requiresBuild,
+        postRun: this.capabilities.postRun
+      },
+      rules: rulesRecord,
+      configKey: this.configKey
+    };
   }
 
   private static isExecutingCli = false;

@@ -9,6 +9,8 @@ import { styleText, stripVTControlCharacters } from 'node:util';
 import path from 'node:path';
 import { FAMILY_METADATA, groupResultsByFamily } from "./auditContract.js";
 const TERMINAL_WIDTH = 80;
+const REGISTRY_DESC_COL_WIDTH = 24;
+const REGISTRY_DESC_TRUNCATE_LIMIT = 23;
 /**
  * Calculates the visual monospace terminal display width of a string,
  * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
@@ -146,34 +148,228 @@ export function renderBanner(title, subtitle) {
     lines.push(styleText('cyan', `╚═${line}═╝`));
     return lines.join('\n');
 }
+function buildNoticeBox(options) {
+    const line = '═'.repeat(TERMINAL_WIDTH - 4);
+    const innerWidth = TERMINAL_WIDTH - 6;
+    const color = options.borderColor || 'yellow';
+    const colorFn = (s) => styleText(color, s);
+    const outLines = [];
+    outLines.push(colorFn(`╔═${line}═╗`));
+    outLines.push(colorFn('║  ') + padVisual(styleText(['bold', color], options.title), innerWidth) + colorFn('  ║'));
+    outLines.push(colorFn(`╠═${line}═╣`));
+    for (const item of options.lines) {
+        if (item === '') {
+            outLines.push(colorFn('║  ') + padVisual('', innerWidth) + colorFn('  ║'));
+        }
+        else {
+            outLines.push(colorFn('║  ') + padVisual(item, innerWidth) + colorFn('  ║'));
+        }
+    }
+    outLines.push(colorFn(`╚═${line}═╝`));
+    return outLines.join('\n');
+}
 /**
  * Renders a prominent 80-column Box-Drawing warning banner when the automatic
  * installation of Fallow's vector embedding model fails, notifying both human
  * developers and AI agents with the exact command to install it manually.
  */
 export function renderSimilarCodeWarningBanner() {
+    return buildNoticeBox({
+        borderColor: 'yellow',
+        title: '⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE',
+        lines: [
+            styleText('white', 'La inicialización automática del modelo de embeddings de Fallow falló.'),
+            styleText('white', 'El sub-auditor especializado de similar-code no se pudo ejecutar.'),
+            styleText('dim', 'Esta funcionalidad requiere instalación manual en este entorno.'),
+            '',
+            styleText(['bold', 'white'], 'Para instalarlo manualmente, ejecuta el siguiente comando en tu terminal:'),
+            styleText(['bold', 'cyan'], '  👉  fallow similar-code setup --local --yes'),
+            '',
+            styleText('dim', 'Nota para CI: puedes omitir esta suite en entornos remotos o GitHub Pages'),
+            styleText('dim', 'exportando la variable AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1.')
+        ]
+    });
+}
+/**
+ * Renders a prominent 80-column Box-Drawing warning banner when fixable errors or warnings
+ * are detected at the end of an audit run, directing developers and AI agents to execute
+ * `auditor fix` before taking any action or attempting manual suppression.
+ */
+export function renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) {
+    const errorText = fixableErrors > 0 ? `${fixableErrors} error(es)` : '';
+    const warnText = fixableWarnings > 0 ? `${fixableWarnings} advertencia(s)` : '';
+    const sep = fixableErrors > 0 && fixableWarnings > 0 ? ' y ' : '';
+    const countStr = `${errorText}${sep}${warnText}`;
+    return buildNoticeBox({
+        borderColor: 'yellow',
+        title: '🛠️  ATENCIÓN: INCIDENCIAS REPARABLES AUTOMÁTICAMENTE DETECTADAS',
+        lines: [
+            styleText('white', `Se detectaron ${countStr} corregibles con auto-reparación.`),
+            styleText('dim', 'El auditor dispone de mecanismos automáticos para resolver la gran mayoría.'),
+            styleText(['bold', 'yellow'], 'ESTÁ CATEGÓRICAMENTE PROHIBIDO SILENCIAR O APAGAR REGLAS EN PÁNICO.'),
+            '',
+            styleText(['bold', 'white'], 'Ejecuta primero la auto-reparación antes de continuar:'),
+            styleText(['bold', 'cyan'], '  👉  npm run audit:fix   (o auditor fix)')
+        ]
+    });
+}
+/**
+ * Renders the full dynamic registry of auditors in an 80-column Box-Drawing table,
+ * grouped by family, with capability flags and concise descriptions.
+ */
+export function renderAuditorsRegistryTable(tasks, activeFamilies) {
     const line = '═'.repeat(TERMINAL_WIDTH - 4);
+    const output = [];
+    output.push(styleText('cyan', `╔═${line}═╗`));
+    output.push(styleText('cyan', `║  ${styleText(['bold', 'white'], 'CATÁLOGO DINÁMICO DE AUDITORES Y CAPACIDADES'.padEnd(TERMINAL_WIDTH - 6))}  ║`));
+    output.push(styleText('cyan', `║  ${styleText('dim', 'Suites descubiertas en tiempo de ejecución (cero hardcoding)'.padEnd(TERMINAL_WIDTH - 6))}  ║`));
+    output.push(styleText('cyan', `╚═${line}═╝\n`));
+    const columns = [
+        { header: 'AUDITOR / SUITE ID', width: 27, align: 'left', key: 'id' },
+        { header: 'FLAGS / CAPACIDADES', width: 19, align: 'left', key: 'flags' },
+        { header: 'DESCRIPCIÓN', width: REGISTRY_DESC_COL_WIDTH, align: 'left', key: 'desc' }
+    ];
+    for (const familyKey of activeFamilies) {
+        const familyTasks = tasks.filter(t => t.family === familyKey);
+        if (familyTasks.length === 0)
+            continue;
+        const meta = FAMILY_METADATA[familyKey];
+        const headerTitle = meta ? `${meta.icon} Familia ${meta.order}: ${meta.title}` : familyKey.toUpperCase();
+        output.push(styleText('bold', `\n📌 ${headerTitle} (${familyTasks.length} suites):`));
+        const rows = familyTasks.map(t => {
+            const caps = t.capabilities;
+            const flags = [];
+            if (caps?.fix)
+                flags.push(styleText('green', 'FIX'));
+            if (caps?.lint)
+                flags.push(styleText('cyan', 'LINT'));
+            if (caps?.md)
+                flags.push(styleText('magenta', 'MD'));
+            if (caps?.heavy)
+                flags.push(styleText('yellow', 'HVY'));
+            if (caps?.requiresBuild)
+                flags.push(styleText('red', 'BLD'));
+            const flagStr = flags.length > 0 ? flags.join(' ') : styleText('dim', '-');
+            const desc = t.description ?? t.manifest?.description ?? t.name;
+            const safeDesc = desc.length > REGISTRY_DESC_COL_WIDTH ? desc.slice(0, REGISTRY_DESC_TRUNCATE_LIMIT) + '…' : desc;
+            return {
+                id: `${t.icon ?? '🏛️'} ${t.id}`,
+                flags: flagStr,
+                desc: safeDesc
+            };
+        });
+        output.push(renderBoxTable(columns, rows));
+    }
+    output.push(styleText('dim', `\n💡 Para ver el manual y configuración de una suite: auditor --info=<suiteId>`));
+    output.push(styleText('dim', `💡 Para obtener la especificación completa en JSON: auditor --list --json\n`));
+    return output.join('\n');
+}
+/**
+ * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
+ */
+export function renderAuditorDetailCard(task) {
+    const line = '═'.repeat(TERMINAL_WIDTH - 4);
+    const divider = '─'.repeat(TERMINAL_WIDTH - 6);
     const innerWidth = TERMINAL_WIDTH - 6;
     const lines = [];
-    const yellow = (s) => styleText('yellow', s);
-    const boldYellow = (s) => styleText(['bold', 'yellow'], s);
-    const white = (s) => styleText('white', s);
+    const cyan = (s) => styleText('cyan', s);
     const boldWhite = (s) => styleText(['bold', 'white'], s);
-    const cyan = (s) => styleText(['bold', 'cyan'], s);
+    const boldYellow = (s) => styleText(['bold', 'yellow'], s);
+    const green = (s) => styleText('green', s);
     const dim = (s) => styleText('dim', s);
-    lines.push(yellow(`╔═${line}═╗`));
-    lines.push(yellow('║  ') + padVisual(boldYellow('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE'), innerWidth) + yellow('  ║'));
-    lines.push(yellow(`╠═${line}═╣`));
-    lines.push(yellow('║  ') + padVisual(white('La inicialización automática del modelo de embeddings de Fallow falló.'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(white('El sub-auditor especializado de similar-code no se pudo ejecutar.'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(dim('Esta funcionalidad requiere instalación manual en este entorno.'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual('', innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(boldWhite('Para instalarlo manualmente, ejecuta el siguiente comando en tu terminal:'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(cyan('  👉  npx fallow similar-code setup --local --yes'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual('', innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(dim('Nota para CI: puedes omitir esta suite en entornos remotos o GitHub Pages'), innerWidth) + yellow('  ║'));
-    lines.push(yellow('║  ') + padVisual(dim('exportando la variable AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1.'), innerWidth) + yellow('  ║'));
-    lines.push(yellow(`╚═${line}═╝`));
+    const white = (s) => styleText('white', s);
+    lines.push(cyan(`╔═${line}═╗`));
+    const title = `${task.icon ?? '🏛️'} ${task.name} [${task.id}]`;
+    lines.push(cyan('║  ') + padVisual(boldWhite(title), innerWidth) + cyan('  ║'));
+    lines.push(cyan('║  ') + padVisual(dim(`Familia: ${task.family} | Script: ${task.scriptPath}`), innerWidth) + cyan('  ║'));
+    lines.push(cyan(`╠═${line}═╣`));
+    // Descripción obligatoria
+    lines.push(cyan('║  ') + padVisual(boldYellow('📋 PROPÓSITO:'), innerWidth) + cyan('  ║'));
+    const desc = task.description ?? task.manifest?.description ?? 'Sin descripción declarada.';
+    lines.push(cyan('║  ') + padVisual(white(`  ${desc}`), innerWidth) + cyan('  ║'));
+    lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
+    // Capacidades / Flags
+    lines.push(cyan('║  ') + padVisual(boldYellow('⚙️ CAPACIDADES / FLAGS SOPORTADOS:'), innerWidth) + cyan('  ║'));
+    const caps = task.capabilities;
+    const capList = [];
+    if (caps?.fix)
+        capList.push(green('✔ Auto-reparación (--fix)'));
+    if (caps?.lint)
+        capList.push(cyan('✔ Preset Lint (preset=lint)'));
+    if (caps?.md)
+        capList.push(styleText('magenta', '✔ Preset Markdown (preset=md)'));
+    if (caps?.heavy)
+        capList.push(styleText('yellow', '⚡ Computacionalmente Pesado (heavy)'));
+    if (caps?.requiresBuild)
+        capList.push(styleText('red', '📦 Requiere Build Previo (requiresBuild)'));
+    if (caps?.changedSince)
+        capList.push(white('✔ Diferencial Git (--changed-since)'));
+    if (caps?.ast)
+        capList.push(white('✔ AST TypeScript in-memory (ast)'));
+    if (capList.length === 0) {
+        lines.push(cyan('║  ') + padVisual(dim('  (Ejecución estándar general)'), innerWidth) + cyan('  ║'));
+    }
+    else {
+        for (const c of capList) {
+            lines.push(cyan('║  ') + padVisual(`  ${c}`, innerWidth) + cyan('  ║'));
+        }
+    }
+    lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
+    // Reglas
+    const rules = task.ruleDescriptions ?? task.manifest?.rules;
+    if (rules && Object.keys(rules).length > 0) {
+        lines.push(cyan('║  ') + padVisual(boldYellow(`🔍 REGLAS EVALUADAS (${Object.keys(rules).length}):`), innerWidth) + cyan('  ║'));
+        for (const [rId, rDesc] of Object.entries(rules).slice(0, 8)) {
+            lines.push(cyan('║  ') + padVisual(`  • ${boldWhite(rId)}: ${dim(rDesc)}`, innerWidth) + cyan('  ║'));
+        }
+        if (Object.keys(rules).length > 8) {
+            lines.push(cyan('║  ') + padVisual(dim(`  ... y ${Object.keys(rules).length - 8} reglas más.`), innerWidth) + cyan('  ║'));
+        }
+        lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
+    }
+    // Configuración en .auditor/audit.config.ts
+    lines.push(cyan('║  ') + padVisual(boldYellow('🛠️ CONFIGURACIÓN (.auditor/audit.config.ts):'), innerWidth) + cyan('  ║'));
+    const configKey = task.configKey ?? task.manifest?.configKey;
+    if (configKey) {
+        lines.push(cyan('║  ') + padVisual(`  Clave configurable: ${boldWhite(configKey)}`, innerWidth) + cyan('  ║'));
+    }
+    else {
+        lines.push(cyan('║  ') + padVisual(dim('  Sin configuración requerida (opera con estándares canónicos).'), innerWidth) + cyan('  ║'));
+    }
+    lines.push(cyan(`╚═${line}═╝\n`));
+    return lines.join('\n');
+}
+/**
+ * Renders the CLI general interactive help (≤ 80 cols).
+ */
+export function renderCliHelp(activeFamilies) {
+    const lines = [];
+    lines.push(renderBanner('@francogp/auditor — Framework de Auditoría Estática y Gobernanza', 'Node.js 26+ Native | UnifiedTheme Box-Drawing | Cero Hardcoding') + '\n');
+    const boldYellow = (s) => styleText(['bold', 'yellow'], s);
+    lines.push(boldYellow('USO:'));
+    lines.push('  auditor [opciones] [comandos]  (o npm run audit [opciones])\n');
+    lines.push(boldYellow('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:'));
+    lines.push('  --list, list                 Lista todas las suites descubiertas y sus flags.');
+    lines.push('  --list --json                Emite el catálogo completo en formato JSON estructurado.');
+    lines.push('  --info=<suiteId>             Muestra la ficha técnica, reglas y configuración de una suite.');
+    lines.push('  -h, --help                   Muestra este mensaje de ayuda.\n');
+    lines.push(boldYellow('MODOS Y PRESETS DE EJECUCIÓN:'));
+    lines.push('  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.');
+    lines.push('  preset=lint                  Preset rápido de linting (ESLint, Stylelint, etc.).');
+    lines.push('  preset=md                    Preset rápido de documentación y Markdown.');
+    lines.push('  preset=build                 Suites que requieren artefactos compilados en dist/.');
+    lines.push('  --with-build                 Incluye suites de compilación en la corrida general.\n');
+    lines.push(boldYellow('FILTROS Y SELECCIÓN:'));
+    lines.push(`  family=<nombre>              Filtra por familia (${activeFamilies.join(', ')}).`);
+    lines.push('  task=<id>, suites=<id1,id2>  Ejecuta exclusivamente una o varias suites.');
+    lines.push('  rule=<id1,id2>               Filtra reglas específicas.');
+    lines.push('  --errors-only                Muestra únicamente errores suprimiendo advertencias.');
+    lines.push('  changed-since=<ref>          Filtra archivos modificados respecto de git ref.\n');
+    lines.push(boldYellow('HERRAMIENTAS ASOCIADAS (NPM SCRIPTS):'));
+    lines.push('  npm run audit:by-file        Árbol jerárquico de incidencias por archivo y línea.');
+    lines.push('  npm run audit:findings       Consulta interactiva con filtros y desgloses.');
+    lines.push('  npm run audit:fix            Aplica auto-reparaciones mecánicas en el código.');
+    lines.push('  npm run auditor:update       Actualiza el paquete upstream de @francogp/auditor.\n');
     return lines.join('\n');
 }
 export function renderFamilyHeader(meta) {

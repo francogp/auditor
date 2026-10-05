@@ -16,6 +16,7 @@ import {
   type AuditTaskDefinition,
   type AuditorCapabilities,
   type GitIgnoreRequirement,
+  type AuditorManifestDTO,
   resolveFamilyMetadata,
   getActiveFamilies,
   FALLBACK_FAMILY_ORDER
@@ -57,6 +58,10 @@ export interface ExtractedAuditorMetadata {
   readonly capabilities: AuditorCapabilities;
   readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   readonly icon?: string;
+  readonly manifest?: AuditorManifestDTO;
+  readonly description?: string;
+  readonly ruleDescriptions?: Readonly<Record<string, string>>;
+  readonly configKey?: string;
 }
 
 function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
@@ -82,12 +87,21 @@ function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetada
     if (content.includes('changedSince: true')) caps.changedSince = true;
     if (content.includes('postRun: true')) caps.postRun = true;
 
+    const descMatch = content.match(/description\s*:\s*['"]([^'"]+)['"]/);
+    const configKeyMatch = content.match(/configKey\s*:\s*['"]([^'"]+)['"]/);
+
     if (Object.keys(caps).length > 0) {
       result.capabilities = {
         ...DEFAULT_AUDITOR_CAPABILITIES,
         ...caps
       };
     }
+
+    return {
+      ...result,
+      description: descMatch?.[1],
+      configKey: configKeyMatch?.[1]
+    };
   } catch {
     // catch-ok: Static metadata extraction fallback
   }
@@ -100,12 +114,6 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
     capabilities: DEFAULT_AUDITOR_CAPABILITIES,
     gitIgnoreEntries: []
   };
-
-  if (fullPath.endsWith('validate_audit_config.ts') || fullPath.endsWith('validate_audit_config.js')) {
-    result.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, fix: true, lint: true };
-    result.icon = '⚙️';
-    return result;
-  }
 
   // Self-import guard: Never dynamically import the currently executing script to prevent circular top-level await deadlock
   const scriptArg = process.argv[1];
@@ -167,6 +175,17 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
             }
             if (Array.isArray(instance?.gitIgnoreEntries)) {
               result.gitIgnoreEntries = instance.gitIgnoreEntries;
+            }
+            if (typeof instance?.toManifest === 'function') {
+              const manifest = instance.toManifest();
+              (result as { manifest?: AuditorManifestDTO }).manifest = manifest;
+              (result as { description?: string }).description = manifest.description;
+              (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = manifest.rules;
+              (result as { configKey?: string }).configKey = manifest.configKey;
+            } else if (instance?.description) {
+              (result as { description?: string }).description = instance.description;
+              (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = instance.ruleDescriptions;
+              (result as { configKey?: string }).configKey = instance.configKey;
             }
           } catch {
             // catch-ok: Sub-auditor constructor may require specific options
@@ -302,6 +321,7 @@ async function createAuditTaskDefinition(
   return {
     id,
     name: formatTaskTitle(filename),
+    description: metadata.description ?? metadata.manifest?.description,
     family,
     scriptPath: relScriptPath,
     command: 'node',
@@ -313,7 +333,10 @@ async function createAuditTaskDefinition(
     isBuiltin,
     icon: effectiveIcon,
     capabilities: capabilities ?? undefined,
-    gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined
+    gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
+    manifest: metadata.manifest,
+    configKey: metadata.configKey ?? metadata.manifest?.configKey,
+    ruleDescriptions: metadata.ruleDescriptions ?? metadata.manifest?.rules
   };
 }
 

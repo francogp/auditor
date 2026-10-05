@@ -57,12 +57,19 @@ function extractStaticMetadataFromFile(fullPath) {
             caps.changedSince = true;
         if (content.includes('postRun: true'))
             caps.postRun = true;
+        const descMatch = content.match(/description\s*:\s*['"]([^'"]+)['"]/);
+        const configKeyMatch = content.match(/configKey\s*:\s*['"]([^'"]+)['"]/);
         if (Object.keys(caps).length > 0) {
             result.capabilities = {
                 ...DEFAULT_AUDITOR_CAPABILITIES,
                 ...caps
             };
         }
+        return {
+            ...result,
+            description: descMatch?.[1],
+            configKey: configKeyMatch?.[1]
+        };
     }
     catch {
         // catch-ok: Static metadata extraction fallback
@@ -74,11 +81,6 @@ export async function extractAuditorMetadataFromFile(fullPath) {
         capabilities: DEFAULT_AUDITOR_CAPABILITIES,
         gitIgnoreEntries: []
     };
-    if (fullPath.endsWith('validate_audit_config.ts') || fullPath.endsWith('validate_audit_config.js')) {
-        result.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, fix: true, lint: true };
-        result.icon = '⚙️';
-        return result;
-    }
     // Self-import guard: Never dynamically import the currently executing script to prevent circular top-level await deadlock
     const scriptArg = process.argv[1];
     if (scriptArg) {
@@ -132,6 +134,18 @@ export async function extractAuditorMetadataFromFile(fullPath) {
                         }
                         if (Array.isArray(instance?.gitIgnoreEntries)) {
                             result.gitIgnoreEntries = instance.gitIgnoreEntries;
+                        }
+                        if (typeof instance?.toManifest === 'function') {
+                            const manifest = instance.toManifest();
+                            result.manifest = manifest;
+                            result.description = manifest.description;
+                            result.ruleDescriptions = manifest.rules;
+                            result.configKey = manifest.configKey;
+                        }
+                        else if (instance?.description) {
+                            result.description = instance.description;
+                            result.ruleDescriptions = instance.ruleDescriptions;
+                            result.configKey = instance.configKey;
                         }
                     }
                     catch {
@@ -252,6 +266,7 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
     return {
         id,
         name: formatTaskTitle(filename),
+        description: metadata.description ?? metadata.manifest?.description,
         family,
         scriptPath: relScriptPath,
         command: 'node',
@@ -263,7 +278,10 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
         isBuiltin,
         icon: effectiveIcon,
         capabilities: capabilities ?? undefined,
-        gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined
+        gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
+        manifest: metadata.manifest,
+        configKey: metadata.configKey ?? metadata.manifest?.configKey,
+        ruleDescriptions: metadata.ruleDescriptions ?? metadata.manifest?.rules
     };
 }
 function resolveTargetSuiteIds(options, combinedPresets) {

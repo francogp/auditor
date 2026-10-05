@@ -45,11 +45,12 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
     super({
       id: 'validate_my_feature',
       name: 'My Feature Validator',
-      description: 'Valida tokens prohibidos y atributos de la característica X',
+      description: 'Valida tokens prohibidos y atributos en src/',
       icon: '🔍', // Mandatory thematic emoji
       family: 'architecture',
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
+      configKey: 'paths.srcRoots',
       ruleDescriptions: {
         'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
@@ -123,6 +124,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       family: 'domain_data',
       ruleIds: MY_DATA_RULES,
       packageName: 'Datos',
+      configKey: 'paths.dataRoots',
       ruleDescriptions: {
         'my-data-key-missing': 'Clave faltante en registro de datos',
         'my-data-value-invalid': 'Valor no válido en propiedad requerida'
@@ -201,6 +203,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       family: 'architecture',
       ruleIds: MY_AST_RULES,
       packageName: 'AST',
+      configKey: 'paths.srcRoots',
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
       },
@@ -525,6 +528,30 @@ constants: {
   ]
 }
 ```
+
+---
+
+## 14. Introspection & Canonical DTO Contract (`toManifest()`, `AuditorManifestDTO`)
+
+Every sub-auditor and host extension inherits from `BaseAuditor` and provides the typed `toManifest(): AuditorManifestDTO` method:
+
+```typescript
+export interface AuditorManifestDTO {
+  readonly id: string;
+  readonly name: string;
+  readonly family: string;
+  readonly icon: string;
+  readonly description: string; // <= 60 characters
+  readonly capabilities: AuditorCapabilities;
+  readonly rules: Readonly<Record<string, string>>;
+  readonly configKey?: string;
+}
+```
+
+### Constraints:
+1. **Concise Descriptions (Zero Text Walls)**: `description` must not exceed 60 characters and must contain zero newlines.
+2. **Dynamic Exposure**: The CLI inspects all suites dynamically via `node --experimental-strip-types src/cli/audit_full.ts --list --json` (or `auditor --list --json`) and `--info=<suiteId>` without hardcoding.
+
 
 - **Strict Specificity Guard**: Broad wildcards matching entire repositories or primary source trees (`**/*`, `*`, `src/**`, `src/*`) are strictly rejected with an explicit validation error, preventing evasion of the Named Constants Mandate.
 - **Safe Scope**: Use specific maintenance scripts, seed files, or test generator catalogs where inline numbers are strictly non-semantic tabular data.

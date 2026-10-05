@@ -42,6 +42,7 @@ describe('ValidateAuditConfigAuditor', () => {
             build: 'auditor && vite build',
             audit: 'auditor',
             'audit:fix': 'auditor fix',
+            'audit:by-file': 'auditor-by-file',
             'audit:lint': 'auditor preset=lint',
             'audit:md': 'auditor preset=md',
             'audit:build': 'auditor preset=build',
@@ -657,6 +658,7 @@ export default defineAuditConfig({
 
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
     expect(updatedPkg.scripts['audit:fix']).toBe('auditor fix');
+    expect(updatedPkg.scripts['audit:by-file']).toBe('auditor-by-file');
     expect(updatedPkg.scripts['audit:lint']).toBe('auditor preset=lint');
     expect(updatedPkg.scripts['audit:md']).toBe('auditor preset=md');
     expect(updatedPkg.scripts['audit:build']).toBe('auditor preset=build');
