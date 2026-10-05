@@ -86,11 +86,15 @@ function analyzeUncoveredAndDegraded(input, ledgers, scannedSets) {
 function analyzeDrift(input, ledgers, scannedSets) {
     const findings = [];
     const tracked = new Set(input.trackedFiles);
+    const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
     for (const ledger of ledgers) {
         if (ledger.skipped || ledger.source !== 'runtime')
             continue;
         const scanned = scannedSets.get(ledger.suiteId);
-        const notScanned = input.trackedFiles.filter(f => !scanned.has(f) && !input.isGloballyIgnored(f) && isDeclaredByCoverage(f, ledger.declared));
+        const notScanned = input.trackedFiles.filter(f => !scanned.has(f) &&
+            !input.isGloballyIgnored(f) &&
+            isAuditableCodebaseFile(f, customExemptGlobs) &&
+            isDeclaredByCoverage(f, ledger.declared));
         const undeclared = [...scanned].filter(f => tracked.has(f) && !isDeclaredByCoverage(f, ledger.declared));
         findings.push(...directoryFindings('coverage-declared-not-scanned', notScanned, count => `[${ledger.suiteId}] declara ${count} archivo(s) que no escaneó`, `${ledger.suiteId}: alinea coverage.include/exclude con lo que realmente analiza`));
         findings.push(...directoryFindings('coverage-scanned-undeclared', undeclared, count => `[${ledger.suiteId}] escaneó ${count} archivo(s) fuera de su declaración`, `${ledger.suiteId}: amplía coverage.include o deja de escanearlos`));

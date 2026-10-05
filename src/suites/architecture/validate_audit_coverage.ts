@@ -139,11 +139,15 @@ function analyzeDrift(
 ): CoverageFinding[] {
   const findings: CoverageFinding[] = [];
   const tracked = new Set(input.trackedFiles);
+  const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
   for (const ledger of ledgers) {
     if (ledger.skipped || ledger.source !== 'runtime') continue;
     const scanned = scannedSets.get(ledger.suiteId)!;
     const notScanned = input.trackedFiles.filter(f =>
-      !scanned.has(f) && !input.isGloballyIgnored(f) && isDeclaredByCoverage(f, ledger.declared)
+      !scanned.has(f) &&
+      !input.isGloballyIgnored(f) &&
+      isAuditableCodebaseFile(f, customExemptGlobs) &&
+      isDeclaredByCoverage(f, ledger.declared)
     );
     const undeclared = [...scanned].filter(f => tracked.has(f) && !isDeclaredByCoverage(f, ledger.declared));
     findings.push(...directoryFindings(
