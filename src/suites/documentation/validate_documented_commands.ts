@@ -11,7 +11,7 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, ALWAYS_IGNORE_DIRS, matchesSinglePattern } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
@@ -37,8 +37,9 @@ export const VALID_NPM_BUILTINS: ReadonlySet<string> = new Set([
   'repo', 'restart', 'root', 'run', 'run-script', 'search', 'set', 'set-script',
   'shrinkwrap', 'star', 'stars', 'start', 'stop', 'team', 'test', 'token',
   'uninstall', 'unpublish', 'unstar', 'update', 'version', 'view', 'whoami',
+  'info', 'show', 'why', 'query',
   // short aliases:
-  'i', 'r', 'rb', 'rm', 't', 'tst', 'up', 'v'
+  'c', 'i', 'r', 'rb', 'rm', 's', 'se', 't', 'tst', 'up', 'v'
 ]);
 
 function isPlaceholder(token: string): boolean {
@@ -53,6 +54,7 @@ function isPlaceholder(token: string): boolean {
     t.endsWith('}') ||
     t.includes('...') ||
     t.includes('${') ||
+    t.includes('*') ||
     t === 'xxx' ||
     t === 'target' ||
     t === 'name' ||
@@ -365,13 +367,28 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
 
   private collectAllMarkdownFiles(dir: string): string[] {
     const results: string[] = [];
+    const config = getAuditConfig(this.rootDir);
+    const configIgnoredDirs = (config.paths?.ignoredDirs ?? []).map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''));
+    const configGlobs = config.paths?.ignoreGlobs ?? [];
+
     try {
       const entries = fsSync.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         const full = path.join(dir, entry.name);
-        if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'scratch' || entry.name === '.git') {
+        const nameLower = entry.name.toLowerCase();
+        if (ALWAYS_IGNORE_DIRS.has(nameLower)) {
           continue;
         }
+        const relPosix = path.relative(this.projectRoot, full).replaceAll('\\', '/');
+        const relLower = relPosix.toLowerCase();
+        const segments = relLower.split('/');
+        if (segments.some(seg => ALWAYS_IGNORE_DIRS.has(seg) || configIgnoredDirs.includes(seg))) {
+          continue;
+        }
+        if (configGlobs.some(pattern => matchesSinglePattern(relLower, pattern))) {
+          continue;
+        }
+
         if (entry.isDirectory()) {
           results.push(...this.collectAllMarkdownFiles(full));
         } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
@@ -387,5 +404,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
 if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) {
-  await BaseAuditor.runCli(new ValidateDocumentedCommandsAuditor());
+  void (async () => {
+    await BaseAuditor.runCli(new ValidateDocumentedCommandsAuditor());
+  })();
 }

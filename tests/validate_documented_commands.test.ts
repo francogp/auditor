@@ -234,5 +234,59 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
   });
+
+  it('recognizes npm info and wildcard pattern as valid/placeholders', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { test: 'vitest' }
+      }, null, 2)
+    );
+
+    await fs.writeFile(
+      path.join(tempDir, 'README.md'),
+      'Run `npm info package-name` to view info, and `npm run audit:fallow:*` for wildcards.'
+    );
+
+    const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('respects paths.ignoredDirs and paths.ignoreGlobs from audit.config.ts', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { test: 'vitest' }
+      }, null, 2)
+    );
+
+    await fs.writeFile(
+      path.join(tempDir, 'audit.config.ts'),
+      `export default {
+  name: 'test-pkg',
+  paths: {
+    ignoredDirs: ['vendor_external']
+  }
+};`
+    );
+
+    const vendorDir = path.join(tempDir, 'vendor_external');
+    await fs.mkdir(vendorDir, { recursive: true });
+    await fs.writeFile(
+      path.join(vendorDir, 'CONTRIBUTING.md'),
+      'Run `npm run completely-fake-command` in vendor docs.'
+    );
+
+    const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
 });
 
