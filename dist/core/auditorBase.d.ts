@@ -68,7 +68,7 @@ export interface AuditorContext {
     addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
     setMetric: (key: string, value: number | string) => void;
     checkFiles: () => Promise<void>;
-    finish: (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => Promise<StandardAuditResult>;
+    finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
     setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
     setProgressLogger?: (logger: (msg: string) => void) => void;
 }
@@ -136,7 +136,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected readonly coverageRecorder: CoverageRecorder;
     protected isSkipped: boolean;
     protected skipReason?: string;
-    private legacyScanCount;
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
     protected get filesScannedCount(): number;
     protected set filesScannedCount(count: number);
@@ -168,6 +167,11 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected declareRuleCatalog(ruleIds: readonly string[]): void;
     /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
     protected markRuleEvaluated(ruleId: TRuleId | string, count?: number): void;
+    /**
+     * Loud failure for obsolete v3 method name.
+     * Enforces the Loud Failure Mandate under AGENTS.md.
+     */
+    protected recordRuleEvaluation(ruleId: string): never;
     /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
     protected markRuleNotApplicable(ruleId: TRuleId | string, reason: string): void;
     /** Gets evaluation count recorded so far for a given rule. */

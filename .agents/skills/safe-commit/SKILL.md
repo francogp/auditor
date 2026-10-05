@@ -8,7 +8,7 @@ description: MANDATORY safeguard for repository operations. You MUST trigger and
 > [!IMPORTANT]
 > **PROMPT-DRIVEN TRIGGER ONLY**: Activate when the user explicitly requests a commit or push. Do NOT activate for automatic agent-internal saves or background operations.
 >
-> **EXCLUSIVE WORKFLOW BOUNDARY (`npm run audit:for-commit`)**: The command `npm run audit:for-commit` (or `npx auditor-commit`) belongs STRICTLY AND EXCLUSIVELY to this `/safe-commit` workflow. Agents MUST NEVER execute `npm run audit:for-commit` during routine feature development, bug fixes, or regular verification turns outside of `/safe-commit`. Running it right after `npm run audit` in normal tasks is redundant and strictly prohibited.
+> **SINGLE AUDIT GATE (`npm run audit`)**: There is no separate differential commit gate. The full `npm run audit` enforces **0 errors AND 0 new warnings** through the built-in warning ratchet, which compares every warning fingerprint against `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`). The removed `audit:for-commit` / `auditor-commit` commands MUST NOT be invoked or recreated.
 
 ---
 
@@ -22,10 +22,10 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Read before continuing** | "I ran it" ≠ "I verified the result." Read every output before proceeding. |
 | **No optional phases** | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN. |
 | **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
-| **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 6 validation gates exit cleanly with code 0 on the final code. |
-| **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, or filtering logic of `audit_for_commit.ts`, `audit_bundle.ts`, or any quality gatekeeper to make checks pass. All project errors and NEW warnings must be resolved cleanly at the code source. |
+| **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 5 validation gates exit cleanly with code 0 on the final code. |
+| **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
-| **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.4). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.4 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
+| **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.3). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.3 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
 | **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
 
@@ -43,18 +43,16 @@ graph TD
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        C0[2.1 Full Workspace Auditor\n& npm run audit] -->|Errors| REPAIR[🛠️ Repair:\n1. npm run audit:fix\n2. Manual code / DOX editing]
-        C0 -->|0 errors| C1[2.2 npm run audit:for-commit]
-        C1 -->|Errors / Warnings| REPAIR
-        C1 -->|0 errors, 0 warnings| C2[2.3 npm run test]
+        C0[2.1 git fetch origin\n+ npm run audit\n(0 errors + warning ratchet)] -->|Errors / new warnings| REPAIR[🛠️ Repair:\n1. npm run audit:fix\n2. Manual code / DOX editing]
+        C0 -->|0 errors, 0 new warnings| C2[2.2 npm run test]
         
         C2 -->|Tests Fail| REPAIR
-        C2 -->|100% Pass| C3[2.4 npm run build\n🔒 THE BUILD GATE (Single Run)]
+        C2 -->|100% Pass| C3[2.3 npm run build\n🔒 THE BUILD GATE (Single Run)]
         
         C3 -->|Exit code ≠ 0 / Fail| REPAIR
-        C3 -->|Exit 0 ✅| C4[2.5 Post-Build Artifact Audit\nnpm run audit:build]
+        C3 -->|Exit 0 ✅| C4[2.4 Post-Build Artifact Audit\nnpm run audit:build]
         C4 -->|Chunk bloat / budget exceeded| REPAIR
-        C4 -->|Optimized ✅| C5[2.6 Fallow Health & Quality Gate\nnpm run audit:fallow]
+        C4 -->|Optimized ✅| C5[2.5 Fallow Health & Quality Gate\nnpm run audit:fallow]
         
         C5 -->|Score < 85 or new issues| REPAIR
         REPAIR -->|Re-verify full cycle| C0
@@ -98,6 +96,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 **Step 1.1** — Inspect changes (`git status` & `git diff`)
 - Run `git status` to identify 100% of modified, untracked, and deleted files across the entire repository.
+- Pay special attention to `.auditor/audit-baseline.json`: if warnings were resolved during the task, `npm run audit` auto-shrinks this file. It is a versioned framework artifact and MUST be staged and committed alongside your code changes.
 - Record the full list under `### Workspace Safety Backup` in `task.md`.
 
 **Step 1.2** — Test Gap Analysis
@@ -120,7 +119,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
   ```bash
   npx auditor-version bump --type=<approved_type>
   ```
-  *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.4 to compile the final stamped version in a single pass without needing a redundant second build!)*
+  *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)*
 
 **Step 1.5** — Pre-Draft Commit Message
 - Pre-draft the commit message in `task.md` following [commit-standards.md](./references/commit-standards.md).
@@ -131,38 +130,40 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 ## Phase 2: Active Verification & Repair Loop 🔁
 
-You must execute the 6 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from 2.1 until all pass consecutively.
+You must execute the 5 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from 2.1 until all pass consecutively.
 
-### 2.1 Full Workspace Auditor & DOX Integrity (`npm run audit`)
-- Run `npm run audit` (or `npx auditor`).
-- Executes the full workspace static analysis, architecture verification, DOX integrity, and coverage ledger inspection.
-- **Strict Zero-Error Barrier**: You MUST NOT proceed to Gate 2.2 until 100% of findings (errors) are completely eradicated by repairing them at their code source. Weakening rules or bypassing errors is strictly prohibited.
-- MUST exit with 0 errors.
+### 2.1 Full Audit & Warning Ratchet (`npm run audit`)
+- Run `git fetch origin` first (if remote is reachable) so `ratchet.productionRef` (default `origin/main`) reflects the latest production baseline.
+- Run `npm run audit` (or `npx auditor`). Never add presets, families, or filters: the ratchet only runs on the full default run.
+- MUST exit 0: **0 errors** and **0 new warnings** (`🔒 Ratchet de warnings OK`).
+- If new warnings appear, they are listed by file and line. They MUST be resolved at the code source, even in pre-existing or untouched files. Never edit `.auditor/audit-baseline.json` by hand, re-run `--init-baseline`, or disable the ratchet.
+- When warnings are resolved, `npm run audit` shrinks `.auditor/audit-baseline.json` automatically. That file MUST be included in the commit.
+- Inspect `meta.ratchet` in `scratch/audits/latest_audit.json` to verify the verdict (`status`, `newWarnings`, `resolvedWarnings`, `baselineUpdated`).
 
-### 2.2 Auditor Differential Gate (`npm run audit:for-commit`)
-- Run `npm run audit:for-commit` (or `npx auditor-commit`).
-- Compares new errors and warnings in modified files against `origin/main`.
-- MUST report 0 errors and 0 new warnings.
-
-### 2.3 Test Suite Execution
+### 2.2 Test Suite Execution
 - Run `npm run test` (or `npm test`).
 - 100% of automated unit and integration suites must pass.
 
-### 2.4 The Build Gate (`npm run build`)
+### 2.3 The Build Gate (`npm run build`)
 - Run `npm run build`.
 - Compiles the production bundle with strict exit code 0. Zero bypasses.
 - **Strict Single Build**: This is the ONLY time `npm run build` executes in the entire workflow. Because any version bump was already applied in Step 1.4, this build compiles the definitive version directly into `dist/`.
 
-### 2.5 Post-Build Compiled Artifact Audit (`npm run audit:build`)
-- Run `npm run audit:build` (or `npx auditor-build`).
+### 2.4 Post-Build Compiled Artifact Audit (`npm run audit:build`)
+- Run `npm run audit:build` (or `npx auditor-build`). If `npm run build` in Gate 2.3 already chained and executed it, inspect its output from Gate 2.3.
 - Audits compiled production artifacts in `dist/` (client chunk budgets in `dist/assets/`, package export maps, `.d.ts` entrypoints, and bundle budgets).
 - Exclusively runs suites that declare `capabilities.requiresBuild === true`.
 
-### 2.6 Fallow Health & Quality Gate (`npm run audit:fallow`)
+### 2.5 Fallow Health & Quality Gate (`npm run audit:fallow`)
 - Run `npm run audit:fallow`.
 - Score must be >= 85 and >= `BASELINE_HEALTH`, with zero unaddressed high-severity issues.
 
-**✓ Completion gate**: All 6 gates passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
+### Repair Protocol (on ANY Gate Failure):
+1. **Auto-Repair**: Run `npm run audit:fix` (or `npx auditor fix`) to automatically repair fixable lint/style/import/config issues.
+2. **Manual Repair**: Manually resolve remaining source code, test, build, or DOX defects.
+3. **Loop Restart**: Always re-start the loop from **Gate 2.1** (`npm run audit`), ensuring all 5 gates pass consecutively on the final code.
+
+**✓ Completion gate**: All 5 gates passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
 
 ---
 
@@ -190,24 +191,24 @@ You must execute the 6 gates sequentially. If ANY gate fails, execute the repair
 ## Phase 4: Single Atomic Certified Commit & Release
 
 Once the user approves:
-1. Apply approved lessons to owning `AGENTS.md`.
-2. Run pre-commit sanity check: `npm run audit:md`.
-3. Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
-4. **Single Atomic Commit & Tag**:
-   - If version was bumped in Step 1.4, write the synthesized message to a temporary file (`scratch/release_notes.txt`) and run the atomic chained command:
-     ```bash
-     git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt
-     ```
-     *(The tag annotation MUST contain 100% of the synthesized commit message and subsystem breakdown, ensuring GitHub Tags and Releases display the technical details rather than a blank "Release v...". The tag name MUST be strictly `v<base_version>` e.g. `v1.2.0`).*
-   - If no version bump occurred:
-     ```bash
-     git add . && git commit -F scratch/release_notes.txt
-     ```
-5. **Autonomous Git Push Prohibition & User Handoff**:
-   - **AI AGENTS MUST NEVER EXECUTE `git push` AUTONOMOUSLY**: Publishing commits and tags to remote repositories (`origin`) is an external, irreversible operation. Once the atomic commit and tag are created locally, Phase 4 execution stops.
-   - Do NOT run `git push` unless the user explicitly gave an unambiguous command in their prompt (e.g. "hace push", "push changes to remote").
-   - Conclude the workflow by rendering the **Mandatory Safe-Commit Completion Template** in the chat response, providing the user with the exact command to push when they are ready.
-6. Mark Phase 4 `[x]` in `task.md` and render the final completion response.
+- **Step 4.1**: Apply approved lessons to owning `AGENTS.md`.
+- **Step 4.2**: Run pre-commit sanity check: `npm run audit:md`.
+- **Step 4.3**: Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
+- **Step 4.4**: **Single Atomic Commit & Tag**:
+  - If version was bumped in Step 1.4, write the synthesized message to a temporary file (`scratch/release_notes.txt`) and run the atomic chained command:
+    ```bash
+    git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt
+    ```
+    *(The tag annotation MUST contain 100% of the synthesized commit message and subsystem breakdown, ensuring GitHub Tags and Releases display the technical details rather than a blank "Release v...". The tag name MUST be strictly `v<base_version>` e.g. `v1.2.0`).*
+  - If no version bump occurred:
+    ```bash
+    git add . && git commit -F scratch/release_notes.txt
+    ```
+- **Step 4.5**: **Autonomous Git Push Prohibition & User Handoff**:
+  - **AI AGENTS MUST NEVER EXECUTE `git push` AUTONOMOUSLY**: Publishing commits and tags to remote repositories (`origin`) is an external, irreversible operation. Once the atomic commit and tag are created locally, Phase 4 execution stops.
+  - Do NOT run `git push` unless the user explicitly gave an unambiguous command in their prompt (e.g. "hace push", "push changes to remote").
+  - Conclude the workflow by rendering the **Mandatory Safe-Commit Completion Template** in the chat response, providing the user with the exact command to push when they are ready.
+- **Step 4.6**: Mark Phase 4 `[x]` in `task.md` and render the final completion response.
 
 ---
 
@@ -224,15 +225,14 @@ Every completed safe-commit run MUST finish with this standardized Markdown temp
 - **Mensaje**: `<commit-title>`
 - **Archivos Modificados**: `<count>` archivos
 
-### Puertas de Calidad Verificadas (6/6)
+### Puertas de Calidad Verificadas (5/5)
 | Puerta | Descripción | Estado |
 |:---|:---|:---:|
-| 2.1 | `npm run audit` (Auditoría Global Completa y DOX) | ✅ Aprobado (0 err) |
-| 2.2 | `npm run audit:for-commit` (Gatekeeper Diferencial) | ✅ Aprobado (0 err, 0 new warn) |
-| 2.3 | `npm run test` (Tests Automatizados) | ✅ Aprobado (100% pasando) |
-| 2.4 | `npm run build` (Single Build Mandate) | ✅ Aprobado (Exit 0) |
-| 2.5 | `npm run audit:bundle` (Presupuestos de Chunks) | ✅ Aprobado |
-| 2.6 | `npm run audit:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
+| 2.1 | `npm run audit` (Auditoría completa + ratchet de warnings) | ✅ Aprobado (0 err, 0 warn nuevos) |
+| 2.2 | `npm run test` (Tests Automatizados) | ✅ Aprobado (100% pasando) |
+| 2.3 | `npm run build` (Single Build Mandate) | ✅ Aprobado (Exit 0) |
+| 2.4 | `npm run audit:build` (Auditoría Post-Build de Artefactos) | ✅ Aprobado |
+| 2.5 | `npm run audit:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
 
 ### Publicación Remota (Git Push)
 > ⚠️ **Control de Seguridad**: Por gobernanza del repositorio, el agente **NO** realiza push automático a ramas remotas sin petición explícita previa.

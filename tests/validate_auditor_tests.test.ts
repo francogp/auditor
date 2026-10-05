@@ -94,8 +94,9 @@ describe('AuditorTestsAuditor', () => {
       );
 
       // Create dummy audit.config.ts in sandbox root
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
       await fs.writeFile(
-        path.join(tempDir, 'audit.config.ts'),
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
         `export default { paths: {}, persistence: {}, domain: {}, extensions: [] };`,
         'utf-8'
       );
@@ -215,8 +216,9 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
       await fs.writeFile(
-        path.join(tempDir, 'audit.config.ts'),
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
         `export default { paths: {}, persistence: {}, domain: {}, extensions: [] };`,
         'utf-8'
       );
@@ -265,8 +267,9 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
       await fs.writeFile(
-        path.join(tempDir, 'audit.config.ts'),
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
         `export default { paths: {}, persistence: {}, domain: {}, extensions: [] };`,
         'utf-8'
       );

@@ -175,6 +175,15 @@ export interface AuditRunMetadata {
     executedSuites: string[];
     omittedSuites: string[];
     skipSimilar?: boolean;
+    /** Warning ratchet verdict (only on full default runs with `ratchet.enabled`). */
+    ratchet?: {
+        status: 'passed' | 'failed' | 'initialized';
+        productionRef: string;
+        newWarnings: number;
+        resolvedWarnings: number;
+        baselineUpdated: boolean;
+        error?: string;
+    };
     environment: {
         nodeVersion: string;
         platform: string;

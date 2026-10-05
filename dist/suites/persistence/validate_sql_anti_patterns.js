@@ -97,7 +97,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
                 'storage-uncoordinated-save-bypass': 'Bypass de persistencia segura'
             },
             coverage: {
-                include: ['database/**/*.sql', 'migrations/**/*.sql', 'src/**/*.ts', 'src/**/*.vue']
+                include: [`${migrationsDirRel}/**/*.sql`, 'database/**/*.sql', 'migrations/**/*.sql', 'src/**/*.ts', 'src/**/*.vue']
             },
             roots: [migrationsDirRel, 'database', ...srcRoots],
             allowedExtensions: new Set(['.sql', '.ts', '.vue']),

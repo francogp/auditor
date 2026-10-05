@@ -4,7 +4,6 @@
   "description": "Canonical package.json scripts template for consumer host applications using @francogp/auditor",
   "scripts": {
     "audit": "auditor",
-    "audit:for-commit": "auditor-commit",
     "audit:changed": "auditor changed-since=main",
     "audit:fix": "auditor fix",
     "audit:lint": "auditor preset=lint",
@@ -23,6 +22,7 @@
     "audit:coverage-gaps": "auditor-fallow category=coverage-gaps",
     "audit:css": "auditor-css",
     "audit:bundle": "auditor-bundle",
+    "audit:build": "auditor preset=build",
     "audit:package-hygiene": "auditor task=validate_package_hygiene",
     "audit:type-coverage": "auditor task=validate_type_coverage",
     "audit:fallow": "auditor-fallow category=all",

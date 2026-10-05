@@ -365,17 +365,7 @@ export function setupAuditor(config) {
                 process.exit(1);
             }
         },
-        finish: async (finalMetrics, legacyErrors, legacyWarnings) => {
-            if (legacyErrors) {
-                for (const err of legacyErrors) {
-                    findings.push({ severity: 'error', message: err });
-                }
-            }
-            if (legacyWarnings && !values['errors-only']) {
-                for (const warn of legacyWarnings) {
-                    findings.push({ severity: 'warning', message: warn });
-                }
-            }
+        finish: async (finalMetrics) => {
             if (finalMetrics) {
                 Object.assign(metrics, finalMetrics);
             }
@@ -509,18 +499,12 @@ export class BaseAuditor {
     coverageRecorder;
     isSkipped = false;
     skipReason;
-    legacyScanCount = 0;
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
     get filesScannedCount() {
-        return this.coverageRecorder.scannedCount || this.legacyScanCount;
+        return this.coverageRecorder.scannedCount;
     }
     set filesScannedCount(count) {
-        if (this.coverageRecorder.source === 'declared-only') {
-            this.coverageRecorder.recordExternalScanCount(count);
-        }
-        else {
-            this.legacyScanCount = count;
-        }
+        this.coverageRecorder.recordExternalScanCount(count);
     }
     markSkipped(reason) {
         this.isSkipped = true;
@@ -641,6 +625,13 @@ export class BaseAuditor {
     /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
     markRuleEvaluated(ruleId, count = 1) {
         this.coverageRecorder.markRuleEvaluated(ruleId, count);
+    }
+    /**
+     * Loud failure for obsolete v3 method name.
+     * Enforces the Loud Failure Mandate under AGENTS.md.
+     */
+    recordRuleEvaluation(ruleId) {
+        throw new Error(`[BaseAuditor]: Method 'recordRuleEvaluation' is obsolete and was removed in v4+. Use 'this.markRuleEvaluated("${ruleId}")' instead.`);
     }
     /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
     markRuleNotApplicable(ruleId, reason) {

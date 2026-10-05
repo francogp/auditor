@@ -11,6 +11,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs/promises';
 import {
   MarkdownLinkAuditor,
   MARKDOWN_LINK_RULES,
@@ -150,12 +152,19 @@ describe('MarkdownLinkAuditor', () => {
 
   describe('Clean Execution', () => {
     it('executes cleanly when scan roots contain no broken links and reports 0 errors', async () => {
-      // Running with an empty scan root ensures clean execution verification
-      const auditor = new MarkdownLinkAuditor([], PROJECT_ROOT);
-      const result = await auditor.execute();
+      // Hermetic sandbox: a valid relative link must not leak live repository defects into the test
+      const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-clean-'));
+      try {
+        await fs.writeFile(path.join(sandbox, 'guide.md'), '# Guide\n', 'utf-8');
+        await fs.writeFile(path.join(sandbox, 'README.md'), '# Readme\n\nSee [guide](./guide.md).\n', 'utf-8');
+        const auditor = new MarkdownLinkAuditor([], sandbox);
+        const result = await auditor.execute();
 
-      expect(result.summary.errors).toBe(0);
-      expect(result.status).toBe('passed');
+        expect(result.summary.errors).toBe(0);
+        expect(result.status).toBe('passed');
+      } finally {
+        await fs.rm(sandbox, { recursive: true, force: true });
+      }
     });
   });
 });

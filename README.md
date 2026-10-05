@@ -100,11 +100,11 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
   "scripts": {
     "build": "auditor && vite build",
     "audit": "auditor",
-    "audit:for-commit": "auditor-commit",
     "audit:changed": "auditor changed-since=main",
     "audit:fix": "auditor fix",
     "audit:lint": "auditor preset=lint",
     "audit:md": "auditor preset=md",
+    "audit:build": "auditor preset=build",
     "audit:findings": "auditor-findings",
     "audit:by-file": "auditor-by-file",
     "audit:complexity": "auditor-complexity",
@@ -134,7 +134,7 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
 
 ### 4.1. Full Project Audit
 
-Executes all 42 suites and host extensions registered in `audit.config.ts`:
+Executes all 43 suites and host extensions registered in `.auditor/audit.config.ts`:
 
 ```bash
 npx auditor
@@ -182,19 +182,33 @@ npm run audit:fix
 
 Auto-repair suites include: `validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene` (Knip dependency fixes), `validate_z_index`, and `validate_agent_plugin`.
 
-### 4.5. Safe-Commit Diff Gatekeeper (`auditor-commit`)
+### 4.5. Built-In Warning Ratchet (0 errors, 0 new warnings)
 
-Validates staged changes before committing against `origin/main`:
+Every full default run (`npx auditor` / `npm run audit`) is also the commit gate. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
 
 ```bash
-npx auditor-commit
-# or:
-npm run audit:for-commit
+git fetch origin
+npm run audit                     # 0 errors + 0 new warnings vs origin/main
+npm run audit -- --init-baseline  # one-time bootstrap when the production ref has no baseline yet
 ```
 
-- Demands 0 errors across the entire codebase.
-- Checks diff against `origin/main` to block any new warnings in modified files.
-- Automatically bypasses heavy suites (`validate_similar_code`) for sub-second execution.
+- The baseline only shrinks: clean full runs rewrite it when warnings disappear; commit the updated file.
+- Local fingerprints absent from the production baseline, a missing local baseline, or an unresolvable ref fail loudly. There is no accept-new escape hatch.
+- Partial runs (presets, families, tasks, rules, `changed-since`, `fix`, `build`) skip the ratchet.
+- CI checkouts must expose the production ref (for example `fetch-depth: 0`).
+- The former `audit:for-commit` / `auditor-commit` gate is removed; `validate_audit_config` flags leftover scripts (`audit-config-removed-commit-gate`) and `auditor fix` rewrites them.
+
+### 4.6. Post-Build Artifact Preset (`preset=build` / `auditor-build`)
+
+Dynamically isolates and executes suites declaring `capabilities: { requiresBuild: true }` against compiled distribution artifacts in `dist/`:
+
+```bash
+npx auditor preset=build
+# or:
+npm run audit:build
+```
+
+Executes `validate_package_distribution` (Publint) and `validate_bundle_budget` post-compilation.
 
 ---
 
@@ -329,10 +343,10 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
 
 ## 10. Centralized Configuration (`audit.config.ts`)
 
-Every host project declares its configuration via `defineAuditConfig`:
+Every host project declares its configuration via `defineAuditConfig` in `.auditor/audit.config.ts`. The `.auditor/` directory holds every versioned auditor artifact (configuration and `.auditor/audit-baseline.json`), while run results stay in the git-ignored `scratch/audits/`. Tool configs such as `eslint.config.js` or `.stylelintrc.json` remain at the root so editors keep discovering them. A root-level `audit.config.ts` fails loudly; `npx auditor fix` moves it into `.auditor/` and rewrites its relative imports. Paths inside the config stay relative to the project root.
 
 ```typescript
-// audit.config.ts
+// .auditor/audit.config.ts
 import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
@@ -379,6 +393,27 @@ export default defineAuditConfig({
   },
   constants: {
     exemptGlobs: ['scripts/maintenance/**', 'src/data/seed/**']
+  },
+  coverage: {
+    enabled: true,
+    exemptGlobs: [
+      {
+        glob: 'deploy-*.sh',
+        reason: 'Host server provisioning and deployment shell scripts'
+      }
+    ],
+    acknowledgedDegradations: [
+      {
+        policy: 'scripts',
+        glob: 'scripts/**',
+        reason: 'Maintenance, testing, and deployment scripts'
+      },
+      {
+        policy: 'cli',
+        glob: 'scripts/cli/**',
+        reason: 'CLI scripts authorized for console operations'
+      }
+    ]
   },
   packageDistribution: {
     enabled: true
@@ -434,8 +469,7 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 
 | Binary Command | Script | Description |
 | :--- | :--- | :--- |
-| `npx auditor` | `src/cli/audit_full.ts` | Runs global project audit. Supports `preset=lint`, `preset=md`, `fix`, `--family`, `--task`. |
-| `npx auditor-commit` | `src/cli/audit_for_commit.ts` | Pre-commit gatekeeper. Demands 0 errors and blocks new warnings against `origin/main`. |
+| `npx auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
 | `npx auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
 | `npx auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
 | `npx auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |

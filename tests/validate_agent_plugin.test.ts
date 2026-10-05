@@ -154,8 +154,9 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
     });
 
     it('skips gracefully when explicitly disabled with agentPlugin.enabled: false', async () => {
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
       await fs.writeFile(
-        path.join(tempDir, 'audit.config.json'),
+        path.join(tempDir, '.auditor', 'audit.config.json'),
         JSON.stringify({ name: 'disabled-plugin-app', agentPlugin: { enabled: false } }),
         'utf8'
       );

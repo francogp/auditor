@@ -18,7 +18,7 @@ Consult this skill whenever you need to:
 - **Audit DOX integrity & detect missing/unindexed AGENTS.md files**: Always run `npm run audit:md` to discover missing indices or broken DOX hierarchy links.
 - **Perform refactorings or major structural changes** to the codebase (which require refreshing and updating DOX indices/AGENTS.md files).
 - Run the `/learn` command to persist new rules or behaviors.
-- Perform the **Lessons Extraction** (Step 8) or **DOX Maintenance** (Step 7.1) during `/safe-commit`.
+- Perform the **Lessons Extraction** (Phase 3, Step 3.1) or **DOX Maintenance** (Phase 4, Step 4.1) during `/safe-commit`.
 
 ---
 

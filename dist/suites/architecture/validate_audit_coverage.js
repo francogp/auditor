@@ -15,7 +15,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, isPathIgnored } from "../../core/auditorBase.js";
-import { getAuditConfig } from "../../core/auditConfig.js";
+import { getAuditConfig, AUDIT_CONFIG_FILE } from "../../core/auditConfig.js";
 import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_RUN_MODE_ENV, isAuditableCodebaseFile, isDeclaredByCoverage, readCoverageLedgers, resolveActiveCoverageRunId } from "../../core/auditCoverage.js";
 import { getMatchingExemptionPolicies } from "../../core/exemptionPolicies.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
@@ -121,7 +121,7 @@ function analyzeDormantRules(ledgers) {
 }
 function analyzeExemptionsAndLedgers(input, ledgers) {
     const findings = [];
-    const configFile = 'audit.config.ts';
+    const configFile = AUDIT_CONFIG_FILE;
     for (const exemption of input.config.coverage?.exemptGlobs ?? []) {
         if (!input.trackedFiles.some(f => path.posix.matchesGlob(f, exemption.glob))) {
             findings.push({
@@ -200,7 +200,7 @@ export class AuditCoverageAuditor extends BaseAuditor {
                 'coverage-invalid-exemption': 'Exención sin archivos que la usen',
                 'coverage-missing-ledger': 'Suite sin ledger de cobertura'
             },
-            coverage: { include: ['audit.config.ts'] },
+            coverage: { include: [AUDIT_CONFIG_FILE] },
             projectRoot: options.projectRoot
         });
     }
@@ -215,7 +215,7 @@ export class AuditCoverageAuditor extends BaseAuditor {
             this.markSkipped('Requiere una corrida completa (npm run audit) para verificar cobertura');
             return;
         }
-        const configPath = path.join(this.projectRoot, 'audit.config.ts');
+        const configPath = path.join(this.projectRoot, AUDIT_CONFIG_FILE);
         if (nodeFs.existsSync(configPath))
             this.recordScanned(configPath);
         const expectedSuites = (process.env[COVERAGE_EXPECTED_SUITES_ENV] ?? '')

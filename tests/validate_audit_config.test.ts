@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
-import { resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
+import { migrateLegacyAuditConfig } from '../src/cli/migrateAuditConfig.ts';
+import { resetAuditConfig, defineAuditConfig, assertNoLegacyRootConfig, loadAuditConfig } from '../src/core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
 
 const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts').replace(/\\/g, '/');
@@ -17,6 +19,11 @@ describe('ValidateAuditConfigAuditor', () => {
     resetAuditConfig();
     GitIgnoreRegistry.reset();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audit-config-test-'));
+    // Git sandbox whose origin/main resolves, satisfying the default ratchet production ref
+    const git = (...args: string[]): void => { execFileSync('git', args, { cwd: tempDir, stdio: 'ignore' }); };
+    git('init', '-q');
+    git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
+    git('update-ref', 'refs/remotes/origin/main', 'HEAD');
 
     // Baseline valid .gitignore with standard tool caches so path tests isolate cleanly
     await fs.writeFile(
@@ -34,7 +41,6 @@ describe('ValidateAuditConfigAuditor', () => {
           scripts: {
             build: 'auditor && vite build',
             audit: 'auditor',
-            'audit:for-commit': 'auditor-commit',
             'audit:fix': 'auditor fix',
             'audit:lint': 'auditor preset=lint',
             'audit:md': 'auditor preset=md',
@@ -67,7 +73,9 @@ describe('ValidateAuditConfigAuditor', () => {
     expect(auditor.ruleIds).toContain('audit-config-invalid-extension');
     expect(auditor.ruleIds).toContain('audit-config-missing-gitignore-entry');
     expect(auditor.ruleIds).toContain('audit-config-missing-build-audit');
-    expect(auditor.ruleIds).toContain('audit-config-invalid-build-script');
+    expect(auditor.ruleIds).toContain('audit-config-removed-commit-gate');
+    expect(auditor.ruleIds).toContain('audit-config-invalid-production-ref');
+    expect(auditor.ruleIds).toContain('audit-config-invalid-baseline');
     expect(auditor.ruleIds).toContain('audit-config-missing-recommended-script');
   });
 
@@ -79,7 +87,7 @@ describe('ValidateAuditConfigAuditor', () => {
     expect(result.summary.errors).toBe(1);
     const missingFinding = result.findings.find(f => f.ruleId === 'audit-config-missing-file');
     expect(missingFinding).toBeDefined();
-    expect(missingFinding?.message).toContain('audit.config.ts does not exist');
+    expect(missingFinding?.message).toContain('.auditor/audit.config.ts does not exist');
   });
 
   it('reports an error when .gitignore is missing from project root', async () => {
@@ -92,7 +100,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.unlink(path.join(tempDir, '.gitignore'));
 
@@ -115,7 +124,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     // Incomplete .gitignore with only node_modules
     await fs.writeFile(path.join(tempDir, '.gitignore'), 'node_modules/\n', 'utf-8');
@@ -142,7 +152,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.writeFile(path.join(tempDir, '.gitignore'), 'node_modules/\n', 'utf-8');
 
@@ -201,7 +212,8 @@ export default defineAuditConfig({
   extensions: ['scripts/custom_ext.ts']
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // .gitignore currently only has baseline entries, missing .custom-tool-cache/
@@ -242,7 +254,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
 
     // Create only 'src' and 'tests', leaving 'non_existent_src' and 'src/non_existent_components' missing
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
@@ -278,7 +291,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src/stores'), { recursive: true });
     await fs.writeFile(path.join(tempDir, 'src/stores/authStore.ts'), '// auth', 'utf-8');
 
@@ -310,7 +324,8 @@ export default defineAuditConfig({
   extensions: ['scripts/auditors/missing_ext.ts']
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     const auditor = new ValidateAuditConfigAuditor(tempDir);
@@ -350,7 +365,8 @@ export default defineAuditConfig({
   extensions: ['scripts/custom.ts']
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src/cli'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'src/components'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'src/styles'), { recursive: true });
@@ -382,7 +398,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.unlink(path.join(tempDir, 'package.json'));
 
@@ -405,7 +422,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // package.json with build script that does NOT chain auditor
@@ -416,7 +434,6 @@ export default defineAuditConfig({
         scripts: {
           build: 'vite build',
           audit: 'auditor',
-          'audit:for-commit': 'auditor-commit',
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
@@ -437,7 +454,7 @@ export default defineAuditConfig({
     expect(missingBuildAudit?.message).toContain('does not chain auditor before compilation');
   });
 
-  it('reports an error when build script uses audit:for-commit instead of full auditor', async () => {
+  it('reports removed audit:for-commit gate references and repairs them in fix mode', async () => {
     const configContent = `
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
@@ -447,36 +464,79 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    const pkgPath = path.join(tempDir, 'package.json');
+    const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
+    pkg.scripts.build = 'npm run audit:for-commit && vite build';
+    pkg.scripts['audit:for-commit'] = 'auditor-commit';
+    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8');
+
+    const result = await new ValidateAuditConfigAuditor(tempDir).execute();
+    expect(result.status).toBe('failed');
+    const removedGate = result.findings.filter(f => f.ruleId === 'audit-config-removed-commit-gate');
+    expect(removedGate.map(f => f.context?.split(':')[0]).sort()).toEqual(['audit', 'build']);
+
+    resetAuditConfig();
+    const fixResult = await new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true }).execute();
+    expect(fixResult.summary.errors).toBe(0);
+    const repaired = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
+    expect(repaired.scripts['audit:for-commit']).toBeUndefined();
+    expect(repaired.scripts.build).toBe('auditor && vite build');
+  });
+
+  it('reports an error when the ratchet production ref does not resolve in git', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  persistence: { engine: 'none', schemaQualified: false },
+  styles: { zLayersEnabled: false },
+  ratchet: { productionRef: 'origin/does-not-exist' }
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    // package.json with build script that uses audit:for-commit
-    await fs.writeFile(
-      path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-app',
-        scripts: {
-          build: 'npm run audit:for-commit && vite build',
-          audit: 'auditor',
-          'audit:for-commit': 'auditor-commit',
-          'audit:fix': 'auditor fix',
-          'audit:lint': 'auditor preset=lint',
-          'audit:md': 'auditor preset=md',
-            'audit:build': 'auditor preset=build',
-          'auditor:update': 'auditor-update',
-          'auditor:version': 'auditor-version'
-        }
-      }, null, 2),
-      'utf-8'
-    );
-
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
-
+    const result = await new ValidateAuditConfigAuditor(tempDir).execute();
     expect(result.status).toBe('failed');
-    const invalidBuild = result.findings.find(f => f.ruleId === 'audit-config-invalid-build-script');
-    expect(invalidBuild).toBeDefined();
-    expect(invalidBuild?.message).toContain('uses audit:for-commit');
+    const invalidRef = result.findings.find(f => f.ruleId === 'audit-config-invalid-production-ref');
+    expect(invalidRef?.context).toBe('ratchet.productionRef=origin/does-not-exist');
+  });
+
+  it('reports a malformed ratchet baseline committed in .auditor/', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  persistence: { engine: 'none', schemaQualified: false },
+  styles: { zLayersEnabled: false }
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit-baseline.json'), '{"schemaVersion":2,"warnings":[]}', 'utf-8');
+
+    const result = await new ValidateAuditConfigAuditor(tempDir).execute();
+    expect(result.status).toBe('failed');
+    expect(result.findings.find(f => f.ruleId === 'audit-config-invalid-baseline')?.file).toBe('.auditor/audit-baseline.json');
+
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit-baseline.json'), '{"schemaVersion":1,"warnings":[]}\n', 'utf-8');
+    resetAuditConfig();
+    const clean = await new ValidateAuditConfigAuditor(tempDir).execute();
+    expect(clean.summary.errors).toBe(0);
+    expect(clean.status).toBe('passed');
+  });
+
+  it('throws a loud error when ratchet.baselineFile escapes the project or is not JSON', () => {
+    expect(() => defineAuditConfig({ name: 'x', ratchet: { baselineFile: '../baseline.json' } })).toThrow(/ratchet\.baselineFile/);
+    expect(() => defineAuditConfig({ name: 'x', ratchet: { baselineFile: 'baseline.txt' } })).toThrow(/ratchet\.baselineFile/);
+    expect(() => defineAuditConfig({ name: 'x', ratchet: { productionRef: '--upload-pack=x' } })).toThrow(/ratchet\.productionRef/);
   });
 
   it('automatically repairs build script with auditor in fix mode', async () => {
@@ -489,7 +549,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // Unchained build script
@@ -500,7 +561,6 @@ export default defineAuditConfig({
         scripts: {
           build: 'vite build',
           audit: 'auditor',
-          'audit:for-commit': 'auditor-commit',
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
@@ -536,7 +596,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // package.json missing some recommended scripts
@@ -560,7 +621,7 @@ export default defineAuditConfig({
     expect(result.status).toBe('passed');
     const missingRecommended = result.findings.filter(f => f.ruleId === 'audit-config-missing-recommended-script');
     expect(missingRecommended.length).toBeGreaterThan(0);
-    expect(missingRecommended.some(f => f.context === 'audit:for-commit')).toBe(true);
+    expect(missingRecommended.some(f => f.context === 'audit:lint')).toBe(true);
     expect(missingRecommended.some(f => f.context === 'audit:fix')).toBe(true);
   });
 
@@ -574,7 +635,8 @@ export default defineAuditConfig({
   styles: { zLayersEnabled: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     await fs.writeFile(
@@ -594,7 +656,6 @@ export default defineAuditConfig({
     expect(fixResult.status).toBe('passed');
 
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.scripts['audit:for-commit']).toBe('auditor-commit');
     expect(updatedPkg.scripts['audit:fix']).toBe('auditor fix');
     expect(updatedPkg.scripts['audit:lint']).toBe('auditor preset=lint');
     expect(updatedPkg.scripts['audit:md']).toBe('auditor preset=md');
@@ -614,7 +675,8 @@ export default defineAuditConfig({
   packageDistribution: { enabled: true }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // Standalone build script without auditor
@@ -625,7 +687,6 @@ export default defineAuditConfig({
         scripts: {
           build: 'tsc -p tsconfig.build.json',
           audit: 'auditor',
-          'audit:for-commit': 'auditor-commit',
           'audit:fix': 'auditor fix',
           'audit:lint': 'auditor preset=lint',
           'audit:md': 'auditor preset=md',
@@ -656,7 +717,8 @@ export default defineAuditConfig({
   packageScripts: { enforceBuildAudit: false, recommendedScripts: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     await fs.writeFile(
@@ -688,7 +750,8 @@ export default defineAuditConfig({
   packageScripts: { enforceBuildAudit: false, recommendedScripts: false }
 });
     `;
-    await fs.writeFile(path.join(tempDir, 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     await fs.writeFile(
@@ -782,5 +845,57 @@ export default defineAuditConfig({
     });
 
     expect(config.constants?.exemptGlobs).toEqual(['scripts/database/seeds/**', 'ui-demo/**']);
+  });
+});
+
+describe('migrateLegacyAuditConfig', () => {
+  let root: string;
+
+  beforeEach(async () => {
+    resetAuditConfig();
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'migrate-audit-config-'));
+  });
+
+  afterEach(async () => {
+    resetAuditConfig();
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('fails loudly while a configuration remains at the project root', async () => {
+    await fs.writeFile(path.join(root, 'audit.config.ts'), 'export default { name: "x" };\n', 'utf-8');
+    expect(() => assertNoLegacyRootConfig(root)).toThrow(/auditor fix/);
+    await expect(loadAuditConfig(root)).rejects.toThrow(/no longer supported/);
+  });
+
+  it('moves the config into .auditor/ and rebases relative imports via the AST', async () => {
+    const code = [
+      "import { defineAuditConfig } from './src/core/auditConfig.ts';",
+      "export { helper } from \"./scripts/helper.ts\";",
+      "import pkg from '@francogp/auditor';",
+      "const lazy = () => import('./scripts/lazy.ts');",
+      "export default defineAuditConfig({ name: './not-a-module.ts' });",
+      ''
+    ].join('\n');
+    await fs.writeFile(path.join(root, 'audit.config.ts'), code, 'utf-8');
+
+    expect(migrateLegacyAuditConfig(root)).toEqual(['audit.config.ts']);
+    const migrated = await fs.readFile(path.join(root, '.auditor', 'audit.config.ts'), 'utf-8');
+    expect(migrated).toContain("from '../src/core/auditConfig.ts'");
+    expect(migrated).toContain('from "../scripts/helper.ts"');
+    expect(migrated).toContain("from '@francogp/auditor'");
+    expect(migrated).toContain("import('../scripts/lazy.ts')");
+    expect(migrated).toContain("name: './not-a-module.ts'");
+    expect(() => assertNoLegacyRootConfig(root)).not.toThrow();
+  });
+
+  it('refuses to overwrite an existing .auditor/ configuration', async () => {
+    await fs.mkdir(path.join(root, '.auditor'));
+    await fs.writeFile(path.join(root, '.auditor', 'audit.config.json'), '{}', 'utf-8');
+    await fs.writeFile(path.join(root, 'audit.config.json'), '{}', 'utf-8');
+    expect(() => migrateLegacyAuditConfig(root)).toThrow(/Both/);
+  });
+
+  it('is a no-op on already migrated projects', () => {
+    expect(migrateLegacyAuditConfig(root)).toEqual([]);
   });
 });

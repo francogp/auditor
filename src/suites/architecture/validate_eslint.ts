@@ -19,6 +19,7 @@ import { executeNodeCli } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/auditCoverage.ts';
 import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { parseLintResultsToFindings, extractJsonReportFilePaths, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
 
@@ -85,10 +86,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
           'dist/**',
           'scratch/**',
           '.agents/**',
-          'tests/**',
-          'vitest.config.ts',
-          ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []),
-          ...(getAuditConfig(effectiveRoot).persistence?.supabaseDir ? [`${getAuditConfig(effectiveRoot).persistence.supabaseDir}/**`] : [])
+          ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? [])
         ],
         source: 'runtime'
       },
@@ -103,10 +101,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       'dist/**',
       'scratch/**',
       '.agents/**',
-      'tests/**',
-      'vitest.config.ts',
-      ...(config.paths.ignoreGlobs ?? []),
-      ...(config.persistence?.supabaseDir ? [`${config.persistence.supabaseDir}/**`] : [])
+      ...(config.paths.ignoreGlobs ?? [])
     ];
     this.redeclareCoverage({
       include: ['**/*.{js,ts,mjs,cjs,vue}'],
@@ -131,7 +126,14 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
     const findings = parseEslintResults(combinedOutput, this.projectRoot);
 
     const scannedFiles = extractJsonReportFilePaths(combinedOutput, findings);
-    this.recordScannedMany(scannedFiles);
+    const relScannedFiles = scannedFiles.map(f => toPosixRelative(this.projectRoot, f));
+    this.recordScannedMany(relScannedFiles);
+    if (relScannedFiles.length > 0) {
+      this.redeclareCoverage({
+        include: relScannedFiles,
+        source: 'runtime'
+      });
+    }
 
     this.markRuleEvaluated('eslint-violation');
     this.importAuditFindings(findings, 'eslint-violation', 'eslint');

@@ -15,7 +15,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers } from '../../core/auditConfig.ts';
+import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
 import { Z_LAYERS } from './audit_rules.ts';
 
 enableCompileCache();
@@ -176,10 +176,10 @@ private readonly scssPath?: string;
       this.addViolation({
         ruleId: 'z-index-read-error',
         severity: 'error',
-        file: 'audit.config.ts',
+        file: AUDIT_CONFIG_FILE,
         line: 1,
         message: "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
-        context: 'audit.config.ts'
+        context: AUDIT_CONFIG_FILE
       });
       return;
     }

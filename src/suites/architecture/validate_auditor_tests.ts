@@ -312,7 +312,9 @@ id: 'validate_auditor_tests',
           'scripts/auditors/**/_*',
           'scripts/auditors/**/report_*',
           'scripts/auditors/**/*Plugin.ts',
-          'scripts/auditors/**/audit_rules.ts'
+          'scripts/auditors/**/audit_rules.ts',
+          'tests/integration/**',
+          'tests/e2e/**'
         ];
     this.redeclareCoverage({
       include,

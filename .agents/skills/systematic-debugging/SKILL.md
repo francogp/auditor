@@ -62,13 +62,13 @@ flowchart TD
 
 1. **Extract & Parse Available Traces**:
    - **Playwright Failures**: Read `scratch/test-results/` for console logs, stack traces, and screenshots.
-   - **Calculation & Parser Failures**: Extract failing tariff input line, billing CSV record, power factor ($\cos \varphi$), energy readings, or diverging tolerance delta ($|calc - legacy| > 0.011$).
+   - **Calculation & Parser Failures**: Extract failing calculation inputs, serialized payload records, precision metrics, numerical indicators, or diverging tolerance delta ($|calc - expected| > \epsilon$).
    - **Database & Persistence Failures**: Detect whether the failure originates from SQL syntax, migrations, schema discrepancies, RLS policies, or Supabase client queries.
-   - **Verbal / Informal Reports**: If the report lacks traces, prompt the user for minimal context: (1) exact reproduction steps, (2) tariff/client data, and (3) observed error message in DevTools console.
+   - **Verbal / Informal Reports**: If the report lacks traces, prompt the user for minimal context: (1) exact reproduction steps, (2) domain entity/input data, and (3) observed error message in DevTools console.
    - *Detailed extraction guide: [Trace Ingestion & Bug Triage Guide](./references/trace_ingestion_and_triage.md)*.
 
 2. **Map to Authoritative DOX Contract (`dox-navigator`)**:
-   - Identify the owning module in `src/` (e.g. `src/logic/billing/`, `src/stores/`, `src/components/`, `supabase/`).
+   - Identify the owning module in `src/` (e.g. `src/logic/`, `src/stores/`, `src/components/`, `supabase/`).
    - Read the nearest `AGENTS.md` to identify non-negotiable invariants before planning fixes.
 
 3. **Pre-Fix Fallback Audit**:
@@ -81,12 +81,13 @@ flowchart TD
 Create deterministic reproduction tests before touching `src/`:
 
 | Testing Tier | Scope & Trigger Condition | Target Location | Template |
+| :--- | :--- | :--- | :--- |
 | **Tier 1: Unit Test (Mandatory)** | Isolated logic, pure functions, state actions, schema parsing, SQL queries. | `tests/node/<domain>/reproduce_<slug>.test.ts` or `tests/unit/` | [Unit Template](./templates/reproduction_unit_test.template.ts) |
-| **Tier 2: Integrity Test (Mandatory)** | Cross-boundary contracts, billing calculation parity, Supabase roundtrips, SQL migrations. | `tests/node/<domain>/` | [Integration Template](./templates/reproduction_integration_test.template.ts) |
+| **Tier 2: Integrity Test (Mandatory)** | Cross-boundary contracts, state engine parity, Supabase roundtrips, SQL migrations. | `tests/node/<domain>/` | [Integration Template](./templates/reproduction_integration_test.template.ts) |
 | **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `tests/unit/views/reproduce_<slug>.test.ts` | [Unit Template](./templates/reproduction_unit_test.template.ts) |
 
 #### Rules for Reproduction Tests:
-1. **Inline Static Data**: Inline all failing inputs, tariff definitions, kWh readings, and formula ASTs.
+1. **Inline Static Data**: Inline all failing inputs, entity definitions, mock records, and formula ASTs.
 2. **Pure Supabase Testing for Database Bugs**:
    - If the bug involves database queries, migrations, schemas, or persistence roundtrips, verify against the dynamic client in `src/logic/db/supabase.ts`.
    - Assert deterministic constraint enforcement and error shapes.

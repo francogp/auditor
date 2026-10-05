@@ -213,8 +213,9 @@ describe('ValidateDocumentedCommandsAuditor', () => {
       }, null, 2)
     );
 
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
     await fs.writeFile(
-      path.join(tempDir, 'audit.config.ts'),
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
       `export default {
   name: 'test-pkg',
   documentation: {
@@ -265,8 +266,9 @@ describe('ValidateDocumentedCommandsAuditor', () => {
       }, null, 2)
     );
 
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
     await fs.writeFile(
-      path.join(tempDir, 'audit.config.ts'),
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
       `export default {
   name: 'test-pkg',
   paths: {

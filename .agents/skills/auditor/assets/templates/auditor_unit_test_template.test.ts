@@ -1,9 +1,17 @@
 /**
- * TEMPLATE: Sub-Auditor Unit Test
+ * TEMPLATE: Sub-Auditor Unit Test (Auditor v4+ Standard)
  * Location: tests/node/auditors/validate_<name>.test.ts
  * 
- * Tests your sub-auditor in isolation: clean state passes, violations trigger in RED,
- * and suppression comments (escape hatches) are respected.
+ * Tests your sub-auditor in hermetic isolation:
+ *   1. Clean state passes (errors = 0, status = 'passed')
+ *   2. Violations trigger in RED (ruleId, severity, status = 'failed')
+ *   3. Suppression comments (escape hatches) are respected
+ * 
+ * StandardAuditResult v4+ Contract:
+ *   - result.status === 'passed' | 'failed' | 'warned'
+ *   - result.summary.errors === 0
+ *   - result.summary.warnings === 0
+ *   - result.findings (replaces legacy result.violations)
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -26,35 +34,45 @@ describe('MyFeatureAuditor', () => {
     const cleanFile = path.join(TEST_DIR, 'clean.ts');
     fs.writeFileSync(cleanFile, 'export const valid = true;\n', 'utf-8');
 
-    const auditor = new MyFeatureAuditor(['scratch/test_auditor_tmp']);
+    const auditor = new MyFeatureAuditor({
+      projectRoot: TEST_DIR,
+      roots: [TEST_DIR]
+    });
     const result = await auditor.execute();
 
-    expect(result.errors.length).toBe(0);
-    expect(result.warnings.length).toBe(0);
-    expect(result.violations.length).toBe(0);
-    expect(result.success).toBe(true);
+    expect(result.summary.errors).toBe(0);
+    expect(result.summary.warnings).toBe(0);
+    expect(result.findings.length).toBe(0);
+    expect(result.status).toBe('passed');
   });
 
   it('detects violations and records structured ruleId and context', async () => {
     const dirtyFile = path.join(TEST_DIR, 'dirty.ts');
     fs.writeFileSync(dirtyFile, 'const bad = forbiddenToken;\n', 'utf-8');
 
-    const auditor = new MyFeatureAuditor(['scratch/test_auditor_tmp']);
+    const auditor = new MyFeatureAuditor({
+      projectRoot: TEST_DIR,
+      roots: [TEST_DIR]
+    });
     const result = await auditor.execute();
 
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.violations.some(v => v.ruleId === 'my-feature-forbidden-pattern')).toBe(true);
-    expect(result.success).toBe(false);
+    expect(result.summary.errors).toBeGreaterThan(0);
+    expect(result.findings.some(f => f.ruleId === 'my-feature-forbidden-pattern')).toBe(true);
+    expect(result.status).toBe('failed');
   });
 
   it('respects canonical suppression escape hatches', async () => {
     const ignoredFile = path.join(TEST_DIR, 'ignored.ts');
     fs.writeFileSync(ignoredFile, 'const bad = forbiddenToken; // my-feature-ok: Justified test exception\n', 'utf-8');
 
-    const auditor = new MyFeatureAuditor(['scratch/test_auditor_tmp']);
+    const auditor = new MyFeatureAuditor({
+      projectRoot: TEST_DIR,
+      roots: [TEST_DIR]
+    });
     const result = await auditor.execute();
 
-    expect(result.violations.length).toBe(0);
-    expect(result.success).toBe(true);
+    expect(result.summary.errors).toBe(0);
+    expect(result.findings.length).toBe(0);
+    expect(result.status).toBe('passed');
   });
 });

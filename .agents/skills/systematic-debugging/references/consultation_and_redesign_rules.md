@@ -24,7 +24,7 @@ In **Explicit Mode**, the agent MUST pause execution and consult the user whenev
 2. **Breaking API & Contract Changes**:
    - The fix alters the signature or return type of public store actions, Supabase client interfaces, or core calculation engine exports consumed across multiple components.
 3. **DOX & Rule Collisions**:
-   - The proposed fix would violate or weaken an existing rule documented in `AGENTS.md` (e.g. 1:1 legacy calculation parity, Zero-Fallback policy, Fail Loud & Fast, or Domain-Type-First).
+   - The proposed fix would violate or weaken an existing rule documented in `AGENTS.md` (e.g. 1:1 canonical calculation parity, Zero-Fallback policy, Fail Loud & Fast, or Domain-Type-First).
 4. **Multiple Viable Architectural Paths**:
    - There are two or more competing designs with non-trivial trade-offs (e.g. state normalization vs event bus vs computed store derivation).
 

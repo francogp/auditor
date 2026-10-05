@@ -16,13 +16,13 @@
  * Escape Hatches:
  *   // render-ok, // blend-ok
  *
- * Usage in audit.config.ts:
- *   extensions: ['./scripts/auditors/architecture/validate_render_performance.ts']
+ * Usage in .auditor/audit.config.ts:
+ *   extensions: ['../scripts/auditors/architecture/validate_render_performance.ts']
  */
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, getAuditConfig, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, getAuditConfig } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -158,6 +158,4 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
 }
 
 // Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new ValidateRenderPerformanceAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ValidateRenderPerformanceAuditor());

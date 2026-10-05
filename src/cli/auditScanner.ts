@@ -275,7 +275,7 @@ async function createAuditTaskDefinition(
     return null;
   }
 
-  // Pre-build run (default general audit, audit:for-commit, lint, md): exclude requiresBuild suites
+  // Pre-build run (default general audit, lint, md): exclude requiresBuild suites
   // unless explicitly requested via --with-build or targeting a specific suite/task
   if (!isBuildPreset && !options.withBuild && !options.task && !options.suites) {
     if (capabilities?.requiresBuild) {

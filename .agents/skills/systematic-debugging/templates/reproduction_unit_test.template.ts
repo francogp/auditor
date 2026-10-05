@@ -10,7 +10,7 @@ import { setActivePinia, createPinia } from 'pinia';
  *       or: tests/unit/<domain>/reproduce_<slug>.spec.ts (for Vue/JSDOM components)
  *
  * Mandatory Laws:
- * 1. INLINE ALL STATIC FIXTURE DATA (tariff definition, energy readings, power factor, invoice row).
+ * 1. INLINE ALL STATIC FIXTURE DATA (entity definition, domain records, configuration tokens, calculation inputs).
  * 2. Verify deterministic RED failure before editing src/.
  * 3. Verify GREEN once src/ is fixed.
  * 4. SUPABASE PERSISTENCE MANDATE: If the bug touches database queries, migrations, schemas,

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, getEffectiveScannableRoots } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 
@@ -245,7 +245,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
               'src/index.{ts,js}',
               'src/main.{ts,js}',
               'index.html',
-              'audit.config.ts'
+              AUDIT_CONFIG_FILE
             ]);
 
     const scannableRoots = getEffectiveScannableRoots(config);

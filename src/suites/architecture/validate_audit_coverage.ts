@@ -16,7 +16,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, isPathIgnored } from '../../core/auditorBase.ts';
-import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, type AuditEngineConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
 import type { CoverageLedger } from '../../core/auditContract.ts';
 import {
   COVERAGE_EXPECTED_SUITES_ENV,
@@ -185,7 +185,7 @@ function analyzeDormantRules(ledgers: readonly CoverageLedger[]): CoverageFindin
 
 function analyzeExemptionsAndLedgers(input: CoverageAnalysisInput, ledgers: readonly CoverageLedger[]): CoverageFinding[] {
   const findings: CoverageFinding[] = [];
-  const configFile = 'audit.config.ts';
+  const configFile = AUDIT_CONFIG_FILE;
   for (const exemption of input.config.coverage?.exemptGlobs ?? []) {
     if (!input.trackedFiles.some(f => path.posix.matchesGlob(f, exemption.glob))) {
       findings.push({
@@ -269,7 +269,7 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
         'coverage-invalid-exemption': 'Exención sin archivos que la usen',
         'coverage-missing-ledger': 'Suite sin ledger de cobertura'
       },
-      coverage: { include: ['audit.config.ts'] },
+      coverage: { include: [AUDIT_CONFIG_FILE] },
       projectRoot: options.projectRoot
     });
   }
@@ -286,7 +286,7 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
       return;
     }
 
-    const configPath = path.join(this.projectRoot, 'audit.config.ts');
+    const configPath = path.join(this.projectRoot, AUDIT_CONFIG_FILE);
     if (nodeFs.existsSync(configPath)) this.recordScanned(configPath);
 
     const expectedSuites = (process.env[COVERAGE_EXPECTED_SUITES_ENV] ?? '')

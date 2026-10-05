@@ -7,14 +7,15 @@
     "src/plugin/*.ts",
     "src/analyzers/*.ts",
     "src/suites/**/*.ts",
-    "audit.config.ts"
+    ".auditor/audit.config.ts"
   ],
   "ignorePatterns": [
     "skills/**",
     ".agents/**",
     "scratch/**",
     "dist/**",
-    "tests/**"
+    "tests/**",
+    "!.auditor/**"
   ],
   "ignoreDependencies": [
     "fallow",

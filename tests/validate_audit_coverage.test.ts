@@ -323,8 +323,9 @@ describe('validate_audit_coverage Suite', () => {
       process.env[COVERAGE_RUN_ID_ENV] = 'test-run';
       process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
       await fs.writeFile(
-        path.join(tempDir, 'audit.config.ts'),
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
         'export default { coverage: { enabled: false } };',
         'utf-8'
       );
@@ -348,22 +349,23 @@ describe('validate_audit_coverage Suite', () => {
         runId,
         suiteId: 'suite-demo',
         skipped: false,
-        declared: { include: ['audit.config.ts'], source: 'runtime' },
+        declared: { include: ['.auditor/audit.config.ts'], source: 'runtime' },
         source: 'runtime',
-        scanned: ['audit.config.ts'],
+        scanned: ['.auditor/audit.config.ts'],
         ruleIds: ['demo-rule'],
         ruleEvaluations: { 'demo-rule': 1 },
         notApplicable: {}
       };
       await fs.writeFile(path.join(coverageDir, 'suite-demo.json'), JSON.stringify(ledger), 'utf-8');
-      await fs.writeFile(path.join(tempDir, 'audit.config.ts'), 'export default { coverage: { enabled: true } };', 'utf-8');
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'export default { coverage: { enabled: true } };', 'utf-8');
 
       // Initialize git repo in sandbox so listTrackedFiles succeeds
       const { execFileSync } = await import('node:child_process');
       execFileSync('git', ['init'], { cwd: tempDir });
       execFileSync('git', ['config', 'user.name', 'Auditor Test'], { cwd: tempDir });
       execFileSync('git', ['config', 'user.email', 'test@auditor.local'], { cwd: tempDir });
-      execFileSync('git', ['add', 'audit.config.ts'], { cwd: tempDir });
+      execFileSync('git', ['add', '.auditor/audit.config.ts'], { cwd: tempDir });
       execFileSync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
 
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });

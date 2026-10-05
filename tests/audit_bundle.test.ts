@@ -144,7 +144,8 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
 
     it('returns success with 0 errors when bundle.enabled is explicitly false', async () => {
       // Create config with bundle.enabled: false
-      const configPath = path.join(tempDir, 'audit.config.json');
+      fs.mkdirSync(path.join(tempDir, '.auditor'), { recursive: true });
+      const configPath = path.join(tempDir, '.auditor', 'audit.config.json');
       fs.writeFileSync(configPath, JSON.stringify({
         name: 'test-no-bundle',
         bundle: { enabled: false }

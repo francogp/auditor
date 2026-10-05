@@ -20,7 +20,7 @@ Architecture & Tooling Engineers.
 ## Child DOX Index
 
 - [`core/AGENTS.md`](./core/AGENTS.md): Abstract base classes (`BaseAuditor`, `FileScanAuditor`), configuration loaders, and theme rendering.
-- [`cli/AGENTS.md`](./cli/AGENTS.md): CLI orchestrators (`audit_full.ts`, `audit_for_commit.ts`, `audit_bundle.ts`, and reports).
+- [`cli/AGENTS.md`](./cli/AGENTS.md): CLI orchestrators (`audit_full.ts` with the built-in warning ratchet, `audit_bundle.ts`, and reports).
 - [`analyzers/AGENTS.md`](./analyzers/AGENTS.md): Specialized static analyzers (CSS checker, DOX integrity, TypeScript AST helpers).
 - [`plugin/AGENTS.md`](./plugin/AGENTS.md): Antigravity plugin manifest discovery and agent hooks.
 - [`suites/AGENTS.md`](./suites/AGENTS.md): Automated verification suites grouped by architectural families.

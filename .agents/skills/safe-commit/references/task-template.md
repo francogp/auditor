@@ -11,23 +11,22 @@
   - [ ] Write `<appDataDir>/brain/<conversation-id>/task.md` with complete checklist
   - [ ] Note scratch directory path: `<appDataDir>/brain/<conversation-id>/scratch/`
 - [ ] **Phase 1: Test Gap Analysis & Zero-Commit Safety Backup**
-  - [ ] `git status` & `git diff` review (Inspect changes and session artifacts)
+  - [ ] `git status` & `git diff` review (Inspect changes, session artifacts, and `.auditor/audit-baseline.json`)
   - [ ] Test Gap Analysis (Audit non-trivial logic for unit tests in `tests/`)
   - [ ] `npm run audit:fallow` (Record BASELINE_HEALTH)
   - [ ] Code-Only Safety Backup (`mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch`)
   - [ ] Version Bump Decision (`npx auditor-version analyze` & `ask_question`; run `bump` if approved)
   - [ ] Pre-draft commit message (The Elegant Protocol synthesis in `task.md`)
-- [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 6 Gates Passing)**
+- [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 5 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:
-    - [ ] `npm run audit` (Gate 2.1: Full Workspace Auditor & DOX Integrity — 0 errors, unblocked only when all issues are resolved at code source)
-    - [ ] `npm run audit:for-commit` (Gate 2.2: 0 errors, 0 new warnings vs origin/main)
-    - [ ] `npm run test` (Gate 2.3: 100% test suites passing)
-    - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.4: STRICT Exit Code 0 — zero bypasses, single run)
-    - [ ] `npm run audit:build` (Gate 2.5: Post-build compiled artifact audit)
-    - [ ] `npm run audit:fallow` (Gate 2.6: Score ≥ 85 and ≥ BASELINE_HEALTH)
+    - [ ] `git fetch origin` + `npm run audit` (Gate 2.1: 0 errors + warning ratchet with 0 new warnings vs `ratchet.productionRef`; commit any shrunk `.auditor/audit-baseline.json`)
+    - [ ] `npm run test` (Gate 2.2: 100% test suites passing)
+    - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.3: STRICT Exit Code 0 — zero bypasses, single run)
+    - [ ] `npm run audit:build` (Gate 2.4: Post-build compiled artifact audit, unless already chained by `build`)
+    - [ ] `npm run audit:fallow` (Gate 2.5: Score ≥ 85 and ≥ BASELINE_HEALTH)
   - [ ] **Loop Repair Action (Triggered on ANY failure above; repeat until all gates pass)**:
     - [ ] `npm run audit:fix` / manual code fixes applied in workspace
-    - [ ] Re-run cycle checks until all 6 gates exit with code 0
+    - [ ] Re-run cycle checks until all 5 gates exit with code 0
 - [ ] **Phase 3: Lessons Extraction, Walkthrough & 🛑 Hard Stop**
   - [ ] Extract lessons via `/learn-with-docs`
   - [ ] Create `<appDataDir>/brain/<conversation-id>/learning_proposal.md`
@@ -59,11 +58,10 @@
 
 ### Verification & Repair Loop Status
 - **Loop Iteration Count**: `0`
-- **audit (Full Auditor & DOX)**: `PENDING (0 ERRORS REQUIRED)`
-- **audit:for-commit**: `PENDING`
+- **audit (Full Auditor + Warning Ratchet)**: `PENDING (0 ERRORS, 0 NEW WARNINGS REQUIRED)`
 - **test**: `PENDING`
 - **npm run build (THE GATE)**: `PENDING (MUST BE EXIT 0)`
-- **audit:bundle**: `PENDING`
+- **audit:build**: `PENDING`
 - **final fallow health**: `PENDING`
 - **Repairs Applied**:
   - `(none yet)`

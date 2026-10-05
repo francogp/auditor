@@ -136,12 +136,66 @@ export default defineAuditConfig({
     exemptMagicNumbers: [100, 200, 300, 500, 9999999999] // Canonical generation limits or far-future sentinels (0, 1, 100, 200, 404, 500, 9999 are built-in defaults)
   },
 
+  ratchet: {
+    enabled: true, // Warning ratchet on full `npm run audit` runs: 0 errors and 0 NEW warnings (active by default)
+    productionRef: 'origin/main', // Git ref holding the authoritative baseline; must resolve (verified by validate_audit_config)
+    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run audit -- --init-baseline`
+  },
+
+  coverage: {
+    enabled: true, // Enforces 100% file coverage across all versioned files and ledgers
+    exemptGlobs: [
+      {
+        glob: 'deploy-*.sh',
+        reason: 'Host server provisioning and deployment shell scripts'
+      },
+      {
+        glob: 'public/data/locales/*.json',
+        reason: 'Static i18n locale dictionary assets not audited by code linters'
+      }
+    ],
+    acknowledgedDegradations: [
+      {
+        policy: 'scripts',
+        glob: 'scripts/**',
+        reason: 'Maintenance, battle simulation benchmarking, and deployment scripts'
+      },
+      {
+        policy: 'cli',
+        glob: 'scripts/**',
+        reason: 'CLI scripts authorized for console and local tool operations'
+      },
+      {
+        policy: 'data',
+        glob: 'src/data/**',
+        reason: 'Tabular creature catalogs and game formula constants'
+      },
+      {
+        policy: 'demo',
+        glob: 'ui-demo/**',
+        reason: 'Experimental battle canvas sandboxes and interactive galleries'
+      }
+    ]
+  },
+
   documentation: {
     knownValidAbstractPaths: ['@docs/gameplay/battle-system.md'] // Virtual paths valid in Markdown documentation links
   },
 
   pinia: {
     authorizedMutationFiles: ['src/logic/utils/saveCoordinator.ts'] // Files authorized for direct store mutations outside actions
+  },
+
+  packageScripts: {
+    enabled: true, // Enables package.json script governance and verification
+    enforceBuildAudit: true, // Requires "build" script to chain full auditor prior to compilation ("auditor && ...")
+    recommendedScripts: true, // Validates that essential runner and CLI scripts from the canonical catalog exist
+    extraRequiredScripts: [] // Additional custom npm scripts required by host infrastructure or CI
+  },
+
+  gitIgnore: {
+    enabled: true, // Enables dynamic .gitignore coverage auditing from sub-auditor requirements
+    extraRequiredEntries: [] // Project-specific additional ignore patterns required in .gitignore
   },
 
   agentPlugin: {

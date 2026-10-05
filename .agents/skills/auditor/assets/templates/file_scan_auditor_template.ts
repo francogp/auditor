@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, isMainModule, type GitIgnoreRequirement } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, type GitIgnoreRequirement } from '@francogp/auditor';
 
 enableCompileCache();
 

@@ -177,10 +177,10 @@ File to edit: UserService.ts
 | **Frontend & Styles** | Accessibility & Styles | `npx auditor task=validate_component_styles` |
 | **Security & Vulnerabilities** | Security Audit | `npm run audit:fallow:security` |
 | **Testing & Parity** | Full Vitest Suite | `npm run test` (executes 100% of unit and node projects) |
-| **Any agent** | Lint & Fast Types | `npm run lint` (runs `npm run audit:lint` executing 10 core sub-auditors in parallel) |
+| **Any agent** | Lint & Fast Types | `npm run lint` (runs `npm run audit:lint` executing 13 core sub-auditors in parallel) |
 | **Any agent** | Unified Global Audit | `npm run audit` (Terminal summary + full JSON in `scratch/audits/latest_audit.json`) |
 
-> ❌ **WRONG:** Running unapproved raw scripts, nonexistent paths, or executing `npm run audit:for-commit` in routine checks (it is strictly reserved for `/safe-commit`)
+> ❌ **WRONG:** Running unapproved raw scripts, nonexistent paths, or invoking the removed `audit:for-commit` / `auditor-commit` gate (use `npm run audit`, which enforces the warning ratchet)
 > ✅ **CORRECT:** Running native TypeScript auditors or official NPM scripts declared in `package.json` (`npm run lint` for fast checks, `npm run audit` + `npm run test` for full verification)
 
 ---

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useBillingStore } from '@/stores/billing';
+import { useDomainStore } from '@/stores/domain';
 
 /**
  * REPRODUCTION INTEGRATION TEST TEMPLATE (Tier 2)
@@ -9,7 +9,7 @@ import { useBillingStore } from '@/stores/billing';
  *       or: tests/node/<domain>/reproduce_<slug>_integration.test.ts
  *
  * Mandatory Laws:
- * 1. Verify cross-boundary integrity (contracts, schemas, formula lifecycles, or tariff pipelines).
+ * 1. Verify cross-boundary integrity (contracts, schemas, domain state lifecycles, or calculation pipelines).
  * 2. Validate full persistence roundtrip: store action -> calculate -> persist -> rehydrate.
  * 3. Guarantee zero state leakage between tests.
  * 4. SUPABASE PERSISTENCE MANDATE: If the bug touches database migrations, schemas,
@@ -32,15 +32,15 @@ describe('Integration Reproduction: [Cross-Boundary Bug Title]', () => {
   });
 
   it('maintains boundary integrity and calculation parity across state mutations', async () => {
-    const billingStore = useBillingStore();
+    const domainStore = useDomainStore();
 
     // 1. Arrange & Mutate: Perform the state action triggering the bug
-    // await billingStore.loadTariffDefinition(tariffId);
+    // await domainStore.loadEntityDefinition(entityId);
 
     // 2. Calculation & Verification
-    // const result = billingStore.computeInvoice(inputData);
+    // const result = domainStore.computePayload(inputData);
     // expect(result.total).toBeCloseTo(expectedTotal, 2);
 
-    expect(billingStore).toBeDefined();
+    expect(domainStore).toBeDefined();
   });
 });

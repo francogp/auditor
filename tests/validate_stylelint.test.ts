@@ -247,7 +247,8 @@ describe('StylelintAuditor Suite', () => {
         bundle: { enabled: false },
         stylelint: { enabled: false }
       };
-      await fs.writeFile(path.join(tempDir, 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
 
       const scssFile = path.join(tempDir, 'src/empty.scss');
       await fs.writeFile(scssFile, '.empty {}', 'utf-8');
@@ -275,7 +276,8 @@ describe('StylelintAuditor Suite', () => {
           }
         }
       };
-      await fs.writeFile(path.join(tempDir, 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
 
       const scssFile = path.join(tempDir, 'src/empty.scss');
       await fs.writeFile(scssFile, '.empty {}', 'utf-8');
@@ -298,7 +300,8 @@ describe('StylelintAuditor Suite', () => {
           ignoreGlobs: ['**/legacy/**']
         }
       };
-      await fs.writeFile(path.join(tempDir, 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
 
       const legacyDir = path.join(tempDir, 'src/legacy');
       await fs.mkdir(legacyDir, { recursive: true });

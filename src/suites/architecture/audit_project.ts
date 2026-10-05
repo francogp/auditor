@@ -36,7 +36,7 @@ export const CSS_ANALYZER_DESCRIPTOR: RuleDescriptor = {
 import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxAnalyzer.ts';
 import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
 import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
-import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, isDemoPath, resolveZLayersScssPath, getEffectiveZLayers } from '../../core/auditConfig.ts';
+import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, isDemoPath, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE, AUDITOR_DIR } from '../../core/auditConfig.ts';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
@@ -1442,7 +1442,7 @@ async function runConsistencyAndDox(ctx: ProjectCliContext, logProgress: (msg: s
       syncErrors.forEach(e => logProgress(styleText('yellow', `  -> ${e}`)));
       const configStyles = getAuditConfig().styles;
       const rawTarget = configStyles?.zLayersScssFile ?? configStyles?.baseScssFile;
-      const targetFile = resolveZLayersScssPath(process.cwd()) || rawTarget || 'audit.config.ts';
+      const targetFile = resolveZLayersScssPath(process.cwd()) || rawTarget || AUDIT_CONFIG_FILE;
       for (const err of syncErrors) {
         violations.push({
           file: targetFile,
@@ -1949,7 +1949,8 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       packageName: 'Arquitectura',
       icon: '🏛️',
       coverage: {
-        include: ['**/*.{vue,scss,css,ts,js,md}']
+        include: ['**/*.{vue,scss,css,ts,js,md}'],
+        exclude: [path.posix.join(AUDITOR_DIR, '**')]
       },
       ruleDescriptions: {
         'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',

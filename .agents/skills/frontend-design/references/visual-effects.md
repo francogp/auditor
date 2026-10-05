@@ -36,7 +36,7 @@ Key Properties:
 
 ### When to Use Premium Shell
 
-- ✅ High-fidelity management screens (Tariff Simulator, Invoice Verification)
+- ✅ High-fidelity management screens (Configuration Simulator, Transaction Verification)
 - ✅ Floating analytical cards and metric panels
 - ✅ Summary status badges
 - ❌ Simple flat content (unnecessary volume)

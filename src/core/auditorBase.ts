@@ -351,7 +351,7 @@ export interface AuditorContext {
   addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
   setMetric: (key: string, value: number | string) => void;
   checkFiles: () => Promise<void>;
-  finish: (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => Promise<StandardAuditResult>;
+  finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
   setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
   setProgressLogger?: (logger: (msg: string) => void) => void;
 }
@@ -511,17 +511,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         process.exit(1);
       }
     },
-    finish: async (finalMetrics?: Record<string, number | string>, legacyErrors?: string[], legacyWarnings?: string[]) => {
-      if (legacyErrors) {
-        for (const err of legacyErrors) {
-          findings.push({ severity: 'error', message: err });
-        }
-      }
-      if (legacyWarnings && !values['errors-only']) {
-        for (const warn of legacyWarnings) {
-          findings.push({ severity: 'warning', message: warn });
-        }
-      }
+    finish: async (finalMetrics?: Record<string, number | string>) => {
       if (finalMetrics) {
         Object.assign(metrics, finalMetrics);
       }
@@ -712,19 +702,13 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   protected isSkipped = false;
   protected skipReason?: string;
 
-  private legacyScanCount = 0;
-
   /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
   protected get filesScannedCount(): number {
-    return this.coverageRecorder.scannedCount || this.legacyScanCount;
+    return this.coverageRecorder.scannedCount;
   }
 
   protected set filesScannedCount(count: number) {
-    if (this.coverageRecorder.source === 'declared-only') {
-      this.coverageRecorder.recordExternalScanCount(count);
-    } else {
-      this.legacyScanCount = count;
-    }
+    this.coverageRecorder.recordExternalScanCount(count);
   }
 
   public markSkipped(reason: string): void {
@@ -872,6 +856,14 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
   protected markRuleEvaluated(ruleId: TRuleId | string, count = 1): void {
     this.coverageRecorder.markRuleEvaluated(ruleId, count);
+  }
+
+  /**
+   * Loud failure for obsolete v3 method name.
+   * Enforces the Loud Failure Mandate under AGENTS.md.
+   */
+  protected recordRuleEvaluation(ruleId: string): never {
+    throw new Error(`[BaseAuditor]: Method 'recordRuleEvaluation' is obsolete and was removed in v4+. Use 'this.markRuleEvaluated("${ruleId}")' instead.`);
   }
 
   /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */

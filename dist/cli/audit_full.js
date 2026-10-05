@@ -22,7 +22,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { resolveFamilyMetadata, getActiveFamilies, groupResultsByFamily, sortFindingsByFileAndLine, groupFindingsByFileMap, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
-import { loadAuditConfig, assertAuditConfigComplete } from "../core/auditConfig.js";
+import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig } from "../core/auditConfig.js";
+import { runWarningRatchet, initWarningBaseline } from "./auditRatchet.js";
+import { migrateLegacyAuditConfig } from "./migrateAuditConfig.js";
 import { COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV } from "../core/auditCoverage.js";
 import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
@@ -102,7 +104,7 @@ function resolveTargetPreset(values, positionals) {
 function parseAuditFullCliArgs(activeFamilies) {
     const args = process.argv.slice(2);
     const BOOLEAN_FLAGS = [
-        'errors-only', 'fix', 'all', 'build', 'with-build'
+        'errors-only', 'fix', 'all', 'build', 'with-build', 'init-baseline'
     ];
     const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
     const { values, positionals } = parseArgs({
@@ -123,7 +125,8 @@ function parseAuditFullCliArgs(activeFamilies) {
             rules: { type: 'string', multiple: true },
             fix: { type: 'boolean' },
             build: { type: 'boolean' },
-            'with-build': { type: 'boolean' }
+            'with-build': { type: 'boolean' },
+            'init-baseline': { type: 'boolean' }
         },
         allowPositionals: true,
         strict: false
@@ -325,7 +328,7 @@ function printFindingsSummary(results, sortedCategories) {
     }
 }
 function buildConsolidatedReport(params) {
-    const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily } = params;
+    const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily, ratchet } = params;
     const meta = {
         version: AUDITOR_VERSION,
         timestamp: Temporal.Now.instant().toString(),
@@ -338,6 +341,7 @@ function buildConsolidatedReport(params) {
         executedSuites: ctx.tasksToRun.map(t => t.id),
         omittedSuites: ctx.omittedSuiteIds,
         skipSimilar: ctx.cliOptions.skipSimilar || undefined,
+        ratchet,
         environment: { nodeVersion: process.version, platform: process.platform, cwd: process.cwd() }
     };
     const rawFindings = ctx.results.flatMap(r => r.findings);
@@ -385,13 +389,84 @@ async function exportCustomOutputReport(cliOptions, consolidatedReport, results,
     }
     console.log(styleText('cyan', `✨ Reporte exportado en: ${cliOptions.values.output}\n`));
 }
+/** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
+function isRatchetScope(cliOptions, isFullAudit) {
+    const v = cliOptions.values;
+    return isFullAudit && !cliOptions.formattedRules &&
+        !v['errors-only'] && !v.top && !v['changed-since'] && !v['with-build'] && !v.all;
+}
+function printRatchetVerdict(verdict, newWarnings, baselineFile) {
+    if (verdict.status === 'initialized') {
+        console.log(styleText(['bold', 'green'], `\n🔒 Línea base de warnings creada (${verdict.resolvedWarnings} warnings) en ${baselineFile}.`));
+        console.log(styleText('dim', `   Commiteala y publícala en '${verdict.productionRef}' para activar el ratchet.\n`));
+        return;
+    }
+    if (verdict.error) {
+        console.log(styleText(['bold', 'red'], `\n🔒 RATCHET DE WARNINGS BLOQUEADO: ${verdict.error}\n`));
+        return;
+    }
+    if (verdict.newWarnings > 0) {
+        console.log(styleText(['bold', 'red'], `\n🔒 RATCHET DE WARNINGS: ${verdict.newWarnings} warning(s) NUEVO(S) respecto de '${verdict.productionRef}'. Deben corregirse.`));
+        console.log(renderSampleFindings(newWarnings, 'all'));
+        return;
+    }
+    const shrinkNote = verdict.baselineUpdated ? ` Línea base reducida (${verdict.resolvedWarnings} resueltos): commitea ${baselineFile}.` : '';
+    console.log(styleText('green', `\n🔒 Ratchet de warnings OK: 0 nuevos respecto de '${verdict.productionRef}'.${shrinkNote}\n`));
+}
+function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
+    const ratchet = buildRatchetConfig(ctx.config.ratchet);
+    const initRequested = Boolean(ctx.cliOptions.values['init-baseline']);
+    const inScope = isRatchetScope(ctx.cliOptions, isFullAudit);
+    if (initRequested && (!ratchet.enabled || !inScope)) {
+        throw new Error('[Ratchet] --init-baseline requires ratchet.enabled and a full default run (no preset, family, task, rule, changed-since, build or fix filters).');
+    }
+    if (!ratchet.enabled) {
+        if (inScope)
+            console.log(styleText('yellow', `\n⚠️  Ratchet de warnings DESACTIVADO (ratchet.enabled: false en .auditor/audit.config.ts).\n`));
+        return undefined;
+    }
+    if (!inScope)
+        return undefined;
+    const canWriteBaseline = totalErrors === 0;
+    const base = { productionRef: ratchet.productionRef, newWarnings: 0, resolvedWarnings: 0, baselineUpdated: false };
+    let verdict;
+    let newWarnings = [];
+    try {
+        if (initRequested) {
+            if (!canWriteBaseline || ctx.cliOptions.skipSimilar) {
+                throw new Error('--init-baseline requires 0 errors and similar-code analysis enabled.');
+            }
+            const count = initWarningBaseline(process.cwd(), ratchet, ctx.results);
+            verdict = { ...base, status: 'initialized', resolvedWarnings: count, baselineUpdated: true };
+        }
+        else {
+            const outcome = runWarningRatchet(process.cwd(), ratchet, ctx.results, canWriteBaseline);
+            newWarnings = outcome.newWarnings;
+            verdict = {
+                ...base,
+                status: outcome.newWarnings.length > 0 ? 'failed' : 'passed',
+                newWarnings: outcome.newWarnings.length,
+                resolvedWarnings: outcome.resolvedCount,
+                baselineUpdated: outcome.baselineUpdated
+            };
+            if (outcome.source === 'local-bootstrap') {
+                console.log(styleText('yellow', `\n⚠️  '${ratchet.productionRef}' aún no contiene ${ratchet.baselineFile}: se usa la copia local (bootstrap). Publícala para blindar el ratchet.`));
+            }
+        }
+    }
+    catch (err) {
+        // catch-ok: converted into a blocking ratchet failure that is persisted in latest_audit.json and fails the run.
+        verdict = { ...base, status: 'failed', error: err instanceof Error ? err.message : String(err) };
+    }
+    printRatchetVerdict(verdict, newWarnings, ratchet.baselineFile);
+    return verdict;
+}
 async function renderAndPersistMasterReport(ctx) {
     const { results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration, activeFamilies, cliOptions, scratchAuditsDir } = ctx;
     const totalErrors = results.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
     const totalWarnings = results.reduce((acc, r) => acc + (r.summary?.warnings ?? 0), 0);
     const suitesPassed = results.filter(r => r.status === 'passed' && (r.summary?.errors ?? 0) === 0).length;
     const suitesSkipped = results.filter(r => r.status === 'skipped').length;
-    const anyFailed = totalErrors > 0 || (suitesPassed + suitesSkipped) < results.length;
     const isFixMode = Boolean(cliOptions.values.fix);
     const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
     const isFullAudit = !isBuildMode && !isFixMode && tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
@@ -403,6 +478,8 @@ async function renderAndPersistMasterReport(ctx) {
     if (hasSimilarCodeSetupFailure) {
         console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
     }
+    const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
+    const anyFailed = totalErrors > 0 || (suitesPassed + suitesSkipped) < results.length || ratchet?.status === 'failed';
     const { meta, consolidatedReport, fileSummaryMap } = buildConsolidatedReport({
         ctx,
         totalErrors,
@@ -410,7 +487,8 @@ async function renderAndPersistMasterReport(ctx) {
         suitesPassed,
         anyFailed,
         isFullAudit,
-        byFamily
+        byFamily,
+        ratchet
     });
     const latestAuditPath = path.join(scratchAuditsDir, 'latest_audit.json');
     const latestSummaryPath = path.join(scratchAuditsDir, 'latest_summary.json');
@@ -452,6 +530,11 @@ export async function runMasterAudit() {
     }
     process.env.AUDIT_SUBPROCESS = 'true';
     const startTime = performance.now();
+    if (process.argv.slice(2).some(a => a === 'fix' || a === '--fix')) {
+        for (const moved of migrateLegacyAuditConfig(process.cwd())) {
+            console.log(styleText('green', `🛠️  ${moved} movido a .auditor/${moved} (imports relativos reescritos).`));
+        }
+    }
     const config = await loadAuditConfig();
     assertAuditConfigComplete(config);
     const activeFamilies = getActiveFamilies(config.customFamilies);

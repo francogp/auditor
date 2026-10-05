@@ -9,7 +9,7 @@
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
 
 enableCompileCache();
 

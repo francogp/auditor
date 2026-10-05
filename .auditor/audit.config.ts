@@ -1,4 +1,4 @@
-import { defineAuditConfig } from './src/core/auditConfig.ts';
+import { defineAuditConfig } from '../src/core/auditConfig.ts';
 
 export default defineAuditConfig({
   name: '@francogp/auditor',

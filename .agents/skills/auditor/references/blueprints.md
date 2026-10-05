@@ -6,7 +6,7 @@ This document contains complete, validated, and domain-agnostic configuration bl
 
 ## 🏛️ Active by Default Subsystem Mandate & Zero Silent Skips
 
-All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFAULT** (`enabled: true`, `persistence.engine: 'supabase'`, `zLayersEnabled: true`, `requireInputIds: true`, `similarCode.enabled: true`, `packageScripts.enabled: true`, etc.). If a host project omits any subsystem in `audit.config.ts`, that subsystem automatically defaults to active with complete standard defaults. Host projects only need to declare configurations to customize settings or explicitly deactivate non-applicable subsystems (`enabled: false`, `engine: 'none'`). Sub-auditors never silently bypass checks due to missing files or missing configuration:
+All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFAULT** (`enabled: true`, `persistence.engine: 'supabase'`, `zLayersEnabled: true`, `requireInputIds: true`, `similarCode.enabled: true`, `packageScripts.enabled: true`, etc.). If a host project omits any subsystem in `.auditor/audit.config.ts`, that subsystem automatically defaults to active with complete standard defaults. Host projects only need to declare configurations to customize settings or explicitly deactivate non-applicable subsystems (`enabled: false`, `engine: 'none'`). Sub-auditors never silently bypass checks due to missing files or missing configuration:
 
 1. `persistence`: Database engine (defaults to `'supabase'`; or `'sqlite'`, `'postgres'`, `'hybrid'`, `'none'`). Configures `prohibitedTemplateIdentifiers`, `authorizedSaveFiles`, and `allowedHosts` according to host infrastructure.
 2. `bundle`: Bundle chunk budgets and size thresholds (defaults to `enabled: true` with `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets`, or `enabled: false`). Heavy Web Worker chunks or simulation data modules are declared in `exemptChunkPrefixes`. Forbidden UI value imports are extended in `forbiddenUiImports`.
@@ -26,6 +26,8 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 16. `packageHygiene`: Knip-powered dependency and binary script hygiene (defaults to `enabled: true`).
 17. `accessibility`: Web accessibility standards (defaults to `enabled: true`).
 18. `typeCoverage`: Strict TypeScript type coverage (defaults to `enabled: true`, `atLeast: 95`).
+19. `coverage`: Full file audit coverage ledger, blind-spot detection, and acknowledged degradation policies (defaults to `enabled: true`).
+20. `version`: Semantic version synchronization across files and build metadata (defaults to `enabled: true`).
 
 When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics.
 

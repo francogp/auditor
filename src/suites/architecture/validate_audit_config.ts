@@ -12,10 +12,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { loadAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import {
+  loadAuditConfig,
+  buildRatchetConfig,
+  AUDITOR_DIR,
+  AUDIT_CONFIG_FILE,
+  LEGACY_ROOT_CONFIG_FILES,
+  type AuditEngineConfig
+} from '../../core/auditConfig.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
+import { resolveGitCommit, describeBaselineDefect } from '../../cli/auditRatchet.ts';
 
 enableCompileCache();
 
@@ -25,7 +33,9 @@ export type AuditConfigRuleId =
   | 'audit-config-invalid-extension'
   | 'audit-config-missing-gitignore-entry'
   | 'audit-config-missing-build-audit'
-  | 'audit-config-invalid-build-script'
+  | 'audit-config-removed-commit-gate'
+  | 'audit-config-invalid-production-ref'
+  | 'audit-config-invalid-baseline'
   | 'audit-config-missing-recommended-script';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
@@ -34,13 +44,19 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-invalid-extension',
   'audit-config-missing-gitignore-entry',
   'audit-config-missing-build-audit',
-  'audit-config-invalid-build-script',
+  'audit-config-removed-commit-gate',
+  'audit-config-invalid-production-ref',
+  'audit-config-invalid-baseline',
   'audit-config-missing-recommended-script'
 ] as const;
 
+/** Removed `audit:for-commit` gate (superseded by the warning ratchet built into `auditor`). */
+const REMOVED_COMMIT_GATE_PATTERN = /audit:for-commit|auditor-commit|audit_for_commit/u;
+const FIXABLE_COMMIT_GATE_PATTERN = /\b(?:(?:npm|pnpm|bun|yarn)\s+run\s+audit:for-commit|auditor-commit)\b/gu;
+const REMOVED_COMMIT_GATE_SCRIPT = 'audit:for-commit';
+
 export const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>> = {
   'audit': 'auditor',
-  'audit:for-commit': 'auditor-commit',
   'audit:fix': 'auditor fix',
   'audit:lint': 'auditor preset=lint',
   'audit:md': 'auditor preset=md',
@@ -86,7 +102,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       capabilities: { lint: true, fix: true },
       id: 'validate_audit_config',
       name: 'Audit Configuration Integrity Validator',
-      description: 'Valida existencia física de rutas en audit.config.ts',
+      description: 'Valida configuración del auditor en .auditor/',
       family: 'architecture',
       ruleIds: AUDIT_CONFIG_RULES,
       packageName: 'Config',
@@ -97,11 +113,13 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-invalid-extension': 'Extensión configurada no existe',
         'audit-config-missing-gitignore-entry': 'Falta entrada en .gitignore',
         'audit-config-missing-build-audit': 'Falta auditor en script build',
-        'audit-config-invalid-build-script': 'Script build usa audit:for-commit',
+        'audit-config-removed-commit-gate': 'Script usa audit:for-commit eliminado',
+        'audit-config-invalid-production-ref': 'Ref de producción no resuelve en git',
+        'audit-config-invalid-baseline': 'Línea base del ratchet inválida',
         'audit-config-missing-recommended-script': 'Falta script recomendado en package'
       },
       coverage: {
-        include: ['audit.config.ts', '.gitignore', 'package.json']
+        include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore', 'package.json']
       },
       projectRoot
     });
@@ -117,19 +135,22 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     for (const r of AUDIT_CONFIG_RULES) {
       this.markRuleEvaluated(r);
     }
-    const configPath = path.resolve(this.projectRoot, 'audit.config.ts');
+    const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
     if (!fs.existsSync(configPath)) {
+      const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(this.projectRoot, f)));
       this.addViolation({
         ruleId: 'audit-config-missing-file',
         severity: 'error',
-        file: 'audit.config.ts',
+        file: legacy ?? AUDIT_CONFIG_FILE,
         line: 1,
-        message: 'Configuration error: audit.config.ts does not exist in project root.',
-        context: 'audit.config.ts'
+        message: legacy
+          ? `Configuration error: root-level ${legacy} is no longer supported. Run "auditor fix" to move it to ${AUDIT_CONFIG_FILE}.`
+          : `Configuration error: ${AUDIT_CONFIG_FILE} does not exist.`,
+        context: AUDIT_CONFIG_FILE
       });
       return;
     }
-    this.recordScanned('audit.config.ts');
+    this.recordScanned(AUDIT_CONFIG_FILE);
     if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore'))) this.recordScanned('.gitignore');
     if (fs.existsSync(path.resolve(this.projectRoot, 'package.json'))) this.recordScanned('package.json');
 
@@ -141,6 +162,66 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     this.verifyExtensionPaths(config);
     await this.verifyGitIgnore(config);
     this.verifyPackageScripts(config);
+    this.verifyProductionRef(config);
+    this.verifyRatchetBaseline(config);
+  }
+
+  /** Validates the committed baseline format when present (its absence is reported by the ratchet itself). */
+  private verifyRatchetBaseline(config: AuditEngineConfig): void {
+    const ratchet = buildRatchetConfig(config.ratchet);
+    if (!ratchet.enabled || !fs.existsSync(path.resolve(this.projectRoot, ratchet.baselineFile))) return;
+    this.recordScanned(ratchet.baselineFile);
+    const defect = describeBaselineDefect(this.projectRoot, ratchet.baselineFile);
+    if (defect === null) return;
+    this.addViolation({
+      ruleId: 'audit-config-invalid-baseline',
+      severity: 'error',
+      file: ratchet.baselineFile,
+      line: 1,
+      message: defect,
+      context: ratchet.baselineFile
+    });
+  }
+
+  private verifyProductionRef(config: AuditEngineConfig): void {
+    const ratchet = buildRatchetConfig(config.ratchet);
+    if (!ratchet.enabled || resolveGitCommit(this.projectRoot, ratchet.productionRef)) return;
+    this.addViolation({
+      ruleId: 'audit-config-invalid-production-ref',
+      severity: 'error',
+      file: AUDIT_CONFIG_FILE,
+      line: 1,
+      message: `Warning ratchet production ref '${ratchet.productionRef}' does not resolve to a git commit. Run 'git fetch' (CI: checkout with full history) or set 'ratchet.productionRef' in audit.config.ts.`,
+      context: `ratchet.productionRef=${ratchet.productionRef}`
+    });
+  }
+
+  /** Flags scripts still invoking the removed `audit:for-commit` gate. Returns true when fix mode rewrote them. */
+  private verifyRemovedCommitGate(scripts: Record<string, string>): boolean {
+    let modified = false;
+    for (const [name, command] of Object.entries(scripts)) {
+      if (!REMOVED_COMMIT_GATE_PATTERN.test(name) && !REMOVED_COMMIT_GATE_PATTERN.test(command)) continue;
+      if (this.isFixActive() && name === REMOVED_COMMIT_GATE_SCRIPT) {
+        delete scripts[name];
+        modified = true;
+        continue;
+      }
+      const rewritten = command.replaceAll(FIXABLE_COMMIT_GATE_PATTERN, 'auditor');
+      if (this.isFixActive() && !REMOVED_COMMIT_GATE_PATTERN.test(rewritten)) {
+        scripts[name] = rewritten;
+        modified = true;
+        continue;
+      }
+      this.addViolation({
+        ruleId: 'audit-config-removed-commit-gate',
+        severity: 'error',
+        file: 'package.json',
+        line: 1,
+        message: `Script "${name}" references the removed audit:for-commit gate. Use "auditor" (npm run audit), which now enforces 0 errors and 0 new warnings via the warning ratchet.`,
+        context: `${name}: ${command}`
+      });
+    }
+    return modified;
   }
 
   private async verifyGitIgnore(config: AuditEngineConfig): Promise<void> {
@@ -221,9 +302,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       this.addViolation({
         ruleId,
         severity: 'error',
-        file: 'audit.config.ts',
+        file: AUDIT_CONFIG_FILE,
         line: 1,
-        message: `Configuration error in audit.config.ts: Referenced ${description} "${normalized}" does not exist on disk.`,
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Referenced ${description} "${normalized}" does not exist on disk.`,
         context: normalized
       });
       return false;
@@ -365,7 +446,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       return;
     }
 
-    let modified = false;
+    let modified = pkg.scripts ? this.verifyRemovedCommitGate(pkg.scripts) : false;
 
     // 1. Build script verification (enforced for all projects governed by the auditor)
     const shouldEnforceBuildAudit =
@@ -389,41 +470,24 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
             context: 'package.json:scripts.build'
           });
         }
-      } else {
-        const hasForCommit = /\b(audit:for-commit|auditor-commit)\b/.test(buildScript);
-        if (hasForCommit) {
+      } else if (!REMOVED_COMMIT_GATE_PATTERN.test(buildScript)) {
+        const hasFullAuditor =
+          /\bauditor(\.js|\.ts)?(\s|$|&|;)/.test(buildScript) ||
+          /\b(npm|pnpm|bun)\s+run\s+audit(\s|$|&|;)/.test(buildScript);
+
+        if (!hasFullAuditor) {
           if (this.isFixActive()) {
-            pkg.scripts!.build = buildScript.replace(/\b(npm run audit:for-commit|pnpm run audit:for-commit|bun run audit:for-commit|auditor-commit|audit:for-commit)\b/, 'auditor');
+            pkg.scripts!.build = `auditor && ${buildScript}`;
             modified = true;
           } else {
             this.addViolation({
-              ruleId: 'audit-config-invalid-build-script',
+              ruleId: 'audit-config-missing-build-audit',
               severity: 'error',
               file: 'package.json',
               line: 1,
-              message: 'Build script in package.json uses audit:for-commit. Production builds must enforce full auditor (e.g. "auditor && ..." or "npm run audit && ...").',
+              message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
               context: buildScript
             });
-          }
-        } else {
-          const hasFullAuditor =
-            /\bauditor(\.js|\.ts)?(\s|$|&|;)/.test(buildScript) ||
-            /\b(npm|pnpm|bun)\s+run\s+audit(\s|$|&|;)/.test(buildScript);
-
-          if (!hasFullAuditor) {
-            if (this.isFixActive()) {
-              pkg.scripts!.build = `auditor && ${buildScript}`;
-              modified = true;
-            } else {
-              this.addViolation({
-                ruleId: 'audit-config-missing-build-audit',
-                severity: 'error',
-                file: 'package.json',
-                line: 1,
-                message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
-                context: buildScript
-              });
-            }
           }
         }
       }

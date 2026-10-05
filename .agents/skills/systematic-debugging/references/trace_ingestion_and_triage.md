@@ -29,13 +29,13 @@ When an algorithmic pipeline, fuzzer, or replay test crashes (`npm test` or spec
 
 ### C. Manual or Verbal Bug Reports
 
-When a user reports a bug verbally without a stack trace (e.g. *"Residential tariff fixed charge is miscalculating on Tier 2"*):
+When a user reports a bug verbally without a stack trace (e.g. *"Permission calculation fixed quota is miscalculating on Tier 2"*):
 
 1. **Pre-Execution Check**: DO NOT immediately change code.
 2. **Request Minimal Context**: Prompt the user for the 3 minimal missing items:
    - **Step-by-step reproduction sequence**: What inputs were provided?
-   - **Tariff & Category context**: Tariff ID, voltage level, customer category.
-   - **Observed behavior vs Expected behavior**: Exact calculation result vs official invoice amount.
+   - **Entity & Category context**: Entity ID, access level, category.
+   - **Observed behavior vs Expected behavior**: Exact calculation result vs expected canonical value.
 
 ### D. Database & Persistence Failures (Supabase Triage)
 
@@ -59,12 +59,12 @@ Before touching any code or formulating hypotheses, identify the authoritative c
 
 1. **Walk the DOX Hierarchy**:
    - From repository root `AGENTS.md`, navigate down to the owning directory:
-     - Billing engine & formula logic: `src/logic/AGENTS.md`
+     - Core engine & formula logic: `src/logic/AGENTS.md`
      - Global stores: `src/stores/AGENTS.md`
      - UI views: `src/views/AGENTS.md`
      - Persistence & Supabase: `supabase/AGENTS.md` / `src/logic/db/AGENTS.md`
 2. **Consult DOX Guidelines**:
-   - Verify `AGENTS.md` for 1:1 legacy calculation precision, zero fallbacks, and `/domain-type-first`.
+   - Verify `AGENTS.md` for canonical calculation precision, zero fallbacks, and `/domain-type-first`.
 
 ---
 

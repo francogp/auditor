@@ -86,7 +86,7 @@ export function normalizeFindingPath(filePath, cwd = process.cwd()) {
     if (!filePath)
         return 'General';
     const rel = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
-    return rel.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || 'General';
+    return rel.replace(/\\/g, '/').replace(/^\/+/, '') || 'General';
 }
 /**
  * Stably sorts an array of AuditFinding instances by:

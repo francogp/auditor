@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "4.1.0-build.20261004-224456",
+  "version": "4.2.0-build.20261005-102513",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,7 +24,7 @@
     "setup-linux.sh",
     "setup-windows.ps1",
     "scripts/setup",
-    "audit.config.ts",
+    ".auditor/audit.config.ts",
     ".htmlvalidate.json",
     ".markdownlint.json",
     ".stylelintrc.json",
@@ -73,7 +73,6 @@
   "bin": {
     "auditor": "./dist/cli/audit_full.js",
     "auditor-version": "./dist/cli/bump_version.js",
-    "auditor-commit": "./dist/cli/audit_for_commit.js",
     "auditor-bundle": "./dist/cli/audit_bundle.js",
     "auditor-findings": "./dist/cli/report_findings.js",
     "auditor-report-findings": "./dist/cli/report_findings.js",
@@ -110,7 +109,6 @@
     "test:coverage": "vitest run --coverage",
     "env:post-setup": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
     "audit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
-    "audit:for-commit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_for_commit.ts",
     "audit:skip-similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts --skip-similar",
     "audit:bundle": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/audit_bundle.ts",
     "audit:md": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=md",

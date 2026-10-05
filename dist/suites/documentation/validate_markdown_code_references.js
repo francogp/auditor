@@ -58,10 +58,18 @@ export function resolveMarkdownScanDirectories(projectRoot, explicitRoots) {
         dirs.push(...config.paths.testRoots);
     else
         dirs.push('tests');
+    if (config.paths?.e2eRoots)
+        dirs.push(...config.paths.e2eRoots);
+    if (config.paths?.integrationRoots)
+        dirs.push(...config.paths.integrationRoots);
     if (config.paths?.scriptsRoots)
         dirs.push(...config.paths.scriptsRoots);
     else
         dirs.push('scripts');
+    const effectiveRoot = projectRoot || process.cwd();
+    if (fs.existsSync(path.resolve(effectiveRoot, 'tests')) && !dirs.includes('tests')) {
+        dirs.push('tests');
+    }
     if (config.paths?.codeRoots) {
         for (const r of config.paths.codeRoots) {
             if (!dirs.includes(r))
@@ -94,7 +102,6 @@ export function resolveMarkdownScanDirectories(projectRoot, explicitRoots) {
             dirs.push(config.persistence.supabaseDir);
         }
     }
-    const effectiveRoot = projectRoot || process.cwd();
     try {
         const entries = fs.readdirSync(effectiveRoot, { withFileTypes: true });
         for (const entry of entries) {

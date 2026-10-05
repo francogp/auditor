@@ -36,8 +36,9 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     await fs.mkdir(path.join(sandboxDir, 'scripts'), { recursive: true });
     await fs.mkdir(path.join(sandboxDir, 'tests'), { recursive: true });
 
+    await fs.mkdir(path.join(sandboxDir, '.auditor'), { recursive: true });
     await fs.writeFile(
-      path.join(sandboxDir, 'audit.config.ts'),
+      path.join(sandboxDir, '.auditor', 'audit.config.ts'),
       `export default {
         paths: {
           codeRoots: ['src', 'scripts'],
@@ -130,9 +131,9 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
       runId,
       suiteId: 'audit_project',
       skipped: false,
-      declared: { include: ['src/**/*.ts', 'audit.config.ts'], source: 'runtime' },
+      declared: { include: ['src/**/*.ts', '.auditor/audit.config.ts'], source: 'runtime' },
       source: 'runtime',
-      scanned: ['src/app.ts', 'audit.config.ts'],
+      scanned: ['src/app.ts', '.auditor/audit.config.ts'],
       ruleIds: ['magicNumbers', 'legacyDates'],
       ruleEvaluations: {
         magicNumbers: 0, // Broken gate! False clean!

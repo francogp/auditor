@@ -10,8 +10,8 @@
  *   3. Prohibition of ad-hoc .btn style overrides in component <style> blocks.
  *   4. Canonical button variants only (btn-primary, btn-secondary, btn-dark, btn-3d, etc.).
  *
- * Usage in audit.config.ts:
- *   import { ButtonGovernanceAuditor } from './scripts/auditors/extensions/validate_button_governance.extension.ts';
+ * Usage in .auditor/audit.config.ts:
+ *   import { ButtonGovernanceAuditor } from '../scripts/auditors/extensions/validate_button_governance.extension.ts';
  *   export default defineAuditConfig({
  *     extensions: [new ButtonGovernanceAuditor()]
  *   });
@@ -19,7 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, getAuditConfig, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, getAuditConfig } from '@francogp/auditor';
 
 export type ButtonGovernanceRuleId =
   | 'ad-hoc-button-styles'
@@ -142,6 +142,4 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
 }
 
 // Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new ButtonGovernanceAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new ButtonGovernanceAuditor());

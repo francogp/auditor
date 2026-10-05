@@ -285,8 +285,17 @@ export interface AuditCoverageConfig {
     readonly exemptGlobs?: readonly AuditCoverageExemption[];
     readonly acknowledgedDegradations?: readonly AuditCoverageAcknowledgedDegradation[];
 }
+export interface AuditRatchetConfig {
+    /** Warning ratchet on full `audit` runs: zero new warnings vs the production baseline. Active by default. */
+    readonly enabled?: boolean;
+    /** Git ref holding the authoritative baseline (default `origin/main`). Must resolve to a commit. */
+    readonly productionRef?: string;
+    /** Repository-relative path of the committed baseline file (default `.auditor/audit-baseline.json`). */
+    readonly baselineFile?: string;
+}
 export interface AuditEngineConfig {
     readonly name: string;
+    readonly ratchet?: AuditRatchetConfig;
     readonly paths: AuditPathsConfig;
     readonly persistence: AuditPersistenceConfig;
     readonly domain: AuditDomainConfig;
@@ -323,9 +332,16 @@ export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 export declare const DEFAULT_AUDIT_CONFIG: AuditEngineConfig;
+/** Directory holding every auditor-owned, versioned artifact (configuration and warning baseline). */
+export declare const AUDITOR_DIR = ".auditor";
+export declare const AUDIT_CONFIG_FILE: string;
+export declare const LEGACY_ROOT_CONFIG_FILES: readonly ["audit.config.ts", "audit.config.json"];
+/** Fails loudly when a configuration still lives at the project root (pre-`.auditor/` layout). */
+export declare function assertNoLegacyRootConfig(projectRoot: string): void;
 export declare const FORBIDDEN_PRODUCTION_ROOTS: readonly string[];
 export declare const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
 export declare function validateConstantsExemptGlobs(globs: readonly string[]): void;
+export declare function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Required<AuditRatchetConfig>;
 export declare const MIN_COVERAGE_REASON_LENGTH = 15;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
     name: string;
@@ -342,7 +358,8 @@ export declare function assertAuditConfigComplete(config: AuditEngineConfig): vo
  */
 export declare function serializeAuditConfigToEnv(config: AuditEngineConfig, projectRoot?: string): void;
 /**
- * Synchronously loads audit.config.ts or audit.config.json if possible, or falls back to defaults.
+ * Loads `.auditor/audit.config.ts` (or `.auditor/audit.config.json`). Falls back to defaults only when no
+ * configuration exists; a configuration that fails to load, or one left at the project root, fails loudly.
  */
 export declare function loadAuditConfig(projectRoot?: string): Promise<AuditEngineConfig>;
 /**

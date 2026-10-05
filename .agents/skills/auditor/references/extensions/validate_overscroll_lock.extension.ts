@@ -9,8 +9,8 @@
  *     'overscroll-behavior: none !important;' on 'html, body' to prevent accidental
  *     pull-to-refresh and swipe-navigation gestures on mobile canvas/touch screens.
  *
- * Usage in audit.config.ts:
- *   import { OverscrollLockAuditor } from './scripts/auditors/extensions/validate_overscroll_lock.extension.ts';
+ * Usage in .auditor/audit.config.ts:
+ *   import { OverscrollLockAuditor } from '../scripts/auditors/extensions/validate_overscroll_lock.extension.ts';
  *   export default defineAuditConfig({
  *     extensions: [new OverscrollLockAuditor()]
  *   });
@@ -18,7 +18,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, getAuditConfig, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, getAuditConfig } from '@francogp/auditor';
 
 export type OverscrollLockRuleId = 'overscroll-behavior-lock';
 
@@ -50,7 +50,7 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
     const targetRelFile = config.styles?.baseScssFile ?? config.styles?.zLayersScssFile;
 
     if (!targetRelFile) {
-      this.markRuleNotApplicable('overscroll-behavior-lock', 'No baseScssFile or zLayersScssFile configured in audit.config.ts');
+      this.markRuleNotApplicable('overscroll-behavior-lock', 'No baseScssFile or zLayersScssFile configured in .auditor/audit.config.ts');
       this.context.logStep(1, 1, 'Omitiendo auditoría de overscroll: no se configuró styles.baseScssFile ni styles.zLayersScssFile.');
       return;
     }
@@ -91,6 +91,4 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new OverscrollLockAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new OverscrollLockAuditor());

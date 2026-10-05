@@ -36,7 +36,7 @@ For zero-downtime changes:
 
 | Feature | Application |
 | :--- | :--- |
-| Full ACID relational DB | Tariff catalogs, formula metadata, invoice audits, user profiles |
+| Full ACID relational DB | Entity catalogs, system metadata, audit logs, user profiles |
 | Canonical SSoT | Canonical PostgreSQL migrations (`supabase/migrations/*.sql`) |
 | Row-Level Security (RLS) | High-integrity multi-tenant account and audit log isolation |
 | Dynamic Host Switching | Connect to Local Docker (`localhost:8000`), LAN NAS, or Supabase Cloud |

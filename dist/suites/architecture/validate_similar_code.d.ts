@@ -7,7 +7,7 @@
  * local vector embeddings model (jina-embeddings-v2-base-code).
  *
  * Key Architectural Guards:
- *   1. Zero Fast-Preset Impact: Completely excluded from fast presets (preset=lint, preset=md, audit_for_commit).
+ *   1. Zero Fast-Preset Impact: Completely excluded from fast presets (preset=lint, preset=md).
  *   2. Strict High Threshold: Defaults to 0.95 threshold to eliminate cognitive noise and false positives.
  *   3. Intra-File Filtering: Skips pairs within the same file (e.g. sync/async pairs like safeWriteFileSync/safeWriteFile).
  *   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.

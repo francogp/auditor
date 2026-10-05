@@ -79,7 +79,6 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
 - `auditor` (master orchestrator `audit_full.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
-- `auditor-commit` (safe-commit gatekeeper `audit_for_commit.ts`)
 - `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
 - `auditor-by-file` (hierarchical tree findings reporter grouped by file and line `report_findings.ts`)
 - `auditor-fallow` (Fallow intelligence suite `report_fallow.ts`)
@@ -102,7 +101,6 @@ For a drop-in ready JSON template, see [`recommended_package_scripts_template.js
   "scripts": {
     "// --- GLOBAL & COMMITS ---": "",
     "audit": "auditor",
-    "audit:for-commit": "auditor-commit",
     "audit:changed": "auditor changed-since=main",
     "audit:fix": "auditor fix",
 
@@ -156,7 +154,7 @@ For a drop-in ready JSON template, see [`recommended_package_scripts_template.js
 }
 ```
 
-Host extensions declared in `audit.config.ts` are automatically discovered and executed by `npm run audit`. No manual runner registration is required.
+Host extensions declared in `.auditor/audit.config.ts` are automatically discovered and executed by `npm run audit`. No manual runner registration is required.
 
 ---
 
@@ -168,7 +166,7 @@ Host extensions declared in `audit.config.ts` are automatically discovered and e
   ```json
   {
     "scripts": {
-      "build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts"
+      "build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run audit:build"
     }
   }
   ```
@@ -194,7 +192,7 @@ When authoring or maintaining host extensions in `scripts/auditors/`:
 
 1. **Mandatory Thematic Emojis (`AuditorOptions.icon`)**:
    Every host extension sub-auditor extending `BaseAuditor` or `FileScanAuditor` **MUST** declare `icon: string` (e.g. `icon: '⚔️'`, `icon: '🎮'`, `icon: '🎒'`). If omitted or empty, `validateAuditorOptions` throws an explicit, loud runtime `Error`. Generic cogs (`⚙️`) are reserved exclusively for internal configuration validators.
-2. **Strict Booleans in `audit.config.ts`**:
+2. **Strict Booleans in `.auditor/audit.config.ts`**:
    Configurations MUST use strict compile-time booleans (`true` / `false`). Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and will fail validation immediately.
 3. **Anti-Abuse in `constants.exemptGlobs`**:
    Glob patterns must target specific maintenance scripts or tabular seed data. Broad directory wildcards like `**/*` or `src/**` are rejected.
@@ -232,5 +230,17 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 > 1. The agent **MUST PROACTIVELY NOTIFY THE USER**, clearly explaining the root cause.
 > 2. The agent **MUST INSTRUCT THE USER** that the change must be requested and made upstream in the `@francogp/auditor` repository.
 > 3. Once resolved and released upstream, the host project updates via `npm run auditor:update` and synchronizes the official scripts.
+
+---
+
+## 8. Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules
+
+> [!CAUTION]
+> **Zero Tolerance on Fake Passes & Rule Nullification**:
+> When auditing a repository or modernizing configurations, AI agents and developers are **STRICTLY AND CATEGORICALLY PROHIBITED** from suppressing, silencing, disabling, or nullifying auditor rules, stylelint rules, ESLint rules, or any static analysis checks (e.g., setting `"rule": null`, `"rule": "off"`, `"rule": 0`, creating dummy override configs that neuter checks, or passing arbitrary skip flags) to make an audit pass or hide findings.
+>
+> If the number of errors or warnings is massive (even hundreds or thousands of errors), **THEY ARE REAL ARCHITECTURAL, HYGIENE, OR SECURITY DEFECTS THAT MUST BE LEGITIMATELY RESOLVED IN THE SOURCE CODE OR FIXED WITH CANONICAL TOOLS (`auditor fix`)**.
+>
+> Modernizing host configurations means **elevating the codebase to meet strict modern standards and exposing defects that were previously hidden**, NEVER degrading, diluting, or castrating the auditor's rules to fit legacy code. Silencing rules to achieve a fake clean pass is considered a critical architectural violation and gross misconduct.
 
 

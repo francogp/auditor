@@ -329,8 +329,18 @@ export interface AuditCoverageConfig {
   readonly acknowledgedDegradations?: readonly AuditCoverageAcknowledgedDegradation[];
 }
 
+export interface AuditRatchetConfig {
+  /** Warning ratchet on full `audit` runs: zero new warnings vs the production baseline. Active by default. */
+  readonly enabled?: boolean;
+  /** Git ref holding the authoritative baseline (default `origin/main`). Must resolve to a commit. */
+  readonly productionRef?: string;
+  /** Repository-relative path of the committed baseline file (default `.auditor/audit-baseline.json`). */
+  readonly baselineFile?: string;
+}
+
 export interface AuditEngineConfig {
   readonly name: string;
+  readonly ratchet?: AuditRatchetConfig;
   readonly paths: AuditPathsConfig;
   readonly persistence: AuditPersistenceConfig;
   readonly domain: AuditDomainConfig;
@@ -534,6 +544,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     exemptGlobs: [],
     acknowledgedDegradations: []
   },
+  ratchet: {
+    enabled: true,
+    productionRef: 'origin/main',
+    baselineFile: '.auditor/audit-baseline.json'
+  },
   customFamilies: [],
   extensions: [],
   presets: {},
@@ -542,6 +557,23 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES
   }
 };
+
+/** Directory holding every auditor-owned, versioned artifact (configuration and warning baseline). */
+export const AUDITOR_DIR = '.auditor';
+export const AUDIT_CONFIG_FILE = path.posix.join(AUDITOR_DIR, 'audit.config.ts');
+const AUDIT_CONFIG_JSON_FILE = path.posix.join(AUDITOR_DIR, 'audit.config.json');
+export const LEGACY_ROOT_CONFIG_FILES = ['audit.config.ts', 'audit.config.json'] as const;
+
+/** Fails loudly when a configuration still lives at the project root (pre-`.auditor/` layout). */
+export function assertNoLegacyRootConfig(projectRoot: string): void {
+  const legacy = LEGACY_ROOT_CONFIG_FILES.filter(f => fs.existsSync(path.resolve(projectRoot, f)));
+  if (legacy.length > 0) {
+    throw new Error(
+      `[AuditConfig] Root-level ${legacy.join(', ')} is no longer supported: auditor configuration lives in '${AUDITOR_DIR}/'. ` +
+      `Run 'npx auditor fix' to move it to '${AUDIT_CONFIG_FILE}' and rewrite its relative imports.`
+    );
+  }
+}
 
 let cachedConfig: AuditEngineConfig | null = null;
 let cachedProjectRoot: string | null = null;
@@ -561,7 +593,8 @@ function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>): Set<
     'packageHygiene',
     'accessibility',
     'typeCoverage',
-    'version'
+    'version',
+    'ratchet'
   ] as const;
   for (const k of keys) {
     if (config[k] !== undefined) declared.add(k);
@@ -868,6 +901,27 @@ function buildPackageScriptsConfig(raw?: DeepPartial<AuditPackageScriptsConfig>)
   };
 }
 
+export function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Required<AuditRatchetConfig> {
+  const r = raw ?? {};
+  if (r.enabled !== undefined && typeof r.enabled !== 'boolean') {
+    throw new Error(`[AuditConfig] 'ratchet.enabled' must be a strict boolean, received '${String(r.enabled)}'.`);
+  }
+  const productionRef = r.productionRef ?? DEFAULT_AUDIT_CONFIG.ratchet?.productionRef ?? 'origin/main';
+  if (productionRef.trim() === '' || /\s/u.test(productionRef) || productionRef.startsWith('-')) {
+    throw new Error(`[AuditConfig] 'ratchet.productionRef' must be a non-empty git ref without whitespace or leading '-', received '${productionRef}'.`);
+  }
+  const baselineFile = r.baselineFile ?? DEFAULT_AUDIT_CONFIG.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
+  const normalized = path.posix.normalize(baselineFile.replaceAll('\\', '/'));
+  if (path.isAbsolute(baselineFile) || normalized.startsWith('..') || path.extname(baselineFile) !== '.json') {
+    throw new Error(`[AuditConfig] 'ratchet.baselineFile' must be a repository-relative '.json' path inside the project, received '${baselineFile}'.`);
+  }
+  return {
+    enabled: r.enabled ?? DEFAULT_AUDIT_CONFIG.ratchet?.enabled ?? true,
+    productionRef,
+    baselineFile: normalized
+  };
+}
+
 function buildAccessibilityConfig(raw?: DeepPartial<AuditAccessibilityConfig>): AuditAccessibilityConfig {
   const def = DEFAULT_AUDIT_CONFIG.accessibility;
   const a = raw ?? {};
@@ -928,6 +982,30 @@ function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): AuditVersion
 
 export const MIN_COVERAGE_REASON_LENGTH = 15;
 
+function normalizeRootPath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '');
+}
+
+function getExemptRootsForPolicy(policy: string, paths: AuditEngineConfig['paths']): readonly string[] {
+  switch (policy) {
+    case 'scripts':
+      return paths.scriptsRoots ?? ['scripts'];
+    case 'cli':
+      return paths.cliRoots ?? ['scripts'];
+    case 'demo':
+      return paths.demoRoots ?? [];
+    case 'data':
+      return paths.dataRoots ?? [];
+    default:
+      return [];
+  }
+}
+
+function filterOutExemptRoots(roots: readonly string[], exemptRoots: readonly string[]): string[] {
+  const exemptSet = new Set(exemptRoots.map(normalizeRootPath));
+  return roots.filter(r => !exemptSet.has(normalizeRootPath(r)));
+}
+
 /**
  * Rejects globs that would blanket-exempt the repository, a whole extension, or a whole code/test root.
  */
@@ -941,7 +1019,7 @@ function assertNarrowCoverageGlob(field: string, rawGlob: string, protectedRoots
     );
   }
   for (const root of protectedRoots) {
-    const cleanRoot = root.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '');
+    const cleanRoot = normalizeRootPath(root);
     if (!cleanRoot) continue;
     if (glob === cleanRoot || new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)) {
       throw new Error(
@@ -986,13 +1064,10 @@ function buildCoverageConfig(
         `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`
       );
     }
-    const effectiveProtectedRoots = policy === 'scripts'
-      ? protectedRoots.filter(r => !(paths.scriptsRoots ?? ['scripts']).some(sr => r.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '') === sr.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '')))
-      : policy === 'demo'
-        ? protectedRoots.filter(r => !(paths.demoRoots ?? []).some(dr => r.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '') === dr.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '')))
-        : policy === 'data'
-          ? protectedRoots.filter(r => !(paths.dataRoots ?? []).some(d => r.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '') === d.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '')))
-          : protectedRoots;
+    const exemptRoots = getExemptRootsForPolicy(policy, paths);
+    const effectiveProtectedRoots = exemptRoots.length > 0
+      ? filterOutExemptRoots(protectedRoots, exemptRoots)
+      : protectedRoots;
     assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, effectiveProtectedRoots);
     assertCoverageReason('coverage.acknowledgedDegradations', glob, entry?.reason);
     acknowledgedDegradations.push({ policy, glob, reason: entry!.reason! });
@@ -1014,6 +1089,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
 
   return {
     name: config.name,
+    ratchet: buildRatchetConfig(config.ratchet),
     paths,
     persistence: buildPersistenceConfig(config.persistence),
     domain: buildDomainConfig(config.domain),
@@ -1150,7 +1226,7 @@ function tryLoadJsonConfig(
   } catch (err: unknown) {
     if (logWarning) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[AuditConfig] Warning: Failed to load audit.config.json: ${msg}. Using defaults.`);
+      throw new Error(`[AuditConfig] Failed to load ${AUDIT_CONFIG_JSON_FILE}: ${msg}`, { cause: err });
     }
     return null;
   }
@@ -1235,7 +1311,8 @@ function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | null {
 }
 
 /**
- * Synchronously loads audit.config.ts or audit.config.json if possible, or falls back to defaults.
+ * Loads `.auditor/audit.config.ts` (or `.auditor/audit.config.json`). Falls back to defaults only when no
+ * configuration exists; a configuration that fails to load, or one left at the project root, fails loudly.
  */
 export async function loadAuditConfig(projectRoot: string = process.cwd()): Promise<AuditEngineConfig> {
   if (cachedConfig && cachedProjectRoot === projectRoot) return cachedConfig;
@@ -1246,24 +1323,20 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
     if (envConfig) return envConfig;
   }
 
+  assertNoLegacyRootConfig(projectRoot);
   const customConfig = process.env.AUDIT_CONFIG;
-  const configPath = customConfig ? path.resolve(projectRoot, customConfig) : path.resolve(projectRoot, 'audit.config.ts');
-  const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
+  const configPath = path.resolve(projectRoot, customConfig ?? AUDIT_CONFIG_FILE);
+  const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
 
   if (fs.existsSync(configPath)) {
-    try {
-      const fileUrl = pathToFileURL(configPath).href;
-      const mod = (await import(fileUrl)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
-      if (mod.default) {
-        cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
-        cachedProjectRoot = projectRoot;
-        serializeAuditConfigToEnv(cachedConfig, projectRoot);
-        return cachedConfig;
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[AuditConfig] Warning: Failed to load audit.config.ts: ${msg}. Using defaults.`);
+    const mod = (await import(pathToFileURL(configPath).href)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
+    if (!mod.default) {
+      throw new Error(`[AuditConfig] ${path.relative(projectRoot, configPath)} must default-export defineAuditConfig({...}).`);
     }
+    cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
+    cachedProjectRoot = projectRoot;
+    serializeAuditConfigToEnv(cachedConfig, projectRoot);
+    return cachedConfig;
   } else {
     const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
     if (loaded) {
@@ -1289,8 +1362,8 @@ export function getAuditConfig(projectRoot: string = process.cwd()): AuditEngine
   const envConfig = tryLoadConfigFromEnv(projectRoot);
   if (envConfig) return envConfig;
 
-  // 2. Check audit.config.json
-  const jsonConfigPath = path.resolve(projectRoot, 'audit.config.json');
+  // 2. Check .auditor/audit.config.json
+  const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
   const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, false);
   if (loaded) return loaded;
 

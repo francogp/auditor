@@ -269,6 +269,15 @@ export interface AuditRunMetadata {
   executedSuites: string[];
   omittedSuites: string[];
   skipSimilar?: boolean;
+  /** Warning ratchet verdict (only on full default runs with `ratchet.enabled`). */
+  ratchet?: {
+    status: 'passed' | 'failed' | 'initialized';
+    productionRef: string;
+    newWarnings: number;
+    resolvedWarnings: number;
+    baselineUpdated: boolean;
+    error?: string;
+  };
   environment: {
     nodeVersion: string;
     platform: string;
@@ -317,7 +326,7 @@ export interface ConsolidatedAuditReport {
 export function normalizeFindingPath(filePath?: string, cwd: string = process.cwd()): string {
   if (!filePath) return 'General';
   const rel = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
-  return rel.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || 'General';
+  return rel.replace(/\\/g, '/').replace(/^\/+/, '') || 'General';
 }
 
 /**

@@ -27,7 +27,7 @@ Use `FileScanAuditor` when the audit inspects files line-by-line across specific
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -83,9 +83,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyFeatureAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MyFeatureAuditor());
 ```
 
 ---
@@ -103,7 +101,7 @@ Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, 
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, isMainModule } from '@francogp/auditor';
+import { BaseAuditor } from '@francogp/auditor';
 import { MY_DATA } from '../../../src/data/myData.ts';
 
 enableCompileCache();
@@ -183,7 +181,7 @@ Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFil
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext, isMainModule } from '@francogp/auditor';
+import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -206,6 +204,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
       },
+      capabilities: { ast: true },
       requiresAst: true,
       roots: ['src'],
       allowedExtensions: new Set(['.ts', '.vue'])
@@ -235,9 +234,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
 }
 
 // Canonical CLI Entrypoint
-if (isMainModule(import.meta.url)) {
-  await BaseAuditor.runCli(new MyAstAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new MyAstAuditor());
 ```
 
 ---
@@ -404,13 +401,13 @@ export class MyAstValidator extends BaseAuditor<MyRuleId> {
 
 ---
 
-## 8. Registering Host Extensions in `audit.config.ts`
+## 8. Registering Host Extensions in `.auditor/audit.config.ts`
 
-Host applications implementing custom rules in `scripts/auditors/<family>/validate_<name>.ts` register them dynamically in `audit.config.ts`:
+Host applications implementing custom rules in `scripts/auditors/<family>/validate_<name>.ts` register them dynamically in `.auditor/audit.config.ts`:
 
 ```typescript
 import { defineAuditConfig } from '@francogp/auditor/config';
-import { MyCompositeAuditor } from './scripts/auditors/domain_data/validate_my_composite.ts';
+import { MyCompositeAuditor } from '../scripts/auditors/domain_data/validate_my_composite.ts';
 
 export default defineAuditConfig({
   extensions: [

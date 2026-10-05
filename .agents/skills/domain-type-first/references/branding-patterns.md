@@ -59,10 +59,10 @@ export type ItemId = keyof typeof ITEM_DATA;
 
 ```typescript
 // Full coverage (every domain member MUST be present)
-export const TYPE_LABELS = {
-  fire: 'Fuego',
-  water: 'Agua',
-} satisfies Record<CategoryType, string>;
+export const ROLE_LABELS = {
+  admin: 'Administrator',
+  editor: 'Content Editor',
+} satisfies Record<UserRole, string>;
 
 // Partial coverage (intentional subset only)
 export const WEATHER_BONUSES = {

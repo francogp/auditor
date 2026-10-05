@@ -94,7 +94,7 @@ With the vector cache active, subsequent runs retrieve cached embeddings in ~1.9
 
 ## 4. Specifically Defined Remote Deployments Only (Environment Variable Bypass)
 
-In specifically defined remote CI pipelines, containerized environments, or GitHub Pages deployment workflows where downloading model weights is undesirable in headless ephemeral runners, set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`). This cleanly bypasses vector semantic duplication checks with 0 errors without modifying `audit.config.ts`. There is NO CLI flag.
+In specifically defined remote CI pipelines, containerized environments, or GitHub Pages deployment workflows where downloading model weights is undesirable in headless ephemeral runners, set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`). This cleanly bypasses vector semantic duplication checks with 0 errors without modifying `.auditor/audit.config.ts`. There is NO CLI flag.
 
 > [!CAUTION]
 > **Strict Local Execution Mandate & Absolute Bypassing Prohibition**:

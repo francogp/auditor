@@ -128,12 +128,79 @@ export default defineAuditConfig({
     ]
   },
 
+  ratchet: {
+    enabled: true, // Warning ratchet on full `npm run audit` runs: 0 errors and 0 NEW warnings (active by default)
+    productionRef: 'origin/main', // Git ref holding the authoritative baseline; must resolve (verified by validate_audit_config)
+    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run audit -- --init-baseline`
+  },
+
+  coverage: {
+    enabled: true, // Enforces 100% file coverage across all versioned files and ledgers
+    exemptGlobs: [
+      {
+        glob: 'deploy-*.sh',
+        reason: 'Host server provisioning and deployment shell scripts'
+      },
+      {
+        glob: 'src/data/system/servers.defaults.json',
+        reason: 'Static configuration catalog and template seed for official servers'
+      },
+      {
+        glob: 'supabase/docker-compose.test.yml',
+        reason: 'Docker Compose configuration exclusive to local test environments'
+      },
+      {
+        glob: 'supabase/nginx.test.conf',
+        reason: 'Nginx web server configuration for local Supabase proxy testing'
+      }
+    ],
+    acknowledgedDegradations: [
+      {
+        policy: 'scripts',
+        glob: 'scripts/**',
+        reason: 'Maintenance, testing, calculation, and deployment scripts'
+      },
+      {
+        policy: 'cli',
+        glob: 'scripts/**',
+        reason: 'CLI scripts authorized for console and local tool operations'
+      },
+      {
+        policy: 'cli',
+        glob: 'supabase/**',
+        reason: 'Supabase provisioning and maintenance CLI scripts'
+      },
+      {
+        policy: 'data',
+        glob: 'src/data/**',
+        reason: 'Tabular data catalogs and system metadata'
+      },
+      {
+        policy: 'exemptFiles',
+        glob: 'src/logic/services/errorLoggingService.ts',
+        reason: 'Central error logging service with justified console access and global error handling'
+      }
+    ]
+  },
+
   documentation: {
     knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'] // Abstract paths recognized as valid in Markdown code references
   },
 
   pinia: {
     authorizedMutationFiles: ['src/logic/coordinators/billingSessionCoordinator.ts'] // Files authorized to mutate stores outside actions
+  },
+
+  packageScripts: {
+    enabled: true, // Enables package.json script governance and verification
+    enforceBuildAudit: true, // Requires "build" script to chain full auditor prior to compilation ("auditor && ...")
+    recommendedScripts: true, // Validates that essential runner and CLI scripts from the canonical catalog exist
+    extraRequiredScripts: [] // Additional custom npm scripts required by host infrastructure or CI
+  },
+
+  gitIgnore: {
+    enabled: true, // Enables dynamic .gitignore coverage auditing from sub-auditor requirements
+    extraRequiredEntries: [] // Project-specific additional ignore patterns required in .gitignore
   },
 
   agentPlugin: {
