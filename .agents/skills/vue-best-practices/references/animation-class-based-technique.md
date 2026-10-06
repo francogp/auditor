@@ -14,12 +14,8 @@ tags: [vue3, animation, css, class-binding, state]
 
 - Use class-based animations for elements staying in the DOM
 - Use `<Transition>` only for enter/leave animations
-> [!CAUTION]
-> **Enterprise Architecture Standard - GSAP Exclusive & Zero-Timer Mandates**:
-> In standard enterprise architecture:
-> 1. Manual CSS `@keyframes` and transitions are strictly forbidden by `validate_component_styles.ts`.
-> 2. Manual `setTimeout` or `setInterval` in UI components is strictly prohibited by `validate_timers`.
-> Micro-interactions and feedback effects (shake, pulse, bounce) MUST be choreographed using GSAP (e.g. `gsap.to(el, { x: 8, repeat: 5, yoyo: true, duration: 0.06 })` or `v-gsap-hover`), NEVER manual timers or CSS keyframe bindings.
+- Combine CSS animations with Vue's class bindings (`:class`)
+- Consider using `setTimeout` to auto-remove animation classes
 
 **When to Use Class-based Animations:**
 - User feedback (shake on error, pulse on success)

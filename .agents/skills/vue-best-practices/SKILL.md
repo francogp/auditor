@@ -20,8 +20,9 @@ Use this skill as an instruction set. Follow the workflow in order unless the us
 
 ## 1) Confirm architecture before coding (required)
 
-- Default stack: Vue 3 + Composition API + `<script setup lang="ts">` (mandatory across enterprise projects).
-- Options API and JSX are strictly forbidden under modern project governance.
+- Default stack: Vue 3 + Composition API + `<script setup lang="ts">`.
+- If the project explicitly uses Options API, load `vue-options-api-best-practices` skill if available.
+- If the project explicitly uses JSX, load `vue-jsx-best-practices` skill if available.
 
 ### 1.1 Must-read core references (required)
 
@@ -68,7 +69,6 @@ Split a component when it has **more than one clear responsibility** (e.g. data 
 - Prefer **smaller components + composables** over one “mega component”
 - Move **UI sections** into child components (props in, events out).
 - Move **state/side effects** into composables (`useXxx()`).
-- **Scoped Style Linkage for Extracted Components**: In Vue 3, parent `<style scoped>` rules compile with unique `[data-v-xxxx]` scope attributes and **DO NOT penetrate nested elements of child components** (they only affect the child root node). Extracted child components MUST declare their own `<style scoped lang="scss" src="...">`, local `<style>`, or `@use` stylesheet import. Never assume child templates inherit parent scoped CSS. Using dummy escape hatches like `// style-inherited` or empty `<style></style>` blocks is strictly forbidden by project auditors.
 
 Apply objective split triggers. Split the component if **any** condition is true:
 

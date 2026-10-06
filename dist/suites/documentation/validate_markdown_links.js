@@ -276,12 +276,13 @@ function checkWorkspacePackageViolations(lines, relSourceFile, filePath, rootDir
  */
 export function checkMarkdownLinksInContent(content, filePath, rootDir) {
     const cleanContent = stripCodeBlocks(content);
+    const contentWithoutInlineCode = cleanContent.replace(/(`+)[^`\n]+?\1/g, match => ' '.repeat(match.length));
     const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
     const brokenLinks = [];
     let linksChecked = 0;
     let match;
     const relSourceFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
-    while ((match = linkRegex.exec(cleanContent)) !== null) {
+    while ((match = linkRegex.exec(contentWithoutInlineCode)) !== null) {
         const linkText = match[1].trim();
         const rawUrl = match[2].trim().replace(/^[`'"]+|[`'"]+$/g, '');
         const line = cleanContent.slice(0, match.index).split('\n').length;

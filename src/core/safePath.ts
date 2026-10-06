@@ -8,6 +8,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { getAuditConfig, sanitizePath } from './auditConfig.ts';
+import { isLockedSkillPath } from './auditorBase.ts';
 
 const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
 
@@ -36,11 +37,20 @@ export function safeJoin(...pathSegments: string[]): string {
 
 
 
+function assertNotLockedSkill(filePath: string): string {
+  const resolved = safeResolve(filePath);
+  const root = path.resolve(process.cwd());
+  if (isLockedSkillPath(resolved, root)) {
+    throw new Error(`Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`);
+  }
+  return resolved;
+}
+
 /**
  * Safely writes to a file with boundary validation and recursive directory creation.
  */
 export function safeWriteFileSync(filePath: string, content: string | Buffer): void {
-  const resolved = safeResolve(filePath);
+  const resolved = assertNotLockedSkill(filePath);
   const dir = path.dirname(resolved);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -52,7 +62,7 @@ export function safeWriteFileSync(filePath: string, content: string | Buffer): v
  * Safely writes to a file with boundary validation and recursive directory creation (async).
  */
 export async function safeWriteFile(filePath: string, content: string | Buffer): Promise<void> {
-  const resolved = safeResolve(filePath);
+  const resolved = assertNotLockedSkill(filePath);
   const dir = path.dirname(resolved);
   if (!fs.existsSync(dir)) {
     await fs.promises.mkdir(dir, { recursive: true });
@@ -106,7 +116,10 @@ export {
   assertSafePathComponent,
   isPathIgnored,
   loadFallowIgnorePatterns,
-  collectRepositoryFiles
+  collectRepositoryFiles,
+  loadLockedSkills,
+  isLockedSkillPath,
+  clearLockedSkillsCache
 } from './auditorBase.ts';
 
 /**

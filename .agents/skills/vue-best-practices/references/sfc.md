@@ -122,34 +122,6 @@ button { border-radius: 999px; }
 :root { --radius: 999px; }
 ```
 
-### Extracted Child Components Scoped Style Boundary
-
-In Vue 3, parent `<style scoped>` rules compile with unique `[data-v-xxxx]` scope attributes and **DO NOT penetrate nested elements of child components** (they only affect the child root node).
-
-**BAD:**
-```vue
-<!-- Parent.vue with <style scoped> -->
-<!-- Child.vue extracted without <style>, assuming parent styles apply to internal classes -->
-<template>
-  <div class="child-root">
-    <span class="child-badge">Unstyled text!</span>
-  </div>
-</template>
-```
-
-**GOOD:**
-```vue
-<!-- Child.vue explicitly links or imports its scoped stylesheet -->
-<template>
-  <div class="child-root">
-    <span class="child-badge">Styled text</span>
-  </div>
-</template>
-
-<style scoped lang="scss" src="./Child.styles.scss"></style>
-<!-- OR: <style scoped lang="scss"> @use "@/styles/components/feature" as *; </style> -->
-```
-
 ### Use class selectors in scoped CSS
 
 **BAD:**

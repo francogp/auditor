@@ -67,7 +67,7 @@ describe('auditorBase infrastructure', () => {
 
     it('allows documentation auditors to unignore specific directories via unignoreDirs', () => {
       const unignores = ['.agents'];
-      expect(isPathIgnored('.agents/skills/fallow/SKILL.md', [], unignores)).toBe(false);
+      expect(isPathIgnored('.agents/skills/auditor/SKILL.md', [], unignores)).toBe(false);
 
       // But still strictly ignores node_modules and scratch
       expect(isPathIgnored('node_modules/foo/.agents/index.md', [], unignores)).toBe(true);

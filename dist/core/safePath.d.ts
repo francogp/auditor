@@ -36,7 +36,7 @@ export declare function safeFetch(rawUrl: string, options?: RequestInit, allowed
  * Uses WHATWG URL standard API without fragile homebrew regexes.
  */
 export declare function safeDevUrl(endpoint: string, params?: Record<string, string>, baseOrigin?: string): string;
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles } from './auditorBase.ts';
+export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles, loadLockedSkills, isLockedSkillPath, clearLockedSkillsCache } from './auditorBase.ts';
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.
  * Ignores common build/temporary directories.

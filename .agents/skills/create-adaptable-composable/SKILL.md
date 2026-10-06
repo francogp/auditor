@@ -12,8 +12,7 @@ compatibility: Requires Vue 3 (or above) or Nuxt 3 (or above) project
 
 Adaptable composables are reusable functions that can accept both reactive and non-reactive inputs. This allows developers to use the composable in a variety of contexts without worrying about the reactivity of the inputs.
 
-Steps to design an adaptable composable in Vue.ts:
-
+Steps to design an adaptable composable in Vue.js:
 1. Confirm the composable's purpose and API design and expected inputs/outputs.
 2. Identify inputs params that should be reactive (MaybeRef / MaybeRefOrGetter).
 3. Use `toValue()` or `toRef()` to normalize inputs inside reactive effects.
@@ -21,16 +20,18 @@ Steps to design an adaptable composable in Vue.ts:
 
 ## Core Type Concepts
 
-### Native Vue 3.5+ Type Utilities
-
-In Vue 3.5+, import native types directly from `'vue'` without loose `any` casts (adhering strictly to `@/domain-type-first`):
+### Type Utilities
 
 ```ts
-import type { MaybeRef, MaybeRefOrGetter } from 'vue';
+/**
+ * value or writable ref (value/ref/shallowRef/writable computed)
+ */
+export type MaybeRef<T = any> = T | Ref<T> | ShallowRef<T> | WritableComputedRef<T>;
 
-// Canonical Vue definitions:
-// type MaybeRef<T> = T | Ref<T> | ShallowRef<T> | WritableComputedRef<T>;
-// type MaybeRefOrGetter<T> = MaybeRef<T> | ComputedRef<T> | (() => T);
+/**
+ * MaybeRef<T> + ComputedRef<T> + () => T
+ */
+export type MaybeRefOrGetter<T = any> = MaybeRef<T> | ComputedRef<T> | (() => T);
 ```
 
 ### Policy and Rules
@@ -40,8 +41,7 @@ import type { MaybeRef, MaybeRefOrGetter } from 'vue';
 - Parameter might be a function value (callback/predicate/comparator): do not use `MaybeRefOrGetter`, or you may accidentally invoke it as a getter.
 - DOM/Element targets: if you want computed/derived targets, use `MaybeRefOrGetter`.
 
-When `MaybeRefOrGetter` or `MaybeRef` is used:
-
+When `MaybeRefOrGetter` or `MaybeRef` is used: 
 - resolve reactive value using `toRef()` (e.g. watcher source)
 - resolve non-reactive value using `toValue()`
 

@@ -171,6 +171,22 @@ describe('MarkdownLinkAuditor', () => {
 
       expect(brokenLinks).toHaveLength(0);
     });
+
+    it('ignores markdown link and image syntax inside inline code spans', () => {
+      const markdown = `
+        # Syntax Guide
+        Reference the image as \`![alt](./nonexistent-settings.png)\` in documentation.
+        Also syntax like \`[text](./nonexistent-link.md)\` should be ignored.
+        However real link [real](./real.md) is parsed.
+      `;
+      const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
+      const { brokenLinks, linksChecked } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
+
+      // Only [real](./real.md) is checked as an active link
+      expect(linksChecked).toBe(1);
+      expect(brokenLinks).toHaveLength(1);
+      expect(brokenLinks[0]?.rawUrl).toBe('./real.md');
+    });
   });
 
   describe('Clean Execution', () => {

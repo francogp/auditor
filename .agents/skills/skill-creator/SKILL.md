@@ -108,12 +108,6 @@ cloud-deploy/
 ```
 Claude reads only the relevant reference file.
 
-#### Reference Curation & Zero Mechanical Loss
-
-When curating, moving, or reorganizing reference files (`references/`):
-- **Preserve 100% of Technical Data**: Never replace detailed formulas, evolution branches, or mechanical tables with brief narrative summaries. Clean the presentation (remove web junk, ads, BBCode), not the substance.
-- **Commit Diff Verification**: Compare all modified or removed references against `HEAD` (`git show HEAD:<path>`) to confirm zero omitted mechanics, thresholds, or domain parameters.
-
 #### Principle of Lack of Surprise
 
 This goes without saying, but skills must not contain malware, exploit code, or any content that could compromise system security. A skill's contents should not surprise the user in their intent if described. Don't go along with requests to create misleading skills or skills designed to facilitate unauthorized access, data exfiltration, or other malicious activities. Things like a "roleplay as an XYZ" are OK though.

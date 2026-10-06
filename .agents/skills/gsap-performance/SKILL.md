@@ -10,7 +10,7 @@ license: MIT
 
 Apply when optimizing GSAP animations for smooth 60fps, reducing layout/paint cost, or when the user asks about performance, jank, or best practices for fast animations.
 
-**Related skills:** Build animations with [gsap-core](../gsap-core/SKILL.md) (transforms, autoAlpha) and [gsap-timeline](../gsap-timeline/SKILL.md); for ScrollTrigger performance see [gsap-scrolltrigger](../gsap-scrolltrigger/SKILL.md).
+**Related skills:** Build animations with **gsap-core** (transforms, autoAlpha) and **gsap-timeline**; for ScrollTrigger performance see **gsap-scrolltrigger**.
 
 ## Prefer Transform and Opacity
 
@@ -41,13 +41,13 @@ GSAP batches updates internally. When mixing GSAP with direct DOM reads/writes o
 
 ## Frequently updated properties (e.g. mouse followers)
 
-Prefer **gsap.quickTo()** for properties that are updated often (e.g. mouse-follower x/y). It reuses a single tween instead of creating new tweens on each update.
+Prefer **gsap.quickTo()** for properties that are updated often (e.g. mouse-follower x/y). It reuses a single tween instead of creating new tweens on each update. 
 
 ```javascript
-let xTo = gsap.quickTo('#id', 'x', { duration: 0.4, ease: 'power3' }),
-  yTo = gsap.quickTo('#id', 'y', { duration: 0.4, ease: 'power3' });
+let xTo = gsap.quickTo("#id", "x", { duration: 0.4, ease: "power3" }),
+    yTo = gsap.quickTo("#id", "y", { duration: 0.4, ease: "power3" });
 
-document.querySelector('#container').addEventListener('mousemove', (e) => {
+document.querySelector("#container").addEventListener("mousemove", (e) => {
   xTo(e.pageX);
   yTo(e.pageY);
 });

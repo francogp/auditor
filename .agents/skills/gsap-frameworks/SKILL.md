@@ -8,26 +8,26 @@ license: MIT
 
 ## When to Use This Skill
 
-Apply when writing or reviewing GSAP code in Vue (or Nuxt), Svelte (or SvelteKit), or other component frameworks that use a lifecycle (mounted/unmounted). For **React** specifically, use gsap-react (useGSAP hook, gsap.context()).
+Apply when writing or reviewing GSAP code in Vue (or Nuxt), Svelte (or SvelteKit), or other component frameworks that use a lifecycle (mounted/unmounted). For **React** specifically, use **gsap-react** (useGSAP hook, gsap.context()).
 
-**Related skills:** For tweens and timelines use [gsap-core](../gsap-core/SKILL.md) and [gsap-timeline](../gsap-timeline/SKILL.md); for scroll-based animation use [gsap-scrolltrigger](../gsap-scrolltrigger/SKILL.md); for React use gsap-react.
+**Related skills:** For tweens and timelines use **gsap-core** and **gsap-timeline**; for scroll-based animation use **gsap-scrolltrigger**; for React use **gsap-react**.
 
 ## Principles (All Frameworks)
 
 - **Create** tweens and ScrollTriggers **after** the component’s DOM is available (e.g. onMounted, onMount).
-- **Kill or revert** them in the **unmount** (or equivalent) cleanup so nothing runs on detached nodes and there are no leaks. Always assign looping or persistent animations (like floating icons or cyclical loaders) to variables and explicitly call `.kill()` in `onUnmounted` or `onClose` along with `activeTweens.clear()` to prevent background leaks.
+- **Kill or revert** them in the **unmount** (or equivalent) cleanup so nothing runs on detached nodes and there are no leaks.
 - **Scope selectors** to the component root so `.box` and similar only match elements inside that component, not the rest of the page.
 
 ## Vue 3 (Composition API)
 
-See [Vue 3 Examples](../gsap-core/resources/vue/) for a runnable Vite + Vue 3 project demonstrating these patterns.
+See `examples/vue/` for a runnable Vite + Vue 3 project demonstrating these patterns.
 
 Use **onMounted** to run GSAP after the component is in the DOM. Use **onUnmounted** to clean up.
 
 ```javascript
-import { onMounted, onUnmounted, ref } from 'vue';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { onMounted, onUnmounted, ref } from "vue";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger); // once per app, e.g. in main.js
 
 export default {
@@ -38,8 +38,8 @@ export default {
     onMounted(() => {
       if (!container.value) return;
       ctx = gsap.context(() => {
-        gsap.to('.box', { x: 100, duration: 0.6 });
-        gsap.from('.item', { autoAlpha: 0, y: 20, stagger: 0.1 });
+        gsap.to(".box", { x: 100, duration: 0.6 });
+        gsap.from(".item", { autoAlpha: 0, y: 20, stagger: 0.1 });
       }, container.value);
     });
 
@@ -91,70 +91,70 @@ onUnmounted(() => {
 
 ## Nuxt 4
 
-> See [Nuxt 4 Examples](../gsap-core/resources/nuxt/) for a runnable Nuxt 4 project with plugin registration, lazy loading, and SSR-safe patterns.
+> See `examples/nuxt/` for a runnable Nuxt 4 project with plugin registration, lazy loading, and SSR-safe patterns.
 
 Use a **reusable composable** to register GSAP Plugins and also to lazy load Plugins that are not extensively used in your application:
 
 ```typescript
 // composables/useGSAP.ts
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const PLUGINS = [
-  'CSSRulePlugin',
-  'CustomBounce',
-  'CustomEase',
-  'CustomWiggle',
-  'Draggable',
-  'DrawSVGPlugin',
-  'EaselPlugin',
-  'EasePack',
-  'Flip',
-  'GSDevTools',
-  'InertiaPlugin',
-  'MorphSVGPlugin',
-  'MotionPathHelper',
-  'MotionPathPlugin',
-  'Observer',
-  'Physics2DPlugin',
-  'PhysicsPropsPlugin',
-  'PixiPlugin',
-  'ScrambleTextPlugin',
-  'ScrollSmoother',
-  'ScrollToPlugin',
-  'ScrollTrigger',
-  'SplitText',
-  'TextPlugin',
+  "CSSRulePlugin",
+  "CustomBounce",
+  "CustomEase",
+  "CustomWiggle",
+  "Draggable",
+  "DrawSVGPlugin",
+  "EaselPlugin",
+  "EasePack",
+  "Flip",
+  "GSDevTools",
+  "InertiaPlugin",
+  "MorphSVGPlugin",
+  "MotionPathHelper",
+  "MotionPathPlugin",
+  "Observer",
+  "Physics2DPlugin",
+  "PhysicsPropsPlugin",
+  "PixiPlugin",
+  "ScrambleTextPlugin",
+  "ScrollSmoother",
+  "ScrollToPlugin",
+  "ScrollTrigger",
+  "SplitText",
+  "TextPlugin",
 ] as const;
 
 type Plugins = (typeof PLUGINS)[number];
 
 // In order to dynamically load all the GSAP plugins
 const pluginMap = {
-  CustomEase: () => import('gsap/CustomEase'),
-  Draggable: () => import('gsap/Draggable'),
-  CSSRulePlugin: () => import('gsap/CSSRulePlugin'),
-  EaselPlugin: () => import('gsap/EaselPlugin'),
-  EasePack: () => import('gsap/EasePack'),
-  Flip: () => import('gsap/Flip'),
-  MotionPathPlugin: () => import('gsap/MotionPathPlugin'),
-  Observer: () => import('gsap/Observer'),
-  PixiPlugin: () => import('gsap/PixiPlugin'),
-  ScrollToPlugin: () => import('gsap/ScrollToPlugin'),
-  ScrollTrigger: () => import('gsap/ScrollTrigger'),
-  TextPlugin: () => import('gsap/TextPlugin'),
-  DrawSVGPlugin: () => import('gsap/DrawSVGPlugin'),
-  Physics2DPlugin: () => import('gsap/Physics2DPlugin'),
-  PhysicsPropsPlugin: () => import('gsap/PhysicsPropsPlugin'),
-  ScrambleTextPlugin: () => import('gsap/ScrambleTextPlugin'),
-  CustomBounce: () => import('gsap/CustomBounce'),
-  CustomWiggle: () => import('gsap/CustomWiggle'),
-  GSDevTools: () => import('gsap/GSDevTools'),
-  InertiaPlugin: () => import('gsap/InertiaPlugin'),
-  MorphSVGPlugin: () => import('gsap/MorphSVGPlugin'),
-  MotionPathHelper: () => import('gsap/MotionPathHelper'),
-  ScrollSmoother: () => import('gsap/ScrollSmoother'),
-  SplitText: () => import('gsap/SplitText'),
+  CustomEase: () => import("gsap/CustomEase"),
+  Draggable: () => import("gsap/Draggable"),
+  CSSRulePlugin: () => import("gsap/CSSRulePlugin"),
+  EaselPlugin: () => import("gsap/EaselPlugin"),
+  EasePack: () => import("gsap/EasePack"),
+  Flip: () => import("gsap/Flip"),
+  MotionPathPlugin: () => import("gsap/MotionPathPlugin"),
+  Observer: () => import("gsap/Observer"),
+  PixiPlugin: () => import("gsap/PixiPlugin"),
+  ScrollToPlugin: () => import("gsap/ScrollToPlugin"),
+  ScrollTrigger: () => import("gsap/ScrollTrigger"),
+  TextPlugin: () => import("gsap/TextPlugin"),
+  DrawSVGPlugin: () => import("gsap/DrawSVGPlugin"),
+  Physics2DPlugin: () => import("gsap/Physics2DPlugin"),
+  PhysicsPropsPlugin: () => import("gsap/PhysicsPropsPlugin"),
+  ScrambleTextPlugin: () => import("gsap/ScrambleTextPlugin"),
+  CustomBounce: () => import("gsap/CustomBounce"),
+  CustomWiggle: () => import("gsap/CustomWiggle"),
+  GSDevTools: () => import("gsap/GSDevTools"),
+  InertiaPlugin: () => import("gsap/InertiaPlugin"),
+  MorphSVGPlugin: () => import("gsap/MorphSVGPlugin"),
+  MotionPathHelper: () => import("gsap/MotionPathHelper"),
+  ScrollSmoother: () => import("gsap/ScrollSmoother"),
+  SplitText: () => import("gsap/SplitText"),
 } as const;
 
 type PluginMap = typeof pluginMap;
@@ -237,9 +237,6 @@ Do not use global selectors that can match elements outside the current componen
 
 - ✅ **gsap.context(() => { gsap.to(".box", ...) }, containerRef)** — `.box` is only searched inside `containerRef`.
 - ❌ Running **gsap.to(".box", ...)** without a context scope in a component can affect other instances or the rest of the page.
-- ✅ **Component Instance Isolation**: When animating reusable components that may appear multiple times on the same page (e.g., Player vs Enemy sprites), NEVER use global `document.querySelector`. Always use a template ref (`rootRef.value?.closest('.class')`) to isolate the GSAP context and prevent targeting the wrong DOM instance.
-- ✅ **Context Scope Hierarchy**: Ensure the GSAP context scope element (the second argument of `gsap.context()`) is a parent to all target elements you wish to animate. A GSAP context scoped to a sub-element (e.g., `spawnGridRef.value`) cannot locate or animate sibling elements (such as overlays or badges) that lie outside that sub-hierarchy. To animate global card elements, scope the context to the main container (`cardRef.value`) and use direct template refs.
-- ✅ **Inline Style Reactivity Conflicts**: Hover animations or temporary tweens created with GSAP inject inline styles (e.g., `color`, `background-color`) directly into DOM elements. These inline styles will override reactive CSS classes (such as Vue's `.active` class) due to CSS specificity. To prevent visual bugs like frozen hover states or tab selection issues, clean up inline styles by calling `gsap.set(target, { clearProps: 'all' })` (or specific properties like `'color,backgroundColor'`) inside `nextTick()` whenever the active state changes.
 
 ## ScrollTrigger Cleanup
 
@@ -250,9 +247,9 @@ ScrollTrigger instances are created when you use the `scrollTrigger` config on a
 
 ## When to Create vs Kill
 
-| Lifecycle | Action |
-| --- | --- |
-| **Mounted** | Create tweens and ScrollTriggers inside **gsap.context(scope)**. |
+| Lifecycle             | Action                                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Mounted**           | Create tweens and ScrollTriggers inside **gsap.context(scope)**.                                                  |
 | **Unmount / Destroy** | Call **ctx.revert()** so all animations and ScrollTriggers in that context are killed and inline styles reverted. |
 
 Do not create GSAP animations in the component’s setup or in a synchronous top-level script that runs before the root element exists. Wait for **onMounted** / **onMount** (or equivalent) so the container ref is in the DOM.
@@ -263,8 +260,7 @@ Do not create GSAP animations in the component’s setup or in a synchronous top
 - ❌ Use selector strings without a **scope** (pass the container to gsap.context() as the second argument) so selectors don’t match elements outside the component.
 - ❌ Skip cleanup; always call **ctx.revert()** in onUnmounted / onMount’s return so animations and ScrollTriggers are killed when the component is destroyed.
 - ❌ Register plugins inside a component body that runs every render (it doesn't hurt anything, it's just wasteful); register once at app level.
-- ❌ Attempt to animate elements outside the chosen GSAP context scope (e.g., selecting card-level elements inside a context scoped to a nested child grid). This will cause the selectors to silently fail to find the targets.
 
 ### Learn More
 
-- gsap-react skill for React-specific patterns (useGSAP, contextSafe).
+- **gsap-react** skill for React-specific patterns (useGSAP, contextSafe).

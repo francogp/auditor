@@ -7,6 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { getAuditConfig, sanitizePath } from "./auditConfig.js";
+import { isLockedSkillPath } from "./auditorBase.js";
 const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
 export { sanitizePath };
 /**
@@ -28,11 +29,19 @@ export function safeResolve(...pathSegments) {
 export function safeJoin(...pathSegments) {
     return safeResolve(...pathSegments);
 }
+function assertNotLockedSkill(filePath) {
+    const resolved = safeResolve(filePath);
+    const root = path.resolve(process.cwd());
+    if (isLockedSkillPath(resolved, root)) {
+        throw new Error(`Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`);
+    }
+    return resolved;
+}
 /**
  * Safely writes to a file with boundary validation and recursive directory creation.
  */
 export function safeWriteFileSync(filePath, content) {
-    const resolved = safeResolve(filePath);
+    const resolved = assertNotLockedSkill(filePath);
     const dir = path.dirname(resolved);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -43,7 +52,7 @@ export function safeWriteFileSync(filePath, content) {
  * Safely writes to a file with boundary validation and recursive directory creation (async).
  */
 export async function safeWriteFile(filePath, content) {
-    const resolved = safeResolve(filePath);
+    const resolved = assertNotLockedSkill(filePath);
     const dir = path.dirname(resolved);
     if (!fs.existsSync(dir)) {
         await fs.promises.mkdir(dir, { recursive: true });
@@ -87,7 +96,7 @@ export function safeDevUrl(endpoint, params = {}, baseOrigin = 'http://localhost
     }
     return url.pathname + url.search;
 }
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles } from "./auditorBase.js";
+export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles, loadLockedSkills, isLockedSkillPath, clearLockedSkillsCache } from "./auditorBase.js";
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.
  * Ignores common build/temporary directories.

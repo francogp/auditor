@@ -32,11 +32,22 @@ export declare function assertSafePathComponent(component: string): void;
  * Loads directory ignore patterns from .fallowrc.json if present.
  */
 export declare function loadFallowIgnorePatterns(projectRoot?: string): string[];
+export declare function clearLockedSkillsCache(): void;
+/**
+ * Loads official locked skill names from skills-lock.json if present in projectRoot.
+ * Returns a set of lowercase skill directory names.
+ */
+export declare function loadLockedSkills(projectRoot?: string): ReadonlySet<string>;
+/**
+ * Checks whether a relative POSIX or absolute path belongs to an official/locked skill directory
+ * (e.g. .agents/skills/<lockedSkill>/**, skills/<lockedSkill>/**, .skills/<lockedSkill>/**).
+ */
+export declare function isLockedSkillPath(filePath: string, projectRoot?: string): boolean;
 export declare function matchesSinglePattern(normalized: string, pattern: string): boolean;
 /**
  * Determines whether a relative POSIX path belongs to an ignored directory or matches directory ignore patterns.
  */
-export declare function isPathIgnored(relPath: string, extraIgnorePatterns?: readonly string[], unignoreDirs?: ReadonlySet<string> | readonly string[]): boolean;
+export declare function isPathIgnored(relPath: string, extraIgnorePatterns?: readonly string[], unignoreDirs?: ReadonlySet<string> | readonly string[], projectRoot?: string): boolean;
 /**
  * Recursively collects scannable files from a directory, applying ignore filters.
  */

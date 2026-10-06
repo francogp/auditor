@@ -389,13 +389,14 @@ export function checkMarkdownLinksInContent(
   rootDir: string,
 ): { linksChecked: number; brokenLinks: BrokenMarkdownLink[] } {
   const cleanContent = stripCodeBlocks(content);
+  const contentWithoutInlineCode = cleanContent.replace(/(`+)[^`\n]+?\1/g, match => ' '.repeat(match.length));
   const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
   const brokenLinks: BrokenMarkdownLink[] = [];
   let linksChecked = 0;
   let match: RegExpExecArray | null;
   const relSourceFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
 
-  while ((match = linkRegex.exec(cleanContent)) !== null) {
+  while ((match = linkRegex.exec(contentWithoutInlineCode)) !== null) {
     const linkText = match[1]!.trim();
     const rawUrl = match[2]!.trim().replace(/^[`'"]+|[`'"]+$/g, '');
     const line = cleanContent.slice(0, match.index).split('\n').length;

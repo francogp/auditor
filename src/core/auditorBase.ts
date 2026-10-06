@@ -155,6 +155,74 @@ export function loadFallowIgnorePatterns(projectRoot = process.cwd()): string[] 
   return [];
 }
 
+let lockedSkillsCache: Set<string> | null = null;
+let lockedSkillsCacheRoot: string | null = null;
+
+export function clearLockedSkillsCache(): void {
+  lockedSkillsCache = null;
+  lockedSkillsCacheRoot = null;
+}
+
+/**
+ * Loads official locked skill names from skills-lock.json if present in projectRoot.
+ * Returns a set of lowercase skill directory names.
+ */
+export function loadLockedSkills(projectRoot = process.cwd()): ReadonlySet<string> {
+  if (lockedSkillsCache && lockedSkillsCacheRoot === projectRoot) {
+    return lockedSkillsCache;
+  }
+  const skillsLockPath = path.resolve(projectRoot, 'skills-lock.json');
+  const locked = new Set<string>();
+  try {
+    if (nodeFs.existsSync(skillsLockPath)) {
+      const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
+      const data = JSON.parse(raw) as { skills?: Record<string, unknown> };
+      if (data && typeof data.skills === 'object' && data.skills !== null) {
+        for (const skillName of Object.keys(data.skills)) {
+          locked.add(skillName.toLowerCase());
+        }
+      }
+    }
+  } catch {
+    // catch-ok: Ignore missing or malformed skills-lock.json
+  }
+  lockedSkillsCache = locked;
+  lockedSkillsCacheRoot = projectRoot;
+  return locked;
+}
+
+/**
+ * Checks whether a relative POSIX or absolute path belongs to an official/locked skill directory
+ * (e.g. .agents/skills/<lockedSkill>/**, skills/<lockedSkill>/**, .skills/<lockedSkill>/**).
+ */
+export function isLockedSkillPath(filePath: string, projectRoot = process.cwd()): boolean {
+  const locked = loadLockedSkills(projectRoot);
+  if (locked.size === 0) return false;
+
+  const rel = path.isAbsolute(filePath)
+    ? path.relative(projectRoot, filePath)
+    : filePath;
+
+  const normalized = rel.replace(/\\/g, '/').toLowerCase().replace(/^\/+/, '');
+  const segments = normalized.split('/');
+
+  for (let i = 0; i < segments.length - 1; i++) {
+    const parent = segments[i];
+    const candidate = segments[i + 1];
+    if ((parent === 'skills' || parent === '.skills') && candidate && locked.has(candidate)) {
+      return true;
+    }
+    if (parent === '.agents' && candidate === 'skills' && i + 2 < segments.length) {
+      const skillName = segments[i + 2];
+      if (skillName && locked.has(skillName)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function matchesDirectorySegments(
   normalized: string,
   segments: readonly string[],
@@ -221,8 +289,13 @@ export function matchesSinglePattern(normalized: string, pattern: string): boole
 export function isPathIgnored(
   relPath: string,
   extraIgnorePatterns: readonly string[] = [],
-  unignoreDirs: ReadonlySet<string> | readonly string[] = []
+  unignoreDirs: ReadonlySet<string> | readonly string[] = [],
+  projectRoot = process.cwd()
 ): boolean {
+  if (isLockedSkillPath(relPath, projectRoot)) {
+    return true;
+  }
+
   const normalized = relPath.split(path.sep).join(path.posix.sep).toLowerCase();
   const segments = normalized.split('/');
   const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
@@ -259,7 +332,7 @@ function collectSingleFile(
   unignoreDirs: ReadonlySet<string> | readonly string[]
 ): string[] {
   const relPath = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
-  if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
+  if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
     const ext = path.extname(filePath).toLowerCase();
     if (allowedExtensions.has(ext)) {
       return [filePath];
@@ -278,7 +351,7 @@ function processDirentEntry(
 ): string[] {
   const fullPath = path.resolve(dir, entry.name);
   const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-  if (isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs)) {
+  if (isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
     return [];
   }
 
@@ -413,6 +486,17 @@ function renderConsoleSummary(
   console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
 }
 
+function normalizeAuditorFilePath(file: string | undefined, projectRoot: string): string | undefined | null {
+  if (!file) return file;
+  const normFile = path.isAbsolute(file)
+    ? path.relative(projectRoot, file).replace(/\\/g, '/')
+    : file.replace(/\\/g, '/');
+  if (isLockedSkillPath(normFile, projectRoot)) {
+    return null;
+  }
+  return normFile;
+}
+
 export function setupAuditor(config: AuditorConfig): AuditorContext {
 
   const startTime = performance.now();
@@ -448,7 +532,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     values: values as AuditorContext['values'],
     ignorePatterns: combinedIgnores,
     unignoreDirs,
-    isPathIgnored: (relPath: string) => isPathIgnored(relPath, combinedIgnores, unignoreDirs),
+    isPathIgnored: (relPath: string) => isPathIgnored(relPath, combinedIgnores, unignoreDirs, projectRoot),
     collectFiles: (roots: readonly string[] = getEffectiveScannableRoots(), allowedExtensions = SCANNABLE_EXTENSIONS) => {
       const all: string[] = []; // no-domain: Non-domain utility collection or data structure
       for (const root of roots) {
@@ -479,22 +563,25 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       customLogProgress = logger;
     },
     addFinding: (f: AuditFinding) => {
-      const normFile = f.file
-        ? (path.isAbsolute(f.file) ? path.relative(projectRoot, f.file).replace(/\\/g, '/') : f.file.replace(/\\/g, '/'))
-        : f.file;
+      const normFile = normalizeAuditorFilePath(f.file, projectRoot);
+      if (normFile === null) {
+        return;
+      }
       findings.push({ ...f, file: normFile });
     },
     addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => {
-      const normFile = file
-        ? (path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, '/') : file.replace(/\\/g, '/'))
-        : file;
+      const normFile = normalizeAuditorFilePath(file, projectRoot);
+      if (normFile === null) {
+        return;
+      }
       findings.push({ severity: 'error', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
     },
     addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => {
       if (!values['errors-only']) {
-        const normFile = file
-          ? (path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, '/') : file.replace(/\\/g, '/'))
-          : file;
+        const normFile = normalizeAuditorFilePath(file, projectRoot);
+        if (normFile === null) {
+          return;
+        }
         findings.push({ severity: 'warning', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
       }
     },
@@ -963,6 +1050,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public addViolation(v: ViolationInput<TRuleId>): void {
+    if (v.file && isLockedSkillPath(v.file, this.projectRoot)) {
+      return;
+    }
+
     const current = this.countsByRule.get(v.ruleId) ?? 0;
     this.countsByRule.set(v.ruleId, current + 1);
 
