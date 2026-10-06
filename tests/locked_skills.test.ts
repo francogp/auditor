@@ -113,6 +113,47 @@ describe('Official Locked Skills Isolation', () => {
       const refreshed = loadLockedSkills(tempDir);
       expect(refreshed.has('playwright')).toBe(true);
     });
+
+    it('loads skills from .auditor/skills-lock.json when root file is absent', () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'skills-lock.json'),
+        JSON.stringify({ version: 1, skills: { 'auditor-locked-skill': {} } })
+      );
+
+      const skills = loadLockedSkills(tempDir);
+      expect(skills.has('auditor-locked-skill')).toBe(true);
+    });
+
+    it('loads skills from .agents/skills-lock.json when root file is absent', () => {
+      const agentsDir = path.join(tempDir, '.agents');
+      fs.mkdirSync(agentsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(agentsDir, 'skills-lock.json'),
+        JSON.stringify({ version: 1, skills: { 'agents-locked-skill': {} } })
+      );
+
+      const skills = loadLockedSkills(tempDir);
+      expect(skills.has('agents-locked-skill')).toBe(true);
+    });
+
+    it('merges skills when multiple candidate locations exist simultaneously', () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'skills-lock.json'),
+        JSON.stringify({ version: 1, skills: { 'root-skill': {} } })
+      );
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'skills-lock.json'),
+        JSON.stringify({ version: 1, skills: { 'auditor-skill': {} } })
+      );
+
+      const skills = loadLockedSkills(tempDir);
+      expect(skills.has('root-skill')).toBe(true);
+      expect(skills.has('auditor-skill')).toBe(true);
+    });
   });
 
   describe('isLockedSkillPath', () => {

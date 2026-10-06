@@ -44,6 +44,7 @@ export interface AuditPathsConfig {
   readonly ignoredPatterns?: readonly string[];
   readonly testFilePatterns?: readonly string[];
   readonly testFragmentationWhitelist?: readonly string[];
+  readonly skillsLockFile?: string;
 }
 
 export interface AuditPersistenceConfig {

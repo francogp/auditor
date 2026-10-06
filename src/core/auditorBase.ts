@@ -164,28 +164,56 @@ export function clearLockedSkillsCache(): void {
 }
 
 /**
+ * Canonical candidate relative locations for skills-lock.json in order of precedence.
+ */
+export const SKILLS_LOCK_CANDIDATE_PATHS: readonly string[] = [
+  'skills-lock.json',
+  '.auditor/skills-lock.json',
+  '.agents/skills-lock.json'
+];
+
+/**
  * Loads official locked skill names from skills-lock.json if present in projectRoot.
+ * Checks candidate paths:
+ *   1. paths.skillsLockFile from audit.config.ts (if defined)
+ *   2. skills-lock.json (project root)
+ *   3. .auditor/skills-lock.json
+ *   4. .agents/skills-lock.json
  * Returns a set of lowercase skill directory names.
  */
 export function loadLockedSkills(projectRoot = process.cwd()): ReadonlySet<string> {
   if (lockedSkillsCache && lockedSkillsCacheRoot === projectRoot) {
     return lockedSkillsCache;
   }
-  const skillsLockPath = path.resolve(projectRoot, 'skills-lock.json');
   const locked = new Set<string>();
+
+  const candidatePaths = [...SKILLS_LOCK_CANDIDATE_PATHS];
   try {
-    if (nodeFs.existsSync(skillsLockPath)) {
-      const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
-      const data = JSON.parse(raw) as { skills?: Record<string, unknown> };
-      if (data && typeof data.skills === 'object' && data.skills !== null) {
-        for (const skillName of Object.keys(data.skills)) {
-          locked.add(skillName.toLowerCase());
-        }
-      }
+    const config = getAuditConfig(projectRoot);
+    if (config?.paths?.skillsLockFile && !candidatePaths.includes(config.paths.skillsLockFile)) {
+      candidatePaths.unshift(config.paths.skillsLockFile);
     }
   } catch {
-    // catch-ok: Ignore missing or malformed skills-lock.json
+    // catch-ok: Ignore config load failures during skill lock resolution
   }
+
+  for (const relPath of candidatePaths) {
+    const skillsLockPath = path.resolve(projectRoot, relPath);
+    try {
+      if (nodeFs.existsSync(skillsLockPath)) {
+        const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
+        const data = JSON.parse(raw) as { skills?: Record<string, unknown> };
+        if (data && typeof data.skills === 'object' && data.skills !== null) {
+          for (const skillName of Object.keys(data.skills)) {
+            locked.add(skillName.toLowerCase());
+          }
+        }
+      }
+    } catch {
+      // catch-ok: Ignore missing or malformed skills-lock.json candidate
+    }
+  }
+
   lockedSkillsCache = locked;
   lockedSkillsCacheRoot = projectRoot;
   return locked;

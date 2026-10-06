@@ -44,6 +44,8 @@ export const DEFAULT_NON_AUDITABLE_GLOBS = Object.freeze([
     'pnpm-lock.yaml',
     'yarn.lock',
     'bun.lockb',
+    'skills-lock.json',
+    '**/*skills-lock.json',
     '**/.gitkeep',
     '**/.gitignore',
     '**/.gitattributes',

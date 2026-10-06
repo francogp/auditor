@@ -34,7 +34,16 @@ export declare function assertSafePathComponent(component: string): void;
 export declare function loadFallowIgnorePatterns(projectRoot?: string): string[];
 export declare function clearLockedSkillsCache(): void;
 /**
+ * Canonical candidate relative locations for skills-lock.json in order of precedence.
+ */
+export declare const SKILLS_LOCK_CANDIDATE_PATHS: readonly string[];
+/**
  * Loads official locked skill names from skills-lock.json if present in projectRoot.
+ * Checks candidate paths:
+ *   1. paths.skillsLockFile from audit.config.ts (if defined)
+ *   2. skills-lock.json (project root)
+ *   3. .auditor/skills-lock.json
+ *   4. .agents/skills-lock.json
  * Returns a set of lowercase skill directory names.
  */
 export declare function loadLockedSkills(projectRoot?: string): ReadonlySet<string>;

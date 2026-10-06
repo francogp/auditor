@@ -35,6 +35,7 @@ export interface AuditPathsConfig {
     readonly ignoredPatterns?: readonly string[];
     readonly testFilePatterns?: readonly string[];
     readonly testFragmentationWhitelist?: readonly string[];
+    readonly skillsLockFile?: string;
 }
 export interface AuditPersistenceConfig {
     readonly engine: 'supabase' | 'sqlite' | 'postgres' | 'hybrid' | 'none';
