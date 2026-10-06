@@ -157,7 +157,7 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - **Missing Tool Mandate (Solicitud y Creación de Nuevas Herramientas)**: If a specific inspection, filtering, or reporting capability is missing or not provided by existing native tools, AI agents and developers MUST NOT create ad-hoc scripts or one-off terminal hacks. Instead, they MUST explicitly propose and create a new official native CLI tool in `src/cli/` (or extend an existing reporter), registering its canonical script in `package.json` with full Box-Drawing theme support (`unifiedTheme.ts`), 80-column limits, and permission flags.
 27. **Fallow Refactoring Targets & Workspace Diagnostics Governance (`config.fallow`)**:
     - Fallow provides hotspot refactoring targets and project workspace diagnostics.
-    - `config.fallow.enforceTargets`: When set to `true`, hotspot refactoring targets meeting `maxTargetPriority` (`'critical'`, `'high'`, `'all'`) are promoted to blocking `severity: 'error'` findings under rule `fallow-refactoring-targets`. When `false` (default), they remain purely advisory.
+    - `config.fallow.enforceTargets`: When set to `true` (default), hotspot refactoring targets meeting `maxTargetPriority` (`'critical'` by default, `'high'`, `'all'`) are promoted to blocking `severity: 'error'` findings under rule `fallow-refactoring-targets`. Host projects may explicitly opt out with `false` if they prefer targets to remain purely advisory.
     - Workspace-level diagnostics (e.g. invalid configurations or structural issues) are validated under `validate_fallow_config` as `fallow-workspace-diagnostic`.
 28. **Semantic Vector Code Duplication Governance & Fast-Preset Bypass (`validate_similar_code`)**:
     - Vector embeddings similarity detection (`fallow similar-code`) identifies semantic duplicates across files even with different syntax or function signatures.
@@ -357,7 +357,7 @@ Configured in `.auditor/audit.config.ts`:
 - `domain.finiteDomainTypes`: `['UserId', 'InvoiceId', 'RoleId', 'CustomerId', ...]`
 - `domain.fallbackIdPatterns`: `['userId', 'invoiceId', 'roleId', 'customerId', ...]`
 - `fallow.enabled`: `boolean` (Enables Fallow static intelligence and deep analysis)
-- `fallow.enforceTargets`: `boolean` (When true, promotes refactoring targets to blocking errors)
+- `fallow.enforceTargets`: `boolean` (Default: `true`. Promotes refactoring targets to blocking errors)
 - `fallow.maxTargetPriority`: `'critical' | 'high' | 'all'` (Priority filter threshold for refactoring targets)
 - `fallow.similarCode.enabled`: `boolean` (Enables vector semantic duplication detection in full audit)
 - `fallow.similarCode.threshold`: `number` (Similarity threshold, default `0.95`)

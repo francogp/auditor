@@ -131,7 +131,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         security: {
             enabled: true
         },
-        enforceTargets: false,
+        enforceTargets: true,
         maxTargetPriority: 'critical',
         similarCode: {
             enabled: true,
@@ -447,7 +447,7 @@ function buildFallowConfig(raw, rootSecurity) {
         security: {
             enabled: secEnabled
         },
-        enforceTargets: f.enforceTargets ?? def?.enforceTargets ?? false,
+        enforceTargets: f.enforceTargets ?? def?.enforceTargets ?? true,
         maxTargetPriority: f.maxTargetPriority ?? def?.maxTargetPriority ?? 'critical',
         similarCode: buildFallowSimilarCodeConfig(f.similarCode),
         flags: {
