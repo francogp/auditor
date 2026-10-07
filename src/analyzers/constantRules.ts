@@ -4,6 +4,7 @@
  * Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
  */
 
+import path from 'node:path';
 import {
   getAuditConfig,
   isDataPath,
@@ -71,18 +72,21 @@ export const noLiteralSuffixInConstantName: AuditRule = {
   }
 };
 
-export function isMagicNumberExemptFile(filePath?: string): boolean {
+export function isMagicNumberExemptFile(filePath?: string, projectRoot = process.cwd()): boolean {
   if (!isAuditableCodeFile(filePath)) return true;
   const norm = normalizeFilePath(filePath!);
-  const config = getAuditConfig();
+  const relPath = path.isAbsolute(filePath!)
+    ? path.relative(projectRoot, filePath!).replace(/\\/g, '/')
+    : norm;
+  const config = getAuditConfig(projectRoot);
   const exemptGlobs = config.constants?.exemptGlobs ?? [];
   for (const glob of exemptGlobs) {
-    if (matchesSinglePattern(norm, glob)) {
+    if (matchesSinglePattern(relPath, glob) || matchesSinglePattern(norm, glob)) {
       return true;
     }
   }
   return (
-    isPathIgnored(filePath!) ||
+    isPathIgnored(relPath, [], [], projectRoot) ||
     isDataPath(filePath!) ||
     isDemoPath(filePath!) ||
     isConstantsPath(filePath!) ||

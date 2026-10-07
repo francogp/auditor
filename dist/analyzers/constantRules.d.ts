@@ -9,7 +9,7 @@ export declare const DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES: readonly ["GEN_"
 export declare function isConstantNameExemptFromNumericSuffixCheck(constName: string, config?: import("../index.ts").AuditEngineConfig): boolean;
 export declare const noAliasConstants: AuditRule;
 export declare const noLiteralSuffixInConstantName: AuditRule;
-export declare function isMagicNumberExemptFile(filePath?: string): boolean;
+export declare function isMagicNumberExemptFile(filePath?: string, projectRoot?: string): boolean;
 /** Standard numeric identity values, infinite sentinels and HTTP status codes exempt from magic number audit */
 export declare const EXEMPT_AUDIT_NUMERIC_LITERALS: ReadonlySet<number>;
 export declare const magicNumbers: AuditRule;

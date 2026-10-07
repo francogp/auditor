@@ -129,6 +129,8 @@ export interface SubAuditorReport {
   readonly name: string;
   readonly status: SubAuditorStatus;
   readonly count: number;
+  readonly errorsCount?: number;
+  readonly warningsCount?: number;
   readonly detail?: string;
 }
 

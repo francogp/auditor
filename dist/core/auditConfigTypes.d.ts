@@ -268,6 +268,7 @@ export interface AuditSecretLeaksConfig {
     readonly enabled?: boolean;
     readonly maskSecrets?: boolean;
     readonly allowedPatterns?: readonly string[];
+    readonly exemptGlobs?: readonly string[];
 }
 export declare const NPM_AUDIT_SEVERITY_LEVELS: readonly ["info", "low", "moderate", "high", "critical"];
 export type NpmAuditSeverityLevel = (typeof NPM_AUDIT_SEVERITY_LEVELS)[number];

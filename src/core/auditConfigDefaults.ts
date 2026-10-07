@@ -219,7 +219,8 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   secretLeaks: {
     enabled: true,
     maskSecrets: true,
-    allowedPatterns: []
+    allowedPatterns: [],
+    exemptGlobs: []
   },
   dependencyVulnerabilities: {
     enabled: true,
@@ -686,7 +687,8 @@ export function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeaksConfig>
   return {
     enabled: s.enabled ?? def?.enabled ?? true,
     maskSecrets: s.maskSecrets ?? def?.maskSecrets ?? true,
-    allowedPatterns: s.allowedPatterns ? [...s.allowedPatterns] : (def?.allowedPatterns ?? [])
+    allowedPatterns: s.allowedPatterns ? [...s.allowedPatterns] : (def?.allowedPatterns ?? []),
+    exemptGlobs: s.exemptGlobs ? [...s.exemptGlobs] : (def?.exemptGlobs ?? [])
   };
 }
 

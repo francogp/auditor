@@ -11,7 +11,7 @@
 
 import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
-import { type AuditTaskDefinition } from './auditContract.ts';
+import { type AuditTaskDefinition, type SubAuditorReport } from './auditContract.ts';
 
 export interface TaskStreamProgressParams {
   taskName: string;
@@ -24,6 +24,46 @@ export interface TaskStreamProgressParams {
   isBuiltin?: boolean;
   icon?: string;
   taskIndex?: number;
+  subAuditors?: readonly SubAuditorReport[];
+}
+
+export const STREAM_LINE_SEVERITY_COLORS = ['red', 'yellow', 'dim'] as const;
+export type StreamLineSeverityColor = (typeof STREAM_LINE_SEVERITY_COLORS)[number];
+
+function getColorFromSubAuditor(
+  line: string,
+  subAuditors?: readonly SubAuditorReport[]
+): StreamLineSeverityColor | null {
+  if (!subAuditors) return null;
+  const match = line.match(/\[(\d+)\/(\d+)\]/);
+  if (!match) return null;
+  const stepIdx = parseInt(match[1]!, 10) - 1;
+  const report = subAuditors[stepIdx];
+  if (!report) return null;
+  if ((report.errorsCount ?? 0) > 0 || report.status === 'failed') return 'red';
+  if ((report.warningsCount ?? 0) > 0 || report.status === 'warning') return 'yellow';
+  if (report.count === 0 && report.status === 'passed') return 'dim';
+  return null;
+}
+
+function getColorFromLineHeuristic(line: string, isSuccess: boolean): StreamLineSeverityColor {
+  if (line.includes('🐛') || line.includes('❌') || line.includes('(failed)')) {
+    return isSuccess ? 'yellow' : 'red';
+  }
+  if (line.includes('⚠️') || line.includes('(warning)')) {
+    return 'yellow';
+  }
+  return 'dim';
+}
+
+export function colorizeStreamSubLine(
+  line: string,
+  params: { isSuccess: boolean; hasWarnings?: boolean; subAuditors?: readonly SubAuditorReport[] }
+): string {
+  const color = getColorFromSubAuditor(line, params.subAuditors) ?? getColorFromLineHeuristic(line, params.isSuccess);
+  if (color === 'red') return styleText('red', line);
+  if (color === 'yellow') return styleText('yellow', line);
+  return styleText('dim', line);
 }
 
 export class TaskStreamCoordinator {
@@ -85,7 +125,8 @@ export class TaskStreamCoordinator {
 
     const subIndent = `${this.indent}   `;
     for (const line of params.subLines) {
-      console.log(`${subIndent}${styleText('dim', '│')}  ${styleText('dim', line)}`);
+      const coloredLine = colorizeStreamSubLine(line, params);
+      console.log(`${subIndent}${styleText('dim', '│')}  ${coloredLine}`);
     }
   }
 }

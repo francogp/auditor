@@ -22,6 +22,7 @@ import {
   type ICompositeAuditor,
   type SubAuditorStep,
   type SubAuditorReport,
+  type SubAuditorStatus,
   type AuditorCapabilities,
   type AuditorCoverageDeclaration,
   type GitIgnoreRequirement,
@@ -861,6 +862,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
+  protected readonly errorsByRule: Map<TRuleId, number> = new Map();
+  protected readonly warningsByRule: Map<TRuleId, number> = new Map();
   protected readonly subAuditorReports: SubAuditorReport[] = [];
   protected readonly coverageRecorder: CoverageRecorder;
   protected readonly fixMode: boolean;
@@ -961,6 +964,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     for (const ruleId of this.ruleIds) {
       this.countsByRule.set(ruleId, 0);
+      this.errorsByRule.set(ruleId, 0);
+      this.warningsByRule.set(ruleId, 0);
     }
 
     this.context = this.initExecutionContext(this.coverageRecorder.declaration);
@@ -1108,35 +1113,60 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }));
   }
 
+  private resolveSubAuditorStatus(
+    result: number | 'passed' | 'warning' | 'failed' | string,
+    count: number,
+    errorsCount: number,
+    warningsCount: number
+  ): SubAuditorStatus {
+    if (errorsCount > 0 || result === 'failed') return 'failed';
+    if (count > 0 || warningsCount > 0 || result === 'warning') return 'warning';
+    return 'passed';
+  }
+
+  private formatSubAuditorBadge(result: number | 'passed' | 'warning' | 'failed' | string): string {
+    if (typeof result === 'number') {
+      return result > 0 ? ` (🐛 ${result})` : '';
+    }
+    return result !== 'passed' ? ` (${result})` : '';
+  }
+
   public logSubAudit(
     stepNumber: number,
     totalSteps: number,
     name: string,
     result: number | 'passed' | 'warning' | 'failed' | string,
-    detail?: string
+    detail?: string,
+    counts?: { errors?: number; warnings?: number }
   ): void {
     const count = typeof result === 'number' ? result : 0;
-    let badge = '';
-    if (typeof result === 'number') {
-      if (result > 0) {
-        badge = ` (🐛 ${result})`;
-      }
-    } else if (result !== 'passed') {
-      badge = ` (${result})`;
-    }
+    const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
+    const warningsCount = counts?.warnings ?? 0;
+    const badge = this.formatSubAuditorBadge(result);
     const extra = detail ? (badge ? ` - ${detail}` : ` (${detail})`) : '';
     this.context.logStep(stepNumber, totalSteps, `${name}${badge}${extra}`);
+    const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
     this.subAuditorReports.push({
       id: `${this.id}_step_${stepNumber}`,
       name,
-      status: count > 0 ? 'warning' : 'passed',
+      status,
       count,
+      errorsCount,
+      warningsCount,
       detail
     });
   }
 
   public getCountsByRule(): ReadonlyMap<TRuleId, number> {
     return this.countsByRule;
+  }
+
+  public getErrorsByRule(): ReadonlyMap<TRuleId, number> {
+    return this.errorsByRule;
+  }
+
+  public getWarningsByRule(): ReadonlyMap<TRuleId, number> {
+    return this.warningsByRule;
   }
 
   public formatRuleDescription(ruleId: TRuleId, rawDescription?: string): string {
@@ -1168,6 +1198,13 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     const current = this.countsByRule.get(v.ruleId) ?? 0;
     this.countsByRule.set(v.ruleId, current + 1);
+    if (v.severity === 'error') {
+      const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
+      this.errorsByRule.set(v.ruleId, errCurrent + 1);
+    } else {
+      const warnCurrent = this.warningsByRule.get(v.ruleId) ?? 0;
+      this.warningsByRule.set(v.ruleId, warnCurrent + 1);
+    }
 
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
     const normalizedFile = v.file
@@ -1459,7 +1496,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     for (let i = 0; i < subAuditors.length; i++) {
       const sub = subAuditors[i]!;
       const count = this.countsByRule.get(sub.id as TRuleId) ?? 0;
-      this.logSubAudit(i + 1, totalSteps, sub.name, count);
+      const errorsCount = this.errorsByRule.get(sub.id as TRuleId) ?? 0;
+      const warningsCount = this.warningsByRule.get(sub.id as TRuleId) ?? 0;
+      this.logSubAudit(i + 1, totalSteps, sub.name, count, undefined, { errors: errorsCount, warnings: warningsCount });
     }
   }
 

@@ -66,15 +66,22 @@ function getRootMarkdownFiles(root) {
         return [];
     }
 }
+function extractTopLevelRoots(dirs) {
+    return dirs.map(d => d.replace(/\\/g, '/').split('/')[0]).filter(Boolean);
+}
 function resolveConfiguredPathCandidates(paths) {
     if (!paths)
         return ['src', 'tests', 'scripts'];
-    return [
+    const declared = [
         ...(paths.srcRoots ?? ['src']),
         ...(paths.testRoots ?? ['tests']),
         ...(paths.e2eRoots ?? []),
         ...(paths.integrationRoots ?? []),
         ...(paths.scriptsRoots ?? ['scripts'])
+    ];
+    return [
+        ...declared,
+        ...extractTopLevelRoots(declared)
     ];
 }
 function resolveAdditionalDomainCandidates(paths) {

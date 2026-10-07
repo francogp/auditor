@@ -10,6 +10,42 @@
  */
 import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
+export const STREAM_LINE_SEVERITY_COLORS = ['red', 'yellow', 'dim'];
+function getColorFromSubAuditor(line, subAuditors) {
+    if (!subAuditors)
+        return null;
+    const match = line.match(/\[(\d+)\/(\d+)\]/);
+    if (!match)
+        return null;
+    const stepIdx = parseInt(match[1], 10) - 1;
+    const report = subAuditors[stepIdx];
+    if (!report)
+        return null;
+    if ((report.errorsCount ?? 0) > 0 || report.status === 'failed')
+        return 'red';
+    if ((report.warningsCount ?? 0) > 0 || report.status === 'warning')
+        return 'yellow';
+    if (report.count === 0 && report.status === 'passed')
+        return 'dim';
+    return null;
+}
+function getColorFromLineHeuristic(line, isSuccess) {
+    if (line.includes('🐛') || line.includes('❌') || line.includes('(failed)')) {
+        return isSuccess ? 'yellow' : 'red';
+    }
+    if (line.includes('⚠️') || line.includes('(warning)')) {
+        return 'yellow';
+    }
+    return 'dim';
+}
+export function colorizeStreamSubLine(line, params) {
+    const color = getColorFromSubAuditor(line, params.subAuditors) ?? getColorFromLineHeuristic(line, params.isSuccess);
+    if (color === 'red')
+        return styleText('red', line);
+    if (color === 'yellow')
+        return styleText('yellow', line);
+    return styleText('dim', line);
+}
 export class TaskStreamCoordinator {
     completedCount = 0;
     nextPrintIndex = 0;
@@ -59,7 +95,8 @@ export class TaskStreamCoordinator {
         console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
         const subIndent = `${this.indent}   `;
         for (const line of params.subLines) {
-            console.log(`${subIndent}${styleText('dim', '│')}  ${styleText('dim', line)}`);
+            const coloredLine = colorizeStreamSubLine(line, params);
+            console.log(`${subIndent}${styleText('dim', '│')}  ${coloredLine}`);
         }
     }
 }

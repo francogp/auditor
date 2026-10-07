@@ -749,7 +749,8 @@ async function executeSingleAuditTask(task, ctx, taskIndex) {
         isSkipped,
         isBuiltin: task.isBuiltin !== false,
         icon: result.icon ?? task.icon,
-        taskIndex
+        taskIndex,
+        subAuditors: result.subAuditors
     });
     return result;
 }

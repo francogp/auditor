@@ -153,6 +153,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly defaultConfig: Readonly<Record<string, unknown>>;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
+    protected readonly errorsByRule: Map<TRuleId, number>;
+    protected readonly warningsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
     protected readonly coverageRecorder: CoverageRecorder;
     protected readonly fixMode: boolean;
@@ -209,8 +211,15 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     getCoverageRecorder(): CoverageRecorder;
     private persistCoverageLedger;
     getSubAuditors(): readonly SubAuditorStep[];
-    logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string): void;
+    private resolveSubAuditorStatus;
+    private formatSubAuditorBadge;
+    logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string, counts?: {
+        errors?: number;
+        warnings?: number;
+    }): void;
     getCountsByRule(): ReadonlyMap<TRuleId, number>;
+    getErrorsByRule(): ReadonlyMap<TRuleId, number>;
+    getWarningsByRule(): ReadonlyMap<TRuleId, number>;
     formatRuleDescription(ruleId: TRuleId, rawDescription?: string): string;
     getRuleLabel(ruleId: string): string;
     getFilesScanned(): number;

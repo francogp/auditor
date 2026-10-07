@@ -8,7 +8,7 @@
  *   3. Strict timeout enforcement with SIGKILL escalation.
  *   4. Clean structured output resolution for orchestrators.
  */
-import { type AuditTaskDefinition } from './auditContract.ts';
+import { type AuditTaskDefinition, type SubAuditorReport } from './auditContract.ts';
 export interface TaskStreamProgressParams {
     taskName: string;
     taskId: string;
@@ -20,7 +20,15 @@ export interface TaskStreamProgressParams {
     isBuiltin?: boolean;
     icon?: string;
     taskIndex?: number;
+    subAuditors?: readonly SubAuditorReport[];
 }
+export declare const STREAM_LINE_SEVERITY_COLORS: readonly ["red", "yellow", "dim"];
+export type StreamLineSeverityColor = (typeof STREAM_LINE_SEVERITY_COLORS)[number];
+export declare function colorizeStreamSubLine(line: string, params: {
+    isSuccess: boolean;
+    hasWarnings?: boolean;
+    subAuditors?: readonly SubAuditorReport[];
+}): string;
 export declare class TaskStreamCoordinator {
     private completedCount;
     private nextPrintIndex;

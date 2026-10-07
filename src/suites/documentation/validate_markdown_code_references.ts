@@ -84,14 +84,22 @@ function getRootMarkdownFiles(root: string): string[] {
   }
 }
 
+function extractTopLevelRoots(dirs: readonly string[]): string[] {
+  return dirs.map(d => d.replace(/\\/g, '/').split('/')[0]!).filter(Boolean);
+}
+
 function resolveConfiguredPathCandidates(paths?: AuditEngineConfig['paths']): string[] {
   if (!paths) return ['src', 'tests', 'scripts'];
-  return [
+  const declared = [
     ...(paths.srcRoots ?? ['src']),
     ...(paths.testRoots ?? ['tests']),
     ...(paths.e2eRoots ?? []),
     ...(paths.integrationRoots ?? []),
     ...(paths.scriptsRoots ?? ['scripts'])
+  ];
+  return [
+    ...declared,
+    ...extractTopLevelRoots(declared)
   ];
 }
 

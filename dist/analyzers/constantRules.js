@@ -3,6 +3,7 @@
  *
  * Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
  */
+import path from 'node:path';
 import { getAuditConfig, isDataPath, isDemoPath, isConstantsPath, isInCodeRoots, isExemptFile } from "../core/auditConfig.js";
 import { isPathIgnored, matchesSinglePattern } from "../core/auditorBase.js";
 import { getLineAtMatch, isCommentLine, isTestOrNodeModules, normalizeFilePath } from "./auditRuleTypes.js";
@@ -59,18 +60,21 @@ export const noLiteralSuffixInConstantName = {
         return !isConstantNameExemptFromNumericSuffixCheck(constName);
     }
 };
-export function isMagicNumberExemptFile(filePath) {
+export function isMagicNumberExemptFile(filePath, projectRoot = process.cwd()) {
     if (!isAuditableCodeFile(filePath))
         return true;
     const norm = normalizeFilePath(filePath);
-    const config = getAuditConfig();
+    const relPath = path.isAbsolute(filePath)
+        ? path.relative(projectRoot, filePath).replace(/\\/g, '/')
+        : norm;
+    const config = getAuditConfig(projectRoot);
     const exemptGlobs = config.constants?.exemptGlobs ?? [];
     for (const glob of exemptGlobs) {
-        if (matchesSinglePattern(norm, glob)) {
+        if (matchesSinglePattern(relPath, glob) || matchesSinglePattern(norm, glob)) {
             return true;
         }
     }
-    return (isPathIgnored(filePath) ||
+    return (isPathIgnored(relPath, [], [], projectRoot) ||
         isDataPath(filePath) ||
         isDemoPath(filePath) ||
         isConstantsPath(filePath) ||

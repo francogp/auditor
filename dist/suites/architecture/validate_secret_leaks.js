@@ -13,7 +13,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { lintSource } from '@secretlint/core';
 import { rules as presetRules } from '@secretlint/secretlint-rule-preset-recommend';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, matchesSinglePattern } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const SECRET_LEAKS_RULES = [
@@ -93,6 +93,12 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
     }
     async scanFile(relPath, content) {
         const config = getAuditConfig(this.projectRoot);
+        const exemptGlobs = config.secretLeaks?.exemptGlobs ?? [];
+        for (const glob of exemptGlobs) {
+            if (matchesSinglePattern(relPath, glob)) {
+                return;
+            }
+        }
         const maskSecrets = config.secretLeaks?.maskSecrets ?? true;
         const ext = path.extname(relPath) || '.txt';
         try {

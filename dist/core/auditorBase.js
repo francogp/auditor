@@ -631,6 +631,8 @@ export class BaseAuditor {
     defaultConfig;
     context;
     countsByRule = new Map();
+    errorsByRule = new Map();
+    warningsByRule = new Map();
     subAuditorReports = [];
     coverageRecorder;
     fixMode;
@@ -719,6 +721,8 @@ export class BaseAuditor {
         validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
         for (const ruleId of this.ruleIds) {
             this.countsByRule.set(ruleId, 0);
+            this.errorsByRule.set(ruleId, 0);
+            this.warningsByRule.set(ruleId, 0);
         }
         this.context = this.initExecutionContext(this.coverageRecorder.declaration);
     }
@@ -839,29 +843,45 @@ export class BaseAuditor {
             description: this.ruleDescriptions?.[ruleId]
         }));
     }
-    logSubAudit(stepNumber, totalSteps, name, result, detail) {
-        const count = typeof result === 'number' ? result : 0;
-        let badge = '';
+    resolveSubAuditorStatus(result, count, errorsCount, warningsCount) {
+        if (errorsCount > 0 || result === 'failed')
+            return 'failed';
+        if (count > 0 || warningsCount > 0 || result === 'warning')
+            return 'warning';
+        return 'passed';
+    }
+    formatSubAuditorBadge(result) {
         if (typeof result === 'number') {
-            if (result > 0) {
-                badge = ` (🐛 ${result})`;
-            }
+            return result > 0 ? ` (🐛 ${result})` : '';
         }
-        else if (result !== 'passed') {
-            badge = ` (${result})`;
-        }
+        return result !== 'passed' ? ` (${result})` : '';
+    }
+    logSubAudit(stepNumber, totalSteps, name, result, detail, counts) {
+        const count = typeof result === 'number' ? result : 0;
+        const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
+        const warningsCount = counts?.warnings ?? 0;
+        const badge = this.formatSubAuditorBadge(result);
         const extra = detail ? (badge ? ` - ${detail}` : ` (${detail})`) : '';
         this.context.logStep(stepNumber, totalSteps, `${name}${badge}${extra}`);
+        const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
         this.subAuditorReports.push({
             id: `${this.id}_step_${stepNumber}`,
             name,
-            status: count > 0 ? 'warning' : 'passed',
+            status,
             count,
+            errorsCount,
+            warningsCount,
             detail
         });
     }
     getCountsByRule() {
         return this.countsByRule;
+    }
+    getErrorsByRule() {
+        return this.errorsByRule;
+    }
+    getWarningsByRule() {
+        return this.warningsByRule;
     }
     formatRuleDescription(ruleId, rawDescription) {
         const raw = rawDescription || this.ruleDescriptions?.[ruleId] || ruleId;
@@ -885,6 +905,14 @@ export class BaseAuditor {
         }
         const current = this.countsByRule.get(v.ruleId) ?? 0;
         this.countsByRule.set(v.ruleId, current + 1);
+        if (v.severity === 'error') {
+            const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
+            this.errorsByRule.set(v.ruleId, errCurrent + 1);
+        }
+        else {
+            const warnCurrent = this.warningsByRule.get(v.ruleId) ?? 0;
+            this.warningsByRule.set(v.ruleId, warnCurrent + 1);
+        }
         const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
         const normalizedFile = v.file
             ? (path.isAbsolute(v.file)
@@ -1133,7 +1161,9 @@ export class BaseAuditor {
         for (let i = 0; i < subAuditors.length; i++) {
             const sub = subAuditors[i];
             const count = this.countsByRule.get(sub.id) ?? 0;
-            this.logSubAudit(i + 1, totalSteps, sub.name, count);
+            const errorsCount = this.errorsByRule.get(sub.id) ?? 0;
+            const warningsCount = this.warningsByRule.get(sub.id) ?? 0;
+            this.logSubAudit(i + 1, totalSteps, sub.name, count, undefined, { errors: errorsCount, warnings: warningsCount });
         }
     }
     importAuditFindings(findings, fallbackRuleId, fallbackContext = this.id) {

@@ -177,5 +177,37 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('omits files matching exemptGlobs even if they contain mock credentials', async () => {
+      const testsDir = path.join(tempDir, 'tests');
+      fs.mkdirSync(testsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(testsDir, 'mock_e2e.test.ts'),
+        'const fakeDbUri = ' + "'postgres" + "ql://fake_user:fake_pass@127.0.0.1:59999/fake_db';\n"
+      );
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Exempt Test Project',
+          secretLeaks: {
+            enabled: true,
+            exemptGlobs: ['tests/**']
+          },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateSecretLeaksAuditor({
+        projectRoot: tempDir,
+        roots: ['tests']
+      });
+
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 });

@@ -14,7 +14,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { lintSource, type SecretLintSourceOptions } from '@secretlint/core';
 import { rules as presetRules } from '@secretlint/secretlint-rule-preset-recommend';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, matchesSinglePattern } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 
@@ -116,8 +116,14 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
   }
 
   protected override async scanFile(relPath: string, content: string): Promise<void> {
-
     const config = getAuditConfig(this.projectRoot);
+    const exemptGlobs = config.secretLeaks?.exemptGlobs ?? [];
+    for (const glob of exemptGlobs) {
+      if (matchesSinglePattern(relPath, glob)) {
+        return;
+      }
+    }
+
     const maskSecrets = config.secretLeaks?.maskSecrets ?? true;
     const ext = path.extname(relPath) || '.txt';
 
