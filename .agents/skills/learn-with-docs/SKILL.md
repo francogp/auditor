@@ -67,10 +67,12 @@ Whenever a new pattern, rule, or architectural shift is captured, the agent MUST
 
 ## 4. Language & Integrity Constraints
 
-- **Auditor Configuration Language Governance (`config.documentation.language`)**:
-  - The language used for documentation, DOX indices, and the writing of `learning_proposal.md` depends directly on the project's auditor configuration (`config.documentation.language` in `.auditor/audit.config.ts`, e.g. `'es'`, `'en'`).
-  - **Default to English on Doubt**: Whenever in doubt, or if `config.documentation.language` is omitted or unconfigured, the DEFAULT is STRICTLY AND UNCONDITIONALLY English (`'en'`).
-  - **Zero Language Mixing**: Within each file, DOX index, or proposed section, the chosen language must be strictly maintained without mixed-language paragraphs. Direct interactive chat communication with the user remains in the user's preferred language (Spanish).
+- **Dynamic Auditor Configuration Language Governance (Zero Hardcoding)**:
+  - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
+    - **Documentation & File Writing Language (`config.documentation.language`)**: Governs all documentation, DOX indices (`AGENTS.md`), and the writing of `learning_proposal.md`. If omitted or unconfigured, it defaults strictly to English (`'en'`).
+    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, and `ask_question` dialogs with the human programmer. If omitted or unconfigured, it defaults strictly to Spanish (`'es'`).
+  - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
+  - **Zero Language Mixing**: Within each file, DOX index, or proposed section, the chosen file language must be strictly maintained without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 - **Relative Paths**: Always use relative paths when linking files and DOX indices (e.g., `[dox-navigator](../dox-navigator/SKILL.md)`). Refer to [dox-navigator](../dox-navigator/SKILL.md) for examples of linking within the DOX framework.
 
 ---

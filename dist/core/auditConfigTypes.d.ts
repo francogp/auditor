@@ -174,6 +174,7 @@ export interface AuditDocumentationConfig {
     readonly skillsRoots?: readonly string[];
     readonly allowedNpxBinaries?: readonly string[];
     readonly language?: DocumentationLanguage;
+    readonly chatLanguage?: DocumentationLanguage;
     readonly languageExemptions?: readonly string[];
 }
 export interface AuditPiniaConfig {

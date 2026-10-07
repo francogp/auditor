@@ -185,6 +185,7 @@ export default defineAuditConfig({
 
   documentation: {
     language: 'en', // Primary documentation language ('en' | 'es', defaults to 'en'). Enforces English across documentation, skills, and templates
+    chatLanguage: 'es', // AI assistant conversational chat language ('en' | 'es', defaults to 'es'). Governs interactive dialogues with the human programmer
     knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'], // Abstract paths recognized as valid in Markdown code references
     languageExemptions: [] // Paths or globs exempt from natural language detection (e.g. ['docs/es/**'])
   },

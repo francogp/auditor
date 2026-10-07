@@ -318,6 +318,15 @@ Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomo
 - **Testing & QA Automation**: `playwright-cli`, `tdd`, `testing-patterns`, `vitest`.
 - **DevOps, Design, Discovery & Meta-Agent Skills**: `brainstorming`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
 
+### 8.3. Dynamic Dual-Language Governance (Zero Hardcoding)
+
+`@francogp/auditor` enforces a strict architectural separation between **chat conversation** and **codebase artifacts**:
+
+- `config.documentation.chatLanguage`: Governs interactive conversational chat, user interviews, options matrices, and completion reports with the human developer (defaults to `'es'`).
+- `config.documentation.language`: Governs documentation, code comments, commit messages, and repository artifacts (defaults to `'en'`).
+
+All agent skills dynamically consult `.auditor/audit.config.ts` without hardcoding language strings or assuming fixed locales.
+
 ---
 
 ## 9. Authoring Custom Sub-Auditors
@@ -428,6 +437,12 @@ export default defineAuditConfig({
   },
   constants: {
     exemptGlobs: ['scripts/maintenance/**', 'src/data/seed/**']
+  },
+  documentation: {
+    language: 'en', // Primary documentation and file writing language ('en' | 'es', defaults to 'en')
+    chatLanguage: 'es', // AI assistant conversational chat language ('en' | 'es', defaults to 'es')
+    knownValidAbstractPaths: ['@docs/architecture.md'],
+    languageExemptions: []
   },
   coverage: {
     enabled: true,

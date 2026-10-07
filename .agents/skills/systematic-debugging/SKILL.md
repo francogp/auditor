@@ -111,7 +111,7 @@ Before modifying `src/` or `database/`, evaluate the invocation context:
      - Breaking changes to public store actions, DTOs, or engine APIs.
      - Contradictions or relaxations of rules in `AGENTS.md` or `references/rules/`.
      - Non-trivial architectural trade-offs between two or more valid designs.
-   - The agent MUST halt, formulate a structured options matrix in Spanish with pros, cons, and architectural impact, and await user approval.
+   - The agent MUST halt, consult `.auditor/audit.config.ts` to determine `config.documentation.chatLanguage` (defaulting strictly to `'es'` if unconfigured), formulate a structured options matrix in the resolved chat language with pros, cons, and architectural impact, and await user approval. The agent must never hardcode the consultation language, while code, tests, and documentation adhere to `config.documentation.language` (defaulting to `'en'`).
 2. **Automatic Mode (Invoked Autonomously via Subagent, CI, or Simulation Self-Healing)**:
    - Proceed autonomously choosing the most minimalist Ponytail solution.
    - Log all decisions into the final execution ledger under `## Critical Decisions`.

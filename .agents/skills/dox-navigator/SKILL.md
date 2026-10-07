@@ -24,8 +24,12 @@ Consult this skill whenever you need to:
 
 ## 2. Language & Path Integrity (CRITICAL)
 
-- **Language Uniformity**: All DOX indices, `AGENTS.md` files, and `.agents/` configuration files MUST be written in English or the native language of the file.
-- **Zero Language Mixing**: It is strictly forbidden to mix languages within a single file. Since `AGENTS.md` and skill files are in English, any changes, additions, or proposed rules to them MUST be written in English.
+- **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)**:
+  - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
+    - **Documentation & File Writing Language (`config.documentation.language`)**: All DOX indices, `AGENTS.md` files, and `.agents/` configuration files MUST be written in the configured language (strictly defaulting to English `'en'` if unconfigured).
+    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Interactive chat searches, context explanations, and developer dialogues in the chat interface MUST strictly use the resolved chat language (strictly defaulting to Spanish `'es'` if unconfigured).
+  - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
+- **Zero Language Mixing**: It is strictly forbidden to mix languages within a single file. Within each DOX index or documentation file, the chosen language must be maintained consistently without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 - **Relative Paths Mandate**: All links to other files and indices in all `AGENTS.md` files MUST use relative paths (e.g. `./database/AGENTS.md` or `../database/AGENTS.md`). Absolute paths (e.g., `file:///C:/...` or `/home/...`) are strictly forbidden to ensure portability across different development environments.
 - **Gitignored Paths in DOX Indices**: Directories or files excluded via `.gitignore` that represent a real domain boundary MUST still be referenced in their parent's `Child DOX Index` with the suffix `_(gitignored — reason)_`. The audit engine skips existence checks for gitignored paths automatically.
 

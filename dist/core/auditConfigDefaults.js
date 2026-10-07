@@ -113,6 +113,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         skillsRoots: [],
         allowedNpxBinaries: [],
         language: 'en',
+        chatLanguage: 'es',
         languageExemptions: []
     },
     fallow: {
@@ -391,6 +392,7 @@ function buildDocumentationSubConfig(d) {
         skillsRoots: d?.skillsRoots ?? [],
         allowedNpxBinaries: d?.allowedNpxBinaries ?? [],
         language: d?.language ?? 'en',
+        chatLanguage: d?.chatLanguage ?? 'es',
         languageExemptions: d?.languageExemptions ?? []
     };
 }

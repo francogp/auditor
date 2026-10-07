@@ -347,12 +347,15 @@ graph TD
 63. **Auto-Fix First Protocol & Script Sync Gate**:
     - **Auto-Fix First**: When an audit completes with fixable errors/warnings, `audit_full` renders an emphatic Box-Drawing banner urging `npm run audit:fix` (or `auditor fix`). Agents and developers MUST run auto-fix first to resolve mechanical defects before attempting manual refactoring, and are strictly prohibited from muting or silencing rules in panic.
     - **Script Sync First**: If a recommended auditor script (`audit:by-file`, `audit:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run audit:fix` (or `node --experimental-strip-types ...`) to synchronize scripts from `recommended_package_scripts_template.json` before attempting manual ad-hoc executions.
-64. **Universal English Documentation Default Mandate & Language Governance (`validate_documentation_language`)**:
-    - Across `@francogp/auditor` and all consumer projects, if `config.documentation?.language` is not explicitly declared, it unconditionally defaults to English (`'en'`). No hesitation or omission is permitted; English is enforced by default everywhere.
-    - Natural language across repository markdown, documentation, manuals, blueprints, and AI skills under `.agents/skills/**` is governed strictly by `config.documentation.language` (strictly defaulting to `'en'`, with optional `'es'`).
+64. **Universal Configuration-Driven Language Resolution Mandate (Zero Hardcoding) & Language Governance (`validate_documentation_language`, `validate_agents_config_mandate`)**:
+    - Across `@francogp/auditor` and all consumer projects, all AI agents, skills, and CLI tools MUST resolve language dynamically from `.auditor/audit.config.ts` without hardcoding:
+      - `config.documentation.language`: Strictly defaults to English (`'en'`) if omitted. Governs repository documentation, markdown files, DOX indices (`AGENTS.md`), code comments, commit messages, release notes, and codebase artifacts. Enforced by `validate_documentation_language`.
+      - `config.documentation.chatLanguage`: Strictly defaults to Spanish (`'es'`) if omitted. Governs all interactive conversational chat communication, user interviews, options matrices, and `ask_question` dialogs in the chat interface. Enforced and auto-injected into root `AGENTS.md` by `validate_agents_config_mandate` under rule `agents-missing-chat-language-mandate`.
+    - Natural language across repository markdown, documentation, manuals, blueprints, and AI skills under `.agents/skills/**` is governed strictly by `config.documentation.language` (defaulting to `'en'`).
     - The engine extracts human prose while strictly stripping technical code blocks (` ```...``` `), inline code (`...`), markdown links/URLs, and YAML frontmatter (`---...---`) to avoid false positives on programming syntax.
     - Any detected violation (e.g. Spanish text in an English codebase) is reported with `severity: 'error'`.
     - Language exemptions for specific paths or multilingual docs can be declared via `config.documentation.languageExemptions`.
+    - AI agents must never confuse or conflate the chat language with the file writing language.
 65. **Declarative Configuration File Requirements & Unified Auto-Fix Contract (`AuditorConfigFileRequirement`, `ConfigFileRegistry`)**:
     - Sub-auditors (built-in suites and user extensions alike) that depend on external or tool configuration files (such as `eslint.config.js`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`) MUST NOT implement ad-hoc custom file generation scripts or siloed fixers.
     - Each sub-auditor declares its required configuration files declaratively via `AuditorOptions.configFiles?: readonly AuditorConfigFileRequirement[]` (and class-level `public static readonly configFiles` or extension options `defineAuditorExtension({ configFiles: [...] })`).
@@ -428,6 +431,7 @@ Configured in `.auditor/audit.config.ts`:
 - `constants.allowedNumericPrefixes`: `['GEN_', 'ISO_', 'BASE_']` (Prefixes allowed for numeric constants)
 - `constants.exemptMagicNumbers`: `[21, 10.5, 27]` (Numeric literals exempt from magic numbers check)
 - `documentation.language`: `'en' | 'es'` (Default: `'en'`. Primary language enforced across repository docs, skills, and templates)
+- `documentation.chatLanguage`: `'en' | 'es'` (Default: `'es'`. Conversational chat communication language with the human developer in the chat interface)
 - `documentation.languageExemptions`: `['docs/es/**', 'CHANGELOG.md']` (Paths exempt from language detection)
 - `documentation.knownValidAbstractPaths`: `['@docs/architecture/fiscal-engine.md']` (Abstract valid docs paths)
 - `pinia.authorizedMutationFiles`: `['src/logic/coordinators/sessionCoordinator.ts']` (Authorized store mutation files)

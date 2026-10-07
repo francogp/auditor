@@ -24,12 +24,14 @@ import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
 export type AgentsConfigMandateRuleId =
   | 'agents-missing-config-mandate'
   | 'agents-missing-backward-compat-mandate'
-  | 'agents-missing-fake-pass-mandate';
+  | 'agents-missing-fake-pass-mandate'
+  | 'agents-missing-chat-language-mandate';
 
 export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] = [
   'agents-missing-config-mandate',
   'agents-missing-backward-compat-mandate',
-  'agents-missing-fake-pass-mandate'
+  'agents-missing-fake-pass-mandate',
+  'agents-missing-chat-language-mandate'
 ] as const;
 
 export const CANONICAL_MANDATE_SNIPPET_EN =
@@ -50,6 +52,18 @@ export const CANONICAL_FAKE_PASS_SNIPPET_EN =
 export const CANONICAL_FAKE_PASS_SNIPPET_ES =
   '- **Prohibición Absoluta de Suprimir, Silenciar, Anular o Eludir Reglas de Auditoría y Mandato de Cero Tolerancia a Pases Falsos**: Al auditar un repositorio o ejecutar linters/auditores, los agentes de IA y desarrolladores tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO suprimir, silenciar, desactivar o anular reglas del auditor, de stylelint, de ESLint o cualquier verificación estática (ej. configurando `"rule": null`, `"rule": "off"`, `"rule": 0`, creando configuraciones de anulación ficticias que neutralicen chequeos, o pasando flags arbitrarios de omisión) para que una auditoría pase u ocultar hallazgos. Si la cantidad de errores o advertencias es masiva (incluso miles de errores), SON DEFECTOS REALES DE ARQUITECTURA O HIGIENE QUE DEBEN RESOLVERSE LEGÍTIMAMENTE EN EL CÓDIGO FUENTE O REPARARSE CON HERRAMIENTAS CANÓNICAS (`auditor fix`). Modernizar configuraciones significa elevar el código para cumplir con estándares modernos estrictos y exponer defectos previamente ocultos, NUNCA degradar, diluir o castrar las reglas del auditor para adaptarlas a código legado. Silenciar reglas para lograr un pase limpio falso se considera una violación arquitectónica crítica y una falta grave.';
 
+export const CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES =
+  "- **AI Agent Chat Communication & Interactive Language Mandate**: The AI assistant / agent MUST strictly consult `.auditor/audit.config.ts` and communicate, converse, respond, and chat with the user in Spanish (`'es'`). This conversational chat language is explicitly separate and distinct from the repository file writing and documentation language (`config.documentation.language`), which strictly governs code comments, commit messages, documentation, markdown files, and codebase artifacts. The AI agent must dynamically consult these configurations and never confuse or conflate the chat language with the file writing language.";
+
+export const CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN =
+  "- **AI Agent Chat Communication & Interactive Language Mandate**: The AI assistant / agent MUST strictly consult `.auditor/audit.config.ts` and communicate, converse, respond, and chat with the user in English (`'en'`). This conversational chat language is explicitly aligned with the repository file writing and documentation language (`config.documentation.language`), which strictly governs code comments, commit messages, documentation, markdown files, and codebase artifacts. The AI agent must dynamically consult these configurations and never confuse conversational chat directives with file writing rules.";
+
+export const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES =
+  "- **Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA**: El asistente / agente de IA DEBE consultar `.auditor/audit.config.ts` y comunicarse, conversar, responder e interactuar en el chat con el usuario estricta y exclusivamente en español (`'es'`). Este idioma conversacional del chat está explícitamente diferenciado y separado del idioma de escritura de archivos y documentación del repositorio (`config.documentation.language`), el cual rige estrictamente el código, comentarios, mensajes de commit, documentación y archivos markdown. El agente de IA debe consultar dinámicamente estas configuraciones y jamás confundir el idioma del chat con el idioma de escritura en archivos.";
+
+export const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN =
+  "- **Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA**: El asistente / agente de IA DEBE consultar `.auditor/audit.config.ts` y comunicarse, conversar, responder e interactuar en el chat con el usuario estricta y exclusivamente en inglés (`'en'`). Este idioma conversacional del chat está explícitamente diferenciado del idioma de escritura de archivos y documentación del repositorio (`config.documentation.language`), el cual rige estrictamente el código, comentarios, mensajes de commit, documentación y archivos markdown. El agente de IA debe consultar dinámicamente estas configuraciones y jamás confundir el idioma del chat con el idioma de escritura en archivos.";
+
 const CANONICAL_SNIPPET_REGISTRY = {
   config: { en: CANONICAL_MANDATE_SNIPPET_EN, es: CANONICAL_MANDATE_SNIPPET_ES },
   backwardCompat: { en: CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, es: CANONICAL_BACKWARD_COMPAT_SNIPPET_ES },
@@ -66,6 +80,20 @@ export function getCanonicalBackwardCompatSnippet(language: DocumentationLanguag
 
 export function getCanonicalFakePassSnippet(language: DocumentationLanguage = 'en'): string {
   return CANONICAL_SNIPPET_REGISTRY.fakePass[language] ?? CANONICAL_SNIPPET_REGISTRY.fakePass.en;
+}
+
+export function getCanonicalChatLanguageSnippet(
+  docLanguage: DocumentationLanguage = 'en',
+  chatLanguage: DocumentationLanguage = 'es'
+): string {
+  if (docLanguage === 'es') {
+    return chatLanguage === 'en'
+      ? CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN
+      : CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES;
+  }
+  return chatLanguage === 'en'
+    ? CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN
+    : CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES;
 }
 
 /**
@@ -144,10 +172,39 @@ export function containsFakePassMandate(text: string, expectedLanguage?: Documen
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
 
+/**
+ * Checks if a block of markdown text contains the AI agent chat communication language mandate.
+ */
+export function containsChatLanguageMandate(
+  text: string,
+  docLanguage?: DocumentationLanguage,
+  chatLanguage: DocumentationLanguage = 'es'
+): boolean {
+  const hasSubject = /chat|convers|comunic|interact|hablar|responder/i.test(text);
+  if (!hasSubject) return false;
+
+  const hasMandate = /must|shall|debe|mandate|mandato|obligatori/i.test(text);
+  if (!hasMandate) return false;
+
+  const hasChatLangTarget =
+    chatLanguage === 'es'
+      ? /spanish|español|'es'|"es"/i.test(text)
+      : /english|inglés|ingles|'en'|"en"/i.test(text);
+  if (!hasChatLangTarget) return false;
+
+  const hasDistinctionFromFiles =
+    /file|writing|code|documentation|documentación|escritura|archivo|separate|distinto|diferenciad/i.test(text);
+  if (!hasDistinctionFromFiles) return false;
+
+  const enMarkers = /(?:AI Agent Chat Communication|communicate|converse|chat language|file writing language)/i;
+  const esMarkers = /(?:Mandato de Idioma de Comunicación en el Chat|comunicarse|conversar|idioma del chat|idioma de escritura)/i;
+  return matchesMandateLanguage(text, docLanguage, enMarkers, esMarkers);
+}
+
 interface MandateDefinition {
   ruleId: AgentsConfigMandateRuleId;
-  check: (text: string, lang: DocumentationLanguage) => boolean;
-  getSnippet: (lang: DocumentationLanguage) => string;
+  check: (text: string, docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => boolean;
+  getSnippet: (docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => string;
   isExistingLine: (line: string) => boolean;
   errorMessageEn: string;
   errorMessageEs: string;
@@ -156,8 +213,8 @@ interface MandateDefinition {
 const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
   {
     ruleId: 'agents-missing-config-mandate',
-    check: containsConfigAntiTamperingMandate,
-    getSnippet: getCanonicalMandateSnippet,
+    check: (text, docLang) => containsConfigAntiTamperingMandate(text, docLang),
+    getSnippet: docLang => getCanonicalMandateSnippet(docLang),
     isExistingLine: l =>
       l.includes('Modifying or Disabling Configurations') ||
       l.includes('Modificar o Desactivar Configuraciones') ||
@@ -169,8 +226,8 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
   },
   {
     ruleId: 'agents-missing-backward-compat-mandate',
-    check: containsBackwardCompatMandate,
-    getSnippet: getCanonicalBackwardCompatSnippet,
+    check: (text, docLang) => containsBackwardCompatMandate(text, docLang),
+    getSnippet: docLang => getCanonicalBackwardCompatSnippet(docLang),
     isExistingLine: l =>
       l.includes('Backward-Compatible') ||
       l.includes('Retrocompatible') ||
@@ -183,8 +240,8 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
   },
   {
     ruleId: 'agents-missing-fake-pass-mandate',
-    check: containsFakePassMandate,
-    getSnippet: getCanonicalFakePassSnippet,
+    check: (text, docLang) => containsFakePassMandate(text, docLang),
+    getSnippet: docLang => getCanonicalFakePassSnippet(docLang),
     isExistingLine: l =>
       l.includes('Zero-Tolerance Fake Pass') ||
       l.includes('Cero Tolerancia a Pases Falsos') ||
@@ -200,17 +257,34 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
       'Root AGENTS.md must include the mandatory clause prohibiting suppressing or silencing rules for fake clean passes.',
     errorMessageEs:
       'AGENTS.md raíz debe incluir obligatoriamente el mandato de prohibición de suprimir reglas para lograr pases limpios falsos.'
+  },
+  {
+    ruleId: 'agents-missing-chat-language-mandate',
+    check: (text, docLang, chatLang) => containsChatLanguageMandate(text, docLang, chatLang),
+    getSnippet: (docLang, chatLang) => getCanonicalChatLanguageSnippet(docLang, chatLang),
+    isExistingLine: l =>
+      l.includes('AI Agent Chat Communication') ||
+      l.includes('Mandato de Idioma de Comunicación en el Chat') ||
+      l.includes('Chat Communication Language Mandate') ||
+      /(?:chat|conversational)\s+language\s+mandate/i.test(l) ||
+      /mandato\s+de\s+idioma\s+de(?:l|\s+la)?\s+chat/i.test(l),
+    errorMessageEn:
+      'Root AGENTS.md must include the mandatory clause defining the AI agent chat communication language distinct from file writing language.',
+    errorMessageEs:
+      'AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma de comunicación en el chat de la IA diferenciado de la escritura de archivos.'
   }
 ];
 
 export interface AgentsConfigMandateOptions {
   fix?: boolean;
   language?: DocumentationLanguage;
+  chatLanguage?: DocumentationLanguage;
 }
 
 export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateRuleId> {
   private readonly rootDir: string;
   private readonly languageOption?: DocumentationLanguage;
+  private readonly chatLanguageOption?: DocumentationLanguage;
 
   constructor(rootDir?: string, options?: AgentsConfigMandateOptions) {
     const projectRoot = rootDir || process.cwd();
@@ -229,7 +303,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       ruleDescriptions: {
         'agents-missing-config-mandate': 'Falta mandato de no alterar config',
         'agents-missing-backward-compat-mandate': 'Falta mandato no retrocompatible',
-        'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso'
+        'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso',
+        'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat'
       },
       coverage: {
         include: ['AGENTS.md']
@@ -238,6 +313,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     });
     this.rootDir = projectRoot;
     this.languageOption = options?.language;
+    this.chatLanguageOption = options?.chatLanguage;
   }
 
   public override async runAudit(): Promise<void> {
@@ -272,9 +348,11 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     const config = getAuditConfig(this.rootDir);
     const targetLanguage: DocumentationLanguage =
       this.languageOption ?? config.documentation?.language ?? 'en';
+    const chatLanguage: DocumentationLanguage =
+      this.chatLanguageOption ?? config.documentation?.chatLanguage ?? 'es';
 
     for (const mandate of MANDATE_DEFINITIONS) {
-      content = this.auditSingleMandate(mandate, content, targetLanguage, agentsMdPath);
+      content = this.auditSingleMandate(mandate, content, targetLanguage, chatLanguage, agentsMdPath);
     }
   }
 
@@ -282,10 +360,11 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     mandate: MandateDefinition,
     currentContent: string,
     targetLanguage: DocumentationLanguage,
+    chatLanguage: DocumentationLanguage,
     agentsMdPath: string
   ): string {
     const sections = extractContractSections(currentContent);
-    const matchingSections = sections.filter(section => mandate.check(section, targetLanguage));
+    const matchingSections = sections.filter(section => mandate.check(section, targetLanguage, chatLanguage));
     const lines = currentContent.split('\n');
     const existingMatches = lines.filter(l => mandate.isExistingLine(l));
 
@@ -297,7 +376,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       injectOrUpdateMandateInAgentsMd({
         agentsMdPath,
         content: currentContent,
-        canonicalSnippet: mandate.getSnippet(targetLanguage),
+        canonicalSnippet: mandate.getSnippet(targetLanguage, chatLanguage),
         isExistingLine: mandate.isExistingLine
       });
       return fsSync.readFileSync(agentsMdPath, 'utf8');

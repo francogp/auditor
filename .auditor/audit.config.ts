@@ -95,6 +95,8 @@ export default defineAuditConfig({
     enabled: true
   },
   documentation: {
+    language: 'en',
+    chatLanguage: 'es',
     allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright']
   },
   fallow: {

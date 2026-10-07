@@ -35,6 +35,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.3). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.3 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
 | **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
+| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` (default `'es'`) dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4 & 3.4), and the completion template; `config.documentation.language` (default `'en'`) dynamically governs commit messages, `scratch/release_notes.txt`, and git tags. Zero hardcoded languages. |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -224,7 +225,9 @@ Once the user approves:
 
 ## Mandatory Safe-Commit Completion Template
 
-Every completed safe-commit run MUST finish with this standardized Markdown template in the chat response:
+Every completed safe-commit run MUST finish with a standardized Markdown template rendered dynamically in the language resolved from `config.documentation.chatLanguage` (defaulting to `'es'`). The agent MUST NEVER hardcode the template language, but select the appropriate canonical variant matching the resolved `chatLanguage`:
+
+### Spanish Variant (`chatLanguage: 'es'`)
 
 ```markdown
 # ✅ SAFE-COMMIT COMPLETADO CON ÉXITO
@@ -252,5 +255,35 @@ Para publicar los cambios y tags en el repositorio remoto, ejecuta manualmente:
 git push origin <branch> --follow-tags
 ```
 *O indícame explícitamente "hace push" si deseas que lo ejecute por ti.*
+```
+
+### English Variant (`chatLanguage: 'en'`)
+
+```markdown
+# ✅ SAFE-COMMIT SUCCESSFULLY COMPLETED
+
+### Operation Summary
+- **Commit Hash**: `<commit-hash>`
+- **Tag Created**: `v<version>` (or `None - Version maintained`)
+- **Message**: `<commit-title>`
+- **Modified Files**: `<count>` files
+
+### Quality Gates Verified (5/5)
+| Gate | Description | Status |
+|:---|:---|:---:|
+| 2.1 | `npm run audit` (Full audit + warning ratchet) | ✅ Passed (0 err, 0 new warn) |
+| 2.2 | `npm run test` (Automated Tests) | ✅ Passed (100% passing) |
+| 2.3 | `npm run build` (Single Build Mandate) | ✅ Passed (Exit 0) |
+| 2.4 | `npm run audit:build` (Post-Build Artifact Audit) | ✅ Passed |
+| 2.5 | `npm run audit:fallow` (Architecture & Health) | ✅ Passed (Score ≥ 85) |
+
+### Remote Publishing (Git Push)
+> ⚠️ **Security Control**: Repository governance strictly bars automated push to remote branches without prior explicit instructions.
+
+To publish commits and tags to the remote repository, execute manually:
+```bash
+git push origin <branch> --follow-tags
+```
+*Or explicitly tell me "push" if you want me to execute it for you.*
 ```
 

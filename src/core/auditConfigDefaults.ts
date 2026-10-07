@@ -163,6 +163,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     skillsRoots: [],
     allowedNpxBinaries: [],
     language: 'en',
+    chatLanguage: 'es',
     languageExemptions: []
   },
   fallow: {
@@ -472,6 +473,7 @@ function buildDocumentationSubConfig(d?: DeepPartial<AuditDocumentationConfig>):
     skillsRoots: d?.skillsRoots ?? [],
     allowedNpxBinaries: d?.allowedNpxBinaries ?? [],
     language: d?.language ?? 'en',
+    chatLanguage: d?.chatLanguage ?? 'es',
     languageExemptions: d?.languageExemptions ?? []
   };
 }

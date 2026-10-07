@@ -33,7 +33,7 @@ Architecture & Tooling Engineers.
 - [`streaming_row_colorization.test.ts`](./streaming_row_colorization.test.ts): Tests for streaming row colorization based on error vs warning presence.
 - [`test_coverage_core.test.ts`](./test_coverage_core.test.ts): Tests for coverage metric calculation, unmapped file detection, and parsing.
 - [`validate_accessibility.test.ts`](./validate_accessibility.test.ts): Tests for WCAG 2.2 accessibility verification via `eslint-plugin-vuejs-accessibility`.
-- [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture and anti-tampering configuration clauses in root `AGENTS.md`.
+- [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture, anti-tampering configuration, and AI chat language clauses in root `AGENTS.md`.
 - [`validate_documentation_language.test.ts`](./validate_documentation_language.test.ts): Tests for documentation language verification, root AGENTS mandate auto-fix and modernization, and exemption matching.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for `.auditor/` configuration integrity (paths, scripts, ratchet ref and baseline) and the AST-based migration of root-level configs.
 - [`validate_dox_integrity.test.ts`](./validate_dox_integrity.test.ts): Tests for DOX hierarchy completeness, mandatory sections order, and empty section rejection.

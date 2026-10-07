@@ -45,7 +45,10 @@ Architecture & Tooling Engineers.
   - `constants.ignoredNames`: Identifiers exempt from duplicate constant detection.
   - `constants.allowedNumericPrefixes`: Identifier prefixes exempt from numeric suffix constraints (`['GEN_', 'ISO_', 'BASE_']`).
   - `constants.exemptMagicNumbers`: Numeric literals exempt from magic numbers validation.
+  - `documentation.language`: Primary documentation and file writing language (`'en' | 'es'`, strictly defaults to `'en'`).
+  - `documentation.chatLanguage`: AI assistant conversational chat communication language (`'en' | 'es'`, strictly defaults to `'es'`).
   - `documentation.knownValidAbstractPaths`: Abstract docs paths recognized as valid.
+  - `documentation.languageExemptions`: Paths or globs exempt from natural language checks.
   - `pinia.authorizedMutationFiles`: Files authorized for direct pinia state mutations outside store actions.
   - `domain.enabled`: Allows clean deactivation of domain checks for standalone libraries and tool engines.
   - `domain.caseNormalizationExemptTokens`: Domain tokens exempt from lowercase validation (`['rpg', 'pvp', 'cuit', 'dni']`).
