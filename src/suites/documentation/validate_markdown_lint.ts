@@ -66,7 +66,7 @@ export function getMarkdownIgnoreGlobs(projectRoot?: string): readonly string[] 
   return Array.from(new Set(globs));
 }
 
-export const MARKDOWN_IGNORE_GLOBS = DEFAULT_MARKDOWN_IGNORE_GLOBS;
+export const MARKDOWN_IGNORE_GLOBS = DEFAULT_MARKDOWN_IGNORE_GLOBS; // value-ok: Canonical constant value reference
 
 export interface RawMarkdownLintIssue {
   fileName?: string;
@@ -139,12 +139,12 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     const ignoreGlobs = getMarkdownIgnoreGlobs(this.projectRoot);
     const configPath = path.resolve(this.projectRoot, '.markdownlint.json');
     const hasConfigFile = nodeFs.existsSync(configPath);
-    const coverageInclude = ['**/*.md'];
+    const coverageIncludeGlobs = ['**/*.md'];
     if (hasConfigFile) {
-      coverageInclude.push('.markdownlint.json');
+      coverageIncludeGlobs.push('.markdownlint.json');
     }
     this.redeclareCoverage({
-      include: coverageInclude,
+      include: coverageIncludeGlobs,
       exclude: ignoreGlobs,
       source: 'runtime'
     });

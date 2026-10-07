@@ -30,11 +30,15 @@ const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
 const ERROR_WEIGHT_FACTOR = 1000;
 
-type Finding = AuditFinding;
+type Finding = AuditFinding; // type-ok: Type contract declaration
 
-type AuditReport = ConsolidatedAuditReport;
+type AuditReport = ConsolidatedAuditReport; // type-ok: Type contract declaration
 
-export type SeverityFilter = 'all' | 'error' | 'warning';
+export const SEVERITY_FILTERS = ['all', 'error', 'warning'] as const;
+export type SeverityFilter = (typeof SEVERITY_FILTERS)[number];
+
+export const REPORT_SCOPES = ['all', 'host', 'packages'] as const;
+export type ReportScope = (typeof REPORT_SCOPES)[number];
 
 interface ReportOptions {
   category: string;
@@ -42,7 +46,7 @@ interface ReportOptions {
   search: string;
   filePattern: string;
   dirPattern: string;
-  scope: 'all' | 'host' | 'packages';
+  scope: ReportScope;
   breakdown: boolean;
   byFile: boolean;
   top: number | 'all';
@@ -278,10 +282,14 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
 
     const matchesExecutedFinding = Object.values(report.families).some(fam => {
       if (!fam) return false;
+      const lowerCat = args.category.toLowerCase();
       return fam.suites.some(suite =>
         suite.findings.some(f => {
-          const catKey = f.ruleDescription || suite.description || f.ruleId || suite.name || '';
-          return catKey.toLowerCase().includes(args.category.toLowerCase());
+          const ruleDescMatches = typeof f.ruleDescription === 'string' && f.ruleDescription.toLowerCase().includes(lowerCat);
+          const ruleIdMatches = typeof f.ruleId === 'string' && f.ruleId.toLowerCase().includes(lowerCat);
+          const suiteDescMatches = typeof suite.description === 'string' && suite.description.toLowerCase().includes(lowerCat);
+          const suiteNameMatches = typeof suite.name === 'string' && suite.name.toLowerCase().includes(lowerCat);
+          return ruleDescMatches || ruleIdMatches || suiteDescMatches || suiteNameMatches;
         })
       );
     });

@@ -31,10 +31,10 @@ export function getResolvedO1CatalogPatterns() {
     }
     return DEFAULT_O1_CATALOG_PATTERNS;
 }
-export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))\b(?:\s+as\s+[^)]+)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
+export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))\b(?:\s+as\s[^)]+)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
 export const P_OBJECT_SCAN_LOOKUP = /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
 export const P_JSON_CLONE = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(/g;
-export const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([a-zA-Z0-9_$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
+export const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
 // Escape hatch comments (strictly o1-specific, domain-ok is forbidden here)
 export const ESCAPE_HATCHES = ['// o1-ok:', '// linear-search-ok:'];
 export function shouldIgnoreLine(line) {

@@ -17,19 +17,36 @@ export declare function loadPackageScriptsAndBins(rootDir: string): {
     declaredBins: Set<string>;
     installedBins: Set<string>;
 };
+export declare const DOCUMENTED_COMMAND_TYPES: readonly ["npm-run", "npm-direct", "npx"];
+export type DocumentedCommandType = (typeof DOCUMENTED_COMMAND_TYPES)[number];
 export interface ExtractedCommand {
     readonly lineNum: number;
     readonly rawText: string;
-    readonly type: 'npm-run' | 'npm-direct' | 'npx';
+    readonly type: DocumentedCommandType;
     readonly target: string;
 }
 export declare function extractDocumentedCommands(content: string): ExtractedCommand[];
+export interface DocumentedCommandViolation {
+    readonly ruleId: DocumentedCommandsRuleId;
+    readonly severity: 'error';
+    readonly file: string;
+    readonly line: number;
+    readonly message: string;
+    readonly context: string;
+}
+export declare function evaluateCommandViolation(cmd: ExtractedCommand, relPosix: string, env: {
+    scripts: ReadonlySet<string>;
+    declaredBins: ReadonlySet<string>;
+    installedBins: ReadonlySet<string>;
+    allowedNpx: ReadonlySet<string>;
+}): DocumentedCommandViolation | null;
 export declare class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCommandsRuleId> {
     private readonly rootDir;
     private readonly gitIgnoreMatcher;
     constructor(options?: {
         projectRoot?: string;
     });
+    private auditSingleMarkdownFile;
     runAudit(): Promise<void>;
     private collectAllMarkdownFiles;
 }

@@ -77,17 +77,14 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        const config = getAuditConfig(this.projectRoot);
-        if (config.typeCoverage?.enabled === false) {
-            for (const r of TYPE_COVERAGE_RULES) {
-                this.markRuleNotApplicable(r, 'Type coverage desactivado');
-            }
+        if (this.isSuiteGatingDisabled('Type coverage desactivado en config')) {
             return;
         }
         this.recordExternalScanCount(1);
         for (const r of TYPE_COVERAGE_RULES) {
             this.markRuleEvaluated(r);
         }
+        const config = getAuditConfig(this.projectRoot);
         const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
         const cacheDir = path.resolve(this.projectRoot, 'scratch/cache/type-coverage');
         fs.mkdirSync(scratchDir, { recursive: true });
@@ -102,6 +99,13 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
             }
         }
         const threshold = config.typeCoverage?.atLeast ?? DEFAULT_MIN_TYPE_COVERAGE_PERCENT;
+        const report = this.executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold);
+        if (!report) {
+            return;
+        }
+        this.applyCoverageMetricsAndFindings(report, threshold);
+    }
+    executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold) {
         const isStrict = config.typeCoverage?.strict ?? true;
         const ignoreFiles = config.typeCoverage?.ignoreFiles ?? [];
         const cliFlags = [
@@ -128,13 +132,12 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
         const finalArgs = resolvedBin
             ? [resolvedBin, ...cliFlags]
             : ['--yes', 'type-coverage', ...cliFlags];
-        const report = executeCliAndReadJson(command, finalArgs, rawOutPath, {
+        return executeCliAndReadJson(command, finalArgs, rawOutPath, {
             cwd: this.projectRoot,
             shell: !resolvedBin
         });
-        if (!report) {
-            return;
-        }
+    }
+    applyCoverageMetricsAndFindings(report, threshold) {
         const percentStr = report.percentString ?? (report.percent?.toFixed(2) ?? '0.00');
         const correct = report.correctCount ?? 0;
         const total = report.totalCount ?? 0;

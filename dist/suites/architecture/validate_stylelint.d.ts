@@ -16,13 +16,32 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/architecture/validate_stylelint.ts
  *   npm run validate:stylelint
  */
-import { type LinterResult } from 'stylelint';
+import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
-export type StylelintRuleId = 'stylelint-issue' | 'css-duplicate-selectors' | 'css-duplicate-properties' | 'css-empty-blocks' | 'css-order-violation' | 'scss-syntax-issue' | 'scss-sass-collision-casing';
-export declare const STYLELINT_RULES: readonly StylelintRuleId[];
+import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
+export declare const STYLELINT_RULES: readonly ["stylelint-issue", "css-duplicate-selectors", "css-duplicate-properties", "css-empty-blocks", "css-order-violation", "scss-syntax-issue", "scss-sass-collision-casing"];
+export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 export declare function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string;
 export declare function categorizeStylelintRule(ruleName: string | undefined): StylelintRuleId;
+export declare function buildStylelintConfig(configFile: string, customRules?: Record<string, unknown>): stylelint.Config;
+export declare function buildStylelintIgnoreGlobs(configIgnoreGlobs?: readonly string[], stylelintIgnoreGlobs?: readonly string[]): string[];
+interface StylelintViolationPayload {
+    ruleId: StylelintRuleId;
+    severity: FindingSeverity;
+    file: string;
+    line: number;
+    message: string;
+    context: string;
+}
+export declare function processStylelintResults(results: readonly LintResult[], projectRoot: string): {
+    violations: StylelintViolationPayload[];
+    totalErrors: number;
+    totalWarnings: number;
+};
+export declare function persistStylelintReport(projectRoot: string, suiteId: string, filesScanned: number, totals: {
+    totalErrors: number;
+    totalWarnings: number;
+}, results: readonly LintResult[], durationMs: number): void;
 export interface StylelintAuditorOptions {
     projectRoot?: string;
     id?: string;
@@ -35,4 +54,5 @@ export declare class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     getLastLinterResult(): LinterResult | null;
     runAudit(): Promise<void>;
 }
+export {};
 //# sourceMappingURL=validate_stylelint.d.ts.map

@@ -129,25 +129,29 @@ async function collectFileConstants(filePath, astEngine, effectiveIgnored, decla
         declarations.get(decl.name).push(decl);
     }
 }
+async function getCachedFileContent(filePath, fileContentCache) {
+    const cached = fileContentCache.get(filePath);
+    if (cached !== undefined)
+        return cached;
+    try {
+        const content = await fs.readFile(filePath, 'utf-8');
+        fileContentCache.set(filePath, content);
+        return content;
+    }
+    catch {
+        // catch-ok: optional file read for import cross-check
+        fileContentCache.set(filePath, '');
+        return '';
+    }
+}
 async function checkIsCrossImported(constName, uniqueFiles, fileContentCache) {
+    if (uniqueFiles.length < 2)
+        return false;
     const importRegex = new RegExp(`import\\s+[^;]*\\b${constName}\\b`);
-    for (let i = 0; i < uniqueFiles.length; i++) {
-        for (let j = i + 1; j < uniqueFiles.length; j++) {
-            const fileA = uniqueFiles[i];
-            const fileB = uniqueFiles[j];
-            let contentA = fileContentCache.get(fileA);
-            if (contentA === undefined) {
-                contentA = await fs.readFile(fileA, 'utf-8').catch(() => '');
-                fileContentCache.set(fileA, contentA);
-            }
-            let contentB = fileContentCache.get(fileB);
-            if (contentB === undefined) {
-                contentB = await fs.readFile(fileB, 'utf-8').catch(() => '');
-                fileContentCache.set(fileB, contentB);
-            }
-            if (importRegex.test(contentA) || importRegex.test(contentB)) {
-                return true;
-            }
+    for (const file of uniqueFiles) {
+        const content = await getCachedFileContent(file, fileContentCache);
+        if (importRegex.test(content)) {
+            return true;
         }
     }
     return false;

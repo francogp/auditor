@@ -179,7 +179,9 @@ export default defineAuditConfig({
   },
 
   documentation: {
-    knownValidAbstractPaths: ['@docs/gameplay/battle-system.md'] // Virtual paths valid in Markdown documentation links
+    language: 'en', // Primary documentation language ('en' | 'es', defaults to 'en'). Enforces English across documentation, skills, and templates
+    knownValidAbstractPaths: ['@docs/gameplay/battle-system.md'], // Virtual paths valid in Markdown documentation links
+    languageExemptions: [] // Paths or globs exempt from natural language detection (e.g. ['docs/es/**'])
   },
 
   pinia: {

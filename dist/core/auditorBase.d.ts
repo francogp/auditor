@@ -8,8 +8,9 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorManifestDTO } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorManifestDTO } from './auditContract.ts';
 import { CoverageRecorder } from './auditCoverage.ts';
+import { type AuditEngineConfig } from './auditConfig.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
@@ -23,7 +24,7 @@ export declare function getEffectiveIgnoreDirs(): ReadonlySet<string>;
 export declare const SCANNABLE_EXTENSIONS: ReadonlySet<string>;
 export declare const CANONICAL_SCANNABLE_ROOTS: readonly ["scripts", "src", "tests"];
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
-export declare function getEffectiveScannableRoots(config?: import("./auditConfig.ts").AuditEngineConfig): readonly string[];
+export declare function getEffectiveScannableRoots(config?: AuditEngineConfig): readonly string[];
 /**
  * Validates that a path component is safe against path traversal.
  */
@@ -37,15 +38,6 @@ export declare function clearLockedSkillsCache(): void;
  * Canonical candidate relative locations for skills-lock.json in order of precedence.
  */
 export declare const SKILLS_LOCK_CANDIDATE_PATHS: readonly string[];
-/**
- * Loads official locked skill names from skills-lock.json if present in projectRoot.
- * Checks candidate paths:
- *   1. paths.skillsLockFile from audit.config.ts (if defined)
- *   2. skills-lock.json (project root)
- *   3. .auditor/skills-lock.json
- *   4. .agents/skills-lock.json
- * Returns a set of lowercase skill directory names.
- */
 export declare function loadLockedSkills(projectRoot?: string): ReadonlySet<string>;
 /**
  * Checks whether a relative POSIX or absolute path belongs to an official/locked skill directory
@@ -104,9 +96,11 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly packageName: string;
     readonly icon: string;
     readonly capabilities?: Partial<AuditorCapabilities>;
+    readonly fix?: boolean;
     readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+    readonly configFiles?: readonly AuditorConfigFileRequirement<TRuleId>[];
     readonly ruleIds?: readonly TRuleId[];
-    readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
+    readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
     readonly subAuditors?: readonly SubAuditorStep[];
     readonly roots?: readonly string[];
     readonly allowedExtensions?: ReadonlySet<string>;
@@ -142,8 +136,9 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly icon: string;
     readonly capabilities: AuditorCapabilities;
     readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+    readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
     readonly ruleIds: readonly TRuleId[];
-    readonly ruleDescriptions?: Readonly<Record<TRuleId, string>>;
+    readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
     readonly explicitSubAuditors?: readonly SubAuditorStep[];
     readonly roots: readonly string[];
     readonly allowedExtensions: ReadonlySet<string>;
@@ -157,15 +152,19 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
     protected readonly coverageRecorder: CoverageRecorder;
+    protected readonly fixMode: boolean;
     protected isSkipped: boolean;
     protected skipReason?: string;
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
     protected get filesScannedCount(): number;
     protected set filesScannedCount(count: number);
     markSkipped(reason: string): void;
+    private resolveEffectiveCoverage;
+    private registerAuditorDependencies;
+    private initExecutionContext;
     constructor(options: AuditorOptions<TRuleId>);
     /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
-    getRuleCatalog(): readonly string[];
+    getRuleCatalog(): readonly TRuleId[];
     /** Records a file that this suite actually analyzed (absolute or project-relative path). */
     protected recordScanned(filePath: string): void;
     protected unrecordScanned(filePath: string): void;
@@ -189,16 +188,21 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     /** Adds dynamically discovered rule ids (rule engines without static ruleIds) to the dormancy catalog. */
     protected declareRuleCatalog(ruleIds: readonly string[]): void;
     /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
-    protected markRuleEvaluated(ruleId: TRuleId | string, count?: number): void;
+    protected markRuleEvaluated(ruleId: TRuleId, count?: number): void;
     /**
      * Loud failure for obsolete v3 method name.
      * Enforces the Loud Failure Mandate under AGENTS.md.
      */
     protected recordRuleEvaluation(ruleId: string): never;
     /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
-    protected markRuleNotApplicable(ruleId: TRuleId | string, reason: string): void;
+    protected markRuleNotApplicable(ruleId: TRuleId, reason: string): void;
+    /**
+     * Evaluates suite gating against configuration and marks rules not applicable and suite skipped if disabled.
+     * Returns true if the suite is disabled, allowing an immediate clean early return.
+     */
+    protected isSuiteGatingDisabled(defaultReason?: string): boolean;
     /** Gets evaluation count recorded so far for a given rule. */
-    protected getEvaluations(ruleId: TRuleId | string): number;
+    protected getEvaluations(ruleId: TRuleId): number;
     getCoverageRecorder(): CoverageRecorder;
     private persistCoverageLedger;
     getSubAuditors(): readonly SubAuditorStep[];
@@ -210,7 +214,24 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     addViolation(v: ViolationInput<TRuleId>): void;
     isLineIgnored(line: string, customTokens?: readonly string[]): boolean;
     protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean;
+    isFixActive(): boolean;
     protected isFixModeRequested(): boolean;
+    /**
+     * Resolves whether any declared file or candidate file for this requirement exists on disk.
+     * Returns the absolute path of the first existing candidate, or null if none exist.
+     */
+    resolveConfigFile(requirement: AuditorConfigFileRequirement<TRuleId>): string | null;
+    private scaffoldDefaultConfigFile;
+    private reportMissingConfigFileViolation;
+    ensureConfigFile(requirement: AuditorConfigFileRequirement<TRuleId>): Promise<{
+        resolvedPath: string;
+        created: boolean;
+    } | null>;
+    /**
+     * Iterates through all declared `configFiles`, ensuring that every applicable requirement
+     * is satisfied or scaffolded. Returns true if all applicable requirements are met, false otherwise.
+     */
+    verifyAndFixConfigFiles(): Promise<boolean>;
     isPathIgnored(relPath: string): boolean;
     protected getLineNumber(content: string, charIndex: number): number;
     protected getLineAt(content: string, lineIndex: number): string;
@@ -238,6 +259,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
     protected abstract scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void | Promise<void>;
     constructor(options: AuditorOptions<TRuleId>);
+    private resolveEffectiveAst;
+    private scanSingleDiscoveredFile;
     runAudit(astContext?: SharedAstContext): Promise<void>;
 }
 //# sourceMappingURL=auditorBase.d.ts.map

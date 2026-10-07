@@ -99,7 +99,7 @@ export function collectMarkdownFiles(targetPath, rootDir, extraIgnorePatterns = 
     return collectRepositoryFiles(fullPath, rootDir, extraIgnorePatterns, new Set(['.md']), new Set(['.agents']));
 }
 /** Regex detecting personal machine absolute paths (e.g. /home/user, /Users/user, C:\Users\user) */
-const STALE_ENV_PATH_REGEX = /(?:file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![a-zA-Z0-9_.]))\/(?:home|Users)\/[a-zA-Z0-9_-]+|[a-zA-Z]:[\\/]Users[\\/][a-zA-Z0-9_-]+)/;
+const STALE_ENV_PATH_REGEX = /file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![\w.]))\/(?:home|Users)\/[\w-]+|[a-zA-Z]:[\\/]Users[\\/][\w-]+/;
 function isExternalOrAnchorLink(rawUrl) {
     return (rawUrl.startsWith('http://') ||
         rawUrl.startsWith('https://') ||
@@ -177,7 +177,7 @@ function checkSingleMarkdownLink(params) {
     const isAbsolutePath = rawUrl.startsWith('file://') ||
         rawUrl.startsWith('/') ||
         rawUrl.startsWith('\\') ||
-        /^[a-zA-Z]:/.test(rawUrl) ||
+        /^[a-z]:/i.test(rawUrl) ||
         path.isAbsolute(rawUrl);
     if (isAbsolutePath) {
         return {
@@ -235,38 +235,44 @@ function checkStandaloneTextViolations(lines, relSourceFile, brokenLines) {
     }
     return textViolations;
 }
+const HISTORICAL_OR_EXAMPLE_LINE_REGEX = /\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b|\be\.g\./i;
+function isHistoricalOrExampleLine(lineText) {
+    return HISTORICAL_OR_EXAMPLE_LINE_REGEX.test(lineText);
+}
+function checkPackageMatchViolation(match, relSourceFile, filePath, rootDir, lineNum) {
+    const pkgSubpath = match[1].replace(/[.,:;)\]`'"]+$/, '');
+    if (pkgSubpath.includes('*') || pkgSubpath.includes('...') || pkgSubpath.includes('<')) {
+        return null;
+    }
+    const candidateRel = path.join('packages', pkgSubpath);
+    const rootTarget = path.resolve(rootDir, candidateRel);
+    const localTarget = path.resolve(path.dirname(filePath), candidateRel);
+    if (!fs.existsSync(rootTarget) && !fs.existsSync(localTarget)) {
+        return {
+            sourceFile: relSourceFile,
+            linkText: '',
+            rawUrl: `packages/${pkgSubpath}`,
+            resolvedPath: candidateRel,
+            error: `Referencia a workspace package inexistente en disco: "packages/${pkgSubpath}" (RULE: No mantener rutas a paquetes de workspace eliminados)`,
+            ruleId: 'markdown-broken-workspace-package',
+            line: lineNum,
+        };
+    }
+    return null;
+}
 function checkWorkspacePackageViolations(lines, relSourceFile, filePath, rootDir, brokenLines) {
     const violations = [];
-    const pkgRegex = /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_./#-]+)?)(?:\/)?(?:$|[`'"\s)\]>,:;])/g;
+    const pkgRegex = /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([\w.-]+(?:\/[\w./#-]+)?)\/?(?:$|[`'"\s)\]>,:;])/g;
     for (let i = 0; i < lines.length; i++) {
-        const lineText = lines[i];
         const lineNum = i + 1;
-        if (brokenLines.has(lineNum))
+        if (brokenLines.has(lineNum) || isHistoricalOrExampleLine(lines[i]))
             continue;
-        if (/\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b/i.test(lineText) || /(?:\be\.g\.)/i.test(lineText)) {
-            continue;
-        }
-        let match;
         pkgRegex.lastIndex = 0;
-        while ((match = pkgRegex.exec(lineText)) !== null) {
-            const pkgSubpath = match[1].replace(/[.,:;)\]`'"]+$/, '');
-            if (pkgSubpath.includes('*') || pkgSubpath.includes('...') || pkgSubpath.includes('<')) {
-                continue;
-            }
-            const candidateRel = path.join('packages', pkgSubpath);
-            const rootTarget = path.resolve(rootDir, candidateRel);
-            const localTarget = path.resolve(path.dirname(filePath), candidateRel);
-            if (!fs.existsSync(rootTarget) && !fs.existsSync(localTarget)) {
-                violations.push({
-                    sourceFile: relSourceFile,
-                    linkText: '',
-                    rawUrl: `packages/${pkgSubpath}`,
-                    resolvedPath: candidateRel,
-                    error: `Referencia a workspace package inexistente en disco: "packages/${pkgSubpath}" (RULE: No mantener rutas a paquetes de workspace eliminados)`,
-                    ruleId: 'markdown-broken-workspace-package',
-                    line: lineNum,
-                });
-            }
+        let match;
+        while ((match = pkgRegex.exec(lines[i])) !== null) {
+            const violation = checkPackageMatchViolation(match, relSourceFile, filePath, rootDir, lineNum);
+            if (violation)
+                violations.push(violation);
         }
     }
     return violations;
@@ -276,7 +282,7 @@ function checkWorkspacePackageViolations(lines, relSourceFile, filePath, rootDir
  */
 export function checkMarkdownLinksInContent(content, filePath, rootDir) {
     const cleanContent = stripCodeBlocks(content);
-    const contentWithoutInlineCode = cleanContent.replace(/(`+)[^`\n]+?\1/g, match => ' '.repeat(match.length));
+    const contentWithoutInlineCode = cleanContent.replace(/(`+)[^`\n]+\1/g, match => ' '.repeat(match.length));
     const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
     const brokenLinks = [];
     let linksChecked = 0;

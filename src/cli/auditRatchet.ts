@@ -36,8 +36,11 @@ interface FingerprintedWarning extends AuditBaselineEntry {
 
 type ResolvedRatchetConfig = Required<AuditRatchetConfig>;
 
+export const RATCHET_SOURCES = ['production', 'local-bootstrap'] as const;
+export type RatchetSource = (typeof RATCHET_SOURCES)[number];
+
 interface WarningRatchetOutcome {
-  readonly source: 'production' | 'local-bootstrap';
+  readonly source: RatchetSource;
   readonly newWarnings: readonly AuditFinding[];
   readonly resolvedCount: number;
   readonly baselineUpdated: boolean;

@@ -21,15 +21,10 @@ export const BUILTIN_AUDIT_FAMILIES = [
   'documentation'
 ] as const;
 
-export const AUDIT_FAMILIES = [
-  'architecture',
-  'domain_data',
-  'persistence',
-  'documentation'
-] as const;
+export const AUDIT_FAMILIES = BUILTIN_AUDIT_FAMILIES; // value-ok: Canonical constant value reference
 
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
-export type AuditFamily = BuiltinAuditFamily | (string & {});
+export type AuditFamily = BuiltinAuditFamily | (string & {}); // domain-ok: Open dynamic text or non-domain string payload
 
 export interface FamilyMetadata {
   key: string;
@@ -101,7 +96,8 @@ export function getActiveFamilies(customFamilies?: readonly CustomAuditFamilyCon
   return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
 }
 
-export type FindingSeverity = 'error' | 'warning' | 'info';
+export const FINDING_SEVERITIES = ['error', 'warning', 'info'] as const;
+export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
 
 export interface AuditFinding {
   severity: FindingSeverity;
@@ -125,10 +121,13 @@ export interface SubAuditorStep {
   readonly description?: string;
 }
 
+export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'] as const;
+export type SubAuditorStatus = (typeof SUB_AUDITOR_STATUSES)[number];
+
 export interface SubAuditorReport {
   readonly id: string;
   readonly name: string;
-  readonly status: 'passed' | 'warning' | 'failed';
+  readonly status: SubAuditorStatus;
   readonly count: number;
   readonly detail?: string;
 }
@@ -224,6 +223,39 @@ export interface GitIgnoreRequirement {
 }
 
 /**
+ * Context provided to configuration fix generators when auto-repairing or scaffolding files.
+ */
+export interface AuditorConfigFixContext {
+  readonly projectRoot: string;
+  readonly packageName: string;
+  readonly config: AuditEngineConfig;
+}
+
+/**
+ * Unified interface for sub-auditors and extensions to declare their configuration file requirements and auto-fixes.
+ */
+export interface AuditorConfigFileRequirement<TRuleId extends string = string> {
+  /** Unique requirement identifier (e.g. 'eslint-config', 'fallow-config', 'audit-config') */
+  readonly id: string;
+  /** Primary canonical file path relative to projectRoot (e.g. 'eslint.config.js', '.fallowrc.json') */
+  readonly file: string;
+  /** Optional alternative candidate filenames if multiple naming schemes are accepted (e.g. ['eslint.config.js', 'eslint.config.mjs']) */
+  readonly candidateFiles?: readonly string[];
+  /** Human-readable description of what this configuration governs */
+  readonly description: string;
+  /** The ruleId to report as a violation if the configuration file is missing and fix mode is inactive */
+  readonly ruleId?: TRuleId;
+  /** Function generating the canonical default/minimal configuration content when auto-repair runs */
+  readonly generateDefaultContent: (context: AuditorConfigFixContext) => string | Promise<string>;
+  /** Optional predicate determining if this configuration is applicable in the current project */
+  readonly isApplicable?: (config: AuditEngineConfig, projectRoot: string) => boolean;
+  /** Optional custom missing message or factory to tailor diagnostics (e.g. legacy migrations) */
+  readonly customMissingMessage?: string | ((context: AuditorConfigFixContext, file: string) => string);
+  /** Optional custom file path to report on violations (e.g. legacy file name instead of primary) */
+  readonly customMissingFile?: (context: AuditorConfigFixContext, defaultFile: string) => string;
+}
+
+/**
  * DTO Canónico del Manifiesto de un Sub-Auditor.
  * Contrato inmutable mínimo y estructurado para que herramientas,
  * CLIs y agentes de IA conozcan el propósito y ejecución del auditor.
@@ -279,6 +311,7 @@ export interface AuditTaskDefinition {
   icon?: string;
   capabilities?: AuditorCapabilities;
   gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+  configFiles?: readonly AuditorConfigFileRequirement<string>[];
   manifest?: AuditorManifestDTO;
   configKey?: string;
   ruleDescriptions?: Readonly<Record<string, string>>;
@@ -295,9 +328,14 @@ export interface AuditTaskDescriptor {
   extraArgs?: string[];
   requiresAst?: boolean;
   capabilities?: AuditorCapabilities;
+  gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+  configFiles?: readonly AuditorConfigFileRequirement<string>[];
 }
 
 export type AuditRunMode = 'full' | 'preset' | 'family' | 'suites' | 'single';
+
+export const RATCHET_STATUSES = ['passed', 'failed', 'initialized'] as const;
+export type RatchetStatus = (typeof RATCHET_STATUSES)[number];
 
 export interface AuditRunMetadata {
   version: string;
@@ -313,7 +351,7 @@ export interface AuditRunMetadata {
   skipSimilar?: boolean;
   /** Warning ratchet verdict (only on full default runs with `ratchet.enabled`). */
   ratchet?: {
-    status: 'passed' | 'failed' | 'initialized';
+    status: RatchetStatus;
     productionRef: string;
     newWarnings: number;
     resolvedWarnings: number;

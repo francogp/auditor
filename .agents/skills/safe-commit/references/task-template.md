@@ -15,7 +15,7 @@
   - [ ] Test Gap Analysis (Audit non-trivial logic for unit tests in `tests/`)
   - [ ] `npm run audit:fallow` (Record BASELINE_HEALTH)
   - [ ] Code-Only Safety Backup (`mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch`)
-  - [ ] Version Bump Decision (`npx auditor-version analyze` & `ask_question`; run `bump` if approved)
+  - [ ] Version Bump Decision (`npm run version:analyze` & `ask_question`; run `version:bump` if approved)
   - [ ] Pre-draft commit message (The Elegant Protocol synthesis in `task.md`)
 - [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 5 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:
@@ -28,14 +28,14 @@
     - [ ] `npm run audit:fix` / manual code fixes applied in workspace
     - [ ] Re-run cycle checks until all 5 gates exit with code 0
 - [ ] **Phase 3: Lessons Extraction, Walkthrough & 🛑 Hard Stop**
-  - [ ] Extract lessons via `/learn-with-docs`
+  - [ ] Extract lessons learned via `learn-with-docs`
   - [ ] Create `<appDataDir>/brain/<conversation-id>/learning_proposal.md`
   - [ ] Create/Update `<appDataDir>/brain/<conversation-id>/walkthrough.md`
   - [ ] Workspace cleanup (Clean temporary files from `scratch/`)
   - [ ] Call `ask_question` for learning proposal & commit approval
   - [ ] 🛑 HARD STOP (Wait for approval before Phase 4)
 - [ ] **Phase 4: Single Atomic Certified Commit & Completion**
-  - [ ] Apply approved lessons to `AGENTS.md`
+  - [ ] Apply approved lessons and modernizations to `AGENTS.md` and documentation
   - [ ] Pre-commit Sanity Check (`npm run audit:md`)
   - [ ] Synthesize final Elegant Protocol commit message
   - [ ] Atomic Commit & Tag:

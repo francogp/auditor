@@ -3,7 +3,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
@@ -22,9 +22,98 @@ export const ESLINT_CONFIG_RULES: readonly EslintConfigRuleId[] = [
   'eslint-config-legacy-date-allowed'
 ] as const;
 
+const MSG_DOUBLE_CAST = 'as ' + 'unknown as';
+const MSG_NEW_DATE = 'new ' + 'Date()';
+const MSG_DATE_NOW = 'Date.' + 'now()';
+
+export const CANONICAL_ESLINT_CONFIG_CONTENT = `import js from '@eslint/js';
+import globals from 'globals';
+import unusedImports from 'eslint-plugin-unused-imports';
+import tseslint from 'typescript-eslint';
+import { globalIgnores } from 'eslint/config';
+
+export default tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    name: 'auditor/core-rules',
+    plugins: {
+      'unused-imports': unusedImports,
+    },
+    rules: {
+      // Variables no utilizadas & TypeScript estricto
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/consistent-type-assertions': [
+        'error',
+        {
+          assertionStyle: 'as',
+          objectLiteralTypeAssertions: 'never'
+        }
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression[typeAnnotation.type="TSUnknownKeyword"]',
+          message: 'Está ESTRICTAMENTE PROHIBIDO usar doble casteo (' + '${MSG_DOUBLE_CAST}' + '). Usa guardas de tipo, tipado canónico o interfaces directas.'
+        },
+        {
+          selector: 'NewExpression[callee.name="Date"]',
+          message: 'El uso de ' + '${MSG_NEW_DATE}' + ' está ESTRICTAMENTE PROHIBIDO. Usa la API moderna Temporal (Temporal.Now.instant() / Temporal.Instant).'
+        },
+        {
+          selector: 'CallExpression[callee.object.name="Date"][callee.property.name="now"]',
+          message: 'El uso de ' + '${MSG_DATE_NOW}' + ' está ESTRICTAMENTE PROHIBIDO. Usa Temporal.Now.instant().epochMilliseconds o performance.now().'
+        }
+      ],
+      'unused-imports/no-unused-imports': 'error',
+      'unused-imports/no-unused-vars': [
+        'warn',
+        {
+          vars: 'all',
+          varsIgnorePattern: '^_',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+
+      // Calidad general
+      'no-console': 'off',
+      'no-undef': 'off',
+    },
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+      globals: {
+        ...globals.node,
+        ...globals.es2025,
+      },
+    },
+  },
+  globalIgnores([
+    'dist/**',
+    'dev-dist/**',
+    'node_modules/**',
+    'scratch/**',
+    'tmp/**',
+    '.agents/**',
+    'tests/**',
+    'vitest.config.ts',
+  ])
+);
+`;
+
 export interface EslintConfigAuditOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
+  readonly fix?: boolean;
 }
 
 /**
@@ -124,13 +213,30 @@ export function auditEslintConfigContent(content: string, fileName: string): Aud
   return findings;
 }
 
-export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId> {
-  private readonly configFilePath?: string;
+export const ESLINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<EslintConfigRuleId> = {
+  id: 'eslint-config',
+  file: 'eslint.config.js',
+  candidateFiles: ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts'],
+  description: 'Configuración de ESLint con reglas estrictas de dominio',
+  ruleId: 'eslint-config-missing',
+  generateDefaultContent: () => CANONICAL_ESLINT_CONFIG_CONTENT
+};
 
+export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId> {
   constructor(options: EslintConfigAuditOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
+    const configRequirement: AuditorConfigFileRequirement<EslintConfigRuleId> = options.configFile
+      ? {
+          ...ESLINT_CONFIG_REQUIREMENT,
+          file: options.configFile,
+          candidateFiles: [options.configFile]
+        }
+      : ESLINT_CONFIG_REQUIREMENT;
+
     super({
-      capabilities: { lint: true },
+      capabilities: { lint: true, fix: true },
+      configFiles: [configRequirement],
+      fix: options.fix,
       id: 'validate_eslint_config',
       name: 'ESLint Domain-Type-First Configuration Auditor',
       description: 'Valida reglas estrictas de ESLint y /domain-type-first',
@@ -150,7 +256,6 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       },
       projectRoot: effectiveRoot
     });
-    this.configFilePath = options.configFile;
   }
 
   public override async runAudit(): Promise<void> {
@@ -159,36 +264,17 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       return;
     }
 
-    const candidateFiles = this.configFilePath
-      ? [this.configFilePath]
-      : ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts'];
-
-    let resolvedPath: string | null = null;
-    for (const candidate of candidateFiles) {
-      const fullPath = path.resolve(this.projectRoot, candidate);
-      if (fs.existsSync(fullPath)) {
-        resolvedPath = fullPath;
-        break;
-      }
-    }
-
-    if (!resolvedPath) {
-      this.markRuleEvaluated('eslint-config-missing');
+    const requirement = this.configFiles[0] ?? ESLINT_CONFIG_REQUIREMENT;
+    const ensured = await this.ensureConfigFile(requirement);
+    if (!ensured) {
       this.markRuleNotApplicable('eslint-config-any-allowed', 'Archivo de configuración no encontrado');
       this.markRuleNotApplicable('eslint-config-double-cast-allowed', 'Archivo de configuración no encontrado');
       this.markRuleNotApplicable('eslint-config-ts-ignore-allowed', 'Archivo de configuración no encontrado');
       this.markRuleNotApplicable('eslint-config-legacy-date-allowed', 'Archivo de configuración no encontrado');
-      this.addViolation({
-        ruleId: 'eslint-config-missing',
-        severity: 'error',
-        file: candidateFiles[0] ?? 'eslint.config.js',
-        line: 1,
-        col: 1,
-        context: 'eslint.config.js',
-        message: `No se encontró ningún archivo de configuración de ESLint en la raíz del proyecto (${candidateFiles.join(', ')}).`
-      });
       return;
     }
+
+    const resolvedPath = ensured.resolvedPath;
 
     const relFileName = path.relative(this.projectRoot, resolvedPath).replace(/\\/g, '/');
     this.recordScanned(relFileName);

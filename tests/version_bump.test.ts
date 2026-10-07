@@ -4,7 +4,7 @@
  * Unit tests for versionAnalyzer and bump_version CLI utilities.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -17,7 +17,7 @@ import {
   collectGitDiffMetrics
 } from '../src/core/versionAnalyzer.ts';
 import { execSync } from 'node:child_process';
-import { applyVersionBump } from '../src/cli/bump_version.ts';
+import { applyVersionBump, runBumpCli } from '../src/cli/bump_version.ts';
 
 describe('Version Analyzer & SemVer Heuristics', () => {
   let tempDir: string;
@@ -298,6 +298,113 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(metrics.changedFiles.some(f => f.path === 'new.txt')).toBe(true);
     });
   });
+
+  describe('runBumpCli CLI entrypoint', () => {
+    it('prints version string with bare or -v arguments', () => {
+      const logs: string[] = [];
+      const logSpy = vi.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
+        logs.push(String(msg));
+      });
+
+      try {
+        runBumpCli([]);
+        runBumpCli(['-v']);
+        runBumpCli(['--version']);
+        expect(logs.length).toBe(3);
+        expect(logs.every(l => l.includes('@francogp/auditor'))).toBe(true);
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('handles analyze command in json and table modes', () => {
+      const logs: string[] = [];
+      const logSpy = vi.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
+        logs.push(String(msg));
+      });
+
+      try {
+        runBumpCli(['analyze', '--json']);
+        expect(logs.some(l => l.includes('"recommendedBump"'))).toBe(true);
+
+        runBumpCli(['analyze']);
+        expect(logs.some(l => l.includes('ANÁLISIS HEURÍSTICO'))).toBe(true);
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('prints usage information on unknown command', () => {
+      const logs: string[] = [];
+      const logSpy = vi.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
+        logs.push(String(msg));
+      });
+
+      try {
+        runBumpCli(['unknown-command']);
+        expect(logs.some(l => l.includes('Comando no reconocido: unknown-command'))).toBe(true);
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('prints help documentation when --help or -h is passed without modifying files', () => {
+      const logs: string[] = [];
+      const logSpy = vi.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
+        logs.push(String(msg));
+      });
+
+      try {
+        runBumpCli(['--help']);
+        expect(logs.some(l => l.includes('Gestor SemVer'))).toBe(true);
+
+        logs.length = 0;
+        runBumpCli(['-h']);
+        expect(logs.some(l => l.includes('Gestor SemVer'))).toBe(true);
+
+        logs.length = 0;
+        runBumpCli(['bump', '--help']);
+        expect(logs.some(l => l.includes('auditor-version bump [tipo]'))).toBe(true);
+
+        logs.length = 0;
+        runBumpCli(['analyze', '--help']);
+        expect(logs.some(l => l.includes('auditor-version analyze'))).toBe(true);
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('rejects invalid bump type and sets error exit code', () => {
+      const errors: string[] = [];
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation((msg?: unknown) => {
+        errors.push(String(msg));
+      });
+      const initialExitCode = process.exitCode;
+
+      try {
+        runBumpCli(['bump', 'invalid-type']);
+        expect(errors.some(e => e.includes('Tipo de salto no reconocido'))).toBe(true);
+        expect(process.exitCode).toBe(1);
+      } finally {
+        errorSpy.mockRestore();
+        process.exitCode = initialExitCode;
+      }
+    });
+
+    it('applies an explicit targetVersion when provided', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test-pkg', version: '4.6.2' }), 'utf-8');
+
+      const result = applyVersionBump({
+        cwd: tempDir,
+        targetVersion: '5.0.0'
+      });
+
+      expect(result.newVersion).toContain('5.0.0-build.');
+      const updated = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      expect(updated.version).toBe(result.newVersion);
+    });
+  });
 });
+
 
 

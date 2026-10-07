@@ -72,11 +72,11 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     });
   }
 
-  public override async runAudit(): Promise<void> {
+  private async checkGating(): Promise<boolean> {
     if (isSelfProviderProject(this.projectRoot)) {
       this.context.setMetric('Agent Plugin Status', 'Provider Validated');
       this.markRuleNotApplicable('missing-agent-plugin-registration', 'Proyecto proveedor de @francogp/auditor (auto-registro)');
-      return;
+      return true;
     }
 
     const config = this.projectRoot !== process.cwd()
@@ -85,45 +85,59 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     if (config.agentPlugin?.enabled === false) {
       this.context.setMetric('Agent Plugin Status', 'Disabled');
       this.markRuleNotApplicable('missing-agent-plugin-registration', 'config.agentPlugin.enabled = false');
-      return;
+      return true;
     }
+    return false;
+  }
 
-    const isRegistered = isPluginRegisteredInAgents(this.projectRoot);
+  private tryAutoFixPlugin(): boolean {
+    const isFixMode = process.argv.includes('--fix') || process.argv.includes('fix');
+    if (!isFixMode) return false;
+    this.context.logProgress('Auto-fixing missing agent plugin registration...');
+    const result = initAgentSkill({ targetDir: this.projectRoot });
+    if (result.success) {
+      this.context.logProgress(`✅ ${result.message}`);
+      this.context.setMetric('Agent Plugin Status', 'Auto-Fixed');
+      return true;
+    }
+    return false;
+  }
+
+  private reportMissingPluginViolation(): void {
+    const pluginsJsonPath = path.join(this.projectRoot, '.agents/plugins.json');
+    const skillsJsonPath = path.join(this.projectRoot, '.agents/skills.json');
+    const missingFiles: string[] = [];
+    if (!fs.existsSync(pluginsJsonPath)) missingFiles.push('.agents/plugins.json');
+    if (!fs.existsSync(skillsJsonPath)) missingFiles.push('.agents/skills.json');
+    const targetFile = missingFiles[0] || '.agents/plugins.json';
+
+    this.addViolation({
+      ruleId: 'missing-agent-plugin-registration',
+      severity: 'error',
+      file: targetFile,
+      line: 1,
+      message: 'El plugin y/o skills de auditoría para agentes no están registrados en .agents/plugins.json y .agents/skills.json. Ejecuta: npm run auditor:init-agent',
+      context: 'auditor:init-agent'
+    });
+    this.context.setMetric('Agent Plugin Status', 'Missing');
+  }
+
+  public override async runAudit(): Promise<void> {
+    if (await this.checkGating()) return;
+
     for (const registryFile of AGENT_REGISTRY_FILES) {
       if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
     }
     this.markRuleEvaluated('missing-agent-plugin-registration');
-    if (!isRegistered) {
-      const isFixMode = process.argv.includes('--fix') || process.argv.includes('fix');
-      if (isFixMode) {
-        this.context.logProgress('Auto-fixing missing agent plugin registration...');
-        const result = initAgentSkill({ targetDir: this.projectRoot });
-        if (result.success) {
-          this.context.logProgress(`✅ ${result.message}`);
-          this.context.setMetric('Agent Plugin Status', 'Auto-Fixed');
-          return;
-        }
-      }
 
-      const pluginsJsonPath = path.join(this.projectRoot, '.agents/plugins.json');
-      const skillsJsonPath = path.join(this.projectRoot, '.agents/skills.json');
-      const missingFiles: string[] = [];
-      if (!fs.existsSync(pluginsJsonPath)) missingFiles.push('.agents/plugins.json');
-      if (!fs.existsSync(skillsJsonPath)) missingFiles.push('.agents/skills.json');
-      const targetFile = missingFiles[0] || '.agents/plugins.json';
-
-      this.addViolation({
-        ruleId: 'missing-agent-plugin-registration',
-        severity: 'error',
-        file: targetFile,
-        line: 1,
-        message: 'El plugin y/o skills de auditoría para agentes no están registrados en .agents/plugins.json y .agents/skills.json. Ejecuta: npx auditor-init-agent',
-        context: 'npx auditor-init-agent'
-      });
-      this.context.setMetric('Agent Plugin Status', 'Missing');
-    } else {
+    if (isPluginRegisteredInAgents(this.projectRoot)) {
       this.context.setMetric('Agent Plugin Status', 'Registered');
+      return;
     }
+
+    if (this.tryAutoFixPlugin()) return;
+
+    this.reportMissingPluginViolation();
   }
 }
 

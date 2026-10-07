@@ -19,8 +19,8 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
-export type BundleBudgetRuleId = 'bundle-runtime-leak' | 'bundle-heavy-import' | 'bundle-chunk-size';
-export declare const BUNDLE_BUDGET_RULES: readonly BundleBudgetRuleId[];
+export declare const BUNDLE_BUDGET_RULES: readonly ["bundle-runtime-leak", "bundle-heavy-import", "bundle-chunk-size"];
+export type BundleBudgetRuleId = (typeof BUNDLE_BUDGET_RULES)[number];
 export declare const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI: readonly {
     module: string;
     reason: string;

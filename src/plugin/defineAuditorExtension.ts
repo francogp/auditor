@@ -5,7 +5,7 @@
  * Contract and helper functions for defining and registering project-specific audit extensions.
  */
 
-import type { AuditFamily } from '../core/auditContract.ts';
+import type { AuditFamily, AuditorConfigFileRequirement, GitIgnoreRequirement } from '../core/auditContract.ts';
 import type { BaseAuditor } from '../core/auditorBase.ts';
 
 export interface AuditorExtensionDefinition {
@@ -20,6 +20,8 @@ export interface AuditorExtensionDefinition {
   readonly timeoutMs?: number;
   readonly order?: number;
   readonly requiresAst?: boolean;
+  readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+  readonly configFiles?: readonly AuditorConfigFileRequirement[];
 }
 
 export function defineAuditorExtension(definition: AuditorExtensionDefinition): AuditorExtensionDefinition {

@@ -49,6 +49,51 @@ interface GuardTableRow {
   readonly rules: string;
 }
 
+function formatGuardRules(forbidden: readonly string[], policies: readonly string[]): string {
+  const parts: string[] = [];
+  if (forbidden.length > 0) parts.push(`prohibidas: ${forbidden.join(', ')}`);
+  if (policies.length > 0) parts.push(`políticas: ${policies.join(', ')}`);
+  return parts.length > 0 ? parts.join(' | ') : styleText('dim', 'ninguna');
+}
+
+function formatAllowedZones(boundary?: GuardFileResult['boundary']): string {
+  if (boundary?.unrestricted) return styleText('green', 'todas (sin restricción)');
+  const allowed = boundary?.allowed_zones ?? [];
+  return allowed.length > 0 ? allowed.join(', ') : styleText('dim', 'ninguna');
+}
+
+function formatGuardTableRow(item: GuardFileResult): GuardTableRow {
+  const zoneStr = item.zone ? styleText('cyan', item.zone) : styleText('dim', 'sin capa');
+  const allowedStr = formatAllowedZones(item.boundary);
+  const rulesStr = formatGuardRules(item.boundary?.forbidden_calls ?? [], item.policy_rules ?? []);
+
+  return {
+    file: item.path,
+    zone: zoneStr,
+    allowed: allowedStr,
+    rules: rulesStr
+  };
+}
+
+function renderGuardResultsTable(fileResults: readonly GuardFileResult[]): void {
+  const tableRows = fileResults.map(formatGuardTableRow);
+  const columns: TableColumn<GuardTableRow>[] = [
+    { header: 'ARCHIVO EVALUADO', width: 34, align: 'left', key: 'file' },
+    { header: 'CAPA / ZONA', width: 14, align: 'left', key: 'zone' },
+    { header: 'PUEDE IMPORTAR', width: 24, align: 'left', key: 'allowed' },
+    { header: 'POLÍTICAS Y RESTRICCIONES', width: 28, align: 'left', key: 'rules' }
+  ];
+
+  console.log(renderBoxTable(columns, tableRows));
+
+  for (const item of fileResults) {
+    for (const note of item.notes ?? []) {
+      console.log(styleText('dim', `  ℹ️  ${item.path}: ${note}`));
+    }
+  }
+  console.log();
+}
+
 export function runGuardReport(
   projectRoot: string = process.cwd(),
   files: readonly string[] = [],
@@ -78,11 +123,7 @@ export function runGuardReport(
   );
 
   if (options.json) {
-    if (parsed) {
-      console.log(JSON.stringify(parsed, null, 2));
-    } else {
-      console.log(JSON.stringify({ error: 'Fallow guard execution failed', raw: rawOutput }));
-    }
+    console.log(parsed ? JSON.stringify(parsed, null, 2) : JSON.stringify({ error: 'Fallow guard execution failed', raw: rawOutput }));
     return status;
   }
 
@@ -94,50 +135,7 @@ export function runGuardReport(
     return status;
   }
 
-  const tableRows: GuardTableRow[] = fileResults.map((item) => {
-    const zoneStr = item.zone ? styleText('cyan', item.zone) : styleText('dim', 'sin capa');
-    const allowedZones = item.boundary?.allowed_zones ?? [];
-    const allowedStr = item.boundary?.unrestricted
-      ? styleText('green', 'todas (sin restricción)')
-      : (allowedZones.length > 0 ? allowedZones.join(', ') : styleText('dim', 'ninguna'));
-
-    const forbidden = item.boundary?.forbidden_calls ?? [];
-    const policies = item.policy_rules ?? [];
-    const rulesParts: string[] = [];
-    if (forbidden.length > 0) {
-      rulesParts.push(`prohibidas: ${forbidden.join(', ')}`);
-    }
-    if (policies.length > 0) {
-      rulesParts.push(`políticas: ${policies.join(', ')}`);
-    }
-    const rulesStr = rulesParts.length > 0 ? rulesParts.join(' | ') : styleText('dim', 'ninguna');
-
-    return {
-      file: item.path,
-      zone: zoneStr,
-      allowed: allowedStr,
-      rules: rulesStr
-    };
-  });
-
-  const columns: TableColumn<GuardTableRow>[] = [
-    { header: 'ARCHIVO EVALUADO', width: 34, align: 'left', key: 'file' },
-    { header: 'CAPA / ZONA', width: 14, align: 'left', key: 'zone' },
-    { header: 'PUEDE IMPORTAR', width: 24, align: 'left', key: 'allowed' },
-    { header: 'POLÍTICAS Y RESTRICCIONES', width: 28, align: 'left', key: 'rules' }
-  ];
-
-  console.log(renderBoxTable(columns, tableRows));
-
-  // Print specific notes if any
-  for (const item of fileResults) {
-    if (item.notes && item.notes.length > 0) {
-      for (const note of item.notes) {
-        console.log(styleText('dim', `  ℹ️  ${item.path}: ${note}`));
-      }
-    }
-  }
-  console.log();
+  renderGuardResultsTable(fileResults);
 
   return status;
 }

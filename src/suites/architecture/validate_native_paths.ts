@@ -81,7 +81,7 @@ const FS_SINK_METHOD_REGEX = /\b(?:fs(?:\.promises)?|fsSync)?\.(?:readFileSync|r
 
 const PATH_SINK_METHOD_REGEX = /\bpath\.(?:resolve|join)\s*\(/;
 
-const PATH_VAR_ASSIGN_REGEX = /(?:const|let|var)\s+([a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root)[a-zA-Z0-9_]*)\s*=\s*(.*)/i;
+const PATH_VAR_ASSIGN_REGEX = /(?:const|let|var)\s+(\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*)\s*=\s*(.*)/i;
 
 
 function updateArgParenDepth(char: string, depth: number): number {
@@ -168,7 +168,7 @@ function checkFsSinkConcat(rawLine: string, trimmed: string, filePath: string, l
   const afterCall = rawLine.slice(rawLine.indexOf(fsCallMatch[0]) + fsCallMatch[0].length);
   const pathArg = extractFirstArgument(afterCall);
 
-  const hasTemplateWithSlash = /`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`|`[^`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
+  const hasTemplateWithSlash = /`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`|`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
   const hasConcatWithSlash = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]|['"][^'"]+[/\\]['"]\s*\+/.test(pathArg);
 
   if ((hasTemplateWithSlash || hasConcatWithSlash) && !isNonPathString(pathArg)) {
@@ -190,7 +190,7 @@ function checkPathVarAssignConcat(rawLine: string, trimmed: string, filePath: st
   if (!assignMatch) return null;
 
   const rhs = assignMatch[2]?.replace(/;$/, '').trim() || '';
-  const hasTemplateSlash = /^`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`$|^`[^`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
+  const hasTemplateSlash = /^`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`$|^`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
   const hasBinaryConcat = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]/.test(rhs);
 
   if ((hasTemplateSlash || hasBinaryConcat) && !isNonPathString(rhs)) {
@@ -212,7 +212,7 @@ function checkUnsafePathConcat(rawLine: string, trimmed: string, filePath: strin
   const fsViolation = checkFsSinkConcat(rawLine, trimmed, filePath, lineNum);
   if (fsViolation) return fsViolation;
 
-  if (/\bpath\.(?:join|resolve)\s*\(\s*`[^`]*\$\{[^}]+\}[^`]*[/\\][^`]*`/.test(rawLine)) {
+  if (/\bpath\.(?:join|resolve)\s*\(\s*`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`/.test(rawLine)) {
     return {
       file: filePath,
       line: lineNum,
@@ -253,7 +253,7 @@ function checkUnsanitizedEnvArgv(
   if (!FS_SINK_METHOD_REGEX.test(rawLine) && !PATH_SINK_METHOD_REGEX.test(rawLine)) {
     return null;
   }
-  const hasRawEnv = /\bprocess\.env\.[a-zA-Z0-9_]+\b/.test(rawLine);
+  const hasRawEnv = /\bprocess\.env\.\w+\b/.test(rawLine);
   const hasRawArgv = /\bprocess\.argv\[[^\]]+\]/.test(rawLine);
 
   if ((hasRawEnv || hasRawArgv) && !isEnvArgvSanitized(rawLine, lines, i)) {
@@ -276,7 +276,7 @@ function checkUntrustedUrlFetch(
   lineNum: number,
   content: string
 ): NativePathViolation | null {
-  const fetchMatch = rawLine.match(/\b(?:await\s+)?fetch\s*\(\s*([a-zA-Z0-9_$.]+)/);
+  const fetchMatch = rawLine.match(/\b(?:await\s+)?fetch\s*\(\s*([\w$.]+)/);
   if (!fetchMatch || !fetchMatch[1]) return null;
 
   const arg = fetchMatch[1];
@@ -327,7 +327,7 @@ function checkHardcodedSlashPath(
     }
   }
 
-  if (/(['"`])([a-zA-Z]:(?:\\\\|\/)[^'"`\n]+)\1/.test(rawLine)) {
+  if (/(['"`])([a-z]:(?:\\\\|\/)[^'"`\n]+)\1/i.test(rawLine)) {
     if (!rawLine.includes('// no-domain: Non-domain utility collection or data structure') && !rawLine.includes('// test-ok') && !rawLine.includes('// cross-platform-ok')) {
       return {
         file: filePath,
@@ -340,7 +340,7 @@ function checkHardcodedSlashPath(
     }
   }
 
-  if (/\b([a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root)[a-zA-Z0-9_]*)\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
+  if (/\b(\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*)\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
     if (!rawLine.includes('.split(path.sep)') && !rawLine.includes('.replace(') && !rawLine.includes('.join(')) {
       return {
         file: filePath,
@@ -379,12 +379,12 @@ function checkHomebrewPathManipulation(
       // Traversal stripping via regex: targets '..' inside the regex replacing with empty string
       // e.g. .replace(/(\.\.[/\\])+/g, '') or .replace(/\.\./g, '')
       const isTraversalStrip =
-        /\.replace\s*\(\s*\/.*(?:\\?\.\\?\.|\.{2}|%2e).*\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
+        /\.replace\s*\(\s*\/.*(?:\.\\?\.|\.{2}|%2e).*\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
 
       // Character stripping via negative character classes on path variables
       // e.g. rawPath.replace(/[^a-zA-Z0-9_\- /.:\\]/g, '')
       const isPathVar =
-        /\b(?:[a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\b)\s*\.\s*replace/i.test(
+        /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\b\s*\.\s*replace/i.test(
           rawLine
         );
       const isExclusionStrip =
@@ -406,7 +406,7 @@ function checkHomebrewPathManipulation(
 
   // 2. Check for naive string traversal checks like filePath.includes('..')
   const hasNaiveTraversalCheck =
-    /\b(?:[a-zA-Z0-9_]*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\b)\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine);
+    /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\b\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine);
 
   if (hasNaiveTraversalCheck) {
     return {

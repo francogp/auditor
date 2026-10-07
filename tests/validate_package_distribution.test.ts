@@ -100,7 +100,7 @@ describe('ValidatePackageDistributionAuditor & parsePublintMessages', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.status).toBe('skipped');
     });
 
     it('executes on valid package directory and reports zero errors', async () => {

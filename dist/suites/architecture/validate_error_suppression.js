@@ -33,9 +33,9 @@ export const ERROR_SUPPRESSION_RULES = [
     'strict-catch-narrowing'
 ];
 // Regex for empty catch: catch (...) { /* only spaces or comments */ }
-const EMPTY_CATCH_REGEX = /catch\s*(?:\([^)]*\))?\s*\{([^{}]*)\}/g;
+const EMPTY_CATCH_REGEX = /catch\s*(?:\([^)]*\)\s*)?\{([^{}]*)\}/g;
 // Regex for silent promise catches: .catch(() => {}) or .catch(() => null/undefined/false)
-const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{(?:\s*(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)?\s*)\}|null|undefined|false|true)\s*\)/g;
+const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{\s*(?:(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)\s*)?\}|null|undefined|false|true)\s*\)/g;
 // Regex for Valibot fallback in schemas: v.fallback( or fallback(
 const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 export class ErrorSuppressionAuditor extends FileScanAuditor {

@@ -12,18 +12,14 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { isMainModule } from "./cliUtils.js";
 import "../core/permissionGuard.js";
+import { DEFAULT_PERMISSIONS } from "./auditTaskFactory.js";
 export async function runAuditBuild(extraArgs = []) {
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
     const fullAuditorPath = path.resolve(currentDir, 'audit_full.ts');
     const fullAuditorJsPath = path.resolve(currentDir, 'audit_full.js');
     const targetScript = fs.existsSync(fullAuditorPath) ? fullAuditorPath : fullAuditorJsPath;
     const nodeArgs = [
-        '--permission',
-        '--allow-fs-read=*',
-        '--allow-fs-write=*',
-        '--allow-child-process',
-        '--allow-addons',
-        '--experimental-strip-types',
+        ...DEFAULT_PERMISSIONS,
         targetScript,
         'preset=build',
         ...extraArgs

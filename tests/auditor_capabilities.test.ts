@@ -75,7 +75,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     }
   });
 
-  it('filters strictly to the 10 fix-capable suites when fixOnly: true', async () => {
+  it('filters strictly to the 14 fix-capable suites when fixOnly: true', async () => {
     const fixTasks = await discoverAuditors({ fixOnly: true });
     const fixSuiteIds = fixTasks.map(t => t.id).sort();
 
@@ -83,8 +83,12 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'audit_project',
       'validate_accessibility',
       'validate_agent_plugin',
+      'validate_agents_config_mandate',
       'validate_audit_config',
+      'validate_documentation_language',
       'validate_eslint',
+      'validate_eslint_config',
+      'validate_fallow_config',
       'validate_html_validate',
       'validate_markdown_lint',
       'validate_package_hygiene',

@@ -75,6 +75,63 @@ function formatRetirementReason(reason: string): string {
   }
 }
 
+function renderRetirementFlagsView(parsed: FeatureFlagsReportPayload | null, topLimit: number = DEFAULT_TOP_LIMIT): void {
+  const candidates = parsed?.retirement?.flags ?? [];
+  const displayed = candidates.slice(0, topLimit);
+
+  if (displayed.length === 0) {
+    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se detectaron feature flags candidatas a retiro.\n'));
+    return;
+  }
+
+  console.log(`  Candidatas a retiro: ${styleText('yellow', String(candidates.length))}\n`);
+
+  const tableRows: RetirementTableRow[] = displayed.map((item) => {
+    const ageStr = item.age_days !== undefined ? `${item.age_days}d` : styleText('dim', 'n/d');
+    const sitesStr = item.read_sites !== undefined ? String(item.read_sites) : styleText('dim', '0');
+    const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
+    const reasonsStr = reasonsList.length > 0 ? reasonsList.join(', ') : styleText('dim', 'ninguno');
+
+    return {
+      name: styleText('cyan', item.name),
+      age: ageStr,
+      sites: sitesStr,
+      reasons: reasonsStr
+    };
+  });
+
+  const columns: TableColumn<RetirementTableRow>[] = [
+    { header: 'FEATURE FLAG', width: 30, align: 'left', key: 'name' },
+    { header: 'EDAD', width: 8, align: 'right', key: 'age' },
+    { header: 'LECTURAS', width: 10, align: 'right', key: 'sites' },
+    { header: 'MOTIVO DE RETIRO RECOMENDADO', width: 44, align: 'left', key: 'reasons' }
+  ];
+
+  console.log(renderBoxTable(columns, tableRows));
+  console.log();
+}
+
+function renderActiveFlagsView(parsed: FeatureFlagsReportPayload | null, topLimit: number = DEFAULT_TOP_LIMIT): void {
+  const flags = parsed?.feature_flags ?? [];
+  if (flags.length === 0) {
+    console.log('\n  ' + styleText('dim', 'No se encontraron feature flags configuradas en este proyecto.\n'));
+    return;
+  }
+
+  const tableRows = flags.slice(0, topLimit).map((f) => ({
+    name: styleText('cyan', f.name ?? 'desconocida'),
+    sites: String(f.read_sites ?? 0)
+  }));
+
+  const columns: TableColumn<{ name: string; sites: string }>[] = [
+    { header: 'FEATURE FLAG', width: 40, align: 'left', key: 'name' },
+    { header: 'SITIOS DE LECTURA', width: 20, align: 'right', key: 'sites' }
+  ];
+
+  console.log('\n' + renderBoxTable(columns, tableRows));
+  console.log(styleText('dim', '  💡 Tip: Ejecuta auditor-flags --retirement para ver recomendaciones de retiro.\n'));
+}
+
 export function runFlagsReport(
   projectRoot: string = process.cwd(),
   options: FlagsOptions = {}
@@ -97,11 +154,7 @@ export function runFlagsReport(
   );
 
   if (options.json) {
-    if (parsed) {
-      console.log(JSON.stringify(parsed, null, 2));
-    } else {
-      console.log(JSON.stringify({ error: 'Fallow flags execution failed', raw: rawOutput }));
-    }
+    console.log(parsed ? JSON.stringify(parsed, null, 2) : JSON.stringify({ error: 'Fallow flags execution failed', raw: rawOutput }));
     return status;
   }
 
@@ -116,59 +169,9 @@ export function runFlagsReport(
   console.log(`  Total de feature flags detectadas: ${styleText('bold', String(totalFlags))}`);
 
   if (isRetirement) {
-    const candidates = parsed?.retirement?.flags ?? [];
-    const topLimit = options.top ?? DEFAULT_TOP_LIMIT;
-    const displayed = candidates.slice(0, topLimit);
-
-    if (displayed.length === 0) {
-      console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se detectaron feature flags candidatas a retiro.\n'));
-      return status;
-    }
-
-    console.log(`  Candidatas a retiro: ${styleText('yellow', String(candidates.length))}\n`);
-
-    const tableRows: RetirementTableRow[] = displayed.map((item) => {
-      const ageStr = item.age_days !== undefined ? `${item.age_days}d` : styleText('dim', 'n/d');
-      const sitesStr = item.read_sites !== undefined ? String(item.read_sites) : styleText('dim', '0');
-      const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
-      const reasonsStr = reasonsList.length > 0 ? reasonsList.join(', ') : styleText('dim', 'ninguno');
-
-      return {
-        name: styleText('cyan', item.name),
-        age: ageStr,
-        sites: sitesStr,
-        reasons: reasonsStr
-      };
-    });
-
-    const columns: TableColumn<RetirementTableRow>[] = [
-      { header: 'FEATURE FLAG', width: 30, align: 'left', key: 'name' },
-      { header: 'EDAD', width: 8, align: 'right', key: 'age' },
-      { header: 'LECTURAS', width: 10, align: 'right', key: 'sites' },
-      { header: 'MOTIVO DE RETIRO RECOMENDADO', width: 44, align: 'left', key: 'reasons' }
-    ];
-
-    console.log(renderBoxTable(columns, tableRows));
-    console.log();
+    renderRetirementFlagsView(parsed, options.top);
   } else {
-    const flags = parsed?.feature_flags ?? [];
-    if (flags.length === 0) {
-      console.log('\n  ' + styleText('dim', 'No se encontraron feature flags configuradas en este proyecto.\n'));
-      return status;
-    }
-
-    const tableRows = flags.slice(0, options.top ?? DEFAULT_TOP_LIMIT).map((f) => ({
-      name: styleText('cyan', f.name ?? 'desconocida'),
-      sites: String(f.read_sites ?? 0)
-    }));
-
-    const columns: TableColumn<{ name: string; sites: string }>[] = [
-      { header: 'FEATURE FLAG', width: 40, align: 'left', key: 'name' },
-      { header: 'SITIOS DE LECTURA', width: 20, align: 'right', key: 'sites' }
-    ];
-
-    console.log('\n' + renderBoxTable(columns, tableRows));
-    console.log(styleText('dim', '  💡 Tip: Ejecuta auditor-flags --retirement para ver recomendaciones de retiro.\n'));
+    renderActiveFlagsView(parsed, options.top);
   }
 
   return status;

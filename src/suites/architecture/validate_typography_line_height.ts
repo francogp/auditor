@@ -30,7 +30,7 @@ export const TYPOGRAPHY_LINE_HEIGHT_RULES: readonly LineHeightRuleId[] = [
   'line-height-overlap'
 ];
 
-const ICON_ELEMENT_REGEX = /(?:^|[._-])(?:emoji|icon|arrow|bullet|symbol|glyph|avatar|medal|quote|mark|placeholder|checkmark|star|indicator|infinity|dash|tooltip-wrapper|fx-wrapper|clear|close|dismiss)(?:$|[._-])|(?<![a-zA-Z0-9_-])(?:img|svg|canvas)\b/i;
+const ICON_ELEMENT_REGEX = /(?:^|[._-])(?:emoji|icon|arrow|bullet|symbol|glyph|avatar|medal|quote|mark|placeholder|checkmark|star|indicator|infinity|dash|tooltip-wrapper|fx-wrapper|clear|close|dismiss)(?:$|[._-])|(?<![\w-])(?:img|svg|canvas)\b/i;
 const TEXT_ELEMENT_REGEX = /(?:^|[._-])(?:title|heading|header|caption|desc|description|sub|subtitle|dialogue|name|label|text|body|wrap|item|card|accordion|content|h[1-6]|paragraph|note|message|banner|alert|prompt|phrase|comment|summary|reason|metric|pill|tag)(?:$|[._-])/i;
 
 interface ExtractedStyleBlock {
@@ -62,7 +62,7 @@ function extractStyleBlocks(filePath: string, fileContent: string): ExtractedSty
 function getLeafSelector(fullSelector: string): string {
   const segments = fullSelector.split(/[\s>+~]/).map(s => s.trim()).filter(Boolean);
   const last = segments[segments.length - 1] || fullSelector;
-  return last.replace(/::?[a-zA-Z0-9_-]+(\([^)]*\))?/g, '').trim();
+  return last.replace(/::?[\w-]+(\([^)]*\))?/g, '').trim();
 }
 
 function isEmojiFontContext(lines: readonly string[], currentIndex: number): boolean {
@@ -70,7 +70,7 @@ function isEmojiFontContext(lines: readonly string[], currentIndex: number): boo
   const end = Math.min(lines.length - 1, currentIndex + 6);
   for (let idx = start; idx <= end; idx++) {
     const l = lines[idx] || '';
-    if (/font-family\s*:\s*.*(?:Emoji|Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji)/i.test(l)) {
+    if (/font-family\s*:\s*(?:\S.*)?(?:Emoji|Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji)/i.test(l)) {
       return true;
     }
   }
@@ -114,7 +114,7 @@ function isLineHeightOverlapCandidate(
   if (lineIgnored || (currentFrame && currentFrame.isIgnored)) {
     return null;
   }
-  return trimmed.match(/\bline-height\s*:\s*(0|1|0px|1px|1em|1rem)\s*(?:!important)?\s*;/i);
+  return trimmed.match(/\bline-height\s*:\s*(0|1|0px|1px|1em|1rem)\s*(?:!important\s*)?;/i);
 }
 
 function isTextSelectorCandidate(currentSelector: string, leafSelector: string): boolean {

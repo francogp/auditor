@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "4.6.2-build.20261006-084342",
+  "version": "5.0.0-build.20261007-071913",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -113,7 +113,6 @@
     "test:coverage": "vitest run --coverage",
     "env:post-setup": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
     "audit": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
-    "audit:skip-similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts --skip-similar",
     "audit:bundle": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/audit_bundle.ts",
     "audit:md": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=md",
     "lint:md": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/documentation/validate_markdown_lint.ts",
@@ -202,6 +201,7 @@
     "eslint": "^10.12.0",
     "eslint-plugin-vuejs-accessibility": "^2.6.0",
     "fallow": "^3.31.0",
+    "franc-min": "^6.2.0",
     "html-validate": "^11.16.2",
     "html-validate-vue": "^9.3.1",
     "knip": "^6.39.0",

@@ -13,6 +13,8 @@ const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
 const ERROR_WEIGHT_FACTOR = 1000;
+export const SEVERITY_FILTERS = ['all', 'error', 'warning'];
+export const REPORT_SCOPES = ['all', 'host', 'packages'];
 const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
 const SUMMARY_FLAGS = new Set(['summary', '--summary', 'summary=true']);
 const FILES_FLAGS = new Set(['files', '--files', 'files=true']);
@@ -251,9 +253,13 @@ function validateReportFreshnessAndScope(report, args) {
         const matchesExecutedFinding = Object.values(report.families).some(fam => {
             if (!fam)
                 return false;
+            const lowerCat = args.category.toLowerCase();
             return fam.suites.some(suite => suite.findings.some(f => {
-                const catKey = f.ruleDescription || suite.description || f.ruleId || suite.name || '';
-                return catKey.toLowerCase().includes(args.category.toLowerCase());
+                const ruleDescMatches = typeof f.ruleDescription === 'string' && f.ruleDescription.toLowerCase().includes(lowerCat);
+                const ruleIdMatches = typeof f.ruleId === 'string' && f.ruleId.toLowerCase().includes(lowerCat);
+                const suiteDescMatches = typeof suite.description === 'string' && suite.description.toLowerCase().includes(lowerCat);
+                const suiteNameMatches = typeof suite.name === 'string' && suite.name.toLowerCase().includes(lowerCat);
+                return ruleDescMatches || ruleIdMatches || suiteDescMatches || suiteNameMatches;
             }));
         });
         if (!matchesExecutedSuite && !matchesExecutedFinding) {

@@ -5,18 +5,13 @@
  * Provides the single source of truth for visual presentation, Unicode Box-Drawing,
  * fixed-width column alignment, status badges, and Markdown generation.
  */
-import { type StandardAuditResult, type AuditFinding, type AuditFileSummary, type FamilyMetadata, type AuditTaskDefinition } from './auditContract.ts';
-/**
- * Calculates the visual monospace terminal display width of a string,
- * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
- */
-export declare function getVisualWidth(str: string): number;
-export declare function padVisual(str: string, targetWidth: number, align?: 'left' | 'right' | 'center'): string;
-export declare function truncateVisual(str: string, maxWidth: number): string;
+import { type StandardAuditResult, type AuditFinding, type FamilyMetadata, type AuditTaskDefinition } from './auditContract.ts';
+export { getVisualWidth, padVisual, truncateVisual, TEXT_ALIGNMENTS, type TextAlignment } from './terminalVisuals.ts';
+import { type TextAlignment } from './terminalVisuals.ts';
 export interface TableColumn<T = Record<string, unknown>> {
     header: string;
     width: number;
-    align?: 'left' | 'right' | 'center';
+    align?: TextAlignment;
     key?: string;
     render?: (row: T) => string;
 }
@@ -31,6 +26,8 @@ export interface FindingCountData {
 export declare function renderFindingsBreakdownTable(items: readonly [string, FindingCountData][], labelHeader?: string): string;
 export declare function renderSampleFindings(findings: readonly AuditFinding[], limitOrAll?: number | 'all'): string;
 export declare function renderBanner(title: string, subtitle?: string): string;
+export declare const NOTICE_BOX_COLORS: readonly ["yellow", "cyan", "red"];
+export type NoticeBoxColor = (typeof NOTICE_BOX_COLORS)[number];
 /**
  * Renders a prominent 80-column Box-Drawing warning banner when the automatic
  * installation of Fallow's vector embedding model fails, notifying both human
@@ -47,7 +44,12 @@ export declare function renderAutoFixNoticeBanner(fixableErrors: number, fixable
  * Renders the full dynamic registry of auditors in an 80-column Box-Drawing table,
  * grouped by family, with capability flags and concise descriptions.
  */
-export declare function renderAuditorsRegistryTable(tasks: readonly AuditTaskDefinition[], activeFamilies: readonly string[]): string;
+import type { AuditListFilter } from './auditConfigTypes.ts';
+export interface AuditorsRegistryTableOptions {
+    readonly filter?: AuditListFilter;
+    readonly disabledReasons?: ReadonlyMap<string, string>;
+}
+export declare function renderAuditorsRegistryTable(tasks: readonly AuditTaskDefinition[], activeFamilies: readonly string[], options?: AuditorsRegistryTableOptions): string;
 /**
  * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
  */
@@ -57,20 +59,16 @@ export declare function renderAuditorDetailCard(task: AuditTaskDefinition): stri
  */
 export declare function renderCliHelp(activeFamilies: readonly string[]): string;
 export declare function renderFamilyHeader(meta: FamilyMetadata): string;
-export declare function formatStatusBadge(status: 'passed' | 'failed' | 'warning' | 'info' | 'skipped'): string;
+export declare const AUDIT_BADGE_STATUSES: readonly ["passed", "failed", "warning", "info", "skipped"];
+export type AuditBadgeStatus = (typeof AUDIT_BADGE_STATUSES)[number];
+export declare function formatStatusBadge(status: AuditBadgeStatus): string;
 export declare function formatDuration(ms: number): string;
+export declare const COUNT_BADGE_COLORS: readonly ["red", "yellow"];
+export type CountBadgeColor = (typeof COUNT_BADGE_COLORS)[number];
 export declare const TASK_NAME_COL_WIDTH = 38;
 export declare function renderAuditTaskRow(res: StandardAuditResult): string;
-export declare function renderFindingsDetail(findings: AuditFinding[], maxLimit?: number): string;
-export interface RenderByFileTreeOptions {
-    maxFiles?: number | 'all';
-    maxFindingsPerFile?: number | 'all';
-    showRule?: boolean;
-}
-/**
- * Renders audit findings structured by file and ordered by line number in a Box-Drawing tree format.
- */
-export declare function renderFindingsByFileTree(fileSummaries: readonly AuditFileSummary[], options?: RenderByFileTreeOptions): string;
+export { groupFindingsByFile, formatFindingEntry, renderFindingsDetail } from './fileTreeRenderer.ts';
+export { type RenderByFileTreeOptions, renderFindingsByFileTree, formatSampleErrorLine, renderSampleErrors } from './fileTreeRenderer.ts';
 export declare function renderConsolidatedFooter(suitesTotal: number, suitesPassed: number, totalErrors: number, totalWarnings: number, totalDurationMs: number, errorFindings?: AuditFinding[], suitesSkipped?: number): string;
-export declare function renderMarkdownReport(results: StandardAuditResult[], suitesPassed: number, totalDurationMs: number): string;
+export { renderMarkdownReport } from './markdownReport.ts';
 //# sourceMappingURL=unifiedTheme.d.ts.map

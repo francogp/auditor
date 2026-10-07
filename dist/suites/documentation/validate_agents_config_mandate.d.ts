@@ -1,0 +1,47 @@
+/**
+ * src/suites/documentation/validate_agents_config_mandate.ts
+ *
+ * ROOT AGENTS.MD CONFIGURATION & ARCHITECTURE GOVERNANCE AUDITOR (Node.js 26+ Native)
+ * Verifies that the root AGENTS.md strictly contains mandatory architectural clauses:
+ * 1. Prohibition on modifying or disabling configurations without prior programmer consultation.
+ * 2. Absolute prohibition on backward-compatible code & loud failure mandate.
+ * 3. Absolute prohibition on suppressing or silencing rules for fake passes.
+ * Supports automated injection and in-place modernization in fix mode.
+ */
+import { BaseAuditor } from '../../core/auditorBase.ts';
+import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
+export type AgentsConfigMandateRuleId = 'agents-missing-config-mandate' | 'agents-missing-backward-compat-mandate' | 'agents-missing-fake-pass-mandate';
+export declare const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[];
+export declare const CANONICAL_MANDATE_SNIPPET_EN = "- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer. When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.";
+export declare const CANONICAL_MANDATE_SNIPPET_ES = "- **Prohibici\u00F3n de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador**: Los desarrolladores y agentes de IA tienen estrictamente prohibido deshabilitar, apagar, alterar o modificar las configuraciones del auditor (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) ante errores o advertencias sin consultar y obtener autorizaci\u00F3n previa expl\u00EDcita del programador humano. Al solicitar autorizaci\u00F3n, el agente debe proporcionar una explicaci\u00F3n t\u00E9cnica exhaustiva detallando por qu\u00E9 la modificaci\u00F3n es necesaria, justificando expl\u00EDcitamente los pros, los contras y el balance de compensaciones.";
+export declare const CANONICAL_BACKWARD_COMPAT_SNIPPET_EN = "- **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**: Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across this repository is STRICTLY PROHIBITED. The architecture prioritizes clean, uncompromised modern standards over legacy tolerance. Outdated consumers, legacy configurations, and unmigrated calls MUST fail loudly with immediate, explicit, and blocking errors (`throw new Error(...)` or exit code 1) forcing immediate upgrades to canonical standards. Maintaining duplicate suites or runtime compatibility bridges that introduce bloat, duplicate findings, or maintenance hazards is completely eradicated.";
+export declare const CANONICAL_BACKWARD_COMPAT_SNIPPET_ES = "- **Prohibici\u00F3n Absoluta de C\u00F3digo Retrocompatible y Mandato de Fallo Ruidoso**: Escribir shims retrocompatibles, suites de alias obsoletos, wrappers de fallback legacy o c\u00F3digo de adaptador de doble ejecuci\u00F3n en este repositorio est\u00E1 ESTRICTAMENTE PROHIBIDO. La arquitectura prioriza est\u00E1ndares modernos limpios y sin concesiones por sobre la tolerancia al c\u00F3digo legado. Los consumidores obsoletos, configuraciones antiguas y llamadas no migradas DEBEN fallar ruidosamente con errores inmediatos, expl\u00EDcitos y bloqueantes (`throw new Error(...)` o c\u00F3digo de salida 1) forzando la actualizaci\u00F3n a los est\u00E1ndares can\u00F3nicos. Mantener suites duplicadas o puentes de compatibilidad en tiempo de ejecuci\u00F3n que introducen sobrecarga, hallazgos duplicados o riesgos de mantenimiento queda completamente erradicado.";
+export declare const CANONICAL_FAKE_PASS_SNIPPET_EN = "- **Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate**: When auditing a repository or running linters/auditors, AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from suppressing, silencing, disabling, or nullifying auditor rules, stylelint rules, ESLint rules, or any static analysis checks (e.g., setting `\"rule\": null`, `\"rule\": \"off\"`, `\"rule\": 0`, creating dummy override configs that neuter checks, or passing arbitrary skip flags) to make an audit pass or hide findings. If the number of errors or warnings is massive (even thousands of errors), THEY ARE REAL ARCHITECTURAL OR HYGIENE DEFECTS THAT MUST BE LEGITIMATELY RESOLVED IN THE SOURCE CODE OR FIXED WITH CANONICAL TOOLS (`auditor fix`). Modernizing host configurations means elevating the codebase to meet strict modern standards and exposing defects that were previously hidden, NEVER degrading, diluting, or castrating the auditor's rules to fit legacy code. Silencing rules to achieve a fake clean pass is considered a critical architectural violation and gross misconduct.";
+export declare const CANONICAL_FAKE_PASS_SNIPPET_ES = "- **Prohibici\u00F3n Absoluta de Suprimir, Silenciar, Anular o Eludir Reglas de Auditor\u00EDa y Mandato de Cero Tolerancia a Pases Falsos**: Al auditar un repositorio o ejecutar linters/auditores, los agentes de IA y desarrolladores tienen ESTRICTA Y CATEG\u00D3RICAMENTE PROHIBIDO suprimir, silenciar, desactivar o anular reglas del auditor, de stylelint, de ESLint o cualquier verificaci\u00F3n est\u00E1tica (ej. configurando `\"rule\": null`, `\"rule\": \"off\"`, `\"rule\": 0`, creando configuraciones de anulaci\u00F3n ficticias que neutralicen chequeos, o pasando flags arbitrarios de omisi\u00F3n) para que una auditor\u00EDa pase u ocultar hallazgos. Si la cantidad de errores o advertencias es masiva (incluso miles de errores), SON DEFECTOS REALES DE ARQUITECTURA O HIGIENE QUE DEBEN RESOLVERSE LEG\u00CDTIMAMENTE EN EL C\u00D3DIGO FUENTE O REPARARSE CON HERRAMIENTAS CAN\u00D3NICAS (`auditor fix`). Modernizar configuraciones significa elevar el c\u00F3digo para cumplir con est\u00E1ndares modernos estrictos y exponer defectos previamente ocultos, NUNCA degradar, diluir o castrar las reglas del auditor para adaptarlas a c\u00F3digo legado. Silenciar reglas para lograr un pase limpio falso se considera una violaci\u00F3n arquitect\u00F3nica cr\u00EDtica y una falta grave.";
+export declare function getCanonicalMandateSnippet(language?: DocumentationLanguage): string;
+export declare function getCanonicalBackwardCompatSnippet(language?: DocumentationLanguage): string;
+export declare function getCanonicalFakePassSnippet(language?: DocumentationLanguage): string;
+/**
+ * Checks if a block of markdown text contains the anti-tampering mandate.
+ */
+export declare function containsConfigAntiTamperingMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
+/**
+ * Checks if a block of markdown text contains the backward-compatible prohibition mandate.
+ */
+export declare function containsBackwardCompatMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
+/**
+ * Checks if a block of markdown text contains the fake pass prohibition mandate.
+ */
+export declare function containsFakePassMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
+export interface AgentsConfigMandateOptions {
+    fix?: boolean;
+    language?: DocumentationLanguage;
+}
+export declare class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateRuleId> {
+    private readonly rootDir;
+    private readonly languageOption?;
+    constructor(rootDir?: string, options?: AgentsConfigMandateOptions);
+    runAudit(): Promise<void>;
+    private auditSingleMandate;
+}
+//# sourceMappingURL=validate_agents_config_mandate.d.ts.map

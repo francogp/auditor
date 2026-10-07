@@ -52,7 +52,7 @@ function isForbiddenDirName(name) {
 }
 const DEFAULT_ALLOWED_DATABASE_DIRS = new Set(['backups', 'migrations', 'schemas']);
 const DEFAULT_ALLOWED_DATABASE_FILES = new Set(['AGENTS.md', '.gitkeep']);
-const FORBIDDEN_CODE_REF_REGEX = /(?:['"`]|(?:path\.(?:resolve|join)\([^)]*))\b(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|temp_[a-zA-Z0-9_]+|tmp_[a-zA-Z0-9_]+)\b/;
+const FORBIDDEN_CODE_REF_REGEX = /(?:['"`]|path\.(?:resolve|join)\([^)]*)\b(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|temp_\w+|tmp_\w+)\b/;
 const GITIGNORE_FORBIDDEN_REGEX = /(?:^|\/)(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|\.temp|\.tmp|temp_|tmp_)/;
 function isSelfReferentialFile(relPath) {
     return (relPath.endsWith('validate_ephemeral_storage_isolation.ts') ||

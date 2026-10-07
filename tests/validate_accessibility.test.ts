@@ -72,7 +72,7 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.status).toBe('skipped');
     });
 
     it('executes on clean SFC component and valid viewport reporting zero errors', async () => {

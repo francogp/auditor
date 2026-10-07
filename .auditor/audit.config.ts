@@ -25,7 +25,8 @@ export default defineAuditConfig({
       { glob: 'setup-linux.sh', reason: 'Linux and macOS environment initialization bootstrap shell script' },
       { glob: 'setup-windows.ps1', reason: 'Windows environment initialization bootstrap PowerShell script' },
       { glob: 'tsconfig.build.json', reason: 'TypeScript compiler configuration for distribution artifacts emission' },
-      { glob: 'tsconfig.json', reason: 'TypeScript compiler configuration for root development and testing' }
+      { glob: 'tsconfig.json', reason: 'TypeScript compiler configuration for root development and testing' },
+      { glob: 'vitest.config.ts', reason: 'Vitest unit and integration test runner configuration' }
     ],
     acknowledgedDegradations: [
       { glob: 'src/cli/**', policy: 'cli', reason: 'Command-line execution entrypoints with diagnostic stdout output' },
@@ -40,12 +41,21 @@ export default defineAuditConfig({
     schemaQualified: false
   },
   domain: {
-    enabled: false,
+    enabled: true,
     finiteDomainTypes: [],
-    infraIdWhitelist: []
+    infraIdWhitelist: [
+      'suiteId',
+      'ruleId',
+      'runId',
+      'buildId',
+      'eslintRuleId',
+      'candidate_id',
+      'requiredSuiteId',
+      'rule_id'
+    ]
   },
   bundle: {
-    enabled: false
+    enabled: true
   },
   styles: {
     zLayersEnabled: false,

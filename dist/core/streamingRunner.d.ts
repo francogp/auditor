@@ -19,9 +19,12 @@ export interface TaskStreamProgressParams {
     isSkipped?: boolean;
     isBuiltin?: boolean;
     icon?: string;
+    taskIndex?: number;
 }
 export declare class TaskStreamCoordinator {
     private completedCount;
+    private nextPrintIndex;
+    private readonly bufferedTasks;
     private readonly totalTasks;
     private readonly indent;
     private printLock;
@@ -29,6 +32,7 @@ export declare class TaskStreamCoordinator {
         indent?: string;
     });
     onTaskComplete(params: TaskStreamProgressParams): Promise<void>;
+    private printTaskItem;
 }
 export declare function isNodeInternalWarning(line: string): boolean;
 export interface ExecutedTaskOutput {

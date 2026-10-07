@@ -14,17 +14,22 @@ Architecture & Tooling Engineers.
 
 ## Key Files
 
+- [`agents_mandate_analyzer.test.ts`](./agents_mandate_analyzer.test.ts): Tests for AGENTS.md mandate parsing, language validation, and in-place injection helper.
 - [`auditor_architecture_conformance.test.ts`](./auditor_architecture_conformance.test.ts): Meta-test verifying 100% companion test coverage and rule descriptors.
 - [`auditor_base.test.ts`](./auditor_base.test.ts): Tests for `BaseAuditor` and `FileScanAuditor` base class lifecycle.
 - [`auditor_capabilities.test.ts`](./auditor_capabilities.test.ts): Tests for dynamic sub-auditor capability detection, zero-boilerplate inheritance, and fix mode filtering.
 - [`audit_bundle.test.ts`](./audit_bundle.test.ts): Tests for `audit_bundle.ts` treemap parsing and budget enforcement.
 - [`audit_ratchet.test.ts`](./audit_ratchet.test.ts): Git-sandbox tests for the warning ratchet (fingerprint stability, new-warning detection, shrink-only baseline, tamper rejection).
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
+- [`config_file_registry.test.ts`](./config_file_registry.test.ts): Tests for centralized `ConfigFileRegistry`, declarative sub-auditor configuration requirements, and auto-scaffolding in fix mode.
 - [`report_coverage_map.test.ts`](./report_coverage_map.test.ts): Tests for audit coverage map CLI and reporting.
 - [`report_test_coverage.test.ts`](./report_test_coverage.test.ts): Tests for test execution coverage reporting CLI.
 - [`test_coverage_core.test.ts`](./test_coverage_core.test.ts): Tests for coverage metric calculation, unmapped file detection, and parsing.
 - [`validate_accessibility.test.ts`](./validate_accessibility.test.ts): Tests for WCAG 2.2 accessibility verification via `eslint-plugin-vuejs-accessibility`.
+- [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture and anti-tampering configuration clauses in root `AGENTS.md`.
+- [`validate_documentation_language.test.ts`](./validate_documentation_language.test.ts): Tests for documentation language verification, root AGENTS mandate auto-fix and modernization, and exemption matching.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for `.auditor/` configuration integrity (paths, scripts, ratchet ref and baseline) and the AST-based migration of root-level configs.
+- [`validate_dox_integrity.test.ts`](./validate_dox_integrity.test.ts): Tests for DOX hierarchy completeness, mandatory sections order, and empty section rejection.
 - [`validate_eslint_config.test.ts`](./validate_eslint_config.test.ts): Tests for ESLint Domain-Type-First configuration enforcement.
 - [`validate_package_distribution.test.ts`](./validate_package_distribution.test.ts): Tests for package export map and type distribution hygiene via Publint.
 - [`validate_package_hygiene.test.ts`](./validate_package_hygiene.test.ts): Tests for orphan dependency and unused script detection via Knip.
@@ -33,6 +38,17 @@ Architecture & Tooling Engineers.
 - [`validate_test_coverage.test.ts`](./validate_test_coverage.test.ts): Tests for test execution coverage thresholds and uncovered files detection.
 - [`validate_type_coverage.test.ts`](./validate_type_coverage.test.ts): Tests for quantitative TypeScript type coverage threshold enforcement.
 - [`version_bump.test.ts`](./version_bump.test.ts): Tests for SemVer bump calculation, build timestamp formatting, and git diff heuristics.
+
+## Work Guidance
+
+- Test fixtures must be isolated from the live repository using temporary scratch directories or virtual file inputs.
+- Always include clean path tests verifying that valid code produces 0 errors and status 'passed'.
+- Concatenate banned strings (such as banned import tokens) in fixtures to prevent static scanners from misidentifying test fixtures as live code violations.
+
+## Verification
+
+- Run full test suite: `npm test`
+- Run architecture conformance tests: `npm test -- tests/auditor_architecture_conformance.test.ts`
 
 ## Child DOX Index
 

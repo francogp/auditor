@@ -3,21 +3,18 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, getEffectiveScannableRoots } from '../../core/auditorBase.ts';
 import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
+import type { AuditConfig } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
-export type PackageHygieneRuleId =
-  | 'package-unused-dependency'
-  | 'package-unlisted-dependency'
-  | 'package-unused-binary';
-
-export const PACKAGE_HYGIENE_RULES: readonly PackageHygieneRuleId[] = [
+export const PACKAGE_HYGIENE_RULES = [
   'package-unused-dependency',
   'package-unlisted-dependency',
   'package-unused-binary'
 ] as const;
+export type PackageHygieneRuleId = (typeof PACKAGE_HYGIENE_RULES)[number];
 
 export interface KnipIssueItem {
   readonly name: string;
@@ -70,6 +67,65 @@ export function extractReferencedScriptDependencies(projectRoot: string): Set<st
   return referenced;
 }
 
+function parseUnusedDeps(
+  fileIssue: KnipFileIssues,
+  relFile: string,
+  scriptReferencedDeps: ReadonlySet<string>
+): AuditFinding[] {
+  const allUnused = [
+    ...(fileIssue.dependencies ?? []),
+    ...(fileIssue.devDependencies ?? []),
+    ...(fileIssue.optionalPeerDependencies ?? [])
+  ];
+  const findings: AuditFinding[] = [];
+  for (const dep of allUnused) {
+    if (scriptReferencedDeps.has(dep.name)) continue;
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-unused-dependency',
+      ruleDescription: 'Dependencias: Dependencia no utilizada en package',
+      severity: 'error',
+      file: relFile,
+      line: dep.line ?? 1,
+      col: dep.col ?? 1,
+      context: dep.name,
+      message: `Dependencia no utilizada declarada en package.json: "${dep.name}"`
+    });
+  }
+  return findings;
+}
+
+function parseUnlistedDeps(fileIssue: KnipFileIssues, relFile: string): AuditFinding[] {
+  return (fileIssue.unlisted ?? []).map(unlisted => ({
+    suiteId: 'validate_package_hygiene',
+    suiteName: 'Package & Dependency Hygiene Auditor',
+    ruleId: 'package-unlisted-dependency',
+    ruleDescription: 'Dependencias: Dependencia fantasma no declarada',
+    severity: 'error',
+    file: relFile,
+    line: unlisted.line ?? 1,
+    col: unlisted.col ?? 1,
+    context: unlisted.name,
+    message: `Dependencia fantasma no declarada en package.json importada en código: "${unlisted.name}"`
+  }));
+}
+
+function parseUnusedBinaries(fileIssue: KnipFileIssues, relFile: string): AuditFinding[] {
+  return (fileIssue.binaries ?? []).map(bin => ({
+    suiteId: 'validate_package_hygiene',
+    suiteName: 'Package & Dependency Hygiene Auditor',
+    ruleId: 'package-unused-binary',
+    ruleDescription: 'Dependencias: Binario o script no referenciado',
+    severity: 'error',
+    file: relFile,
+    line: bin.line ?? 1,
+    col: bin.col ?? 1,
+    context: bin.name,
+    message: `Binario o script ejecutable no referenciado en el proyecto: "${bin.name}"`
+  }));
+}
+
 /**
  * Parses raw JSON output from Knip into canonical AuditFindings.
  */
@@ -94,74 +150,20 @@ export function parseKnipIssues(
       continue;
     }
 
-    // Unused dependencies & devDependencies
-    const allUnused = [
-      ...(fileIssue.dependencies ?? []),
-      ...(fileIssue.devDependencies ?? []),
-      ...(fileIssue.optionalPeerDependencies ?? [])
-    ];
-
-    for (const dep of allUnused) {
-      if (scriptReferencedDeps.has(dep.name)) {
-        continue;
-      }
-      findings.push({
-        suiteId: 'validate_package_hygiene',
-        suiteName: 'Package & Dependency Hygiene Auditor',
-        ruleId: 'package-unused-dependency',
-        ruleDescription: 'Dependencias: Dependencia no utilizada en package',
-        severity: 'error',
-        file: relFile,
-        line: dep.line ?? 1,
-        col: dep.col ?? 1,
-        context: dep.name,
-        message: `Dependencia no utilizada declarada en package.json: "${dep.name}"`
-      });
-    }
-
-    // Unlisted (phantom) dependencies
-    for (const unlisted of fileIssue.unlisted ?? []) {
-      findings.push({
-        suiteId: 'validate_package_hygiene',
-        suiteName: 'Package & Dependency Hygiene Auditor',
-        ruleId: 'package-unlisted-dependency',
-        ruleDescription: 'Dependencias: Dependencia fantasma no declarada',
-        severity: 'error',
-        file: relFile,
-        line: unlisted.line ?? 1,
-        col: unlisted.col ?? 1,
-        context: unlisted.name,
-        message: `Dependencia fantasma no declarada en package.json importada en código: "${unlisted.name}"`
-      });
-    }
-
-    // Unused package binaries
-    for (const bin of fileIssue.binaries ?? []) {
-      findings.push({
-        suiteId: 'validate_package_hygiene',
-        suiteName: 'Package & Dependency Hygiene Auditor',
-        ruleId: 'package-unused-binary',
-        ruleDescription: 'Dependencias: Binario o script no referenciado',
-        severity: 'error',
-        file: relFile,
-        line: bin.line ?? 1,
-        col: bin.col ?? 1,
-        context: bin.name,
-        message: `Binario o script ejecutable no referenciado en el proyecto: "${bin.name}"`
-      });
-    }
+    findings.push(...parseUnusedDeps(fileIssue, relFile, scriptReferencedDeps));
+    findings.push(...parseUnlistedDeps(fileIssue, relFile));
+    findings.push(...parseUnusedBinaries(fileIssue, relFile));
   }
 
   return findings;
 }
 
 export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
-  private readonly fixMode: boolean;
-
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
       capabilities: { fix: true, heavy: true },
+      fix: options.fix,
       id: 'validate_package_hygiene',
       name: 'Package & Dependency Hygiene Auditor',
       description: 'Higiene de dependencias huérfanas y fantasmas',
@@ -179,15 +181,10 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       },
       projectRoot: effectiveRoot
     });
-    this.fixMode = options.fix ?? false;
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    if (config.packageHygiene?.enabled === false) {
-      for (const r of PACKAGE_HYGIENE_RULES) {
-        this.markRuleNotApplicable(r, 'Package hygiene desactivado');
-      }
+    if (this.isSuiteGatingDisabled('Package hygiene desactivado en config')) {
       return;
     }
 
@@ -196,13 +193,13 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     }
     this.recordScanned('package.json');
 
+    const config = getAuditConfig(this.projectRoot);
     const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
     const cacheDir = path.resolve(this.projectRoot, 'scratch/cache');
     fs.mkdirSync(scratchDir, { recursive: true });
     fs.mkdirSync(cacheDir, { recursive: true });
 
     const rawOutPath = path.resolve(scratchDir, 'knip-raw.json');
-    const ephemeralConfigPath = path.resolve(scratchDir, 'knip-ephemeral.json');
     const cachePath = path.resolve(cacheDir, 'knip');
 
     if (fs.existsSync(rawOutPath)) {
@@ -213,9 +210,18 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       }
     }
 
-    // Read ignoreDependencies and entry from .fallowrc.json if present
+    const ephemeralConfigPath = this.buildEphemeralKnipConfig(config, scratchDir);
+    const report = this.executeKnip(ephemeralConfigPath, cachePath, rawOutPath);
+    if (!report) {
+      return;
+    }
+
+    this.processKnipFindings(report);
+  }
+
+  private readFallowConfigData(): { fallowEntries: string[]; fallowIgnoredDeps: string[] } {
     const fallowConfigPath = path.resolve(this.projectRoot, '.fallowrc.json');
-    let fallowIgnoredDeps: string[] = [];
+    let fallowIgnoredDeps: string[] = []; // no-domain: Non-domain utility collection or data structure
     let fallowEntries: string[] = [];
     if (fs.existsSync(fallowConfigPath)) {
       try {
@@ -230,7 +236,11 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         // catch-ok: Best effort read of fallow ignoreDependencies
       }
     }
+    return { fallowEntries, fallowIgnoredDeps };
+  }
 
+  private buildEphemeralKnipConfig(config: AuditConfig, scratchDir: string): string {
+    const { fallowEntries, fallowIgnoredDeps } = this.readFallowConfigData();
     const customIgnoredDeps = config.packageHygiene?.ignoreDependencies ?? [];
     const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
     const allIgnoredDeps = Array.from(new Set([...fallowIgnoredDeps, ...customIgnoredDeps, ...scriptReferencedDeps]));
@@ -276,8 +286,12 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       ignoreBinaries: customIgnoredBinaries
     };
 
+    const ephemeralConfigPath = path.resolve(scratchDir, 'knip-ephemeral.json');
     fs.writeFileSync(ephemeralConfigPath, JSON.stringify(ephemeralConfig, null, 2), 'utf-8');
+    return ephemeralConfigPath;
+  }
 
+  private executeKnip(ephemeralConfigPath: string, cachePath: string, rawOutPath: string): KnipReport | null {
     const cliFlags = [
       '--config',
       ephemeralConfigPath,
@@ -303,14 +317,13 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       ? [resolvedBin, ...cliFlags]
       : ['--yes', 'knip', ...cliFlags];
 
-    const report = executeCliAndReadJson<KnipReport>(command, finalArgs, rawOutPath, {
+    return executeCliAndReadJson<KnipReport>(command, finalArgs, rawOutPath, {
       cwd: this.projectRoot,
       shell: !resolvedBin
     });
-    if (!report) {
-      return;
-    }
+  }
 
+  private processKnipFindings(report: KnipReport): void {
     const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p));
     for (const finding of findings) {
       if (finding.file && finding.file !== 'package.json' && this.isPathIgnored(finding.file)) {

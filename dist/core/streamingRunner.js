@@ -12,6 +12,8 @@ import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
 export class TaskStreamCoordinator {
     completedCount = 0;
+    nextPrintIndex = 0;
+    bufferedTasks = new Map();
     totalTasks;
     indent;
     printLock = Promise.resolve();
@@ -27,25 +29,37 @@ export class TaskStreamCoordinator {
         });
         await previousLock;
         try {
-            this.completedCount++;
-            const pct = Math.round((this.completedCount / this.totalTasks) * 100);
-            const stepStr = String(this.completedCount).padStart(2, '0');
-            const totalStr = String(this.totalTasks).padStart(2, '0');
-            const pctStr = `${pct}%`.padStart(4, ' ');
-            const statusBadge = params.isSkipped
-                ? styleText('cyan', '⏭️  SKIP')
-                : params.isSuccess
-                    ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
-                    : styleText('red', '❌');
-            const taskIcon = params.icon ?? (params.isBuiltin === false ? '🧩' : '⚙️');
-            console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
-            const subIndent = `${this.indent}   `;
-            for (const line of params.subLines) {
-                console.log(`${subIndent}${styleText('dim', '│')}  ${styleText('dim', line)}`);
+            if (params.taskIndex === undefined) {
+                this.printTaskItem(params, ++this.completedCount);
+                return;
+            }
+            this.bufferedTasks.set(params.taskIndex, params);
+            while (this.bufferedTasks.has(this.nextPrintIndex)) {
+                const nextParams = this.bufferedTasks.get(this.nextPrintIndex);
+                this.bufferedTasks.delete(this.nextPrintIndex);
+                this.nextPrintIndex++;
+                this.printTaskItem(nextParams, ++this.completedCount);
             }
         }
         finally {
             releaseLock();
+        }
+    }
+    printTaskItem(params, currentStep) {
+        const pct = Math.round((currentStep / this.totalTasks) * 100);
+        const stepStr = String(currentStep).padStart(2, '0');
+        const totalStr = String(this.totalTasks).padStart(2, '0');
+        const pctStr = `${pct}%`.padStart(4, ' ');
+        const statusBadge = params.isSkipped
+            ? styleText('cyan', '⏭️  SKIP')
+            : params.isSuccess
+                ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
+                : styleText('red', '❌');
+        const taskIcon = params.icon ?? (params.isBuiltin === false ? '🧩' : '⚙️');
+        console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
+        const subIndent = `${this.indent}   `;
+        for (const line of params.subLines) {
+            console.log(`${subIndent}${styleText('dim', '│')}  ${styleText('dim', line)}`);
         }
     }
 }

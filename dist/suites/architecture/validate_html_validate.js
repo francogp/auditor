@@ -49,6 +49,67 @@ function resolveHtmlValidateConfig(projectRoot) {
         return packageConfig;
     return '.htmlvalidate.json';
 }
+function collectRootHtmlTargets(projectRoot, root, targets, filesToScan) {
+    const fullRoot = path.resolve(projectRoot, root);
+    try {
+        const entries = fs.readdirSync(fullRoot, { recursive: true, withFileTypes: true });
+        let hasHtmlOrVue = false;
+        for (const entry of entries) {
+            if (entry.isFile() && (entry.name.endsWith('.html') || entry.name.endsWith('.vue'))) {
+                hasHtmlOrVue = true;
+                const parent = entry.parentPath ?? fullRoot;
+                filesToScan.push(path.join(parent, entry.name));
+            }
+        }
+        if (hasHtmlOrVue) {
+            targets.push(root);
+        }
+    }
+    catch {
+        // catch-ok: ignore missing/unreadable scan root
+    }
+}
+function collectTopLevelHtmlTargets(projectRoot, targets, filesToScan) {
+    try {
+        const rootEntries = fs.readdirSync(projectRoot, { withFileTypes: true });
+        for (const entry of rootEntries) {
+            if (entry.isFile() && entry.name.endsWith('.html')) {
+                targets.push(entry.name);
+                filesToScan.push(path.join(projectRoot, entry.name));
+            }
+        }
+    }
+    catch {
+        // catch-ok: ignore unreadable project root
+    }
+}
+export function collectHtmlTargets(projectRoot, roots) {
+    const targets = [];
+    const filesToScan = []; // no-domain: Dynamic filesystem file path list
+    for (const root of roots) {
+        collectRootHtmlTargets(projectRoot, root, targets, filesToScan);
+    }
+    collectTopLevelHtmlTargets(projectRoot, targets, filesToScan);
+    return { targets, filesToScan };
+}
+export function readAndParseHtmlValidateOutput(reportFile, combinedOutput, projectRoot) {
+    let findings;
+    let rawJson = combinedOutput;
+    if (fs.existsSync(reportFile)) {
+        try {
+            rawJson = fs.readFileSync(reportFile, 'utf-8');
+            findings = parseHtmlValidateResults(rawJson, projectRoot);
+        }
+        catch {
+            // catch-ok: Fall back to parsing combined output
+            findings = parseHtmlValidateResults(combinedOutput, projectRoot);
+        }
+    }
+    else {
+        findings = parseHtmlValidateResults(combinedOutput, projectRoot);
+    }
+    return { findings, rawJson };
+}
 export class HtmlValidateAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
@@ -71,6 +132,8 @@ export class HtmlValidateAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
+        if (this.isSuiteGatingDisabled('HTML-Validate deshabilitado en configuración'))
+            return;
         const isFixMode = this.isFixModeRequested();
         const config = getAuditConfig(this.projectRoot);
         const binPath = resolveNodeModuleBin(this.projectRoot, 'html-validate/bin/html-validate.mjs');
@@ -85,53 +148,17 @@ export class HtmlValidateAuditor extends BaseAuditor {
         ])).filter(r => fs.existsSync(path.resolve(this.projectRoot, r)));
         const localConfigPath = path.resolve(this.projectRoot, '.htmlvalidate.json');
         const hasLocalConfig = fs.existsSync(localConfigPath);
-        const coverageInclude = scannableRoots.map(r => `${r}/**/*.{html,vue}`);
+        const coverageInclude = scannableRoots.map(r => `${r}/**/*.{html,vue}`); // no-domain: Dynamic coverage glob patterns
         coverageInclude.push('*.html');
         if (hasLocalConfig) {
             coverageInclude.push('.htmlvalidate.json');
+            this.recordScanned(localConfigPath);
         }
         this.redeclareCoverage({
             include: coverageInclude,
             source: 'runtime'
         });
-        if (hasLocalConfig) {
-            this.recordScanned(localConfigPath);
-        }
-        const targets = [];
-        const filesToScan = [];
-        for (const root of scannableRoots) {
-            const fullRoot = path.resolve(this.projectRoot, root);
-            try {
-                const entries = fs.readdirSync(fullRoot, { recursive: true, withFileTypes: true });
-                let hasHtmlOrVue = false;
-                for (const entry of entries) {
-                    if (entry.isFile() && (entry.name.endsWith('.html') || entry.name.endsWith('.vue'))) {
-                        hasHtmlOrVue = true;
-                        const parent = entry.parentPath ?? fullRoot;
-                        filesToScan.push(path.join(parent, entry.name));
-                    }
-                }
-                if (hasHtmlOrVue) {
-                    targets.push(root);
-                }
-            }
-            catch {
-                // catch-ok
-            }
-        }
-        // Top-level HTML files
-        try {
-            const rootEntries = fs.readdirSync(this.projectRoot, { withFileTypes: true });
-            for (const entry of rootEntries) {
-                if (entry.isFile() && entry.name.endsWith('.html')) {
-                    targets.push(entry.name);
-                    filesToScan.push(path.join(this.projectRoot, entry.name));
-                }
-            }
-        }
-        catch {
-            // catch-ok
-        }
+        const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots);
         if (filesToScan.length === 0 && targets.length === 0) {
             this.markRuleNotApplicable('html-validate-issue', 'No existen archivos HTML ni plantillas para validar');
             return;
@@ -148,22 +175,8 @@ export class HtmlValidateAuditor extends BaseAuditor {
             maxBuffer: MAX_BUFFER_BYTES,
             timeout: EXECUTION_TIMEOUT_MS
         });
-        let findings;
-        let rawJsonContent;
-        if (fs.existsSync(reportFile)) {
-            try {
-                rawJsonContent = fs.readFileSync(reportFile, 'utf-8');
-                findings = parseHtmlValidateResults(rawJsonContent, this.projectRoot);
-            }
-            catch {
-                findings = parseHtmlValidateResults(combinedOutput, this.projectRoot);
-            }
-        }
-        else {
-            findings = parseHtmlValidateResults(combinedOutput, this.projectRoot);
-        }
-        const jsonToParse = rawJsonContent || combinedOutput;
-        const scannedReportFiles = extractJsonReportFilePaths(jsonToParse, findings);
+        const { findings, rawJson } = readAndParseHtmlValidateOutput(reportFile, combinedOutput, this.projectRoot);
+        const scannedReportFiles = extractJsonReportFilePaths(rawJson, findings);
         this.recordScannedMany(scannedReportFiles);
         this.markRuleEvaluated('html-validate-issue');
         this.importAuditFindings(findings, 'html-validate-issue', 'html-validate');

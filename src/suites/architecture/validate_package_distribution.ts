@@ -6,22 +6,19 @@ import { publint, type Message } from 'publint';
 import { formatMessage } from 'publint/utils';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { PackageDistributionLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
-export type PackageDistributionRuleId =
-  | 'pkg-distribution-invalid-exports'
-  | 'pkg-distribution-missing-types'
-  | 'pkg-distribution-dual-package-hazard';
-
-export const PACKAGE_DISTRIBUTION_RULES: readonly PackageDistributionRuleId[] = [
+export const PACKAGE_DISTRIBUTION_RULES = [
   'pkg-distribution-invalid-exports',
   'pkg-distribution-missing-types',
   'pkg-distribution-dual-package-hazard'
 ] as const;
+export type PackageDistributionRuleId = (typeof PACKAGE_DISTRIBUTION_RULES)[number];
 
-export type PublintMessageLike = Message;
+export type PublintMessageLike = Message; // type-ok: Type contract declaration
 
 /**
  * Maps a publint message code to a canonical PackageDistributionRuleId.
@@ -104,11 +101,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    if (config.packageDistribution?.enabled === false) {
-      for (const r of PACKAGE_DISTRIBUTION_RULES) {
-        this.markRuleNotApplicable(r, 'Package distribution desactivado');
-      }
+    if (this.isSuiteGatingDisabled('Distribución de paquete desactivada en config')) {
       return;
     }
 
@@ -117,10 +110,22 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
     }
     this.recordScanned('package.json');
 
+    const config = getAuditConfig(this.projectRoot);
     const targetPkgDir = config.packageDistribution?.pkgDir
       ? path.resolve(this.projectRoot, config.packageDistribution.pkgDir)
       : this.projectRoot;
 
+    const pkgJson = this.readTargetPackageJson(targetPkgDir);
+    if (!pkgJson) return;
+
+    await this.runPublintAnalysis(
+      targetPkgDir,
+      pkgJson,
+      (config.packageDistribution?.level ?? 'warning') as PackageDistributionLevel
+    );
+  }
+
+  private readTargetPackageJson(targetPkgDir: string): Record<string, unknown> | null {
     const pkgJsonPath = path.resolve(targetPkgDir, 'package.json');
     if (!fs.existsSync(pkgJsonPath)) {
       this.addViolation({
@@ -131,12 +136,11 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         context: 'package.json',
         message: `No se encontró package.json en el directorio de distribución: ${targetPkgDir}`
       });
-      return;
+      return null;
     }
 
-    let pkgJson: Record<string, unknown>;
     try {
-      pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+      return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
     } catch (err: unknown) {
       this.addViolation({
         ruleId: 'pkg-distribution-invalid-exports',
@@ -146,15 +150,16 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         context: 'package.json',
         message: `package.json contiene JSON inválido: ${err instanceof Error ? err.message : String(err)}`
       });
-      return;
+      return null;
     }
+  }
 
-    const level = config.packageDistribution?.level ?? 'warning';
-    const result = await publint({
-      pkgDir: targetPkgDir,
-      level
-    });
-
+  private async runPublintAnalysis(
+    targetPkgDir: string,
+    pkgJson: Record<string, unknown>,
+    level: PackageDistributionLevel
+  ): Promise<void> {
+    const result = await publint({ pkgDir: targetPkgDir, level });
     const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
     for (const finding of findings) {
       this.addViolation({

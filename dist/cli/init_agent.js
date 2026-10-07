@@ -10,6 +10,31 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isMainModule } from "./cliUtils.js";
 import { isSelfProviderProject } from "../core/auditConfig.js";
+function loadAgentEntriesConfig(filePath) {
+    if (!fs.existsSync(filePath))
+        return { entries: [] };
+    try {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed?.entries) ? parsed : { entries: [] };
+    }
+    catch {
+        // catch-ok: fallback to empty entries on parse error
+        return { entries: [] };
+    }
+}
+function registerAgentEntry(filePath, entryPath, matchFn, dryRun) {
+    const config = loadAgentEntriesConfig(filePath);
+    const alreadyRegistered = config.entries?.some(e => matchFn(e.path));
+    if (alreadyRegistered)
+        return false;
+    config.entries = config.entries ?? [];
+    config.entries.push({ path: entryPath });
+    if (!dryRun) {
+        fs.writeFileSync(filePath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+    }
+    return true;
+}
 export function initAgentSkill(options = {}) {
     const rawInitCwd = process.env.INIT_CWD;
     const safeInitCwd = rawInitCwd && !rawInitCwd.includes('..') ? path.resolve(rawInitCwd) : undefined;
@@ -22,61 +47,11 @@ export function initAgentSkill(options = {}) {
         };
     }
     const agentsDir = path.join(targetDir, '.agents');
-    const pluginsJsonPath = path.join(agentsDir, 'plugins.json');
-    const skillsJsonPath = path.join(agentsDir, 'skills.json');
-    const relativePluginEntry = 'node_modules/@francogp/auditor';
-    const relativeSkillsEntry = 'node_modules/@francogp/auditor/.agents/skills';
-    if (!fs.existsSync(agentsDir)) {
-        if (!options.dryRun) {
-            fs.mkdirSync(agentsDir, { recursive: true });
-        }
+    if (!fs.existsSync(agentsDir) && !options.dryRun) {
+        fs.mkdirSync(agentsDir, { recursive: true });
     }
-    // 1. Manage .agents/plugins.json
-    let pluginsConfig = { entries: [] };
-    if (fs.existsSync(pluginsJsonPath)) {
-        try {
-            const raw = fs.readFileSync(pluginsJsonPath, 'utf8');
-            pluginsConfig = JSON.parse(raw);
-            if (!Array.isArray(pluginsConfig.entries)) {
-                pluginsConfig.entries = [];
-            }
-        }
-        catch {
-            pluginsConfig = { entries: [] };
-        }
-    }
-    const pluginAlreadyRegistered = pluginsConfig.entries?.some(e => e.path === relativePluginEntry || e.path.endsWith('@francogp/auditor'));
-    let pluginCreated = false;
-    if (!pluginAlreadyRegistered) {
-        pluginsConfig.entries?.push({ path: relativePluginEntry });
-        if (!options.dryRun) {
-            fs.writeFileSync(pluginsJsonPath, JSON.stringify(pluginsConfig, null, 2) + '\n', 'utf8');
-        }
-        pluginCreated = true;
-    }
-    // 2. Manage .agents/skills.json
-    let skillsConfig = { entries: [] };
-    if (fs.existsSync(skillsJsonPath)) {
-        try {
-            const raw = fs.readFileSync(skillsJsonPath, 'utf8');
-            skillsConfig = JSON.parse(raw);
-            if (!Array.isArray(skillsConfig.entries)) {
-                skillsConfig.entries = [];
-            }
-        }
-        catch {
-            skillsConfig = { entries: [] };
-        }
-    }
-    const skillsAlreadyRegistered = skillsConfig.entries?.some(e => e.path === relativeSkillsEntry || e.path.includes('@francogp/auditor'));
-    let skillsCreated = false;
-    if (!skillsAlreadyRegistered) {
-        skillsConfig.entries?.push({ path: relativeSkillsEntry });
-        if (!options.dryRun) {
-            fs.writeFileSync(skillsJsonPath, JSON.stringify(skillsConfig, null, 2) + '\n', 'utf8');
-        }
-        skillsCreated = true;
-    }
+    const pluginCreated = registerAgentEntry(path.join(agentsDir, 'plugins.json'), 'node_modules/@francogp/auditor', p => p === 'node_modules/@francogp/auditor' || p.endsWith('@francogp/auditor'), options.dryRun);
+    const skillsCreated = registerAgentEntry(path.join(agentsDir, 'skills.json'), 'node_modules/@francogp/auditor/.agents/skills', p => p === 'node_modules/@francogp/auditor/.agents/skills' || p.includes('@francogp/auditor'), options.dryRun);
     const anyCreated = pluginCreated || skillsCreated;
     const message = anyCreated
         ? `Registrado exitosamente @francogp/auditor en .agents/plugins.json y .agents/skills.json`

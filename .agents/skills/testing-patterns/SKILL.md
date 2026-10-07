@@ -268,6 +268,6 @@ All repositories governed by `@francogp/auditor` enforce test execution coverage
 
 ### 14.3 Reporting & Inspection Tools
 - Run coverage verification suite: `npm run audit` or `preset=audit`.
-- Inspect detailed table reports: `npm run audit:coverage` or `npx auditor-coverage`.
+- Inspect detailed table reports: `npm run audit:coverage` or `auditor-coverage`.
 
 

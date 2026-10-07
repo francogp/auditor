@@ -1,284 +1,90 @@
-import fs from 'node:fs/promises';
+/**
+ * .agents/skills/dox-navigator/scripts/audit_dox.ts
+ *
+ * DOX Integrity Runner delegating to canonical @francogp/auditor.
+ * Executes the official DOX & AGENTS.md suite under native Node.js 26+.
+ */
+
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
 
-interface Violation {
-  file: string;
-  line: number;
-  message: string;
-  context: string;
-  severity: 'error' | 'warning';
+function resolveAuditorRunner(projectRoot: string): { scriptPath: string; isPresetMd: boolean } {
+  // 1. Direct workspace development inside @francogp/auditor
+  const devSuitePath = path.join(projectRoot, 'src', 'suites', 'documentation', 'validate_dox_integrity.ts');
+  if (fs.existsSync(devSuitePath)) {
+    return { scriptPath: devSuitePath, isPresetMd: false };
+  }
+
+  // 2. Installed @francogp/auditor in host project (source or dist)
+  const installedSuiteTs = path.join(projectRoot, 'node_modules', '@francogp', 'auditor', 'src', 'suites', 'documentation', 'validate_dox_integrity.ts');
+  if (fs.existsSync(installedSuiteTs)) {
+    return { scriptPath: installedSuiteTs, isPresetMd: false };
+  }
+
+  const installedSuiteJs = path.join(projectRoot, 'node_modules', '@francogp', 'auditor', 'dist', 'suites', 'documentation', 'validate_dox_integrity.js');
+  if (fs.existsSync(installedSuiteJs)) {
+    return { scriptPath: installedSuiteJs, isPresetMd: false };
+  }
+
+  // 3. Fallback to audit_full with preset=md if individual suite is not directly exposed
+  const devFullAudit = path.join(projectRoot, 'src', 'cli', 'audit_full.ts');
+  if (fs.existsSync(devFullAudit)) {
+    return { scriptPath: devFullAudit, isPresetMd: true };
+  }
+
+  const installedFullAudit = path.join(projectRoot, 'node_modules', '@francogp', 'auditor', 'dist', 'cli', 'audit_full.js');
+  if (fs.existsSync(installedFullAudit)) {
+    return { scriptPath: installedFullAudit, isPresetMd: true };
+  }
+
+  throw new Error(
+    `[dox-navigator] No se encontró el auditor canónico @francogp/auditor en '${projectRoot}'. ` +
+    `Asegúrate de tener @francogp/auditor instalado en node_modules o estar en el repositorio del auditor.`
+  );
 }
 
-interface AuditStats {
-  dirsScanned: number;
-  doxFilesCount: number;
-  linksChecked: number;
-}
+async function main(): Promise<void> {
+  const projectRoot = process.cwd();
+  const rawArgs = process.argv.slice(2);
+  const wantsFull = rawArgs.includes('--full') || rawArgs.includes('preset=md');
 
-async function checkDoxIntegrity(): Promise<{ violations: Violation[]; stats: AuditStats }> {
-  const violations: Violation[] = [];
-  const rootDir = process.cwd();
-  const srcDir = path.join(rootDir, 'src');
+  const { scriptPath, isPresetMd } = resolveAuditorRunner(projectRoot);
 
-  let dirsScanned = 0;
-  let linksChecked = 0;
+  const nodeArgs = [
+    '--permission',
+    '--experimental-strip-types',
+    '--allow-fs-read=*',
+    '--allow-fs-write=*',
+    '--allow-child-process',
+    '--allow-addons',
+    scriptPath,
+  ];
 
-  const gitIgnoredPaths = new Set<string>();
-  try {
-    const gitignoreRaw = await fs.readFile(path.join(rootDir, '.gitignore'), 'utf-8');
-    for (const line of gitignoreRaw.split('\n')) {
-      const trimmed = line.trim().replace(/\/$/, '');
-      if (!trimmed || trimmed.startsWith('#') || trimmed.includes('*') || trimmed.includes('?')) continue;
-      gitIgnoredPaths.add(path.resolve(rootDir, trimmed));
-    }
-  } catch {
-    /* skip silently */
-  }
-
-  function isGitIgnoredPath(targetPath: string): boolean {
-    let current = targetPath;
-    while (current.startsWith(rootDir) && current !== rootDir) {
-      if (gitIgnoredPaths.has(current)) return true;
-      current = path.dirname(current);
-    }
-    return false;
-  }
-
-  const doxDirs: string[] = [];
-
-  async function hasCodeFiles(dir: string): Promise<boolean> {
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isFile()) {
-          const ext = path.extname(entry.name).toLowerCase();
-          if (ext === '.ts' || ext === '.vue' || ext === '.js' || ext === '.scss' || ext === '.css') {
-            return true;
-          }
-        }
-      }
-    } catch {
-      return false;
-    }
-    return false;
-  }
-
-  async function traverseSrc(dir: string) {
-    if (isGitIgnoredPath(dir)) return;
-    dirsScanned++;
-
-    if (dir !== srcDir && (await hasCodeFiles(dir))) {
-      doxDirs.push(dir);
-    }
-
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          await traverseSrc(path.join(dir, entry.name));
-        }
-      }
-    } catch {
-      /* skip silently */
+  if (isPresetMd || wantsFull) {
+    if (!nodeArgs.includes('preset=md')) {
+      nodeArgs.push('preset=md');
     }
   }
 
-  await traverseSrc(srcDir);
-
-  const doxFilesMap = new Map<string, string>();
-
-  // Check root AGENTS.md
-  const rootAgentsPath = path.join(rootDir, 'AGENTS.md');
-  try {
-    const content = await fs.readFile(rootAgentsPath, 'utf-8');
-    doxFilesMap.set(rootDir, content);
-  } catch {
-    violations.push({
-      file: rootAgentsPath,
-      line: 1,
-      message: `Missing root documentation file 'AGENTS.md'.`,
-      context: 'AGENTS.md',
-      severity: 'error'
-    });
-  }
-
-  // Load all AGENTS.md in src/
-  async function loadSrcDoxFiles(dir: string) {
-    if (isGitIgnoredPath(dir)) return;
-
-    try {
-      const agentsPath = path.join(dir, 'AGENTS.md');
-      const content = await fs.readFile(agentsPath, 'utf-8');
-      doxFilesMap.set(dir, content);
-    } catch {
-      /* skip silently */
-    }
-
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          await loadSrcDoxFiles(path.join(dir, entry.name));
-        }
-      }
-    } catch {
-      /* skip silently */
+  for (const arg of rawArgs) {
+    if (arg !== '--full' && !nodeArgs.includes(arg)) {
+      nodeArgs.push(arg);
     }
   }
 
-  await loadSrcDoxFiles(srcDir);
-
-  for (const dir of doxDirs) {
-    const agentsPath = path.join(dir, 'AGENTS.md');
-    if (!doxFilesMap.has(dir)) {
-      violations.push({
-        file: agentsPath,
-        line: 1,
-        message: `Missing mandatory documentation file 'AGENTS.md' in directory '${path.relative(rootDir, dir)}'.`,
-        context: 'AGENTS.md',
-        severity: 'error'
-      });
-    }
-  }
-
-  function findNearestAncestorDoxDir(dir: string): string | null {
-    let current = path.dirname(dir);
-    while (current !== rootDir) {
-      if (doxFilesMap.has(current)) {
-        return current;
-      }
-      current = path.dirname(current);
-    }
-    return doxFilesMap.has(rootDir) ? rootDir : null;
-  }
-
-  for (const [dirPath, content] of doxFilesMap.entries()) {
-    const agentsPath = path.join(dirPath, 'AGENTS.md');
-
-    if (dirPath !== rootDir) {
-      const parentDoxDir = findNearestAncestorDoxDir(dirPath);
-      if (parentDoxDir) {
-        const parentContent = doxFilesMap.get(parentDoxDir);
-        if (parentContent) {
-          const relativeChildPath = path.relative(parentDoxDir, agentsPath);
-          const posixPath = relativeChildPath.split(path.sep).join(path.posix.sep);
-          const cleanPath = posixPath.startsWith('./') ? posixPath.slice(2) : posixPath;
-          const dirOnlyPath = path.dirname(posixPath);
-          const hasLink = parentContent.includes(cleanPath) ||
-                          parentContent.includes('./' + cleanPath) ||
-                          parentContent.includes('[' + dirOnlyPath + '/]') ||
-                          parentContent.includes('(' + dirOnlyPath + '/') ||
-                          parentContent.includes('./' + dirOnlyPath + '/');
-
-          if (!hasLink) {
-            const parentFile = path.join(parentDoxDir, 'AGENTS.md');
-            violations.push({
-              file: parentFile,
-              line: 1,
-              message: `Child AGENTS.md '${path.relative(rootDir, agentsPath)}' is not indexed in parent DOX '${path.relative(rootDir, parentFile)}'.`,
-              context: cleanPath,
-              severity: 'error'
-            });
-          }
-        }
-      }
-    }
-
-    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const lines = content.split('\n');
-
-    for (let i = 0; i < lines.length; i++) {
-      const lineText = lines[i];
-      if (lineText === undefined) continue;
-      let match;
-      while ((match = linkRegex.exec(lineText)) !== null) {
-        linksChecked++;
-        const label = match[1] ?? '';
-        const targetUrl = (match[2] ?? '').trim();
-
-        if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://') || targetUrl.startsWith('#')) {
-          continue;
-        }
-
-        const isFullPath = targetUrl.startsWith('file://') ||
-                           targetUrl.startsWith('/') ||
-                           targetUrl.startsWith('\\') ||
-                           /^[a-zA-Z]:/.test(targetUrl) ||
-                           path.isAbsolute(targetUrl);
-
-        if (isFullPath) {
-          violations.push({
-            file: agentsPath,
-            line: i + 1,
-            message: `Absolute path or full URL '${targetUrl}' forbidden in label '${label}'. Use relative paths exclusively.`,
-            context: targetUrl,
-            severity: 'error'
-          });
-          continue;
-        }
-
-        const cleanTarget = targetUrl.split('#')[0];
-        if (!cleanTarget) continue;
-
-        const absoluteTarget = path.resolve(dirPath, cleanTarget);
-        const isGitIgnored = isGitIgnoredPath(absoluteTarget);
-        if (isGitIgnored) continue;
-
-        try {
-          await fs.stat(absoluteTarget);
-        } catch {
-          violations.push({
-            file: agentsPath,
-            line: i + 1,
-            message: `Broken relative link: '${targetUrl}' pointing to '${cleanTarget}' does not exist on disk.`,
-            context: targetUrl,
-            severity: 'error'
-          });
-        }
-      }
-    }
-  }
-
-  return {
-    violations,
-    stats: {
-      dirsScanned,
-      doxFilesCount: doxFilesMap.size,
-      linksChecked
-    }
-  };
-}
-
-async function main() {
-  const { values } = parseArgs({
-    options: {
-      json: { type: 'boolean' }
-    }
+  const child = spawn(process.execPath, nodeArgs, {
+    cwd: projectRoot,
+    stdio: 'inherit',
+    env: { ...process.env, FORCE_COLOR: '1' },
   });
 
-  const { violations, stats } = await checkDoxIntegrity();
-
-  if (values.json) {
-    console.log(JSON.stringify({ stats, violations }, null, 2));
-  } else {
-    console.log('📘 DOX Integrity Check (root AGENTS.md + src/ hierarchy)');
-    console.log(`🔍 Scanned ${stats.dirsScanned} directories in src/`);
-    console.log(`📄 Verified ${stats.doxFilesCount} AGENTS.md files`);
-    console.log(`🔗 Checked ${stats.linksChecked} markdown links`);
-    console.log(`\nFound ${violations.length} violations.\n`);
-
-    for (const v of violations) {
-      console.log(`[ERROR] ${path.relative(process.cwd(), v.file)}:${v.line} -> ${v.message}`);
-    }
-  }
-
-  if (violations.length > 0) {
-    process.exit(1);
-  }
+  child.on('close', (code) => {
+    process.exit(code ?? 0);
+  });
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch((err: unknown) => {
+  console.error('[DOX_NAVIGATOR_ERROR]', err instanceof Error ? err.message : String(err));
   process.exit(1);
 });

@@ -193,4 +193,23 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(result.status).toBe('passed');
     });
   });
+
+  describe('Auto-Fix Verification', () => {
+    it('scaffolds canonical .fallowrc.json when missing and fix: true is set', async () => {
+      const configPath = path.join(scratchDir, '.fallowrc.json');
+      expect(fs.existsSync(configPath)).toBe(false);
+
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir, fix: true });
+      const result = await auditor.execute();
+
+      expect(fs.existsSync(configPath)).toBe(true);
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+
+      const createdContent = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(createdContent.entry).toContain('src/index.ts');
+      expect(createdContent.ignorePatterns).toContain('dist/**');
+    });
+  });
 });
+

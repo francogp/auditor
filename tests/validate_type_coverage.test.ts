@@ -94,7 +94,7 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.status).toBe('skipped');
     });
 
     it('executes runAudit and imports findings when coverage is below threshold', async () => {

@@ -11,6 +11,47 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule, executeFallowJsonCommand } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
+function formatGuardRules(forbidden, policies) {
+    const parts = [];
+    if (forbidden.length > 0)
+        parts.push(`prohibidas: ${forbidden.join(', ')}`);
+    if (policies.length > 0)
+        parts.push(`políticas: ${policies.join(', ')}`);
+    return parts.length > 0 ? parts.join(' | ') : styleText('dim', 'ninguna');
+}
+function formatAllowedZones(boundary) {
+    if (boundary?.unrestricted)
+        return styleText('green', 'todas (sin restricción)');
+    const allowed = boundary?.allowed_zones ?? [];
+    return allowed.length > 0 ? allowed.join(', ') : styleText('dim', 'ninguna');
+}
+function formatGuardTableRow(item) {
+    const zoneStr = item.zone ? styleText('cyan', item.zone) : styleText('dim', 'sin capa');
+    const allowedStr = formatAllowedZones(item.boundary);
+    const rulesStr = formatGuardRules(item.boundary?.forbidden_calls ?? [], item.policy_rules ?? []);
+    return {
+        file: item.path,
+        zone: zoneStr,
+        allowed: allowedStr,
+        rules: rulesStr
+    };
+}
+function renderGuardResultsTable(fileResults) {
+    const tableRows = fileResults.map(formatGuardTableRow);
+    const columns = [
+        { header: 'ARCHIVO EVALUADO', width: 34, align: 'left', key: 'file' },
+        { header: 'CAPA / ZONA', width: 14, align: 'left', key: 'zone' },
+        { header: 'PUEDE IMPORTAR', width: 24, align: 'left', key: 'allowed' },
+        { header: 'POLÍTICAS Y RESTRICCIONES', width: 28, align: 'left', key: 'rules' }
+    ];
+    console.log(renderBoxTable(columns, tableRows));
+    for (const item of fileResults) {
+        for (const note of item.notes ?? []) {
+            console.log(styleText('dim', `  ℹ️  ${item.path}: ${note}`));
+        }
+    }
+    console.log();
+}
 export function runGuardReport(projectRoot = process.cwd(), files = [], options = {}) {
     const fallowBin = resolveFallowBinary(projectRoot);
     if (!fallowBin) {
@@ -29,12 +70,7 @@ export function runGuardReport(projectRoot = process.cwd(), files = [], options 
     }
     const { parsed, status, rawOutput } = executeFallowJsonCommand(fallowBin, ['guard', ...files, '--format', 'json'], projectRoot);
     if (options.json) {
-        if (parsed) {
-            console.log(JSON.stringify(parsed, null, 2));
-        }
-        else {
-            console.log(JSON.stringify({ error: 'Fallow guard execution failed', raw: rawOutput }));
-        }
+        console.log(parsed ? JSON.stringify(parsed, null, 2) : JSON.stringify({ error: 'Fallow guard execution failed', raw: rawOutput }));
         return status;
     }
     console.log('\n' + renderBanner('PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)', `Archivos evaluados: ${files.length}`));
@@ -43,45 +79,7 @@ export function runGuardReport(projectRoot = process.cwd(), files = [], options 
         console.log('  ' + styleText('yellow', 'No se recibieron datos de reglas arquitectónicas para los archivos indicados.\n'));
         return status;
     }
-    const tableRows = fileResults.map((item) => {
-        const zoneStr = item.zone ? styleText('cyan', item.zone) : styleText('dim', 'sin capa');
-        const allowedZones = item.boundary?.allowed_zones ?? [];
-        const allowedStr = item.boundary?.unrestricted
-            ? styleText('green', 'todas (sin restricción)')
-            : (allowedZones.length > 0 ? allowedZones.join(', ') : styleText('dim', 'ninguna'));
-        const forbidden = item.boundary?.forbidden_calls ?? [];
-        const policies = item.policy_rules ?? [];
-        const rulesParts = [];
-        if (forbidden.length > 0) {
-            rulesParts.push(`prohibidas: ${forbidden.join(', ')}`);
-        }
-        if (policies.length > 0) {
-            rulesParts.push(`políticas: ${policies.join(', ')}`);
-        }
-        const rulesStr = rulesParts.length > 0 ? rulesParts.join(' | ') : styleText('dim', 'ninguna');
-        return {
-            file: item.path,
-            zone: zoneStr,
-            allowed: allowedStr,
-            rules: rulesStr
-        };
-    });
-    const columns = [
-        { header: 'ARCHIVO EVALUADO', width: 34, align: 'left', key: 'file' },
-        { header: 'CAPA / ZONA', width: 14, align: 'left', key: 'zone' },
-        { header: 'PUEDE IMPORTAR', width: 24, align: 'left', key: 'allowed' },
-        { header: 'POLÍTICAS Y RESTRICCIONES', width: 28, align: 'left', key: 'rules' }
-    ];
-    console.log(renderBoxTable(columns, tableRows));
-    // Print specific notes if any
-    for (const item of fileResults) {
-        if (item.notes && item.notes.length > 0) {
-            for (const note of item.notes) {
-                console.log(styleText('dim', `  ℹ️  ${item.path}: ${note}`));
-            }
-        }
-    }
-    console.log();
+    renderGuardResultsTable(fileResults);
     return status;
 }
 if (isMainModule(import.meta.url)) {

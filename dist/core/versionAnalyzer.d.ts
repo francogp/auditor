@@ -7,10 +7,13 @@
 export declare const MAJOR_DIFF_LINES_THRESHOLD: 1000;
 export declare const MAJOR_CORE_LINES_THRESHOLD: 500;
 export declare const MINOR_DIFF_LINES_THRESHOLD: 100;
-export type VersionBumpType = 'major' | 'minor' | 'patch';
+export declare const VERSION_BUMP_TYPES: readonly ["major", "minor", "patch"];
+export type VersionBumpType = (typeof VERSION_BUMP_TYPES)[number];
+export declare const GIT_STATUS_FLAGS: readonly ["A", "M", "D", "R", "?"];
+export type GitStatusFlag = (typeof GIT_STATUS_FLAGS)[number];
 export interface ChangedFileDetail {
     path: string;
-    status: 'A' | 'M' | 'D' | 'R' | '?';
+    status: GitStatusFlag;
     insertions: number;
     deletions: number;
 }

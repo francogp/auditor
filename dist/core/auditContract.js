@@ -13,12 +13,7 @@ export const BUILTIN_AUDIT_FAMILIES = [
     'persistence',
     'documentation'
 ];
-export const AUDIT_FAMILIES = [
-    'architecture',
-    'domain_data',
-    'persistence',
-    'documentation'
-];
+export const AUDIT_FAMILIES = BUILTIN_AUDIT_FAMILIES; // value-ok: Canonical constant value reference
 export const FAMILY_METADATA = {
     architecture: {
         key: 'architecture',
@@ -77,8 +72,11 @@ export function getActiveFamilies(customFamilies) {
     const customKeys = (customFamilies ?? []).map(f => f.key);
     return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
 }
+export const FINDING_SEVERITIES = ['error', 'warning', 'info'];
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
+export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'];
 export const COVERAGE_SOURCES = ['runtime', 'declared-only'];
+export const RATCHET_STATUSES = ['passed', 'failed', 'initialized'];
 /**
  * Normalizes a file path from an AuditFinding into a clean relative POSIX path.
  */

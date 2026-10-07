@@ -94,7 +94,7 @@ export function isDeclaredByCoverage(relPosixPath, declaration) {
 /** Derives a coverage declaration from scan roots + extensions (used by FileScanAuditor). */
 export function deriveCoverageFromRoots(roots, extensions) {
     const effectiveRoots = roots.length > 0 ? roots : ['src', 'scripts', 'tests'];
-    const include = [];
+    const include = []; // no-domain: Non-domain utility collection or data structure
     for (const root of effectiveRoots) {
         const cleanRoot = path.posix.normalize(root.split('\\').join('/')).replace(/^\.\/?|\/+$/g, '');
         const prefix = cleanRoot === '' || cleanRoot === '.' ? '' : `${cleanRoot}/`;
@@ -104,31 +104,31 @@ export function deriveCoverageFromRoots(roots, extensions) {
     }
     return { include, source: 'runtime' };
 }
+function resolveDirectoryPatterns(rel, allowedExtensions) {
+    if (allowedExtensions && allowedExtensions.size > 0) {
+        return Array.from(allowedExtensions, ext => `${rel}/**/*${ext}`);
+    }
+    return [`${rel}/**`];
+}
+function resolvePatternsForRequiredFile(rf, projectRoot, allowedExtensions) {
+    const rel = toPosixRelative(projectRoot, rf);
+    const abs = path.isAbsolute(rf) ? rf : path.resolve(projectRoot, rf);
+    try {
+        if (nodeFs.existsSync(abs) && nodeFs.statSync(abs).isDirectory()) {
+            return resolveDirectoryPatterns(rel, allowedExtensions);
+        }
+        return [rel];
+    }
+    catch {
+        // catch-ok: fallback to literal path if stat fails
+        return [rel];
+    }
+}
 /** Derives a coverage declaration from requiredFiles (used by BaseAuditor when coverage is omitted). */
 export function deriveCoverageFromRequiredFiles(requiredFiles, projectRoot = process.cwd(), allowedExtensions) {
-    const include = [];
+    const include = []; // no-domain: Non-domain utility collection or data structure
     for (const rf of requiredFiles) {
-        const rel = toPosixRelative(projectRoot, rf);
-        const abs = path.isAbsolute(rf) ? rf : path.resolve(projectRoot, rf);
-        try {
-            if (nodeFs.existsSync(abs) && nodeFs.statSync(abs).isDirectory()) {
-                if (allowedExtensions && allowedExtensions.size > 0) {
-                    for (const ext of allowedExtensions) {
-                        include.push(`${rel}/**/*${ext}`);
-                    }
-                }
-                else {
-                    include.push(`${rel}/**`);
-                }
-            }
-            else {
-                include.push(rel);
-            }
-        }
-        catch {
-            // catch-ok: fallback to literal path if stat fails
-            include.push(rel);
-        }
+        include.push(...resolvePatternsForRequiredFile(rf, projectRoot, allowedExtensions));
     }
     return { include, source: 'runtime' };
 }

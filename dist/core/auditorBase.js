@@ -14,10 +14,12 @@ import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import "./permissionGuard.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
+import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { CoverageRecorder, deriveCoverageFromRoots, deriveCoverageFromRequiredFiles, isDeclaredByCoverage, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfig.js";
+import { evaluateSuiteStatus } from "./suiteGating.js";
 enableCompileCache();
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
 export const ALWAYS_IGNORE_DIRS = new Set([
@@ -64,30 +66,33 @@ export const CANONICAL_SCANNABLE_ROOTS = [
     'src',
     'tests'
 ];
+function resolvePersistenceExtraRoots(config) {
+    if (config.persistence?.engine === 'none')
+        return [];
+    const extra = []; // no-domain: Dynamic filesystem root paths
+    if (config.persistence?.supabaseDir)
+        extra.push(config.persistence.supabaseDir);
+    if (config.paths?.migrationsDir)
+        extra.push(config.paths.migrationsDir);
+    return extra;
+}
+function resolveDeclaredPathRoots(paths) {
+    if (!paths)
+        return ['src', 'scripts', 'tests'];
+    return [
+        ...(paths.codeRoots ?? ['src', 'scripts']),
+        ...(paths.testRoots ?? ['tests']),
+        ...(paths.integrationRoots ?? []),
+        ...(paths.e2eRoots ?? []),
+        ...(paths.demoRoots ?? []),
+        ...(paths.dataRoots ?? []),
+        ...(paths.cliRoots ?? [])
+    ];
+}
 export function getEffectiveScannableRoots(config = getAuditConfig()) {
-    const codeRoots = config.paths?.codeRoots ?? ['src', 'scripts'];
-    const testRoots = config.paths?.testRoots ?? ['tests'];
-    const integrationRoots = config.paths?.integrationRoots ?? [];
-    const e2eRoots = config.paths?.e2eRoots ?? [];
-    const demoRoots = config.paths?.demoRoots ?? [];
-    const dataRoots = config.paths?.dataRoots ?? [];
-    const cliRoots = config.paths?.cliRoots ?? [];
-    const extraRoots = [];
-    if (config.persistence?.engine !== 'none') {
-        if (config.persistence?.supabaseDir)
-            extraRoots.push(config.persistence.supabaseDir);
-        if (config.paths?.migrationsDir)
-            extraRoots.push(config.paths.migrationsDir);
-    }
     return Array.from(new Set([
-        ...codeRoots,
-        ...testRoots,
-        ...integrationRoots,
-        ...e2eRoots,
-        ...demoRoots,
-        ...dataRoots,
-        ...cliRoots,
-        ...extraRoots
+        ...resolveDeclaredPathRoots(config.paths),
+        ...resolvePersistenceExtraRoots(config)
     ]));
 }
 /**
@@ -129,20 +134,22 @@ export const SKILLS_LOCK_CANDIDATE_PATHS = [
     '.auditor/skills-lock.json',
     '.agents/skills-lock.json'
 ];
-/**
- * Loads official locked skill names from skills-lock.json if present in projectRoot.
- * Checks candidate paths:
- *   1. paths.skillsLockFile from audit.config.ts (if defined)
- *   2. skills-lock.json (project root)
- *   3. .auditor/skills-lock.json
- *   4. .agents/skills-lock.json
- * Returns a set of lowercase skill directory names.
- */
-export function loadLockedSkills(projectRoot = process.cwd()) {
-    if (lockedSkillsCache && lockedSkillsCacheRoot === projectRoot) {
-        return lockedSkillsCache;
+function parseLockedSkillsFile(skillsLockPath) {
+    try {
+        if (!nodeFs.existsSync(skillsLockPath))
+            return [];
+        const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
+        const data = JSON.parse(raw);
+        if (data?.skills && typeof data.skills === 'object') {
+            return Object.keys(data.skills).map(s => s.toLowerCase()); // no-domain: Skill name case-insensitive key
+        }
     }
-    const locked = new Set();
+    catch {
+        // catch-ok: Ignore missing or malformed skills-lock.json candidate
+    }
+    return [];
+}
+function resolveSkillsLockCandidates(projectRoot) {
     const candidatePaths = [...SKILLS_LOCK_CANDIDATE_PATHS];
     try {
         const config = getAuditConfig(projectRoot);
@@ -153,21 +160,16 @@ export function loadLockedSkills(projectRoot = process.cwd()) {
     catch {
         // catch-ok: Ignore config load failures during skill lock resolution
     }
-    for (const relPath of candidatePaths) {
-        const skillsLockPath = path.resolve(projectRoot, relPath);
-        try {
-            if (nodeFs.existsSync(skillsLockPath)) {
-                const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
-                const data = JSON.parse(raw);
-                if (data && typeof data.skills === 'object' && data.skills !== null) {
-                    for (const skillName of Object.keys(data.skills)) {
-                        locked.add(skillName.toLowerCase());
-                    }
-                }
-            }
-        }
-        catch {
-            // catch-ok: Ignore missing or malformed skills-lock.json candidate
+    return candidatePaths;
+}
+export function loadLockedSkills(projectRoot = process.cwd()) {
+    if (lockedSkillsCache && lockedSkillsCacheRoot === projectRoot) {
+        return lockedSkillsCache;
+    }
+    const locked = new Set();
+    for (const relPath of resolveSkillsLockCandidates(projectRoot)) {
+        for (const skill of parseLockedSkillsFile(path.resolve(projectRoot, relPath))) {
+            locked.add(skill);
         }
     }
     lockedSkillsCache = locked;
@@ -225,7 +227,7 @@ function matchesDirectorySegments(normalized, segments, unignoreSet, configIgnor
     return false;
 }
 export function matchesSinglePattern(normalized, pattern) {
-    let cleanPattern = pattern.toLowerCase();
+    let cleanPattern = pattern.toLowerCase(); // no-domain: Non-domain utility collection or data structure
     const matchesAnywhere = cleanPattern.startsWith('**/');
     if (matchesAnywhere) {
         cleanPattern = cleanPattern.slice(3);
@@ -253,7 +255,7 @@ export function isPathIgnored(relPath, extraIgnorePatterns = [], unignoreDirs = 
     const segments = normalized.split('/');
     const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
     const rawConfigIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs ?? [];
-    const configIgnoredDirs = rawConfigIgnoredDirs.map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''));
+    const configIgnoredDirs = rawConfigIgnoredDirs.map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
     if (matchesDirectorySegments(normalized, segments, unignoreSet, configIgnoredDirs)) {
         return true;
     }
@@ -519,14 +521,13 @@ export const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 /**
- * Base Object-Oriented Auditor class.
- * Centralizes violation tracking, rule counting, metrics reporting, and unified CLI execution.
+ * Base Object-Oriented Auditor class validation helpers.
  */
-function validateAuditorOptions(options) {
-    if (!options.id || options.id.trim().length === 0) {
+function validateAuditorIdentity(options) {
+    if (typeof options.id !== 'string' || options.id.trim() === '') {
         throw new Error('Auditor must define an id');
     }
-    if (!options.name || options.name.trim().length === 0) {
+    if (typeof options.name !== 'string' || options.name.trim() === '') {
         throw new Error(`Auditor [${options.id}] must define a name`);
     }
     if (!options.packageName || options.packageName.trim().length === 0) {
@@ -541,27 +542,34 @@ function validateAuditorOptions(options) {
     if (options.description.length > MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH || options.description.includes('\n')) {
         throw new Error(`Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`);
     }
-    if (options.capabilities !== undefined) {
-        if (typeof options.capabilities !== 'object' || options.capabilities === null) {
-            throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
+}
+function validateAuditorCapabilities(options) {
+    if (options.capabilities === undefined)
+        return;
+    if (typeof options.capabilities !== 'object' || options.capabilities === null) {
+        throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
+    }
+    const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'];
+    for (const [key, val] of Object.entries(options.capabilities)) {
+        if (!KNOWN_CAPABILITIES.includes(key)) {
+            throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
         }
-        const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'];
-        for (const [key, val] of Object.entries(options.capabilities)) {
-            if (!KNOWN_CAPABILITIES.includes(key)) {
-                throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
-            }
-            if (typeof val !== 'boolean') {
-                throw new Error(`Auditor [${options.id}] capability '${key}' must be a boolean.`);
-            }
+        if (typeof val !== 'boolean') {
+            throw new Error(`Auditor [${options.id}] capability '${key}' must be a boolean.`);
         }
     }
+}
+function validateAuditorRules(options) {
+    if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object' || Object.keys(options.ruleDescriptions).length === 0) {
+        throw new Error(`Auditor [${options.id}] must define mandatory 'ruleDescriptions' covering all its declared rules.`);
+    }
+}
+function validateAuditorOptions(options) {
+    validateAuditorIdentity(options);
+    validateAuditorCapabilities(options);
+    validateAuditorRules(options);
     if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
         throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
-    }
-    if (options.ruleIds && options.ruleIds.length > 0) {
-        if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object') {
-            throw new Error(`Auditor [${options.id}] must define 'ruleDescriptions' for its declared rules.`);
-        }
     }
     validateCoverageDeclaration(options.id, options.coverage);
 }
@@ -590,6 +598,7 @@ export class BaseAuditor {
     icon;
     capabilities;
     gitIgnoreEntries;
+    configFiles;
     ruleIds;
     ruleDescriptions;
     explicitSubAuditors;
@@ -605,6 +614,7 @@ export class BaseAuditor {
     countsByRule = new Map();
     subAuditorReports = [];
     coverageRecorder;
+    fixMode;
     isSkipped = false;
     skipReason;
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
@@ -618,49 +628,28 @@ export class BaseAuditor {
         this.isSkipped = true;
         this.skipReason = reason;
     }
-    constructor(options) {
-        const effectiveProjectRoot = options.projectRoot || process.cwd();
-        const effectiveCoverage = options.coverage ?? (options.roots !== undefined
-            ? (options.roots.length > 0
-                ? deriveCoverageFromRoots(options.roots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS)
-                : deriveCoverageFromRoots(getEffectiveScannableRoots(), options.allowedExtensions ?? SCANNABLE_EXTENSIONS))
-            : (options.requiredFiles && options.requiredFiles.length > 0
-                ? deriveCoverageFromRequiredFiles(options.requiredFiles, effectiveProjectRoot, options.allowedExtensions)
-                : undefined));
-        validateAuditorOptions({ ...options, coverage: effectiveCoverage });
-        const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
-        this.capabilities = {
-            ...DEFAULT_AUDITOR_CAPABILITIES,
-            ...options.capabilities,
-            ast: astRequired
-        };
-        this.requiresAst = astRequired;
-        this.packageName = options.packageName;
-        this.icon = options.icon;
-        this.id = options.id;
-        this.name = options.name;
-        this.description = options.description;
-        this.family = options.family;
-        this.configKey = options.configKey;
-        this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
-        if (this.gitIgnoreEntries.length > 0) {
-            GitIgnoreRegistry.registerMany(this.gitIgnoreEntries);
+    resolveEffectiveCoverage(options, effectiveProjectRoot) {
+        if (options.coverage)
+            return options.coverage;
+        if (options.roots !== undefined) {
+            const targetRoots = options.roots.length > 0 ? options.roots : getEffectiveScannableRoots();
+            return deriveCoverageFromRoots(targetRoots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS);
         }
-        this.ruleIds = options.ruleIds ?? [];
-        this.ruleDescriptions = options.ruleDescriptions;
-        this.explicitSubAuditors = options.subAuditors;
-        this.roots = options.roots ?? getEffectiveScannableRoots();
-        this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
-        this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
-        this.unignoreDirs = options.unignoreDirs ?? [];
-        this.requiredFiles = options.requiredFiles ?? [];
-        this.projectRoot = effectiveProjectRoot;
-        this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage);
-        validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
-        for (const ruleId of this.ruleIds) {
-            this.countsByRule.set(ruleId, 0);
+        if (options.requiredFiles && options.requiredFiles.length > 0) {
+            return deriveCoverageFromRequiredFiles(options.requiredFiles, effectiveProjectRoot, options.allowedExtensions);
         }
-        this.context = setupAuditor({
+        return undefined;
+    }
+    registerAuditorDependencies(options) {
+        if (options.gitIgnoreEntries && options.gitIgnoreEntries.length > 0) {
+            GitIgnoreRegistry.registerMany(options.gitIgnoreEntries);
+        }
+        if (options.configFiles && options.configFiles.length > 0) {
+            ConfigFileRegistry.registerMany(options.configFiles);
+        }
+    }
+    initExecutionContext(coverageDeclaration) {
+        return setupAuditor({
             id: this.id,
             name: this.name,
             description: this.description,
@@ -672,12 +661,46 @@ export class BaseAuditor {
             onFilesCollected: (files) => {
                 for (const f of files) {
                     const rel = toPosixRelative(this.projectRoot, f);
-                    if (isDeclaredByCoverage(rel, this.coverageRecorder.declaration)) {
+                    if (isDeclaredByCoverage(rel, coverageDeclaration)) {
                         this.recordScanned(rel);
                     }
                 }
             }
         });
+    }
+    constructor(options) {
+        const effectiveProjectRoot = options.projectRoot || process.cwd();
+        const effectiveCoverage = this.resolveEffectiveCoverage(options, effectiveProjectRoot);
+        validateAuditorOptions({ ...options, coverage: effectiveCoverage });
+        const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
+        this.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, ...options.capabilities, ast: astRequired };
+        this.requiresAst = astRequired;
+        this.packageName = options.packageName;
+        this.icon = options.icon;
+        this.id = options.id;
+        this.name = options.name;
+        this.description = options.description;
+        this.family = options.family;
+        this.configKey = options.configKey;
+        this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
+        this.configFiles = options.configFiles ?? [];
+        this.fixMode = Boolean(options.fix);
+        this.ruleIds = options.ruleIds ?? Object.keys(options.ruleDescriptions);
+        this.ruleDescriptions = options.ruleDescriptions;
+        this.explicitSubAuditors = options.subAuditors;
+        this.roots = options.roots ?? getEffectiveScannableRoots();
+        this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
+        this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
+        this.unignoreDirs = options.unignoreDirs ?? [];
+        this.requiredFiles = options.requiredFiles ?? [];
+        this.projectRoot = effectiveProjectRoot;
+        this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage);
+        this.registerAuditorDependencies(options);
+        validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
+        for (const ruleId of this.ruleIds) {
+            this.countsByRule.set(ruleId, 0);
+        }
+        this.context = this.initExecutionContext(this.coverageRecorder.declaration);
     }
     /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
     getRuleCatalog() {
@@ -745,6 +768,23 @@ export class BaseAuditor {
     /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
     markRuleNotApplicable(ruleId, reason) {
         this.coverageRecorder.markRuleNotApplicable(ruleId, reason);
+    }
+    /**
+     * Evaluates suite gating against configuration and marks rules not applicable and suite skipped if disabled.
+     * Returns true if the suite is disabled, allowing an immediate clean early return.
+     */
+    isSuiteGatingDisabled(defaultReason = 'Suite desactivada en config') {
+        const config = getAuditConfig(this.projectRoot);
+        const gating = evaluateSuiteStatus(this.id, config);
+        if (!gating.enabled) {
+            const reason = gating.reason ?? defaultReason;
+            for (const ruleId of this.ruleIds) {
+                this.markRuleNotApplicable(ruleId, reason);
+            }
+            this.markSkipped(reason);
+            return true;
+        }
+        return false;
     }
     /** Gets evaluation count recorded so far for a given rule. */
     getEvaluations(ruleId) {
@@ -817,6 +857,9 @@ export class BaseAuditor {
         return this.filesScannedCount;
     }
     addViolation(v) {
+        if (!(v.ruleId in this.ruleDescriptions)) {
+            throw new Error(`[Auditor Contract Violation] Rule '${v.ruleId}' emitted in '${this.id}' is NOT registered in 'ruleDescriptions'. All emitted rules must be registered in the constructor.`);
+        }
         if (v.file && isLockedSkillPath(v.file, this.projectRoot)) {
             return;
         }
@@ -867,9 +910,110 @@ export class BaseAuditor {
     hasEscapeHatch(line, hatches) {
         return hatches.some(h => line.includes(`// ${h}`) || line.includes(`/* ${h}`) || line.includes(`<!-- ${h}`));
     }
+    isFixActive() {
+        return this.fixMode || this.isFixModeRequested();
+    }
     isFixModeRequested() {
-        const rawValues = this.context.values;
-        return process.argv.includes('fix') || process.argv.includes('--fix') || Boolean(rawValues?.fix);
+        const rawValues = this.context.values; // open-record: Generic parsed CLI flags and options dictionary
+        return (this.fixMode ||
+            process.argv.includes('fix') ||
+            process.argv.includes('--fix') ||
+            process.env.AUDIT_FIX === 'true' ||
+            Boolean(rawValues?.fix));
+    }
+    /**
+     * Resolves whether any declared file or candidate file for this requirement exists on disk.
+     * Returns the absolute path of the first existing candidate, or null if none exist.
+     */
+    resolveConfigFile(requirement) {
+        const candidates = requirement.candidateFiles && requirement.candidateFiles.length > 0
+            ? requirement.candidateFiles
+            : [requirement.file];
+        for (const candidate of candidates) {
+            const fullPath = path.resolve(this.projectRoot, candidate);
+            if (nodeFs.existsSync(fullPath)) {
+                return fullPath;
+            }
+        }
+        return null;
+    }
+    async scaffoldDefaultConfigFile(requirement, config) {
+        if (requirement.ruleId) {
+            this.markRuleEvaluated(requirement.ruleId);
+        }
+        const targetPath = path.resolve(this.projectRoot, requirement.file);
+        nodeFs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        const content = await requirement.generateDefaultContent({
+            projectRoot: this.projectRoot,
+            packageName: this.packageName,
+            config
+        });
+        if (!nodeFs.existsSync(targetPath)) {
+            nodeFs.writeFileSync(targetPath, content, 'utf-8');
+        }
+        return { resolvedPath: targetPath, created: true };
+    }
+    reportMissingConfigFileViolation(requirement, config) {
+        if (!requirement.ruleId)
+            return;
+        this.markRuleEvaluated(requirement.ruleId);
+        const fixCtx = {
+            projectRoot: this.projectRoot,
+            packageName: this.packageName,
+            config
+        };
+        const message = typeof requirement.customMissingMessage === 'function'
+            ? requirement.customMissingMessage(fixCtx, requirement.file)
+            : (requirement.customMissingMessage ??
+                `No se encontró el archivo de configuración requerido '${requirement.file}' (${requirement.description}). Ejecuta con --fix para inicializarlo.`);
+        const reportedFile = requirement.customMissingFile
+            ? requirement.customMissingFile(fixCtx, requirement.file)
+            : requirement.file;
+        this.addViolation({
+            ruleId: requirement.ruleId,
+            severity: 'error',
+            file: reportedFile,
+            line: 1,
+            col: 1,
+            context: requirement.file,
+            message
+        });
+    }
+    async ensureConfigFile(requirement) {
+        const config = getAuditConfig(this.projectRoot);
+        if (requirement.isApplicable && !requirement.isApplicable(config, this.projectRoot)) {
+            return null;
+        }
+        const existingPath = this.resolveConfigFile(requirement);
+        if (existingPath) {
+            if (requirement.ruleId) {
+                this.markRuleEvaluated(requirement.ruleId);
+            }
+            return { resolvedPath: existingPath, created: false };
+        }
+        if (this.isFixActive()) {
+            return this.scaffoldDefaultConfigFile(requirement, config);
+        }
+        this.reportMissingConfigFileViolation(requirement, config);
+        return null;
+    }
+    /**
+     * Iterates through all declared `configFiles`, ensuring that every applicable requirement
+     * is satisfied or scaffolded. Returns true if all applicable requirements are met, false otherwise.
+     */
+    async verifyAndFixConfigFiles() {
+        let allSatisfied = true;
+        for (const requirement of this.configFiles) {
+            const result = await this.ensureConfigFile(requirement);
+            if (result === null) {
+                const config = getAuditConfig(this.projectRoot);
+                const isApp = requirement.isApplicable ? requirement.isApplicable(config, this.projectRoot) : true;
+                if (isApp) {
+                    allSatisfied = false;
+                }
+            }
+        }
+        return allSatisfied;
     }
     isPathIgnored(relPath) {
         return this.context.isPathIgnored(relPath);
@@ -1052,13 +1196,37 @@ export class FileScanAuditor extends BaseAuditor {
             ? options
             : { ...options, roots: getEffectiveScannableRoots() });
     }
+    async resolveEffectiveAst(astContext) {
+        if (astContext || !this.requiresAst)
+            return astContext;
+        const { SharedAstContext } = await import("./astContext.js");
+        return new SharedAstContext();
+    }
+    async scanSingleDiscoveredFile(file, effectiveAst, catalog) {
+        const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
+        let content;
+        try {
+            content = nodeFs.readFileSync(file, 'utf-8');
+        }
+        catch {
+            // catch-ok: unreadable files are not recorded as scanned, so coverage reports them as uncovered
+            this.unrecordScanned(relPath);
+            return;
+        }
+        const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
+        const prevTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
+        await this.scanFile(relPath, content, sourceFile);
+        this.recordScanned(relPath);
+        const newTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
+        if (newTotalEvals === prevTotalEvals) {
+            for (const ruleId of catalog) {
+                this.markRuleEvaluated(ruleId);
+            }
+        }
+    }
     async runAudit(astContext) {
         const files = this.context.collectFiles(this.roots, this.allowedExtensions);
-        let effectiveAst = astContext;
-        if (!effectiveAst && this.requiresAst) {
-            const { SharedAstContext } = await import("./astContext.js");
-            effectiveAst = new SharedAstContext();
-        }
+        const effectiveAst = await this.resolveEffectiveAst(astContext);
         const catalog = this.getRuleCatalog();
         if (files.length === 0) {
             for (const ruleId of catalog) {
@@ -1068,26 +1236,7 @@ export class FileScanAuditor extends BaseAuditor {
             return;
         }
         for (const file of files) {
-            const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
-            let content;
-            try {
-                content = nodeFs.readFileSync(file, 'utf-8');
-            }
-            catch {
-                // catch-ok: unreadable files are not recorded as scanned, so coverage reports them as uncovered
-                this.unrecordScanned(relPath);
-                continue;
-            }
-            const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
-            const prevTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
-            await this.scanFile(relPath, content, sourceFile);
-            this.recordScanned(relPath);
-            const newTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
-            if (newTotalEvals === prevTotalEvals) {
-                for (const ruleId of catalog) {
-                    this.markRuleEvaluated(ruleId);
-                }
-            }
+            await this.scanSingleDiscoveredFile(file, effectiveAst, catalog);
         }
         this.ensureSubAuditorsLogged();
     }

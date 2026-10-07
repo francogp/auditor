@@ -36,6 +36,10 @@ export declare class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRu
     private readonly saveKeyPrefixes;
     constructor(customMigrationsDir?: string, projectRoot?: string, customSaveKeyPrefixes?: readonly string[]);
     runAudit(): void;
+    private markSqlRulesNotApplicable;
+    private resolveMigrationScanDirs;
+    private scanSingleSqlFile;
+    private scanSingleSqlDirectory;
     private collectAndScanMigrations;
     private scanSourceFiles;
     private scanSqlFile;

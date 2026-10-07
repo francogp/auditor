@@ -67,7 +67,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.file).toBe('.agents/plugins.json');
-      expect(violation?.context).toContain('npx auditor-init-agent');
+      expect(violation?.context).toContain('auditor:init-agent');
     });
 
     it('detects missing agent plugin registration when .agents/plugins.json has unrelated plugins', async () => {

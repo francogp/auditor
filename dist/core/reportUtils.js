@@ -170,7 +170,7 @@ export function parseLintResultsToFindings(input, options) {
  * falling back to finding file paths if JSON parsing fails or output is not an array.
  */
 export function extractJsonReportFilePaths(rawJson, fallbackFindings) {
-    const result = [];
+    const result = []; // no-domain: Non-domain utility collection or data structure
     try {
         const parsed = JSON.parse(rawJson);
         if (Array.isArray(parsed)) {

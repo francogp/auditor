@@ -6,36 +6,13 @@
  * infers families, generates canonical task definitions, and guarantees that ZERO auditors
  * are ever left behind from the orchestrator.
  */
-import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement, type AuditorManifestDTO } from '../core/auditContract.ts';
+import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 export declare const AUDIT_PRESETS: Record<string, readonly string[]>;
 export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {});
-export interface DiscoveryOptions {
-    baseDir?: string;
-    projectRoot?: string;
-    family?: string;
-    task?: string;
-    suites?: string[];
-    preset?: string;
-    fastOnly?: boolean;
-    skipSimilar?: boolean;
-    fixOnly?: boolean;
-    lintOnly?: boolean;
-    mdOnly?: boolean;
-    buildOnly?: boolean;
-    withBuild?: boolean;
-    includeHeavy?: boolean;
-}
-export interface ExtractedAuditorMetadata {
-    readonly capabilities: AuditorCapabilities;
-    readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-    readonly icon?: string;
-    readonly manifest?: AuditorManifestDTO;
-    readonly description?: string;
-    readonly ruleDescriptions?: Readonly<Record<string, string>>;
-    readonly configKey?: string;
-}
-export declare function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata>;
+export { type DiscoveryOptions, getTimeoutForTask, DEFAULT_PERMISSIONS, getPermissionsForTask, formatTaskTitle, shouldSkipTaskByFilters, shouldSkipTaskByCapabilities, buildTaskCliArguments, createAuditTaskDefinition } from './auditTaskFactory.ts';
+import { type DiscoveryOptions } from './auditTaskFactory.ts';
+export { type ExtractedAuditorMetadata, extractStaticMetadataFromFile, extractAuditorMetadataFromFile } from './auditorMetadata.ts';
 export declare function extractCapabilitiesFromFile(fullPath: string): Promise<AuditorCapabilities>;
 export declare function extractGitIgnoreRequirementsFromFile(fullPath: string): Promise<readonly GitIgnoreRequirement[]>;
 export declare function discoverAuditors(options?: DiscoveryOptions): Promise<AuditTaskDefinition[]>;

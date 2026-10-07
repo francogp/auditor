@@ -13,8 +13,23 @@ Architecture & Tooling Engineers.
 
 ## Key Files
 
+- [`agentsMandateAnalyzer.ts`](./agentsMandateAnalyzer.ts): AGENTS.md mandate parsing, language validation, and in-place injection helper.
+- [`auditRuleTypes.ts`](./auditRuleTypes.ts): Core rule descriptors, violation schemas, and matching primitives.
 - [`constantAnalyzer.ts`](./constantAnalyzer.ts): TypeScript AST visitor detecting duplicate or divergent numeric/string constants.
+- [`constantRules.ts`](./constantRules.ts): Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
 - [`doxAnalyzer.ts`](./doxAnalyzer.ts): AGENTS.md documentation tree walker and link integrity verifier.
+- [`zIndexRules.ts`](./zIndexRules.ts): Z-Index Design System Parity and isolated constant rules.
+
+## Work Guidance
+
+- Analyzers must be stateless or manage caches predictably through AST visitor structures.
+- Return structured `Violation[]` objects rather than throwing unhandled runtime exceptions.
+- Never hardcode candidate file names; resolve dynamic configuration through `getAuditConfig()`.
+
+## Verification
+
+- Run constant analyzer unit tests: `npm test -- tests/validate_duplicate_constants.test.ts`
+- Run DOX analyzer unit tests: `npm test -- tests/validate_dox_integrity.test.ts`
 
 ## Child DOX Index
 

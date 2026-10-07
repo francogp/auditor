@@ -47,9 +47,10 @@ npm install github:francogp/auditor
 
 ### Canonical Update Command:
 ```bash
-npx auditor-update
+npm run auditor:update
+# or directly:
+auditor-update
 ```
-*(Or via host project script: `npm run auditor:update`).*
 
 Under the hood, `auditor-update`:
 1. Executes `npm update @francogp/auditor` to resolve the latest commit and update `package-lock.json`.
@@ -196,6 +197,10 @@ When authoring or maintaining host extensions in `scripts/auditors/`:
    Configurations MUST use strict compile-time booleans (`true` / `false`). Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and will fail validation immediately.
 3. **Anti-Abuse in `constants.exemptGlobs`**:
    Glob patterns must target specific maintenance scripts or tabular seed data. Broad directory wildcards like `**/*` or `src/**` are rejected.
+4. **Declarative Configuration File Requirements (`configFiles`, `AuditorConfigFileRequirement`)**:
+   Host extensions or sub-auditors requiring external configuration files declare them declaratively via `AuditorOptions.configFiles` without ad-hoc file write scripts. `verifyAndFixConfigFiles()` auto-creates canonical configurations in `--fix` mode.
+5. **Primary Documentation Language Contract (`documentation.language`)**:
+   The host project specifies `documentation.language: 'en' | 'es'` in `.auditor/audit.config.ts` (strictly defaulting to `'en'`).
 
 ---
 
@@ -208,7 +213,7 @@ In consumer host projects deploying to GitHub Pages or executing in lightweight 
 ```yaml
 # In GitHub Actions workflow step:
 - name: Audit & Build
-  run: npx auditor && npm run build
+  run: auditor && npm run build
   env:
     AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS: 1
 ```
@@ -219,7 +224,7 @@ In consumer host projects deploying to GitHub Pages or executing in lightweight 
 
 ---
 
-## 7. Master Environment Setup Scripts Governance (`setup-linux.sh`, `setup-windows.ps1`)
+## 8. Master Environment Setup Scripts Governance (`setup-linux.sh`, `setup-windows.ps1`)
 
 The root environment initialization scripts `setup-linux.sh` and `setup-windows.ps1` belong canonically to `@francogp/auditor` and are distributed with the package.
 
@@ -233,7 +238,7 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 
 ---
 
-## 8. Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules
+## 9. Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules
 
 > [!CAUTION]
 > **Zero Tolerance on Fake Passes & Rule Nullification**:
@@ -242,5 +247,16 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 > If the number of errors or warnings is massive (even hundreds or thousands of errors), **THEY ARE REAL ARCHITECTURAL, HYGIENE, OR SECURITY DEFECTS THAT MUST BE LEGITIMATELY RESOLVED IN THE SOURCE CODE OR FIXED WITH CANONICAL TOOLS (`auditor fix`)**.
 >
 > Modernizing host configurations means **elevating the codebase to meet strict modern standards and exposing defects that were previously hidden**, NEVER degrading, diluting, or castrating the auditor's rules to fit legacy code. Silencing rules to achieve a fake clean pass is considered a critical architectural violation and gross misconduct.
+
+---
+
+## 10. Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation
+
+> [!CAUTION]
+> **Mandatory Consultation Gate**:
+> Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer.
+> 
+> When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.
+
 
 

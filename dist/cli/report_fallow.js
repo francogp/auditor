@@ -20,7 +20,10 @@ const VALID_CATEGORY_ALIASES = new Set([
 ]);
 function parsePositionalOption(pos, currentCategory) {
     if (pos.startsWith('category=')) {
-        return { category: pos.split('=')[1]?.toLowerCase() || '' };
+        const parts = pos.split('=');
+        const part = parts[1];
+        const cliCategory = part !== undefined ? part.toLowerCase() : '';
+        return { category: cliCategory };
     }
     if (pos.startsWith('top=')) {
         const rawTop = pos.split('=')[1] || '20';
@@ -48,7 +51,7 @@ function parseCommandLineArgs() {
         strict: false,
         allowPositionals: true
     });
-    let category = (values.category || '').toLowerCase();
+    let category = typeof values.category === 'string' ? values.category.toLowerCase() : '';
     let top = parseInt(values.top, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
     let jsonOutput = Boolean(values.json);
     for (const pos of positionals) {
@@ -61,7 +64,7 @@ function parseCommandLineArgs() {
             jsonOutput = parsed.json;
     }
     return {
-        category: category || 'all',
+        category: category.length > 0 ? category : 'all',
         top,
         jsonOutput
     };
@@ -425,7 +428,7 @@ function countArrayItems(record, key) {
 }
 function extractHealthMetrics(healthData) {
     const summaryObj = (healthData && typeof healthData.summary === 'object' && healthData.summary !== null)
-        ? healthData.summary
+        ? healthData.summary // open-record: Generic parsed health summary dictionary
         : null;
     const maintainability = summaryObj?.average_maintainability ?? summaryObj?.maintainability_index ?? 0;
     return {
@@ -578,62 +581,41 @@ function executeComplexityReport(jsonOutput) {
     const compScript = path.resolve(currentDir, 'report_complexity.ts');
     execSync(`node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? 'json' : ''}`, { stdio: 'inherit' });
 }
+const REPORT_DISPATCH_MAP = {
+    dupes: (top, json) => reportDupes(top, json),
+    duplicates: (top, json) => reportDupes(top, json),
+    security: (top, json) => reportSecurity(top, json),
+    cwe: (top, json) => reportSecurity(top, json),
+    circular: (_top, json) => reportCircular(json),
+    'circular-deps': (_top, json) => reportCircular(json),
+    exports: (top, json) => reportExports(top, json),
+    'unused-exports': (top, json) => reportExports(top, json),
+    'dead-code': (top, json) => reportDeadCode(top, json),
+    deadcode: (top, json) => reportDeadCode(top, json),
+    unused: (top, json) => reportDeadCode(top, json),
+    boundaries: (_top, json) => reportBoundaries(json),
+    architecture: (_top, json) => reportBoundaries(json),
+    boundary: (_top, json) => reportBoundaries(json),
+    'coverage-gaps': (top, json) => reportCoverageGaps(top, json),
+    coverage_gaps: (top, json) => reportCoverageGaps(top, json),
+    gaps: (top, json) => reportCoverageGaps(top, json),
+    guard: (_top, json) => {
+        const posArgs = process.argv.slice(2).filter((a) => !a.startsWith('-') && !a.startsWith('category=') && a !== 'guard');
+        return runGuardReport(process.cwd(), posArgs, { json });
+    },
+    flags: (top, json) => {
+        return runFlagsReport(process.cwd(), {
+            retirement: process.argv.includes('--retirement') || process.argv.includes('retirement'),
+            top,
+            json
+        });
+    },
+    complexity: (_top, json) => executeComplexityReport(json)
+};
 export function runFallowReportCli() {
     const { category, top, jsonOutput } = parseCommandLineArgs();
-    let exitCode = 0;
-    switch (category) {
-        case 'dupes':
-        case 'duplicates':
-            reportDupes(top, jsonOutput);
-            break;
-        case 'security':
-        case 'cwe':
-            reportSecurity(top, jsonOutput);
-            break;
-        case 'circular':
-        case 'circular-deps':
-            reportCircular(jsonOutput);
-            break;
-        case 'exports':
-        case 'unused-exports':
-            reportExports(top, jsonOutput);
-            break;
-        case 'dead-code':
-        case 'deadcode':
-        case 'unused':
-            reportDeadCode(top, jsonOutput);
-            break;
-        case 'boundaries':
-        case 'architecture':
-        case 'boundary':
-            reportBoundaries(jsonOutput);
-            break;
-        case 'coverage-gaps':
-        case 'coverage_gaps':
-        case 'gaps':
-            reportCoverageGaps(top, jsonOutput);
-            break;
-        case 'guard': {
-            const posArgs = process.argv.slice(2).filter((a) => !a.startsWith('-') && !a.startsWith('category=') && a !== 'guard');
-            exitCode = runGuardReport(process.cwd(), posArgs, { json: jsonOutput });
-            break;
-        }
-        case 'flags': {
-            exitCode = runFlagsReport(process.cwd(), {
-                retirement: process.argv.includes('--retirement') || process.argv.includes('retirement'),
-                top,
-                json: jsonOutput
-            });
-            break;
-        }
-        case 'complexity':
-            executeComplexityReport(jsonOutput);
-            break;
-        case 'all':
-        default:
-            reportAllSummary(jsonOutput);
-            break;
-    }
+    const handler = REPORT_DISPATCH_MAP[category];
+    const exitCode = handler ? (handler(top, jsonOutput) ?? 0) : (reportAllSummary(jsonOutput), 0);
     if (exitCode !== 0) {
         process.exit(exitCode);
     }

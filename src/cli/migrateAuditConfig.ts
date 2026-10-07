@@ -44,7 +44,7 @@ function rewriteRelativeImports(code: string, fileName: string, fromDir: string,
 /** Moves legacy root configuration files into `.auditor/`. Returns the moved file names. */
 export function migrateLegacyAuditConfig(projectRoot: string): string[] {
   const targetDir = path.resolve(projectRoot, AUDITOR_DIR);
-  const moved: string[] = [];
+  const moved: string[] = []; // no-domain: Non-domain utility collection or data structure
   for (const fileName of LEGACY_ROOT_CONFIG_FILES) {
     const legacyPath = path.resolve(projectRoot, fileName);
     if (!fs.existsSync(legacyPath)) continue;

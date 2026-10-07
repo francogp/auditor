@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { loadAuditConfig, getAuditConfig, assertAuditConfigComplete, type ChunkBudgetConfig } from '../core/auditConfig.ts';
+import { type SubAuditorStatus } from '../core/auditContract.ts';
 import { renderBanner, renderBoxTable, formatStatusBadge, type TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
@@ -46,11 +47,12 @@ export interface AggregatedModule {
   readonly count: number;
 }
 
+export type ChunkAuditStatus = SubAuditorStatus; // type-ok: Type contract declaration
 export interface ChunkAuditResult {
   readonly filename: string;
   readonly sizeBytes: number;
   readonly sizeKB: string;
-  readonly status: 'passed' | 'failed' | 'warning';
+  readonly status: ChunkAuditStatus;
   readonly budgetName?: string;
   readonly budgetLimitBytes?: number;
   readonly note: string;

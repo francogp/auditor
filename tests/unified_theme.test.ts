@@ -14,6 +14,11 @@ import {
   renderSimilarCodeWarningBanner,
   renderFindingsDetail,
   renderFindingsBreakdownTable,
+  renderAuditorsRegistryTable,
+  renderAuditorDetailCard,
+  renderCliHelp,
+  renderAutoFixNoticeBanner,
+  renderFamilyHeader,
   getVisualWidth,
   padVisual,
   truncateVisual,
@@ -21,7 +26,7 @@ import {
   formatStatusBadge,
   type TableColumn
 } from '../src/core/unifiedTheme.ts';
-import type { StandardAuditResult, AuditFinding } from '../src/core/auditContract.ts';
+import type { StandardAuditResult, AuditFinding, AuditTaskDefinition } from '../src/core/auditContract.ts';
 
 describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderBanner', () => {
@@ -227,6 +232,160 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       expect(md).toContain('## 📋 Detalle de Incidencias');
       // Truncation over 100 items test
       expect(md).toContain('truncadas por longitud');
+    });
+  });
+
+  describe('renderAutoFixNoticeBanner', () => {
+    it('renders notice banner with error and warning counts', () => {
+      const banner = renderAutoFixNoticeBanner(5, 2);
+      expect(banner).toContain('INCIDENCIAS REPARABLES AUTOMÁTICAMENTE');
+      expect(banner).toContain('5 error(es) y 2 advertencia(s)');
+      expect(banner).toContain('npm run audit:fix');
+    });
+
+    it('renders notice banner with only errors', () => {
+      const banner = renderAutoFixNoticeBanner(3, 0);
+      expect(banner).toContain('3 error(es)');
+      expect(banner).not.toContain('advertencia(s)');
+    });
+  });
+
+  describe('renderFamilyHeader', () => {
+    it('renders clean family header with box drawing formatting', () => {
+      const header = renderFamilyHeader({
+        key: 'architecture',
+        order: 1,
+        icon: '🏛️',
+        title: 'ESTÁNDARES ESTÁTICOS, AST Y ARQUITECTURA',
+        description: 'Reglas de arquitectura y calidad'
+      });
+      expect(header).toContain('ESTÁNDARES ESTÁTICOS, AST Y ARQUITECTURA');
+    });
+  });
+
+  describe('renderAuditorDetailCard', () => {
+    it('renders inspection detail card with capabilities and rule list', () => {
+      const task: AuditTaskDefinition = {
+        id: 'validate_eslint',
+        name: 'ESLint Hygiene',
+        family: 'architecture',
+        icon: '📜',
+        scriptPath: 'src/suites/architecture/validate_eslint.ts',
+        command: 'node',
+        args: [],
+        description: 'Audits code hygiene with ESLint flat config',
+        capabilities: {
+          fix: true,
+          lint: true,
+          md: false,
+          heavy: true,
+          ast: true,
+          changedSince: true,
+          requiresBuild: false,
+          postRun: false
+        },
+        ruleDescriptions: {
+          'eslint-violation': 'Sintaxis o regla de lint violada'
+        },
+        configKey: 'eslint'
+      };
+
+      const card = renderAuditorDetailCard(task);
+      expect(card).toContain('ESLint Hygiene');
+      expect(card).toContain('Auto-reparación (--fix)');
+      expect(card).toContain('Preset Lint');
+      expect(card).toContain('eslint-violation');
+      expect(card).toContain('Clave configurable:');
+      expect(card).toContain('eslint');
+    });
+
+    it('renders fallback card when no capabilities or config are declared', () => {
+      const task: AuditTaskDefinition = {
+        id: 'simple_task',
+        name: 'Simple Task',
+        family: 'documentation',
+        scriptPath: 'src/simple.ts',
+        command: 'node',
+        args: []
+      };
+
+      const card = renderAuditorDetailCard(task);
+      expect(card).toContain('Simple Task');
+      expect(card).toContain('(Ejecución estándar general)');
+      expect(card).toContain('Sin configuración requerida');
+    });
+  });
+
+  describe('renderAuditorsRegistryTable', () => {
+    const sampleTasks: readonly AuditTaskDefinition[] = [
+      {
+        id: 'suite_a',
+        name: 'Suite A',
+        family: 'architecture',
+        icon: '🏛️',
+        description: 'First suite',
+        capabilities: { fix: true, lint: true, md: false, heavy: false, ast: false, changedSince: false, requiresBuild: false, postRun: false },
+        scriptPath: 'src/a.ts',
+        command: 'node',
+        args: []
+      },
+      {
+        id: 'suite_b',
+        name: 'Suite B',
+        family: 'domain_data',
+        icon: '🔒',
+        description: 'Second suite',
+        capabilities: { fix: false, lint: false, md: true, heavy: true, ast: false, changedSince: false, requiresBuild: false, postRun: false },
+        scriptPath: 'src/b.ts',
+        command: 'node',
+        args: []
+      }
+    ];
+
+    it('renders all suites with dynamic headers and flags', () => {
+      const table = renderAuditorsRegistryTable(sampleTasks, ['architecture', 'domain_data']);
+      expect(table).toContain('CATÁLOGO DINÁMICO DE AUDITORES');
+      expect(table).toContain('suite_a');
+      expect(table).toContain('suite_b');
+      expect(table).toContain('FIX LINT');
+      expect(table).toContain('MD HVY');
+    });
+
+    it('renders enabled filter correctly', () => {
+      const table = renderAuditorsRegistryTable(sampleTasks, ['architecture'], { filter: 'enabled' });
+      expect(table).toContain('CATÁLOGO DE AUDITORES ACTIVOS / ENCENDIDOS');
+      expect(table).toContain('suite_a');
+    });
+
+    it('renders disabled filter correctly with reasons map', () => {
+      const reasons = new Map([['suite_a', 'Desactivado por config']]);
+      const table = renderAuditorsRegistryTable(sampleTasks, ['architecture'], {
+        filter: 'disabled',
+        disabledReasons: reasons
+      });
+      expect(table).toContain('CATÁLOGO DE AUDITORES DESACTIVADOS / APAGADOS');
+      expect(table).toContain('suite_a');
+      expect(table).toContain('Desactivado por config');
+    });
+
+    it('handles empty task list gracefully for both enabled and disabled filters', () => {
+      const emptyEnabled = renderAuditorsRegistryTable([], ['architecture'], { filter: 'enabled' });
+      expect(emptyEnabled).toContain('No se encontraron auditores');
+
+      const emptyDisabled = renderAuditorsRegistryTable([], ['architecture'], { filter: 'disabled' });
+      expect(emptyDisabled).toContain('¡No hay auditores desactivados!');
+    });
+  });
+
+  describe('renderCliHelp', () => {
+    it('renders CLI help card with active families and usage examples', () => {
+      const help = renderCliHelp(['architecture', 'documentation']);
+      expect(help).toContain('USO:');
+      expect(help).toContain('MODOS Y PRESETS DE EJECUCIÓN:');
+      expect(help).toContain('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:');
+      expect(help).toContain('FILTROS Y SELECCIÓN:');
+      expect(help).toContain('architecture');
+      expect(help).toContain('documentation');
     });
   });
 });

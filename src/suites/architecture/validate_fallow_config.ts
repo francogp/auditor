@@ -16,6 +16,7 @@ import { execSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
@@ -99,16 +100,29 @@ export interface FallowConfigSchema {
   rules?: Record<string, string>;
 }
 
+export function createDefaultFallowConfigContent(): string {
+  return JSON.stringify(
+    {
+      $schema: 'https://fallow.tools/schema/config.json',
+      entry: [
+        'src/index.ts'
+      ],
+      ignorePatterns: [
+        'dist/**',
+        'scratch/**',
+        'tests/**'
+      ],
+      health: {
+        maxCrap: 0
+      }
+    },
+    null,
+    2
+  ) + '\n';
+}
+
 function loadFallowConfig(configPath: string, auditor: ValidateFallowConfigAuditor): FallowConfigSchema | null {
   if (!fs.existsSync(configPath)) {
-    auditor.addViolation({
-      ruleId: 'fallow-config-missing',
-      severity: 'error',
-      file: '.fallowrc.json',
-      line: 1,
-      message: 'No se encontró el archivo de configuración .fallowrc.json.',
-      context: configPath
-    });
     return null;
   }
 
@@ -315,15 +329,50 @@ export function validateFallowWorkspaceDiagnostics(
   }
 }
 
-export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
-private readonly configPath: string;
+export interface ValidateFallowConfigOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+  readonly fix?: boolean;
+}
 
-  constructor(targetPath?: string) {
-    const isJsonFile = typeof targetPath === 'string' && targetPath.endsWith('.json');
-    const projectRoot = isJsonFile ? path.dirname(targetPath) : (targetPath || process.cwd());
+export const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfigRuleId> = {
+  id: 'fallow-config',
+  file: '.fallowrc.json',
+  description: 'Configuración de Fallow y control de exports',
+  ruleId: 'fallow-config-missing',
+  generateDefaultContent: () => createDefaultFallowConfigContent()
+};
+
+export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
+  constructor(targetPathOrOptions?: string | ValidateFallowConfigOptions) {
+    let projectRoot: string;
+    let configPath: string;
+    let fix = false;
+
+    if (typeof targetPathOrOptions === 'object' && targetPathOrOptions !== null) {
+      projectRoot = targetPathOrOptions.projectRoot || process.cwd();
+      configPath = targetPathOrOptions.configFile
+        ? path.resolve(projectRoot, targetPathOrOptions.configFile)
+        : path.resolve(projectRoot, '.fallowrc.json');
+      fix = Boolean(targetPathOrOptions.fix);
+    } else {
+      const isJsonFile = typeof targetPathOrOptions === 'string' && targetPathOrOptions.endsWith('.json');
+      projectRoot = isJsonFile ? path.dirname(targetPathOrOptions) : (targetPathOrOptions || process.cwd());
+      configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, '.fallowrc.json');
+    }
+
+    const relConfig = path.relative(projectRoot, configPath).replace(/\\/g, '/') || '.fallowrc.json';
+    const configRequirement: AuditorConfigFileRequirement<FallowConfigRuleId> = {
+      ...FALLOW_CONFIG_REQUIREMENT,
+      file: relConfig,
+      candidateFiles: [relConfig]
+    };
 
     super({
-id: 'validate_fallow_config',
+      capabilities: { fix: true },
+      configFiles: [configRequirement],
+      fix,
+      id: 'validate_fallow_config',
       name: 'Fallow Configuration & Exports Hygiene Validator',
       description: 'Valida integridad de .fallowrc.json y sus ignoreExports',
       family: 'architecture',
@@ -345,13 +394,14 @@ id: 'validate_fallow_config',
       },
       projectRoot
     });
-
-    this.configPath = isJsonFile ? targetPath : path.resolve(projectRoot, '.fallowrc.json');
   }
 
   public override async runAudit(): Promise<void> {
-    this.markRuleEvaluated('fallow-config-missing');
-    const config = loadFallowConfig(this.configPath, this);
+    const requirement = this.configFiles[0] ?? FALLOW_CONFIG_REQUIREMENT;
+    const ensured = await this.ensureConfigFile(requirement);
+    if (!ensured) return;
+
+    const config = loadFallowConfig(ensured.resolvedPath, this);
     if (!config) return;
 
     this.recordScanned('.fallowrc.json');

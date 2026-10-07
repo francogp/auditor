@@ -66,16 +66,24 @@ export function isSymbolExportedInContent(content, symbol, isVue = false) {
         `export\\s+\\*\\s+as\\s+${escaped}\\b`);
     return exportRegex.test(content);
 }
+export function createDefaultFallowConfigContent() {
+    return JSON.stringify({
+        $schema: 'https://fallow.tools/schema/config.json',
+        entry: [
+            'src/index.ts'
+        ],
+        ignorePatterns: [
+            'dist/**',
+            'scratch/**',
+            'tests/**'
+        ],
+        health: {
+            maxCrap: 0
+        }
+    }, null, 2) + '\n';
+}
 function loadFallowConfig(configPath, auditor) {
     if (!fs.existsSync(configPath)) {
-        auditor.addViolation({
-            ruleId: 'fallow-config-missing',
-            severity: 'error',
-            file: '.fallowrc.json',
-            line: 1,
-            message: 'No se encontró el archivo de configuración .fallowrc.json.',
-            context: configPath
-        });
         return null;
     }
     try {
@@ -238,12 +246,40 @@ export function validateFallowWorkspaceDiagnostics(diagnostics, auditor) {
         });
     }
 }
+export const FALLOW_CONFIG_REQUIREMENT = {
+    id: 'fallow-config',
+    file: '.fallowrc.json',
+    description: 'Configuración de Fallow y control de exports',
+    ruleId: 'fallow-config-missing',
+    generateDefaultContent: () => createDefaultFallowConfigContent()
+};
 export class ValidateFallowConfigAuditor extends BaseAuditor {
-    configPath;
-    constructor(targetPath) {
-        const isJsonFile = typeof targetPath === 'string' && targetPath.endsWith('.json');
-        const projectRoot = isJsonFile ? path.dirname(targetPath) : (targetPath || process.cwd());
+    constructor(targetPathOrOptions) {
+        let projectRoot;
+        let configPath;
+        let fix = false;
+        if (typeof targetPathOrOptions === 'object' && targetPathOrOptions !== null) {
+            projectRoot = targetPathOrOptions.projectRoot || process.cwd();
+            configPath = targetPathOrOptions.configFile
+                ? path.resolve(projectRoot, targetPathOrOptions.configFile)
+                : path.resolve(projectRoot, '.fallowrc.json');
+            fix = Boolean(targetPathOrOptions.fix);
+        }
+        else {
+            const isJsonFile = typeof targetPathOrOptions === 'string' && targetPathOrOptions.endsWith('.json');
+            projectRoot = isJsonFile ? path.dirname(targetPathOrOptions) : (targetPathOrOptions || process.cwd());
+            configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, '.fallowrc.json');
+        }
+        const relConfig = path.relative(projectRoot, configPath).replace(/\\/g, '/') || '.fallowrc.json';
+        const configRequirement = {
+            ...FALLOW_CONFIG_REQUIREMENT,
+            file: relConfig,
+            candidateFiles: [relConfig]
+        };
         super({
+            capabilities: { fix: true },
+            configFiles: [configRequirement],
+            fix,
             id: 'validate_fallow_config',
             name: 'Fallow Configuration & Exports Hygiene Validator',
             description: 'Valida integridad de .fallowrc.json y sus ignoreExports',
@@ -266,11 +302,13 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
             },
             projectRoot
         });
-        this.configPath = isJsonFile ? targetPath : path.resolve(projectRoot, '.fallowrc.json');
     }
     async runAudit() {
-        this.markRuleEvaluated('fallow-config-missing');
-        const config = loadFallowConfig(this.configPath, this);
+        const requirement = this.configFiles[0] ?? FALLOW_CONFIG_REQUIREMENT;
+        const ensured = await this.ensureConfigFile(requirement);
+        if (!ensured)
+            return;
+        const config = loadFallowConfig(ensured.resolvedPath, this);
         if (!config)
             return;
         this.recordScanned('.fallowrc.json');

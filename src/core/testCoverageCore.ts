@@ -110,7 +110,7 @@ export function compressLineRanges(lines: readonly number[]): string[] {
   const first = sorted[0];
   if (first === undefined) return [];
 
-  const ranges: string[] = [];
+  const ranges: string[] = []; // no-domain: Non-domain utility collection or data structure
   let start = first;
   let prev = first;
 
@@ -144,53 +144,122 @@ interface RawIstanbulEntry {
   lines?: { total: number; covered: number; pct: number };
 }
 
+function extractFromLineMap(lineHits: Record<string, number>): string[] {
+  const uncovered = Object.entries(lineHits)
+    .filter(([_, count]) => count === 0)
+    .map(([lineStr]) => Number(lineStr))
+    .filter(n => !Number.isNaN(n));
+  return compressLineRanges(uncovered);
+}
+
+function recordStatementLines(
+  startLine: number,
+  endLine: number,
+  hits: number,
+  coveredLines: Set<number>,
+  statementLines: Map<number, boolean>
+): void {
+  for (let line = startLine; line <= endLine; line++) {
+    if (hits > 0) {
+      coveredLines.add(line);
+      statementLines.set(line, true);
+    } else if (!statementLines.has(line)) {
+      statementLines.set(line, false);
+    }
+  }
+}
+
+function extractFromStatementMap(
+  statementMap: Record<string, { start?: { line?: number }; end?: { line?: number } }>,
+  sHits: Record<string, number>
+): string[] {
+  const coveredLines = new Set<number>();
+  const statementLines = new Map<number, boolean>();
+
+  for (const [id, loc] of Object.entries(statementMap)) {
+    const hits = sHits[id] ?? 0;
+    const startLine = loc.start?.line;
+    const endLine = loc.end?.line ?? startLine;
+    if (typeof startLine === 'number' && typeof endLine === 'number') {
+      recordStatementLines(startLine, endLine, hits, coveredLines, statementLines);
+    }
+  }
+
+  const uncovered = Array.from(statementLines.entries())
+    .filter(([line, wasHit]) => !wasHit && !coveredLines.has(line))
+    .map(([line]) => line);
+
+  return compressLineRanges(uncovered);
+}
+
 /**
  * Extracts uncovered line ranges from Istanbul file coverage data.
  */
 export function extractUncoveredLines(raw: RawIstanbulEntry): string[] {
-  // If line hit map 'l' exists directly (common in nyc/istanbul outputs)
   if (raw.l && Object.keys(raw.l).length > 0) {
-    const uncovered = Object.entries(raw.l)
-      .filter(([_, count]) => count === 0)
-      .map(([lineStr]) => Number(lineStr))
-      .filter(n => !Number.isNaN(n));
-    return compressLineRanges(uncovered);
+    return extractFromLineMap(raw.l);
   }
-
-  // Derive from statementMap and hit counts 's'
   if (raw.statementMap && raw.s) {
-    const coveredLines = new Set<number>();
-    const statementLines = new Map<number, boolean>();
+    return extractFromStatementMap(raw.statementMap, raw.s);
+  }
+  return [];
+}
 
+function calculateBranchMetrics(rawBranches?: Record<string, number[]>): CoverageMetric {
+  let bTotal = 0;
+  let bCovered = 0;
+  for (const branchCounts of Object.values(rawBranches ?? {})) {
+    if (Array.isArray(branchCounts)) {
+      for (const count of branchCounts) {
+        bTotal++;
+        if (count > 0) bCovered++;
+      }
+    }
+  }
+  return calculateMetric(bCovered, bTotal);
+}
+
+function calculateLineMetrics(raw: RawIstanbulEntry, sTotal: number, sCovered: number): CoverageMetric {
+  if (raw.l && Object.keys(raw.l).length > 0) {
+    const lTotal = Object.keys(raw.l).length;
+    const lCovered = Object.values(raw.l).filter(c => c > 0).length;
+    return calculateMetric(lCovered, lTotal);
+  }
+  if (raw.statementMap && raw.s) {
+    const linesMap = new Map<number, boolean>();
     for (const [id, loc] of Object.entries(raw.statementMap)) {
       const hits = raw.s[id] ?? 0;
       const startLine = loc.start?.line;
-      const endLine = loc.end?.line ?? startLine;
       if (typeof startLine === 'number') {
-        for (let line = startLine; line <= endLine; line++) {
-          if (hits > 0) {
-            coveredLines.add(line);
-          }
-          if (!statementLines.has(line)) {
-            statementLines.set(line, false);
-          }
-          if (hits > 0) {
-            statementLines.set(line, true);
-          }
-        }
+        const existing = linesMap.get(startLine) ?? false;
+        linesMap.set(startLine, existing || hits > 0);
       }
     }
-
-    const uncovered: number[] = [];
-    for (const [line, wasHit] of statementLines.entries()) {
-      if (!wasHit && !coveredLines.has(line)) {
-        uncovered.push(line);
-      }
-    }
-    return compressLineRanges(uncovered);
+    return calculateMetric(
+      Array.from(linesMap.values()).filter(Boolean).length,
+      linesMap.size
+    );
   }
+  return calculateMetric(sCovered, sTotal);
+}
 
-  return [];
+function computeDetailedMetrics(raw: RawIstanbulEntry): {
+  statements: CoverageMetric;
+  branches: CoverageMetric;
+  functions: CoverageMetric;
+  lines: CoverageMetric;
+} {
+  const sTotal = Object.keys(raw.s ?? {}).length;
+  const sCovered = Object.values(raw.s ?? {}).filter(c => c > 0).length;
+  const fTotal = Object.keys(raw.f ?? {}).length;
+  const fCovered = Object.values(raw.f ?? {}).filter(c => c > 0).length;
+
+  return {
+    statements: calculateMetric(sCovered, sTotal),
+    branches: calculateBranchMetrics(raw.b),
+    functions: calculateMetric(fCovered, fTotal),
+    lines: calculateLineMetrics(raw, sTotal, sCovered)
+  };
 }
 
 function parseRawCoverageItem(
@@ -202,77 +271,27 @@ function parseRawCoverageItem(
   const absolutePath = path.isAbsolute(keyPath) ? keyPath : path.resolve(projectRoot, keyPath);
   const relPath = path.relative(projectRoot, absolutePath).split(path.sep).join('/');
 
-  // If already in summary format:
   if (raw.statements && raw.branches && raw.functions && raw.lines) {
     const statements = calculateMetric(raw.statements.covered, raw.statements.total);
-    const branches = calculateMetric(raw.branches.covered, raw.branches.total);
-    const functions = calculateMetric(raw.functions.covered, raw.functions.total);
-    const lines = calculateMetric(raw.lines.covered, raw.lines.total);
     return {
       filePath: absolutePath,
       relPath,
       statements,
-      branches,
-      functions,
-      lines,
+      branches: calculateMetric(raw.branches.covered, raw.branches.total),
+      functions: calculateMetric(raw.functions.covered, raw.functions.total),
+      lines: calculateMetric(raw.lines.covered, raw.lines.total),
       uncoveredLines: extractUncoveredLines(raw),
       status: determineCoverageStatus(statements.pct, threshold)
     };
   }
 
-  // Compute from detailed Istanbul structures:
-  const sTotal = Object.keys(raw.s ?? {}).length;
-  const sCovered = Object.values(raw.s ?? {}).filter(c => c > 0).length;
-  const statements = calculateMetric(sCovered, sTotal);
-
-  const fTotal = Object.keys(raw.f ?? {}).length;
-  const fCovered = Object.values(raw.f ?? {}).filter(c => c > 0).length;
-  const functions = calculateMetric(fCovered, fTotal);
-
-  let bTotal = 0;
-  let bCovered = 0;
-  for (const branchCounts of Object.values(raw.b ?? {})) {
-    if (Array.isArray(branchCounts)) {
-      for (const count of branchCounts) {
-        bTotal++;
-        if (count > 0) bCovered++;
-      }
-    }
-  }
-  const branches = calculateMetric(bCovered, bTotal);
-
-  let lTotal: number;
-  let lCovered: number;
-  if (raw.l && Object.keys(raw.l).length > 0) {
-    lTotal = Object.keys(raw.l).length;
-    lCovered = Object.values(raw.l).filter(c => c > 0).length;
-  } else if (raw.statementMap && raw.s) {
-    const linesMap = new Map<number, boolean>();
-    for (const [id, loc] of Object.entries(raw.statementMap)) {
-      const hits = raw.s[id] ?? 0;
-      const startLine = loc.start?.line;
-      if (typeof startLine === 'number') {
-        const existing = linesMap.get(startLine) ?? false;
-        linesMap.set(startLine, existing || hits > 0);
-      }
-    }
-    lTotal = linesMap.size;
-    lCovered = Array.from(linesMap.values()).filter(Boolean).length;
-  } else {
-    lTotal = sTotal;
-    lCovered = sCovered;
-  }
-  const lines = calculateMetric(lCovered, lTotal);
-
+  const metrics = computeDetailedMetrics(raw);
   return {
     filePath: absolutePath,
     relPath,
-    statements,
-    branches,
-    functions,
-    lines,
+    ...metrics,
     uncoveredLines: extractUncoveredLines(raw),
-    status: determineCoverageStatus(statements.pct, threshold)
+    status: determineCoverageStatus(metrics.statements.pct, threshold)
   };
 }
 
@@ -354,6 +373,20 @@ const DEFAULT_TEST_PATTERNS = [
   /\/__mocks?__\//i
 ];
 
+const IGNORED_COVERAGE_DIRS: ReadonlySet<string> = new Set(['node_modules', '.git', 'dist', 'scratch']);
+
+function isUntrackedCandidate(
+  relPath: string,
+  fileName: string,
+  extensions: ReadonlySet<string>,
+  exemptGlobs: readonly string[]
+): boolean {
+  const ext = path.extname(fileName);
+  if (!extensions.has(ext)) return false;
+  if (DEFAULT_TEST_PATTERNS.some(p => p.test(relPath))) return false;
+  return !isPathExempt(relPath, exemptGlobs);
+}
+
 /**
  * Scans configured roots on disk and finds files that were never executed in tests.
  */
@@ -362,7 +395,7 @@ export function findUntrackedFiles(
   coveredRelPaths: Set<string>,
   config: Required<AuditTestCoverageConfig>
 ): string[] {
-  const untracked: string[] = [];
+  const untracked: string[] = []; // no-domain: Non-domain utility collection or data structure
   const extensions = new Set(config.extensions.map(ext => ext.startsWith('.') ? ext : `.${ext}`));
 
   function walk(currentDir: string): void {
@@ -373,16 +406,10 @@ export function findUntrackedFiles(
       const relPath = path.relative(projectRoot, fullPath).split(path.sep).join('/');
 
       if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'dist' || entry.name === 'scratch') {
-          continue;
+        if (!IGNORED_COVERAGE_DIRS.has(entry.name)) {
+          walk(fullPath);
         }
-        walk(fullPath);
-      } else if (entry.isFile()) {
-        const ext = path.extname(entry.name);
-        if (!extensions.has(ext)) continue;
-        if (DEFAULT_TEST_PATTERNS.some(p => p.test(relPath))) continue;
-        if (isPathExempt(relPath, config.exemptGlobs)) continue;
-
+      } else if (entry.isFile() && isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs)) {
         if (!coveredRelPaths.has(relPath)) {
           untracked.push(relPath);
         }

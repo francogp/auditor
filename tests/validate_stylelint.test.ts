@@ -257,7 +257,7 @@ describe('StylelintAuditor Suite', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.status).toBe('skipped');
       expect(result.findings).toHaveLength(0);
       expect(auditor.getFilesScanned()).toBe(0);
       expect(result.metrics?.['Files Scanned']).toBe(0);

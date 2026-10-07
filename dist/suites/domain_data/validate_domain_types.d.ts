@@ -23,6 +23,7 @@
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
 export declare const DEFAULT_TEST_PATH_MARKERS: readonly [".test.", ".spec."];
+export declare const CANONICAL_INFRA_ID_WHITELIST: readonly ["suiteId", "ruleId", "runId", "buildId", "eslintRuleId", "candidate_id", "requiredSuiteId", "rule_id"];
 export type FindingSeverity = 'ERROR' | 'WARN';
 export interface Finding {
     file: string;

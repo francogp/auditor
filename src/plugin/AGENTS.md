@@ -15,6 +15,16 @@ Architecture & Tooling Engineers.
 
 - [`defineAuditorExtension.ts`](./defineAuditorExtension.ts): Type definition and factory helper for registering custom auditor extensions.
 
+## Work Guidance
+
+- Ensure `defineAuditorExtension` validates extension options and enforces Spanish `ruleDescriptions` under `<= 50` characters.
+- Ensure extensions preserve the `BaseAuditor` lifecycle contracts without mutating runner internals.
+
+## Verification
+
+- Run plugin unit tests: `npm test -- tests/plugin_protocol.test.ts`
+- Run general auditor: `npm run audit:lint`
+
 ## Child DOX Index
 
 - _This directory contains plugin extension definition modules with no subdirectories._

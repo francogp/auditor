@@ -10,6 +10,7 @@
  *   4. Flags duplicate entries and empty export lists.
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-workspace-diagnostic';
 export declare const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[];
 export declare function getBannedEntryGlobs(projectRoot?: string): readonly string[];
@@ -29,15 +30,21 @@ export interface FallowConfigSchema {
     ignoreExports?: FallowIgnoreExportEntry[];
     rules?: Record<string, string>;
 }
+export declare function createDefaultFallowConfigContent(): string;
 export interface FallowWorkspaceDiagnosticItem {
     readonly path?: string;
     readonly kind?: string;
     readonly message?: string;
 }
 export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined, auditor: ValidateFallowConfigAuditor): void;
+export interface ValidateFallowConfigOptions {
+    readonly projectRoot?: string;
+    readonly configFile?: string;
+    readonly fix?: boolean;
+}
+export declare const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfigRuleId>;
 export declare class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
-    private readonly configPath;
-    constructor(targetPath?: string);
+    constructor(targetPathOrOptions?: string | ValidateFallowConfigOptions);
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_fallow_config.d.ts.map

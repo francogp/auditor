@@ -20,7 +20,8 @@ import {
   detectRepeatedStringUnions,
   detectLibraryDomainTypeDuplicates,
   extractProjectCanonicalDomains,
-  detectProjectDomainDuplicatesAndSubsets
+  detectProjectDomainDuplicatesAndSubsets,
+  extractLibraryDomainTypes
 } from '../src/suites/domain_data/validate_domain_types.ts';
 
 describe('DomainTypesAuditor', () => {
@@ -118,6 +119,15 @@ describe('DomainTypesAuditor', () => {
       expect(findings.some(f => f.pattern.includes('Record<string, ...> in type/data contract'))).toBe(true);
     });
 
+    it('detects inline string literal union in property declaration (no ad-hoc unions)', async () => {
+      const filePath = path.join(scratchDir, 'inlineUnionProp.ts');
+      fs.writeFileSync(filePath, "export interface Config {\n  readonly maxPriority?: 'critical' | 'high' | 'all';\n}\n", 'utf-8');
+      const findings = await auditFile(filePath);
+      const violation = findings.find(f => f.pattern.includes('Inline string literal union in property'));
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('ERROR');
+    });
+
     it('honors open-record, runtime-set, and string-ok escape hatches', async () => {
       const filePath = path.join(scratchDir, 'annotatedEscapes.ts');
       const code = `
@@ -151,11 +161,14 @@ describe('DomainTypesAuditor', () => {
     });
 
     it('bypasses audit execution when config.domain.enabled is false', async () => {
-      const auditor = new DomainTypesAuditor(['src'], process.cwd());
+      const auditorDir = path.join(scratchDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(path.join(auditorDir, 'audit.config.json'), JSON.stringify({ name: 'test', domain: { enabled: false } }), 'utf-8');
+      const auditor = new DomainTypesAuditor(['src'], scratchDir);
       const result = await auditor.execute();
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.status).toBe('skipped');
     });
   });
 
@@ -206,6 +219,114 @@ describe('DomainTypesAuditor', () => {
       const findings = detectProjectDomainDuplicatesAndSubsets(consumerFiles, domains);
       expect(findings.some(f => f.pattern.includes('Duplicate domain collection'))).toBe(true);
       expect(findings.some(f => f.pattern.includes('Sub-collection of canonical domain'))).toBe(true);
+    });
+
+    it('ignores devDependencies when extracting library domain types', async () => {
+      const mockRoot = path.join(scratchDir, 'mock_pkg');
+      const mockNodeModules = path.join(mockRoot, 'node_modules/mock-linter');
+      fs.mkdirSync(mockNodeModules, { recursive: true });
+      fs.writeFileSync(
+        path.join(mockRoot, 'package.json'),
+        JSON.stringify({
+          name: 'test-app',
+          devDependencies: { 'mock-linter': '^1.0.0' }
+        }),
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(mockNodeModules, 'index.d.ts'),
+        "export type Severity = 'error' | 'warning';\n",
+        'utf-8'
+      );
+
+      const libTypes = await extractLibraryDomainTypes(mockRoot);
+      expect(libTypes.has('error|warning')).toBe(false);
+      expect(libTypes.size).toBe(0);
+    });
+
+    it('does not flag allowedExtensions new Set in auditor suites or extension Sets', async () => {
+      const suiteFile = path.join(scratchDir, 'validate_test.ts');
+      fs.writeFileSync(
+        suiteFile,
+        `export class TestAuditor extends BaseAuditor {\n  constructor() {\n    super({\n      roots: ['src'],\n      allowedExtensions: new Set(['.md', '.ts']),\n    });\n  }\n}\n`,
+        'utf-8'
+      );
+      const findings = await auditFile(suiteFile);
+      const setViolation = findings.find(f => f.pattern.includes('Set used as finite-domain'));
+      expect(setViolation).toBeUndefined();
+
+      const extFile = path.join(scratchDir, 'extensions.ts');
+      fs.writeFileSync(
+        extFile,
+        `const CODE_EXTENSIONS = new Set(['.ts', '.vue', '.js']);\n`,
+        'utf-8'
+      );
+      const extFindings = await auditFile(extFile);
+      const extViolation = extFindings.find(f => f.pattern.includes('Set used as finite-domain'));
+      expect(extViolation).toBeUndefined();
+    });
+
+    it('does not flag filePath.toLowerCase() or SQL parser loopVar.toLowerCase() as domain normalization', async () => {
+      const pathUtilFile = path.join(scratchDir, 'pathUtil.ts');
+      fs.writeFileSync(
+        pathUtilFile,
+        `export function normalize(filePath: string) {\n  return filePath.toLowerCase();\n}\nif (context.declaredVars.has(loopVar.toLowerCase())) {}\n`,
+        'utf-8'
+      );
+      const findings = await auditFile(pathUtilFile);
+      const caseViolation = findings.find(f => f.pattern.includes('Runtime string case normalization'));
+      expect(caseViolation).toBeUndefined();
+    });
+
+    it('does not flag generic type parameters or infraIdWhitelist IDs in type assertions', async () => {
+      const typeAssertionFile = path.join(scratchDir, 'typeAssertions.ts');
+      fs.writeFileSync(
+        typeAssertionFile,
+        `export function testFn<TRuleId extends string>(raw: string, descriptions: Record<string, string>) {
+  const ruleId = raw as TRuleId;
+  const keys = Object.keys(descriptions) as TRuleId[];
+  const specific = raw as RuleId;
+  return { ruleId, keys, specific };
+}\n`,
+        'utf-8'
+      );
+      const findings = await auditFile(typeAssertionFile);
+      const domainIdViolations = findings.filter(f => f.pattern.includes('Inline type assertion `as DomainId`') || f.pattern.includes('Type assertion on `Object.keys(...)`'));
+      expect(domainIdViolations).toHaveLength(0);
+    });
+
+    it('does not flag non-domain collections (res, candidates) or sets of words/skills', async () => {
+      const collectionFile = path.join(scratchDir, 'collections.ts');
+      fs.writeFileSync(
+        collectionFile,
+        `const res: string[] = [];
+const candidates: string[] = ['src', 'tests'];
+const BUILTIN_SKILLS = new Set(['a11y', 'testing']);
+const IGNORED_SCRIPT_WORDS = new Set(['scripts', 'commands']);
+export function getCandidates() { return { res, candidates, BUILTIN_SKILLS, IGNORED_SCRIPT_WORDS }; }
+`,
+        'utf-8'
+      );
+      const findings = await auditFile(collectionFile);
+      const collectionViolations = findings.filter(f => f.pattern.includes('String literal array without') || f.pattern.includes('String array type annotation') || f.pattern.includes('Set used as finite-domain'));
+      expect(collectionViolations).toHaveLength(0);
+    });
+
+    it('does not flag entry / seg case normalization in search/file operations', async () => {
+      const segFile = path.join(scratchDir, 'segCompare.ts');
+      fs.writeFileSync(
+        segFile,
+        `function findCaseInsensitiveEntry(entries: readonly string[], seg: string): string | undefined {
+  const directMatch = entries.find(e => e.toLowerCase() === seg.toLowerCase());
+  return directMatch;
+}
+export { findCaseInsensitiveEntry };
+`,
+        'utf-8'
+      );
+      const findings = await auditFile(segFile);
+      const caseViolations = findings.filter(f => f.pattern.includes('Runtime string case normalization'));
+      expect(caseViolations).toHaveLength(0);
     });
   });
 });

@@ -25,12 +25,12 @@ import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } fr
 
 enableCompileCache();
 
-export type SimilarCodeRuleId = 'fallow-similar-code' | 'fallow-similar-code-failed';
-
-export const SIMILAR_CODE_RULES: readonly SimilarCodeRuleId[] = [
+export const SIMILAR_CODE_RULES = [
   'fallow-similar-code',
   'fallow-similar-code-failed'
 ] as const;
+
+export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 
@@ -157,6 +157,47 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string): 
   }
 }
 
+function normalizeRelativeCandidatePath(rawPath: string | undefined, projectRoot: string): string {
+  const normalized = (rawPath || '').replace(/\\/g, '/');
+  if (path.isAbsolute(normalized)) {
+    return path.relative(projectRoot, normalized).replace(/\\/g, '/');
+  }
+  return normalized;
+}
+
+function isCandidatePairIgnored(
+  leftPath: string,
+  rightPath: string,
+  ignoreSameFile: boolean,
+  auditor: ValidateSimilarCodeAuditor,
+  includeTests: boolean
+): boolean {
+  if (ignoreSameFile && leftPath === rightPath) return true;
+  if (auditor.isPathIgnored(leftPath) || auditor.isPathIgnored(rightPath)) return true;
+  if (!includeTests && (isTestPath(leftPath) || isTestPath(rightPath))) return true;
+  return false;
+}
+
+function reportSingleCandidateViolation(
+  c: SimilarCodeCandidate,
+  leftPath: string,
+  rightPath: string,
+  auditor: ValidateSimilarCodeAuditor
+): void {
+  const similarityPct = (c.similarity * 100).toFixed(1);
+  const leftDesc = `${c.left.name} (${leftPath}:${c.left.start_line})`;
+  const rightDesc = `${c.right.name} (${rightPath}:${c.right.start_line})`;
+
+  auditor.addViolation({
+    ruleId: 'fallow-similar-code',
+    severity: 'error',
+    file: leftPath,
+    line: c.left.start_line || 1,
+    message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
+    context: `${c.left.name} ~ ${c.right.name}`
+  });
+}
+
 export function evaluateSimilarCodeCandidates(
   candidates: readonly SimilarCodeCandidate[] | undefined,
   options: { ignoreSameFile?: boolean },
@@ -171,39 +212,14 @@ export function evaluateSimilarCodeCandidates(
   let reportedCount = 0;
 
   for (const c of candidates) {
-    let leftPath = (c.left?.path || '').replace(/\\/g, '/');
-    if (path.isAbsolute(leftPath)) {
-      leftPath = path.relative(auditor.projectRoot, leftPath).replace(/\\/g, '/');
-    }
-    let rightPath = (c.right?.path || '').replace(/\\/g, '/');
-    if (path.isAbsolute(rightPath)) {
-      rightPath = path.relative(auditor.projectRoot, rightPath).replace(/\\/g, '/');
-    }
+    const leftPath = normalizeRelativeCandidatePath(c.left?.path, auditor.projectRoot);
+    const rightPath = normalizeRelativeCandidatePath(c.right?.path, auditor.projectRoot);
 
-    if (ignoreSameFile && leftPath === rightPath) {
+    if (isCandidatePairIgnored(leftPath, rightPath, ignoreSameFile, auditor, Boolean(config.paths?.includeTestsInCodeAudit))) {
       continue;
     }
 
-    if (auditor.isPathIgnored(leftPath) || auditor.isPathIgnored(rightPath)) {
-      continue;
-    }
-
-    if (!config.paths.includeTestsInCodeAudit && (isTestPath(leftPath) || isTestPath(rightPath))) {
-      continue;
-    }
-
-    const similarityPct = (c.similarity * 100).toFixed(1);
-    const leftDesc = `${c.left.name} (${leftPath}:${c.left.start_line})`;
-    const rightDesc = `${c.right.name} (${rightPath}:${c.right.start_line})`;
-
-    auditor.addViolation({
-      ruleId: 'fallow-similar-code',
-      severity: 'error',
-      file: leftPath,
-      line: c.left.start_line || 1,
-      message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
-      context: `${c.left.name} ~ ${c.right.name}`
-    });
+    reportSingleCandidateViolation(c, leftPath, rightPath, auditor);
     reportedCount++;
   }
 

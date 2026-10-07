@@ -16,9 +16,13 @@ export interface MetricTableRow {
     readonly label: string;
     readonly value: string;
 }
+export declare const CLI_BUMP_TYPES: readonly ["major", "minor", "patch", "auto"];
+export type CliBumpType = (typeof CLI_BUMP_TYPES)[number];
+export declare function isCliBumpType(val: string): val is CliBumpType;
 export interface ApplyBumpOptions {
     cwd?: string;
-    bumpType?: VersionBumpType | 'auto';
+    bumpType?: CliBumpType;
+    targetVersion?: string;
     commitMessage?: string;
     versionTsPath?: string;
     customNow?: Temporal.ZonedDateTime;
@@ -39,5 +43,5 @@ export interface ApplyBumpResult {
  * Applies a SemVer bump and persists it to package.json, version.ts, and configured sync targets.
  */
 export declare function applyVersionBump(options?: ApplyBumpOptions): ApplyBumpResult;
-export declare function runBumpCli(): void;
+export declare function runBumpCli(rawArgs?: readonly string[]): void;
 //# sourceMappingURL=bump_version.d.ts.map

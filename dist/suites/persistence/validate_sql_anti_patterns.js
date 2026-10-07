@@ -45,9 +45,9 @@ export function getPositionalJsonMutationRegex() {
         const colGroup = cols.join('|');
         return new RegExp(`(?:\\$\\.(?:${colGroup})\\[\\d+\\]|(?:${colGroup})\\s*->\\s*\\d+|jsonb_set\\([^,]+,\\s*'\\{(?:${colGroup}),\\s*\\d+\\}'|json_extract\\([^,]+,\\s*['"]\\$\\.(?:${colGroup})\\[\\d+\\])`, 'i');
     }
-    return /(?:\$\.[a-zA-Z0-9_]+\[\d+\]|[a-zA-Z0-9_]+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{[a-zA-Z0-9_]+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.[a-zA-Z0-9_]+\[\d+\])/i;
+    return /(?:\$\.\w+\[\d+\]|\w+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{\w+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.\w+\[\d+\])/i;
 }
-export const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.[a-zA-Z0-9_]+\[\d+\]|[a-zA-Z0-9_]+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{[a-zA-Z0-9_]+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.[a-zA-Z0-9_]+\[\d+\])/i;
+export const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.\w+\[\d+\]|\w+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{\w+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.\w+\[\d+\])/i;
 const CAMEL_CASE_KEY_REGEX = /^[a-z]+[A-Z][a-zA-Z0-9]*$/;
 function parseDeclaredPlpgsqlVariables(blockBody) {
     const declaredVars = new Set();
@@ -59,7 +59,7 @@ function parseDeclaredPlpgsqlVariables(blockBody) {
         const trimmed = dLine.trim();
         if (!trimmed || trimmed.startsWith('--'))
             continue;
-        const varMatch = trimmed.match(/^([a-zA-Z0-9_]+)\s+/);
+        const varMatch = trimmed.match(/^(\w+)\s+/);
         if (varMatch && varMatch[1] && varMatch[1].toLowerCase() !== 'constant') {
             declaredVars.add(varMatch[1].toLowerCase());
         }
@@ -122,8 +122,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         this.scanSourceFiles(config.paths.srcRoots || ['src']);
         this.scanRlsPolicyIntegrity(sqlMigrations);
     }
-    collectAndScanMigrations(migrationsDir, config) {
-        const sqlMigrations = [];
+    markSqlRulesNotApplicable(reason) {
+        this.markRuleNotApplicable('sql-no-positional-arrays', reason);
+        this.markRuleNotApplicable('sql-plpgsql-declared-variables', reason);
+        this.markRuleNotApplicable('sql-rls-policy-grant-integrity', reason);
+    }
+    resolveMigrationScanDirs(migrationsDir, config) {
         const dirsToScan = new Set();
         if (fs.existsSync(migrationsDir)) {
             dirsToScan.add(migrationsDir);
@@ -138,46 +142,53 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
                 }
             }
         }
+        return dirsToScan;
+    }
+    scanSingleSqlFile(fullPath, relPath, sqlMigrations) {
+        try {
+            const content = fs.readFileSync(fullPath, 'utf-8');
+            this.recordScanned(relPath);
+            this.markRuleEvaluated('sql-no-positional-arrays');
+            this.markRuleEvaluated('sql-plpgsql-declared-variables');
+            this.markRuleEvaluated('sql-rls-policy-grant-integrity');
+            sqlMigrations.push({ relPath, content });
+            this.scanSqlFile(relPath, content);
+        }
+        catch {
+            // catch-ok: Ignore read errors
+        }
+    }
+    scanSingleSqlDirectory(dir, sqlMigrations) {
+        let entries;
+        try {
+            entries = fs.readdirSync(dir);
+        }
+        catch {
+            // catch-ok: Ignore unreadable directory
+            return;
+        }
+        for (const entry of entries) {
+            if (!entry.endsWith('.sql'))
+                continue;
+            const fullPath = path.join(dir, entry);
+            const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+            if (this.context.isPathIgnored(relPath))
+                continue;
+            this.scanSingleSqlFile(fullPath, relPath, sqlMigrations);
+        }
+    }
+    collectAndScanMigrations(migrationsDir, config) {
+        const sqlMigrations = [];
+        const dirsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
         if (dirsToScan.size === 0) {
-            this.markRuleNotApplicable('sql-no-positional-arrays', 'No existe directorio de migraciones o schemas SQL');
-            this.markRuleNotApplicable('sql-plpgsql-declared-variables', 'No existe directorio de migraciones o schemas SQL');
-            this.markRuleNotApplicable('sql-rls-policy-grant-integrity', 'No existe directorio de migraciones o schemas SQL');
+            this.markSqlRulesNotApplicable('No existe directorio de migraciones o schemas SQL');
             return sqlMigrations;
         }
         for (const dir of dirsToScan) {
-            let entries;
-            try {
-                entries = fs.readdirSync(dir);
-            }
-            catch {
-                // catch-ok: Ignore unreadable directory
-                continue;
-            }
-            for (const entry of entries) {
-                if (!entry.endsWith('.sql'))
-                    continue;
-                const fullPath = path.join(dir, entry);
-                const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-                if (this.context.isPathIgnored(relPath))
-                    continue;
-                try {
-                    const content = fs.readFileSync(fullPath, 'utf-8');
-                    this.recordScanned(relPath);
-                    this.markRuleEvaluated('sql-no-positional-arrays');
-                    this.markRuleEvaluated('sql-plpgsql-declared-variables');
-                    this.markRuleEvaluated('sql-rls-policy-grant-integrity');
-                    sqlMigrations.push({ relPath, content });
-                    this.scanSqlFile(relPath, content);
-                }
-                catch {
-                    // catch-ok: Ignore read errors
-                }
-            }
+            this.scanSingleSqlDirectory(dir, sqlMigrations);
         }
         if (sqlMigrations.length === 0) {
-            this.markRuleNotApplicable('sql-no-positional-arrays', 'No se encontraron archivos .sql en migraciones o schemas');
-            this.markRuleNotApplicable('sql-plpgsql-declared-variables', 'No se encontraron archivos .sql en migraciones o schemas');
-            this.markRuleNotApplicable('sql-rls-policy-grant-integrity', 'No se encontraron archivos .sql en migraciones o schemas');
+            this.markSqlRulesNotApplicable('No se encontraron archivos .sql en migraciones o schemas');
         }
         return sqlMigrations;
     }
@@ -225,7 +236,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         this.scanPlpgsqlUndeclaredVariables(relPath, content);
     }
     checkPlpgsqlLoops(executionBody, context) {
-        const forLoopRegex = /\bFOR\s+([a-zA-Z0-9_]+)\s+IN\b/gi;
+        const forLoopRegex = /\bFOR\s+(\w+)\s+IN\b/gi;
         let loopMatch;
         while ((loopMatch = forLoopRegex.exec(executionBody)) !== null) {
             const loopVar = loopMatch[1];
@@ -249,7 +260,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         }
     }
     scanPlpgsqlUndeclaredVariables(relPath, content) {
-        const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)[\s\S]+?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
+        const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)[\s\S]+?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
         let blockMatch;
         while ((blockMatch = blockRegex.exec(content)) !== null) {
             const funcName = blockMatch[1] || 'anonymous_do_block';
@@ -274,8 +285,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
     collectRlsMigrations(migrations) {
         const rlsTables = new Map();
         const tablesWithPolicies = new Set();
-        const enableRlsRegex = /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY\s*;/gi;
-        const createPolicyRegex = /CREATE\s+POLICY\s+.*?\s+ON\s+(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)\b/gi;
+        const enableRlsRegex = /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:\w+\.)?(\w+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY\s*;/gi;
+        const createPolicyRegex = /CREATE\s+POLICY(?:\s{2,}|\s+\S.*?(?:[\n\r\u2028\u2029]\s*|[\t\v\f \xa0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]))ON\s+(?:\w+\.)?(\w+)\b/gi;
         for (const { relPath, content } of migrations) {
             let match;
             while ((match = enableRlsRegex.exec(content)) !== null) {
@@ -358,7 +369,7 @@ function updateBraceDepth(char, depth) {
 }
 function extractKeyMatch(raw, index) {
     const rest = raw.slice(index);
-    const m = rest.match(/^([a-zA-Z0-9_]+)\s*:/);
+    const m = rest.match(/^(\w+)\s*:/);
     if (m && m[1]) {
         return { key: m[1], advance: m[0].length - 1 };
     }

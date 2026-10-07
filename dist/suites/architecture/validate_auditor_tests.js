@@ -30,23 +30,23 @@ export const AUDITOR_TEST_DESCRIPTIONS = {
 export function extractSuiteDeclaredRules(source) {
     const rules = new Set();
     // 1. Match exported RULES array: export const FOO_RULES = [ ... ]
-    const rulesArrayMatch = source.match(/export const [A-Za-z0-9_]*RULES[^=]*=\s*(\[[^\]]+\])/);
+    const rulesArrayMatch = source.match(/export const \w*RULES[^=]*=\s*(\[[^\]]+\])/);
     if (rulesArrayMatch && rulesArrayMatch[1]) {
-        const items = [...rulesArrayMatch[1].matchAll(/['"]([a-zA-Z0-9_:-]+)['"]/g)].map(x => x[1]);
+        const items = [...rulesArrayMatch[1].matchAll(/['"]([\w:-]+)['"]/g)].map(x => x[1]);
         for (const item of items)
             rules.add(item);
     }
     // 2. Match ruleIds: [ ... ] inside super({ ... })
     const ruleIdsMatch = source.match(/ruleIds\s*:\s*(\[[^\]]+\])/);
     if (ruleIdsMatch && ruleIdsMatch[1]) {
-        const items = [...ruleIdsMatch[1].matchAll(/['"]([a-zA-Z0-9_:-]+)['"]/g)].map(x => x[1]);
+        const items = [...ruleIdsMatch[1].matchAll(/['"]([\w:-]+)['"]/g)].map(x => x[1]);
         for (const item of items)
             rules.add(item);
     }
     // 3. Match ruleDescriptions: { ... }
     const ruleDescBlockMatch = source.match(/ruleDescriptions\s*:\s*\{([^}]+)\}/);
     if (ruleDescBlockMatch && ruleDescBlockMatch[1]) {
-        const items = [...ruleDescBlockMatch[1].matchAll(/['"]([a-zA-Z0-9_:-]+)['"]\s*:/g)].map(x => x[1]);
+        const items = [...ruleDescBlockMatch[1].matchAll(/['"]([\w:-]+)['"]\s*:/g)].map(x => x[1]);
         for (const item of items)
             rules.add(item);
     }

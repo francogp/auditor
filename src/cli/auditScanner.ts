@@ -10,198 +10,45 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import {
   type AuditFamily,
   type AuditTaskDefinition,
   type AuditorCapabilities,
   type GitIgnoreRequirement,
-  type AuditorManifestDTO,
-  resolveFamilyMetadata,
   getActiveFamilies,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
-import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
-const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
-const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
-
-function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): number {
-  return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
-}
 
 export const AUDIT_PRESETS: Record<string, readonly string[]> = {};
 
-export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {});
+export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
 
-export interface DiscoveryOptions {
-  baseDir?: string;
-  projectRoot?: string;
-  family?: string;
-  task?: string;
-  suites?: string[];
-  preset?: string;
-  fastOnly?: boolean;
-  skipSimilar?: boolean;
-  fixOnly?: boolean;
-  lintOnly?: boolean;
-  mdOnly?: boolean;
-  buildOnly?: boolean;
-  withBuild?: boolean;
-  includeHeavy?: boolean;
-}
+export {
+  type DiscoveryOptions,
+  getTimeoutForTask,
+  DEFAULT_PERMISSIONS,
+  getPermissionsForTask,
+  formatTaskTitle,
+  shouldSkipTaskByFilters,
+  shouldSkipTaskByCapabilities,
+  buildTaskCliArguments,
+  createAuditTaskDefinition
+} from './auditTaskFactory.ts';
+import {
+  type DiscoveryOptions,
+  createAuditTaskDefinition
+} from './auditTaskFactory.ts';
 
-export interface ExtractedAuditorMetadata {
-  readonly capabilities: AuditorCapabilities;
-  readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-  readonly icon?: string;
-  readonly manifest?: AuditorManifestDTO;
-  readonly description?: string;
-  readonly ruleDescriptions?: Readonly<Record<string, string>>;
-  readonly configKey?: string;
-}
-
-function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
-  const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
-    capabilities: DEFAULT_AUDITOR_CAPABILITIES,
-    gitIgnoreEntries: []
-  };
-
-  try {
-    const content = fsSync.readFileSync(fullPath, 'utf-8');
-    const iconMatch = content.match(/icon\s*:\s*['"]([^'"]+)['"]/);
-    if (iconMatch?.[1]) {
-      result.icon = iconMatch[1];
-    }
-
-    const caps: Record<string, boolean> = {};
-    if (content.includes('requiresBuild: true')) caps.requiresBuild = true;
-    if (content.includes('ast: true') || content.includes('requiresAst: true')) caps.ast = true;
-    if (content.includes('fix: true')) caps.fix = true;
-    if (content.includes('lint: true')) caps.lint = true;
-    if (content.includes('md: true')) caps.md = true;
-    if (content.includes('heavy: true')) caps.heavy = true;
-    if (content.includes('changedSince: true')) caps.changedSince = true;
-    if (content.includes('postRun: true')) caps.postRun = true;
-
-    const descMatch = content.match(/description\s*:\s*['"]([^'"]+)['"]/);
-    const configKeyMatch = content.match(/configKey\s*:\s*['"]([^'"]+)['"]/);
-
-    if (Object.keys(caps).length > 0) {
-      result.capabilities = {
-        ...DEFAULT_AUDITOR_CAPABILITIES,
-        ...caps
-      };
-    }
-
-    return {
-      ...result,
-      description: descMatch?.[1],
-      configKey: configKeyMatch?.[1]
-    };
-  } catch {
-    // catch-ok: Static metadata extraction fallback
-  }
-
-  return result;
-}
-
-export async function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata> {
-  const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
-    capabilities: DEFAULT_AUDITOR_CAPABILITIES,
-    gitIgnoreEntries: []
-  };
-
-  // Self-import guard: Never dynamically import the currently executing script to prevent circular top-level await deadlock
-  const scriptArg = process.argv[1];
-  if (scriptArg) {
-    const currentScriptBase = path.basename(scriptArg, path.extname(scriptArg)).toLowerCase();
-    const targetScriptBase = path.basename(fullPath, path.extname(fullPath)).toLowerCase();
-    if (currentScriptBase === targetScriptBase) {
-      return extractStaticMetadataFromFile(fullPath);
-    }
-  }
-
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    const fileUrl = pathToFileURL(fullPath).href;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Import timeout for ${fullPath}`)), DYNAMIC_IMPORT_TIMEOUT_MS);
-      if (timer.unref) timer.unref();
-    });
-    const mod = (await Promise.race([import(fileUrl), timeoutPromise])) as Record<string, unknown>;
-
-    if (typeof mod.icon === 'string') {
-      result.icon = mod.icon;
-    }
-    if (Array.isArray(mod.gitIgnoreEntries)) {
-      result.gitIgnoreEntries = mod.gitIgnoreEntries as readonly GitIgnoreRequirement[];
-    } else if (Array.isArray(mod.GITIGNORE_ENTRIES)) {
-      result.gitIgnoreEntries = mod.GITIGNORE_ENTRIES as readonly GitIgnoreRequirement[];
-    }
-
-    for (const val of Object.values(mod)) {
-      if (typeof val === 'function') {
-        const withStatic = val as {
-          capabilities?: Partial<AuditorCapabilities>;
-          gitIgnoreEntries?: readonly GitIgnoreRequirement[];
-          icon?: string;
-        };
-
-        if (withStatic.capabilities && typeof withStatic.capabilities === 'object') {
-          result.capabilities = {
-            ...DEFAULT_AUDITOR_CAPABILITIES,
-            ...withStatic.capabilities
-          };
-        }
-        if (typeof withStatic.icon === 'string') {
-          result.icon = withStatic.icon;
-        }
-        if (Array.isArray(withStatic.gitIgnoreEntries)) {
-          result.gitIgnoreEntries = withStatic.gitIgnoreEntries;
-        }
-
-        if (val.prototype instanceof BaseAuditor) {
-          try {
-            const instance = new (val as new () => BaseAuditor)();
-            if (instance?.capabilities && typeof instance.capabilities === 'object') {
-              result.capabilities = instance.capabilities;
-            }
-            if (instance?.icon && typeof instance.icon === 'string') {
-              result.icon = instance.icon;
-            }
-            if (Array.isArray(instance?.gitIgnoreEntries)) {
-              result.gitIgnoreEntries = instance.gitIgnoreEntries;
-            }
-            if (typeof instance?.toManifest === 'function') {
-              const manifest = instance.toManifest();
-              (result as { manifest?: AuditorManifestDTO }).manifest = manifest;
-              (result as { description?: string }).description = manifest.description;
-              (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = manifest.rules;
-              (result as { configKey?: string }).configKey = manifest.configKey;
-            } else if (instance?.description) {
-              (result as { description?: string }).description = instance.description;
-              (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = instance.ruleDescriptions;
-              (result as { configKey?: string }).configKey = instance.configKey;
-            }
-          } catch {
-            // catch-ok: Sub-auditor constructor may require specific options
-          }
-        }
-      }
-    }
-  } catch {
-    // catch-ok: Dynamic import failed or timed out, fallback to static analysis
-    return extractStaticMetadataFromFile(fullPath);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-
-  return result;
-}
+export {
+  type ExtractedAuditorMetadata,
+  extractStaticMetadataFromFile,
+  extractAuditorMetadataFromFile
+} from './auditorMetadata.ts';
+import { extractAuditorMetadataFromFile } from './auditorMetadata.ts';
 
 export async function extractCapabilitiesFromFile(fullPath: string): Promise<AuditorCapabilities> {
   return (await extractAuditorMetadataFromFile(fullPath)).capabilities;
@@ -209,135 +56,6 @@ export async function extractCapabilitiesFromFile(fullPath: string): Promise<Aud
 
 export async function extractGitIgnoreRequirementsFromFile(fullPath: string): Promise<readonly GitIgnoreRequirement[]> {
   return (await extractAuditorMetadataFromFile(fullPath)).gitIgnoreEntries;
-}
-
-const DEFAULT_PERMISSIONS = [
-  '--permission',
-  '--experimental-strip-types',
-  '--allow-fs-read=*',
-  '--allow-fs-write=*',
-  '--allow-child-process',
-  '--allow-addons'
-] as const;
-
-function getPermissionsForTask(filename: string, fullPath?: string): string[] {
-  const perms: string[] = [...DEFAULT_PERMISSIONS]; // no-domain: Non-domain utility collection or data structure
-  if (fullPath && fullPath.endsWith('.js')) {
-    const stripIdx = perms.indexOf('--experimental-strip-types');
-    if (stripIdx !== -1) {
-      perms.splice(stripIdx, 1);
-    }
-  }
-  if (filename.includes('audit_project') || filename.includes('convert_assets')) {
-    perms.push('--allow-worker');
-  }
-  return perms;
-}
-
-/** Convert snake_case or kebab-case filename to Title Case */
-function formatTaskTitle(filename: string): string {
-  if (filename === 'audit_project' || filename === 'audit_project.ts' || filename === 'audit_project.js') {
-    return 'Project Architecture & Style Rules';
-  }
-  if (filename === 'validate_stylelint' || filename === 'validate_stylelint.ts' || filename === 'validate_stylelint.js') {
-    return 'CSS & SCSS Stylelint Hygiene';
-  }
-  const base = filename.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '');
-  return base
-    .split(/[_-]/)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
-async function createAuditTaskDefinition(
-  fullPath: string,
-  filename: string,
-  family: AuditFamily,
-  config: Awaited<ReturnType<typeof loadAuditConfig>>,
-  options: DiscoveryOptions,
-  isBuiltin: boolean,
-  targetSuiteIds: Set<string> | null
-): Promise<AuditTaskDefinition | null> {
-  const id = filename;
-  const isFast = family === 'architecture' || filename.includes('domain_types');
-
-  if (options.skipSimilar && (id === 'validate_similar_code' || filename.includes('validate_similar_code'))) {
-    return null;
-  }
-  if (targetSuiteIds && !targetSuiteIds.has(id)) return null;
-  if (options.family && options.family !== family) return null;
-  if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) return null;
-  if (options.fastOnly && !isFast) return null;
-
-  const metadata = await extractAuditorMetadataFromFile(fullPath);
-  const capabilities = metadata.capabilities;
-  const gitIgnoreEntries = metadata.gitIgnoreEntries;
-  if (gitIgnoreEntries.length > 0) {
-    GitIgnoreRegistry.registerMany(gitIgnoreEntries);
-  }
-
-  const isBuildPreset = options.preset === 'build' || options.buildOnly;
-  if (isBuildPreset && (!capabilities || !capabilities.requiresBuild)) {
-    return null;
-  }
-
-  if (options.fixOnly && (!capabilities || !capabilities.fix)) {
-    return null;
-  }
-  if ((options.lintOnly || options.preset === 'lint') && (!capabilities || !capabilities.lint)) {
-    return null;
-  }
-  if ((options.mdOnly || options.preset === 'md') && (!capabilities || !capabilities.md)) {
-    return null;
-  }
-  if (options.includeHeavy === false && capabilities?.heavy) {
-    return null;
-  }
-
-  // Pre-build run (default general audit, lint, md): exclude requiresBuild suites
-  // unless explicitly requested via --with-build or targeting a specific suite/task
-  if (!isBuildPreset && !options.withBuild && !options.task && !options.suites) {
-    if (capabilities?.requiresBuild) {
-      return null;
-    }
-  }
-
-  const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-  const scriptArg = relScriptPath.startsWith('..') ? path.resolve(fullPath).replace(/\\/g, '/') : relScriptPath;
-  const taskPermissions = getPermissionsForTask(filename, fullPath);
-  const taskArgs = [...taskPermissions, scriptArg, '--json'];
-
-  if (isBuiltin && id === 'audit_project') {
-    if (options.preset === 'lint' || options.lintOnly) {
-      taskArgs.push('--rule', 'fallow');
-    } else if (options.preset === 'md' || options.mdOnly) {
-      taskArgs.push('--rule', 'dox');
-    }
-  }
-
-  const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
-  const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : '🧩');
-
-  return {
-    id,
-    name: formatTaskTitle(filename),
-    description: metadata.description ?? metadata.manifest?.description,
-    family,
-    scriptPath: relScriptPath,
-    command: 'node',
-    args: taskArgs,
-    fast: isFast,
-    timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
-    order: familyMeta.order,
-    requiresAst: capabilities?.ast ?? false,
-    isBuiltin,
-    icon: effectiveIcon,
-    capabilities: capabilities ?? undefined,
-    gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
-    manifest: metadata.manifest,
-    configKey: metadata.configKey ?? metadata.manifest?.configKey,
-    ruleDescriptions: metadata.ruleDescriptions ?? metadata.manifest?.rules
-  };
 }
 
 function resolveTargetSuiteIds(
@@ -360,7 +78,7 @@ function resolveTargetSuiteIds(
 function inferFamilyFromRelPath(relPath: string, activeFamilies: readonly AuditFamily[]): AuditFamily {
   const segments = relPath.split('/');
   const firstSegment = segments[0];
-  if (segments.length > 1 && firstSegment && (activeFamilies as readonly string[]).includes(firstSegment)) {
+  if (segments.length > 1 && firstSegment && (activeFamilies as readonly string[]).includes(firstSegment)) { // no-domain: Non-domain utility collection or data structure
     return firstSegment as AuditFamily;
   }
   return 'architecture';

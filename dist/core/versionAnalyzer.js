@@ -10,6 +10,8 @@ import path from 'node:path';
 export const MAJOR_DIFF_LINES_THRESHOLD = 1000;
 export const MAJOR_CORE_LINES_THRESHOLD = 500;
 export const MINOR_DIFF_LINES_THRESHOLD = 100;
+export const VERSION_BUMP_TYPES = ['major', 'minor', 'patch'];
+export const GIT_STATUS_FLAGS = ['A', 'M', 'D', 'R', '?'];
 /**
  * Extracts base SemVer major.minor.patch tuple from a version string.
  */
@@ -141,65 +143,79 @@ export function collectGitDiffMetrics(cwd = process.cwd(), baseRef = 'HEAD') {
         changedFiles
     };
 }
+function readCurrentPackageVersion(cwd) {
+    const pkgPath = path.join(cwd, 'package.json');
+    if (!fs.existsSync(pkgPath))
+        return '1.0.0';
+    try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        return pkg.version ?? '1.0.0';
+    }
+    catch {
+        // catch-ok: Default to 1.0.0 if package.json cannot be parsed
+        return '1.0.0';
+    }
+}
+function applyCommitMessageIntent(metrics, commitMessage) {
+    if (!commitMessage)
+        return;
+    const msg = commitMessage.trim();
+    if (msg.includes('BREAKING CHANGE:') ||
+        msg.includes('breaking:') ||
+        /^[a-z]+(\([a-z0-9_-]+\))?!:/.test(msg)) {
+        metrics.hasBreakingChanges = true;
+    }
+    else if (/^feat(\([a-z0-9_-]+\))?:/.test(msg)) {
+        metrics.hasNewFeatures = true;
+    }
+}
+function evaluateBumpRationale(metrics) {
+    if (metrics.hasBreakingChanges) {
+        return {
+            recommendedBump: 'major',
+            rationale: 'Cambio de ruptura (breaking change) declarado explícitamente en el commit.'
+        };
+    }
+    if (metrics.hasCoreChanges && metrics.totalLinesChanged >= MAJOR_CORE_LINES_THRESHOLD) {
+        return {
+            recommendedBump: 'major',
+            rationale: `Refactorización profunda en el núcleo (src/core) con ${metrics.totalLinesChanged} líneas modificadas.`
+        };
+    }
+    if (metrics.totalLinesChanged >= MAJOR_DIFF_LINES_THRESHOLD) {
+        return {
+            recommendedBump: 'major',
+            rationale: `Transformación arquitectónica de gran escala (${metrics.totalLinesChanged} líneas en ${metrics.filesChanged} archivos).`
+        };
+    }
+    if (metrics.hasNewFeatures) {
+        return {
+            recommendedBump: 'minor',
+            rationale: 'Nueva funcionalidad, suite o skill incorporada al repositorio.'
+        };
+    }
+    if (metrics.totalLinesChanged >= MINOR_DIFF_LINES_THRESHOLD || metrics.changedFiles.some((f) => f.status === 'A')) {
+        return {
+            recommendedBump: 'minor',
+            rationale: `Ampliación de capacidades con ${metrics.totalLinesChanged} líneas modificadas y nuevos archivos.`
+        };
+    }
+    return {
+        recommendedBump: 'patch',
+        rationale: `Ajustes menores, correcciones o mantenimiento (${metrics.totalLinesChanged} líneas en ${metrics.filesChanged} archivos).`
+    };
+}
 /**
  * Analyzes diff metrics and commit intent to suggest the optimal SemVer bump.
  */
 export function analyzeVersionBump(options = {}) {
     const cwd = options.cwd ?? process.cwd();
-    const pkgPath = path.join(cwd, 'package.json');
-    let currentVersion = '1.0.0';
-    if (fs.existsSync(pkgPath)) {
-        try {
-            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-            if (pkg.version)
-                currentVersion = pkg.version;
-        }
-        catch {
-            // catch-ok: Default to 1.0.0 if package.json cannot be parsed
-        }
-    }
+    const currentVersion = readCurrentPackageVersion(cwd);
     const [major, minor, patch] = parseBaseSemver(currentVersion);
     const baseVersion = `${major}.${minor}.${patch}`;
     const metrics = collectGitDiffMetrics(cwd, options.baseRef ?? 'HEAD');
-    // Check commit message intent
-    if (options.commitMessage) {
-        const msg = options.commitMessage.trim();
-        if (msg.includes('BREAKING CHANGE:') ||
-            msg.includes('breaking:') ||
-            /^[a-z]+(\([a-z0-9_-]+\))?!:/.test(msg)) {
-            metrics.hasBreakingChanges = true;
-        }
-        else if (/^feat(\([a-z0-9_-]+\))?:/.test(msg)) {
-            metrics.hasNewFeatures = true;
-        }
-    }
-    // Heuristic evaluation
-    let recommendedBump;
-    let rationale;
-    if (metrics.hasBreakingChanges) {
-        recommendedBump = 'major';
-        rationale = 'Cambio de ruptura (breaking change) declarado explícitamente en el commit.';
-    }
-    else if (metrics.hasCoreChanges && metrics.totalLinesChanged >= MAJOR_CORE_LINES_THRESHOLD) {
-        recommendedBump = 'major';
-        rationale = `Refactorización profunda en el núcleo (src/core) con ${metrics.totalLinesChanged} líneas modificadas.`;
-    }
-    else if (metrics.totalLinesChanged >= MAJOR_DIFF_LINES_THRESHOLD) {
-        recommendedBump = 'major';
-        rationale = `Transformación arquitectónica de gran escala (${metrics.totalLinesChanged} líneas en ${metrics.filesChanged} archivos).`;
-    }
-    else if (metrics.hasNewFeatures) {
-        recommendedBump = 'minor';
-        rationale = 'Nueva funcionalidad, suite o skill incorporada al repositorio.';
-    }
-    else if (metrics.totalLinesChanged >= MINOR_DIFF_LINES_THRESHOLD || metrics.changedFiles.some(f => f.status === 'A')) {
-        recommendedBump = 'minor';
-        rationale = `Ampliación de capacidades con ${metrics.totalLinesChanged} líneas modificadas y nuevos archivos.`;
-    }
-    else {
-        recommendedBump = 'patch';
-        rationale = `Ajustes menores, correcciones o mantenimiento (${metrics.totalLinesChanged} líneas en ${metrics.filesChanged} archivos).`;
-    }
+    applyCommitMessageIntent(metrics, options.commitMessage);
+    const { recommendedBump, rationale } = evaluateBumpRationale(metrics);
     const nextBaseVersion = calculateNextBaseVersion(baseVersion, recommendedBump);
     const { buildId, buildDate } = generateBuildId(options.customNow);
     const recommendedVersion = `${nextBaseVersion}-build.${buildId}`;

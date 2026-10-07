@@ -204,12 +204,11 @@ export class BundleBudgetAuditor extends BaseAuditor {
         });
     }
     async runAudit(astContext) {
-        const config = getAuditConfig(this.projectRoot);
-        if (config.bundle?.enabled === false) {
-            this.markSkipped('Bundle audit desactivado en config');
+        if (this.isSuiteGatingDisabled('Bundle audit desactivado en config')) {
             this.context.setMetric('Bundle Status', 'Disabled');
             return;
         }
+        const config = getAuditConfig(this.projectRoot);
         const effectiveUiDirs = [
             ...(config.paths.componentsRoots ?? ['src/components']),
             ...(config.paths.viewsRoots ?? ['src/views']),

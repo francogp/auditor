@@ -68,8 +68,8 @@ export function updateAuditorPackage(options = {}) {
             error: `Error al leer package.json: ${err.message}`
         };
     }
-    const deps = (hostPkg.dependencies || {});
-    const devDeps = (hostPkg.devDependencies || {});
+    const deps = (hostPkg.dependencies || {}); // open-record: Generic parsed package.json dependencies dictionary
+    const devDeps = (hostPkg.devDependencies || {}); // open-record: Generic parsed package.json devDependencies dictionary
     const isDeclared = Boolean(deps['@francogp/auditor'] || devDeps['@francogp/auditor']);
     if (!isDeclared) {
         return {

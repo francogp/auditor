@@ -53,7 +53,7 @@ describe('ValidateTestCoverageAuditor', () => {
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
-    expect(result.status).toBe('passed');
+    expect(result.status).toBe('skipped');
   });
 
   it('passes cleanly when coverage meets threshold and no untracked files (clean path verification)', async () => {

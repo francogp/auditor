@@ -423,7 +423,7 @@ export default defineAuditConfig({
 });
 ```
 
-When `npx auditor` or `npm run audit` runs, `auditScanner.ts` automatically discovers registered extensions and executes them seamlessly within the main Box-Drawing summary table.
+When `auditor` or `npm run audit` runs, `auditScanner.ts` automatically discovers registered extensions and executes them seamlessly within the main Box-Drawing summary table.
 
 ---
 
@@ -460,7 +460,7 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
 The orchestrator and `validate_audit_config` will:
 1. Dynamically discover this requirement from your extension or subauditor without hardcoding.
 2. Assert that `.gitignore` contains the pattern matching your entry (`severity: 'error'`).
-3. Automatically append missing entries to `.gitignore` when running with `--fix` (`npx auditor fix`).
+3. Automatically append missing entries to `.gitignore` when running with `--fix` (`npm run audit:fix` or `auditor fix`).
 
 ---
 
@@ -555,4 +555,97 @@ export interface AuditorManifestDTO {
 
 - **Strict Specificity Guard**: Broad wildcards matching entire repositories or primary source trees (`**/*`, `*`, `src/**`, `src/*`) are strictly rejected with an explicit validation error, preventing evasion of the Named Constants Mandate.
 - **Safe Scope**: Use specific maintenance scripts, seed files, or test generator catalogs where inline numbers are strictly non-semantic tabular data.
+
+---
+
+## 15. Hierarchical Architecture & Sub-Auditor Composition
+
+The auditor framework follows a 3-tier hierarchical structure:
+
+```mermaid
+graph TD
+  M["Auditor Maestro (Orquestador Global)"] --> O["Auditores Oficiales"]
+  M --> E["Extensiones de Auditores (Proyectos Host)"]
+  O --> SO["Sub-Auditores Oficiales (Comparten recursos/contexto)"]
+  E --> SE["Sub-Auditores de Extensiones (Comparten recursos/contexto)"]
+
+  style M fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+  style O fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc
+  style E fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#f8fafc
+  style SO fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#f8fafc
+  style SE fill:#831843,stroke:#f472b6,stroke-width:2px,color:#f8fafc
+```
+
+### Key Principles for Authors:
+1. **Symmetric Class Inheritance**:
+   Both official suites in `@francogp/auditor` and host project extensions in `scripts/auditors/` inherit from `BaseAuditor<TRuleId>` (or `FileScanAuditor<TRuleId>`). They share identical options, capabilities, and lifecycle methods without duplicate code.
+2. **Sub-Auditors Share Resources**:
+   When an auditor contains sub-auditors, it coordinates their execution and provides shared resources (e.g. parsed AST, loaded datasets, or external command results) so each sub-check doesn't repeat heavy filesystem or parsing operations.
+3. **Atomic Console Reporting**:
+   An auditor with sub-auditors MUST wait for all its sub-auditors to complete execution before emitting its progress step lines (`│  🔍 [X/Y] ...`). This prevents mixed line outputs across concurrent background workers.
+4. **Mandatory Construction & Runtime Rule Registration Guard**:
+   Every rule ID emitted via `this.addViolation` must be explicitly declared in `ruleDescriptions: Record<TRuleId, string>` passed to `super({...})`. Any violation for an undeclared rule throws a loud runtime error immediately.
+
+---
+
+## 16. Declarative Configuration File Requirements & Auto-Fix Contract
+
+Sub-auditors and extensions that validate or depend on external tool configuration files (such as `eslint.config.js`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`, or custom host configs) MUST NOT implement bespoke file writers or manual boilerplate checking.
+
+Instead, declare configuration requirements declaratively via `AuditorConfigFileRequirement` and `configFiles`:
+
+```typescript
+import {
+  BaseAuditor,
+  type AuditorConfigFileRequirement
+} from '@francogp/auditor';
+
+export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
+  public static readonly configFiles: readonly AuditorConfigFileRequirement[] = [
+    {
+      file: '.mytoolrc.json',
+      content: () => JSON.stringify({ version: 1, strict: true }, null, 2) + '\n',
+      description: 'Canonical MyTool configuration',
+      customMissingMessage: 'Missing .mytoolrc.json configuration file.'
+    }
+  ];
+
+  constructor() {
+    super({
+      id: 'validate_my_tool',
+      name: 'My Tool Validator',
+      description: 'Valida contratos y configuración de MyTool',
+      icon: '🔧',
+      family: 'architecture',
+      packageName: 'MyTool',
+      ruleIds: MY_TOOL_RULES,
+      configFiles: MyToolAuditor.configFiles,
+      ruleDescriptions: MY_TOOL_DESCRIPTIONS
+    });
+  }
+
+  public override async runAudit(): Promise<void> {
+    // 1. Automatically verifies config existence and creates default files if in --fix mode:
+    const missingConfigs = await this.verifyAndFixConfigFiles();
+    for (const missing of missingConfigs) {
+      this.addViolation({
+        ruleId: 'my-tool-missing-config',
+        severity: 'error',
+        file: missing.file,
+        message: missing.message
+      });
+    }
+
+    // 2. Or programmatically ensure a specific config file if needed:
+    // const result = await this.ensureConfigFile(MyToolAuditor.configFiles[0]);
+  }
+}
+```
+
+### Core Architecture:
+1. **Dynamic Registration**: `BaseAuditor` registers all declared `configFiles` into `ConfigFileRegistry` automatically during instantiation.
+2. **Auto-Repair Protocol (`--fix`)**: When executed with `auditor fix` (`this.isFixActive()`), `verifyAndFixConfigFiles()` writes the canonical default content atomically to disk and avoids logging violations.
+3. **Extension Support**: Extensions registered via `defineAuditorExtension({ configFiles: [...] })` also register requirements dynamically without modifying framework internals.
+
+
 

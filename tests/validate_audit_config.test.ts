@@ -91,6 +91,23 @@ describe('ValidateAuditConfigAuditor', () => {
     expect(missingFinding?.message).toContain('.auditor/audit.config.ts does not exist');
   });
 
+  it('scaffolds default .auditor/audit.config.ts when missing in fix mode', async () => {
+    const configPath = path.join(tempDir, '.auditor', 'audit.config.ts');
+    expect(await fs.access(configPath).then(() => true).catch(() => false)).toBe(false);
+
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    await auditor.execute();
+
+    expect(await fs.access(configPath).then(() => true).catch(() => false)).toBe(true);
+    const content = await fs.readFile(configPath, 'utf-8');
+    expect(content).toContain('defineAuditConfig');
+    expect(content).toContain("language: 'en'");
+  });
+
   it('reports an error when .gitignore is missing from project root', async () => {
     const configContent = `
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
@@ -193,6 +210,10 @@ export class CustomExtAuditor extends BaseAuditor {
       description: 'Valida herramientas del usuario',
       family: 'architecture',
       packageName: 'CustomTool',
+      icon: '🔧',
+      ruleDescriptions: {
+        'custom-tool-rule': 'Regla de herramienta custom'
+      },
       gitIgnoreEntries: CustomExtAuditor.gitIgnoreEntries
     });
   }

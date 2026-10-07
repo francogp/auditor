@@ -2,8 +2,8 @@ import { type Message } from 'publint';
 import { formatMessage } from 'publint/utils';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
-export type PackageDistributionRuleId = 'pkg-distribution-invalid-exports' | 'pkg-distribution-missing-types' | 'pkg-distribution-dual-package-hazard';
-export declare const PACKAGE_DISTRIBUTION_RULES: readonly PackageDistributionRuleId[];
+export declare const PACKAGE_DISTRIBUTION_RULES: readonly ["pkg-distribution-invalid-exports", "pkg-distribution-missing-types", "pkg-distribution-dual-package-hazard"];
+export type PackageDistributionRuleId = (typeof PACKAGE_DISTRIBUTION_RULES)[number];
 export type PublintMessageLike = Message;
 /**
  * Maps a publint message code to a canonical PackageDistributionRuleId.
@@ -19,5 +19,7 @@ export declare class ValidatePackageDistributionAuditor extends BaseAuditor<Pack
         projectRoot?: string;
     });
     runAudit(): Promise<void>;
+    private readTargetPackageJson;
+    private runPublintAnalysis;
 }
 //# sourceMappingURL=validate_package_distribution.d.ts.map

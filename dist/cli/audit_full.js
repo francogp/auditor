@@ -31,6 +31,7 @@ import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
 import { BaseAuditor } from "../core/auditorBase.js";
+import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { AUDITOR_VERSION } from "../core/version.js";
 import { isMainModule } from "./cliUtils.js";
 import "../core/permissionGuard.js";
@@ -39,11 +40,11 @@ const CPU_CORE_DIVISOR = 2;
 const MIN_CONCURRENCY = 1;
 const DECIMAL_RADIX = 10;
 const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
-function resolveTargetFamily(familyOption, positionals, activeFamilies) {
+export function resolveTargetFamily(familyOption, positionals, activeFamilies) {
     const positionalFamily = positionals.find(p => activeFamilies.includes(p));
     return familyOption || positionalFamily;
 }
-function resolveFormattedRules(values, positionals) {
+export function resolveFormattedRules(values, positionals) {
     const rawRuleArgs = [];
     if (values.rule) {
         const list = Array.isArray(values.rule) ? values.rule : [values.rule];
@@ -62,7 +63,7 @@ function resolveFormattedRules(values, positionals) {
     }
     return rawRuleArgs.join(',');
 }
-function resolveTargetSuites(values) {
+export function resolveTargetSuites(values) {
     if (values.suites) {
         return String(values.suites).split(',').map(s => s.trim()).filter(Boolean);
     }
@@ -74,7 +75,7 @@ function resolveTargetSuites(values) {
     }
     return undefined;
 }
-function resolveConcurrencyLimit(concurrencyValue) {
+export function resolveConcurrencyLimit(concurrencyValue) {
     const availableCpus = os.availableParallelism ? os.availableParallelism() : os.cpus().length;
     const defaultConcurrency = Math.max(MIN_CONCURRENCY, Math.floor(availableCpus / CPU_CORE_DIVISOR));
     if (concurrencyValue) {
@@ -82,13 +83,13 @@ function resolveConcurrencyLimit(concurrencyValue) {
     }
     return defaultConcurrency;
 }
-function resolveSkipSimilar() {
+export function resolveSkipSimilar() {
     return (process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === 'true' ||
         process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === '1' ||
         process.env.AUDIT_SKIP_SIMILAR === 'true' ||
         process.env.AUDIT_SKIP_SIMILAR === '1');
 }
-function resolveTargetPreset(values, positionals) {
+export function resolveTargetPreset(values, positionals) {
     if (values.preset)
         return values.preset;
     if (values.build)
@@ -101,10 +102,10 @@ function resolveTargetPreset(values, positionals) {
         return 'md';
     return undefined;
 }
-function parseAuditFullCliArgs(activeFamilies) {
-    const args = process.argv.slice(2);
+export function parseAuditFullCliArgs(activeFamilies, rawArgs = process.argv.slice(2)) {
+    const args = [...rawArgs];
     const BOOLEAN_FLAGS = [
-        'errors-only', 'fix', 'all', 'build', 'with-build', 'init-baseline', 'help', 'list', 'json'
+        'errors-only', 'fix', 'all', 'build', 'with-build', 'init-baseline', 'help', 'list', 'json', 'enabled', 'disabled'
     ];
     const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
     const { values, positionals } = parseArgs({
@@ -114,6 +115,8 @@ function parseAuditFullCliArgs(activeFamilies) {
             list: { type: 'boolean', short: 'l' },
             info: { type: 'string' },
             json: { type: 'boolean' },
+            enabled: { type: 'boolean' },
+            disabled: { type: 'boolean' },
             family: { type: 'string' },
             task: { type: 'string' },
             tasks: { type: 'string' },
@@ -143,10 +146,16 @@ function parseAuditFullCliArgs(activeFamilies) {
         targetPreset: resolveTargetPreset(values, positionals),
         targetSuites: resolveTargetSuites(values),
         concurrencyLimit: resolveConcurrencyLimit(values.concurrency),
-        skipSimilar: resolveSkipSimilar()
+        skipSimilar: resolveSkipSimilar(),
+        isEnabledFilter: Boolean(values.enabled ||
+            positionals.includes('enabled') ||
+            positionals.includes('list:enabled')),
+        isDisabledFilter: Boolean(values.disabled ||
+            positionals.includes('disabled') ||
+            positionals.includes('list:disabled'))
     };
 }
-function determineRunMode(targetPreset, targetSuites, taskArg, targetFamily) {
+export function determineRunMode(targetPreset, targetSuites, taskArg, targetFamily) {
     if (targetPreset)
         return 'preset';
     if (targetSuites && targetSuites.length > 1)
@@ -157,7 +166,7 @@ function determineRunMode(targetPreset, targetSuites, taskArg, targetFamily) {
         return 'family';
     return 'full';
 }
-function buildTaskArgs(task, values, formattedRules) {
+export function buildTaskArgs(task, values, formattedRules) {
     const taskArgs = [...task.args];
     if (values['errors-only'] && !taskArgs.includes('--errors-only'))
         taskArgs.push('--errors-only');
@@ -232,7 +241,7 @@ async function tryReadTaskResult(taskJsonPath, stdout, durationMs) {
     }
     return null;
 }
-function extractSubprocessErrorMessage(proc, timeoutMs = DEFAULT_SUBPROCESS_TIMEOUT_MS, task) {
+export function extractSubprocessErrorMessage(proc, timeoutMs = DEFAULT_SUBPROCESS_TIMEOUT_MS, task) {
     if (proc.timedOut) {
         if (task) {
             return `Timeout excedido (${timeoutMs}ms) al ejecutar el auditor '${task.name}' (${task.id}).`;
@@ -289,7 +298,7 @@ async function runAuditWorkers(tasks, concurrency, taskExecutor) {
     async function worker() {
         while (nextTaskIndex < tasks.length) {
             const idx = nextTaskIndex++;
-            results[idx] = await taskExecutor(tasks[idx]);
+            results[idx] = await taskExecutor(tasks[idx], idx);
         }
     }
     const workerCount = Math.min(concurrency, tasks.length);
@@ -298,11 +307,11 @@ async function runAuditWorkers(tasks, concurrency, taskExecutor) {
     return results;
 }
 const ERROR_WEIGHT_FACTOR = 1000;
-function computeAuditCategoryCounts(results) {
+export function computeAuditCategoryCounts(results) {
     const categoryCounts = new Map();
     for (const suite of results) {
         for (const finding of (suite.findings || [])) {
-            const catKey = finding.ruleDescription || suite.description || finding.ruleId || suite.name;
+            const catKey = finding.ruleDescription ?? finding.ruleId ?? suite.name;
             if (!categoryCounts.has(catKey)) {
                 categoryCounts.set(catKey, { errors: 0, warnings: 0, findings: [] });
             }
@@ -369,7 +378,7 @@ function buildConsolidatedReport(params) {
             ...(params.fixableErrors !== undefined && { fixableErrors: params.fixableErrors }),
             ...(params.fixableWarnings !== undefined && { fixableWarnings: params.fixableWarnings }),
             ...(params.autoFixRecommended !== undefined && { autoFixRecommended: params.autoFixRecommended }),
-            ...(params.autoFixRecommended && { autoFixCommand: 'npx auditor fix' })
+            ...(params.autoFixRecommended && { autoFixCommand: 'npm run audit:fix' })
         },
         families: Object.fromEntries(ctx.activeFamilies.map(f => [
             f,
@@ -398,7 +407,7 @@ async function exportCustomOutputReport(cliOptions, consolidatedReport, results,
     console.log(styleText('cyan', `✨ Reporte exportado en: ${cliOptions.values.output}\n`));
 }
 /** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
-function isRatchetScope(cliOptions, isFullAudit) {
+export function isRatchetScope(cliOptions, isFullAudit) {
     const v = cliOptions.values;
     return isFullAudit && !cliOptions.formattedRules &&
         !v['errors-only'] && !v.top && !v['changed-since'] && !v['with-build'] && !v.all;
@@ -421,6 +430,32 @@ function printRatchetVerdict(verdict, newWarnings, baselineFile) {
     const shrinkNote = verdict.baselineUpdated ? ` Línea base reducida (${verdict.resolvedWarnings} resueltos): commitea ${baselineFile}.` : '';
     console.log(styleText('green', `\n🔒 Ratchet de warnings OK: 0 nuevos respecto de '${verdict.productionRef}'.${shrinkNote}\n`));
 }
+function handleInitBaseline(ratchet, ctx, canWriteBaseline, base) {
+    if (!canWriteBaseline || ctx.cliOptions.skipSimilar) {
+        throw new Error('--init-baseline requires 0 errors and similar-code analysis enabled.');
+    }
+    const count = initWarningBaseline(process.cwd(), ratchet, ctx.results);
+    return {
+        verdict: { ...base, status: 'initialized', resolvedWarnings: count, baselineUpdated: true },
+        newWarnings: []
+    };
+}
+function handleStandardRatchet(ratchet, ctx, canWriteBaseline, base) {
+    const outcome = runWarningRatchet(process.cwd(), ratchet, ctx.results, canWriteBaseline);
+    if (outcome.source === 'local-bootstrap') {
+        console.log(styleText('yellow', `\n⚠️  '${ratchet.productionRef}' aún no contiene ${ratchet.baselineFile}: se usa la copia local (bootstrap). Publícala para blindar el ratchet.`));
+    }
+    return {
+        verdict: {
+            ...base,
+            status: outcome.newWarnings.length > 0 ? 'failed' : 'passed',
+            newWarnings: outcome.newWarnings.length,
+            resolvedWarnings: outcome.resolvedCount,
+            baselineUpdated: outcome.baselineUpdated
+        },
+        newWarnings: outcome.newWarnings
+    };
+}
 function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
     const ratchet = buildRatchetConfig(ctx.config.ratchet);
     const initRequested = Boolean(ctx.cliOptions.values['init-baseline']);
@@ -440,27 +475,11 @@ function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
     let verdict;
     let newWarnings = [];
     try {
-        if (initRequested) {
-            if (!canWriteBaseline || ctx.cliOptions.skipSimilar) {
-                throw new Error('--init-baseline requires 0 errors and similar-code analysis enabled.');
-            }
-            const count = initWarningBaseline(process.cwd(), ratchet, ctx.results);
-            verdict = { ...base, status: 'initialized', resolvedWarnings: count, baselineUpdated: true };
-        }
-        else {
-            const outcome = runWarningRatchet(process.cwd(), ratchet, ctx.results, canWriteBaseline);
-            newWarnings = outcome.newWarnings;
-            verdict = {
-                ...base,
-                status: outcome.newWarnings.length > 0 ? 'failed' : 'passed',
-                newWarnings: outcome.newWarnings.length,
-                resolvedWarnings: outcome.resolvedCount,
-                baselineUpdated: outcome.baselineUpdated
-            };
-            if (outcome.source === 'local-bootstrap') {
-                console.log(styleText('yellow', `\n⚠️  '${ratchet.productionRef}' aún no contiene ${ratchet.baselineFile}: se usa la copia local (bootstrap). Publícala para blindar el ratchet.`));
-            }
-        }
+        const executed = initRequested
+            ? handleInitBaseline(ratchet, ctx, canWriteBaseline, base)
+            : handleStandardRatchet(ratchet, ctx, canWriteBaseline, base);
+        verdict = executed.verdict;
+        newWarnings = executed.newWarnings;
     }
     catch (err) {
         // catch-ok: converted into a blocking ratchet failure that is persisted in latest_audit.json and fails the run.
@@ -547,134 +566,120 @@ async function renderAndPersistMasterReport(ctx) {
     await exportCustomOutputReport(cliOptions, consolidatedReport, results, suitesPassed, totalDuration);
     return anyFailed;
 }
-export async function runMasterAudit() {
-    if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
-        console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
-        const exit = process.exit;
-        exit(0);
-        return;
+function findTaskByUidOrName(allTasks, targetUid) {
+    const matchById = allTasks.find(t => t.id === targetUid);
+    if (matchById) {
+        return matchById;
     }
-    process.env.AUDIT_SUBPROCESS = 'true';
-    const startTime = performance.now();
-    if (process.argv.slice(2).some(a => a === 'fix' || a === '--fix')) {
-        for (const moved of migrateLegacyAuditConfig(process.cwd())) {
-            console.log(styleText('green', `🛠️  ${moved} movido a .auditor/${moved} (imports relativos reescritos).`));
-        }
-    }
-    const config = await loadAuditConfig();
-    assertAuditConfigComplete(config);
-    const activeFamilies = getActiveFamilies(config.customFamilies);
-    const cliOptions = parseAuditFullCliArgs(activeFamilies);
-    if (cliOptions.skipSimilar) {
-        process.env.AUDIT_SKIP_SIMILAR = 'true';
-    }
-    const scratchAuditsDir = path.resolve(process.cwd(), 'scratch/audits');
-    await fs.mkdir(scratchAuditsDir, { recursive: true });
-    for (const family of activeFamilies) {
-        await fs.mkdir(path.join(scratchAuditsDir, family), { recursive: true });
-    }
-    const isFixMode = Boolean(cliOptions.values.fix);
-    const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
-    const withBuild = Boolean(cliOptions.values['with-build'] || cliOptions.values.all);
-    const discoveryBase = {
-        fixOnly: isFixMode,
-        buildOnly: isBuildMode,
-        withBuild,
-        includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
-    };
-    const allAvailableTasks = await discoverAuditors(isBuildMode ? { buildOnly: true } : { withBuild });
-    // 1. Manejo dinámico de --help / -h / help
-    if (cliOptions.values.help || cliOptions.positionals.includes('help')) {
-        const requestedSuiteId = typeof cliOptions.values.info === 'string'
-            ? cliOptions.values.info
-            : cliOptions.positionals.find(p => p !== 'help' && !activeFamilies.includes(p));
-        if (requestedSuiteId) {
-            const task = allAvailableTasks.find(t => t.id === requestedSuiteId || t.name.toLowerCase() === requestedSuiteId.toLowerCase());
-            if (!task) {
-                console.error(styleText('red', `\n❌ Suite no encontrada: '${requestedSuiteId}'. Ejecuta 'npx auditor --list' para ver todas las disponibles.\n`));
-                process.exit(1);
-            }
-            console.log(renderAuditorDetailCard(task));
-            process.exit(0);
-        }
-        console.log(renderCliHelp(activeFamilies));
-        process.exit(0);
-    }
-    // 2. Manejo dinámico de --list / list
-    if (cliOptions.values.list || cliOptions.positionals.includes('list')) {
-        if (cliOptions.values.json) {
-            const manifests = allAvailableTasks.map(t => t.manifest ?? {
-                id: t.id,
-                name: t.name,
-                family: t.family,
-                icon: t.icon ?? '🏛️',
-                description: t.description ?? t.name,
-                capabilities: {
-                    fix: Boolean(t.capabilities?.fix),
-                    lint: Boolean(t.capabilities?.lint),
-                    md: Boolean(t.capabilities?.md),
-                    ast: Boolean(t.capabilities?.ast || t.requiresAst),
-                    changedSince: Boolean(t.capabilities?.changedSince),
-                    heavy: Boolean(t.capabilities?.heavy),
-                    requiresBuild: Boolean(t.capabilities?.requiresBuild),
-                    postRun: Boolean(t.capabilities?.postRun)
-                },
-                rules: t.ruleDescriptions ?? {},
-                configKey: t.configKey
-            });
-            console.log(JSON.stringify(manifests, null, 2));
-            process.exit(0);
-        }
-        console.log(renderAuditorsRegistryTable(allAvailableTasks, activeFamilies));
-        process.exit(0);
-    }
-    // 3. Manejo dinámico de --info=<suiteId> / info <suiteId>
-    const infoSuiteId = typeof cliOptions.values.info === 'string'
+    const targetQuery = targetUid.toLowerCase(); // domain-ok: Open dynamic text or non-domain string payload
+    return allTasks.find(t => t.name.toLowerCase() === targetQuery);
+}
+function handleHelpCommand(cliOptions, allAvailableTasks, activeFamilies) {
+    const requestedUid = typeof cliOptions.values.info === 'string'
         ? cliOptions.values.info
-        : (cliOptions.positionals.includes('info')
-            ? cliOptions.positionals.find(p => p !== 'info' && !activeFamilies.includes(p))
-            : undefined);
-    if (infoSuiteId) {
-        const task = allAvailableTasks.find(t => t.id === infoSuiteId || t.name.toLowerCase() === infoSuiteId.toLowerCase());
+        : cliOptions.positionals.find(p => p !== 'help' && !activeFamilies.includes(p));
+    if (requestedUid) {
+        const task = findTaskByUidOrName(allAvailableTasks, requestedUid);
         if (!task) {
-            console.error(styleText('red', `\n❌ Suite no encontrada: '${infoSuiteId}'. Ejecuta 'npx auditor --list' para ver todas las disponibles.\n`));
+            console.error(styleText('red', `\n❌ Suite no encontrada: '${requestedUid}'. Ejecuta 'auditor --list' para ver todas las disponibles.\n`));
             process.exit(1);
         }
         console.log(renderAuditorDetailCard(task));
         process.exit(0);
     }
-    const tasksToRun = await discoverAuditors({
-        ...discoveryBase,
-        family: cliOptions.targetFamily,
-        task: cliOptions.targetSuites ? undefined : cliOptions.values.task,
-        suites: cliOptions.targetSuites,
-        preset: cliOptions.targetPreset
+    console.log(renderCliHelp(activeFamilies));
+    process.exit(0);
+}
+function handleListJsonOutput(filtered) {
+    const manifests = filtered.map(({ task: t, enabled, disabledReason }) => ({
+        id: t.id,
+        name: t.name,
+        family: t.family,
+        icon: t.icon ?? '🏛️',
+        description: t.description ?? t.name,
+        enabled,
+        ...(disabledReason ? { disabledReason } : {}),
+        capabilities: {
+            fix: Boolean(t.capabilities?.fix),
+            lint: Boolean(t.capabilities?.lint),
+            md: Boolean(t.capabilities?.md),
+            ast: Boolean(t.capabilities?.ast || t.requiresAst),
+            changedSince: Boolean(t.capabilities?.changedSince),
+            heavy: Boolean(t.capabilities?.heavy),
+            requiresBuild: Boolean(t.capabilities?.requiresBuild),
+            postRun: Boolean(t.capabilities?.postRun)
+        },
+        rules: t.ruleDescriptions ?? {},
+        configKey: t.configKey
+    }));
+    console.log(JSON.stringify(manifests, null, 2));
+    process.exit(0);
+}
+function handleListCommand(cliOptions, allAvailableTasks, activeFamilies, config) {
+    const evaluated = allAvailableTasks.map(t => {
+        const status = evaluateSuiteStatus(t.id, config);
+        return { task: t, enabled: status.enabled, disabledReason: status.reason };
     });
-    const executedSuiteIds = tasksToRun.map(t => t.id);
-    const allSuiteIds = allAvailableTasks.map(t => t.id);
-    const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
-    const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
-    const runId = `run_${Temporal.Now.instant().epochMilliseconds}_${Math.random().toString(36).substring(2, 8)}`;
-    process.env[COVERAGE_RUN_ID_ENV] = runId;
-    process.env[COVERAGE_RUN_MODE_ENV] = runMode;
-    const coverageLedgerDir = path.resolve(process.cwd(), COVERAGE_LEDGER_DIR);
-    await fs.rm(coverageLedgerDir, { recursive: true, force: true });
-    await fs.mkdir(coverageLedgerDir, { recursive: true });
-    tasksToRun.sort((a, b) => {
-        const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
-        const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
-        if (orderA !== orderB)
-            return orderA - orderB;
-        return a.id.localeCompare(b.id);
-    });
-    const workerTasks = tasksToRun.filter(t => !t.capabilities?.postRun);
-    const postRunTasks = tasksToRun.filter(t => t.capabilities?.postRun);
-    process.env[COVERAGE_EXPECTED_SUITES_ENV] = workerTasks.map(t => t.id).join(',');
+    let filtered = evaluated;
+    let listFilter = 'all';
+    if (cliOptions.isEnabledFilter) {
+        filtered = evaluated.filter(item => item.enabled);
+        listFilter = 'enabled';
+    }
+    else if (cliOptions.isDisabledFilter) {
+        filtered = evaluated.filter(item => !item.enabled);
+        listFilter = 'disabled';
+    }
+    if (cliOptions.values.json) {
+        handleListJsonOutput(filtered);
+    }
+    const disabledMap = new Map();
+    for (const item of evaluated) {
+        if (!item.enabled && item.disabledReason) {
+            disabledMap.set(item.task.id, item.disabledReason);
+        }
+    }
+    console.log(renderAuditorsRegistryTable(filtered.map(item => item.task), activeFamilies, { filter: listFilter, disabledReasons: disabledMap }));
+    process.exit(0);
+}
+function handleInfoCommand(targetUid, allAvailableTasks) {
+    const task = findTaskByUidOrName(allAvailableTasks, targetUid);
+    if (!task) {
+        console.error(styleText('red', `\n❌ Suite no encontrada: '${targetUid}'. Ejecuta 'auditor --list' para ver todas las disponibles.\n`));
+        process.exit(1);
+    }
+    console.log(renderAuditorDetailCard(task));
+    process.exit(0);
+}
+function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config) {
+    if (cliOptions.values.help || cliOptions.positionals.includes('help')) {
+        handleHelpCommand(cliOptions, allAvailableTasks, activeFamilies);
+    }
+    const isListCommand = Boolean(cliOptions.values.list ||
+        cliOptions.positionals.includes('list') ||
+        cliOptions.positionals.includes('list:enabled') ||
+        cliOptions.positionals.includes('list:disabled') ||
+        cliOptions.isEnabledFilter ||
+        cliOptions.isDisabledFilter);
+    if (isListCommand) {
+        handleListCommand(cliOptions, allAvailableTasks, activeFamilies, config);
+    }
+    const targetUid = typeof cliOptions.values.info === 'string'
+        ? cliOptions.values.info
+        : (cliOptions.positionals.includes('info')
+            ? cliOptions.positionals.find(p => p !== 'info' && !activeFamilies.includes(p))
+            : undefined);
+    if (targetUid) {
+        handleInfoCommand(targetUid, allAvailableTasks);
+    }
+    return false;
+}
+export function createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tasksCount, allAvailableCount, omittedCount) {
     const subtitleDetails = [
         `v${AUDITOR_VERSION}`,
         isFixMode
-            ? `Suites con Auto-Reparación: ${tasksToRun.length} suites`
-            : `Auto-descubiertas: ${tasksToRun.length}/${allAvailableTasks.length} suites`
+            ? `Suites con Auto-Reparación: ${tasksCount} suites`
+            : `Auto-descubiertas: ${tasksCount}/${allAvailableCount} suites`
     ];
     if (isFixMode) {
         subtitleDetails.push('Modo: AUTO-FIX 🛠️');
@@ -689,11 +694,99 @@ export async function runMasterAudit() {
             subtitleDetails.push(`Familia: ${String(cliOptions.values.family).toUpperCase()}`);
         if (cliOptions.skipSimilar)
             subtitleDetails.push('Similar-Code: OMITIDO ⏭️');
-        if (tasksToRun.length !== allAvailableTasks.length || omittedSuiteIds.length > 0)
+        if (tasksCount !== allAvailableCount || omittedCount > 0)
             subtitleDetails.push('Modo: PARCIAL ⚠️');
     }
-    const defaultBannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
-    let bannerTitle = defaultBannerTitle;
+    return subtitleDetails;
+}
+async function runTaskExecution(task, ctx, subLines) {
+    const taskArgs = buildTaskArgs(task, ctx.cliOptions.values, ctx.cliOptions.formattedRules);
+    if (task.requiresAst && ctx.sharedAstContext) {
+        const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, (line) => subLines.push(line));
+        if (inProcess) {
+            return { result: inProcess.result, durationMs: inProcess.durationMs };
+        }
+    }
+    const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
+    const parsed = await parseSubprocessOutput(task, proc, ctx.scratchAuditsDir);
+    return { result: parsed, durationMs: proc.durationMs };
+}
+function normalizeTaskSummaryAndSubLines(result, subLines) {
+    if (!result.summary) {
+        const errCount = result.findings?.filter(f => f.severity === 'error').length ?? (result.status === 'failed' ? 1 : 0);
+        const warnCount = result.findings?.filter(f => f.severity === 'warning').length ?? 0;
+        result.summary = { errors: errCount, warnings: warnCount, info: 0 };
+    }
+    const isSkipped = result.status === 'skipped' || result.metrics?.['Estado'] === 'OMITIDO ⏭️';
+    if (isSkipped) {
+        result.status = 'skipped';
+        subLines.length = 0;
+        const reason = result.metrics?.['Skip-Reason'] || 'Análisis omitido';
+        subLines.push(`⏭️  ${reason}`);
+        return true;
+    }
+    if (subLines.length === 0 && result.subAuditors && result.subAuditors.length > 0) {
+        const total = result.subAuditors.length;
+        for (let i = 0; i < total; i++) {
+            const s = result.subAuditors[i];
+            const badge = s.count > 0 ? ` (🐛 ${s.count})` : '';
+            subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}`);
+        }
+    }
+    return false;
+}
+async function executeSingleAuditTask(task, ctx, taskIndex) {
+    const subLines = [];
+    const { result, durationMs } = await runTaskExecution(task, ctx, subLines);
+    const isSkipped = normalizeTaskSummaryAndSubLines(result, subLines);
+    await ctx.coordinator.onTaskComplete({
+        taskName: task.name,
+        taskId: task.id,
+        subLines,
+        durationMs,
+        isSuccess: result.status === 'passed',
+        hasWarnings: (result.summary?.warnings ?? 0) > 0,
+        isSkipped,
+        isBuiltin: task.isBuiltin !== false,
+        icon: result.icon ?? task.icon,
+        taskIndex
+    });
+    return result;
+}
+function checkEarlyCliCommands() {
+    if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
+        console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
+        const exit = process.exit;
+        exit(0);
+        return;
+    }
+    process.env.AUDIT_SUBPROCESS = 'true';
+    if (process.argv.slice(2).some(a => a === 'fix' || a === '--fix')) {
+        for (const moved of migrateLegacyAuditConfig(process.cwd())) {
+            console.log(styleText('green', `🛠️  ${moved} movido a .auditor/${moved} (imports relativos reescritos).`));
+        }
+    }
+}
+async function setupMasterAuditDirectories(activeFamilies) {
+    const scratchAuditsDir = path.resolve(process.cwd(), 'scratch/audits');
+    await fs.mkdir(scratchAuditsDir, { recursive: true });
+    for (const family of activeFamilies) {
+        await fs.mkdir(path.join(scratchAuditsDir, family), { recursive: true });
+    }
+    return scratchAuditsDir;
+}
+async function setupCoverageRunEnvironment(runMode, workerTasks) {
+    const runId = `run_${Temporal.Now.instant().epochMilliseconds}_${Math.random().toString(36).substring(2, 8)}`;
+    process.env[COVERAGE_RUN_ID_ENV] = runId;
+    process.env[COVERAGE_RUN_MODE_ENV] = runMode;
+    process.env[COVERAGE_EXPECTED_SUITES_ENV] = workerTasks.map(t => t.id).join(',');
+    const coverageLedgerDir = path.resolve(process.cwd(), COVERAGE_LEDGER_DIR);
+    await fs.rm(coverageLedgerDir, { recursive: true, force: true });
+    await fs.mkdir(coverageLedgerDir, { recursive: true });
+}
+function displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds) {
+    const subtitleDetails = createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tasksToRun.length, allAvailableTasks.length, omittedSuiteIds.length);
+    let bannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
     if (isFixMode) {
         bannerTitle = '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]';
     }
@@ -701,6 +794,67 @@ export async function runMasterAudit() {
         bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
     }
     console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
+}
+function sortTasksByOrder(tasks) {
+    tasks.sort((a, b) => {
+        const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
+        const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
+        if (orderA !== orderB)
+            return orderA - orderB;
+        return a.id.localeCompare(b.id);
+    });
+}
+async function executeAllAuditTasks(workerTasks, postRunTasks, taskCtx, concurrencyLimit) {
+    console.log(styleText('bold', `⏳ Progreso de ejecución de suites (Concurrencia: ${concurrencyLimit} workers):\n`));
+    const executeSingleTask = (task, index) => {
+        return executeSingleAuditTask(task, taskCtx, index);
+    };
+    const workerResults = await runAuditWorkers(workerTasks, concurrencyLimit, executeSingleTask);
+    const postRunResults = [];
+    for (let pIdx = 0; pIdx < postRunTasks.length; pIdx++) {
+        const postTask = postRunTasks[pIdx];
+        postRunResults.push(await executeSingleTask(postTask, workerTasks.length + pIdx));
+    }
+    return [...workerResults, ...postRunResults];
+}
+export async function runMasterAudit() {
+    checkEarlyCliCommands();
+    const startTime = performance.now();
+    const config = await loadAuditConfig();
+    assertAuditConfigComplete(config);
+    const activeFamilies = getActiveFamilies(config.customFamilies);
+    const cliOptions = parseAuditFullCliArgs(activeFamilies);
+    if (cliOptions.skipSimilar) {
+        process.env.AUDIT_SKIP_SIMILAR = 'true';
+    }
+    const scratchAuditsDir = await setupMasterAuditDirectories(activeFamilies);
+    const isFixMode = Boolean(cliOptions.values.fix);
+    const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
+    const withBuild = Boolean(cliOptions.values['with-build'] || cliOptions.values.all);
+    const discoveryBase = {
+        fixOnly: isFixMode,
+        buildOnly: isBuildMode,
+        withBuild,
+        includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
+    };
+    const allAvailableTasks = await discoverAuditors(isBuildMode ? { buildOnly: true } : { withBuild });
+    handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config);
+    const tasksToRun = await discoverAuditors({
+        ...discoveryBase,
+        family: cliOptions.targetFamily,
+        task: cliOptions.targetSuites ? undefined : cliOptions.values.task,
+        suites: cliOptions.targetSuites,
+        preset: cliOptions.targetPreset
+    });
+    const executedSuiteIds = tasksToRun.map(t => t.id);
+    const allSuiteIds = allAvailableTasks.map(t => t.id);
+    const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
+    const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
+    sortTasksByOrder(tasksToRun);
+    const workerTasks = tasksToRun.filter(t => !t.capabilities?.postRun);
+    const postRunTasks = tasksToRun.filter(t => t.capabilities?.postRun);
+    await setupCoverageRunEnvironment(runMode, workerTasks);
+    displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds);
     if (tasksToRun.length === 0) {
         console.log(styleText('yellow', '⚠️ No se encontraron auditores que coincidan con los filtros especificados.'));
         process.exit(0);
@@ -711,65 +865,9 @@ export async function runMasterAudit() {
         console.log(styleText('cyan', `🧠 [AST Engine] Detectados ${astTasks.length} sub-auditor(es) que requieren AST. Inicializando contexto AST compartido...\n`));
         sharedAstContext = new SharedAstContext();
     }
-    console.log(styleText('bold', `⏳ Progreso de ejecución de suites (Concurrencia: ${cliOptions.concurrencyLimit} workers):\n`));
     const coordinator = new TaskStreamCoordinator(tasksToRun.length, { indent: '  ' });
-    async function executeSingleTask(task) {
-        const taskArgs = buildTaskArgs(task, cliOptions.values, cliOptions.formattedRules);
-        const subLines = [];
-        let parsedResult = null;
-        let taskDuration = 0;
-        if (task.requiresAst && sharedAstContext) {
-            const inProcess = await executeTaskInProcess(task, sharedAstContext, (line) => subLines.push(line));
-            if (inProcess) {
-                parsedResult = inProcess.result;
-                taskDuration = inProcess.durationMs;
-            }
-        }
-        if (!parsedResult) {
-            const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
-            taskDuration = proc.durationMs;
-            parsedResult = await parseSubprocessOutput(task, proc, scratchAuditsDir);
-        }
-        const currentResult = parsedResult;
-        if (!currentResult.summary) {
-            const errCount = currentResult.findings?.filter(f => f.severity === 'error').length ?? (currentResult.status === 'failed' ? 1 : 0);
-            const warnCount = currentResult.findings?.filter(f => f.severity === 'warning').length ?? 0;
-            currentResult.summary = { errors: errCount, warnings: warnCount, info: 0 };
-        }
-        const isSkipped = currentResult.status === 'skipped' || currentResult.metrics?.['Estado'] === 'OMITIDO ⏭️';
-        if (isSkipped) {
-            currentResult.status = 'skipped';
-            subLines.length = 0;
-            const reason = currentResult.metrics?.['Skip-Reason'] || 'Análisis omitido';
-            subLines.push(`⏭️  ${reason}`);
-        }
-        else if (subLines.length === 0 && currentResult.subAuditors && currentResult.subAuditors.length > 0) {
-            const total = currentResult.subAuditors.length;
-            for (let i = 0; i < total; i++) {
-                const s = currentResult.subAuditors[i];
-                const badge = s.count > 0 ? ` (🐛 ${s.count})` : '';
-                subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}`);
-            }
-        }
-        await coordinator.onTaskComplete({
-            taskName: task.name,
-            taskId: task.id,
-            subLines,
-            durationMs: taskDuration,
-            isSuccess: currentResult.status === 'passed',
-            hasWarnings: (currentResult.summary?.warnings ?? 0) > 0,
-            isSkipped,
-            isBuiltin: task.isBuiltin !== false,
-            icon: currentResult.icon ?? task.icon
-        });
-        return currentResult;
-    }
-    const workerResults = await runAuditWorkers(workerTasks, cliOptions.concurrencyLimit, executeSingleTask);
-    const postRunResults = [];
-    for (const postTask of postRunTasks) {
-        postRunResults.push(await executeSingleTask(postTask));
-    }
-    const results = [...workerResults, ...postRunResults];
+    const taskCtx = { cliOptions, sharedAstContext, scratchAuditsDir, coordinator };
+    const results = await executeAllAuditTasks(workerTasks, postRunTasks, taskCtx, cliOptions.concurrencyLimit);
     const totalDuration = Math.round(performance.now() - startTime);
     const anyFailed = await renderAndPersistMasterReport({
         results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration,

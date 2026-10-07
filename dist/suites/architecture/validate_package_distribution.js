@@ -81,20 +81,23 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        const config = getAuditConfig(this.projectRoot);
-        if (config.packageDistribution?.enabled === false) {
-            for (const r of PACKAGE_DISTRIBUTION_RULES) {
-                this.markRuleNotApplicable(r, 'Package distribution desactivado');
-            }
+        if (this.isSuiteGatingDisabled('Distribución de paquete desactivada en config')) {
             return;
         }
         for (const r of PACKAGE_DISTRIBUTION_RULES) {
             this.markRuleEvaluated(r);
         }
         this.recordScanned('package.json');
+        const config = getAuditConfig(this.projectRoot);
         const targetPkgDir = config.packageDistribution?.pkgDir
             ? path.resolve(this.projectRoot, config.packageDistribution.pkgDir)
             : this.projectRoot;
+        const pkgJson = this.readTargetPackageJson(targetPkgDir);
+        if (!pkgJson)
+            return;
+        await this.runPublintAnalysis(targetPkgDir, pkgJson, (config.packageDistribution?.level ?? 'warning'));
+    }
+    readTargetPackageJson(targetPkgDir) {
         const pkgJsonPath = path.resolve(targetPkgDir, 'package.json');
         if (!fs.existsSync(pkgJsonPath)) {
             this.addViolation({
@@ -105,11 +108,10 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
                 context: 'package.json',
                 message: `No se encontró package.json en el directorio de distribución: ${targetPkgDir}`
             });
-            return;
+            return null;
         }
-        let pkgJson;
         try {
-            pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+            return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
         }
         catch (err) {
             this.addViolation({
@@ -120,13 +122,11 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
                 context: 'package.json',
                 message: `package.json contiene JSON inválido: ${err instanceof Error ? err.message : String(err)}`
             });
-            return;
+            return null;
         }
-        const level = config.packageDistribution?.level ?? 'warning';
-        const result = await publint({
-            pkgDir: targetPkgDir,
-            level
-        });
+    }
+    async runPublintAnalysis(targetPkgDir, pkgJson, level) {
+        const result = await publint({ pkgDir: targetPkgDir, level });
         const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
         for (const finding of findings) {
             this.addViolation({

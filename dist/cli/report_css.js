@@ -38,6 +38,52 @@ function truncateLocation(loc) {
         ? `${loc.slice(0, MAX_LOCATION_TRUNCATE_CHARS)}…`
         : loc;
 }
+const CATEGORY_RULE_MAP = {
+    selectors: 'css-duplicate-selectors',
+    properties: 'css-duplicate-properties',
+    empty: 'css-empty-blocks',
+    order: 'css-order-violation',
+    syntax: 'scss-syntax-issue'
+};
+const RULE_LABEL_MAP = {
+    'css-duplicate-selectors': 'SELECTOR DUP',
+    'css-duplicate-properties': 'PROP DUP',
+    'css-empty-blocks': 'BLOQUE VACÍO',
+    'css-order-violation': 'ORDEN CSS',
+    'scss-syntax-issue': 'SINTAXIS SCSS',
+    'wallace-complexity': 'COMPLEJIDAD'
+};
+function matchesCssCategory(ruleId, category) {
+    if (category === 'all')
+        return true;
+    return CATEGORY_RULE_MAP[category] === ruleId;
+}
+function formatCssTableRow(f, index) {
+    const loc = `${path.basename(f.file || '')}:${f.line || 1}`;
+    const catLabel = (f.ruleId && RULE_LABEL_MAP[f.ruleId]) || 'ESTILO';
+    const color = f.severity === 'error' ? 'red' : 'yellow';
+    return {
+        index: String(index),
+        category: styleText(color, catLabel),
+        item: truncateItem(f.message),
+        location: truncateLocation(loc)
+    };
+}
+function renderCssFindingsTable(filteredFindings, category) {
+    if (filteredFindings.length === 0) {
+        console.log(styleText('green', '✨ No se detectaron problemas ni violaciones de estilos CSS/SCSS.\n'));
+        return;
+    }
+    const rows = filteredFindings.map((f, i) => formatCssTableRow(f, i + 1));
+    const cols = [
+        { header: '#', width: COL_WIDTH_INDEX, align: 'center', key: 'index' },
+        { header: 'CATEGORÍA', width: COL_WIDTH_CATEGORY, align: 'left', key: 'category' },
+        { header: 'MENSAJE / REGLA', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
+        { header: 'UBICACIÓN', width: COL_WIDTH_LOCATION, align: 'left', key: 'location' }
+    ];
+    console.log(renderBoxTable(cols, rows));
+    console.log(`\n💡 Total de incidencias detectadas en categoría '${category}': ${rows.length}\n`);
+}
 export async function runCssReport(projectRoot = process.cwd()) {
     const { values, positionals } = parseArgs({
         args: process.argv.slice(2),
@@ -59,19 +105,7 @@ export async function runCssReport(projectRoot = process.cwd()) {
     const filteredFindings = result.findings.filter(f => {
         if (errorsOnly && f.severity !== 'error')
             return false;
-        if (category === 'all')
-            return true;
-        if (category === 'selectors' && f.ruleId === 'css-duplicate-selectors')
-            return true;
-        if (category === 'properties' && f.ruleId === 'css-duplicate-properties')
-            return true;
-        if (category === 'empty' && f.ruleId === 'css-empty-blocks')
-            return true;
-        if (category === 'order' && f.ruleId === 'css-order-violation')
-            return true;
-        if (category === 'syntax' && f.ruleId === 'scss-syntax-issue')
-            return true;
-        return false;
+        return matchesCssCategory(f.ruleId, category);
     });
     if (isJson) {
         console.log(JSON.stringify({
@@ -90,43 +124,7 @@ export async function runCssReport(projectRoot = process.cwd()) {
     if (isFix) {
         console.log(styleText('cyan', '✨ Modo auto-fix: Stylelint aplicó correcciones automáticas sobre los archivos.\n'));
     }
-    if (filteredFindings.length === 0) {
-        console.log(styleText('green', '✨ No se detectaron problemas ni violaciones de estilos CSS/SCSS.\n'));
-        return;
-    }
-    const rows = [];
-    let rowIdx = 1;
-    for (const f of filteredFindings) {
-        const loc = `${path.basename(f.file || '')}:${f.line || 1}`;
-        let catLabel = 'ESTILO';
-        if (f.ruleId === 'css-duplicate-selectors')
-            catLabel = 'SELECTOR DUP';
-        else if (f.ruleId === 'css-duplicate-properties')
-            catLabel = 'PROP DUP';
-        else if (f.ruleId === 'css-empty-blocks')
-            catLabel = 'BLOQUE VACÍO';
-        else if (f.ruleId === 'css-order-violation')
-            catLabel = 'ORDEN CSS';
-        else if (f.ruleId === 'scss-syntax-issue')
-            catLabel = 'SINTAXIS SCSS';
-        else if (f.ruleId === 'wallace-complexity')
-            catLabel = 'COMPLEJIDAD';
-        const color = f.severity === 'error' ? 'red' : 'yellow';
-        rows.push({
-            index: String(rowIdx++),
-            category: styleText(color, catLabel),
-            item: truncateItem(f.message),
-            location: truncateLocation(loc)
-        });
-    }
-    const cols = [
-        { header: '#', width: COL_WIDTH_INDEX, align: 'center', key: 'index' },
-        { header: 'CATEGORÍA', width: COL_WIDTH_CATEGORY, align: 'left', key: 'category' },
-        { header: 'MENSAJE / REGLA', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
-        { header: 'UBICACIÓN', width: COL_WIDTH_LOCATION, align: 'left', key: 'location' }
-    ];
-    console.log(renderBoxTable(cols, rows));
-    console.log(`\n💡 Total de incidencias detectadas en categoría '${category}': ${rows.length}\n`);
+    renderCssFindingsTable(filteredFindings, category);
 }
 if (isMainModule(import.meta.url)) {
     await runCssReport();

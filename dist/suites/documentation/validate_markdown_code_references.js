@@ -45,77 +45,64 @@ export const DEFAULT_SCAN_DIRECTORIES = [
     'tests',
     'scripts'
 ];
+function getPersistenceDirs(config) {
+    if (config.persistence?.engine === 'none')
+        return [];
+    const res = [];
+    if (config.paths?.migrationsDir)
+        res.push(config.paths.migrationsDir);
+    if (config.persistence?.supabaseDir)
+        res.push(config.persistence.supabaseDir);
+    return res;
+}
+function getRootMarkdownFiles(root) {
+    try {
+        return fs.readdirSync(root, { withFileTypes: true })
+            .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
+            .map(entry => entry.name);
+    }
+    catch {
+        // catch-ok: ignore unreadable projectRoot
+        return [];
+    }
+}
+function resolveConfiguredPathCandidates(paths) {
+    if (!paths)
+        return ['src', 'tests', 'scripts'];
+    return [
+        ...(paths.srcRoots ?? ['src']),
+        ...(paths.testRoots ?? ['tests']),
+        ...(paths.e2eRoots ?? []),
+        ...(paths.integrationRoots ?? []),
+        ...(paths.scriptsRoots ?? ['scripts'])
+    ];
+}
+function resolveAdditionalDomainCandidates(paths) {
+    if (!paths)
+        return [];
+    return [
+        ...(paths.codeRoots ?? []),
+        ...(paths.demoRoots ?? []),
+        ...(paths.dataRoots ?? []),
+        ...(paths.cliRoots ?? [])
+    ];
+}
 export function resolveMarkdownScanDirectories(projectRoot, explicitRoots) {
     if (explicitRoots && explicitRoots.length > 0)
         return explicitRoots;
     const config = getAuditConfig(projectRoot);
-    const dirs = ['.agents/skills', 'AGENTS.md', 'README.md', 'docs'];
-    if (config.paths?.srcRoots)
-        dirs.push(...config.paths.srcRoots);
-    else
-        dirs.push('src');
-    if (config.paths?.testRoots)
-        dirs.push(...config.paths.testRoots);
-    else
-        dirs.push('tests');
-    if (config.paths?.e2eRoots)
-        dirs.push(...config.paths.e2eRoots);
-    if (config.paths?.integrationRoots)
-        dirs.push(...config.paths.integrationRoots);
-    if (config.paths?.scriptsRoots)
-        dirs.push(...config.paths.scriptsRoots);
-    else
-        dirs.push('scripts');
     const effectiveRoot = projectRoot || process.cwd();
-    if (fs.existsSync(path.resolve(effectiveRoot, 'tests')) && !dirs.includes('tests')) {
-        dirs.push('tests');
-    }
-    if (config.paths?.codeRoots) {
-        for (const r of config.paths.codeRoots) {
-            if (!dirs.includes(r))
-                dirs.push(r);
-        }
-    }
-    if (config.paths?.demoRoots) {
-        for (const r of config.paths.demoRoots) {
-            if (!dirs.includes(r))
-                dirs.push(r);
-        }
-    }
-    if (config.paths?.dataRoots) {
-        for (const r of config.paths.dataRoots) {
-            if (!dirs.includes(r))
-                dirs.push(r);
-        }
-    }
-    if (config.paths?.cliRoots) {
-        for (const r of config.paths.cliRoots) {
-            if (!dirs.includes(r))
-                dirs.push(r);
-        }
-    }
-    if (config.persistence?.engine !== 'none') {
-        if (config.paths?.migrationsDir && !dirs.includes(config.paths.migrationsDir)) {
-            dirs.push(config.paths.migrationsDir);
-        }
-        if (config.persistence?.supabaseDir && !dirs.includes(config.persistence.supabaseDir)) {
-            dirs.push(config.persistence.supabaseDir);
-        }
-    }
-    try {
-        const entries = fs.readdirSync(effectiveRoot, { withFileTypes: true });
-        for (const entry of entries) {
-            if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
-                if (!dirs.includes(entry.name)) {
-                    dirs.push(entry.name);
-                }
-            }
-        }
-    }
-    catch {
-        // catch-ok: ignore unreadable projectRoot
-    }
-    return dirs;
+    const candidates = [
+        '.agents/skills',
+        'AGENTS.md',
+        'README.md',
+        'docs',
+        ...resolveConfiguredPathCandidates(config.paths),
+        ...resolveAdditionalDomainCandidates(config.paths),
+        ...getPersistenceDirs(config),
+        ...getRootMarkdownFiles(effectiveRoot)
+    ];
+    return Array.from(new Set(candidates));
 }
 export const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS = [
     'scripts/tests',
@@ -264,7 +251,7 @@ function discoverRegisteredSkills(rootDir) {
 }
 function checkNpmRunCommands(line, lineNum, relPath, registeredScripts, auditor) {
     let checked = 0;
-    const npmRegex = /npm run ([a-zA-Z0-9_:-]+)/g;
+    const npmRegex = /npm run ([\w:-]+)/g;
     let npmMatch;
     while ((npmMatch = npmRegex.exec(line)) !== null) {
         const scriptName = npmMatch[1].trim();
@@ -305,7 +292,7 @@ function checkHardcodedRuntimeVersions(line, lineNum, relPath, auditor) {
 }
 function checkSkillReferences(line, lineNum, relPath, allSkills, auditor) {
     let checked = 0;
-    const skillRefRegex = /@\/([a-zA-Z0-9_-]+)/g;
+    const skillRefRegex = /@\/([\w-]+)/g;
     let skillMatch;
     while ((skillMatch = skillRefRegex.exec(line)) !== null) {
         const candidate = skillMatch[1];
@@ -386,7 +373,7 @@ function validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir,
 }
 function checkSourcePathReferences(line, lineNum, relPath, filePath, rootDir, gitIgnoreMatcher, knownValidAbstractPaths, auditor) {
     let checked = 0;
-    const pathRegex = /(?:^|[`'"\s[\]()])(src\/[a-zA-Z0-9_./#-]+|scripts\/[a-zA-Z0-9_./#-]+|tests\/[a-zA-Z0-9_./#-]+|supabase\/[a-zA-Z0-9_./#-]+|scratch\/[a-zA-Z0-9_./#-]+|packages\/[a-zA-Z0-9_./#-]+)(?:$|[`'"\s[\]().,:;])/g;
+    const pathRegex = /(?:^|[`'"\s[\]()])(src\/[\w./#-]+|scripts\/[\w./#-]+|tests\/[\w./#-]+|supabase\/[\w./#-]+|scratch\/[\w./#-]+|packages\/[\w./#-]+)(?:$|[`'"\s[\]().,:;])/g;
     let pathMatch;
     while ((pathMatch = pathRegex.exec(line)) !== null) {
         const candidate = pathMatch[1].replace(/[.,:;)\]`'"]+$/, '').split('#')[0];
@@ -399,7 +386,7 @@ function checkSourcePathReferences(line, lineNum, relPath, filePath, rootDir, gi
     return checked;
 }
 function checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, rootDir, gitIgnoreMatcher, seenViolations, auditor) {
-    const bulletFileRegex = /^\s*-\s*`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-)/;
+    const bulletFileRegex = /^\s*-\s*`([\w.-]+\.(?:ts|vue|json|sql|scss|css))`[:\s-]/;
     const bm = bulletFileRegex.exec(line);
     if (!bm)
         return 0;
@@ -436,7 +423,7 @@ function checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, rootDir
 }
 function checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, gitIgnoreMatcher, seenViolations, auditor) {
     let checked = 0;
-    const inlineTokenRegex = /`([a-zA-Z0-9_.-]+\.(?:ts|vue|json|sql|scss|css))`(?::|\s|-|\)|$)/g;
+    const inlineTokenRegex = /`([\w.-]+\.(?:ts|vue|json|sql|scss|css))`(?:[:\s\-)]|$)/g;
     let itm;
     while ((itm = inlineTokenRegex.exec(line)) !== null) {
         const token = itm[1];

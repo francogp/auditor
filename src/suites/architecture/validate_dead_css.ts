@@ -60,7 +60,7 @@ export interface ParsedScopedCssRule {
 }
 
 export function extractClassNamesFromSelector(selector: string): string[] {
-  const classRegex = /(?:^|[^\w-])\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
+  const classRegex = /(?:^|[^\w-])\.([a-z_-][\w-]*)/gi;
   const classes: string[] = [];
   let match: RegExpExecArray | null;
   while ((match = classRegex.exec(selector)) !== null) {
@@ -88,7 +88,7 @@ export function extractScopedRulesFromVueContent(rawContent: string): ParsedScop
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      if (/(?:^|[^\w-])\.[a-zA-Z_-][a-zA-Z0-9_-]*/.test(line)) {
+      if (/(?:^|[^\w-])\.[a-z_-][\w-]*/i.test(line)) {
         const colonIdx = line.indexOf(':');
         const dotIdx = line.indexOf('.');
         if (colonIdx === -1 || colonIdx > dotIdx) {
@@ -112,7 +112,7 @@ function collectGlobalCodeTokens(projectRoot: string, srcFiles: readonly string[
     const fullPath = path.resolve(projectRoot, relPath);
     const content = fs.readFileSync(fullPath, 'utf-8');
     const contentWithoutStyles = content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
-    const words = contentWithoutStyles.match(/[a-zA-Z0-9_-]{2,}/g);
+    const words = contentWithoutStyles.match(/[\w-]{2,}/g);
     if (words) {
       for (const w of words) globalTokens.add(w);
     }
@@ -134,13 +134,13 @@ function extractComponentLogic(rawContent: string): { componentLogic: string; dy
   const componentLogic = `${templateContent}\n${scriptsContent}`;
   const dynamicPrefixes = new Set<string>();
 
-  const dynamicClassRegex = /`([a-zA-Z0-9_-]+-)\$\{/g;
+  const dynamicClassRegex = /`([\w-]+-)\$\{/g;
   let dynMatch: RegExpExecArray | null;
   while ((dynMatch = dynamicClassRegex.exec(componentLogic)) !== null) {
     if (dynMatch[1]) dynamicPrefixes.add(dynMatch[1]);
   }
 
-  const concatPrefixRegex = /['"]([a-zA-Z0-9_-]+-)['"]\s*\+/g;
+  const concatPrefixRegex = /['"]([\w-]+-)['"]\s*\+/g;
   while ((dynMatch = concatPrefixRegex.exec(componentLogic)) !== null) {
     if (dynMatch[1]) dynamicPrefixes.add(dynMatch[1]);
   }
@@ -159,6 +159,47 @@ function isClassExempt(
   return false;
 }
 
+function isRuleExemptByComments(rule: ParsedScopedCssRule, contentLines: readonly string[]): boolean {
+  if (rule.rawBlock.includes('css-ok') || rule.rawBlock.includes('dead-css-ok')) return true;
+  const lineIdx = rule.line - 1;
+  const blockLineCount = rule.rawBlock.split('\n').length;
+  const endLineIdx = lineIdx + blockLineCount;
+  const surroundingLines = contentLines.slice(Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES), endLineIdx);
+  return surroundingLines.some(l => l.includes('css-ok') || l.includes('dead-css-ok'));
+}
+
+function auditSingleRuleClasses(
+  rule: ParsedScopedCssRule,
+  params: {
+    relFile: string;
+    globalTokens: ReadonlySet<string>;
+    globalUtilityClasses: ReadonlySet<string>;
+    auditor: DeadCssAuditor;
+  },
+  dynamicPrefixes: ReadonlySet<string>,
+  componentLogic: string
+): number {
+  let count = 0;
+  const classNames = extractClassNamesFromSelector(rule.selector);
+  for (const className of classNames) {
+    if (EXCLUDED_EXTENSIONS.has(className) || isClassExempt(className, params.globalUtilityClasses, dynamicPrefixes)) {
+      continue;
+    }
+    count++;
+    if (!componentLogic.includes(className) && !params.globalTokens.has(className)) {
+      params.auditor.addViolation({
+        ruleId: 'dead-scoped-css',
+        severity: 'error',
+        file: params.relFile,
+        line: rule.line,
+        message: `Clase CSS scoped '.${className}' es código muerto (huérfana): no se encuentra en el componente ni en el código de la aplicación.`,
+        context: className
+      });
+    }
+  }
+  return count;
+}
+
 function auditComponentScopedCss(params: {
   rawContent: string;
   relFile: string;
@@ -172,30 +213,8 @@ function auditComponentScopedCss(params: {
   let checkedCount = 0;
 
   for (const rule of params.scopedRules) {
-    if (rule.rawBlock.includes('css-ok') || rule.rawBlock.includes('dead-css-ok')) continue;
-    const lineIdx = rule.line - 1;
-    const blockLineCount = rule.rawBlock.split('\n').length;
-    const endLineIdx = lineIdx + blockLineCount;
-    const surroundingLines = contentLines.slice(Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES), endLineIdx);
-    if (surroundingLines.some(l => l.includes('css-ok') || l.includes('dead-css-ok'))) continue;
-
-    const classNames = extractClassNamesFromSelector(rule.selector);
-    for (const className of classNames) {
-      if (EXCLUDED_EXTENSIONS.has(className)) continue;
-      if (isClassExempt(className, params.globalUtilityClasses, dynamicPrefixes)) continue;
-      checkedCount++;
-
-      if (!componentLogic.includes(className) && !params.globalTokens.has(className)) {
-        params.auditor.addViolation({
-          ruleId: 'dead-scoped-css',
-          severity: 'error',
-          file: params.relFile,
-          line: rule.line,
-          message: `Clase CSS scoped '.${className}' es código muerto (huérfana): no se encuentra en el componente ni en el código de la aplicación.`,
-          context: className
-        });
-      }
-    }
+    if (isRuleExemptByComments(rule, contentLines)) continue;
+    checkedCount += auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic);
   }
 
   return checkedCount;

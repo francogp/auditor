@@ -76,7 +76,7 @@ describe('ZIndexAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);
-    expect(result.status).toBe('passed');
+    expect(result.status).toBe('skipped');
   });
 });
 

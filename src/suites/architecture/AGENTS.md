@@ -27,7 +27,7 @@ Architecture & Tooling Engineers.
 - **Configurable CLI Logging Cleanliness & Dynamic Test Auditor Locations**: `validate_console_cleanliness.ts` derives permitted terminal output roots dynamically from `config.paths.cliRoots` (`isCliPath()`), avoiding hardcoded framework paths. `validate_auditor_tests.ts` dynamically searches for sub-auditor test files across all paths declared in `config.paths.testRoots`.
 - **Dynamic Persistence Mock Detection**: Forbidden integration mock targets in `validate_test_hygiene.ts` derive dynamically based on `config.persistence.engine` (`supabase`, `sqlite`, `hybrid`).
 - **Zero Untested Rules & Rule Description Testing Mandate**: Every rule ID declared across these suites is verified with positive and negative test cases. `validate_auditor_tests.ts` statically inspects `ruleDescriptions` across sub-auditor sources and strictly requires that the corresponding test file in `tests/` references 100% of declared rule IDs.
-- **Fallow Vector Semantic Cache Architecture & Setup Banner**: `validate_similar_code.ts` executes Fallow ML embeddings on Candle CPU (CPU-only, no GPU/CUDA) via `--threads ${os.availableParallelism()}`. Vector cache resides in `%LOCALAPPDATA%\fallow\similar-code` on Windows (`~/.cache/fallow/similar-code` on Linux). Subdirectories `models/` and `vectors/` are pre-created (`ensureFallowCacheDirs`) to prevent Windows `os error 3`, reducing run times from >230s down to ~2s. Setup failure displays a Box-Drawing warning banner with the manual command (`npx fallow similar-code setup --local --yes`).
+- **Fallow Vector Semantic Cache Architecture & Setup Banner**: `validate_similar_code.ts` executes Fallow ML embeddings on Candle CPU (CPU-only, no GPU/CUDA) via `--threads ${os.availableParallelism()}`. Vector cache resides in `%LOCALAPPDATA%\fallow\similar-code` on Windows (`~/.cache/fallow/similar-code` on Linux). Subdirectories `models/` and `vectors/` are pre-created (`ensureFallowCacheDirs`) to prevent Windows `os error 3`, reducing run times from >230s down to ~2s. Setup failure displays a Box-Drawing warning banner with the manual command (`fallow similar-code setup --local --yes`).
 - **Official Stylelint Engine, Sass Collision Casing & Component Style Hygiene**: `validate_stylelint.ts` evaluates CSS, SCSS, and Vue SFC styles with the official Stylelint engine, plugins (`stylelint-scss`, `stylelint-order`), and content-hashed caching (`scratch/cache/stylelint_cache.json`). It natively integrates `stylelintSassTrapsPlugin.ts` (`sass-traps/collision-casing`) to detect and auto-repair CSS functions colliding with Dart Sass (`Scale`, `Saturate`, `Drop-Shadow`, `hue-Rotate`, etc.). `validate_dead_css.ts` extracts scoped CSS selectors using AST parsing to detect orphaned classes in Vue templates.
 - **Strict ESLint Flat Config Verification (`validate_eslint_config`)**: `validate_eslint_config.ts` statically analyzes `eslint.config.js` to ensure `@typescript-eslint/no-explicit-any: 'error'`, double cast restriction (`as unknown as`), `@typescript-eslint/ban-ts-comment` error status, and legacy `Date` ban are strictly present.
 - **Dependency & Distribution Hygiene (`validate_package_hygiene`, `validate_package_distribution`)**: `validate_package_hygiene.ts` delegates to Knip to detect unused dependencies, phantom unlisted dependencies, and unused binary scripts. `validate_package_distribution.ts` delegates to Publint to verify export maps, types declarations, and dual ESM/CJS hazard avoidance.
@@ -37,6 +37,7 @@ Architecture & Tooling Engineers.
 - **Anti-Abuse Protection for Constant Exemption Globs (`constants.exemptGlobs`)**: `validate_duplicate_constants.ts` supports exempting legitimate, highly repetitive domain files (such as database seeds, translation maps, or coordinate catalogs) via `config.constants.exemptGlobs`. To prevent erosion of constant quality standards, broad wildcards that could mask entire source trees (e.g. `'src/**'`, `'**'`, `'src/scripts/**'`) are strictly blocked at startup with an informative configuration error.
 - **Mandatory Thematic Icon Contract**: Every sub-auditor must explicitly declare a unique, meaningful thematic emoji via `AuditorOptions.icon` (e.g. `'🎨'`, `'🧪'`, `'🛡️'`, `'🔘'`). Generic defaults are barred, ensuring clear visual identification across terminal streaming tables.
 - **Strict Fallow Error Severity**: All Fallow-derived findings are treated strictly as `severity: 'error'`.
+- **Declarative Configuration File Requirements & Auto-Scaffolding (`AuditorConfigFileRequirement`)**: Sub-auditors requiring configuration files (`validate_eslint_config`, `validate_fallow_config`, `validate_audit_config`) declare their configuration contracts, candidate filenames, and canonical scaffolding functions via `configFiles` in `super({...})`. The base engine transparently handles presence verification in check mode and automated scaffolding in `--fix` mode without ad-hoc filesystem checks.
 - **Node.js 26+ Top-Level Await Deadlock Prevention & Self-Import Guard**: Sub-auditor discovery engines (`auditScanner.ts`, `validate_auditor_tests.ts`) MUST NEVER attempt dynamic `import()` on a script matching the executing process entrypoint (`process.argv[1]`). When detected, static regex metadata extraction (`extractStaticMetadataFromFile`) is used without module evaluation, preventing Node.js 26+ module-evaluation deadlock (code 13 `Detected unsettled top-level await`). Dynamic imports are wrapped in a 2-second timeout race using `timer.unref()`.
 - **In-Process Progress Logger Routing**: When executing suites in-process (`SharedAstContext`), `this.context.logStep` and `this.context.logProgress` MUST NOT emit raw `console.log`. `BaseAuditor` exposes `setStepLogger` and `setProgressLogger` callbacks, allowing the orchestrator to buffer and indent progress lines (`│  🔍 [...]`) cleanly inside the Box-Drawing frame.
 - **Plugin Exclusion in Auto-Discovery**: Files ending with `Plugin.ts` or `Plugin.js` in `src/suites/` are Stylelint or parser plugins, not audit suites, and are strictly ignored by `isIgnoredFileEntry` and `isEligibleExtensionAuditorFile`.
@@ -60,6 +61,7 @@ Architecture & Tooling Engineers.
 - [`validate_error_suppression.ts`](./validate_error_suppression.ts): Prohibition of silent error suppression and blind schema fallbacks.
 - [`validate_eslint.ts`](./validate_eslint.ts): ESLint execution and violation formatting.
 - [`validate_eslint_config.ts`](./validate_eslint_config.ts): ESLint Domain-Type-First configuration auditor.
+- [`validate_fallow.ts`](./validate_fallow.ts): Standalone Fallow static intelligence, dead code, complexity, and refactoring targets auditor.
 - [`validate_fallow_config.ts`](./validate_fallow_config.ts): Fallow configuration file integrity verifier.
 - [`validate_html_validate.ts`](./validate_html_validate.ts): W3C/WHATWG Living Standard validator via `html-validate`.
 - [`validate_accessibility.ts`](./validate_accessibility.ts): Vue and web accessibility (WCAG 2.2) standards via `eslint-plugin-vuejs-accessibility` and `vue-eslint-parser`.
@@ -80,6 +82,18 @@ Architecture & Tooling Engineers.
 - [`validate_typography_line_height.ts`](./validate_typography_line_height.ts): CSS typography line-height collision detector.
 - [`validate_vue_sfc_hygiene.ts`](./validate_vue_sfc_hygiene.ts): Vue SFC `<script setup lang="ts">` standards and template hygiene.
 - [`validate_z_index.ts`](./validate_z_index.ts): Z-Index layer scale synchronization between TypeScript and SCSS.
+
+## Work Guidance
+
+- Architectural suites must isolate regex matching to valid code roots and respect complexity exemptions.
+- CSS and SCSS verification must delegate strictly to Stylelint engine (`validate_stylelint.ts`).
+- Fallow suites must map all static analysis findings to `severity: 'error'` under the zero-warning mandate.
+
+## Verification
+
+- Run architecture suite tests: `npm test -- tests/audit_project.test.ts`
+- Run Stylelint integration tests: `npm test -- tests/validate_stylelint.test.ts`
+- Run architecture check: `node --experimental-strip-types src/suites/architecture/audit_project.ts`
 
 ## Child DOX Index
 

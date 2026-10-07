@@ -26,6 +26,7 @@ describe('ValidateEslintConfigAuditor & auditEslintConfigContent', () => {
       expect(auditor.id).toBe('validate_eslint_config');
       expect(auditor.ruleIds).toEqual(ESLINT_CONFIG_RULES);
       expect(auditor.capabilities.lint).toBe(true);
+      expect(auditor.capabilities.fix).toBe(true);
     });
   });
 
@@ -160,4 +161,24 @@ describe('ValidateEslintConfigAuditor & auditEslintConfigContent', () => {
       expect(result.status).toBe('passed');
     });
   });
+
+  describe('Auto-Fix Verification', () => {
+    it('scaffolds canonical eslint.config.js when missing and fix: true is set', async () => {
+      const configPath = path.join(tempDir, 'eslint.config.js');
+      expect(fs.existsSync(configPath)).toBe(false);
+
+      const auditor = new ValidateEslintConfigAuditor({ projectRoot: tempDir, fix: true });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(fs.existsSync(configPath)).toBe(true);
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+
+      const createdContent = fs.readFileSync(configPath, 'utf-8');
+      expect(createdContent).toContain('@typescript-eslint/no-explicit-any');
+      expect(createdContent).toContain('TSUnknownKeyword');
+    });
+  });
 });
+

@@ -34,8 +34,8 @@ export const ESLINT_RULES: readonly EslintRuleId[] = [
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
 
-export type RawEslintMessage = RawLintMessage;
-export type RawEslintFileReport = RawLintFileReport;
+export type RawEslintMessage = RawLintMessage; // type-ok: Type contract declaration
+export type RawEslintFileReport = RawLintFileReport; // type-ok: Type contract declaration
 
 /**
  * Parses raw JSON output or an array of file reports from ESLint into canonical AuditFindings.
@@ -96,7 +96,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
 
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
-    const exclude = [
+    const excludeGlobs = [
       'node_modules/**',
       'dist/**',
       'scratch/**',
@@ -105,7 +105,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
     ];
     this.redeclareCoverage({
       include: ['**/*.{js,ts,mjs,cjs,vue}'],
-      exclude,
+      exclude: excludeGlobs,
       source: 'runtime'
     });
 

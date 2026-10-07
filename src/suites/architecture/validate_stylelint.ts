@@ -22,23 +22,14 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 import { BaseAuditor, CANONICAL_IGNORE_DIRS } from '../../core/auditorBase.ts';
-import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
+import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from './stylelintSassTrapsPlugin.ts';
 
 enableCompileCache();
 
-export type StylelintRuleId =
-  | 'stylelint-issue'
-  | 'css-duplicate-selectors'
-  | 'css-duplicate-properties'
-  | 'css-empty-blocks'
-  | 'css-order-violation'
-  | 'scss-syntax-issue'
-  | 'scss-sass-collision-casing';
-
-export const STYLELINT_RULES: readonly StylelintRuleId[] = [
+export const STYLELINT_RULES = [
   'stylelint-issue',
   'css-duplicate-selectors',
   'css-duplicate-properties',
@@ -47,6 +38,7 @@ export const STYLELINT_RULES: readonly StylelintRuleId[] = [
   'scss-syntax-issue',
   'scss-sass-collision-casing'
 ] as const;
+export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 
 export function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string {
   if (configuredConfigFile) {
@@ -105,6 +97,136 @@ export function categorizeStylelintRule(ruleName: string | undefined): Stylelint
   if (ruleName.startsWith('order/')) return 'css-order-violation';
   if (ruleName.startsWith('scss/')) return 'scss-syntax-issue';
   return 'stylelint-issue';
+}
+
+export function buildStylelintConfig(configFile: string, customRules?: Record<string, unknown>): stylelint.Config {
+  return {
+    extends: [configFile],
+    plugins: [sassTrapsPlugin],
+    rules: {
+      'function-name-case': [
+        'lower',
+        {
+          ignoreFunctions: [
+            '/^[A-Z]/',
+            'Drop-Shadow',
+            'Drop-shadow',
+            'hue-Rotate',
+            'Hue-Rotate'
+          ]
+        }
+      ],
+      'value-keyword-case': [
+        'lower',
+        {
+          camelCaseSvgKeywords: true,
+          ignoreProperties: ['/--.*/'],
+          ignoreFunctions: ['v-bind']
+        }
+      ],
+      [SASS_TRAPS_RULE_NAME]: true,
+      ...(customRules ?? {})
+    }
+  };
+}
+
+export function buildStylelintIgnoreGlobs(
+  configIgnoreGlobs?: readonly string[],
+  stylelintIgnoreGlobs?: readonly string[]
+): string[] {
+  return [
+    ...Array.from(CANONICAL_IGNORE_DIRS).map(d => `${d}/**`),
+    'dist/**',
+    'dev-dist/**',
+    'scratch/**',
+    'tests/**',
+    '**/*.spec.*',
+    '**/*.test.*',
+    ...(configIgnoreGlobs ?? []),
+    ...(stylelintIgnoreGlobs ?? [])
+  ];
+}
+
+interface StylelintViolationPayload {
+  ruleId: StylelintRuleId;
+  severity: FindingSeverity;
+  file: string;
+  line: number;
+  message: string;
+  context: string;
+}
+
+export function processStylelintResults(
+  results: readonly LintResult[],
+  projectRoot: string
+): { violations: StylelintViolationPayload[]; totalErrors: number; totalWarnings: number } {
+  let totalWarnings = 0;
+  let totalErrors = 0;
+  const violations: StylelintViolationPayload[] = [];
+
+  for (const fileResult of results) {
+    const relFile = normalizePosixPath(fileResult.source ?? '', projectRoot);
+
+    for (const warning of fileResult.warnings) {
+      const ruleId = categorizeStylelintRule(warning.rule);
+      const severity = warning.severity === 'error' ? 'error' : 'warning';
+
+      if (severity === 'error') {
+        totalErrors++;
+      } else {
+        totalWarnings++;
+      }
+
+      violations.push({
+        ruleId,
+        severity,
+        file: relFile,
+        line: warning.line || 1,
+        message: warning.text,
+        context: warning.rule || 'stylelint'
+      });
+    }
+  }
+
+  return { violations, totalErrors, totalWarnings };
+}
+
+export function persistStylelintReport(
+  projectRoot: string,
+  suiteId: string,
+  filesScanned: number,
+  totals: { totalErrors: number; totalWarnings: number },
+  results: readonly LintResult[],
+  durationMs: number
+): void {
+  const reportDir = path.resolve(projectRoot, 'scratch/audits/architecture');
+  fs.mkdirSync(reportDir, { recursive: true });
+  const reportFile = path.resolve(reportDir, `${suiteId}.json`);
+  try {
+    fs.writeFileSync(
+      reportFile,
+      JSON.stringify(
+        {
+          summary: {
+            filesScanned,
+            totalErrors: totals.totalErrors,
+            totalWarnings: totals.totalWarnings,
+            durationMs
+          },
+          results: results.map((r: LintResult) => ({
+            source: normalizePosixPath(r.source ?? '', projectRoot),
+            errored: r.errored,
+            warnings: r.warnings
+          }))
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+  } catch {
+    // catch-ok: Scratch report persistence is non-fatal
+  }
 }
 
 export interface StylelintAuditorOptions {
@@ -166,16 +288,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
 
   public override async runAudit(): Promise<void> {
     const startTime = performance.now();
+    if (this.isSuiteGatingDisabled('Stylelint desactivado en config')) return;
+
     const config = getAuditConfig(this.projectRoot);
     const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
-
-    if (stylelintConfig?.enabled === false) {
-      this.context.setMetric('Stylelint Disabled', 'true');
-      for (const r of STYLELINT_RULES) {
-        this.markRuleNotApplicable(r, 'Stylelint desactivado en audit.config.ts');
-      }
-      return;
-    }
 
     const configFile = resolveStylelintConfigFile(this.projectRoot, stylelintConfig?.configFile);
     if (fs.existsSync(configFile)) {
@@ -192,47 +308,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
 
     const roots = this.roots.length > 0 ? this.roots : ['src'];
     const filesGlobs = roots.map(r => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`);
-
-    const ignoreGlobs = [
-      ...Array.from(CANONICAL_IGNORE_DIRS).map(d => `${d}/**`),
-      'dist/**',
-      'dev-dist/**',
-      'scratch/**',
-      'tests/**',
-      '**/*.spec.*',
-      '**/*.test.*',
-      ...(config.paths.ignoreGlobs ?? []),
-      ...(stylelintConfig?.ignoreGlobs ?? [])
-    ];
-
-    const lintConfig: stylelint.Config = {
-      extends: [configFile],
-      plugins: [sassTrapsPlugin],
-      rules: {
-        'function-name-case': [
-          'lower',
-          {
-            ignoreFunctions: [
-              '/^[A-Z]/',
-              'Drop-Shadow',
-              'Drop-shadow',
-              'hue-Rotate',
-              'Hue-Rotate'
-            ]
-          }
-        ],
-        'value-keyword-case': [
-          'lower',
-          {
-            camelCaseSvgKeywords: true,
-            ignoreProperties: ['/--.*/'],
-            ignoreFunctions: ['v-bind']
-          }
-        ],
-        [SASS_TRAPS_RULE_NAME]: true,
-        ...(stylelintConfig?.rules ?? {})
-      }
-    };
+    const ignoreGlobs = buildStylelintIgnoreGlobs(config.paths.ignoreGlobs, stylelintConfig?.ignoreGlobs);
+    const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
 
     let linterResult: LinterResult;
     try {
@@ -272,62 +349,19 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       }
     }
 
-    let totalWarnings = 0;
-    let totalErrors = 0;
-
-    for (const fileResult of linterResult.results) {
-      const relFile = normalizePosixPath(fileResult.source ?? '', this.projectRoot);
-
-      for (const warning of fileResult.warnings) {
-        const ruleId = categorizeStylelintRule(warning.rule);
-        const severity = warning.severity === 'error' ? 'error' : 'warning';
-
-        if (severity === 'error') {
-          totalErrors++;
-        } else {
-          totalWarnings++;
-        }
-
-        this.addViolation({
-          ruleId,
-          severity,
-          file: relFile,
-          line: warning.line || 1,
-          message: warning.text,
-          context: warning.rule || 'stylelint'
-        });
-      }
+    const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot);
+    for (const v of violations) {
+      this.addViolation(v);
     }
 
-    // Persist raw report to scratch
-    const reportDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
-    fs.mkdirSync(reportDir, { recursive: true });
-    const reportFile = path.resolve(reportDir, `${this.id}.json`);
-    try {
-      fs.writeFileSync(
-        reportFile,
-        JSON.stringify(
-          {
-            summary: {
-              filesScanned: this.filesScannedCount,
-              totalErrors,
-              totalWarnings,
-              durationMs: Math.round(performance.now() - startTime)
-            },
-            results: linterResult.results.map((r: LintResult) => ({
-              source: normalizePosixPath(r.source ?? '', this.projectRoot),
-              errored: r.errored,
-              warnings: r.warnings
-            }))
-          },
-          null,
-          2
-        ),
-        'utf-8'
-      );
-    } catch {
-      // catch-ok: Scratch report persistence is non-fatal
-    }
+    persistStylelintReport(
+      this.projectRoot,
+      this.id,
+      this.filesScannedCount,
+      { totalErrors, totalWarnings },
+      linterResult.results,
+      Math.round(performance.now() - startTime)
+    );
 
     this.context.setMetric('Archivos Escaneados', this.filesScannedCount);
     this.context.setMetric('Errores CSS', totalErrors);

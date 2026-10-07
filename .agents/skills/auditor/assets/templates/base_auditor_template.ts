@@ -8,23 +8,39 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, type GitIgnoreRequirement } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  type AuditorConfigFileRequirement,
+  type GitIgnoreRequirement
+} from '@francogp/auditor';
 
 enableCompileCache();
 
 export type MyCompositeRuleId =
   | 'composite-missing-entry'
-  | 'composite-parity-mismatch';
+  | 'composite-parity-mismatch'
+  | 'composite-missing-config';
 
 export const MY_COMPOSITE_RULES: readonly MyCompositeRuleId[] = [
   'composite-missing-entry',
-  'composite-parity-mismatch'
+  'composite-parity-mismatch',
+  'composite-missing-config'
 ] as const;
 
 export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   // Optional gitignore requirements for tool caches or ephemeral artifacts:
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
-    // { id: 'my-cache', pattern: '.my-cache/', reason: 'Caché de mi herramienta' }
+    // { id: 'my-cache', pattern: '.my-cache/', reason: 'Tool ephemeral cache' }
+  ];
+
+  // Optional declarative configuration file requirements for external tools or sub-systems:
+  public static readonly configFiles: readonly AuditorConfigFileRequirement[] = [
+    // {
+    //   file: '.mytoolrc.json',
+    //   content: JSON.stringify({ version: 1, strict: true }, null, 2) + '\n',
+    //   description: 'Default configuration for MyTool engine',
+    //   customMissingMessage: 'Missing .mytoolrc.json configuration file.'
+    // }
   ];
 
   constructor() {
@@ -33,6 +49,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       // Example: capabilities: { lint: true, fix: true },
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
+      // Optional declarative configuration files verified and auto-created with --fix:
+      configFiles: MyCompositeAuditor.configFiles,
       id: 'validate_my_composite',
       name: 'My Composite Auditor',
       description: 'Valida integridad y paridad cruzada en bases de datos',
@@ -44,7 +62,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       // configKey: 'mySection',
       ruleDescriptions: {
         'composite-missing-entry': 'Entrada faltante en registro canónico',
-        'composite-parity-mismatch': 'Desincronización entre datasets'
+        'composite-parity-mismatch': 'Desincronización entre datasets',
+        'composite-missing-config': 'Archivo de configuración faltante'
       },
       coverage: {
         include: ['src/data/**/*.{ts,json}'],
@@ -81,6 +100,18 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
         line: 1,
         message: `Entity parity mismatch between canonical list and runtime registry.`,
         context: 'entity_id_example'
+      });
+    }
+
+    // Option C: Verify declarative configuration files and auto-create them in --fix mode
+    this.markRuleEvaluated('composite-missing-config');
+    const missingConfigs = await this.verifyAndFixConfigFiles();
+    for (const missing of missingConfigs) {
+      this.addViolation({
+        ruleId: 'composite-missing-config',
+        severity: 'error',
+        file: missing.file,
+        message: missing.message
       });
     }
 

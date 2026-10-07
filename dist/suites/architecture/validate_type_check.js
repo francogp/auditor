@@ -24,7 +24,7 @@ const MAX_BUFFER_BYTES = 52428800;
 const EXECUTION_TIMEOUT_MS = 0;
 const DEFAULT_ERROR_LINE = 1;
 const DECIMAL_RADIX = 10;
-const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+?)(?::(?<line>\d+):(?<col>\d+)|\((?<line2>\d+),(?<col2>\d+)\))(?::\s*|\s*-\s*|\s+)(?<sev>error|warning)\s+(?<code>TS\d+):\s*(?<msg>.+)$/;
+const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+)(?::(?<line>\d+):(?<col>\d+)|\((?<line2>\d+),(?<col2>\d+)\))(?::\s*|\s*-\s*|\s+)(?<sev>error|warning)\s+(?<code>TS\d+):\s*(?<msg>.+)$/;
 function createFindingFromMatch(groups, cwd) {
     const rawFile = groups.file ?? '';
     const lineStr = groups.line ?? groups.line2 ?? '1';
@@ -75,6 +75,36 @@ export function parseTypeScriptDiagnostics(output, cwd = process.cwd()) {
     }
     return findings;
 }
+function recordTsConfigFiles(projectRoot, recordScanned) {
+    try {
+        const rootFiles = fsSync.readdirSync(projectRoot);
+        for (const f of rootFiles) {
+            if (f.startsWith('tsconfig') && f.endsWith('.json')) {
+                recordScanned(path.join(projectRoot, f));
+            }
+        }
+    }
+    catch {
+        // catch-ok: ignore unreadable project root
+    }
+}
+function resolveTypeCheckBinary(projectRoot) {
+    const vueTscPath = path.resolve(projectRoot, 'node_modules/vue-tsc/bin/vue-tsc.js');
+    if (fsSync.existsSync(vueTscPath)) {
+        return { cmd: 'node', args: [vueTscPath, '--noEmit'] };
+    }
+    const tscCandidates = [
+        path.resolve(projectRoot, 'node_modules/typescript/bin/tsc'),
+        path.resolve(import.meta.dirname, '../../../node_modules/typescript/bin/tsc'),
+        path.resolve(import.meta.dirname, '../../../../typescript/bin/tsc')
+    ];
+    for (const cand of tscCandidates) {
+        if (fsSync.existsSync(cand)) {
+            return { cmd: 'node', args: [cand, '--noEmit'] };
+        }
+    }
+    return { cmd: 'tsc', args: ['--noEmit'] };
+}
 export class TypeCheckAuditor extends BaseAuditor {
     constructor(projectRoot) {
         super({
@@ -98,38 +128,9 @@ export class TypeCheckAuditor extends BaseAuditor {
     }
     async runAudit() {
         this.markRuleEvaluated('ts-compiler-error');
-        try {
-            const rootFiles = fsSync.readdirSync(this.projectRoot);
-            for (const f of rootFiles) {
-                if (f.startsWith('tsconfig') && f.endsWith('.json')) {
-                    this.recordScanned(path.join(this.projectRoot, f));
-                }
-            }
-        }
-        catch {
-            // catch-ok
-        }
-        const vueTscPath = path.resolve(this.projectRoot, 'node_modules/vue-tsc/bin/vue-tsc.js');
-        const tscCandidates = [
-            path.resolve(this.projectRoot, 'node_modules/typescript/bin/tsc'),
-            path.resolve(import.meta.dirname, '../../../node_modules/typescript/bin/tsc'),
-            path.resolve(import.meta.dirname, '../../../../typescript/bin/tsc')
-        ];
-        let binPath = fsSync.existsSync(vueTscPath) ? vueTscPath : null;
-        if (!binPath) {
-            for (const cand of tscCandidates) {
-                if (fsSync.existsSync(cand)) {
-                    binPath = cand;
-                    break;
-                }
-            }
-        }
-        if (!binPath) {
-            binPath = 'tsc';
-        }
-        const spawnArgs = binPath === 'tsc' ? ['--noEmit'] : [binPath, '--noEmit'];
-        const spawnCmd = binPath === 'tsc' ? 'tsc' : 'node';
-        const proc = spawnSync(spawnCmd, spawnArgs, {
+        recordTsConfigFiles(this.projectRoot, p => this.recordScanned(p));
+        const { cmd, args } = resolveTypeCheckBinary(this.projectRoot);
+        const proc = spawnSync(cmd, args, {
             cwd: this.projectRoot,
             encoding: 'utf-8',
             maxBuffer: MAX_BUFFER_BYTES,

@@ -15,7 +15,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 5. [Strict Type Safety & ESLint Flat Config Governance](#5-strict-type-safety--eslint-flat-config-governance)
 6. [Integrated Quality & Analysis Tools (SSoT)](#6-integrated-quality--analysis-tools-ssot)
 7. [Bundle & Performance Budget Auditing](#7-bundle--performance-budget-auditing)
-8. [AI Agent Integration (43 Antigravity Skills)](#8-ai-agent-integration-43-antigravity-skills)
+8. [AI Agent Integration (52 Antigravity Skills)](#8-ai-agent-integration-52-antigravity-skills)
 9. [Authoring Custom Sub-Auditors](#9-authoring-custom-sub-auditors)
 10. [Centralized Configuration (`audit.config.ts`)](#10-centralized-configuration-auditconfigts)
 11. [Hermetic Testing with Vitest](#11-hermetic-testing-with-vitest)
@@ -272,9 +272,9 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 The `auditor-bundle` command inspects compiled production outputs in `dist/assets/`:
 
 ```bash
-npx auditor-bundle
-# or:
 npm run audit:bundle
+# or directly:
+auditor-bundle
 ```
 
 - **Main Thread Budget Limits**: Flags JS/CSS chunks exceeding configured thresholds (configurable via `bundle.maxClientChunkWarnBytes` and `bundle.maxClientChunkErrorBytes`).
@@ -283,27 +283,35 @@ npm run audit:bundle
 
 ---
 
-## 8. AI Agent Integration (43 Antigravity Skills)
+## 8. AI Agent Integration (52 Antigravity Skills)
 
-`@francogp/auditor` distributes **43 canonical engineering skills** for Google DeepMind Antigravity AI agents.
+`@francogp/auditor` distributes **52 canonical engineering skills** for Google DeepMind Antigravity AI agents.
 
 ### 8.1. Initialize Plugin in Host Projects
 
 ```bash
-npx auditor-init-agent
+auditor-init-agent
+```
+
+Or via npm script:
+
+```bash
+npm run init-agent
 ```
 
 Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomous agents automatically discover and trigger the bundled skills and `AGENTS.md` guidelines.
 
 ### 8.2. Skill Catalog Summary
 
-- **Architecture & Governance**: `auditor`, `architecture`, `domain-type-first`, `clean-code`, `improve-codebase-architecture`.
-- **Vue & Reactivity**: `vue-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vue-debug-guides`, `create-adaptable-composable`, `vueuse-functions`.
-- **GSAP UI Animation**: `gsap-core`, `gsap-timeline`, `gsap-scrolltrigger`, `gsap-plugins`, `gsap-utils`, `gsap-performance`, `gsap-frameworks`.
-- **Codebase Intelligence**: `fallow`, `fallow-review`, `ponytail`, `ponytail-review`, `ponytail-debt`, `ponytail-audit`, `ponytail-gain`.
-- **Security & Database**: `vulnerability-scanner`, `red-team-tactics`, `database-design`, `valibot`.
-- **Documentation & DOX**: `dox-navigator`, `learn-with-docs`, `grill-with-docs`.
-- **Workflow & Testing**: `safe-commit`, `systematic-debugging`, `tdd`, `testing-patterns`, `typescript-6-upgrade`, `mcp-builder`, `skill-creator`, `brainstorming`.
+- **Architecture & Governance**: `auditor`, `architecture`, `clean-code`, `codebase-design`, `domain-modeling`, `domain-type-first`, `improve-codebase-architecture`.
+- **Vue 3, SFC & Reactivity**: `create-adaptable-composable`, `vue-best-practices`, `vue-debug-guides`, `vue-jsx-best-practices`, `vue-options-api-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vueuse-functions`.
+- **GSAP UI Animation**: `gsap-core`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline`, `gsap-utils`.
+- **Codebase Intelligence & Optimization**: `fallow`, `fallow-review`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
+- **Security, Pentesting & Hardening**: `penetration-testing-with-strix`, `security-and-hardening`, `security-review`.
+- **Database & Validation**: `database-design`, `supabase-postgres-best-practices`, `valibot`.
+- **Documentation & DOX Governance**: `dox-navigator`, `learn-with-docs`.
+- **Testing & QA Automation**: `playwright-cli`, `tdd`, `testing-patterns`, `vitest`.
+- **DevOps, Design, Discovery & Meta-Agent Skills**: `brainstorming`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
 
 ---
 
@@ -363,7 +371,7 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
 
 ## 10. Centralized Configuration (`audit.config.ts`)
 
-Every host project declares its configuration via `defineAuditConfig` in `.auditor/audit.config.ts`. The `.auditor/` directory holds every versioned auditor artifact (configuration and `.auditor/audit-baseline.json`), while run results stay in the git-ignored `scratch/audits/`. Tool configs such as `eslint.config.js` or `.stylelintrc.json` remain at the root so editors keep discovering them. A root-level `audit.config.ts` fails loudly; `npx auditor fix` moves it into `.auditor/` and rewrites its relative imports. Paths inside the config stay relative to the project root.
+Every host project declares its configuration via `defineAuditConfig` in `.auditor/audit.config.ts`. The `.auditor/` directory holds every versioned auditor artifact (configuration and `.auditor/audit-baseline.json`), while run results stay in the git-ignored `scratch/audits/`. Tool configs such as `eslint.config.js` or `.stylelintrc.json` remain at the root so editors keep discovering them. A root-level `audit.config.ts` fails loudly; `auditor fix` (or `npm run audit:fix`) moves it into `.auditor/` and rewrites its relative imports. Paths inside the config stay relative to the project root.
 
 ```typescript
 // .auditor/audit.config.ts
@@ -476,6 +484,12 @@ export default defineAuditConfig({
 
 ---
 
+> [!CAUTION]
+> **Primordial Anti-Tampering Mandate & Absolute Ban on Silencing Configs**:
+> Developers and AI agents are CATEGORICALLY PROHIBITED from turning off subsystems (`domain.enabled: false`, `bundle.enabled: false`, etc.), lowering thresholds, adding arbitrary whitelists, or tampering with `.auditor/audit.config.ts`, ESLint, Stylelint, or Fallow configurations when an audit reports errors or warnings. All findings are real architectural or code defects that must be resolved in source code or through canonical tools (`auditor fix`). Modifying or turning off configurations to achieve a fake clean pass without explicit human programmer consultation is strictly forbidden and considered architectural sabotage.
+
+---
+
 ## 11. Hermetic Testing with Vitest
 
 Every sub-auditor must be verified with negative (clean path) and positive (dirty fixture) test cases:
@@ -501,7 +515,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-review` | `src/cli/report_review.ts` | Graph-grounded architectural review brief for changed code. |
 | `auditor-css` | `src/cli/report_css.ts` | Stylelint and stylesheet hygiene analysis report. |
 | `auditor-update` | `src/cli/update_package.ts` | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. |
-| `auditor-version` | `src/cli/bump_version.ts` | Displays installed framework version, build timestamp, and git commit hash. |
+| `auditor-version` | `src/cli/bump_version.ts` | Inspects version/build stamps, analyzes diff metrics (`analyze`), and applies SemVer bumps (`bump`). |
 | `auditor-guard` | `src/cli/report_guard.ts` | Pre-flight architectural boundary and policy inspector for target files (`audit:guard <files>`). |
 | `auditor-flags` | `src/cli/report_flags.ts` | Feature flag usage and retirement candidates governance tool (`audit:flags [--retirement]`). |
 | `auditor-test-coverage` | `src/cli/report_test_coverage.ts` | Canonical test coverage analyzer, metrics calculator, and complexity hotspot correlator (`audit:test-coverage`). |

@@ -1,7 +1,7 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
-export type PackageHygieneRuleId = 'package-unused-dependency' | 'package-unlisted-dependency' | 'package-unused-binary';
-export declare const PACKAGE_HYGIENE_RULES: readonly PackageHygieneRuleId[];
+export declare const PACKAGE_HYGIENE_RULES: readonly ["package-unused-dependency", "package-unlisted-dependency", "package-unused-binary"];
+export type PackageHygieneRuleId = (typeof PACKAGE_HYGIENE_RULES)[number];
 export interface KnipIssueItem {
     readonly name: string;
     readonly line?: number;
@@ -26,11 +26,14 @@ export declare function extractReferencedScriptDependencies(projectRoot: string)
  */
 export declare function parseKnipIssues(report: KnipReport | readonly KnipFileIssues[], projectRoot?: string, isPathIgnored?: (relPath: string) => boolean): AuditFinding[];
 export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
-    private readonly fixMode;
     constructor(options?: {
         projectRoot?: string;
         fix?: boolean;
     });
     runAudit(): Promise<void>;
+    private readFallowConfigData;
+    private buildEphemeralKnipConfig;
+    private executeKnip;
+    private processKnipFindings;
 }
 //# sourceMappingURL=validate_package_hygiene.d.ts.map

@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { isMainModule } from './cliUtils.ts';
 import '../core/permissionGuard.ts';
+import { DEFAULT_PERMISSIONS } from './auditTaskFactory.ts';
 
 export async function runAuditBuild(extraArgs: readonly string[] = []): Promise<number> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -21,12 +22,7 @@ export async function runAuditBuild(extraArgs: readonly string[] = []): Promise<
   const targetScript = fs.existsSync(fullAuditorPath) ? fullAuditorPath : fullAuditorJsPath;
 
   const nodeArgs = [
-    '--permission',
-    '--allow-fs-read=*',
-    '--allow-fs-write=*',
-    '--allow-child-process',
-    '--allow-addons',
-    '--experimental-strip-types',
+    ...DEFAULT_PERMISSIONS,
     targetScript,
     'preset=build',
     ...extraArgs

@@ -26,7 +26,10 @@ export const DOX_RULES = [
     'dox-absolute-link',
     'dox-broken-link',
     'dox-gitignore-target',
-    'dox-unindexed-file'
+    'dox-unindexed-file',
+    'dox-missing-section',
+    'dox-section-order',
+    'dox-empty-section'
 ];
 export class DoxIntegrityAuditor extends BaseAuditor {
     rootDir;
@@ -47,7 +50,10 @@ export class DoxIntegrityAuditor extends BaseAuditor {
                 'dox-absolute-link': 'Enlace con ruta absoluta',
                 'dox-broken-link': 'Enlace roto a archivo inexistente',
                 'dox-gitignore-target': 'Enlace a ruta ignorada en git',
-                'dox-unindexed-file': 'Archivo de código no indexado en DOX'
+                'dox-unindexed-file': 'Archivo de código no indexado en DOX',
+                'dox-missing-section': 'Sección obligatoria ausente en AGENTS.md',
+                'dox-section-order': 'Orden incorrecto de secciones en AGENTS.md',
+                'dox-empty-section': 'Sección vacía o con contenido basura'
             },
             coverage: {
                 include: ['**/AGENTS.md']

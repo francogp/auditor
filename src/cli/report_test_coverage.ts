@@ -329,138 +329,65 @@ function renderUntrackedTable(
   });
 }
 
-export async function runTestCoverageReport(): Promise<void> {
-  const args = parseCommandLineArgs();
-  if (args.help) {
-    printUsage();
-    return;
+function renderFileDrillDown(report: TestCoverageReport, fileFilter: string): boolean {
+  const targetFile = fileFilter.replace(/^\.\//, '');
+  const found = report.files.find(f => f.relPath === targetFile || f.relPath.endsWith(targetFile));
+  if (!found) {
+    console.log(styleText('yellow', `\n⚠️  No se encontró cobertura para el archivo '${fileFilter}'.`));
+    return false;
   }
-
-  const projectRoot = process.cwd();
-  const config = getAuditConfig();
-  const resolvedConfig = buildTestCoverageConfig(config.testCoverage);
-
-  const effectiveThreshold = args.threshold ?? resolvedConfig.threshold;
-
-  // 1. Run tests if requested
-  if (args.run) {
-    console.log(styleText('cyan', `\n🚀 Ejecutando pruebas con cobertura: '${resolvedConfig.runCommand}'...\n`));
-    const res = spawnSync(resolvedConfig.runCommand, {
-      cwd: projectRoot,
-      stdio: 'inherit',
-      shell: true
-    });
-    if (res.status !== 0) {
-      console.error(styleText('red', `\n💥 La ejecución de pruebas terminó con código ${res.status}.`));
-      process.exit(res.status ?? 1);
-    }
+  console.log(styleText('bold', `\n📄 DETALLE DE ARCHIVO: ${found.relPath}\n`));
+  console.log(`  • Statements: ${found.statements.pct}% (${found.statements.covered}/${found.statements.total})`);
+  console.log(`  • Ramas:      ${found.branches.pct}% (${found.branches.covered}/${found.branches.total})`);
+  console.log(`  • Funciones:  ${found.functions.pct}% (${found.functions.covered}/${found.functions.total})`);
+  console.log(`  • Líneas:     ${found.lines.pct}% (${found.lines.covered}/${found.lines.total})`);
+  if (found.uncoveredLines.length > 0) {
+    console.log(styleText('red', `\n  ❌ Líneas sin testear: ${found.uncoveredLines.join(', ')}`));
+  } else {
+    console.log(styleText('green', `\n  ✨ 100% de las líneas cubiertas por pruebas.`));
   }
+  console.log();
+  return true;
+}
 
-  // 2. Resolve coverage file path
-  const coverageFile = resolveCoverageFile(projectRoot, resolvedConfig.path);
-
-  if (!coverageFile) {
-    console.error(styleText('red', `\n❌ No se encontró el archivo de cobertura en '${resolvedConfig.path}'.`));
-    console.log(styleText('yellow', '   Ejecuta tus pruebas con cobertura primero usando:'));
-    console.log(styleText('bold', `   npm run audit:test-coverage -- --run\n`));
-    process.exit(1);
+function renderUntrackedView(untrackedFiles: readonly string[], topLimit: number): void {
+  console.log(styleText('bold', `\n📦 ARCHIVOS EN DISCO NO RASTREADOS POR TESTS (${untrackedFiles.length}):\n`));
+  console.log(renderUntrackedTable(untrackedFiles, topLimit));
+  if (untrackedFiles.length > topLimit) {
+    console.log(styleText('dim', `   ... y ${untrackedFiles.length - topLimit} archivos más (usa --top=${untrackedFiles.length} para ver todos).`));
   }
+  console.log();
+}
 
-  const rawJson = JSON.parse(fs.readFileSync(coverageFile, 'utf8')) as Record<string, unknown>;
-
-  // 3. Complexity Map (Optional for hotspots)
-  const complexityMap = args.hotspotsOnly || !args.jsonOutput ? loadFallowComplexityMap(projectRoot) : undefined;
-
-  // 4. Analyze
-  const report = analyzeTestCoverage(
-    rawJson,
-    projectRoot,
-    {
-      ...resolvedConfig,
-      threshold: effectiveThreshold
-    },
-    complexityMap
-  );
-
-  // 5. Output JSON if requested
-  if (args.jsonOutput) {
-    console.log(JSON.stringify(report, null, 2));
-    if (args.check && report.overall.statements.pct < effectiveThreshold) {
-      process.exit(1);
-    }
-    return;
+function renderHotspotsView(hotspots: readonly CoverageHotspot[], topLimit: number): void {
+  console.log(styleText('bold', `\n🔥 HOTSPOTS DE RIESGO (Complejidad Fallow + Baja Cobertura) (${hotspots.length}):\n`));
+  console.log(renderHotspotsTable(hotspots, topLimit));
+  if (hotspots.length > topLimit) {
+    console.log(styleText('dim', `   ... y ${hotspots.length - topLimit} hotspots más.`));
   }
+  console.log();
+}
 
-  // 6. Terminal Box-Drawing UI
-  console.log(renderBanner('REPORTE DE COBERTURA DE PRUEBAS', `v${AUDITOR_VERSION}  |  Vitest & Istanbul Analytics`));
-
-  // Single file drill-down
-  if (args.fileFilter) {
-    const targetFile = args.fileFilter.replace(/^\.\//, '');
-    const found = report.files.find(f => f.relPath === targetFile || f.relPath.endsWith(targetFile));
-    if (!found) {
-      console.log(styleText('yellow', `\n⚠️  No se encontró cobertura para el archivo '${args.fileFilter}'.`));
-      return;
-    }
-    console.log(styleText('bold', `\n📄 DETALLE DE ARCHIVO: ${found.relPath}\n`));
-    console.log(`  • Statements: ${found.statements.pct}% (${found.statements.covered}/${found.statements.total})`);
-    console.log(`  • Ramas:      ${found.branches.pct}% (${found.branches.covered}/${found.branches.total})`);
-    console.log(`  • Funciones:  ${found.functions.pct}% (${found.functions.covered}/${found.functions.total})`);
-    console.log(`  • Líneas:     ${found.lines.pct}% (${found.lines.covered}/${found.lines.total})`);
-    if (found.uncoveredLines.length > 0) {
-      console.log(styleText('red', `\n  ❌ Líneas sin testear: ${found.uncoveredLines.join(', ')}`));
-    } else {
-      console.log(styleText('green', `\n  ✨ 100% de las líneas cubiertas por pruebas.`));
-    }
-    console.log();
-    return;
+function renderFilteredFilesView(files: readonly FileCoverageResult[], args: CliArgs, effectiveThreshold: number): void {
+  let filtered = files;
+  if (args.zeroOnly) {
+    filtered = filtered.filter(f => f.statements.pct === 0);
+    console.log(styleText('bold', `\n⚪ ARCHIVOS CON 0% DE COBERTURA (${filtered.length}):\n`));
+  } else {
+    filtered = filtered.filter(f => f.statements.pct < effectiveThreshold);
+    console.log(styleText('bold', `\n⚠️ ARCHIVOS POR DEBAJO DEL UMBRAL (${effectiveThreshold}%) (${filtered.length}):\n`));
   }
-
-  // Untracked only
-  if (args.untrackedOnly) {
-    console.log(styleText('bold', `\n📦 ARCHIVOS EN DISCO NO RASTREADOS POR TESTS (${report.untrackedFiles.length}):\n`));
-    console.log(renderUntrackedTable(report.untrackedFiles, args.topLimit));
-    if (report.untrackedFiles.length > args.topLimit) {
-      console.log(styleText('dim', `   ... y ${report.untrackedFiles.length - args.topLimit} archivos más (usa --top=${report.untrackedFiles.length} para ver todos).`));
-    }
-    console.log();
-    return;
+  if (args.dirFilter) {
+    filtered = filtered.filter(f => f.relPath.startsWith(args.dirFilter!));
   }
-
-  // Hotspots only
-  if (args.hotspotsOnly) {
-    const hotspots = report.hotspots ?? [];
-    console.log(styleText('bold', `\n🔥 HOTSPOTS DE RIESGO (Complejidad Fallow + Baja Cobertura) (${hotspots.length}):\n`));
-    console.log(renderHotspotsTable(hotspots, args.topLimit));
-    if (hotspots.length > args.topLimit) {
-      console.log(styleText('dim', `   ... y ${hotspots.length - args.topLimit} hotspots más.`));
-    }
-    console.log();
-    return;
+  console.log(renderFilesTable(filtered, args.topLimit));
+  if (filtered.length > args.topLimit) {
+    console.log(styleText('dim', `   ... y ${filtered.length - args.topLimit} archivos más (usa --top=${filtered.length} para ver todos).`));
   }
+  console.log();
+}
 
-  // Filtered files (below or zero)
-  if (args.belowOnly || args.zeroOnly) {
-    let filtered = report.files;
-    if (args.zeroOnly) {
-      filtered = filtered.filter(f => f.statements.pct === 0);
-      console.log(styleText('bold', `\n⚪ ARCHIVOS CON 0% DE COBERTURA (${filtered.length}):\n`));
-    } else {
-      filtered = filtered.filter(f => f.statements.pct < effectiveThreshold);
-      console.log(styleText('bold', `\n⚠️ ARCHIVOS POR DEBAJO DEL UMBRAL (${effectiveThreshold}%) (${filtered.length}):\n`));
-    }
-    if (args.dirFilter) {
-      filtered = filtered.filter(f => f.relPath.startsWith(args.dirFilter!));
-    }
-    console.log(renderFilesTable(filtered, args.topLimit));
-    if (filtered.length > args.topLimit) {
-      console.log(styleText('dim', `   ... y ${filtered.length - args.topLimit} archivos más (usa --top=${filtered.length} para ver todos).`));
-    }
-    console.log();
-    return;
-  }
-
-  // Global Summary Banner
+function renderGlobalCoverageSummary(report: TestCoverageReport, args: CliArgs, effectiveThreshold: number): void {
   const o = report.overall;
   const b = report.buckets;
   console.log(`
@@ -478,7 +405,6 @@ ${styleText('bold', '🎯 DISTRIBUCIÓN DE ARCHIVOS:')}
   ⚠️  No rastreados:      ${b.untracked > 0 ? styleText(['bold', 'yellow'], String(b.untracked)) : styleText('green', '0')}
 `);
 
-  // Directory breakdown table
   let dirs = report.directories;
   if (args.dirFilter) {
     dirs = dirs.filter(d => d.directory.startsWith(args.dirFilter!));
@@ -487,22 +413,104 @@ ${styleText('bold', '🎯 DISTRIBUCIÓN DE ARCHIVOS:')}
   console.log(renderDirectoriesTable(dirs, report.overall));
   console.log();
 
-  // Highlight hotspots summary if any
   if (report.hotspots && report.hotspots.length > 0) {
     const topHotspot = report.hotspots[0]!;
     console.log(styleText('yellow', `💡 Sugerencia: Hay ${report.hotspots.length} archivo(s) con alta complejidad y baja cobertura.`));
     console.log(styleText('dim', `   Ejecuta 'npm run audit:test-coverage -- --hotspots' para ver la lista de riesgo (Top: ${topHotspot.relPath}).\n`));
   }
+}
 
-  // 7. Quality Gate (--check)
-  if (args.check) {
-    const failed = o.statements.pct < effectiveThreshold;
-    if (failed) {
-      console.error(styleText(['bold', 'red'], `❌ FALLO DE CALIDAD: Cobertura global de statements (${o.statements.pct}%) inferior al umbral configurado (${effectiveThreshold}%).`));
+function runTestRunnerIfRequested(shouldRun: boolean | undefined, runCommand: string, projectRoot: string): void {
+  if (!shouldRun) return;
+  console.log(styleText('cyan', `\n🚀 Ejecutando pruebas con cobertura: '${runCommand}'...\n`));
+  const res = spawnSync(runCommand, { cwd: projectRoot, stdio: 'inherit', shell: true });
+  if (res.status !== 0) {
+    console.error(styleText('red', `\n💥 La ejecución de pruebas terminó con código ${res.status}.`));
+    process.exit(res.status ?? 1);
+  }
+}
+
+function loadCoveragePayloadOrExit(projectRoot: string, configPath: string): Record<string, unknown> {
+  const coverageFile = resolveCoverageFile(projectRoot, configPath);
+  if (!coverageFile) {
+    console.error(styleText('red', `\n❌ No se encontró el archivo de cobertura en '${configPath}'.`));
+    console.log(styleText('yellow', '   Ejecuta tus pruebas con cobertura primero usando:'));
+    console.log(styleText('bold', `   npm run audit:test-coverage -- --run\n`));
+    process.exit(1);
+  }
+  return JSON.parse(fs.readFileSync(coverageFile, 'utf8')) as Record<string, unknown>; // open-record: Istanbul coverage json payload
+}
+
+function renderSpecificCoverageView(
+  report: ReturnType<typeof analyzeTestCoverage>,
+  args: ReturnType<typeof parseCommandLineArgs>,
+  effectiveThreshold: number
+): boolean {
+  if (args.fileFilter) {
+    renderFileDrillDown(report, args.fileFilter);
+    return true;
+  }
+  if (args.untrackedOnly) {
+    renderUntrackedView(report.untrackedFiles, args.topLimit);
+    return true;
+  }
+  if (args.hotspotsOnly) {
+    renderHotspotsView(report.hotspots ?? [], args.topLimit);
+    return true;
+  }
+  if (args.belowOnly || args.zeroOnly) {
+    renderFilteredFilesView(report.files, args, effectiveThreshold);
+    return true;
+  }
+  return false;
+}
+
+function evaluateCoverageQualityGate(
+  report: ReturnType<typeof analyzeTestCoverage>,
+  effectiveThreshold: number
+): void {
+  const failed = report.overall.statements.pct < effectiveThreshold;
+  if (failed) {
+    console.error(styleText(['bold', 'red'], `❌ FALLO DE CALIDAD: Cobertura global de statements (${report.overall.statements.pct}%) inferior al umbral configurado (${effectiveThreshold}%).`));
+    process.exit(1);
+  }
+  console.log(styleText(['bold', 'green'], `✅ PUERTA DE CALIDAD APROBADA: Cobertura (${report.overall.statements.pct}%) >= ${effectiveThreshold}%.`));
+}
+
+export async function runTestCoverageReport(): Promise<void> {
+  const args = parseCommandLineArgs();
+  if (args.help) {
+    printUsage();
+    return;
+  }
+
+  const projectRoot = process.cwd();
+  const config = getAuditConfig();
+  const resolvedConfig = buildTestCoverageConfig(config.testCoverage);
+  const effectiveThreshold = args.threshold ?? resolvedConfig.threshold;
+
+  runTestRunnerIfRequested(args.run, resolvedConfig.runCommand, projectRoot);
+
+  const rawJson = loadCoveragePayloadOrExit(projectRoot, resolvedConfig.path);
+  const complexityMap = args.hotspotsOnly || !args.jsonOutput ? loadFallowComplexityMap(projectRoot) : undefined;
+  const report = analyzeTestCoverage(rawJson, projectRoot, { ...resolvedConfig, threshold: effectiveThreshold }, complexityMap);
+
+  if (args.jsonOutput) {
+    console.log(JSON.stringify(report, null, 2));
+    if (args.check && report.overall.statements.pct < effectiveThreshold) {
       process.exit(1);
-    } else {
-      console.log(styleText(['bold', 'green'], `✅ PUERTA DE CALIDAD APROBADA: Cobertura (${o.statements.pct}%) >= ${effectiveThreshold}%.`));
     }
+    return;
+  }
+
+  console.log(renderBanner('REPORTE DE COBERTURA DE PRUEBAS', `v${AUDITOR_VERSION}  |  Vitest & Istanbul Analytics`));
+
+  if (!renderSpecificCoverageView(report, args, effectiveThreshold)) {
+    renderGlobalCoverageSummary(report, args, effectiveThreshold);
+  }
+
+  if (args.check) {
+    evaluateCoverageQualityGate(report, effectiveThreshold);
   }
 }
 

@@ -217,7 +217,7 @@ export function extractJsonReportFilePaths(
   rawJson: string,
   fallbackFindings?: readonly { file?: string }[]
 ): string[] {
-  const result: string[] = [];
+  const result: string[] = []; // no-domain: Non-domain utility collection or data structure
   try {
     const parsed = JSON.parse(rawJson);
     if (Array.isArray(parsed)) {

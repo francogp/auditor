@@ -13,16 +13,12 @@ import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverag
 
 enableCompileCache();
 
-export type TestCoverageRuleId =
-  | 'test-coverage-below-threshold'
-  | 'test-coverage-missing-report'
-  | 'test-coverage-untracked-files';
-
-export const TEST_COVERAGE_RULES: readonly TestCoverageRuleId[] = [
+export const TEST_COVERAGE_RULES = [
   'test-coverage-below-threshold',
   'test-coverage-missing-report',
   'test-coverage-untracked-files'
 ] as const;
+export type TestCoverageRuleId = (typeof TEST_COVERAGE_RULES)[number];
 
 export interface ValidateTestCoverageOptions {
   projectRoot?: string;
@@ -56,22 +52,15 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    const covConfig = config.testCoverage;
-
-    if (!covConfig?.enabled || !covConfig.enforceInAudit) {
-      for (const r of TEST_COVERAGE_RULES) {
-        this.markRuleNotApplicable(r, 'Test coverage enforceInAudit desactivado');
-      }
-      return;
-    }
+    if (this.isSuiteGatingDisabled('Test coverage enforceInAudit desactivado')) return;
 
     for (const r of TEST_COVERAGE_RULES) {
       this.markRuleEvaluated(r);
     }
 
     const projectRoot = this.projectRoot;
-    const resolvedCovConfig = buildTestCoverageConfig(covConfig);
+    const config = getAuditConfig(projectRoot);
+    const resolvedCovConfig = buildTestCoverageConfig(config.testCoverage);
     const threshold = resolvedCovConfig.threshold;
 
     const coverageFile = resolveCoverageFile(projectRoot, resolvedCovConfig.path);
@@ -89,7 +78,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
     }
 
     try {
-      const rawJson = JSON.parse(fs.readFileSync(coverageFile, 'utf8')) as Record<string, unknown>;
+      const rawJson = JSON.parse(fs.readFileSync(coverageFile, 'utf8')) as Record<string, unknown>; // open-record: Generic parsed coverage JSON dictionary
       const report = analyzeTestCoverage(rawJson, projectRoot, resolvedCovConfig);
 
       if (report.overall.statements.pct < threshold) {

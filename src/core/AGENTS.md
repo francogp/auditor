@@ -53,6 +53,7 @@ Architecture & Tooling Engineers.
   - `domain.allowedNumericConstantPrefixes`: Prefix exceptions for numeric constant names (`['GEN_', 'ISO_', 'RGB_']`).
 - **Linter Fix Mode Deduplication (`isFixModeRequested`)**: `BaseAuditor` exposes `isFixModeRequested()` to detect CLI fix flags (`--fix`, `fix=true`), deduplicating fix mode handling across external linter wrappers.
 - **Dynamic GitIgnore Requirements Contract (`GitIgnoreRegistry`, `GitIgnoreRequirement`)**: Sub-auditors (built-in or user-extended) and modules MUST NOT rely on hardcoded gitignore lists. Each sub-auditor declares its required gitignore entries via `AuditorOptions.gitIgnoreEntries?: readonly GitIgnoreRequirement[]` and static `gitIgnoreEntries` on the class. `BaseAuditor` dynamically registers them into `GitIgnoreRegistry`. `ValidateAuditConfigAuditor` dynamically collects requirements from all discovered modules and user extensions, verifying `.gitignore` coverage and providing auto-repair (`--fix`).
+- **Dynamic Configuration File Requirements & Auto-Fix Contract (`ConfigFileRegistry`, `AuditorConfigFileRequirement`)**: Sub-auditors and extensions declare required configuration files and canonical scaffolding via `AuditorOptions.configFiles?: readonly AuditorConfigFileRequirement[]`. `BaseAuditor` dynamically registers them into `ConfigFileRegistry` and provides `resolveConfigFile()`, `ensureConfigFile()`, `verifyAndFixConfigFiles()`, and `isFixActive()`. In check mode, missing files emit explicit violations with `ruleId`; in `--fix` mode, canonical configurations are scaffolded automatically.
 - **Mandatory Thematic Emojis (`AuditorOptions.icon`)**: Every sub-auditor and host extension MUST declare `icon: string` (e.g. `icon: '🏛️'`, `icon: '🎨'`, `icon: '🧩'`). If omitted or empty, `validateAuditorOptions` throws an explicit, loud runtime `Error`. Generic cogs (`⚙️`) are reserved exclusively for internal configuration validators.
 - **Transparent Skip Status Contract (`markSkipped`, `status: 'skipped'`, `⏭️ SKIP`)**: When an auditor must be bypassed (environmental guards, config, or fast presets), it calls `this.markSkipped(reason)`. The streaming runner renders `⏭️  SKIP` in cyan with its thematic icon and justification. Summary tables reflect skipped suites: `(X Omitida ⏭️)` rather than masking them as passed.
 - **Strict Booleans and Zero Backward Compatibility**: Configurations in `audit.config.ts` MUST use strict types and compile-time booleans (`true`/`false`). Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and fail validation immediately with loud errors.
@@ -63,21 +64,44 @@ Architecture & Tooling Engineers.
 ## Key Files
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
-- [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader (`getAuditConfig`, `defineAuditConfig`).
+- [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).
+- [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
+- [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and `defineAuditConfig` builder.
+- [`auditConfigLoader.ts`](./auditConfigLoader.ts): Configuration file discovery, loading, and child process environment serialization.
+- [`auditConfigTypes.ts`](./auditConfigTypes.ts): Domain types, interfaces, and sub-configuration contracts for the audit engine.
+- [`auditConfigValidators.ts`](./auditConfigValidators.ts): Configuration validation rules, legacy config blockers, and anti-abuse policies.
 - [`auditContract.ts`](./auditContract.ts): Core TypeScript interfaces for findings, suites, and results.
 - [`auditCoverage.ts`](./auditCoverage.ts): Audit file and rule coverage map tracking and verification engine.
 - [`auditorBase.ts`](./auditorBase.ts): Abstract base classes (`BaseAuditor`, `FileScanAuditor`) and canonical ignore directories.
+- [`auditPathPredicates.ts`](./auditPathPredicates.ts): Project root matching, path category predicates, and Z-Layers resolution helpers.
+- [`configFileRegistry.ts`](./configFileRegistry.ts): Centralized registry for dynamic configuration file requirements and auto-fix scaffolding declared across sub-auditors and extensions.
 - [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.
+- [`fileTreeRenderer.ts`](./fileTreeRenderer.ts): Box-Drawing hierarchical file and finding tree renderer.
 - [`gitIgnoreRegistry.ts`](./gitIgnoreRegistry.ts): Centralized registry for dynamic `.gitignore` requirements declared across sub-auditors and extensions.
 - [`gitignoreMatcher.ts`](./gitignoreMatcher.ts): Gitignore parsing and fast path matching utility.
+- [`markdownReport.ts`](./markdownReport.ts): Comprehensive Markdown audit report generator.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
+- [`suiteGating.ts`](./suiteGating.ts): Single Source of Truth for suite enablement evaluation and CLI list filter options.
+- [`terminalVisuals.ts`](./terminalVisuals.ts): Visual width calculation, text alignment, and ANSI color formatting helpers.
 - [`testCoverageCore.ts`](./testCoverageCore.ts): Centralized Istanbul/C8 coverage analysis engine and metric calculations.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
 - [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.
 - [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, and SemVer bump calculation engine.
+
+## Work Guidance
+
+- Core abstractions must remain hermetic with zero side-effects on stdout during instantiated runs.
+- Terminal rendering in `unifiedTheme.ts` must respect 80-column limits and calculate string widths via `getVisualWidth`.
+- Configuration loading must maintain active-by-default behavior and prevent silent bypasses.
+
+## Verification
+
+- Run core unit tests: `npm test -- tests/unified_theme.test.ts`
+- Run config loader tests: `npm test -- tests/validate_audit_config.test.ts`
+- Run architecture rules: `npm run audit:lint`
 
 ## Child DOX Index
 

@@ -33,24 +33,43 @@ const ROOT = process.cwd();
 const EXTENSIONS = new Set(['.ts', '.vue']); // runtime-set: Fast O(1) membership lookup set
 export const DEFAULT_TEST_PATH_MARKERS = ['.test.', '.spec.'];
 const ESCAPE_HATCHES = ['domain-ok', 'string-ok', 'open-record', 'runtime-set', 'runtime-map', 'no-domain', 'lib-duplicate-ok', 'result-ok'];
+export const CANONICAL_INFRA_ID_WHITELIST = [
+    'suiteId',
+    'ruleId',
+    'runId',
+    'buildId',
+    'eslintRuleId',
+    'candidate_id',
+    'requiredSuiteId',
+    'rule_id'
+];
+function isExemptDomainCastTarget(castTarget) {
+    if (/^T[A-Z]/.test(castTarget))
+        return true;
+    const config = getAuditConfig();
+    const infraList = [...CANONICAL_INFRA_ID_WHITELIST, ...(config.domain.infraIdWhitelist ?? [])].map(id => id.toLowerCase().replace(/_/g, ''));
+    const lowerTarget = castTarget.toLowerCase().replace(/_/g, '');
+    return infraList.some(infra => lowerTarget.includes(infra));
+}
 // ─── Patterns ────────────────────────────────────────────────────────────────
-const P_SET_STRING = /\bnew\s+Set\s*(?:<[^>]+>)?\s*\(\s*\[\s*['"`]/g;
-const P_MAP_STRING = /\bnew\s+Map\s*(?:<[^>]+>)?\s*\(\s*\[\s*\[\s*['"`]/g;
-const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::\s*(?:readonly\s+)?(?:string\[\]|Array\s*<\s*string\s*>|ReadonlyArray\s*<\s*string\s*>))?\s*=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+const P_SET_STRING = /\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]/g;
+const P_MAP_STRING = /\bnew\s+Map\s*(?:<[^>]+>\s*)?\(\s*\[\s*\[\s*['"`]/g;
+const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::\s*(?:readonly\s+)?(?:string\[\]|Array\s*<\s*string\s*>|ReadonlyArray\s*<\s*string\s*>)\s*)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
 const P_TYPED_STRING_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*:\s*(?:readonly\s+)?(?:string\[\]|Array\s*<\s*string\s*>|ReadonlyArray\s*<\s*string\s*>)/g;
 const P_TYPE_ALIAS_STRING = /\b(?:export\s+)?type\s+\w+\s*=\s*string\s*;/g;
 const P_REDUNDANT_TYPE_ALIAS = /\b(?:export\s+)?type\s+([A-Z_a-z]\w*)\s*=\s*([A-Z_a-z]\w*)\s*;/g;
 const P_REDUNDANT_VALUE_ALIAS = /^\s*export\s+const\s+([A-Z_a-z]\w*)\s*=\s*([A-Z_a-z]\w*)\s*;/gm;
 const P_BOOLEAN_LITERAL_TYPE_ANNOTATION = /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm;
 const P_STRING_SINK_UNION = /\b(?:export\s+)?type\s+\w+\s*=\s*(?=[^;\n]*['"`][^'"`]+['"`])[^;\n]*\|\s*string\s*;/g;
-const P_FIELD_WILDCARD_STRING_UNION = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*(?!\s*string\s*(?:\[\])?\s*[;,]?)[^;\n]*\|\s*string\b[^;\n]*[;,]?/gm;
+const P_FIELD_WILDCARD_STRING_UNION = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*(?!string\s*(?:\[\])?\s*[;,]?)[^;\n]*\|\s*string\b[^;\n]*[;,]?/gm;
+const P_INLINE_LITERAL_UNION_PROPERTY = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*(?:'[^']+'|"[^"]+")(?:\s*\|\s*(?:'[^']+'|"[^"]+"))+/gm;
 const P_OPEN_STRING_INTERSECTION = /\b(?:export\s+)?type\s+\w+\s*=[^;\n]*string\s*&\s*\{\s*\}[^;\n]*;/g;
 const P_RECORD_STRING_KEY = /\bRecord\s*<\s*string\s*,/g;
 const P_RECORD_PROPERTY_KEY = /\bRecord\s*<\s*PropertyKey\s*,/g;
 const P_INDEX_SIGNATURE = /\[\s*\w+\s*:\s*string\s*\]\s*:/g;
 const P_DOMAIN_STRING_FIELD = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*string(?:\[\])?\s*[;,]?/gm;
 const P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS = /^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*;|^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*;/gm;
-const P_AMBIGUOUS_EMPTY_NULL_FIELD = /^\s*(?:readonly\s+)?\w+\??:\s*[^;\n]*(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*[;,]?|^\s*(?:readonly\s+)?\w+\??:\s*[^;\n]*(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*[;,]?/gm;
+const P_AMBIGUOUS_EMPTY_NULL_FIELD = /^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n]*)?(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*[;,]?|^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n]*)?(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*[;,]?/gm;
 const P_RUNTIME_CASE_NORMALIZATION = /\b\w+\.(?:toLowerCase|toUpperCase)\s*\(\s*\)\s*(?:as\s+\w+|satisfies\s+\w+)?/g;
 const P_TYPECAST_UNKNOWN = /\bas\s+unknown\s+as\b/g;
 const P_TYPECAST_INLINE_ANY = /\bas\s+any\b/g;
@@ -67,8 +86,8 @@ const P_UNENFORCED_STATIC_MAP = /\bexport\s+const\s+[A-Z][A-Z0-9_]{3,}\s*=\s*\{/
 const P_FLOATING_PROMISE = /^\s*(?!(?:await|void|return|const|let|var)\s+)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm;
 const P_LEAKED_GLOBAL_MUTABLE = /^(?:export\s+)?let\s+[a-z]\w*\s*=/gm;
 const P_DYNAMIC_IMPORT_IN_HOT_PATH = /\b(?:for|while)\s*\([^)]*\)\s*\{[^}]*?\bimport\s*\(/g;
-const P_PARAM_WILDCARD_STRING_UNION = /\b([A-Za-z0-9_]{2,}[iI]d)\s*\??:\s*(?:[A-Z]\w*Id|[A-Z]\w*)\s*\|\s*string\b/g;
-const P_PARAM_DOMAIN_ID_NULLABLE = /\b([A-Za-z0-9_]{2,}[iI]d)\s*:\s*(?:[A-Z]\w*Id)\s*\|\s*(?:null|undefined)\b|\b([A-Za-z0-9_]{2,}[iI]d)\s*:\s*(?:null|undefined)\s*\|\s*(?:[A-Z]\w*Id)\b/g;
+const P_PARAM_WILDCARD_STRING_UNION = /\b(\w{2,}[iI]d)\s*\??:\s*(?:[A-Z]\w*Id|[A-Z]\w*)\s*\|\s*string\b/g;
+const P_PARAM_DOMAIN_ID_NULLABLE = /\b(\w{2,}[iI]d)\s*:\s*[A-Z]\w*Id\s*\|\s*(?:null|undefined)\b|\b(\w{2,}[iI]d)\s*:\s*(?:null|undefined)\s*\|\s*[A-Z]\w*Id\b/g;
 const P_DOMAIN_TYPE_NULLABLE = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=[^;\n]*\|\s*(?:null|undefined)\b/g;
 const P_DOUBLE_CAST_DOMAIN_ID = /\bas\s+(?:unknown|any)\s+as\s+[A-Z]\w*Id\b/g;
 const BASE_UNKNOWN_PARAM_TERMS = [
@@ -154,19 +173,41 @@ export async function auditFile(filePath) {
     if (rel.endsWith('validate_domain_types.ts'))
         return [];
     const findings = [];
-    findings.push(...findMatches(content, rel, P_SET_STRING, 'Set used as finite-domain storage/validator (use `as const` array + derived type)', 'ERROR'));
+    findings.push(...findMatches(content, rel, P_SET_STRING, 'Set used as finite-domain storage/validator (use `as const` array + derived type)', 'ERROR', (match, line) => {
+        if (/\ballowedExtensions\s*:\s*new\s+Set/.test(line))
+            return false;
+        const NON_DOMAIN_SET_PATTERN = /\b\w*(?:FLAGS|DIRS|ROOTS|PATHS|COMMANDS|TAGS|ELEMENTS|SELECTORS|TOKENS|KEYWORDS|CHARS|GLOBS|FILES|EXTENSIONS|NAMES|KEYS|WORDS|ALIASES|SKILLS|SKIP|VARIANTS|CLASSES|BUILTINS|PACKAGES|ENTRIES|LINES|CHUNKS|ATTRIBUTES|PROPERTIES)\b/i;
+        if (NON_DOMAIN_SET_PATTERN.test(line))
+            return false;
+        if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(line))
+            return false;
+        if (line.includes('--') || line.includes('// runtime-set:') || line.includes('// no-domain:'))
+            return false;
+        const matchIdx = match.index;
+        const prefix = content.slice(Math.max(0, matchIdx - 80), matchIdx);
+        if (/allowedExtensions\s*:\s*$/i.test(prefix.trim()))
+            return false;
+        if (NON_DOMAIN_SET_PATTERN.test(prefix.trim()))
+            return false;
+        const suffix = content.slice(matchIdx, matchIdx + 80);
+        if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(suffix))
+            return false;
+        return true;
+    }));
     findings.push(...findMatches(content, rel, P_MAP_STRING, 'Map with string/domain keys used as finite-domain map (use typed object/Record with union keys)', 'ERROR'));
+    const NON_DOMAIN_COLLECTION_REGEX = /\b(?:let|const|var)\s+\w*(?:lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details|dirs|paths|roots|globs|labels|violations|items|commands|scripts|headers|steps|rules|types|extensions|modules|sections|subtitles|names|codes|tags|candidates|res|list|arr|output|buffer|elements|records|sources|targets|params|values|keys|props|attributes|variants|aliases|skills)\b/i;
+    const isExemptCollectionLine = (line) => {
+        const trimmed = line.trim();
+        if (NON_DOMAIN_COLLECTION_REGEX.test(trimmed))
+            return true;
+        return line.includes('// no-domain:') || line.includes('// string-ok:') || line.includes('// array-ok:');
+    };
     findings.push(...findMatches(content, rel, P_LITERAL_ARRAY_DECL, 'String literal array without `as const` — potential untyped domain (MUST use `as const satisfies readonly DomainType[]` or mark `// no-domain: Non-domain utility collection or data structure`)', 'ERROR', (match, line) => {
         if (match[0].includes('as const'))
             return false;
-        const trimmed = line.trim();
-        // Filter out report/log/text buffers and class names
-        return !/const\s+(?:report|candidates|lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details)\s*=/i.test(trimmed);
+        return !isExemptCollectionLine(line);
     }));
-    findings.push(...findMatches(content, rel, P_TYPED_STRING_ARRAY_DECL, 'String array type annotation erases finite domain values (MUST use `as const` or specific domain array type)', 'ERROR', (_match, line) => {
-        const trimmed = line.trim();
-        return !/const\s+(?:lines|parts|chunks|words|tokens|report|candidates|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details)\s*:\s*(?:readonly\s+)?string\[\]/i.test(trimmed);
-    }));
+    findings.push(...findMatches(content, rel, P_TYPED_STRING_ARRAY_DECL, 'String array type annotation erases finite domain values (MUST use `as const` or specific domain array type)', 'ERROR', (_match, line) => !isExemptCollectionLine(line)));
     findings.push(...findMatches(content, rel, P_TYPE_ALIAS_STRING, 'Type alias directly to `string` — defeats domain enforcement', 'ERROR'));
     findings.push(...findMatches(content, rel, P_BOOLEAN_LITERAL_TYPE_ANNOTATION, 'Literal boolean type annotation (true/false) used instead of boolean type contract (MUST use `: boolean`)', 'ERROR'));
     findings.push(...findMatches(content, rel, P_REDUNDANT_TYPE_ALIAS, 'Redundant 1:1 type redefinition — use the canonical source type directly at usage sites instead of declaring passthrough aliases', 'ERROR', (match, line) => {
@@ -199,6 +240,7 @@ export async function auditFile(filePath) {
     findings.push(...findMatches(content, rel, P_STRING_SINK_UNION, 'Enum-like union ends with `| string` — compiler cannot reject invalid domain values', 'ERROR'));
     findings.push(...findMatches(content, rel, P_FIELD_WILDCARD_STRING_UNION, 'Strict domain type combined with `| string` wildcard union — erases compile-time type safety', 'ERROR', (_match, _line, file) => isContractFile(file) && !isAmbientDeclarationFile(file), true // overrideEscapeHatch: ignore // domain-ok: Open dynamic text or non-domain string payload if line contains a wildcard union
     ));
+    findings.push(...findMatches(content, rel, P_INLINE_LITERAL_UNION_PROPERTY, 'Inline string literal union in property declaration prohibited — define a canonical `as const` catalog array and derive the domain type alias via `(typeof ARRAY)[number]` (/domain-type-first)', 'ERROR', (_match, line, file) => !isTestFile(file) && !isAmbientDeclarationFile(file) && !line.includes('// domain-ok: Open dynamic text or non-domain string payload') && !line.includes('// type-ok:')));
     findings.push(...findMatches(content, rel, P_PARAM_WILDCARD_STRING_UNION, 'Domain parameter combined with `| string` wildcard union — erases compile-time type safety. Use pure canonical domain type exclusively.', 'ERROR', (_match, _line, file) => !isAmbientDeclarationFile(file) && !isTestFile(file), true // overrideEscapeHatch: escape hatches are strictly forbidden from bypassing | string
     ));
     findings.push(...findMatches(content, rel, P_PARAM_DOMAIN_ID_NULLABLE, 'Domain parameter combined with `| null` or `| undefined` in calculation/handling function — functions must require pure DomainId (guard preconditions at call-site).', 'ERROR', (_match, line, file) => {
@@ -254,13 +296,16 @@ export async function auditFile(filePath) {
         // Filter out template literals used for UI formatting (`${...toUpperCase()}`)
         if (/`[^`]*\$\{[^}]*\.(?:toLowerCase|toUpperCase)\(\)\}[^`]*`/.test(line))
             return false;
-        // Filter out UI presentation variables and configured exempt tokens
+        // Filter out parenthesized expressions or string concatenations (.find(e => ...))
+        if (/\)\.(?:toLowerCase|toUpperCase)\(\)/.test(line))
+            return false;
+        // Filter out UI presentation variables, file paths, parser tokens, and configured exempt tokens
         const config = getAuditConfig();
-        const baseUiTokens = ['title', 'label', 'name', 'text', 'description', 'message', 'query', 'search', 'input', 'key', 'status', 'value', 'clean', 'to', 'current'];
         const customTokens = config.domain?.caseNormalizationExemptTokens ?? [];
-        const exemptTokens = Array.from(new Set([...baseUiTokens, ...customTokens]));
-        const exemptRegex = new RegExp(`\\b(?:${exemptTokens.join('|')})\\.(?:toLowerCase|toUpperCase)\\(\\)`);
+        const exemptRegex = /\b\w*(?:path|file|rel|script|target|norm|base|ext|title|heading|entry|key|bump|part|pos|category|arg|flag|cmd|command|token|word|var|ident|col|row|table|schema|type|status|name|label|text|query|search|filter|input|val|value|code|seg|segment|e|char|str|raw|t)\.(?:toLowerCase|toUpperCase)\(\)/i;
         if (exemptRegex.test(line))
+            return false;
+        if (customTokens.some(tok => new RegExp(`\\b${tok}\\.(?:toLowerCase|toUpperCase)\\(\\)`, 'i').test(line)))
             return false;
         return true;
     }));
@@ -283,12 +328,26 @@ export async function auditFile(filePath) {
             return false;
         return !/\bfunction\s+is[A-Z_a-z]\w*/.test(line) && !/\bis[A-Z_a-z]\w*\s*=\s*/.test(line);
     }));
-    findings.push(...findMatches(content, rel, P_TYPECAST_INLINE_DOMAIN_ID, 'Inline type assertion `as DomainId` used to force dynamic string into domain type — use boundary guard `isDomainId()` or `requireDomainId()`', 'ERROR', (_match, line) => !/\bfunction\s+(?:is|require)[A-Z_a-z]\w*/.test(line) && !/\bis[A-Z_a-z]\w*\s*=\s*/.test(line) && !line.includes('// domain-ok: Open dynamic text or non-domain string payload')));
+    findings.push(...findMatches(content, rel, P_TYPECAST_INLINE_DOMAIN_ID, 'Inline type assertion `as DomainId` used to force dynamic string into domain type — use boundary guard `isDomainId()` or `requireDomainId()`', 'ERROR', (_match, line) => {
+        if (/\bfunction\s+(?:is|require)[A-Z_a-z]\w*/.test(line) || /\bis[A-Z_a-z]\w*\s*=\s*/.test(line))
+            return false;
+        if (line.includes('// domain-ok:') || line.includes('// infra-ok:') || line.includes('// type-ok:') || line.includes('// no-domain:'))
+            return false;
+        const castTarget = _match[0].replace(/^as\s+/, '').trim();
+        return !isExemptDomainCastTarget(castTarget);
+    }));
     findings.push(...findMatches(content, rel, P_TYPECAST_RECORD_STRING, 'Type assertion `as Record<string, ...>` used to bypass strict domain map keys — use typed boundary guard', // open-record: Generic key-value data dictionary container
     'ERROR', (_match, line) => !line.includes('// open-record: Generic key-value data dictionary container') && !line.includes('// no-domain: Non-domain utility collection or data structure')));
     findings.push(...findMatches(content, rel, P_TYPECAST_ARRAY_ANY_UNKNOWN, 'Type assertion `as any[]` or `as unknown[]` erases element domain types — define explicit interface or discriminated union', // type-ok: Sub-auditor violation message describing forbidden cast
     'ERROR', (_match, line) => !line.includes('// any-ok: External third-party untyped boundary payload') && !line.includes('// no-domain: Non-domain utility collection or data structure')));
-    findings.push(...findMatches(content, rel, P_OBJECT_KEYS_CAST, 'Type assertion on `Object.keys(...)` or `Object.entries(...)` to `as DomainId[]` — use typed helper or `isDomainId` filtering', 'ERROR', (_match, line) => !/\bfunction\s+is[A-Z_a-z]\w*/.test(line) && !line.includes('// domain-ok: Open dynamic text or non-domain string payload')));
+    findings.push(...findMatches(content, rel, P_OBJECT_KEYS_CAST, 'Type assertion on `Object.keys(...)` or `Object.entries(...)` to `as DomainId[]` — use typed helper or `isDomainId` filtering', 'ERROR', (_match, line) => {
+        if (/\bfunction\s+is[A-Z_a-z]\w*/.test(line))
+            return false;
+        if (line.includes('// domain-ok:') || line.includes('// infra-ok:') || line.includes('// type-ok:') || line.includes('// no-domain:'))
+            return false;
+        const castTarget = _match[0].replace(/^Object\.(?:keys|entries)\s*\([^)]+\)\s+as\s+/, '').replace(/\[\]$/, '').trim();
+        return !isExemptDomainCastTarget(castTarget);
+    }));
     findings.push(...findMatches(content, rel, P_INLINE_ANONYMOUS_OBJECT_PARAM, 'Inline anonymous object type in function parameter prohibited — define a named interface or type contract', 'ERROR', (_match, line) => !line.includes('// type-ok: Type contract declaration') && !line.includes('// domain-ok: Open dynamic text or non-domain string payload') && !line.includes('withDefaults')));
     findings.push(...findMatches(content, rel, P_UNNAMED_POSITIONAL_TUPLE_RETURN, 'Positional array return without tuple type annotation — declare explicit tuple return type `: readonly [T1, T2]` or `as const`', 'WARN', (_match, line) => !line.includes('// type-ok: Type contract declaration') && !line.includes('as const')));
     findings.push(...findMatches(content, rel, P_UNBRANDED_DOMAIN_ID_ALIAS, 'Unbranded domain ID alias detected — domain IDs should consume Brand<string, "IdName"> for nominal compile-time safety', 'WARN', (_match, line) => !line.includes('// brand-ok: Domain branded primitive type') && !line.includes('// domain-ok: Open dynamic text or non-domain string payload') && !line.includes('string-ok')));
@@ -336,7 +395,7 @@ function getMatchCoordinates(content, matchIndex, lines) {
     return { lineNum, col, line };
 }
 function extractSortedLiterals(matchStr) {
-    const rawLiterals = matchStr.match(/['"`][a-zA-Z0-9_-]+['"`]/g);
+    const rawLiterals = matchStr.match(/['"`][\w-]+['"`]/g);
     if (!rawLiterals || rawLiterals.length < 2)
         return null;
     const literals = Array.from(new Set(rawLiterals.map(l => l.replace(/['"`]/g, '')))).sort();
@@ -375,7 +434,7 @@ function collectFileStringUnions(file, content, unionRegex, unionOccurrences) {
     }
 }
 export function detectRepeatedStringUnions(files) {
-    const P_GENERIC_STRING_UNION = /\b(?:as\s+|:\s*|\btype\s+[A-Za-z]\w*\s*=\s*)\(?(?:\s*['"`][a-zA-Z0-9_-]+['"`]\s*\|)+\s*['"`][a-zA-Z0-9_-]+['"`]\)?/g;
+    const P_GENERIC_STRING_UNION = /\b(?:as\s+|:\s*|\btype\s+[A-Za-z]\w*\s*=\s*)\(?(?:\s*['"`][\w-]+['"`]\s*\|)+\s*['"`][\w-]+['"`]\)?/g;
     const unionOccurrences = new Map();
     for (const { file, content } of files) {
         collectFileStringUnions(file, content, P_GENERIC_STRING_UNION, unionOccurrences);
@@ -388,19 +447,27 @@ export function detectRepeatedStringUnions(files) {
     }
     return repeatedMap;
 }
+const UNIVERSAL_SIGNATURE_BLACKLIST = new Set([
+    'error|warning',
+    'error|suggestion|warning',
+    'error|info|warning',
+    'asc|desc',
+    'delete|get|patch|post|put',
+    'delete|get|post|put'
+]);
 function parseExportedTypeUnions(content, dep, regex, libraryTypes) {
     regex.lastIndex = 0;
     let match;
     while ((match = regex.exec(content)) !== null) {
         const typeName = match[1];
         const rawUnion = match[2];
-        const rawLiterals = rawUnion.match(/['"][a-zA-Z0-9_-]+['"]/g);
+        const rawLiterals = rawUnion.match(/['"][\w-]+['"]/g);
         if (!rawLiterals)
             continue;
         const literals = Array.from(new Set(rawLiterals.map(l => l.replace(/['"]/g, '')))).sort();
         if (literals.length >= 2) {
             const sigKey = literals.join('|');
-            if (!libraryTypes.has(sigKey)) {
+            if (!UNIVERSAL_SIGNATURE_BLACKLIST.has(sigKey) && !libraryTypes.has(sigKey)) {
                 libraryTypes.set(sigKey, { typeName, pkgName: dep, signature: sigKey });
             }
         }
@@ -410,7 +477,7 @@ export async function extractLibraryDomainTypes(root = ROOT) {
     const libraryTypes = new Map();
     const nodeModulesDir = path.join(root, 'node_modules');
     const pkgJsonPath = path.join(root, 'package.json');
-    const P_EXPORT_TYPE_UNION = /export\s+type\s+([A-Za-z0-9_]+)\s*=\s*\(?((?:['"][a-zA-Z0-9_-]+['"]\s*\|\s*)+['"][a-zA-Z0-9_-]+['"])\)?/g;
+    const P_EXPORT_TYPE_UNION = /export\s+type\s+(\w+)\s*=\s*\(?((?:['"][\w-]+['"]\s*\|\s*)+['"][\w-]+['"])\)?/g;
     let pkgJson;
     try {
         const raw = await fs.readFile(pkgJsonPath, 'utf8');
@@ -419,7 +486,7 @@ export async function extractLibraryDomainTypes(root = ROOT) {
     catch {
         return libraryTypes;
     }
-    const allDeps = Object.keys({ ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) });
+    const allDeps = Object.keys(pkgJson.dependencies || {});
     for (const dep of allDeps) {
         const depDir = path.join(nodeModulesDir, dep);
         try {
@@ -476,9 +543,9 @@ export function detectLibraryDomainTypeDuplicates(files, libraryTypes) {
     const findings = [];
     if (libraryTypes.size === 0)
         return findings;
-    const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::\s*[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-    const P_TYPE_UNION_DECL = /\b(?:export\s+)?type\s+([A-Za-z0-9_]+)\s*=\s*([^\n;]+(?:['"`][a-zA-Z0-9_-]+['"`]\s*\|\s*)+['"`][a-zA-Z0-9_-]+['"`][^\n;]*)/g;
-    const P_PROP_UNION_DECL = /\b([A-Za-z0-9_]+)\??:\s*([^\n;{]+(?:['"`][a-zA-Z0-9_-]+['"`]\s*\|\s*)+['"`][a-zA-Z0-9_-]+['"`][^\n;]*)/g;
+    const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+    const P_TYPE_UNION_DECL = /\b(?:export\s+)?type\s+(\w+)\s*=\s*([^\n;]+(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`][^\n;]*)/g;
+    const P_PROP_UNION_DECL = /\b(\w+)\??:\s*([^\n;{]+(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`][^\n;]*)/g;
     const reportIfLibraryDuplicate = (sigKey, file, lineNum, col, snippet, messageBuilder) => {
         if (!sigKey)
             return;
@@ -540,8 +607,8 @@ export function extractProjectCanonicalDomains(files) {
     const bySignature = new Map();
     const list = [];
     const collisions = [];
-    const P_CANONICAL_ARRAY = /\bexport\s+const\s+([A-Za-z0-9_]+)\s*(?::\s*[^=]+)?=\s*\[\s*['"`]([\s\S]*?)\]\s+as\s+const/g;
-    const P_CANONICAL_TYPE = /\bexport\s+type\s+([A-Za-z0-9_]+)\s*=\s*\(?((?:['"`][a-zA-Z0-9_-]+['"`]\s*\|\s*)+['"`][a-zA-Z0-9_-]+['"`])\)?/g;
+    const P_CANONICAL_ARRAY = /\bexport\s+const\s+(\w+)\s*(?::[^=]+)?=\s*\[\s*['"`]([\s\S]*?)\]\s+as\s+const/g;
+    const P_CANONICAL_TYPE = /\bexport\s+type\s+(\w+)\s*=\s*\(?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])\)?/g;
     // Prioritize files in typesRoots and dataRoots, then logicRoots
     const config = getAuditConfig();
     const typesRoots = config.paths.typesRoots ?? ['src/types'];
@@ -608,8 +675,8 @@ export function extractProjectCanonicalDomains(files) {
     }
     return { bySignature, list, collisions };
 }
-const P_ANY_LITERAL_ARRAY = /\b(?:(?:export\s+)?const|let|var)\s+([A-Za-z0-9_$]+)\s*(?::\s*[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+([A-Za-z0-9_]+)\s*=\s*\(?((?:['"`][a-zA-Z0-9_-]+['"`]\s*\|\s*)+['"`][a-zA-Z0-9_-]+['"`])\)?/g;
+const P_ANY_LITERAL_ARRAY = /\b(?:(?:export\s+)?const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+(\w+)\s*=\s*\(?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])\)?/g;
 function parseDomainMatch(m, rawContent, rawLines, domainIndex, targetFile) {
     const { lineNum, col, line } = getMatchCoordinates(rawContent, m.index, rawLines);
     if (isCommentLine(line) || hasEscapeHatch(line))
@@ -752,10 +819,8 @@ export class DomainTypesAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        const config = getAuditConfig(this.projectRoot);
-        if (config.domain?.enabled === false) {
+        if (this.isSuiteGatingDisabled('Dominio desactivado en config')) {
             this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
-            this.markRuleNotApplicable('domain-type-violation', 'Dominio desactivado en config');
             return;
         }
         const allFindings = [];

@@ -54,7 +54,7 @@ export function syncEnvScripts(options = {}) {
         'setup-linux.sh',
         'setup-windows.ps1'
     ];
-    const filesUpdated = [];
+    const filesUpdated = []; // no-domain: Non-domain utility collection or data structure
     for (const file of filesToSync) {
         if (syncCanonicalScriptFile(file, packageRootDir, targetDir, options.dryRun)) {
             filesUpdated.push(file);

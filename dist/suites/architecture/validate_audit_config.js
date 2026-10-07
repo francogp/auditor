@@ -15,7 +15,24 @@ import { loadAuditConfig, buildRatchetConfig, AUDITOR_DIR, AUDIT_CONFIG_FILE, LE
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
 import { resolveGitCommit, describeBaselineDefect } from "../../cli/auditRatchet.js";
+import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 enableCompileCache();
+export function createDefaultAuditConfigContent(packageName = 'Project') {
+    return `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: '${packageName}',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'en'
+  }
+});
+`;
+}
 export const AUDIT_CONFIG_RULES = [
     'audit-config-missing-path',
     'audit-config-missing-file',
@@ -59,8 +76,46 @@ export const PATH_ROOT_KEYS = [
     'logicRoots',
     'cliRoots'
 ];
+export const AUDIT_CONFIG_REQUIREMENT = {
+    id: 'audit-config',
+    file: AUDIT_CONFIG_FILE,
+    candidateFiles: [AUDIT_CONFIG_FILE, '.auditor/audit.config.json'],
+    description: 'Configuración del auditor en .auditor/',
+    ruleId: 'audit-config-missing-file',
+    generateDefaultContent: (ctx) => {
+        const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+        if (legacy) {
+            migrateLegacyAuditConfig(ctx.projectRoot);
+            const migratedPath = path.resolve(ctx.projectRoot, AUDIT_CONFIG_FILE);
+            if (fs.existsSync(migratedPath)) {
+                return fs.readFileSync(migratedPath, 'utf-8');
+            }
+        }
+        let pkgName = ctx.packageName || 'Project';
+        try {
+            const pkgRaw = fs.readFileSync(path.resolve(ctx.projectRoot, 'package.json'), 'utf8');
+            const pkg = JSON.parse(pkgRaw);
+            if (pkg.name)
+                pkgName = pkg.name;
+        }
+        catch {
+            // catch-ok: fallback to 'Project'
+        }
+        return createDefaultAuditConfigContent(pkgName);
+    },
+    customMissingMessage: (ctx, file) => {
+        const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+        if (legacy) {
+            return `Configuration error: root-level ${legacy} is no longer supported. Run "auditor fix" to move it to ${file}.`;
+        }
+        return `Configuration error: ${file} does not exist. Run "auditor fix" to initialize default configuration.`;
+    },
+    customMissingFile: (ctx, defaultFile) => {
+        const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+        return legacy ?? defaultFile;
+    }
+};
 export class ValidateAuditConfigAuditor extends BaseAuditor {
-    fixMode;
     constructor(targetPathOrOptions) {
         const options = typeof targetPathOrOptions === 'string'
             ? { projectRoot: targetPathOrOptions }
@@ -68,6 +123,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         const projectRoot = options.projectRoot || process.cwd();
         super({
             capabilities: { lint: true, fix: true },
+            configFiles: [AUDIT_CONFIG_REQUIREMENT],
+            fix: options.fix,
             id: 'validate_audit_config',
             name: 'Audit Configuration Integrity Validator',
             description: 'Valida configuración del auditor en .auditor/',
@@ -92,28 +149,14 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             },
             projectRoot
         });
-        this.fixMode = Boolean(options.fix);
-    }
-    isFixActive() {
-        return this.fixMode || this.isFixModeRequested();
     }
     async runAudit() {
         for (const r of AUDIT_CONFIG_RULES) {
             this.markRuleEvaluated(r);
         }
-        const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-        if (!fs.existsSync(configPath)) {
-            const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(this.projectRoot, f)));
-            this.addViolation({
-                ruleId: 'audit-config-missing-file',
-                severity: 'error',
-                file: legacy ?? AUDIT_CONFIG_FILE,
-                line: 1,
-                message: legacy
-                    ? `Configuration error: root-level ${legacy} is no longer supported. Run "auditor fix" to move it to ${AUDIT_CONFIG_FILE}.`
-                    : `Configuration error: ${AUDIT_CONFIG_FILE} does not exist.`,
-                context: AUDIT_CONFIG_FILE
-            });
+        const requirement = this.configFiles[0] ?? AUDIT_CONFIG_REQUIREMENT;
+        const ensured = await this.ensureConfigFile(requirement);
+        if (!ensured) {
             return;
         }
         this.recordScanned(AUDIT_CONFIG_FILE);
@@ -190,56 +233,57 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         }
         return modified;
     }
+    handleMissingGitIgnoreFile(gitignorePath, requirements) {
+        if (this.isFixActive()) {
+            const contentLines = [
+                '# Auditor tool caches (Added by @francogp/auditor)',
+                ...requirements.map(e => e.pattern),
+                ''
+            ];
+            fs.writeFileSync(gitignorePath, contentLines.join('\n'), 'utf8');
+            return;
+        }
+        this.addViolation({
+            ruleId: 'audit-config-missing-file',
+            severity: 'error',
+            file: '.gitignore',
+            line: 1,
+            message: 'Configuration error: .gitignore does not exist in project root.',
+            context: '.gitignore'
+        });
+    }
+    appendMissingGitIgnoreEntries(gitignorePath, missing) {
+        let existingContent = fs.readFileSync(gitignorePath, 'utf8');
+        if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
+            existingContent += '\n';
+        }
+        const additionLines = [
+            '# Auditor tool caches (Added by @francogp/auditor)',
+            ...missing.map(e => e.pattern),
+            ''
+        ];
+        fs.writeFileSync(gitignorePath, existingContent + (existingContent.endsWith('\n\n') ? '' : '\n') + additionLines.join('\n'), 'utf8');
+    }
     async verifyGitIgnore(config) {
         const gitignorePath = path.resolve(this.projectRoot, '.gitignore');
-        const exists = fs.existsSync(gitignorePath);
         const allRequirements = await collectAllGitIgnoreRequirements(this.projectRoot, config);
-        const applicableRequirements = allRequirements.filter(req => (req.isApplicable ? req.isApplicable(config) : true));
-        if (!exists) {
-            if (this.isFixActive()) {
-                const content = [
-                    '# Auditor tool caches (Added by @francogp/auditor)',
-                    ...applicableRequirements.map(e => e.pattern),
-                    ''
-                ].join('\n');
-                fs.writeFileSync(gitignorePath, content, 'utf8');
-                return;
-            }
-            this.addViolation({
-                ruleId: 'audit-config-missing-file',
-                severity: 'error',
-                file: '.gitignore',
-                line: 1,
-                message: 'Configuration error: .gitignore does not exist in project root.',
-                context: '.gitignore'
-            });
+        const applicable = allRequirements.filter(req => (req.isApplicable ? req.isApplicable(config) : true));
+        if (!fs.existsSync(gitignorePath)) {
+            this.handleMissingGitIgnoreFile(gitignorePath, applicable);
             return;
         }
         const matcher = new GitIgnoreMatcher(this.projectRoot, gitignorePath);
-        const missingRequirements = [];
-        for (const req of applicableRequirements) {
-            const probePath = req.samplePath ?? (req.pattern.endsWith('/') ? `${req.pattern}probe.tmp` : req.pattern);
-            if (!matcher.isIgnored(probePath)) {
-                missingRequirements.push(req);
-            }
-        }
-        if (missingRequirements.length === 0) {
+        const missing = applicable.filter(req => {
+            const probe = req.samplePath ?? (req.pattern.endsWith('/') ? `${req.pattern}probe.tmp` : req.pattern);
+            return !matcher.isIgnored(probe);
+        });
+        if (missing.length === 0)
             return;
-        }
         if (this.isFixActive()) {
-            let existingContent = fs.readFileSync(gitignorePath, 'utf8');
-            if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
-                existingContent += '\n';
-            }
-            const addition = [
-                '# Auditor tool caches (Added by @francogp/auditor)',
-                ...missingRequirements.map(e => e.pattern),
-                ''
-            ].join('\n');
-            fs.writeFileSync(gitignorePath, existingContent + (existingContent.endsWith('\n\n') ? '' : '\n') + addition, 'utf8');
+            this.appendMissingGitIgnoreEntries(gitignorePath, missing);
             return;
         }
-        for (const req of missingRequirements) {
+        for (const req of missing) {
             this.addViolation({
                 ruleId: 'audit-config-missing-gitignore-entry',
                 severity: 'error',
@@ -273,7 +317,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         if (!rawPaths)
             return;
         for (const key of PATH_ROOT_KEYS) {
-            const val = rawPaths[key];
+            const val = rawPaths[key]; // open-record: Generic configuration dictionary
             if (Array.isArray(val)) {
                 for (const item of val) {
                     if (typeof item === 'string') {
@@ -309,7 +353,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             }
         }
     }
-    verifyDomainAndStylePaths(config) {
+    verifyDomainPaths(config) {
         const rawDomain = config._rawConfig?.domain;
         if (rawDomain?.zLayersFile) {
             this.checkPathExists(rawDomain.zLayersFile, 'audit-config-missing-file', 'domain z-layers file');
@@ -327,6 +371,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 }
             }
         }
+    }
+    verifyStylesPaths(config) {
         const rawStyles = config._rawConfig?.styles;
         if (config.styles?.zLayersEnabled !== false && rawStyles) {
             if (rawStyles.baseScssFile) {
@@ -348,6 +394,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             }
         }
     }
+    verifyDomainAndStylePaths(config) {
+        this.verifyDomainPaths(config);
+        this.verifyStylesPaths(config);
+    }
     verifyExtensionPaths(config) {
         const rawExtensions = config._rawConfig?.extensions ?? config.extensions;
         if (!Array.isArray(rawExtensions))
@@ -358,11 +408,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             }
         }
     }
-    verifyPackageScripts(config) {
-        if (config.packageScripts?.enabled === false) {
-            return;
-        }
-        const pkgPath = path.resolve(this.projectRoot, 'package.json');
+    loadPackageJson(pkgPath) {
         if (!fs.existsSync(pkgPath)) {
             this.addViolation({
                 ruleId: 'audit-config-missing-file',
@@ -372,11 +418,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 message: 'Configuration error: package.json does not exist in project root.',
                 context: 'package.json'
             });
-            return;
+            return null;
         }
-        let pkg;
         try {
-            pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            return JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
         }
         catch (_err) {
             this.addViolation({
@@ -387,89 +432,105 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 message: 'Configuration error: package.json could not be parsed as valid JSON.',
                 context: 'package.json'
             });
+            return null;
+        }
+    }
+    checkBuildScriptChainsAuditor(buildScript) {
+        if (REMOVED_COMMIT_GATE_PATTERN.test(buildScript))
+            return true;
+        return (/\bauditor(\.js|\.ts)?(\s|$|[&;])/.test(buildScript) ||
+            /\b(npm|pnpm|bun)\s+run\s+audit(\s|$|[&;])/.test(buildScript));
+    }
+    verifyBuildScript(pkg, config) {
+        if (config.packageScripts?.enforceBuildAudit === false)
+            return false;
+        const buildScript = pkg.scripts?.build;
+        if (!buildScript) {
+            if (this.isFixActive()) {
+                pkg.scripts = pkg.scripts ?? {};
+                pkg.scripts.build = 'auditor';
+                return true;
+            }
+            this.addViolation({
+                ruleId: 'audit-config-missing-build-audit',
+                severity: 'error',
+                file: 'package.json',
+                line: 1,
+                message: 'Build script in package.json is missing or does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
+                context: 'package.json:scripts.build'
+            });
+            return false;
+        }
+        if (!this.checkBuildScriptChainsAuditor(buildScript)) {
+            if (this.isFixActive()) {
+                pkg.scripts.build = `auditor && ${buildScript}`;
+                return true;
+            }
+            this.addViolation({
+                ruleId: 'audit-config-missing-build-audit',
+                severity: 'error',
+                file: 'package.json',
+                line: 1,
+                message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
+                context: buildScript
+            });
+        }
+        return false;
+    }
+    getMissingRecommendedScripts(scripts, config) {
+        const missing = [];
+        for (const [scriptName, scriptCmd] of Object.entries(ESSENTIAL_AUDITOR_SCRIPTS)) {
+            if (!scripts[scriptName]) {
+                missing.push([scriptName, scriptCmd]);
+            }
+        }
+        if (Array.isArray(config.packageScripts?.extraRequiredScripts)) {
+            for (const reqScript of config.packageScripts.extraRequiredScripts) {
+                if (!scripts[reqScript]) {
+                    missing.push([reqScript, `auditor task=${reqScript}`]);
+                }
+            }
+        }
+        return missing;
+    }
+    verifyRecommendedScripts(pkg, config) {
+        if (config.packageScripts?.recommendedScripts === false)
+            return false;
+        const scripts = pkg.scripts ?? {};
+        const missing = this.getMissingRecommendedScripts(scripts, config);
+        if (missing.length === 0)
+            return false;
+        if (this.isFixActive()) {
+            pkg.scripts = pkg.scripts ?? {};
+            for (const [scriptName, scriptCmd] of missing) {
+                pkg.scripts[scriptName] = scriptCmd;
+            }
+            return true;
+        }
+        for (const [scriptName, scriptCmd] of missing) {
+            this.addViolation({
+                ruleId: 'audit-config-missing-recommended-script',
+                severity: 'warning',
+                file: 'package.json',
+                line: 1,
+                message: `Missing recommended auditor script "${scriptName}" in package.json (e.g. "${scriptName}": "${scriptCmd}"). Run "auditor fix" to add automatically.`,
+                context: scriptName
+            });
+        }
+        return false;
+    }
+    verifyPackageScripts(config) {
+        if (config.packageScripts?.enabled === false)
             return;
-        }
+        const pkgPath = path.resolve(this.projectRoot, 'package.json');
+        const pkg = this.loadPackageJson(pkgPath);
+        if (!pkg)
+            return;
         let modified = pkg.scripts ? this.verifyRemovedCommitGate(pkg.scripts) : false;
-        // 1. Build script verification (enforced for all projects governed by the auditor)
-        const shouldEnforceBuildAudit = config.packageScripts?.enforceBuildAudit !== false;
-        if (shouldEnforceBuildAudit) {
-            const buildScript = pkg.scripts?.build;
-            if (!buildScript) {
-                if (this.isFixActive()) {
-                    pkg.scripts = pkg.scripts ?? {};
-                    pkg.scripts.build = 'auditor';
-                    modified = true;
-                }
-                else {
-                    this.addViolation({
-                        ruleId: 'audit-config-missing-build-audit',
-                        severity: 'error',
-                        file: 'package.json',
-                        line: 1,
-                        message: 'Build script in package.json is missing or does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
-                        context: 'package.json:scripts.build'
-                    });
-                }
-            }
-            else if (!REMOVED_COMMIT_GATE_PATTERN.test(buildScript)) {
-                const hasFullAuditor = /\bauditor(\.js|\.ts)?(\s|$|&|;)/.test(buildScript) ||
-                    /\b(npm|pnpm|bun)\s+run\s+audit(\s|$|&|;)/.test(buildScript);
-                if (!hasFullAuditor) {
-                    if (this.isFixActive()) {
-                        pkg.scripts.build = `auditor && ${buildScript}`;
-                        modified = true;
-                    }
-                    else {
-                        this.addViolation({
-                            ruleId: 'audit-config-missing-build-audit',
-                            severity: 'error',
-                            file: 'package.json',
-                            line: 1,
-                            message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
-                            context: buildScript
-                        });
-                    }
-                }
-            }
-        }
-        // 2. Recommended auditor scripts verification
-        if (config.packageScripts?.recommendedScripts !== false) {
-            const scripts = pkg.scripts ?? {};
-            const missingRecommended = [];
-            for (const [scriptName, scriptCmd] of Object.entries(ESSENTIAL_AUDITOR_SCRIPTS)) {
-                if (!scripts[scriptName]) {
-                    missingRecommended.push([scriptName, scriptCmd]);
-                }
-            }
-            if (Array.isArray(config.packageScripts?.extraRequiredScripts)) {
-                for (const reqScript of config.packageScripts.extraRequiredScripts) {
-                    if (!scripts[reqScript]) {
-                        missingRecommended.push([reqScript, `auditor task=${reqScript}`]);
-                    }
-                }
-            }
-            if (missingRecommended.length > 0) {
-                if (this.isFixActive()) {
-                    pkg.scripts = pkg.scripts ?? {};
-                    for (const [scriptName, scriptCmd] of missingRecommended) {
-                        pkg.scripts[scriptName] = scriptCmd;
-                    }
-                    modified = true;
-                }
-                else {
-                    for (const [scriptName, scriptCmd] of missingRecommended) {
-                        this.addViolation({
-                            ruleId: 'audit-config-missing-recommended-script',
-                            severity: 'warning',
-                            file: 'package.json',
-                            line: 1,
-                            message: `Missing recommended auditor script "${scriptName}" in package.json (e.g. "${scriptName}": "${scriptCmd}"). Run "auditor fix" to add automatically.`,
-                            context: scriptName
-                        });
-                    }
-                }
-            }
-        }
+        if (this.verifyBuildScript(pkg, config))
+            modified = true;
+        if (this.verifyRecommendedScripts(pkg, config))
+            modified = true;
         if (modified) {
             fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
         }

@@ -122,6 +122,22 @@ export {
   clearLockedSkillsCache
 } from './auditorBase.ts';
 
+const SKIPPABLE_DIR_NAMES: ReadonlySet<string> = new Set(['node_modules', 'dist', 'scratch']);
+
+function isSkippableDirectory(dirName: string): boolean {
+  if (SKIPPABLE_DIR_NAMES.has(dirName)) return true;
+  return dirName.startsWith('.') && dirName !== '.' && dirName !== '.agents';
+}
+
+function recordIndexedFile(index: Map<string, string[]>, full: string, name: string): void {
+  const existing = index.get(name);
+  if (existing) {
+    existing.push(full);
+  } else {
+    index.set(name, [full]);
+  }
+}
+
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.
  * Ignores common build/temporary directories.
@@ -134,9 +150,7 @@ export function buildRepositoryFileIndex(
 
   function walk(currentDir: string): void {
     if (isIgnoredFn(currentDir)) return;
-    const base = path.basename(currentDir);
-    if (base.startsWith('.') && base !== '.' && base !== '.agents') return;
-    if (base === 'node_modules' || base === 'dist' || base === 'scratch') return;
+    if (isSkippableDirectory(path.basename(currentDir))) return;
 
     let entries: fs.Dirent[];
     try {
@@ -150,15 +164,8 @@ export function buildRepositoryFileIndex(
       const full = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
         walk(full);
-      } else if (entry.isFile()) {
-        if (!isIgnoredFn(full)) {
-          const existing = index.get(entry.name);
-          if (existing) {
-            existing.push(full);
-          } else {
-            index.set(entry.name, [full]);
-          }
-        }
+      } else if (entry.isFile() && !isIgnoredFn(full)) {
+        recordIndexedFile(index, full, entry.name);
       }
     }
   }

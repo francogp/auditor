@@ -85,8 +85,8 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
-  const deps = (hostPkg.dependencies || {}) as Record<string, string>;
-  const devDeps = (hostPkg.devDependencies || {}) as Record<string, string>;
+  const deps = (hostPkg.dependencies || {}) as Record<string, string>; // open-record: Generic parsed package.json dependencies dictionary
+  const devDeps = (hostPkg.devDependencies || {}) as Record<string, string>; // open-record: Generic parsed package.json devDependencies dictionary
   const isDeclared = Boolean(deps['@francogp/auditor'] || devDeps['@francogp/auditor']);
 
   if (!isDeclared) {

@@ -15,113 +15,120 @@ Consult this skill whenever you need to:
 
 - Access general project info, domain models, or manual files.
 - Search for components or locate specific directories.
-- **Audit DOX integrity & detect missing/unindexed AGENTS.md files**: Always run `npm run audit:md` to discover missing indices or broken DOX hierarchy links.
-- **Perform refactorings or major structural changes** to the codebase (which require refreshing and updating DOX indices/AGENTS.md files).
-- Run the `/learn` command to persist new rules or behaviors.
+- **Audit DOX integrity & detect missing/unindexed AGENTS.md files**: Run `npm run audit:md` to discover missing indices or broken DOX hierarchy links.
+- **Perform refactorings or major structural changes** to the codebase (which require refreshing and updating DOX indices and `AGENTS.md` files).
+- Run the `/learn` command to persist new rules, preferences, or lessons.
 - Perform the **Lessons Extraction** (Phase 3, Step 3.1) or **DOX Maintenance** (Phase 4, Step 4.1) during `/safe-commit`.
 
 ---
 
-## 2. Language & Style Integrity (CRITICAL)
+## 2. Language & Path Integrity (CRITICAL)
 
 - **Language Uniformity**: All DOX indices, `AGENTS.md` files, and `.agents/` configuration files MUST be written in English or the native language of the file.
-- **NO Language Mixing**: It is strictly forbidden to mix languages within a single file. Since `AGENTS.md` and skill files are in English, any changes, additions, or proposed rules to them MUST be written in English.
-- **Relative Paths Mandate**: All links to other files and indices in all `AGENTS.md` files MUST use relative paths (e.g. `./database/AGENTS.md` or `../database/AGENTS.md`). Absolute paths are strictly forbidden.
-- **Gitignored Paths**: Directories or files excluded via `.gitignore` that represent a real domain boundary MUST still be referenced in their parent's `Child DOX Index` with the suffix `_(gitignored — reason)_`.
+- **Zero Language Mixing**: It is strictly forbidden to mix languages within a single file. Since `AGENTS.md` and skill files are in English, any changes, additions, or proposed rules to them MUST be written in English.
+- **Relative Paths Mandate**: All links to other files and indices in all `AGENTS.md` files MUST use relative paths (e.g. `./database/AGENTS.md` or `../database/AGENTS.md`). Absolute paths (e.g., `file:///C:/...` or `/home/...`) are strictly forbidden to ensure portability across different development environments.
+- **Gitignored Paths in DOX Indices**: Directories or files excluded via `.gitignore` that represent a real domain boundary MUST still be referenced in their parent's `Child DOX Index` with the suffix `_(gitignored — reason)_`. The audit engine skips existence checks for gitignored paths automatically.
 
 ---
 
-## 3. DOX Framework Rules & Core Contracts
+## 3. DOX Framework Specification
 
-### DOX framework
+### Core Concept
 
-- DOX is highly performant AGENTS.md hierarchy installed here
-- Agent must follow DOX instructions across any edits
-- **Relative Paths Mandate**: All links to other files and indices in all `AGENTS.md` files MUST use relative paths (e.g. `./database/AGENTS.md` or `../database/AGENTS.md`). Absolute paths (e.g., `file:///C:/...` or absolute file system URLs) are strictly forbidden to ensure portability across different development environments. If any absolute paths are found in any `AGENTS.md` files, they must be corrected to relative paths immediately.
-- **Mandatory Bidirectional Code Indexing (`## Key Files` & `dox-unindexed-file`)**: Every source code file (`.ts`, `.vue`, `.js`, etc.) residing in a subtree directory that contains an `AGENTS.md` MUST be registered and indexed under `## Key Files` in that local `AGENTS.md`. `validate_dox_integrity` enforces `dox-unindexed-file` with zero tolerance (excluding test suites and ambient type definitions).
-- **Intelligent Link Relocation & Broken Reference Resolution**: All relative links across markdown documents, reference manuals, and `AGENTS.md` files are strictly verified against disk. If a referenced target file was relocated or reorganized to another directory, `validate_dox_integrity` and `validate_markdown_links` detect the target file elsewhere in the repository, outputting the exact relative path correction or auto-repairing it via `--fix`.
-- **Gitignored Paths in DOX Indices**: Directories or files that exist locally but are excluded via `.gitignore` (e.g. credential folders, generated local configs) MUST still be referenced in their parent's Child DOX Index if they represent a real domain boundary. Mark them with the suffix `_(gitignored — reason)_` so agents and reviewers understand why they are absent from the repo. The DOX audit engine skips existence checks for gitignored paths automatically, so these entries will never produce CI failures.
+- DOX is a highly performant `AGENTS.md` hierarchy that gives agents precise project context without bloating the context window.
+- The agent MUST follow DOX instructions across all edits.
 
 ### Core Contract
 
-- AGENTS.md files are binding work contracts for their subtrees
-- Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable AGENTS.md plus every parent AGENTS.md above it
+- `AGENTS.md` files are **binding work contracts** for their subtrees.
+- Work products, source materials, instructions, records, assets, and durable docs must stay understandable from the nearest applicable `AGENTS.md` plus every parent `AGENTS.md` above it.
 
 ### Read Before Editing
 
-1. Read the root AGENTS.md
-2. Identify every file or folder you expect to touch
-3. Walk from the repository root to each target path
-4. Read every AGENTS.md found along each route
-5. If a parent AGENTS.md lists a child AGENTS.md whose scope contains the path, read that child and continue from there
-6. Use the nearest AGENTS.md as the local contract and parent docs for repo-wide rules
-7. If docs conflict, the closer doc controls local work details, but no child doc may weaken DOX
-8. **Strict Zero-Fallback Mandate**: Under NO circumstances implement runtime fallbacks, compatibility patches, default returns, or recovery adapters (`||`, `??`, dummy objects, fallback choices) to make tests pass or hide errors. System logic MUST fail fast and loudly (`throw new Error`).
-9. **Strict Event-Driven Mandate**: Application design, state transitions, and save loading MUST be 100% event-driven. Timers and timeouts (`setTimeout`, `setInterval`, race timeouts) are STRICTLY FORBIDDEN in application code (`src/`), and are only allowed as max execution failure caps in E2E tests.
-10. **Strict Test Execution Mandate**: Automated test runs (`npm test` or `npm run test`) MUST execute 100% of unit and integration test suites natively in Vitest / Node test runner without bypasses.
+1. **Read the root `AGENTS.md`**.
+2. **Identify every file or folder** you expect to touch.
+3. **Walk from the repository root** to each target path.
+4. **Read every `AGENTS.md`** found along each route.
+5. If a parent `AGENTS.md` lists a child `AGENTS.md` whose scope contains the path, read that child and continue from there.
+6. **Use the nearest `AGENTS.md`** as the local contract, and parent docs for repo-wide rules.
+7. **If docs conflict**, the closer doc controls local work details, but no child doc may weaken DOX.
 
-Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
+> **Rule**: Do not rely on memory. Re-read the applicable DOX chain in the current session before editing.
 
 ### Update After Editing & Refactoring
 
-Every meaningful change or **refactoring/major structural change** requires a DOX pass before the task is done.
+Every meaningful change requires a **DOX pass** before the task is done.
 
-Update the closest owning AGENTS.md when a change or refactoring affects:
+Update the closest owning `AGENTS.md` when a change affects:
 
-- purpose, scope, ownership, or responsibilities
-- durable structure, contracts, workflows, or operating rules
-- required inputs, outputs, permissions, constraints, side effects, or artifacts
-- user preferences about behavior, communication, process, organization, or quality
-- AGENTS.md creation, deletion, move, rename, or index contents
+- Purpose, scope, ownership, or responsibilities.
+- Durable structure, contracts, workflows, or operating rules.
+- Required inputs, outputs, permissions, constraints, side effects, or artifacts.
+- User preferences about behavior, communication, process, organization, or quality.
+- `AGENTS.md` creation, deletion, move, rename, or index contents.
 
-Update parent docs when parent-level structure, ownership, workflow, or child index changes. Update child docs when parent changes alter local rules. Remove stale or contradictory text immediately. Small edits that do not change behavior or contracts may leave docs unchanged, but the DOX pass still must happen.
+**Propagation rules:**
+- Update parent docs when parent-level structure, ownership, workflow, or child index changes.
+- Update child docs when parent changes alter local rules.
+- Remove stale or contradictory text immediately.
+- Small edits that do not change behavior or contracts may leave docs unchanged, but the DOX pass still must happen.
 
-### Hierarchy
+### Hierarchy & Proximity Principle
 
-- Root AGENTS.md is the DOX rail: project-wide instructions, global preferences, durable workflow rules, and the top-level Child DOX Index
-- Child AGENTS.md files own domain-specific instructions and their own Child DOX Index
-- Each parent explains what its direct children cover and what stays owned by the parent
-- The closer a doc is to the work, the more specific and practical it must be
+- **Root `AGENTS.md` is the DOX rail**: project-wide instructions, global preferences, durable workflow rules, and the top-level Child DOX Index.
+- **Child `AGENTS.md` files own domain-specific instructions** and their own Child DOX Index.
+- Each parent explains what its direct children cover and what stays owned by the parent.
+- **Proximity principle**: The closer a doc is to the work, the more specific and practical it must be.
 
 ### Child Doc Shape
 
-- Create a child AGENTS.md when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards
-- Work Guidance must reflect the current standards of the project or user instructions; if there are no specific standards or instructions yet, leave it empty
-- Verification must reflect an existing check; if no verification framework exists yet, leave it empty and update it when one exists
+Create a child `AGENTS.md` when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards.
 
-Default section order:
+- **Work Guidance**: Must reflect the current operational standards of the project, subsystem practices, or development instructions. Leaving it empty, whitespace-only, or filled with placeholder/garbage text (`TODO`, `TBD`, `N/A`, `...`) is strictly prohibited (`dox-empty-section`).
+- **Verification**: Must document concrete verification checks and execution commands (e.g. `npm test -- ...`, `npm run audit:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
 
-- Purpose
-- Ownership
-- Local Contracts
-- Work Guidance
-- Verification
-- Child DOX Index
+**Default section order:**
+1. `# Purpose`
+2. `## Ownership`
+3. `## Local Contracts`
+   *(Optional: `## Key Files` — bidirectional code inventory when mandated by local contracts)*
+4. `## Work Guidance`
+5. `## Verification`
+   *(Alternative placement: `## Key Files` immediately before `## Child DOX Index`)*
+6. `## Child DOX Index`
+
+> **Tutorial & Templates**: For comprehensive templates, step-by-step authoring walkthroughs, and error triage, consult the [DOX Authoring Tutorial & Canonical Guidelines](./references/dox-authoring-tutorial.md).
 
 ### Style
 
-- Keep docs concise, current, and operational
-- Document stable contracts, not diary entries
-- Put broad rules in parent docs and concrete details in child docs
-- Prefer direct bullets with explicit names
-- Do not duplicate rules across many files unless each scope needs a local version
-- Delete stale notes instead of explaining history
-- Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist
-- **Type-First Mandate**: When documenting any data domain (e.g., in a child AGENTS.md or domain manual), always identify and reference the strict TypeScript type (union, `keyof`, or `as const` derived) for finite-value fields. Any domain whose values are finite and known MUST have a canonical TypeScript type declared before it can be used in code. This must be reflected in any DOX index that describes that domain.
+- Keep docs concise, current, and operational.
+- Document stable contracts, not diary entries.
+- Put broad rules in parent docs and concrete details in child docs.
+- Prefer direct bullets with explicit names.
+- Do not duplicate rules across many files unless each scope needs a local version.
+- Delete stale notes instead of explaining history.
+- Trim obvious statements, repeated rules, misplaced detail, and warnings for risks that no longer exist.
 
-### Closeout
+### User Preferences
 
-1. Re-check changed paths against the DOX chain
-2. Update nearest owning docs and any affected parents or children
-3. Refresh every affected Child DOX Index (especially after refactoring, reorganizing, or adding/deleting directories)
-4. Remove stale or contradictory text
-5. Run existing verification when relevant
-6. Report any docs intentionally left unchanged and why
+When the user requests a durable behavior change, record it in the root `AGENTS.md` (if project-wide) or in the relevant child `AGENTS.md` (if specific to a subsystem).
 
-### Naming & Language Preferences
+### Initializing Unindexed Projects
 
-- **Consistent Domain Identifiers**: All system-level finite domain identifiers (statuses, categories, configuration keys) must adhere strictly to canonical union definitions.
-- **Code Language Uniformity**: Core code architecture, functions, variables, and type definitions MUST be written in English. Maintain language uniformity across each file and avoid mixing languages within the same documentation file.
+When scanning a project or subtree that is not yet indexed:
+1. Scan the project structure recursively to evaluate boundaries and complexity.
+2. Build the DOX tree and create nested child `AGENTS.md` files where needed.
+3. Replace placeholder notes with the actual `Child DOX Index`.
+
+### Closeout Protocol
+
+Before concluding any task that touched code or docs:
+1. **Re-check changed paths** against the DOX chain.
+2. **Update nearest owning docs** and any affected parents or children.
+3. **Refresh every affected Child DOX Index**.
+4. **Remove stale or contradictory text**.
+5. **Run existing verification** when relevant (`npm run audit:md`).
+6. **Report any docs intentionally left unchanged and why**.
 
 ---
 
@@ -130,36 +137,35 @@ Default section order:
 Whenever persisting new knowledge, rules, lessons, or constraints:
 
 ### Precise Location Targeting
+- **NO Arbitrary Placements**: Do NOT dump local lessons, subsystem rules, or module guidelines into the root `AGENTS.md` file unless they represent project-wide behavioral preferences.
+- **Target Child `AGENTS.md`**: You MUST target the most specific child `AGENTS.md` file that matches the folder tree of the modified code files, mapping each rule to its proper domain boundary.
+- **Governed by `learn-with-docs`**: During safe-commit (Phase 3, Step 3.1), lessons extraction, DOX index traversal for inconsistencies, and proposal drafting are governed strictly by [learn-with-docs](../learn-with-docs/SKILL.md).
 
-- **NO Arbitrary Placements**: Do NOT place lessons, rules, or guidelines in the root `AGENTS.md` file unless they are project-wide behavioral preferences.
-- **Target Child `AGENTS.md`**: You MUST target the most specific and logical child `AGENTS.md` file that matches the folder tree of the modified code files, mapping each proposed rule to its proper domain boundary.
-- **DOX Pass (Closeout)**:
-  1. Re-check changed paths against the DOX chain.
-  2. Update the nearest owning docs and any affected parents/children.
-  3. Refresh every affected `Child DOX Index`.
-  4. Run `npm run audit:md` to verify there are 0 errors in the `DOX (AGENTS.md) Integrity` category.
-  5. **Strict No-Test Mandate for Documentation**: Never run `npm run test`, Vitest, or test runners when performing DOX updates, docs maintenance, or markdown edits. Verification is strictly restricted to DOX audit and markdown linting via `npm run audit:md`.
+### Strict Verification Contract for Documentation
+- **DOX Audit Only**: Run `npm run audit:md` to verify there are 0 errors in the `DOX (AGENTS.md) Integrity` category.
+- **Strict No-Test Mandate for Documentation**: Never run `npm test`, Vitest, or test runners when performing DOX updates, docs maintenance, or markdown edits. Verification is strictly restricted to DOX audit and markdown linting via `npm run audit:md`.
 
 ---
 
 ## 5. Automated DOX Integrity Audit Tools
 
-To detect missing `AGENTS.md` files, unindexed child DOX indices, absolute path violations, or broken relative links across `src/` and the root `AGENTS.md`:
+To detect missing `AGENTS.md` files, unindexed child DOX indices, absolute path violations, or broken relative links:
 
-### Dedicated DOX & Markdown Audit Suite
-Use the project's dedicated npm script:
 ```bash
+# General DOX + Markdown Preset:
 npm run audit:md
-```
 
-### Full Project Audit (Errors Only Filter)
-Alternatively, execute the project-wide audit filtered for errors:
-```bash
-npm run audit:errors
+# Direct DOX Suite Execution (via canonical @francogp/auditor runner):
+node --experimental-strip-types .agents/skills/dox-navigator/scripts/audit_dox.ts
 ```
 
 ### What the Audit Detects:
-1. **Missing `AGENTS.md` Files**: Any non-gitignored directory in `src/` containing code files (`.ts`, `.vue`, `.js`, `.scss`, `.css`) without an `AGENTS.md` file.
-2. **Unindexed Child DOX Indices**: Any child `AGENTS.md` file that is not linked/indexed in its nearest ancestor parent `AGENTS.md` (up to root `AGENTS.md`).
-3. **Forbidden Absolute Paths**: Any markdown links in `AGENTS.md` using absolute file system paths instead of relative paths.
-4. **Broken Relative Links**: Any markdown links pointing to non-existent files or directories on disk.
+1. **Missing Mandatory Sections (`dox-missing-section`)**: Any `AGENTS.md` missing any of the 6 canonical sections (`# Purpose`, `## Ownership`, `## Local Contracts`, `## Work Guidance`, `## Verification`, `## Child DOX Index`).
+2. **Section Ordering Violations (`dox-section-order`)**: Any sections appearing out of the canonical sequence, duplicated, or non-standard H1/H2 headings.
+3. **Empty or Garbage Placeholder Content (`dox-empty-section`)**: Any mandatory section left empty, whitespace-only, comment-only, or filled with placeholder/filler tokens (`TODO`, `TBD`, `N/A`, `None`, `...`).
+4. **Missing `AGENTS.md` Files (`dox-missing-agents-md`)**: Any non-gitignored directory in `src/` containing code files without an `AGENTS.md` file.
+5. **Unindexed Child DOX Indices (`dox-unregistered-child`)**: Any child `AGENTS.md` file that is not linked/indexed in its nearest ancestor parent `AGENTS.md` (up to root `AGENTS.md`).
+6. **Unindexed Code Files (`dox-unindexed-file`)**: Any non-test source code file residing in a documented directory that is not referenced in its local `AGENTS.md`.
+7. **Forbidden Absolute Paths (`dox-absolute-link`)**: Any markdown links in `AGENTS.md` using absolute file system paths instead of relative paths.
+8. **Broken Relative Links (`dox-broken-link`)**: Any markdown links pointing to non-existent files or directories on disk.
+9. **Gitignored Targets (`dox-gitignore-target`)**: Any relative links pointing to unversioned paths ignored by Git.

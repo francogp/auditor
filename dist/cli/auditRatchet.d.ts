@@ -9,8 +9,10 @@
 import type { AuditFinding, StandardAuditResult } from '../core/auditContract.ts';
 import type { AuditRatchetConfig } from '../core/auditConfig.ts';
 type ResolvedRatchetConfig = Required<AuditRatchetConfig>;
+export declare const RATCHET_SOURCES: readonly ["production", "local-bootstrap"];
+export type RatchetSource = (typeof RATCHET_SOURCES)[number];
 interface WarningRatchetOutcome {
-    readonly source: 'production' | 'local-bootstrap';
+    readonly source: RatchetSource;
     readonly newWarnings: readonly AuditFinding[];
     readonly resolvedCount: number;
     readonly baselineUpdated: boolean;

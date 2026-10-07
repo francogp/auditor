@@ -7,6 +7,9 @@
  * - Prohibited absolute links (dox-absolute-link)
  * - Broken links to non-existent files (dox-broken-link)
  * - Linking to git-ignored targets (dox-gitignore-target)
+ * - Missing mandatory section (dox-missing-section)
+ * - Canonical section ordering violation (dox-section-order)
+ * - Empty or placeholder/garbage section content (dox-empty-section)
  * - Verifies clean execution (0 errors, passed status)
  */
 
@@ -17,6 +20,41 @@ import {
   DoxIntegrityAuditor,
   DOX_RULES
 } from '../src/suites/documentation/validate_dox_integrity.ts';
+
+function createValidAgentsMd(options?: {
+  title?: string;
+  hasChildIndex?: boolean;
+  childContent?: string;
+  keyFilesContent?: string;
+}): string {
+  const childContent = options?.childContent ?? '- _This directory contains isolated modules with no subdirectories._';
+  const keyFiles = options?.keyFilesContent ? `\n## Key Files\n\n${options.keyFilesContent}\n` : '';
+
+  return `# Purpose
+
+${options?.title ?? 'Module purpose explanation and architectural boundaries.'}
+
+## Ownership
+
+Architecture & Tooling Engineers.
+
+## Local Contracts
+
+- Strict typing and adherence to framework standards.${keyFiles}
+
+## Work Guidance
+
+- Follow standard development workflow with zero warnings.
+
+## Verification
+
+- Run test command: npm test -- tests/example.test.ts
+
+## Child DOX Index
+
+${childContent}
+`;
+}
 
 describe('DoxIntegrityAuditor', () => {
   const scratchDir = path.resolve(process.cwd(), 'scratch/test_dox_' + crypto.randomUUID());
@@ -41,6 +79,9 @@ describe('DoxIntegrityAuditor', () => {
       expect(DOX_RULES).toContain('dox-broken-link');
       expect(DOX_RULES).toContain('dox-gitignore-target');
       expect(DOX_RULES).toContain('dox-unindexed-file');
+      expect(DOX_RULES).toContain('dox-missing-section');
+      expect(DOX_RULES).toContain('dox-section-order');
+      expect(DOX_RULES).toContain('dox-empty-section');
     });
 
     it('initializes with correct id and family', () => {
@@ -133,6 +174,108 @@ describe('DoxIntegrityAuditor', () => {
       expect(brokenLink?.message).toContain('fue localizado en');
       expect(brokenLink?.message).toContain('src/core/logger.ts');
     });
+
+    it('detects missing mandatory sections in AGENTS.md (dox-missing-section)', async () => {
+      // Missing ## Work Guidance and ## Verification
+      const incompleteDoc = `
+# Purpose
+
+Documentation description.
+
+## Ownership
+
+Architecture & Tooling Engineers.
+
+## Local Contracts
+
+- Contract rules.
+
+## Child DOX Index
+
+- _This directory contains modules with no subdirectories._
+`;
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), incompleteDoc, 'utf-8');
+
+      const auditor = new DoxIntegrityAuditor(scratchDir);
+      const result = await auditor.execute();
+      const missingWork = result.findings.find(f => f.ruleId === 'dox-missing-section' && f.context === '## Work Guidance');
+      const missingVerif = result.findings.find(f => f.ruleId === 'dox-missing-section' && f.context === '## Verification');
+      expect(missingWork).toBeDefined();
+      expect(missingVerif).toBeDefined();
+    });
+
+    it('detects section order violations in AGENTS.md (dox-section-order)', async () => {
+      // Verification before Work Guidance
+      const disorderedDoc = `
+# Purpose
+
+Documentation description.
+
+## Ownership
+
+Architecture & Tooling Engineers.
+
+## Local Contracts
+
+- Contract rules.
+
+## Verification
+
+- Run test command: npm test
+
+## Work Guidance
+
+- Follow standard workflow.
+
+## Child DOX Index
+
+- _This directory contains modules with no subdirectories._
+`;
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), disorderedDoc, 'utf-8');
+
+      const auditor = new DoxIntegrityAuditor(scratchDir);
+      const result = await auditor.execute();
+      const orderViolation = result.findings.find(f => f.ruleId === 'dox-section-order');
+      expect(orderViolation).toBeDefined();
+      expect(orderViolation?.message).toContain('no debe aparecer después de');
+    });
+
+    it('detects empty or placeholder sections in AGENTS.md (dox-empty-section)', async () => {
+      // Empty Work Guidance and TODO Verification
+      const placeholderDoc = `
+# Purpose
+
+Documentation description.
+
+## Ownership
+
+Architecture & Tooling Engineers.
+
+## Local Contracts
+
+- Contract rules.
+
+## Work Guidance
+
+<!-- Empty comment only -->
+
+## Verification
+
+TODO: Add verification
+
+## Child DOX Index
+
+- _This directory contains modules with no subdirectories._
+`;
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), placeholderDoc, 'utf-8');
+
+      const auditor = new DoxIntegrityAuditor(scratchDir);
+      const result = await auditor.execute();
+      const emptyFindings = result.findings.filter(f => f.ruleId === 'dox-empty-section');
+      expect(emptyFindings.length).toBeGreaterThanOrEqual(2);
+      expect(emptyFindings.some(f => f.context === '## Work Guidance')).toBe(true);
+      expect(emptyFindings.some(f => f.context === '## Verification')).toBe(true);
+    });
   });
 
   describe('Clean Execution', () => {
@@ -140,15 +283,17 @@ describe('DoxIntegrityAuditor', () => {
       const subDir = path.join(scratchDir, 'src');
       fs.mkdirSync(subDir, { recursive: true });
       fs.writeFileSync(path.join(subDir, 'main.ts'), 'export const main = () => {};\n', 'utf-8');
-      fs.writeFileSync(path.join(subDir, 'AGENTS.md'), '# Src DOX\n\n- [main.ts](./main.ts)\n', 'utf-8');
 
-      const rootDoc = `
-# Root Documentation
+      const childDoc = createValidAgentsMd({
+        title: 'Source directory containing core business logic.',
+        keyFilesContent: '- [`main.ts`](./main.ts): Main application entrypoint.'
+      });
+      fs.writeFileSync(path.join(subDir, 'AGENTS.md'), childDoc, 'utf-8');
 
-## Child DOX Index
-
-- [src/AGENTS.md](./src/AGENTS.md)
-      `;
+      const rootDoc = createValidAgentsMd({
+        title: 'Root project documentation tree.',
+        childContent: '- [`src/AGENTS.md`](./src/AGENTS.md): Source directory documentation.'
+      });
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), rootDoc, 'utf-8');
 
       const auditor = new DoxIntegrityAuditor(scratchDir);

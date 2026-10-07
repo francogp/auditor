@@ -19,6 +19,17 @@ Architecture & Tooling Engineers.
 - [`validate_domain_types.ts`](./validate_domain_types.ts): Domain-type-first validator parameterized via `audit.config.ts`.
 - [`validate_o1_data_structures.ts`](./validate_o1_data_structures.ts): Algorithmic complexity and $O(1)$ data structure checker.
 
+## Work Guidance
+
+- Domain suites must strictly derive domain vocabularies dynamically from configuration (`config.domain`).
+- Prohibit hardcoded host entity identifiers across AST scanners and heuristics.
+- Ensure linear iteration bans in `validate_o1_data_structures.ts` do not produce false positives on tiny fixed tuples.
+
+## Verification
+
+- Run domain types suite tests: `npm test -- tests/validate_domain_types.test.ts`
+- Run O(1) structures suite tests: `npm test -- tests/validate_o1_data_structures.test.ts`
+
 ## Child DOX Index
 
 - _This directory contains domain data sub-auditor suites with no subdirectories._

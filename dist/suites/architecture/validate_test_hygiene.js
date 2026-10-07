@@ -43,10 +43,10 @@ export function getForbiddenIntegrationMockTargets() {
     const config = getAuditConfig();
     return config.persistence?.forbiddenMockModules ?? [];
 }
-const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /(?::has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=)/;
+const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /:has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=/;
 const FORCE_CLICK_REGEX = /\.(?:click|dblclick)\s*\(\s*\{[^}]*\bforce\s*:\s*true/;
 const WAIT_FOR_TIMEOUT_REGEX = /\bpage\.waitForTimeout\s*\(/;
-const TIMEOUT_INFLATION_REGEX = /(?:testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:it|test)\s*\([^,]+,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\},\s*([3-9]\d{4,}|\d{6,})\))/;
+const TIMEOUT_INFLATION_REGEX = /testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:it|test)\s*\([^,]+,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\},\s*([3-9]\d{4,}|\d{6,})\)/;
 const VI_MOCK_REGEX = /vi\.mock\(\s*['"]([^'"]+)['"]/g;
 export class TestHygieneAuditor extends FileScanAuditor {
     constructor() {

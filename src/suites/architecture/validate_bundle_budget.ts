@@ -28,16 +28,12 @@ import { getAuditConfig, isTestPath, type AuditEngineConfig } from '../../core/a
 
 enableCompileCache();
 
-export type BundleBudgetRuleId =
-  | 'bundle-runtime-leak'
-  | 'bundle-heavy-import'
-  | 'bundle-chunk-size';
-
-export const BUNDLE_BUDGET_RULES: readonly BundleBudgetRuleId[] = [
+export const BUNDLE_BUDGET_RULES = [
   'bundle-runtime-leak',
   'bundle-heavy-import',
   'bundle-chunk-size'
 ] as const;
+export type BundleBudgetRuleId = (typeof BUNDLE_BUDGET_RULES)[number];
 
 export const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI: readonly { module: string; reason: string }[] = [
   { module: 'postgres', reason: 'Driver PostgreSQL backend no debe importarse en UI layers (src/components, src/views, src/stores).' },
@@ -260,13 +256,12 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    if (config.bundle?.enabled === false) {
-      this.markSkipped('Bundle audit desactivado en config');
+    if (this.isSuiteGatingDisabled('Bundle audit desactivado en config')) {
       this.context.setMetric('Bundle Status', 'Disabled');
       return;
     }
 
+    const config = getAuditConfig(this.projectRoot);
     const effectiveUiDirs = [
       ...(config.paths.componentsRoots ?? ['src/components']),
       ...(config.paths.viewsRoots ?? ['src/views']),

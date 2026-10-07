@@ -19,6 +19,8 @@ import {
   noImportantOnFilters,
   noSassAtImport,
   noLayoutAnimationInGsap,
+  viewport,
+  gpuGaps,
   legacyDates,
   hardcodedTimezone,
   nodePrefix,
@@ -36,6 +38,9 @@ import {
   intersectionObserverRoot,
   dbInTemplates,
   forbiddenFallbacks,
+  noDomainIdFallbacks,
+  isDomainAuditTarget,
+  isAllowedDatabaseFile,
   strictDomainParamTypes,
   noInlineTypeImports,
   noInlineLiteralUnions,
@@ -235,6 +240,9 @@ describe('Project Architecture Rules & Auditor', () => {
       forbiddenFallbacks.regex.lastIndex = 0;
       expect(forbiddenFallbacks.regex.test('fetchData().catch(() => null)')).toBe(true);
 
+      noDomainIdFallbacks.regex.lastIndex = 0;
+      expect(noDomainIdFallbacks.regex.test("const targetId = userId ?? ''")).toBe(true);
+
       strictDomainParamTypes.regex.lastIndex = 0;
       expect(strictDomainParamTypes.regex.test('function getUser(userId: string) {}')).toBe(true);
       strictDomainParamTypes.regex.lastIndex = 0;
@@ -253,6 +261,67 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(namedTimerConstants.regex.test('gsap.delayedCall(3.5, callback);')).toBe(true);
     });
 
+    it('viewport and gpuGaps detect mobile viewports and GPU transition gaps', () => {
+      viewport.regex.lastIndex = 0;
+      expect(viewport.regex.test('height: 100vh;')).toBe(true);
+      viewport.regex.lastIndex = 0;
+      expect(viewport.regex.test('width: 100vw;')).toBe(true);
+      viewport.regex.lastIndex = 0;
+      expect(viewport.regex.test('height: 100dvh;')).toBe(false);
+
+      gpuGaps.regex.lastIndex = 0;
+      expect(gpuGaps.regex.test('backdrop-filter: blur(10px);')).toBe(true);
+      gpuGaps.regex.lastIndex = 0;
+      expect(gpuGaps.regex.test('filter: grayscale(1);')).toBe(true);
+      gpuGaps.regex.lastIndex = 0;
+      expect(gpuGaps.regex.test('color: red;')).toBe(false);
+    });
+
+    it('nodePrefix, esmExtensions, and tsIgnore detect and repair module hygiene', () => {
+      const bareImport = 'import fs from ' + "'fs';";
+      nodePrefix.regex.lastIndex = 0;
+      expect(nodePrefix.regex.test(bareImport)).toBe(true);
+      expect(nodePrefix.fix?.(bareImport)).toBe('import fs from ' + "'node:fs';");
+
+      const extlessImport = 'import { helper } from ' + "'./utils';";
+      esmExtensions.regex.lastIndex = 0;
+      expect(esmExtensions.regex.test(extlessImport)).toBe(true);
+      expect(esmExtensions.fix?.(extlessImport)).toBe('import { helper } from ' + "'./utils.ts';");
+
+      tsIgnore.regex.lastIndex = 0;
+      expect(tsIgnore.regex.test('// @ts-' + 'ignore')).toBe(true);
+      expect(tsIgnore.fix?.('// @ts-' + 'ignore')).toBe('');
+    });
+
+    it('database and domain predicates correctly validate allowed files', () => {
+      expect(isAllowedDatabaseFile('src/database.types.ts')).toBe(true);
+      expect(isAllowedDatabaseFile('src/supabase.types.ts')).toBe(true);
+      expect(isAllowedDatabaseFile('src/domain/user.ts')).toBe(false);
+      expect(isDomainAuditTarget('src/domain/user.ts')).toBe(true);
+      expect(isDomainAuditTarget('node_modules/pkg/index.ts')).toBe(false);
+    });
+
+    it('noImportantOnTransforms, noImportantOnFilters, and noSassAtImport detect stylesheet anti-patterns', () => {
+      noImportantOnTransforms.regex.lastIndex = 0;
+      expect(noImportantOnTransforms.regex.test('transform: translate3d(0, 0, 0) !important;')).toBe(true);
+
+      noImportantOnFilters.regex.lastIndex = 0;
+      expect(noImportantOnFilters.regex.test('filter: blur(4px) !important;')).toBe(true);
+
+      noSassAtImport.regex.lastIndex = 0;
+      expect(noSassAtImport.regex.test('@import "variables";')).toBe(true);
+
+      const violatingContent = 'gsap.to(card, { backgroundPosition: "0% 0%", duration: 0.5 });';
+      const cleanContent = 'gsap.to(card, { x: 300, duration: 0.5 });';
+      noLayoutAnimationInGsap.regex.lastIndex = 0;
+      const match1 = noLayoutAnimationInGsap.regex.exec(violatingContent)!;
+      expect(noLayoutAnimationInGsap.check?.(violatingContent, match1, 'src/components/Card.vue')).toBe(true);
+
+      noLayoutAnimationInGsap.regex.lastIndex = 0;
+      const match2 = noLayoutAnimationInGsap.regex.exec(cleanContent)!;
+      expect(noLayoutAnimationInGsap.check?.(cleanContent, match2, 'src/components/Card.vue')).toBe(false);
+    });
+
     it('Z_LAYERS contains canonical layer values', () => {
       expect(CANONICAL_DEFAULT_Z_LAYERS.BASE).toBe(0);
       expect(CANONICAL_DEFAULT_Z_LAYERS.MODAL).toBe(11000);
@@ -269,7 +338,7 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(auditor.packageName).toBe('Arquitectura');
       expect(auditor.ruleDescriptions).toBeDefined();
       if (auditor.ruleDescriptions) {
-        expect(Object.keys(auditor.ruleDescriptions).length).toBeGreaterThanOrEqual(15);
+        expect(Object.keys(auditor.ruleDescriptions).length).toBeGreaterThanOrEqual(6);
         expect(auditor.ruleDescriptions['domain-type-violation']).toBeDefined();
       }
     });

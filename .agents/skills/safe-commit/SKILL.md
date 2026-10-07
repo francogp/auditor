@@ -5,6 +5,12 @@ description: MANDATORY safeguard for repository operations. You MUST trigger and
 
 # Safe Commit Workflow (@francogp/auditor Edition)
 
+> [!CAUTION]
+> **PRIMORDIAL & FOUNDATIONAL MANDATE: ABSOLUTE PROHIBITION ON DISABLING OR MODIFYING CONFIGURATION TO BYPASS ERRORS WITHOUT EXPLICIT PROGRAMMER CONSULTATION**
+> You MUST NEVER turn off, disable, relax, revert, or modify auditor configuration (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`, etc.) because a verification suite reported errors or warnings. If a check fails (even with hundreds or thousands of errors), **THEY ARE REAL DEFECTS**.
+>
+> Making changes to configurations to produce a "fake pass" is **STRICTLY AND CATEGORICALLY PROHIBITED**. If defects cannot be legitimately resolved in the source code or via canonical auto-repair (`npm run audit:fix`), the agent **MUST HALT SAFE-COMMIT IMMEDIATELY**, report the exact defects truthfully, and **OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** before touching any configuration.
+
 > [!IMPORTANT]
 > **PROMPT-DRIVEN TRIGGER ONLY**: Activate when the user explicitly requests a commit or push. Do NOT activate for automatic agent-internal saves or background operations.
 >
@@ -24,6 +30,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
 | **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 5 validation gates exit cleanly with code 0 on the final code. |
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
+| **Categorical Prohibition on Modifying or Turning Off Audit Configurations (`audit.config.ts`, Linters, Subsystems)** | During `/safe-commit`, agents are STRICTLY AND CATEGORICALLY FORBIDDEN from disabling, turning off, reverting, or tampering with `.auditor/audit.config.ts` (such as setting `domain.enabled: false`, `bundle.enabled: false`, `enforceTargets: false`, neutering thresholds, or adding ad-hoc whitelist entries), ESLint configurations, Stylelint configurations, or Fallow configurations to make gates pass or silence findings. If an audit gate reveals errors or warnings (even hundreds or thousands), THEY ARE REAL DEFECTS. The agent MUST NOT touch configuration to fake a clean pass. If issues cannot be legitimately resolved in the source code or via canonical auto-fix (`npm run audit:fix`), the agent MUST STOP the safe-commit immediately, halt Phase 2, report the exact defects to the user, and ask how they wish to proceed. Silencing rules or flipping config toggles during safe-commit is considered a critical architectural violation and gross misconduct. |
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.3). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.3 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
@@ -111,13 +118,14 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
   ```
 
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
-- Execute `npx auditor-version analyze` (or `npm run version:analyze -- --json`) to evaluate Git diff metrics, affected subsystems, and commit intent.
+- Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, and commit intent.
 - Solicit explicit user review via `ask_question` at this early stage:
   - Ask whether to apply a version bump (recommended when preparing a release or pushing to `main`) or maintain the current version (for local/branch development commits to prevent merge conflicts).
   - If bumping, present the recommended SemVer bump (`major`, `minor`, or `patch`) with its rationale and next version (`X.Y.Z-build.YYYYMMDD-HHmmss`), allowing the user to confirm or select a different bump type.
 - If the user approves a bump, execute immediately:
   ```bash
-  npx auditor-version bump --type=<approved_type>
+  npm run version:bump -- --type=<approved_type>
+  # or directly: auditor-version bump --type=<approved_type>
   ```
   *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)*
 
@@ -134,7 +142,7 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 
 ### 2.1 Full Audit & Warning Ratchet (`npm run audit`)
 - Run `git fetch origin` first (if remote is reachable) so `ratchet.productionRef` (default `origin/main`) reflects the latest production baseline.
-- Run `npm run audit` (or `npx auditor`). Never add presets, families, or filters: the ratchet only runs on the full default run.
+- Run `npm run audit` (or `auditor`). Never add presets, families, or filters: the ratchet only runs on the full default run.
 - MUST exit 0: **0 errors** and **0 new warnings** (`🔒 Ratchet de warnings OK`).
 - If new warnings appear, they are listed by file and line. They MUST be resolved at the code source, even in pre-existing or untouched files. Never edit `.auditor/audit-baseline.json` by hand, re-run `--init-baseline`, or disable the ratchet.
 - When warnings are resolved, `npm run audit` shrinks `.auditor/audit-baseline.json` automatically. That file MUST be included in the commit.
@@ -150,7 +158,7 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 - **Strict Single Build**: This is the ONLY time `npm run build` executes in the entire workflow. Because any version bump was already applied in Step 1.4, this build compiles the definitive version directly into `dist/`.
 
 ### 2.4 Post-Build Compiled Artifact Audit (`npm run audit:build`)
-- Run `npm run audit:build` (or `npx auditor-build`). If `npm run build` in Gate 2.3 already chained and executed it, inspect its output from Gate 2.3.
+- Run `npm run audit:build` (or `auditor preset=build`). If `npm run build` in Gate 2.3 already chained and executed it, inspect its output from Gate 2.3.
 - Audits compiled production artifacts in `dist/` (client chunk budgets in `dist/assets/`, package export maps, `.d.ts` entrypoints, and bundle budgets).
 - Exclusively runs suites that declare `capabilities.requiresBuild === true`.
 
@@ -159,7 +167,7 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 - Score must be >= 85 and >= `BASELINE_HEALTH`, with zero unaddressed high-severity issues.
 
 ### Repair Protocol (on ANY Gate Failure):
-1. **Auto-Repair**: Run `npm run audit:fix` (or `npx auditor fix`) to automatically repair fixable lint/style/import/config issues.
+1. **Auto-Repair**: Run `npm run audit:fix` (or `auditor fix`) to automatically repair fixable lint/style/import/config issues.
 2. **Manual Repair**: Manually resolve remaining source code, test, build, or DOX defects.
 3. **Loop Restart**: Always re-start the loop from **Gate 2.1** (`npm run audit`), ensuring all 5 gates pass consecutively on the final code.
 
@@ -169,8 +177,10 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 
 ## Phase 3: Lessons Extraction & User Approval Gate (🛑 HARD STOP)
 
-**Step 3.1** — Extract Lessons Learned
+**Step 3.1** — Extract Lessons Learned (`learn-with-docs`)
+- Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern lessons extraction and target DOX placement.
 - Analyze debugging discoveries, architectural insights, or edge cases resolved during the task.
+- Traverse the DOX index hierarchy (`AGENTS.md`) and documentation for inconsistencies or legacy code compared to the new learning.
 - Draft `<appDataDir>/brain/<conversation-id>/learning_proposal.md`.
 
 **Step 3.2** — Create Walkthrough
@@ -191,7 +201,7 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 ## Phase 4: Single Atomic Certified Commit & Release
 
 Once the user approves:
-- **Step 4.1**: Apply approved lessons to owning `AGENTS.md`.
+- **Step 4.1**: Apply approved lessons and modernizations across targeted `AGENTS.md` files and affected documentation.
 - **Step 4.2**: Run pre-commit sanity check: `npm run audit:md`.
 - **Step 4.3**: Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
 - **Step 4.4**: **Single Atomic Commit & Tag**:

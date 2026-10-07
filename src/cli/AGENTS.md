@@ -18,6 +18,7 @@ Architecture & Tooling Engineers.
 - **Introspection CLI Modes (`--list`, `--info`, `--json`, `--help`)**: `audit_full.ts` supports dynamic discovery flags: `--list` (80-column Box-Drawing overview table), `--list --json` (machine-readable array of `AuditorManifestDTO[]`), `--info=<suiteId>` (inspection card with purpose, capabilities, evaluated rules, and configuration key), and `--help` (interactive manual).
 - **Dynamic Thematic Emoji Propagation**: `auditScanner.ts` extracts mandatory `icon` properties directly from sub-auditor classes or instances during auto-discovery, ensuring every task in the streaming runner displays its dedicated visual symbol.
 - **Transparent Skip Rendering (`⏭️  SKIP`)**: `audit_full.ts` detects bypassed or skipped suites, clears default rule descriptions, and streams `⏭️  SKIP` in cyan with skip reasons rather than falsely reporting passed status.
+- **CLI Flag Precedence & Loud Argument Validation (`bump_version.ts`)**: State-mutating CLI commands MUST intercept `--help` and `-h` flags before parsing positional arguments or executing mutations. Positional parameters and type arguments MUST be strictly validated against the finite domain using O(1) Set membership, failing loudly with exit code 1 on unknown arguments and strictly banning silent fallback to defaults.
 
 ## Key Files
 
@@ -25,9 +26,11 @@ Architecture & Tooling Engineers.
 - [`audit_bundle.ts`](./audit_bundle.ts): Bundle budget and duplicate module analyzer parsing `rollup-plugin-visualizer` treemaps.
 - [`migrateAuditConfig.ts`](./migrateAuditConfig.ts): `auditor fix` relocation of root-level configs into `.auditor/` with AST-based relative import rebasing.
 - [`auditRatchet.ts`](./auditRatchet.ts): Warning ratchet engine (fingerprints, production baseline loading, shrink-only persistence).
-- [`audit_full.ts`](./audit_full.ts): Master auditor orchestrator executing discovered suites.
 - [`auditScanner.ts`](./auditScanner.ts): Automatic suite discovery and filtering engine.
-- [`bump_version.ts`](./bump_version.ts): CLI for `auditor-version` (`analyze`, `bump`, `-v`, `--json`).
+- [`auditTaskFactory.ts`](./auditTaskFactory.ts): Task definition creation, CLI argument builders, and permission resolution for audit tasks.
+- [`auditorMetadata.ts`](./auditorMetadata.ts): Static and runtime auditor metadata extraction (capabilities, gitignore, icons).
+- [`audit_full.ts`](./audit_full.ts): Master auditor orchestrator executing discovered suites.
+- [`bump_version.ts`](./bump_version.ts): CLI for `auditor-version` (`analyze`, `bump`, `-v`, `--json`, `--help`, `--type=`, `--target-version=`).
 - [`check_environment.ts`](./check_environment.ts): Runtime and tooling environment validator.
 - [`cliUtils.ts`](./cliUtils.ts): Shared utilities for CLI tools and entrypoint detection.
 - [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin and skills registrator (`.agents/skills.json` and `.agents/plugins.json`).
@@ -46,6 +49,18 @@ Architecture & Tooling Engineers.
 - [`stamp_version.ts`](./stamp_version.ts): Standalone CLI for generating and stamping `src/core/version.ts`.
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
 - [`update_package.ts`](./update_package.ts): Native CLI updater (`auditor-update`) for updating `@francogp/auditor` across host repositories.
+
+## Work Guidance
+
+- CLI scripts must use `isMainModule(import.meta.url)` from `cliUtils.ts` to detect direct execution.
+- Maintain pure stream isolation when running child processes; avoid dumping large JSON over stdout.
+- Ensure all interactive commands handle ANSI formatting and terminal width dynamically via `unifiedTheme`.
+
+## Verification
+
+- Run full audit CLI: `node --experimental-strip-types src/cli/audit_full.ts preset=md`
+- Run list flag: `node --experimental-strip-types src/cli/audit_full.ts --list`
+- Run unit tests: `npm test -- tests/audit_full.test.ts`
 
 ## Child DOX Index
 

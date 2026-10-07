@@ -133,5 +133,40 @@ describe('check_environment CLI Utility', () => {
         }
       }
     });
+
+    it('prints Windows remediation commands when platform is win32', () => {
+      const originalPlatform = process.platform;
+      const originalUa = process.env.npm_config_user_agent;
+      try {
+        Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+        process.env.npm_config_user_agent = 'npm/8.0.0 node/v26.0.0';
+        fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
+          name: 'win-app',
+          engines: { node: '>=26.0.0', npm: '>=12.0.0' }
+        }), 'utf-8');
+
+        const result = checkEnvironment(tempDir);
+        expect(result).toBe(false);
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+        if (originalUa !== undefined) {
+          process.env.npm_config_user_agent = originalUa;
+        } else {
+          delete process.env.npm_config_user_agent;
+        }
+      }
+    });
+
+    it('returns false when current runtime node is lower than host required node', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
+        name: 'future-app',
+        engines: { node: '>=999.0.0', npm: '>=12.0.0' }
+      }), 'utf-8');
+
+      const result = checkEnvironment(tempDir);
+      expect(result).toBe(false);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
   });
 });

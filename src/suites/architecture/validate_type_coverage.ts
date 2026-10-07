@@ -10,14 +10,11 @@ enableCompileCache();
 
 export const DEFAULT_MIN_TYPE_COVERAGE_PERCENT = 95 as const;
 
-export type TypeCoverageRuleId =
-  | 'type-coverage-below-threshold'
-  | 'type-coverage-untyped-identifier';
-
-export const TYPE_COVERAGE_RULES: readonly TypeCoverageRuleId[] = [
+export const TYPE_COVERAGE_RULES = [
   'type-coverage-below-threshold',
   'type-coverage-untyped-identifier'
 ] as const;
+export type TypeCoverageRuleId = (typeof TYPE_COVERAGE_RULES)[number];
 
 export interface UntypedSymbol {
   readonly filePath: string;
@@ -112,11 +109,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    if (config.typeCoverage?.enabled === false) {
-      for (const r of TYPE_COVERAGE_RULES) {
-        this.markRuleNotApplicable(r, 'Type coverage desactivado');
-      }
+    if (this.isSuiteGatingDisabled('Type coverage desactivado en config')) {
       return;
     }
 
@@ -125,13 +118,13 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       this.markRuleEvaluated(r);
     }
 
+    const config = getAuditConfig(this.projectRoot);
     const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
     const cacheDir = path.resolve(this.projectRoot, 'scratch/cache/type-coverage');
     fs.mkdirSync(scratchDir, { recursive: true });
     fs.mkdirSync(cacheDir, { recursive: true });
 
     const rawOutPath = path.resolve(scratchDir, 'type-coverage-raw.json');
-
     if (fs.existsSync(rawOutPath)) {
       try {
         fs.unlinkSync(rawOutPath);
@@ -141,6 +134,20 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
     }
 
     const threshold = config.typeCoverage?.atLeast ?? DEFAULT_MIN_TYPE_COVERAGE_PERCENT;
+    const report = this.executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold);
+    if (!report) {
+      return;
+    }
+
+    this.applyCoverageMetricsAndFindings(report, threshold);
+  }
+
+  private executeTypeCoverageCli(
+    config: ReturnType<typeof getAuditConfig>,
+    cacheDir: string,
+    rawOutPath: string,
+    threshold: number
+  ): TypeCoverageReport | null {
     const isStrict = config.typeCoverage?.strict ?? true;
     const ignoreFiles = config.typeCoverage?.ignoreFiles ?? [];
 
@@ -173,14 +180,13 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       ? [resolvedBin, ...cliFlags]
       : ['--yes', 'type-coverage', ...cliFlags];
 
-    const report = executeCliAndReadJson<TypeCoverageReport>(command, finalArgs, rawOutPath, {
+    return executeCliAndReadJson<TypeCoverageReport>(command, finalArgs, rawOutPath, {
       cwd: this.projectRoot,
       shell: !resolvedBin
     });
-    if (!report) {
-      return;
-    }
+  }
 
+  private applyCoverageMetricsAndFindings(report: TypeCoverageReport, threshold: number): void {
     const percentStr = report.percentString ?? (report.percent?.toFixed(2) ?? '0.00');
     const correct = report.correctCount ?? 0;
     const total = report.totalCount ?? 0;

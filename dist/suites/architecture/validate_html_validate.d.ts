@@ -24,6 +24,14 @@ export type RawHtmlValidateFileReport = RawLintFileReport;
  * Elevates both warnings and errors to severity: 'error' (Zero-Warning Policy).
  */
 export declare function parseHtmlValidateResults(input: string | object[], cwd?: string): AuditFinding[];
+export declare function collectHtmlTargets(projectRoot: string, roots: readonly string[]): {
+    targets: string[];
+    filesToScan: string[];
+};
+export declare function readAndParseHtmlValidateOutput(reportFile: string, combinedOutput: string, projectRoot: string): {
+    findings: AuditFinding[];
+    rawJson: string;
+};
 export declare class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     constructor(options?: {
         projectRoot?: string;

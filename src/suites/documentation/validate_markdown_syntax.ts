@@ -38,7 +38,7 @@ export const MARKDOWN_SYNTAX_RULES: readonly MarkdownSyntaxRuleId[] = [
 ] as const;
 
 const FORBIDDEN_DOC_COMMAND_REGEX = /\b(?:node\s+scripts\/|npx\s+tsx\s+scripts\/|node\s+-e\s+["']|python\s+\.agents\/|npx\s+vite\s+build\b)/;
-const TABLE_SEPARATOR_REGEX = /^\s*\|(?:\s*[:-]+[-| :]*)\|\s*$/;
+const TABLE_SEPARATOR_REGEX = /^\s*\|\s*[:-][-| :]*\|\s*$/;
 const TABLE_ROW_REGEX = /^\s*\|.+?\|\s*$/;
 
 function isTablePrecededProperly(prevLine: string): boolean {

@@ -4,8 +4,8 @@
  * meets configured thresholds and has no untracked blind spots when enforceInAudit is enabled.
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-export type TestCoverageRuleId = 'test-coverage-below-threshold' | 'test-coverage-missing-report' | 'test-coverage-untracked-files';
-export declare const TEST_COVERAGE_RULES: readonly TestCoverageRuleId[];
+export declare const TEST_COVERAGE_RULES: readonly ["test-coverage-below-threshold", "test-coverage-missing-report", "test-coverage-untracked-files"];
+export type TestCoverageRuleId = (typeof TEST_COVERAGE_RULES)[number];
 export interface ValidateTestCoverageOptions {
     projectRoot?: string;
 }

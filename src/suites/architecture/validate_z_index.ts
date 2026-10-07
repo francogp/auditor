@@ -15,24 +15,19 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
-import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
-import { Z_LAYERS } from './audit_rules.ts';
+import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE, Z_LAYERS } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export type ZIndexRuleId =
-  | 'z-index-missing-var'
-  | 'z-index-mismatch'
-  | 'z-index-read-error';
-
-export const Z_INDEX_RULES: readonly ZIndexRuleId[] = [
+export const Z_INDEX_RULES = [
   'z-index-missing-var',
   'z-index-mismatch',
   'z-index-read-error'
 ] as const;
+export type ZIndexRuleId = (typeof Z_INDEX_RULES)[number];
 
 export interface ZIndexAuditViolation {
-  ruleId: 'z-index-missing-var' | 'z-index-mismatch';
+  ruleId: ZIndexRuleId;
   message: string;
   context: string;
 }
@@ -57,7 +52,7 @@ function checkOrFixMissingVar(
 
   if (isFixMode && content.includes(':root {')) {
     return {
-      updatedContent: content.replace(/}\s*$/, `  ${varName}: ${value};\n}\n`),
+      updatedContent: content.replace(/\}\s*$/, `  ${varName}: ${value};\n}\n`),
       wasModified: true
     };
   }
@@ -161,11 +156,7 @@ private readonly scssPath?: string;
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig();
-    if (!this.isExplicit && config.styles?.zLayersEnabled === false) {
-      for (const r of Z_INDEX_RULES) {
-        this.markRuleNotApplicable(r, 'Z-Layers desactivado en config');
-      }
+    if (!this.isExplicit && this.isSuiteGatingDisabled('Z-Layers desactivado en config')) {
       return;
     }
 

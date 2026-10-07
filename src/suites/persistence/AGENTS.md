@@ -17,6 +17,17 @@ Architecture & Tooling Engineers.
 
 - [`validate_sql_anti_patterns.ts`](./validate_sql_anti_patterns.ts): SQL anti-pattern, schema qualification, and persistence validator.
 
+## Work Guidance
+
+- Resolve database paths dynamically through `config.persistence` without hardcoding database names or tables.
+- Respect engine gating: when `persistence.engine === 'none'`, mark persistence suites as cleanly skipped.
+- Validate SQL syntax and structural anti-patterns without requiring active database connections.
+
+## Verification
+
+- Run persistence suite tests: `npm test -- tests/validate_sql_anti_patterns.test.ts`
+- Run general audit: `npm run audit:lint`
+
 ## Child DOX Index
 
 - _This directory contains persistence sub-auditor suites with no subdirectories._

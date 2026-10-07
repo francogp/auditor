@@ -13,15 +13,7 @@ enableCompileCache();
 const INDEX_HTML_FILE = 'index.html';
 const VUE_EXTENSIONS: ReadonlySet<string> = new Set(['.vue']);
 
-export type AccessibilityRuleId =
-  | 'a11y-img-alt'
-  | 'a11y-form-control-has-label'
-  | 'a11y-interactive-supports-focus'
-  | 'a11y-anchor-has-content'
-  | 'a11y-aria-role-invalid'
-  | 'a11y-viewport-zoom-lock';
-
-export const ACCESSIBILITY_RULES: readonly AccessibilityRuleId[] = [
+export const ACCESSIBILITY_RULES = [
   'a11y-img-alt',
   'a11y-form-control-has-label',
   'a11y-interactive-supports-focus',
@@ -29,6 +21,7 @@ export const ACCESSIBILITY_RULES: readonly AccessibilityRuleId[] = [
   'a11y-aria-role-invalid',
   'a11y-viewport-zoom-lock'
 ] as const;
+export type AccessibilityRuleId = (typeof ACCESSIBILITY_RULES)[number];
 
 /** Canonical rules evaluated through the ESLint vuejs-accessibility engine (all except the index.html viewport check). */
 const ESLINT_BACKED_RULES: readonly AccessibilityRuleId[] = ACCESSIBILITY_RULES.filter(id => id !== 'a11y-viewport-zoom-lock');
@@ -64,12 +57,11 @@ export function mapA11yRuleId(eslintRuleId: string): AccessibilityRuleId {
 }
 
 export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleId> {
-  private readonly fixMode: boolean;
-
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
       capabilities: { fix: true, lint: true },
+      fix: options.fix,
       id: 'validate_accessibility',
       name: 'Vue & Web Accessibility Standards Auditor',
       description: 'Valida estándares WCAG 2.1/2.2 y accesibilidad',
@@ -88,19 +80,14 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       projectRoot: effectiveRoot,
       coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }
     });
-    this.fixMode = options.fix ?? false;
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    if (config.accessibility?.enabled === false) {
-      for (const ruleId of ACCESSIBILITY_RULES) {
-        this.markRuleNotApplicable(ruleId, 'config.accessibility.enabled = false');
-      }
+    if (this.isSuiteGatingDisabled('Accesibilidad desactivada en config')) {
       return;
     }
 
-    // 2. Discover .vue files in components, views, or src roots
+    const config = getAuditConfig(this.projectRoot);
     const scannableRoots = [
       ...(config.paths.componentsRoots ?? ['src/components']),
       ...(config.paths.viewsRoots ?? ['src/views']),
@@ -110,18 +97,9 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include]
     });
 
-    // 1. Audit index.html viewport zoom lock (WCAG 1.4.4)
     this.auditIndexViewport();
 
-    const vueFiles: string[] = [];
-    const seenFiles = new Set<string>();
-
-    for (const root of scannableRoots) {
-      const fullRoot = path.resolve(this.projectRoot, root);
-      if (!fs.existsSync(fullRoot)) continue;
-      this.collectVueFiles(fullRoot, vueFiles, seenFiles);
-    }
-
+    const vueFiles = this.collectScannableVueFiles(scannableRoots);
     if (vueFiles.length === 0) {
       for (const ruleId of ESLINT_BACKED_RULES) {
         this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
@@ -129,13 +107,29 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       return;
     }
 
-    // 3. Configure and execute ESLint with vuejs-accessibility plugin
-    const customRules = config.accessibility?.rules ?? {};
-    const normalizedCustomRules: Record<string, 'error' | 'off'> = {};
-    for (const [key, val] of Object.entries(customRules)) {
-      normalizedCustomRules[key] = val ? 'error' : 'off';
+    const effectiveRules = this.buildEffectiveRules(config.accessibility?.rules ?? {});
+    const results = await this.executeEslintOnVueFiles(vueFiles, effectiveRules);
+    this.processLintResults(results, effectiveRules);
+  }
+
+  private collectScannableVueFiles(scannableRoots: readonly string[]): string[] {
+    const vueFiles: string[] = [];
+    const seenFiles = new Set<string>();
+    for (const root of scannableRoots) {
+      const fullRoot = path.resolve(this.projectRoot, root);
+      if (fs.existsSync(fullRoot)) {
+        this.collectVueFiles(fullRoot, vueFiles, seenFiles);
+      }
     }
-    const effectiveRules: Record<string, 'error' | 'off'> = {
+    return vueFiles;
+  }
+
+  private buildEffectiveRules(customRules: Record<string, boolean | undefined>): Record<string, 'error' | 'off'> {
+    const normalized: Record<string, 'error' | 'off'> = {};
+    for (const [key, val] of Object.entries(customRules)) {
+      normalized[key] = val ? 'error' : 'off';
+    }
+    return {
       'vuejs-accessibility/alt-text': 'error',
       'vuejs-accessibility/anchor-has-content': 'error',
       'vuejs-accessibility/aria-props': 'error',
@@ -149,9 +143,14 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       'vuejs-accessibility/no-redundant-roles': 'error',
       'vuejs-accessibility/role-has-required-aria-props': 'error',
       'vuejs-accessibility/tabindex-no-positive': 'error',
-      ...normalizedCustomRules
+      ...normalized
     };
+  }
 
+  private async executeEslintOnVueFiles(
+    vueFiles: readonly string[],
+    rules: Record<string, 'error' | 'off'>
+  ): Promise<ESLint.LintResult[]> {
     const eslint = new ESLint({
       cwd: this.projectRoot,
       fix: this.fixMode,
@@ -159,23 +158,23 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       overrideConfig: [
         {
           files: ['**/*.vue'],
-          languageOptions: {
-            parser: vueParser
-          },
-          plugins: {
-            'vuejs-accessibility': vueA11y as ESLint.Plugin
-          },
-          rules: effectiveRules
+          languageOptions: { parser: vueParser },
+          plugins: { 'vuejs-accessibility': vueA11y as ESLint.Plugin },
+          rules
         }
       ]
     });
-
-    const results = await eslint.lintFiles(vueFiles);
-
+    const results = await eslint.lintFiles([...vueFiles]);
     if (this.fixMode) {
       await ESLint.outputFixes(results);
     }
+    return results;
+  }
 
+  private processLintResults(
+    results: readonly ESLint.LintResult[],
+    effectiveRules: Record<string, 'error' | 'off'>
+  ): void {
     const activeRules = new Set<AccessibilityRuleId>();
     for (const [eslintRuleId, level] of Object.entries(effectiveRules)) {
       if (level !== 'off') activeRules.add(mapA11yRuleId(eslintRuleId));
@@ -191,13 +190,9 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       this.recordScanned(relFile);
       for (const ruleId of activeRules) this.markRuleEvaluated(ruleId);
       for (const msg of res.messages) {
-        if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/')) {
-          continue;
-        }
-
-        const canonicalRule = mapA11yRuleId(msg.ruleId);
+        if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/')) continue;
         this.addViolation({
-          ruleId: canonicalRule,
+          ruleId: mapA11yRuleId(msg.ruleId),
           severity: 'error',
           file: relFile,
           line: msg.line,

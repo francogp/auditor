@@ -11,10 +11,10 @@
  *   npm run validate:z-index
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-export type ZIndexRuleId = 'z-index-missing-var' | 'z-index-mismatch' | 'z-index-read-error';
-export declare const Z_INDEX_RULES: readonly ZIndexRuleId[];
+export declare const Z_INDEX_RULES: readonly ["z-index-missing-var", "z-index-mismatch", "z-index-read-error"];
+export type ZIndexRuleId = (typeof Z_INDEX_RULES)[number];
 export interface ZIndexAuditViolation {
-    ruleId: 'z-index-missing-var' | 'z-index-mismatch';
+    ruleId: ZIndexRuleId;
     message: string;
     context: string;
 }

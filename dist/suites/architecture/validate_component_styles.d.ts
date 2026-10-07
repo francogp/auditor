@@ -17,11 +17,13 @@
  *   npm run validate:component-styles
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-export type ComponentStyleRuleId = 'broken-style-link' | 'missing-style-tag' | 'banned-style-inherited' | 'orphaned-scss' | 'ad-hoc-button-styles';
-export declare const COMPONENT_STYLE_RULES: readonly ComponentStyleRuleId[];
+export declare const COMPONENT_STYLE_RULES: readonly ["broken-style-link", "missing-style-tag", "banned-style-inherited", "orphaned-scss", "ad-hoc-button-styles"];
+export type ComponentStyleRuleId = (typeof COMPONENT_STYLE_RULES)[number];
+export declare const COMPONENT_STYLE_VIOLATION_TYPES: readonly ["broken_style_link", "missing_style_tag", "banned_style_inherited", "orphaned_scss", "ad_hoc_button_styles"];
+export type ComponentStyleViolationType = (typeof COMPONENT_STYLE_VIOLATION_TYPES)[number];
 export interface ComponentStyleViolation {
     readonly file: string;
-    readonly type: 'broken_style_link' | 'missing_style_tag' | 'banned_style_inherited' | 'orphaned_scss' | 'ad_hoc_button_styles';
+    readonly type: ComponentStyleViolationType;
     readonly message: string;
 }
 export interface ComponentStyleAuditResult {

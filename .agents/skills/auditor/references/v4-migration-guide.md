@@ -1,5 +1,9 @@
 # Upgrading Host Applications to `@francogp/auditor` v4+
 
+> [!NOTE]
+> **Canonical v5 Upgrade Guide Available**:
+> For projects upgrading to `@francogp/auditor` v5+, refer directly to the canonical [v5-migration-guide.md](v5-migration-guide.md). This document is preserved for historical context regarding v3 to v4 migrations.
+
 ## Executive Overview
 
 `@francogp/auditor` v4+ establishes an uncompromising, zero-tolerance architectural verification framework for TypeScript and Vue applications. The engine coordinates built-in generic static analysis suites across all architectural families, AST context caching, vector semantic duplication (Candle CPU embeddings), official Stylelint governance, strict coverage ledgers, and terminal Box-Drawing reporting with consolidated totals.
@@ -27,11 +31,13 @@ Always upgrade using the framework's native CLI utilities:
 ```bash
 # Upgrade to latest commit on main
 npm run auditor:update
-# or
-npx auditor-update
+# or directly:
+auditor-update
 
 # Verify active version and commit hash
-npx auditor-version -v
+npm run auditor:version
+# or directly:
+auditor-version -v
 ```
 
 Manual cloning (`git clone`), git submodules, or direct file copying into host repositories is strictly prohibited.
@@ -91,7 +97,7 @@ Modernize the host application's `package.json` scripts using the canonical temp
 
 ## 3. Configuration Modernization (`.auditor/audit.config.ts`)
 
-Host applications configure the auditor via `.auditor/audit.config.ts` using `defineAuditConfig(...)` (root-level configs fail loudly; `npx auditor fix` migrates them).
+Host applications configure the auditor via `.auditor/audit.config.ts` using `defineAuditConfig(...)` (root-level configs fail loudly; `auditor fix` or `npm run audit:fix` migrates them).
 
 ### 3.1 Path Governance and Policy Mapping
 
@@ -199,7 +205,7 @@ Vector code duplication runs on Candle CPU via Jina code embeddings in ~2s lever
 
 The differential `audit:for-commit` / `auditor-commit` gate no longer exists. `npm run audit` itself now fails on any NEW warning compared with `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`). Migration steps:
 
-1. Run `npx auditor fix` to delete the `audit:for-commit` script and rewrite any script that referenced it (otherwise `audit-config-removed-commit-gate` fails).
+1. Run `npm run audit:fix` (or `auditor fix`) to delete the `audit:for-commit` script and rewrite any script that referenced it (otherwise `audit-config-removed-commit-gate` fails).
 2. Make sure the production ref resolves (`git fetch origin`; CI checkouts need full history), or set `ratchet.productionRef`.
 3. Reach 0 errors, then run `npm run audit -- --init-baseline` once and commit `.auditor/audit-baseline.json` to the production branch.
 

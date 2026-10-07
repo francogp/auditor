@@ -7,42 +7,22 @@
  */
 
 import fs from 'node:fs/promises';
-import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
-import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from '../../core/auditorBase.ts';
+import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored } from '../../core/auditorBase.ts';
 import {
   type AuditRule,
   type Violation,
   type RuleDescriptor,
   matchesRule,
-  Z_INDEX_CONSISTENCY_DESCRIPTOR,
-  FALLOW_SUITE_DESCRIPTORS,
-  SASS_MIGRATOR_DESCRIPTOR,
   auditRulesConfig as config
 } from './audit_rules.ts';
-import { auditZIndexParity } from './validate_z_index.ts';
-import { StylelintAuditor } from './validate_stylelint.ts';
-
-export const CSS_ANALYZER_DESCRIPTOR: RuleDescriptor = {
-  id: 'css-analyzer',
-  name: 'CSS / SCSS Stylelint Analyzer',
-  category: 'Stylelint: Calidad y duplicación CSS/SCSS',
-  aliases: ['css-checker', 'css', 'scss', 'duplicate-css', 'scss-duplicados', 'css-hygiene', 'stylelint']
-};
-import { checkDoxIntegrity, DOX_ANALYZER_DESCRIPTOR } from '../../analyzers/doxAnalyzer.ts';
-import { detectDuplicateConstants, CONSTANT_ANALYZER_DESCRIPTOR } from '../../analyzers/constantAnalyzer.ts';
-import { CANONICAL_IGNORE_DIRS, getEffectiveIgnoreDirs, isPathIgnored } from '../../core/auditorBase.ts';
-import { loadAuditConfig, getAuditConfig, isTestPath, isScriptPath, isCliPath, isDataPath, isDemoPath, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE, AUDITOR_DIR } from '../../core/auditConfig.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
+import { loadAuditConfig, AUDITOR_DIR } from '../../core/auditConfig.ts';
 
 enableCompileCache();
-
-export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
-export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
 
@@ -317,7 +297,7 @@ async function auditFile(
   return violations;
 }
 
-function isInsideComment(content: string, index: number): boolean {
+export function isInsideComment(content: string, index: number): boolean {
   // Check for Line Comment // ...
   const lastNewLine = content.lastIndexOf('\n', index);
   const lastLineComment = content.lastIndexOf('//', index);
@@ -331,7 +311,7 @@ function isInsideComment(content: string, index: number): boolean {
   return false;
 }
 
-function createLineLocator(content: string, offset: number): (idx: number) => number {
+export function createLineLocator(content: string, offset: number): (idx: number) => number {
   let lineBreakIndices: number[] | null = null;
   return (idx: number): number => {
     if (!lineBreakIndices) {
@@ -349,6 +329,12 @@ function createLineLocator(content: string, offset: number): (idx: number) => nu
     }
     return low + 1 + offset;
   };
+}
+
+function resolveAuditRuleDescription(rule: AuditRule, defaultText: string): string {
+  if (rule.category) return rule.category;
+  if (rule.name) return rule.name;
+  return defaultText;
 }
 
 function collectRuleViolations(
@@ -378,16 +364,16 @@ function collectRuleViolations(
       line: lineNo,
       message: typeof rule.message === 'function' ? rule.message(match[0]) : rule.message,
       context: match[0],
-      severity: rule.severity || 'warning',
-      fixable: !!rule.fix,
+      severity: rule.severity ?? 'warning',
+      fixable: Boolean(rule.fix),
       packageName: rule.packageName,
-      ruleId: rule.id || rule.name,
-      ruleDescription: rule.category || rule.name
+      ruleId: rule.id,
+      ruleDescription: resolveAuditRuleDescription(rule, rule.id ?? 'Regla')
     });
   }
 }
 
-function applyRuleFix(rule: AuditRule, content: string, filePath: string): string {
+export function applyRuleFix(rule: AuditRule, content: string, filePath: string): string {
   if (rule.appliesTo && !rule.appliesTo(filePath)) return content;
   const fixer = rule.fix;
   if (!fixer) return content;
@@ -407,7 +393,7 @@ function applyRuleFix(rule: AuditRule, content: string, filePath: string): strin
   });
 }
 
-function runRules(filePath: string, content: string, rules: AuditRule[], violations: Violation[], fix: boolean, offset: number): string {
+export function runRules(filePath: string, content: string, rules: AuditRule[], violations: Violation[], fix: boolean, offset: number): string {
   let result = content;
   const getLineNo = createLineLocator(content, offset);
 
@@ -424,14 +410,14 @@ function runRules(filePath: string, content: string, rules: AuditRule[], violati
 }
 
 
-interface VueBlock {
+export interface VueBlock {
   content: string;
   startLine: number;
   startIdx: number;
   endIdx: number;
 }
 
-function extractAllBlocks(content: string, tag: string): VueBlock[] {
+export function extractAllBlocks(content: string, tag: string): VueBlock[] {
   const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
   const blocks: VueBlock[] = [];
   let match;
@@ -452,30 +438,6 @@ function extractAllBlocks(content: string, tag: string): VueBlock[] {
   return blocks;
 }
 
-async function checkZIndexConsistency(fix: boolean): Promise<string[]> {
-  const config = getAuditConfig();
-  if (config.styles?.zLayersEnabled === false) {
-    return [];
-  }
-  const scssPath = resolveZLayersScssPath(process.cwd());
-  if (!scssPath) {
-    return [
-      "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' o 'styles.baseScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si el proyecto no utiliza capas Z de SCSS."
-    ];
-  }
-  try {
-    const scssContent = await fs.readFile(scssPath, 'utf-8');
-    const effectiveLayers = getEffectiveZLayers(process.cwd());
-    const result = auditZIndexParity(scssContent, fix, effectiveLayers);
-    if (fix && result.modified) {
-      await fs.writeFile(scssPath, result.scssContent, 'utf-8');
-    }
-    return result.errors;
-  } catch (e) {
-    return [`Error leyendo archivo SCSS (${path.basename(scssPath)}): ${e}`];
-  }
-}
-
 function getChangedFiles(ref: string): string[] {
   try {
     const output = execSync(`git diff --name-only ${ref}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
@@ -488,821 +450,6 @@ function getChangedFiles(ref: string): string[] {
     process.stderr.write(styleText('yellow', `⚠️ No se pudo obtener la lista de archivos modificados desde git para ref: '${ref}'. Se auditará el proyecto completo.\n`));
     return [];
   }
-}
-
-interface FallowInstance {
-  path?: string;
-  file?: string;
-  line?: number;
-  start_line?: number;
-}
-interface FallowCloneGroup {
-  instances: FallowInstance[];
-  duplicated_tokens?: number;
-  token_count?: number;
-}
-interface FallowFinding {
-  path: string;
-  line: number;
-  cwe?: number;
-  evidence?: string;
-  kind?: string;
-  name?: string;
-  function_name?: string;
-  cognitive?: number;
-  cyclomatic?: number;
-  line_count?: number;
-  param_count?: number;
-  exceeded?: string;
-  severity?: string;
-}
-interface FallowLargeFunction {
-  path: string;
-  name?: string;
-  line: number;
-  line_count: number;
-}
-interface FallowTarget {
-  path: string;
-  priority?: number;
-  recommendation?: string;
-  category?: string;
-}
-interface FallowUnresolvedImport {
-  path: string;
-  specifier: string;
-  line?: number;
-}
-interface FallowUnusedDep {
-  package_name: string;
-  path?: string;
-  line?: number;
-}
-interface FallowUnusedExport {
-  export_name: string;
-  path: string;
-  line?: number;
-}
-interface FallowUnusedFile {
-  path: string;
-}
-interface FallowCircularDep {
-  path?: string;
-  cycle?: string[];
-  files?: string[];
-  message?: string;
-  line?: number;
-}
-interface FallowStaleSuppression {
-  path?: string;
-  file?: string;
-  line?: number;
-  kind?: string;
-  message?: string;
-  origin?: {
-    type?: string;
-    issue_kind?: string;
-    is_file_level?: boolean;
-    kind_known?: boolean;
-  };
-}
-interface FallowLocation {
-  path?: string;
-  file?: string;
-  line?: number;
-  col?: number;
-}
-interface FallowDuplicateExport {
-  path?: string;
-  file?: string;
-  line?: number;
-  export_name?: string;
-  name?: string;
-  locations?: FallowLocation[];
-}
-interface FallowUnusedStoreMember {
-  path: string;
-  parent_name: string;
-  member_name: string;
-  kind?: string;
-  line: number;
-  col?: number;
-}
-interface FallowUnusedClassMember {
-  path: string;
-  parent_name: string;
-  member_name: string;
-  kind?: string;
-  line: number;
-  col?: number;
-}
-interface FallowUnusedType {
-  path: string;
-  export_name: string;
-  line: number;
-  col?: number;
-  is_type_only?: boolean;
-  is_re_export?: boolean;
-}
-interface FallowUnusedComponentEmit {
-  path: string;
-  component_name: string;
-  emit_name: string;
-  line: number;
-  col?: number;
-}
-interface FallowUnlistedDependency {
-  package_name: string;
-  imported_from?: Array<{
-    path?: string;
-    line?: number;
-    col?: number;
-  }>;
-}
-interface FallowBoundaryViolation {
-  from_path: string;
-  to_path: string;
-  from_zone: string;
-  to_zone: string;
-  import_specifier?: string;
-  line: number;
-  col?: number;
-}
-interface FallowUnusedComponentProp {
-  path: string;
-  component_name: string;
-  prop_name: string;
-  line: number;
-  col?: number;
-}
-interface FallowUnrenderedComponent {
-  path: string;
-  component_name: string;
-  line: number;
-  col?: number;
-}
-interface FallowUnprovidedInject {
-  path: string;
-  inject_key: string;
-  line: number;
-  col?: number;
-}
-interface FallowDeadCode {
-  unused_dependencies?: FallowUnusedDep[];
-  unused_dev_dependencies?: FallowUnusedDep[];
-  unused_exports?: FallowUnusedExport[];
-  unused_files?: FallowUnusedFile[];
-  circular_dependencies?: FallowCircularDep[];
-  stale_suppressions?: FallowStaleSuppression[];
-  duplicate_exports?: FallowDuplicateExport[];
-  unused_store_members?: FallowUnusedStoreMember[];
-  unused_class_members?: FallowUnusedClassMember[];
-  unused_types?: FallowUnusedType[];
-  unused_component_emits?: FallowUnusedComponentEmit[];
-  unlisted_dependencies?: FallowUnlistedDependency[];
-  boundary_violations?: FallowBoundaryViolation[];
-  unused_component_props?: FallowUnusedComponentProp[];
-  unrendered_components?: FallowUnrenderedComponent[];
-  unprovided_injects?: FallowUnprovidedInject[];
-  unresolved_imports?: FallowUnresolvedImport[];
-  workspace_diagnostics?: FallowWorkspaceDiagnostic[];
-}
-interface FallowWorkspaceDiagnostic {
-  path?: string;
-  kind?: string;
-  message?: string;
-}
-interface FallowComplexity {
-  findings?: FallowFinding[];
-}
-export interface FallowAuditData {
-  clone_groups?: FallowCloneGroup[];
-  security_findings?: FallowFinding[];
-  dead_code?: FallowDeadCode;
-  complexity?: FallowComplexity;
-  findings?: FallowFinding[];
-  large_functions?: FallowLargeFunction[];
-  targets?: FallowTarget[];
-  workspace_diagnostics?: FallowWorkspaceDiagnostic[];
-  unused_dependencies?: FallowUnusedDep[];
-  unused_dev_dependencies?: FallowUnusedDep[];
-  unused_exports?: FallowUnusedExport[];
-  unused_files?: FallowUnusedFile[];
-  unresolved_imports?: FallowUnresolvedImport[];
-  circular_dependencies?: FallowCircularDep[];
-  stale_suppressions?: FallowStaleSuppression[];
-  duplicate_exports?: FallowDuplicateExport[];
-  unused_store_members?: FallowUnusedStoreMember[];
-  unused_class_members?: FallowUnusedClassMember[];
-  unused_types?: FallowUnusedType[];
-  unused_component_emits?: FallowUnusedComponentEmit[];
-  unlisted_dependencies?: FallowUnlistedDependency[];
-  boundary_violations?: FallowBoundaryViolation[];
-  unused_component_props?: FallowUnusedComponentProp[];
-  unrendered_components?: FallowUnrenderedComponent[];
-  unprovided_injects?: FallowUnprovidedInject[];
-}
-
-function resolveFallowBinaryPath(): string {
-  const candidates = [
-    path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow'),
-    path.resolve(import.meta.dirname, '../../node_modules/fallow/bin/fallow'),
-    path.resolve(import.meta.dirname, '../../../node_modules/fallow/bin/fallow'),
-    path.resolve(import.meta.dirname, '../../../../node_modules/fallow/bin/fallow')
-  ];
-  return candidates.find(c => existsSync(c)) || candidates[0]!;
-}
-
-function tryParseFallowJson(output: string | Buffer | undefined, targetCategory: string): Violation[] | null {
-  if (!output) return null;
-  const stdoutStr = typeof output === 'string' ? output : output.toString('utf8');
-  const jsonStart = stdoutStr.indexOf('{');
-  if (jsonStart === -1) return null;
-  try {
-    const data = JSON.parse(stdoutStr.substring(jsonStart)) as FallowAuditData;
-    return mapFallowJson(targetCategory, data);
-  } catch {
-    // catch-ok: Ignore JSON parsing errors in error output
-    return null;
-  }
-}
-
-function runFallow(command: string, extraArgs: string[] = [], logicalCategory?: string): Violation[] {
-  const targetCategory = logicalCategory || command;
-  const fallowBin = resolveFallowBinaryPath();
-  const args = ['--format', 'json', ...extraArgs];
-  const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
-
-  try {
-    const stdout = execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES });
-    const parsed = tryParseFallowJson(stdout, targetCategory);
-    if (parsed) return parsed;
-  } catch (e: unknown) {
-    const err = e as { stdout?: Buffer | string; message?: string; stderr?: Buffer | string };
-    const parsed = tryParseFallowJson(err.stdout, targetCategory);
-    if (parsed) return parsed;
-
-    return [{
-      file: 'fallow',
-      line: 0,
-      message: `Error ejecutando fallow ${command}: ${(err as Error).message || String(e)} | Stderr: ${err.stderr || ''}`,
-      context: `fallow ${command}`,
-      severity: 'error',
-      fixable: false
-    }];
-  }
-
-  return [];
-}
-
-function isToolingConfigFile(filePath: string): boolean {
-  const norm = (filePath || '').split('\\').join('/');
-  const base = norm.split('/').pop() || '';
-  return (
-    base.startsWith('vite.config.') ||
-    base.startsWith('vitest.') ||
-    base.startsWith('playwright.config.') ||
-    base.startsWith('eslint.config.')
-  );
-}
-
-function isNonProductionPath(filePath: string): boolean {
-  if (isToolingConfigFile(filePath)) return true;
-  const norm = (filePath || '').split('\\').join('/');
-  const config = getAuditConfig();
-  if (isTestPath(norm) || isScriptPath(norm, config) || isCliPath(norm, config)) {
-    return true;
-  }
-  if (norm.startsWith('scratch/') || norm.startsWith('packages/')) {
-    return true;
-  }
-  if (config.paths.migrationsDir && norm.startsWith(config.paths.migrationsDir.replace(/\\/g, '/'))) {
-    return true;
-  }
-  if (config.persistence?.supabaseDir && norm.startsWith(config.persistence.supabaseDir.replace(/\\/g, '/'))) {
-    return true;
-  }
-  if (config.persistence?.allowedDatabaseDirs?.some(d => {
-    const clean = d.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-    return norm === clean || norm.startsWith(`${clean}/`) || norm.includes(`/${clean}/`);
-  })) {
-    return true;
-  }
-  return false;
-}
-
-function isComplexityExemptPath(filePath: string): boolean {
-  if (isNonProductionPath(filePath)) return true;
-  const norm = (filePath || '').split('\\').join('/');
-  if (norm.startsWith('dist/')) {
-    return true;
-  }
-  if (isDataPath(norm) || isDemoPath(norm)) return true;
-  return false;
-}
-
-function addComplexityFinding(f: FallowFinding, violations: Violation[]): void {
-  if (isComplexityExemptPath(f.path)) return;
-  const name = f.name || f.function_name || '<anónima>';
-  if (name === '<template>') return;
-  const details: string[] = [];
-  if (f.cognitive) details.push(`cognitiva: ${f.cognitive}`);
-  if (f.cyclomatic) details.push(`ciclomática: ${f.cyclomatic}`);
-  if (f.line_count) details.push(`${f.line_count} líneas`);
-  const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
-  violations.push({
-    file: path.resolve(process.cwd(), f.path),
-    line: f.line || 1,
-    message: `Sugerencia de complejidad (Fallow): Función '${name}' supera umbral de complejidad${detailStr}`,
-    context: name,
-    severity: 'error',
-    fixable: false,
-    packageName: 'Fallow',
-    ruleId: 'fallow-complexity',
-    ruleDescription: 'Complejidad'
-  });
-}
-
-function hasSecuritySuppression(filePath: string, line: number): boolean {
-  try {
-    const fullPath = path.resolve(process.cwd(), filePath);
-    if (!existsSync(fullPath)) return false;
-    const content = readFileSync(fullPath, 'utf-8');
-    const lines = content.split('\n');
-    const targetIdx = line - 1;
-    const startIdx = Math.max(0, targetIdx - 3);
-    for (let i = startIdx; i <= targetIdx && i < lines.length; i++) {
-      const l = lines[i] || '';
-      if (
-        l.includes('fallow-ignore-next-line security-sink') ||
-        l.includes('fallow-ignore security-sink') ||
-        l.includes('security-ok')
-      ) {
-        return true;
-      }
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
-function formatCloneLocations(instances: readonly FallowInstance[]): string {
-  return instances
-    .map((i) => `${i.file || i.path || ''}:${i.start_line || i.line || 0}`)
-    .join(', ');
-}
-
-function createCloneViolation(g: FallowCloneGroup, command: string): Violation | null {
-  const instances = g.instances || [];
-  const first = instances[0];
-  if (!first) return null;
-
-  const firstPath = first.file || first.path || '';
-  const firstLine = first.start_line || first.line || 0;
-  const locations = formatCloneLocations(instances.slice(1));
-  const isTriplicate = command === 'triplets' || instances.length >= 3;
-  const prefix = isTriplicate ? 'Código triplicado crítico' : 'Código duplicado crítico';
-  const tokens = g.token_count || g.duplicated_tokens || 0;
-
-  return {
-    file: path.resolve(process.cwd(), firstPath),
-    line: firstLine,
-    message: `${prefix}: Encontradas ${instances.length} coincidencias de código idéntico. Ubicaciones: ${firstPath}:${firstLine}, ${locations}`,
-    context: `${isTriplicate ? 'triplicación' : 'duplicación'} (${tokens} tokens)`,
-    severity: 'error',
-    fixable: false,
-    packageName: 'Fallow',
-    ruleId: isTriplicate ? 'fallow-triplicate-code' : 'fallow-duplicate-code',
-    ruleDescription: isTriplicate ? 'Código triplicado' : 'Código duplicado'
-  };
-}
-
-function mapFallowClones(command: string, data: FallowAuditData): Violation[] {
-  const violations: Violation[] = [];
-  for (const g of data.clone_groups || []) {
-    const v = createCloneViolation(g, command);
-    if (v) violations.push(v);
-  }
-  return violations;
-}
-
-function mapFallowSecurity(data: FallowAuditData): Violation[] {
-  const violations: Violation[] = [];
-  const findings = data.security_findings || [];
-  for (const f of findings) {
-    if (isNonProductionPath(f.path)) continue;
-    if (hasSecuritySuppression(f.path, f.line)) continue;
-    violations.push({
-      file: path.resolve(process.cwd(), f.path),
-      line: f.line,
-      message: `Candidato de seguridad [CWE-${f.cwe}] en ${f.path}:${f.line} -> ${f.evidence}`,
-      context: f.kind || '',
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-security-cwe',
-      ruleDescription: 'Seguridad (CWE)'
-    });
-  }
-  return violations;
-}
-
-function mapFallowUnusedMembers(data: FallowAuditData, violations: Violation[]): void {
-  const unusedStoreMembers = [...(data.unused_store_members || []), ...(data.dead_code?.unused_store_members || [])];
-  for (const sm of unusedStoreMembers) {
-    violations.push({
-      file: path.resolve(process.cwd(), sm.path),
-      line: sm.line || 1,
-      message: `Miembro de store no usado: '${sm.parent_name}.${sm.member_name}'`,
-      context: sm.member_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-store-members',
-      ruleDescription: 'Miembros de store no usados'
-    });
-  }
-
-  const unusedClassMembers = [...(data.unused_class_members || []), ...(data.dead_code?.unused_class_members || [])];
-  for (const cm of unusedClassMembers) {
-    violations.push({
-      file: path.resolve(process.cwd(), cm.path),
-      line: cm.line || 1,
-      message: `Miembro de clase no usado: '${cm.parent_name}.${cm.member_name}'`,
-      context: cm.member_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-class-members',
-      ruleDescription: 'Miembros de clase no usados'
-    });
-  }
-
-  const unusedTypes = [...(data.unused_types || []), ...(data.dead_code?.unused_types || [])];
-  for (const ut of unusedTypes) {
-    violations.push({
-      file: path.resolve(process.cwd(), ut.path),
-      line: ut.line || 1,
-      message: `Tipo exportado no usado: '${ut.export_name}'`,
-      context: ut.export_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-types',
-      ruleDescription: 'Tipos exportados no usados'
-    });
-  }
-}
-
-function mapUnusedEmitsAndProps(data: FallowAuditData, violations: Violation[]): void {
-  const unusedEmits = [...(data.unused_component_emits || []), ...(data.dead_code?.unused_component_emits || [])];
-  for (const ue of unusedEmits) {
-    violations.push({
-      file: path.resolve(process.cwd(), ue.path),
-      line: ue.line || 1,
-      message: `Evento emit de componente no usado: '${ue.component_name}.${ue.emit_name}'`,
-      context: ue.emit_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-emits',
-      ruleDescription: 'Emits no usados'
-    });
-  }
-
-  const unusedProps = [...(data.unused_component_props || []), ...(data.dead_code?.unused_component_props || [])];
-  for (const up of unusedProps) {
-    violations.push({
-      file: path.resolve(process.cwd(), up.path),
-      line: up.line || 1,
-      message: `Prop de componente no usado: '${up.component_name}.${up.prop_name}'`,
-      context: up.prop_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-props',
-      ruleDescription: 'Props de componente no usados'
-    });
-  }
-}
-
-function mapUnrenderedAndUnprovided(data: FallowAuditData, violations: Violation[]): void {
-  const unrenderedComponents = [...(data.unrendered_components || []), ...(data.dead_code?.unrendered_components || [])];
-  for (const uc of unrenderedComponents) {
-    violations.push({
-      file: path.resolve(process.cwd(), uc.path),
-      line: uc.line || 1,
-      message: `Componente no renderizado: '${uc.component_name}'`,
-      context: uc.component_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unrendered-components',
-      ruleDescription: 'Componentes no renderizados'
-    });
-  }
-
-  const unprovidedInjects = [...(data.unprovided_injects || []), ...(data.dead_code?.unprovided_injects || [])];
-  for (const ui of unprovidedInjects) {
-    violations.push({
-      file: path.resolve(process.cwd(), ui.path),
-      line: ui.line || 1,
-      message: `Clave inyectada no provista: '${ui.inject_key}'`,
-      context: ui.inject_key,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unprovided-injects',
-      ruleDescription: 'Inyecciones no provistas'
-    });
-  }
-}
-
-function mapUnlistedDependencies(data: FallowAuditData, violations: Violation[]): void {
-  const unlistedDeps = [...(data.unlisted_dependencies || []), ...(data.dead_code?.unlisted_dependencies || [])];
-  for (const ud of unlistedDeps) {
-    const targetLoc = ud.imported_from?.[0];
-    violations.push({
-      file: path.resolve(process.cwd(), targetLoc?.path || 'package.json'),
-      line: targetLoc?.line || 1,
-      message: `Dependencia no listada en package.json: '${ud.package_name}'`,
-      context: ud.package_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unlisted-dependencies',
-      ruleDescription: 'Dependencias no listadas'
-    });
-  }
-}
-
-function mapBoundaryViolations(data: FallowAuditData, violations: Violation[]): void {
-  const boundaryViolations = [...(data.boundary_violations || []), ...(data.dead_code?.boundary_violations || [])];
-  for (const b of boundaryViolations) {
-    violations.push({
-      file: path.resolve(process.cwd(), b.from_path),
-      line: b.line || 1,
-      message: `Violación de límite arquitectónico (Fallow): '${b.from_zone}' no puede importar de '${b.to_zone}' (import: '${b.import_specifier || b.to_path}')`,
-      context: b.from_path,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-boundary-violations',
-      ruleDescription: 'Límites arquitectónicos'
-    });
-  }
-}
-
-function mapUnresolvedImports(data: FallowAuditData, violations: Violation[]): void {
-  const unresolvedImports = [...(data.unresolved_imports || []), ...(data.dead_code?.unresolved_imports || [])];
-  for (const ui of unresolvedImports) {
-    violations.push({
-      file: path.resolve(process.cwd(), ui.path),
-      line: ui.line || 1,
-      message: `Import no resuelto (Fallow): '${ui.specifier}'`,
-      context: ui.specifier,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unresolved-imports',
-      ruleDescription: 'Imports no resueltos'
-    });
-  }
-}
-
-function mapDependenciesAndBoundaries(data: FallowAuditData, violations: Violation[]): void {
-  mapUnlistedDependencies(data, violations);
-  mapBoundaryViolations(data, violations);
-  mapUnresolvedImports(data, violations);
-}
-
-function mapFallowComponentEntities(data: FallowAuditData, violations: Violation[]): void {
-  mapUnusedEmitsAndProps(data, violations);
-  mapUnrenderedAndUnprovided(data, violations);
-  mapDependenciesAndBoundaries(data, violations);
-}
-
-function mapCircularDeps(data: FallowAuditData, violations: Violation[]): void {
-  const circularDeps = [...(data.circular_dependencies || []), ...(data.dead_code?.circular_dependencies || [])];
-  for (const c of circularDeps) {
-    const filesList = (Array.isArray(c.files) && c.files.length > 0) ? c.files : (Array.isArray(c.cycle) ? c.cycle : []);
-    const filePath = c.path || filesList[0] || 'src';
-    const cyclePathStr = filesList.length > 0 ? filesList.join(' → ') : (c.message || filePath);
-    violations.push({
-      file: path.resolve(process.cwd(), filePath),
-      line: c.line || 1,
-      message: `Dependencia circular crítica (Fallow): ${cyclePathStr}`,
-      context: filePath,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-circular-dependencies',
-      ruleDescription: 'Dependencias circulares'
-    });
-  }
-}
-
-function mapUnusedFiles(data: FallowAuditData, violations: Violation[]): void {
-  const unusedFiles = [...(data.unused_files || []), ...(data.dead_code?.unused_files || [])];
-  for (const f of unusedFiles) {
-    violations.push({
-      file: path.resolve(process.cwd(), f.path),
-      line: 1,
-      message: `Archivo huérfano/no usado (Dead Code Fallow): '${f.path}'`,
-      context: f.path,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-files',
-      ruleDescription: 'Archivos huérfanos / Dead Code'
-    });
-  }
-}
-
-function mapCircularAndUnusedFiles(data: FallowAuditData, violations: Violation[]): void {
-  mapCircularDeps(data, violations);
-  mapUnusedFiles(data, violations);
-}
-
-function mapStaleSuppressions(data: FallowAuditData, violations: Violation[]): void {
-  const staleSuppressions = [...(data.stale_suppressions || []), ...(data.dead_code?.stale_suppressions || [])];
-  for (const s of staleSuppressions) {
-    if (s.origin && (s.origin.issue_kind?.startsWith('cwe-') || s.origin.kind_known === false)) {
-      continue;
-    }
-    violations.push({
-      file: path.resolve(process.cwd(), s.path || s.file || 'src'),
-      line: s.line || 1,
-      message: `Supresión obsoleta de Fallow (Stale Suppression): ${s.message || s.kind || ''}`,
-      context: s.path || s.file || '',
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-stale-suppressions',
-      ruleDescription: 'Supresiones obsoletas'
-    });
-  }
-}
-
-function mapDuplicateExports(data: FallowAuditData, violations: Violation[]): void {
-  const duplicateExports = [...(data.duplicate_exports || []), ...(data.dead_code?.duplicate_exports || [])];
-  for (const d of duplicateExports) {
-    const locs = d.locations && d.locations.length > 0 ? d.locations : [{ path: d.path, file: d.file, line: d.line }];
-    for (const loc of locs) {
-      violations.push({
-        file: path.resolve(process.cwd(), loc.path || loc.file || 'src'),
-        line: loc.line || 1,
-        message: `Export duplicado ambiguo (Fallow): '${d.export_name || d.name || ''}'`,
-        context: d.export_name || d.name || '',
-        severity: 'error',
-        fixable: false,
-        packageName: 'Fallow',
-        ruleId: 'fallow-duplicate-exports',
-        ruleDescription: 'Exports duplicados'
-      });
-    }
-  }
-}
-
-function mapExportsAndSuppressions(data: FallowAuditData, violations: Violation[]): void {
-  mapStaleSuppressions(data, violations);
-  mapDuplicateExports(data, violations);
-}
-
-function mapUnusedDepsAndExports(data: FallowAuditData, violations: Violation[]): void {
-  const unusedDeps = [
-    ...(data.unused_dependencies || []),
-    ...(data.unused_dev_dependencies || []),
-    ...(data.dead_code?.unused_dependencies || []),
-    ...(data.dead_code?.unused_dev_dependencies || [])
-  ];
-  for (const d of unusedDeps) {
-    violations.push({
-      file: path.resolve(process.cwd(), d.path || 'package.json'),
-      line: d.line || 1,
-      message: `Dependencia de package.json no usada (Fallow): '${d.package_name}'`,
-      context: d.package_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-dependencies',
-      ruleDescription: 'Dependencias no usadas'
-    });
-  }
-
-  const unusedExports = [...(data.unused_exports || []), ...(data.dead_code?.unused_exports || [])];
-  for (const x of unusedExports) {
-    violations.push({
-      file: path.resolve(process.cwd(), x.path),
-      line: x.line || 1,
-      message: `Export no usado (Fallow): '${x.export_name}'`,
-      context: x.export_name,
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-unused-exports',
-      ruleDescription: 'Exports no usados'
-    });
-  }
-}
-
-function mapWorkspaceDiagnostics(data: FallowAuditData, violations: Violation[]): void {
-  const diagnostics = [
-    ...(data.workspace_diagnostics || []),
-    ...(data.dead_code?.workspace_diagnostics || [])
-  ];
-  for (const d of diagnostics) {
-    if (d.kind === 'boundaries-not-configured' || d.kind === 'rule-packs-not-configured') {
-      continue;
-    }
-    const filePath = d.path && d.path !== '.' ? d.path : 'package.json';
-    violations.push({
-      file: path.resolve(process.cwd(), filePath),
-      line: 1,
-      message: `Diagnóstico de workspace (Fallow): [${d.kind || 'diagnostic'}] ${d.message || ''}`,
-      context: d.kind || 'workspace_diagnostic',
-      severity: 'error',
-      fixable: false,
-      packageName: 'Fallow',
-      ruleId: 'fallow-workspace-diagnostic',
-      ruleDescription: 'Diagnóstico de workspace'
-    });
-  }
-}
-
-function mapFallowTargets(data: FallowAuditData, violations: Violation[]): void {
-  const auditCfg = getAuditConfig();
-  if (!auditCfg.fallow?.enforceTargets) return;
-
-  const maxPriority = auditCfg.fallow.maxTargetPriority ?? 'critical';
-  const targets = data.targets || [];
-
-  for (const t of targets) {
-    const priority = t.priority ?? 0;
-    let meetsThreshold: boolean;
-    if (maxPriority === 'all') {
-      meetsThreshold = priority > 0;
-    } else if (maxPriority === 'high') {
-      meetsThreshold = priority >= FALLOW_HIGH_PRIORITY_THRESHOLD;
-    } else {
-      meetsThreshold = priority >= FALLOW_CRITICAL_PRIORITY_THRESHOLD;
-    }
-
-    if (meetsThreshold) {
-      violations.push({
-        file: path.resolve(process.cwd(), t.path),
-        line: 1,
-        message: `Objetivo de refactorización crítico (Fallow [prioridad: ${priority}]): ${t.recommendation || t.category || 'Mantenimiento crítico'}`,
-        context: t.category || 'refactoring-target',
-        severity: 'error',
-        fixable: false,
-        packageName: 'Fallow',
-        ruleId: 'fallow-refactoring-targets',
-        ruleDescription: 'Objetivo de refactor'
-      });
-    }
-  }
-}
-
-function mapFallowDeadCodeItems(data: FallowAuditData): Violation[] {
-  const violations: Violation[] = [];
-  mapCircularAndUnusedFiles(data, violations);
-  mapExportsAndSuppressions(data, violations);
-  mapUnusedDepsAndExports(data, violations);
-  mapFallowUnusedMembers(data, violations);
-  mapFallowComponentEntities(data, violations);
-  mapWorkspaceDiagnostics(data, violations);
-  mapFallowTargets(data, violations);
-  return violations;
-}
-
-export function mapFallowJson(command: string, data: FallowAuditData): Violation[] {
-  if (command === 'dupes' || command === 'triplets') {
-    return mapFallowClones(command, data);
-  }
-  if (command === 'security') {
-    return mapFallowSecurity(data);
-  }
-  if (command === 'audit' || command === 'dead-code') {
-    const violations = mapFallowDeadCodeItems(data);
-    if (data.complexity?.findings) {
-      for (const f of data.complexity.findings) {
-        addComplexityFinding(f, violations);
-      }
-    }
-    return violations;
-  }
-  if (command === 'health') {
-    const violations: Violation[] = [];
-    const findings = data.findings || [];
-    for (const f of findings) {
-      addComplexityFinding(f, violations);
-    }
-    mapFallowTargets(data, violations);
-    return violations;
-  }
-  return [];
 }
 
 export function getViolationCategory(v: Violation): string {
@@ -1321,9 +468,7 @@ const MAX_CONTEXT_SNIPPET_LENGTH = 50;
 const DEFAULT_TOP_LIMIT = 15;
 const MAX_FILES_TO_SHOW_IN_TERMINAL = 25;
 const MAX_VIOLATIONS_PER_FILE_IN_TERMINAL = 10;
-const FALLOW_DUPES_CONFIG = ['--min-occurrences', '2'];
-const FALLOW_TRIPLETS_CONFIG = ['--min-occurrences', '3', '--min-lines', '10', '--min-tokens', '60'];
-function sanitizeContext(ctx: string): string {
+function sanitizeContext(ctx?: string): string {
   if (!ctx) return '';
   return ctx.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CONTEXT_SNIPPET_LENGTH);
 }
@@ -1332,20 +477,10 @@ interface ProjectCliContext {
   values: Record<string, unknown>;
   selectedRules: Set<string>;
   activeConfigRules: Set<AuditRule>;
-  isZIndexActive: boolean;
-  isDoxActive: boolean;
-  isFallowDupesActive: boolean;
-  isFallowTripletsActive: boolean;
-  isFallowSecurityActive: boolean;
-  isFallowDeadCodeActive: boolean;
-  isFallowHealthActive: boolean;
-  isCssCheckerActive: boolean;
-  isConstantDetectorActive: boolean;
-  isSassMigratorActive: boolean;
   isHumanMode: boolean;
 }
 
-function extractSelectedRules(values: Record<string, unknown>, positionals: string[]): Set<string> {
+export function extractSelectedRules(values: Record<string, unknown>, positionals: string[]): Set<string> {
   const collectedRules = [
     ...(Array.isArray(values.rule) ? values.rule : [values.rule]),
     ...(Array.isArray(values.rules) ? values.rules : [values.rules]),
@@ -1362,7 +497,7 @@ function extractSelectedRules(values: Record<string, unknown>, positionals: stri
   return selectedRules;
 }
 
-function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRule> {
+export function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRule> {
   const activeConfigRules = new Set<AuditRule>();
   for (const rule of Object.values(config) as AuditRule[]) {
     if (matchesRule(rule, selectedRules)) {
@@ -1370,23 +505,6 @@ function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRule> {
     }
   }
   return activeConfigRules;
-}
-
-function computeSubsystemFlags(values: Record<string, unknown>, selectedRules: Set<string>) {
-  const hasSpecificRules = selectedRules.size > 0;
-  return {
-    isZIndexActive: (!hasSpecificRules || matchesRule(Z_INDEX_CONSISTENCY_DESCRIPTOR, selectedRules)) && getAuditConfig().styles?.zLayersEnabled !== false,
-    isDoxActive: !hasSpecificRules || matchesRule(DOX_ANALYZER_DESCRIPTOR, selectedRules),
-    isFallowDupesActive: !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS.dupes, selectedRules),
-    isFallowTripletsActive: !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS.triplets, selectedRules),
-    isFallowSecurityActive: !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS.security, selectedRules),
-    isFallowDeadCodeActive: !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS['dead-code'], selectedRules),
-    isFallowHealthActive: !hasSpecificRules || matchesRule(FALLOW_SUITE_DESCRIPTORS.health, selectedRules),
-    isCssCheckerActive: Boolean(values['css-only']) || (hasSpecificRules && matchesRule(CSS_ANALYZER_DESCRIPTOR, selectedRules)),
-    isConstantDetectorActive: hasSpecificRules && matchesRule(CONSTANT_ANALYZER_DESCRIPTOR, selectedRules),
-    isSassMigratorActive: !hasSpecificRules || matchesRule(SASS_MIGRATOR_DESCRIPTOR, selectedRules),
-    isHumanMode: Boolean(values.human || values.pretty || values.summary)
-  };
 }
 
 function parseProjectCliContext(cliArgs?: string[]): ProjectCliContext {
@@ -1422,46 +540,13 @@ function parseProjectCliContext(cliArgs?: string[]): ProjectCliContext {
   const positionals = parsedConfig.positionals;
   const selectedRules = extractSelectedRules(values, positionals);
   const activeConfigRules = filterActiveConfigRules(selectedRules);
-  const subsystemFlags = computeSubsystemFlags(values, selectedRules);
 
   return {
     values,
     selectedRules,
     activeConfigRules,
-    ...subsystemFlags
+    isHumanMode: Boolean(values.human || values.pretty || values.summary)
   };
-}
-
-async function runConsistencyAndDox(ctx: ProjectCliContext, logProgress: (msg: string) => void): Promise<Violation[]> {
-  const violations: Violation[] = [];
-  if (ctx.isZIndexActive) {
-    logProgress(styleText('cyan', '[1/6] 🎨 Verificando paridad de capas Z (TypeScript <-> SCSS)...'));
-    const syncErrors = await checkZIndexConsistency(Boolean(ctx.values.fix));
-    if (syncErrors.length > 0) {
-      logProgress(styleText('magenta', `\n[SYNC] Desincronización detectada en paridad de Z-Layers:`));
-      syncErrors.forEach(e => logProgress(styleText('yellow', `  -> ${e}`)));
-      const configStyles = getAuditConfig().styles;
-      const rawTarget = configStyles?.zLayersScssFile ?? configStyles?.baseScssFile;
-      const targetFile = resolveZLayersScssPath(process.cwd()) || rawTarget || AUDIT_CONFIG_FILE;
-      for (const err of syncErrors) {
-        violations.push({
-          file: targetFile,
-          line: 1,
-          message: `Desincronización de z-index: ${err}`,
-          context: 'z-index',
-          severity: 'error',
-          fixable: true
-        });
-      }
-    }
-  }
-
-  if (ctx.isDoxActive) {
-    logProgress(styleText('cyan', '[2/6] 📘 Escaneando jerarquía e integridad de índices AGENTS.md / DOX...'));
-    const doxErrors = await checkDoxIntegrity(process.cwd(), getEffectiveIgnoreDirs());
-    violations.push(...doxErrors);
-  }
-  return violations;
 }
 
 async function runAstFileScans(
@@ -1495,85 +580,7 @@ async function runAstFileScans(
   return { violations, files };
 }
 
-function runChangedSinceFallow(
-  changedSince: string,
-  ctx: ProjectCliContext,
-  isSecurityActive: boolean,
-  logProgress: (msg: string) => void
-): Violation[] {
-  let violations: Violation[] = [];
-  if (ctx.isFallowDeadCodeActive || isSecurityActive) {
-    logProgress(styleText('cyan', '   -> Fallow audit & security (archivos modificados)...'));
-    if (ctx.isFallowDeadCodeActive) violations = violations.concat(runFallow('audit', ['--changed-since', changedSince]));
-    if (isSecurityActive) violations = violations.concat(runFallow('security', ['--changed-since', changedSince]));
-  }
-  return violations;
-}
-
-function logFallowStepProgress(
-  stepNumber: number,
-  title: string,
-  violationsCount: number,
-  logProgress: (msg: string) => void
-): void {
-  const badge = violationsCount > 0 ? ` (🐛 ${violationsCount})` : '';
-  logProgress(styleText('cyan', `   ├─ [${stepNumber}/5] Fallow: ${title}${badge}...`));
-}
-
-function runFullFallowSuites(
-  ctx: ProjectCliContext,
-  isSecurityActive: boolean,
-  logProgress: (msg: string) => void
-): Violation[] {
-  let violations: Violation[] = [];
-  if (ctx.isFallowDupesActive) {
-    const res = runFallow('dupes', FALLOW_DUPES_CONFIG, 'dupes');
-    logFallowStepProgress(1, 'Duplicación de código', res.length, logProgress);
-    violations = violations.concat(res);
-  }
-  if (ctx.isFallowTripletsActive) {
-    const res = runFallow('dupes', FALLOW_TRIPLETS_CONFIG, 'triplets');
-    logFallowStepProgress(2, 'Triplicación de código', res.length, logProgress);
-    violations = violations.concat(res);
-  }
-  if (isSecurityActive) {
-    const res = runFallow('security');
-    logFallowStepProgress(3, 'Análisis de seguridad CWE', res.length, logProgress);
-    violations = violations.concat(res);
-  }
-  if (ctx.isFallowDeadCodeActive) {
-    const res = runFallow('dead-code');
-    logFallowStepProgress(4, 'Análisis de código muerto', res.length, logProgress);
-    violations = violations.concat(res);
-  }
-  if (ctx.isFallowHealthActive) {
-    const res = runFallow('health');
-    logProgress(styleText('cyan', '   └─ [5/5] Fallow: Cálculo de métricas de salud (completado)...'));
-    violations = violations.concat(res);
-  }
-  return violations;
-}
-
-function runFallowSuites(
-  ctx: ProjectCliContext,
-  logProgress: (msg: string) => void
-): Violation[] {
-  const cfg = getAuditConfig();
-  const fallowSecActive = cfg.fallow?.security?.enabled ?? cfg.security?.enabled ?? true;
-  const isSecurityActive = ctx.isFallowSecurityActive && (cfg.fallow?.enabled !== false) && (fallowSecActive !== false);
-  const isScopedSubpath = Boolean(ctx.values.path && ctx.values.path !== '.');
-  const anyFallowActive = (ctx.isFallowDupesActive || ctx.isFallowTripletsActive || isSecurityActive || ctx.isFallowDeadCodeActive || ctx.isFallowHealthActive) && !isScopedSubpath;
-  if (!anyFallowActive) return [];
-
-  logProgress(styleText('cyan', '[4/6] 🛡️ Ejecutando suite de inteligencia Fallow (dupes, triplets, security, dead-code, health)...'));
-  const changedSince = ctx.values['changed-since'] as string | undefined;
-
-  return changedSince
-    ? runChangedSinceFallow(changedSince, ctx, isSecurityActive, logProgress)
-    : runFullFallowSuites(ctx, isSecurityActive, logProgress);
-}
-
-function filterAndGroupViolations(
+export function filterAndGroupViolations(
   rawViolations: Violation[],
   ctx: ProjectCliContext
 ): { all: Violation[]; fileGroups: Record<string, Violation[]>; typeGroups: Record<string, number> } {
@@ -1595,7 +602,7 @@ function filterAndGroupViolations(
         id: v.ruleId || category,
         name: v.message,
         category: category,
-        aliases: [v.context, path.basename(v.file)]
+        aliases: v.context ? [v.context, path.basename(v.file)] : [path.basename(v.file)]
       };
       return matchesRule(desc, ctx.selectedRules);
     });
@@ -1739,70 +746,15 @@ async function exportProjectReportOutput(
   logProgress(styleText('cyan', `✨ Reporte completo escrito en: ${values.output}`));
 }
 
-async function runStylelintFindings(
-  logProgress: (msg: string) => void,
-  stepLabel: string
-): Promise<Violation[]> {
-  logProgress(styleText('cyan', stepLabel));
-  const stylelint = new StylelintAuditor({ projectRoot: process.cwd() });
-  const res = await stylelint.execute();
-  const violations: Violation[] = [];
-  for (const f of res.findings) {
-    violations.push({
-      file: path.resolve(process.cwd(), f.file || 'src'),
-      line: f.line || 1,
-      message: f.message || 'Stylelint violation',
-      context: f.context || f.ruleId || 'stylelint',
-      severity: f.severity === 'info' ? 'warning' : f.severity,
-      fixable: false,
-      packageName: 'Stylelint',
-      ruleId: f.ruleId,
-      ruleDescription: f.ruleDescription
-    });
-  }
-  return violations;
-}
-
 async function executeProjectAuditPhases(
   ctx: ProjectCliContext,
   logProgress: (msg: string) => void
 ): Promise<{ all: Violation[]; files: string[] }> {
-  let all: Violation[] = [];
-  let files: string[] = [];
-
-  if (ctx.values['css-only']) {
-    all = await runStylelintFindings(
-      logProgress,
-      '[1/1] 🎨 Ejecutando análisis de estilos con Stylelint (duplicados y calidad)...'
-    );
-    return { all, files };
-  }
-
-  all = all.concat(await runConsistencyAndDox(ctx, logProgress));
   const astResult = await runAstFileScans(ctx, logProgress);
-  files = astResult.files;
-  all = all.concat(astResult.violations);
-
-  all = all.concat(runFallowSuites(ctx, logProgress));
-
-  if (ctx.isCssCheckerActive) {
-    const styleViolations = await runStylelintFindings(
-      logProgress,
-      '[5/6] 🎨 Ejecutando análisis de calidad y duplicación CSS/SCSS (Stylelint)...'
-    );
-    all = all.concat(styleViolations);
-  }
-
-  if (ctx.isConstantDetectorActive) {
-    logProgress(styleText('cyan', '[6/6] 🧩 Ejecutando análisis de constantes duplicadas entre módulos...'));
-    const filesForConstants = files.length > 0 ? files : await getFilesToAudit(path.resolve(process.cwd(), ctx.values.path as string || '.'));
-    all = all.concat(await detectDuplicateConstants(filesForConstants));
-  }
-
-  return { all, files };
+  return { all: astResult.violations, files: astResult.files };
 }
 
-function buildProjectTopFiles(fileGroups: Record<string, Violation[]>, topLimit: number) {
+export function buildProjectTopFiles(fileGroups: Record<string, Violation[]>, topLimit: number) {
   return Object.entries(fileGroups)
     .map(([file, violations]) => ({
       file,
@@ -1880,7 +832,7 @@ async function persistProjectReports(jsonReport: object): Promise<{ archJsonPath
   return { archJsonPath, jsonReportStr };
 }
 
-async function main(cliArgs?: string[]): Promise<Violation[]> {
+export async function main(cliArgs?: string[]): Promise<Violation[]> {
   await loadAuditConfig();
   const startTime = performance.now();
   const ctx = parseProjectCliContext(cliArgs);
@@ -1938,6 +890,27 @@ async function main(cliArgs?: string[]): Promise<Violation[]> {
   return all;
 }
 
+export function getProjectArchitectureRuleDescriptions(): Record<string, string> {
+  const descriptions: Record<string, string> = {
+    'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',
+    'domain-type-violation': 'Violación de tipo de dominio',
+    'strict-null-violation': 'Violación de chequeo de null',
+    'no-tautological-integration-mocks': 'Mocks tautológicos en integración',
+    'playwright-id-locators-only': 'Locators Playwright sin atributo ID',
+    'no-playwright-force-click': 'Clicks forzados prohibidos',
+    'architecture-violation': 'Violación de regla de arquitectura'
+  };
+
+  for (const [key, rule] of Object.entries(config)) {
+    const r = rule as AuditRule;
+    const id = r.id ? r.id : key;
+    const desc = resolveAuditRuleDescription(r, key);
+    descriptions[id] = desc;
+  }
+
+  return descriptions;
+}
+
 export class ProjectArchitectureAuditor extends BaseAuditor<string> {
   constructor() {
     super({
@@ -1952,25 +925,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         include: ['**/*.{vue,scss,css,ts,js,md}'],
         exclude: [path.posix.join(AUDITOR_DIR, '**')]
       },
-      ruleDescriptions: {
-        'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',
-        'domain-type-violation': 'Violación de tipo de dominio',
-        'strict-null-violation': 'Violación de chequeo de null',
-        'no-tautological-integration-mocks': 'Mocks tautológicos en integración',
-        'playwright-id-locators-only': 'Locators Playwright sin atributo ID',
-        'no-playwright-force-click': 'Clicks forzados prohibidos',
-        'fallow-duplicate-code': 'Código duplicado detectado',
-        'fallow-triplicate-code': 'Código triplicado crítico',
-        'fallow-complexity': 'Complejidad de función excesiva',
-        'fallow-cognitive-complexity': 'Complejidad cognitiva excesiva',
-        'fallow-cyclomatic-complexity': 'Complejidad ciclomática excesiva',
-        'fallow-unused-export': 'Export no utilizado detectado',
-        'fallow-unresolved-imports': 'Import no resuelto detectado',
-        'fallow-circular-dependencies': 'Dependencia circular detectada',
-        'fallow-unlisted-dependencies': 'Dependencia no listada en package',
-        'fallow-boundary-violations': 'Violación de límite arquitectónico',
-        'fallow-stale-suppressions': 'Supresión obsoleta de Fallow'
-      }
+      ruleDescriptions: getProjectArchitectureRuleDescriptions()
     });
   }
 

@@ -13,6 +13,7 @@
  *   4. Outputs standardized 80-column Box-Drawing tables via `unifiedTheme`.
  */
 import { type ChunkBudgetConfig } from '../core/auditConfig.ts';
+import { type SubAuditorStatus } from '../core/auditContract.ts';
 export interface ModuleMeta {
     readonly id: string;
 }
@@ -33,11 +34,12 @@ export interface AggregatedModule {
     readonly heavyChunkCount: number;
     readonly count: number;
 }
+export type ChunkAuditStatus = SubAuditorStatus;
 export interface ChunkAuditResult {
     readonly filename: string;
     readonly sizeBytes: number;
     readonly sizeKB: string;
-    readonly status: 'passed' | 'failed' | 'warning';
+    readonly status: ChunkAuditStatus;
     readonly budgetName?: string;
     readonly budgetLimitBytes?: number;
     readonly note: string;

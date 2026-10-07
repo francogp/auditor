@@ -39,7 +39,7 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
     expect(config.fallow?.enabled).toBe(true);
     expect(config.fallow?.security?.enabled).toBe(true);
     expect(config.fallow?.enforceTargets).toBe(true);
-    expect(config.fallow?.maxTargetPriority).toBe('critical');
+    expect(config.fallow?.maxTargetPriority).toBe('high');
     expect(config.fallow?.similarCode?.enabled).toBe(true);
     expect(config.fallow?.flags?.enabled).toBe(true);
     expect(config.fallow?.flags?.trackRetirement).toBe(true);

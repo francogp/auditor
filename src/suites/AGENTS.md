@@ -1,6 +1,6 @@
 # Purpose
 
-Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 43 domain-agnostic suites organized across 4 canonical families: `architecture/`, `documentation/`, `domain_data/`, and `persistence/`.
+Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 45 domain-agnostic suites organized across 4 canonical families: `architecture/`, `documentation/`, `domain_data/`, and `persistence/`.
 
 ## Ownership
 
@@ -14,12 +14,16 @@ Architecture & Tooling Engineers.
 - **Mandatory Thematic Emojis (`icon`)**: Every suite declares its dedicated thematic emoji representing its domain.
 - **Zero Untested Rules**: Every suite has a corresponding test in `tests/<suite_filename>.test.ts`.
 
-## Key Files
+## Work Guidance
 
-- [`architecture/AGENTS.md`](./architecture/AGENTS.md): Architecture, Vue SFC, CSS, GSAP, and tooling suites.
-- [`documentation/AGENTS.md`](./documentation/AGENTS.md): DOX hierarchy, Markdown links, and syntax validation suites.
-- [`domain_data/AGENTS.md`](./domain_data/AGENTS.md): Nominal domain types and O(1) data structure suites.
-- [`persistence/AGENTS.md`](./persistence/AGENTS.md): SQL anti-patterns and persistence integrity suites.
+- Ensure all sub-auditors implement `toManifest()` accurately with description `<= 60` characters.
+- Maintain pure Spanish `ruleDescriptions` composed as `${packageName}: ${ruleDescription}` under `<= 50` characters.
+- Use explicit capabilities (`fix`, `lint`, `md`, `ast`) and avoid repeating default false flags.
+
+## Verification
+
+- Run all family suites: `npm test -- tests/validate_*.test.ts`
+- Run lint preset suites: `node --experimental-strip-types src/cli/audit_full.ts preset=lint`
 
 ## Child DOX Index
 

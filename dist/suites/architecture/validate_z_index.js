@@ -14,8 +14,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
-import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE } from "../../core/auditConfig.js";
-import { Z_LAYERS } from "./audit_rules.js";
+import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE, Z_LAYERS } from "../../core/auditConfig.js";
 enableCompileCache();
 export const Z_INDEX_RULES = [
     'z-index-missing-var',
@@ -27,7 +26,7 @@ function checkOrFixMissingVar(varName, value, content, isFixMode, errors, violat
     errors.push(msg);
     if (isFixMode && content.includes(':root {')) {
         return {
-            updatedContent: content.replace(/}\s*$/, `  ${varName}: ${value};\n}\n`),
+            updatedContent: content.replace(/\}\s*$/, `  ${varName}: ${value};\n}\n`),
             wasModified: true
         };
     }
@@ -108,11 +107,7 @@ export class ZIndexAuditor extends BaseAuditor {
         }
     }
     async runAudit() {
-        const config = getAuditConfig();
-        if (!this.isExplicit && config.styles?.zLayersEnabled === false) {
-            for (const r of Z_INDEX_RULES) {
-                this.markRuleNotApplicable(r, 'Z-Layers desactivado en config');
-            }
+        if (!this.isExplicit && this.isSuiteGatingDisabled('Z-Layers desactivado en config')) {
             return;
         }
         if (!this.scssPath) {

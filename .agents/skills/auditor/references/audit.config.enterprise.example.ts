@@ -184,7 +184,9 @@ export default defineAuditConfig({
   },
 
   documentation: {
-    knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'] // Abstract paths recognized as valid in Markdown code references
+    language: 'en', // Primary documentation language ('en' | 'es', defaults to 'en'). Enforces English across documentation, skills, and templates
+    knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'], // Abstract paths recognized as valid in Markdown code references
+    languageExemptions: [] // Paths or globs exempt from natural language detection (e.g. ['docs/es/**'])
   },
 
   pinia: {

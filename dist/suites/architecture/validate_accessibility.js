@@ -50,11 +50,11 @@ export function mapA11yRuleId(eslintRuleId) {
     }
 }
 export class ValidateAccessibilityAuditor extends BaseAuditor {
-    fixMode;
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
             capabilities: { fix: true, lint: true },
+            fix: options.fix,
             id: 'validate_accessibility',
             name: 'Vue & Web Accessibility Standards Auditor',
             description: 'Valida estándares WCAG 2.1/2.2 y accesibilidad',
@@ -73,17 +73,12 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
             projectRoot: effectiveRoot,
             coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }
         });
-        this.fixMode = options.fix ?? false;
     }
     async runAudit() {
-        const config = getAuditConfig(this.projectRoot);
-        if (config.accessibility?.enabled === false) {
-            for (const ruleId of ACCESSIBILITY_RULES) {
-                this.markRuleNotApplicable(ruleId, 'config.accessibility.enabled = false');
-            }
+        if (this.isSuiteGatingDisabled('Accesibilidad desactivada en config')) {
             return;
         }
-        // 2. Discover .vue files in components, views, or src roots
+        const config = getAuditConfig(this.projectRoot);
         const scannableRoots = [
             ...(config.paths.componentsRoots ?? ['src/components']),
             ...(config.paths.viewsRoots ?? ['src/views']),
@@ -92,29 +87,35 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
         this.redeclareCoverage({
             include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include]
         });
-        // 1. Audit index.html viewport zoom lock (WCAG 1.4.4)
         this.auditIndexViewport();
-        const vueFiles = [];
-        const seenFiles = new Set();
-        for (const root of scannableRoots) {
-            const fullRoot = path.resolve(this.projectRoot, root);
-            if (!fs.existsSync(fullRoot))
-                continue;
-            this.collectVueFiles(fullRoot, vueFiles, seenFiles);
-        }
+        const vueFiles = this.collectScannableVueFiles(scannableRoots);
         if (vueFiles.length === 0) {
             for (const ruleId of ESLINT_BACKED_RULES) {
                 this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
             }
             return;
         }
-        // 3. Configure and execute ESLint with vuejs-accessibility plugin
-        const customRules = config.accessibility?.rules ?? {};
-        const normalizedCustomRules = {};
-        for (const [key, val] of Object.entries(customRules)) {
-            normalizedCustomRules[key] = val ? 'error' : 'off';
+        const effectiveRules = this.buildEffectiveRules(config.accessibility?.rules ?? {});
+        const results = await this.executeEslintOnVueFiles(vueFiles, effectiveRules);
+        this.processLintResults(results, effectiveRules);
+    }
+    collectScannableVueFiles(scannableRoots) {
+        const vueFiles = [];
+        const seenFiles = new Set();
+        for (const root of scannableRoots) {
+            const fullRoot = path.resolve(this.projectRoot, root);
+            if (fs.existsSync(fullRoot)) {
+                this.collectVueFiles(fullRoot, vueFiles, seenFiles);
+            }
         }
-        const effectiveRules = {
+        return vueFiles;
+    }
+    buildEffectiveRules(customRules) {
+        const normalized = {};
+        for (const [key, val] of Object.entries(customRules)) {
+            normalized[key] = val ? 'error' : 'off';
+        }
+        return {
             'vuejs-accessibility/alt-text': 'error',
             'vuejs-accessibility/anchor-has-content': 'error',
             'vuejs-accessibility/aria-props': 'error',
@@ -128,8 +129,10 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
             'vuejs-accessibility/no-redundant-roles': 'error',
             'vuejs-accessibility/role-has-required-aria-props': 'error',
             'vuejs-accessibility/tabindex-no-positive': 'error',
-            ...normalizedCustomRules
+            ...normalized
         };
+    }
+    async executeEslintOnVueFiles(vueFiles, rules) {
         const eslint = new ESLint({
             cwd: this.projectRoot,
             fix: this.fixMode,
@@ -137,20 +140,19 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
             overrideConfig: [
                 {
                     files: ['**/*.vue'],
-                    languageOptions: {
-                        parser: vueParser
-                    },
-                    plugins: {
-                        'vuejs-accessibility': vueA11y
-                    },
-                    rules: effectiveRules
+                    languageOptions: { parser: vueParser },
+                    plugins: { 'vuejs-accessibility': vueA11y },
+                    rules
                 }
             ]
         });
-        const results = await eslint.lintFiles(vueFiles);
+        const results = await eslint.lintFiles([...vueFiles]);
         if (this.fixMode) {
             await ESLint.outputFixes(results);
         }
+        return results;
+    }
+    processLintResults(results, effectiveRules) {
         const activeRules = new Set();
         for (const [eslintRuleId, level] of Object.entries(effectiveRules)) {
             if (level !== 'off')
@@ -167,12 +169,10 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
             for (const ruleId of activeRules)
                 this.markRuleEvaluated(ruleId);
             for (const msg of res.messages) {
-                if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/')) {
+                if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/'))
                     continue;
-                }
-                const canonicalRule = mapA11yRuleId(msg.ruleId);
                 this.addViolation({
-                    ruleId: canonicalRule,
+                    ruleId: mapA11yRuleId(msg.ruleId),
                     severity: 'error',
                     file: relFile,
                     line: msg.line,

@@ -82,7 +82,7 @@ export class EslintAuditor extends BaseAuditor {
     }
     async runAudit() {
         const config = getAuditConfig(this.projectRoot);
-        const exclude = [
+        const excludeGlobs = [
             'node_modules/**',
             'dist/**',
             'scratch/**',
@@ -91,7 +91,7 @@ export class EslintAuditor extends BaseAuditor {
         ];
         this.redeclareCoverage({
             include: ['**/*.{js,ts,mjs,cjs,vue}'],
-            exclude,
+            exclude: excludeGlobs,
             source: 'runtime'
         });
         const isFixMode = this.isFixModeRequested();

@@ -9,6 +9,37 @@ This skill defines the immutable standard and architectural contract for creatin
 
 Every sub-auditor and reporter is part of a unified static analysis and verification system orchestrated by `npm run audit`.
 
+## 🏗️ 3-Tier Hierarchical Architecture & Atomic Console Mandate
+
+The auditor framework enforces a universal, 3-tier hierarchical and symmetric architecture where both official suites and host project extensions share the exact same OOP abstractions:
+
+```mermaid
+graph TD
+  M["Auditor Maestro (Orquestador Global)"] --> O["Auditores Oficiales"]
+  M --> E["Extensiones de Auditores (Proyectos Host)"]
+  O --> SO["Sub-Auditores Oficiales (Comparten recursos/contexto)"]
+  E --> SE["Sub-Auditores de Extensiones (Comparten recursos/contexto)"]
+
+  style M fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+  style O fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc
+  style E fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#f8fafc
+  style SO fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#f8fafc
+  style SE fill:#831843,stroke:#f472b6,stroke-width:2px,color:#f8fafc
+```
+
+1. **Auditor Maestro (Global Orchestrator)**:
+   - Discovers all registered auditors (official suites in `src/suites/` and project extensions in `.auditor/audit.config.ts`).
+   - Runs worker processes with CPU parallelism and coordinates deterministic, in-order terminal output via `TaskStreamCoordinator`.
+2. **Auditores Oficiales & Extensiones de Auditores (Symmetric OOP Model)**:
+   - **Zero Code Duplication**: Both official auditors and host extensions inherit directly from `BaseAuditor` or `FileScanAuditor`. They implement identical interfaces, capability declarations, and error handling.
+3. **Sub-Auditores (Oficiales y de Extensiones)**:
+   - Heavy or multi-rule auditors can compose sub-auditors that share cached resources (e.g. `SharedAstContext`, filesystem reads, external CLI outputs) to maximize execution performance.
+4. **Atomic Console Mandate**:
+   - By framework contract, an auditor executing multiple sub-auditors **MUST wait for all its sub-auditors to complete** before emitting its step progress reports (`│  🔍 [X/Y] ...`). This prevents terminal race conditions, mixed line output, and cognitive friction during multi-worker execution.
+5. **Mandatory Construction & Runtime Rule Registration Guard**:
+   - `AuditorOptions.ruleDescriptions: Record<TRuleId, string>` is strictly mandatory.
+   - If an auditor or extension attempts to emit a violation for any rule that was not declared at construction time in `ruleDescriptions`, `BaseAuditor.addViolation` immediately throws a loud, blocking runtime `Error`.
+
 ---
 
 ## 🏛️ Core Principles & Tooling Mandates
@@ -22,6 +53,11 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
    - If the number of errors or warnings is massive (even hundreds or thousands of errors), **THEY ARE REAL ARCHITECTURAL, SECURITY, OR HYGIENE DEFECTS THAT MUST BE LEGITIMATELY RESOLVED IN THE SOURCE CODE OR FIXED WITH CANONICAL TOOLS (`auditor fix`)**.
    - Modernizing host configurations means **elevating the codebase to meet strict modern standards and exposing defects that were previously hidden**, NEVER degrading, diluting, or castrating the auditor's rules to fit legacy code.
    - Rushing to silence rules to achieve a fake clean pass is considered a critical architectural violation and gross misconduct.
+0.1.1. **Primordial Mandate: Absolute Prohibition on Disabling or Modifying Configurations to Bypass Errors Without Explicit Programmer Consultation**:
+   - **You MUST NEVER turn off, disable, relax, revert, or tamper with configurations** (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`, etc.) because a verification suite reported errors or warnings.
+   - If a suite reports errors — even dozens, hundreds, or thousands of errors — **THEY ARE REAL DEFECTS** that must be investigated and legitimately resolved in the source code or via canonical auto-repair tools (`auditor fix`).
+   - Modifying or disabling configurations (e.g. setting `enabled: false`, deactivating subsystems, lowering thresholds, adding arbitrary whitelist entries, or reverting toggles) to make an audit "pass" without explicit programmer consultation is considered **critical architectural sabotage and gross misconduct**.
+   - If an agent believes a configuration does not apply or genuinely requires adjustment, **THE AGENT MUST STOP IMMEDIATELY AND OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** via an explicit question (`ask_question`), presenting the exact defects and waiting for human authorization before modifying any configuration. When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.
 0.2. **Absolute Prohibition on NPX & Mandate of Native Node.js 26+ (`node --experimental-strip-types`) / Canonical NPM Scripts**:
    - Running, recommending, or executing `npx` (e.g., `npx tsx`, `npx auditor`, `npx vitest`) or third-party runtime wrappers across `@francogp/auditor` and consumer host projects is **STRICTLY AND CATEGORICALLY PROHIBITED**.
    - Node.js 26+ runs TypeScript natively without third-party transpiladores. All internal tool executions, inspections, and scripts MUST use native Node.js (`node --experimental-strip-types <script.ts>`) or canonical npm package scripts (`npm run <script>`, `npm test`).
@@ -285,10 +321,12 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
     - Resolving existing warnings automatically shrinks `.auditor/audit-baseline.json` on the next full audit run, ratcheting code quality monotonically upward.
     - Bypassing the ratchet, disabling `ratchet.enabled`, or hand-editing `.auditor/audit-baseline.json` to absorb new warnings is strictly forbidden.
     - The differential `audit:for-commit` gate was completely removed; `npm run audit` itself is the single, definitive quality gate.
-60. **Bidirectional DOX Source File Indexing & Link Relocation Diagnostics (`dox-unindexed-file`, `validate_markdown_links`)**:
-    - DOX hierarchy (`validate_dox_integrity`) enforces bidirectional synchronization between filesystem and documentation: all non-test source code files (`.ts`, `.vue`, `.js`, etc.) residing in a directory governed by `AGENTS.md` MUST be documented under `## Key Files`. Missing source files trigger `dox-unindexed-file` (`severity: 'error'`).
-    - Relative link verification (`validate_markdown_links` and `doxAnalyzer`) detects broken links to local files. If a referenced target does not exist at the specified path but exists elsewhere in the repository, the error message transparently reports: `"pero aparentemente fue localizado en: ..."` and suggests canonical relative paths.
-    - **Zero Risky Auto-Fix Mandate**: Broken markdown links and missing code index entries MUST NOT be auto-fixed or auto-rewritten by machine tools; diagnostics are provided so the developer or AI agent can make an informed architectural decision.
+60. **Canonical DOX Hierarchy & Section Structure Governance (`validate_dox_integrity`)**:
+    - **6 Mandatory Canonical Sections (`dox-missing-section`, `dox-section-order`, `dox-empty-section`)**: Every `AGENTS.md` file MUST contain all 6 canonical sections in strict sequential order: `# Purpose` ➔ `## Ownership` ➔ `## Local Contracts` ➔ `## Work Guidance` ➔ `## Verification` ➔ `## Child DOX Index`.
+    - **Optional `## Key Files` Placement**: When present for bidirectional code mapping, `## Key Files` must be canonically placed immediately after `## Local Contracts` or immediately before `## Child DOX Index`.
+    - **Zero Empty or Garbage Content Mandate (`dox-empty-section`)**: Leaving mandatory sections empty, whitespace-only, comment-only (`<!-- ... -->`), or filled with placeholder/junk tokens (`TODO`, `TBD`, `N/A`, `None`, `< 10` chars) triggers a blocking `severity: 'error'`. Every section must provide genuine, operational guidance and runnable verification commands.
+    - **Bidirectional Source File Indexing (`dox-unindexed-file`)**: All non-test source code files (`.ts`, `.vue`, `.js`, etc.) residing in a directory governed by `AGENTS.md` MUST be documented under `## Key Files`. Missing source files trigger `dox-unindexed-file` (`severity: 'error'`).
+    - **Link Integrity Diagnostics (`dox-broken-link`, `dox-absolute-link`, `dox-gitignore-target`)**: Markdown links must use relative POSIX paths pointing to valid disk assets. Absolute filesystem paths or unversioned gitignored resources trigger errors. If a target is missing from the specified path but located elsewhere, the diagnostic transparently reports: `"pero aparentemente fue localizado en: ..."` without applying unvetted automated file mutations.
 61. **Mandatory Test Execution Coverage Enforcement (`validate_test_coverage`, `testCoverage.enforceInAudit`)**:
     - Test coverage enforcement is **active by default** (`testCoverage.enforceInAudit: true`) across `@francogp/auditor`.
     - If overall code coverage or category coverage (statements, branches, functions, lines) falls below the threshold (default: **80%**), `validate_test_coverage` fails with blocking `severity: 'error'`.
@@ -305,6 +343,21 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 63. **Auto-Fix First Protocol & Script Sync Gate**:
     - **Auto-Fix First**: When an audit completes with fixable errors/warnings, `audit_full` renders an emphatic Box-Drawing banner urging `npm run audit:fix` (or `auditor fix`). Agents and developers MUST run auto-fix first to resolve mechanical defects before attempting manual refactoring, and are strictly prohibited from muting or silencing rules in panic.
     - **Script Sync First**: If a recommended auditor script (`audit:by-file`, `audit:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run audit:fix` (or `node --experimental-strip-types ...`) to synchronize scripts from `recommended_package_scripts_template.json` before attempting manual ad-hoc executions.
+64. **Universal English Documentation Default Mandate & Language Governance (`validate_documentation_language`)**:
+    - Across `@francogp/auditor` and all consumer projects, if `config.documentation?.language` is not explicitly declared, it unconditionally defaults to English (`'en'`). No hesitation or omission is permitted; English is enforced by default everywhere.
+    - Natural language across repository markdown, documentation, manuals, blueprints, and AI skills under `.agents/skills/**` is governed strictly by `config.documentation.language` (strictly defaulting to `'en'`, with optional `'es'`).
+    - The engine extracts human prose while strictly stripping technical code blocks (` ```...``` `), inline code (`...`), markdown links/URLs, and YAML frontmatter (`---...---`) to avoid false positives on programming syntax.
+    - Any detected violation (e.g. Spanish text in an English codebase) is reported with `severity: 'error'`.
+    - Language exemptions for specific paths or multilingual docs can be declared via `config.documentation.languageExemptions`.
+65. **Declarative Configuration File Requirements & Unified Auto-Fix Contract (`AuditorConfigFileRequirement`, `ConfigFileRegistry`)**:
+    - Sub-auditors (built-in suites and user extensions alike) that depend on external or tool configuration files (such as `eslint.config.js`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`) MUST NOT implement ad-hoc custom file generation scripts or siloed fixers.
+    - Each sub-auditor declares its required configuration files declaratively via `AuditorOptions.configFiles?: readonly AuditorConfigFileRequirement[]` (and class-level `public static readonly configFiles` or extension options `defineAuditorExtension({ configFiles: [...] })`).
+    - Every requirement defines: `file: string`, `content: string | (() => string | Promise<string>)`, and `description: string`, with optional `customMissingMessage`, `customMissingFile`, and `isApplicable(projectRoot)`.
+    - `BaseAuditor` registers these requirements automatically into `ConfigFileRegistry` and provides standard helper methods:
+      - `this.verifyAndFixConfigFiles()`: Checks existence and automatically creates default configurations if running in `--fix` mode (`this.isFixActive()`).
+      - `this.ensureConfigFile(requirement)`: Programmatically creates or verifies a specific configuration file with canonical fallback content.
+      - `this.resolveConfigFile(file)`: Resolves absolute paths safely within `this.projectRoot`.
+    - Missing configuration files trigger `severity: 'error'` findings that are dynamically repairable via `auditor fix` (`npm run audit:fix`).
 
 ---
 
@@ -312,10 +365,10 @@ Every sub-auditor and reporter is part of a unified static analysis and verifica
 
 ### 1. Generic Built-In Suites (`src/suites/`)
 Domain-agnostic suites discovered automatically across canonical architectural families:
-- `architecture/` (including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
+- `architecture/` (including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), AGENTS config tampering mandate (`validate_agents_config_mandate`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
 - `domain_data/`: O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `.auditor/audit.config.ts`)
 - `persistence/`: SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
-- `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
+- `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), documentation language verification (`validate_documentation_language.ts`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `.auditor/audit.config.ts`
 All domain-specific rules unique to host applications (e.g. specialized domain entities, state machines, business workflows, custom SQLite schemas) reside in `scripts/auditors/` (or designated project folders) and extend `BaseAuditor` imported from `@francogp/auditor`.
@@ -349,6 +402,8 @@ Configured in `.auditor/audit.config.ts`:
 - `constants.ignoredNames`: `['TAX_DEFAULT_ROUNDING']` (Constants ignored in duplicate detection)
 - `constants.allowedNumericPrefixes`: `['GEN_', 'ISO_', 'BASE_']` (Prefixes allowed for numeric constants)
 - `constants.exemptMagicNumbers`: `[21, 10.5, 27]` (Numeric literals exempt from magic numbers check)
+- `documentation.language`: `'en' | 'es'` (Default: `'en'`. Primary language enforced across repository docs, skills, and templates)
+- `documentation.languageExemptions`: `['docs/es/**', 'CHANGELOG.md']` (Paths exempt from language detection)
 - `documentation.knownValidAbstractPaths`: `['@docs/architecture/fiscal-engine.md']` (Abstract valid docs paths)
 - `pinia.authorizedMutationFiles`: `['src/logic/coordinators/sessionCoordinator.ts']` (Authorized store mutation files)
 - `domain.caseNormalizationExemptTokens`: `['iso', 'vat', 'cuit', 'dni', ...]` (Tokens exempt from lowercasing)
@@ -397,7 +452,7 @@ Pre-formatted, production-ready templates conforming to all project standards ar
 - **Remote Deploy Builds & CI Pipelines ONLY (`AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1`)**: In specifically defined remote deployment workflows (such as GitHub Pages or headless CI containers), builds may set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` to omit Fallow similar-code AI embedding checks. In local development and routine agent turns, bypassing similar code is strictly prohibited because Candle CPU executes locally from cache in ~2s.
 
 📘 **Detailed Guide & Canonical Config**: See [host-package-governance.md](references/host-package-governance.md) for full instructions, CI setups, and `package.json` blueprint.
-📘 **Host Migration & Modernization**: See [v4-migration-guide.md](references/v4-migration-guide.md) for the complete v4+ upgrade procedure and mandatory README synchronization checklist.
+📘 **Host Migration & Modernization**: See [v5-migration-guide.md](references/v5-migration-guide.md) for the complete v5+ upgrade procedure and mandatory README synchronization checklist.
 
 ---
 
@@ -481,7 +536,7 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 
 The following reference manuals and configuration blueprints are maintained in `references/`:
 
-- [`references/v4-migration-guide.md`](./references/v4-migration-guide.md): Complete guide for modernizing legacy host projects to v4 standards, covering configurations, sub-auditor refactoring, coverage ledgers, and zero-suppression directives.
+- [`references/v5-migration-guide.md`](./references/v5-migration-guide.md): Complete guide for modernizing legacy host projects to v5 standards, covering configurations, sub-auditor refactoring, coverage ledgers, and zero-suppression directives.
 - [`references/host-package-governance.md`](./references/host-package-governance.md): Host installation, updates via GitHub npm, CI reproducibility, and script inheritance.
 - [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md): Complete authoring guide with boilerplate implementations for FileScan, Base, and AST sub-auditors.
 - [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md): Complete reference manual for interactive findings reporting and CLI diagnostic options.
@@ -492,6 +547,7 @@ The following reference manuals and configuration blueprints are maintained in `
 - [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts): Reference `.auditor/audit.config.ts` for Interactive / Gaming applications (hybrid persistence, Web Workers chunk exemptions, custom families, local extensions).
 - [`references/extensions/validate_button_governance.extension.ts`](./references/extensions/validate_button_governance.extension.ts): Reference extension blueprint for design system button governance and anti-clipping.
 - [`references/extensions/validate_render_performance.extension.ts`](./references/extensions/validate_render_performance.extension.ts): Reference extension blueprint for GPU render hygiene and atmospheric overlays.
+- [`references/extensions/composite-extension-example.ts`](./references/extensions/composite-extension-example.ts): Reference extension blueprint for composite host auditors with sub-auditors and atomic console reporting.
 - [`references/plugins/`](./references/plugins/): Sample setup plugins for Docker database containers and local SSL certificates with `mkcert` (Bash & PowerShell).
 
 

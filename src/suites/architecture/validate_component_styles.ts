@@ -26,24 +26,27 @@ import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
 
 enableCompileCache();
 
-export type ComponentStyleRuleId =
-  | 'broken-style-link'
-  | 'missing-style-tag'
-  | 'banned-style-inherited'
-  | 'orphaned-scss'
-  | 'ad-hoc-button-styles';
-
-export const COMPONENT_STYLE_RULES: readonly ComponentStyleRuleId[] = [
+export const COMPONENT_STYLE_RULES = [
   'broken-style-link',
   'missing-style-tag',
   'banned-style-inherited',
   'orphaned-scss',
   'ad-hoc-button-styles'
-];
+] as const;
+export type ComponentStyleRuleId = (typeof COMPONENT_STYLE_RULES)[number];
+
+export const COMPONENT_STYLE_VIOLATION_TYPES = [
+  'broken_style_link',
+  'missing_style_tag',
+  'banned_style_inherited',
+  'orphaned_scss',
+  'ad_hoc_button_styles'
+] as const;
+export type ComponentStyleViolationType = (typeof COMPONENT_STYLE_VIOLATION_TYPES)[number];
 
 export interface ComponentStyleViolation {
   readonly file: string;
-  readonly type: 'broken_style_link' | 'missing_style_tag' | 'banned_style_inherited' | 'orphaned_scss' | 'ad_hoc_button_styles';
+  readonly type: ComponentStyleViolationType;
   readonly message: string;
 }
 
@@ -232,7 +235,7 @@ function checkButtonStyleOverrides(
 ): void {
   for (const sm of styleMatches) {
     const styleBody = sm[2] ?? '';
-    const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
+    const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[\w-]+))/i);
     if (btnSelectorMatch) {
       auditor.recordViolation(
         {
@@ -318,7 +321,7 @@ function extractCustomClasses(content: string, globalUtilityClasses: ReadonlySet
   const dynamicClassMatches = content.matchAll(/(?:\s:|\bv-bind:)class=["']([^"']+)["']/g);
   for (const dm of dynamicClassMatches) {
     const expr = dm[1]!;
-    const strLiterals = expr.matchAll(/['`]([a-zA-Z0-9_-]+)['`]/g);
+    const strLiterals = expr.matchAll(/['`]([\w-]+)['`]/g);
     for (const sl of strLiterals) {
       const c = sl[1]!;
       if (isCustomCandidateClass(c, globalUtilityClasses)) {

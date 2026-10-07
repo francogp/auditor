@@ -90,6 +90,43 @@ export function isCoveredBy(file: string, ledger: CoverageLedger, scannedSets: R
   return scannedSets.get(ledger.suiteId)?.has(file) ?? false;
 }
 
+function recordDegradedPolicyViolations(
+  file: string,
+  config: CoverageAnalysisInput['config'],
+  acknowledged: readonly NonNullable<NonNullable<CoverageAnalysisInput['config']['coverage']>['acknowledgedDegradations']>[number][],
+  degradedByPolicy: Map<string, string[]>
+): void {
+  for (const policy of getMatchingExemptionPolicies(file, config)) {
+    if (policy.kind !== 'configured') continue;
+    const isAcknowledged = acknowledged.some(a => a.policy === policy.id && path.posix.matchesGlob(file, a.glob));
+    if (!isAcknowledged) {
+      const existing = degradedByPolicy.get(policy.id);
+      if (existing) {
+        existing.push(file);
+      } else {
+        degradedByPolicy.set(policy.id, [file]);
+      }
+    }
+  }
+}
+
+function buildDegradedPolicyFindings(
+  degradedByPolicy: Map<string, string[]>,
+  config: CoverageAnalysisInput['config']
+): CoverageFinding[] {
+  const findings: CoverageFinding[] = [];
+  for (const [policyId, files] of degradedByPolicy) {
+    const policy = getMatchingExemptionPolicies(files[0]!, config).find(p => p.id === policyId)!;
+    findings.push(...directoryFindings(
+      'coverage-degraded-file',
+      files,
+      count => `${count} archivo(s) con reglas silenciadas por '${policy.configKey}' (${policy.silences})`,
+      `Corrige '${policy.configKey}' o declara coverage.acknowledgedDegradations (policy: '${policyId}')`
+    ));
+  }
+  return findings;
+}
+
 function analyzeUncoveredAndDegraded(
   input: CoverageAnalysisInput,
   ledgers: readonly CoverageLedger[],
@@ -97,21 +134,18 @@ function analyzeUncoveredAndDegraded(
 ): CoverageFinding[] {
   const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
   const acknowledged = input.config.coverage?.acknowledgedDegradations ?? [];
-  const uncovered: string[] = [];
+  const uncovered: string[] = []; // no-domain: Non-domain utility collection or data structure
   const degradedByPolicy = new Map<string, string[]>();
 
   for (const file of input.trackedFiles) {
-    if (input.isGloballyIgnored(file)) continue;
-    if (!isAuditableCodebaseFile(file, customExemptGlobs)) continue;
+    if (input.isGloballyIgnored(file) || !isAuditableCodebaseFile(file, customExemptGlobs)) {
+      continue;
+    }
     if (!ledgers.some(l => isCoveredBy(file, l, scannedSets))) {
       uncovered.push(file);
       continue;
     }
-    for (const policy of getMatchingExemptionPolicies(file, input.config)) {
-      if (policy.kind !== 'configured') continue;
-      const isAcknowledged = acknowledged.some(a => a.policy === policy.id && path.posix.matchesGlob(file, a.glob));
-      if (!isAcknowledged) degradedByPolicy.getOrInsert(policy.id, []).push(file);
-    }
+    recordDegradedPolicyViolations(file, input.config, acknowledged, degradedByPolicy);
   }
 
   const findings = directoryFindings(
@@ -120,15 +154,7 @@ function analyzeUncoveredAndDegraded(
     count => `${count} archivo(s) versionado(s) que ninguna suite analiza (falso limpio)`,
     'Agrega una suite que los cubra o declara coverage.exemptGlobs con reason'
   );
-  for (const [policyId, files] of degradedByPolicy) {
-    const policy = getMatchingExemptionPolicies(files[0]!, input.config).find(p => p.id === policyId)!;
-    findings.push(...directoryFindings(
-      'coverage-degraded-file',
-      files,
-      count => `${count} archivo(s) con reglas silenciadas por '${policy.configKey}' (${policy.silences})`,
-      `Corrige '${policy.configKey}' o declara coverage.acknowledgedDegradations (policy: '${policyId}')`
-    ));
-  }
+  findings.push(...buildDegradedPolicyFindings(degradedByPolicy, input.config));
   return findings;
 }
 

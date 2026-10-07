@@ -107,6 +107,35 @@ export function checkOrInitializeModel(fallowBin, projectRoot) {
         return false;
     }
 }
+function normalizeRelativeCandidatePath(rawPath, projectRoot) {
+    const normalized = (rawPath || '').replace(/\\/g, '/');
+    if (path.isAbsolute(normalized)) {
+        return path.relative(projectRoot, normalized).replace(/\\/g, '/');
+    }
+    return normalized;
+}
+function isCandidatePairIgnored(leftPath, rightPath, ignoreSameFile, auditor, includeTests) {
+    if (ignoreSameFile && leftPath === rightPath)
+        return true;
+    if (auditor.isPathIgnored(leftPath) || auditor.isPathIgnored(rightPath))
+        return true;
+    if (!includeTests && (isTestPath(leftPath) || isTestPath(rightPath)))
+        return true;
+    return false;
+}
+function reportSingleCandidateViolation(c, leftPath, rightPath, auditor) {
+    const similarityPct = (c.similarity * 100).toFixed(1);
+    const leftDesc = `${c.left.name} (${leftPath}:${c.left.start_line})`;
+    const rightDesc = `${c.right.name} (${rightPath}:${c.right.start_line})`;
+    auditor.addViolation({
+        ruleId: 'fallow-similar-code',
+        severity: 'error',
+        file: leftPath,
+        line: c.left.start_line || 1,
+        message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
+        context: `${c.left.name} ~ ${c.right.name}`
+    });
+}
 export function evaluateSimilarCodeCandidates(candidates, options, auditor) {
     if (!Array.isArray(candidates) || candidates.length === 0) {
         return 0;
@@ -115,34 +144,12 @@ export function evaluateSimilarCodeCandidates(candidates, options, auditor) {
     const config = getAuditConfig(auditor.projectRoot);
     let reportedCount = 0;
     for (const c of candidates) {
-        let leftPath = (c.left?.path || '').replace(/\\/g, '/');
-        if (path.isAbsolute(leftPath)) {
-            leftPath = path.relative(auditor.projectRoot, leftPath).replace(/\\/g, '/');
-        }
-        let rightPath = (c.right?.path || '').replace(/\\/g, '/');
-        if (path.isAbsolute(rightPath)) {
-            rightPath = path.relative(auditor.projectRoot, rightPath).replace(/\\/g, '/');
-        }
-        if (ignoreSameFile && leftPath === rightPath) {
+        const leftPath = normalizeRelativeCandidatePath(c.left?.path, auditor.projectRoot);
+        const rightPath = normalizeRelativeCandidatePath(c.right?.path, auditor.projectRoot);
+        if (isCandidatePairIgnored(leftPath, rightPath, ignoreSameFile, auditor, Boolean(config.paths?.includeTestsInCodeAudit))) {
             continue;
         }
-        if (auditor.isPathIgnored(leftPath) || auditor.isPathIgnored(rightPath)) {
-            continue;
-        }
-        if (!config.paths.includeTestsInCodeAudit && (isTestPath(leftPath) || isTestPath(rightPath))) {
-            continue;
-        }
-        const similarityPct = (c.similarity * 100).toFixed(1);
-        const leftDesc = `${c.left.name} (${leftPath}:${c.left.start_line})`;
-        const rightDesc = `${c.right.name} (${rightPath}:${c.right.start_line})`;
-        auditor.addViolation({
-            ruleId: 'fallow-similar-code',
-            severity: 'error',
-            file: leftPath,
-            line: c.left.start_line || 1,
-            message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
-            context: `${c.left.name} ~ ${c.right.name}`
-        });
+        reportSingleCandidateViolation(c, leftPath, rightPath, auditor);
         reportedCount++;
     }
     return reportedCount;

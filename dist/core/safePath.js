@@ -97,6 +97,21 @@ export function safeDevUrl(endpoint, params = {}, baseOrigin = 'http://localhost
     return url.pathname + url.search;
 }
 export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles, loadLockedSkills, isLockedSkillPath, clearLockedSkillsCache } from "./auditorBase.js";
+const SKIPPABLE_DIR_NAMES = new Set(['node_modules', 'dist', 'scratch']);
+function isSkippableDirectory(dirName) {
+    if (SKIPPABLE_DIR_NAMES.has(dirName))
+        return true;
+    return dirName.startsWith('.') && dirName !== '.' && dirName !== '.agents';
+}
+function recordIndexedFile(index, full, name) {
+    const existing = index.get(name);
+    if (existing) {
+        existing.push(full);
+    }
+    else {
+        index.set(name, [full]);
+    }
+}
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.
  * Ignores common build/temporary directories.
@@ -106,10 +121,7 @@ export function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
     function walk(currentDir) {
         if (isIgnoredFn(currentDir))
             return;
-        const base = path.basename(currentDir);
-        if (base.startsWith('.') && base !== '.' && base !== '.agents')
-            return;
-        if (base === 'node_modules' || base === 'dist' || base === 'scratch')
+        if (isSkippableDirectory(path.basename(currentDir)))
             return;
         let entries;
         try {
@@ -124,16 +136,8 @@ export function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
             if (entry.isDirectory()) {
                 walk(full);
             }
-            else if (entry.isFile()) {
-                if (!isIgnoredFn(full)) {
-                    const existing = index.get(entry.name);
-                    if (existing) {
-                        existing.push(full);
-                    }
-                    else {
-                        index.set(entry.name, [full]);
-                    }
-                }
+            else if (entry.isFile() && !isIgnoredFn(full)) {
+                recordIndexedFile(index, full, entry.name);
             }
         }
     }

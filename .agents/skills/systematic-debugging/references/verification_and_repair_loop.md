@@ -68,7 +68,7 @@ If the bug touched persistence, database migrations, or SQL schemas:
 1. Confirm the reproduction test runs and passes GREEN against the configured database engine.
 2. Validate SQL migration syntax and schema integrity:
    ```bash
-   npx auditor family=persistence
+   npm run audit:family:persistence
    ```
 
 ### Step 2: UI & Component Interaction Verification

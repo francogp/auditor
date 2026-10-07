@@ -1,8 +1,8 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 export declare const DEFAULT_MIN_TYPE_COVERAGE_PERCENT: 95;
-export type TypeCoverageRuleId = 'type-coverage-below-threshold' | 'type-coverage-untyped-identifier';
-export declare const TYPE_COVERAGE_RULES: readonly TypeCoverageRuleId[];
+export declare const TYPE_COVERAGE_RULES: readonly ["type-coverage-below-threshold", "type-coverage-untyped-identifier"];
+export type TypeCoverageRuleId = (typeof TYPE_COVERAGE_RULES)[number];
 export interface UntypedSymbol {
     readonly filePath: string;
     readonly line: number;
@@ -26,5 +26,7 @@ export declare class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverag
         projectRoot?: string;
     });
     runAudit(): Promise<void>;
+    private executeTypeCoverageCli;
+    private applyCoverageMetricsAndFindings;
 }
 //# sourceMappingURL=validate_type_coverage.d.ts.map
