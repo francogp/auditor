@@ -60,6 +60,7 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       expect(auditor.ruleDescriptions?.['no-tautological-integration-mocks']).toBeDefined();
       expect(auditor.ruleDescriptions?.['playwright-id-locators-only']).toBeDefined();
       expect(auditor.ruleDescriptions?.['no-playwright-force-click']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['architecture-violation']).toBeDefined();
     });
   });
 

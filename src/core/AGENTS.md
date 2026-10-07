@@ -63,6 +63,7 @@ Architecture & Tooling Engineers.
 - **Dynamic Suite Gating Resolution (`evaluateSuiteStatus`)**: `suiteGating.ts` resolves suite enablement dynamically by querying `task.configKey` against `AuditConfig`. Adding new suites or extensions requires zero hardcoded registry entries in the core gating engine.
 - **Closed Box-Drawing Font-Width Invariant & Color Palette (`unifiedTheme.ts`)**: Banners, notice boxes, and footers rendered via `boxen` must maintain strict 80-column alignment without border breakage. Ambiguous Unicode glyphs with variation selectors (`⏭️`) that render as width 1 in Linux monospace terminal fonts while evaluated as width 2 by `string-width` are replaced with clean ASCII labels (e.g. `(3 Omitidas)`). Box borders are dynamically colored according to semantic state (`red` for critical errors/failures, `yellow` for warnings, `green` for passed/approved, `magenta` for repair mode, and `cyan` for info).
 - **Respect for unignoreDirs in Path Matching**: In `isPathIgnored()`, when an unignore directory set is specified (e.g. `unignoreDirs: ['.agents']`), ignore pattern matching MUST NOT ignore paths that contain an unignored ancestor directory, ensuring documentation and skill suites thoroughly scan documented assets even when general code scanners ignore them.
+- **Auditor Contract Conformance Verification (`auditorContractConformance.ts`)**: All discovered core suites and host extensions must adhere to the 5-point conformance contract: (1) Instantiation & Metadata verification via `validateAuditorConstruction(auditor)`, (2) Clean Path testing (`errors === 0`, `status === 'passed'`, `findings.length === 0`), (3) Violation Detection (`errors > 0`, `status === 'failed'`, `severity === 'error'`), (4) Warning Path verification where warnings are generated (`warnings > 0`, `status === 'warned'`, `severity === 'warning'`), and (5) 100% of declared rule IDs tested. The framework exports `runAuditorContractConformanceTests()` providing dynamic whole-workspace test discovery in 2 lines for test runners.
 
 ## Key Files
 
@@ -76,6 +77,7 @@ Architecture & Tooling Engineers.
 - [`auditContract.ts`](./auditContract.ts): Core TypeScript interfaces for findings, suites, and results.
 - [`auditCoverage.ts`](./auditCoverage.ts): Audit file and rule coverage map tracking and verification engine.
 - [`auditorBase.ts`](./auditorBase.ts): Abstract base classes (`BaseAuditor`, `FileScanAuditor`) and canonical ignore directories.
+- [`auditorContractConformance.ts`](./auditorContractConformance.ts): Dynamic auditor discovery, constructor contract, metadata validation, and test conformance engine.
 - [`auditPathPredicates.ts`](./auditPathPredicates.ts): Project root matching, path category predicates, and Z-Layers resolution helpers.
 - [`configFileRegistry.ts`](./configFileRegistry.ts): Centralized registry for dynamic configuration file requirements and auto-fix scaffolding declared across sub-auditors and extensions.
 - [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.

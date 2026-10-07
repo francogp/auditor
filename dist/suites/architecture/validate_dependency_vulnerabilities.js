@@ -10,7 +10,7 @@
  *   - dependency-cve-high: High security vulnerabilities detected in package dependencies.
  *   - dependency-cve-moderate: Moderate security vulnerabilities detected in package dependencies.
  */
-import { execFileSync } from 'node:child_process';
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
@@ -33,7 +33,7 @@ export function runNpmAudit(projectRoot, omitDev = true) {
         args.push('--omit=dev');
     }
     try {
-        const stdout = execFileSync('npm', args, {
+        const stdout = childProcess.execFileSync('npm', args, {
             cwd: projectRoot,
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'pipe'],

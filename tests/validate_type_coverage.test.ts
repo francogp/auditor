@@ -27,6 +27,17 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
     }
   });
 
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new ValidateTypeCoverageAuditor({ projectRoot: tempDir });
+      expect(auditor.id).toBe('validate_type_coverage');
+      expect(auditor.packageName).toBe('Tipos');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
+  });
+
   describe('parseTypeCoverageReport parser', () => {
     it('returns zero findings when coverage equals or exceeds threshold', () => {
       const report: TypeCoverageReport = {

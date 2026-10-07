@@ -102,6 +102,9 @@ describe('DoxIntegrityAuditor', () => {
       const result = await auditor.execute();
       const violation = result.findings.find(f => f.ruleId === 'dox-missing-agents-md');
       expect(violation).toBeDefined();
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(violation?.severity).toBe('error');
     });
 
     it('detects child AGENTS.md not indexed in parent (dox-unregistered-child)', async () => {

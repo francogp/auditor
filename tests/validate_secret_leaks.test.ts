@@ -112,9 +112,77 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.status).toBe('failed');
       const leak = result.findings.find(f => f.ruleId === 'secret-leak-detected');
       expect(leak).toBeDefined();
+      expect(leak?.severity).toBe('error');
       expect(leak?.file).toContain('apiClient.ts');
+      expect(leak?.message).toContain('***');
+    });
+
+    it('detects secret-leak-private-key when an unencrypted private key is present in source files and fails with error', async () => {
+      const srcDir = path.join(tempDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+
+      const base64Body = 'MIICXAIBAAKCAQEA0G9d3Z9e5Z6Y0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdef';
+      const keyContent = 'export const privateKey = ' +
+        JSON.stringify('-----BEGIN ' + 'RSA PRIVATE KEY-----\n' + base64Body + '\n-----END ' + 'RSA PRIVATE KEY-----\n') + ';';
+
+      fs.writeFileSync(path.join(srcDir, 'cryptoKeys.ts'), keyContent);
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Private Key Test Project',
+          secretLeaks: { enabled: true, maskSecrets: true },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateSecretLeaksAuditor({
+        projectRoot: tempDir,
+        roots: ['src']
+      });
+
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(1);
+      const pkFinding = result.findings.find(f => f.ruleId === 'secret-leak-private-key');
+      expect(pkFinding).toBeDefined();
+      expect(pkFinding?.severity).toBe('error');
+      expect(pkFinding?.file).toContain('cryptoKeys.ts');
+    });
+
+    it('respects maskSecrets false by revealing unmasked token in message', async () => {
+      const srcDir = path.join(tempDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+
+      const tokenPart = 'gh' + 'p_222222222222222222222222222222222222';
+      fs.writeFileSync(path.join(srcDir, 'unmasked.ts'), `export const apiKey = "${tokenPart}";\n`);
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Unmasked Secret Test Project',
+          secretLeaks: { enabled: true, maskSecrets: false },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateSecretLeaksAuditor({
+        projectRoot: tempDir,
+        roots: ['src']
+      });
+
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('failed');
+      const leak = result.findings.find(f => f.ruleId === 'secret-leak-detected');
+      expect(leak).toBeDefined();
+      expect(leak?.message).toContain(tokenPart);
     });
   });
 

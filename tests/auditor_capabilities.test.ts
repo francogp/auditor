@@ -112,7 +112,8 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_bundle_budget',
       'validate_duplicate_constants',
       'validate_pinia_reactivity',
-      'validate_reactive_leaks'
+      'validate_reactive_leaks',
+      'validate_valibot_parity'
     ].sort();
 
     expect(astSuiteIds).toEqual(EXPECTED_AST_SUITES);

@@ -40,8 +40,13 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
   'my-feature-missing-attribute'
 ];
 
+export interface MyFeatureAuditorOptions {
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+}
+
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
-  constructor(roots: readonly string[] = ['src']) {
+  constructor(options: MyFeatureAuditorOptions = {}) {
     super({
       id: 'validate_my_feature',
       name: 'My Feature Validator',
@@ -58,8 +63,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
       },
-      roots,
-      allowedExtensions: new Set(['.vue', '.ts'])
+      roots: options.roots ?? ['src'],
+      allowedExtensions: new Set(['.vue', '.ts']),
+      projectRoot: options.projectRoot
     });
   }
 
@@ -117,8 +123,12 @@ export const MY_DATA_RULES: readonly MyDataRuleId[] = [
   'my-data-value-invalid'
 ];
 
+export interface MyDataAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
-  constructor() {
+  constructor(options: MyDataAuditorOptions = {}) {
     super({
       id: 'validate_my_data',
       name: 'My Data Validator',
@@ -139,9 +149,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
         include: ['src/data/myData.ts'],
         source: 'runtime'
       },
-      requiredFiles: [
-        path.resolve(process.cwd(), 'src/data/myData.ts')
-      ]
+      projectRoot: options.projectRoot
     });
   }
 
@@ -706,5 +714,53 @@ capabilities: { requiresBuild: true }
    ```
    Executing `npm run audit:build` isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
 
+---
 
+## 20. Mandatory Dynamic Testing Conformance & 5-Point Unit Test Contract
 
+Every official sub-auditor in `@francogp/auditor` and every extension created in host projects (`scripts/auditors/`) MUST have a dedicated Vitest unit test. The test runner dynamically discovers all declared tasks and verifies conformance via `auditorContractConformance.ts`.
+
+### The 5-Point Testing Contract:
+1. **Construction & Metadata Integrity**:
+   Verify that the sub-auditor instantiates cleanly and satisfies all mandatory metadata requirements:
+   ```typescript
+   import { validateAuditorConstruction } from '@francogp/auditor';
+
+   it('conforms to construction metadata contract and exposes manifest', () => {
+     const auditor = new MyFeatureAuditor({ projectRoot: TEST_DIR });
+     validateAuditorConstruction(auditor);
+     const manifest = auditor.toManifest();
+     expect(manifest.packageName).toBe('MiModulo');
+     expect(manifest.configKey).toBe('paths.srcRoots');
+   });
+   ```
+2. **Clean Path Verification**:
+   Assert that when code has zero violations, the auditor produces zero errors and passes:
+   ```typescript
+   expect(result.summary.errors).toBe(0);
+   expect(result.summary.warnings).toBe(0);
+   expect(result.status).toBe('passed');
+   expect(result.findings.length).toBe(0);
+   ```
+3. **Violation Path Verification**:
+   Assert that non-compliant code produces errors, a failed status, and structured error findings:
+   ```typescript
+   expect(result.summary.errors).toBeGreaterThan(0);
+   expect(result.status).toBe('failed');
+   expect(result.findings.some(f => f.ruleId === 'my-rule-id' && f.severity === 'error')).toBe(true);
+   ```
+4. **Warning Path Verification**:
+   Assert that advisory issues produce warnings and warned status (`severity === 'warning'`, `status === 'warned'`).
+5. **100% of Declared Rule IDs Tested**:
+   Every rule ID declared in `ruleIds` must be evaluated and covered in unit tests.
+
+### Whole-Workspace Dynamic Conformance in 2 Lines:
+Host projects can verify all their custom extension sub-auditors dynamically by creating `tests/node/auditors/conformance.test.ts`:
+```typescript
+import { describe } from 'vitest';
+import { runAuditorContractConformanceTests } from '@francogp/auditor';
+
+describe('All Auditors Dynamic Conformance', () => {
+  runAuditorContractConformanceTests();
+});
+```

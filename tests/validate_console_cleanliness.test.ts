@@ -86,6 +86,20 @@ describe('ConsoleCleanlinessAuditor', () => {
       expect(auditor.getCountsByRule().get('no-debugger-statement') ?? 0).toBe(0);
       expect(auditor.getCountsByRule().get('no-console-log-in-src') ?? 0).toBe(0);
     });
+
+    it('detects violations and fails with status failed and severity error', async () => {
+      const auditor = new TestableConsoleCleanlinessAuditor();
+      const code = `
+        function bad() {
+          debugger;
+        }
+      `;
+      auditor.testScanFile('src/utils/bad.ts', code);
+      const result = await auditor.finishAudit();
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(1);
+      expect(result.findings[0]?.severity).toBe('error');
+    });
   });
 
   describe('Clean execution', () => {

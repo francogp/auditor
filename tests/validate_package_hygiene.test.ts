@@ -14,16 +14,29 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
   let tempDir: string;
 
   beforeEach(() => {
+    process.env.AUDIT_SUBPROCESS = 'true';
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-knip-test-'));
   });
 
   afterEach(() => {
+    delete process.env.AUDIT_SUBPROCESS;
     resetAuditConfig();
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
       // catch-ok: cleanup temporary test directory
     }
+  });
+
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new ValidatePackageHygieneAuditor({ projectRoot: tempDir });
+      expect(auditor.id).toBe('validate_package_hygiene');
+      expect(auditor.packageName).toBe('Dependencias');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
   });
 
   describe('parseKnipIssues parser', () => {
@@ -204,6 +217,43 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('skipped');
+    });
+  });
+
+  describe('Violation Detection in Sandbox', () => {
+    it('detects violations and fails with status failed and severity error', async () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({
+          name: 'pkg',
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/bad': {
+              resolved: 'http://insecure.internal/bad.tgz'
+            }
+          }
+        })
+      );
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Test Lockfile Violation',
+          packageHygiene: { enabled: true },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          packageDistribution: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidatePackageHygieneAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
     });
   });
 });

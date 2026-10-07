@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import {
   ValidateAccessibilityAuditor,
+  ACCESSIBILITY_RULES,
   mapA11yRuleId
 } from '../src/suites/architecture/validate_accessibility.ts';
 import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
@@ -24,6 +25,26 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
     } catch {
       // catch-ok: cleanup temporary test directory
     }
+  });
+
+  describe('Rule Declarations & Metadata', () => {
+    it('declares all expected rules in ACCESSIBILITY_RULES', () => {
+      expect(ACCESSIBILITY_RULES).toContain('a11y-img-alt');
+      expect(ACCESSIBILITY_RULES).toContain('a11y-form-control-has-label');
+      expect(ACCESSIBILITY_RULES).toContain('a11y-interactive-supports-focus');
+      expect(ACCESSIBILITY_RULES).toContain('a11y-anchor-has-content');
+      expect(ACCESSIBILITY_RULES).toContain('a11y-aria-role-invalid');
+      expect(ACCESSIBILITY_RULES).toContain('a11y-viewport-zoom-lock');
+    });
+
+    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+      const auditor = new ValidateAccessibilityAuditor({ projectRoot: tempDir });
+      expect(auditor.id).toBe('validate_accessibility');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.packageName).toBe('A11y');
+      expect(auditor.ruleDescriptions['a11y-img-alt']).toBe('Imagen sin atributo alt accesible');
+      expect(auditor.ruleDescriptions['a11y-viewport-zoom-lock']).toBe('Bloqueo de zoom en viewport HTML');
+    });
   });
 
   describe('mapA11yRuleId rule mapping', () => {

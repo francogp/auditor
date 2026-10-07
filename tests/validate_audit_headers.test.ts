@@ -1,11 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
+  AuditHeadersAuditor,
   scanFileForIllegalHeaders,
   auditAuditHeaders,
   isPathIgnored
 } from '../src/suites/architecture/validate_audit_headers.ts';
 
 describe('validate_audit_headers (Illegal Audit Headers & File-Level Suppressions Auditor)', () => {
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new AuditHeadersAuditor();
+      expect(auditor.id).toBe('validate_audit_headers');
+      expect(auditor.packageName).toBe('Header');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
+  });
+
   describe('scanFileForIllegalHeaders', () => {
     it('returns empty violations for clean files with valid code and inline comments', () => {
       const cleanCode = `

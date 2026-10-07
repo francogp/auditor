@@ -22,8 +22,13 @@ export const MY_AST_RULES: readonly MyAstRuleId[] = [
   'my-ast-missing-contract'
 ] as const;
 
+export interface MyAstAuditorOptions {
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+}
+
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
-  constructor() {
+  constructor(options: MyAstAuditorOptions = {}) {
     super({
       capabilities: { ast: true },
       id: 'validate_my_ast',
@@ -44,8 +49,9 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
         'my-ast-missing-contract': 'Declaración requerida faltante'
       },
       requiresAst: true,
-      roots: ['src'],
-      allowedExtensions: new Set(['.ts', '.vue'])
+      roots: options.roots ?? ['src'],
+      allowedExtensions: new Set(['.ts', '.vue']),
+      projectRoot: options.projectRoot
     });
   }
 

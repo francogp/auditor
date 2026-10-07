@@ -39,6 +39,8 @@ import {
   type AuditCoverageAcknowledgedDegradation,
   type AuditRatchetConfig,
   type AuditTestCoverageConfig,
+  type AuditValibotConfig,
+  type ValibotParityTarget,
   type ChunkBudgetConfig,
   type O1CatalogPatternConfig,
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES,
@@ -94,6 +96,10 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     allowedDatabaseDirs: ['backups', 'migrations', 'schemas'],
     allowedDatabaseFiles: ['AGENTS.md', '.gitkeep'],
     exemptRlsTables: ['_migrations', 'schema_migrations', 'supabase_migrations']
+  },
+  valibot: {
+    enabled: true,
+    targets: []
   },
   domain: {
     enabled: true,
@@ -760,6 +766,16 @@ export function buildCoverageConfig(
   };
 }
 
+export function buildValibotConfig(
+  raw: DeepPartial<AuditValibotConfig> | undefined
+): AuditValibotConfig {
+  const v = raw ?? {};
+  return {
+    enabled: v.enabled ?? DEFAULT_AUDIT_CONFIG.valibot?.enabled ?? true,
+    targets: v.targets ? (v.targets as ValibotParityTarget[]) : []
+  };
+}
+
 export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
   const declared = collectDeclaredSubsystems(config);
   const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -771,6 +787,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
   return {
     name: config.name,
     ratchet: buildRatchetConfig(config.ratchet),
+    valibot: buildValibotConfig(config.valibot),
     paths,
     persistence: buildPersistenceConfig(config.persistence),
     domain: buildDomainConfig(config.domain),

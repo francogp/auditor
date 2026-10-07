@@ -48,10 +48,15 @@ export const RENDER_PERFORMANCE_DESCRIPTIONS: Record<RenderPerformanceRuleId, st
 
 const MAX_PERMISSIBLE_NEGATIVE_INSET_PX = 128;
 
+export interface ValidateRenderPerformanceOptions {
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+}
+
 export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerformanceRuleId> {
-  constructor(roots?: readonly string[]) {
-    const config = getAuditConfig();
-    const effectiveRoots = roots ?? config.paths.stylesRoots ?? config.paths.srcRoots ?? ['src'];
+  constructor(options: ValidateRenderPerformanceOptions = {}) {
+    const config = getAuditConfig(options.projectRoot);
+    const effectiveRoots = options.roots ?? config.paths.stylesRoots ?? config.paths.srcRoots ?? ['src'];
     super({
       id: 'validate_render_performance',
       name: 'Render & GPU Performance Hygiene Validator',
@@ -66,7 +71,8 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       },
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
       roots: effectiveRoots,
-      allowedExtensions: new Set(['.scss', '.css', '.vue', '.ts'])
+      allowedExtensions: new Set(['.scss', '.css', '.vue', '.ts']),
+      projectRoot: options.projectRoot
     });
   }
 

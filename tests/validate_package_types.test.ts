@@ -14,10 +14,12 @@ describe('ValidatePackageTypesAuditor & parseAttwProblems', () => {
   let tempDir: string;
 
   beforeEach(() => {
+    process.env.AUDIT_SUBPROCESS = 'true';
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-types-test-'));
   });
 
   afterEach(() => {
+    delete process.env.AUDIT_SUBPROCESS;
     resetAuditConfig();
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -111,6 +113,105 @@ describe('ValidatePackageTypesAuditor & parseAttwProblems', () => {
       expect(findings).toHaveLength(1);
       expect(findings[0]!.ruleId).toBe('pkg-types-resolution');
       expect(findings[0]!.message).toContain('helper, config');
+    });
+  });
+
+  describe('Violation and Warning Detection in Sandbox', () => {
+    it('reports status failed and severity error when package types has resolution problems under level: error', async () => {
+      const distDir = path.join(tempDir, 'dist');
+      fs.mkdirSync(distDir, { recursive: true });
+      fs.writeFileSync(path.join(distDir, 'index.js'), 'export const v = 1;\n');
+      fs.writeFileSync(path.join(distDir, 'index.d.ts'), 'export declare const v: number;\n');
+      fs.writeFileSync(path.join(distDir, 'sub.js'), 'export const s = 2;\n');
+
+      const pkg = {
+        name: 'broken-types-lib',
+        version: '1.0.0',
+        type: 'module',
+        exports: {
+          '.': {
+            types: './dist/index.d.ts',
+            import: './dist/index.js'
+          },
+          './sub': {
+            types: './dist/non-existent.d.ts',
+            import: './dist/sub.js'
+          }
+        }
+      };
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2));
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Broken Types Error Project',
+          packageDistribution: { enabled: true, level: 'error' },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidatePackageTypesAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+
+      const errorFinding = result.findings.find(f => f.severity === 'error');
+      expect(errorFinding).toBeDefined();
+      expect(PACKAGE_TYPES_RULES).toContain(errorFinding?.ruleId);
+    });
+
+    it('reports status passed and severity warning when package types has resolution problems under level: warning', async () => {
+      const distDir = path.join(tempDir, 'dist');
+      fs.mkdirSync(distDir, { recursive: true });
+      fs.writeFileSync(path.join(distDir, 'index.js'), 'export const v = 1;\n');
+      fs.writeFileSync(path.join(distDir, 'index.d.ts'), 'export declare const v: number;\n');
+      fs.writeFileSync(path.join(distDir, 'sub.js'), 'export const s = 2;\n');
+
+      const pkg = {
+        name: 'broken-types-warn-lib',
+        version: '1.0.0',
+        type: 'module',
+        exports: {
+          '.': {
+            types: './dist/index.d.ts',
+            import: './dist/index.js'
+          },
+          './sub': {
+            types: './dist/non-existent.d.ts',
+            import: './dist/sub.js'
+          }
+        }
+      };
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2));
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Broken Types Warning Project',
+          packageDistribution: { enabled: true, level: 'warning' },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidatePackageTypesAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBeGreaterThan(0);
+
+      const warnFinding = result.findings.find(f => f.severity === 'warning');
+      expect(warnFinding).toBeDefined();
+      expect(PACKAGE_TYPES_RULES).toContain(warnFinding?.ruleId);
     });
   });
 

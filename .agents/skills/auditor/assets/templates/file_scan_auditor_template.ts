@@ -21,11 +21,16 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
   'my-feature-missing-attribute'
 ] as const;
 
+export interface MyFeatureAuditorOptions {
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+}
+
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   // Optional gitignore requirements for tool caches or ephemeral artifacts:
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [];
 
-  constructor(roots: readonly string[] = ['src']) {
+  constructor(options: MyFeatureAuditorOptions = {}) {
     super({
       // Optional capabilities: all default to false automatically.
       // Example: capabilities: { lint: true, fix: true },
@@ -48,8 +53,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
       },
-      roots,
-      allowedExtensions: new Set(['.vue', '.ts'])
+      roots: options.roots ?? ['src'],
+      allowedExtensions: new Set(['.vue', '.ts']),
+      projectRoot: options.projectRoot
     });
   }
 

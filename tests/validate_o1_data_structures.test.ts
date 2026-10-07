@@ -126,6 +126,18 @@ describe('O1DataStructuresAuditor', () => {
       const issues = scanFileForO1Issues('src/logic/exempt.ts', code);
       expect(issues).toHaveLength(0);
     });
+
+    it('detects violations and fails with status failed and severity error', async () => {
+      const auditor = new TestableO1DataStructuresAuditor();
+      const code = `
+        const copy = JSON.parse(JSON.stringify(original));
+      `;
+      auditor.testScanFile('src/logic/cloneHelper.ts', code);
+      const result = await auditor.finishAudit();
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+    });
   });
 
   describe('Clean Execution', () => {

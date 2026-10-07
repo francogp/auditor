@@ -21,6 +21,7 @@ describe('validate_audit_coverage Suite', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(async () => {
+    process.env.AUDIT_SUBPROCESS = 'true';
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-cov-test-'));
   });
 
@@ -41,6 +42,17 @@ describe('validate_audit_coverage Suite', () => {
       exemptGlobs: [],
       acknowledgedDegradations: []
     }
+  });
+
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
+      expect(auditor.id).toBe('validate_audit_coverage');
+      expect(auditor.packageName).toBe('Cobertura');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
   });
 
   describe('analyzeAuditCoverage (pure analysis)', () => {
@@ -373,6 +385,30 @@ describe('validate_audit_coverage Suite', () => {
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
+    });
+
+    it('detects violations and fails with status failed and severity error', async () => {
+      const runId = 'test-hermetic-run-fail';
+      process.env[COVERAGE_RUN_ID_ENV] = runId;
+      process.env[COVERAGE_RUN_MODE_ENV] = 'full';
+      process.env[COVERAGE_EXPECTED_SUITES_ENV] = 'suite-missing-ledger';
+
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'export default { coverage: { enabled: true } };', 'utf-8');
+
+      const { execFileSync } = await import('node:child_process');
+      execFileSync('git', ['init'], { cwd: tempDir });
+      execFileSync('git', ['config', 'user.name', 'Auditor Test'], { cwd: tempDir });
+      execFileSync('git', ['config', 'user.email', 'test@auditor.local'], { cwd: tempDir });
+      execFileSync('git', ['add', '.auditor/audit.config.ts'], { cwd: tempDir });
+      execFileSync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
+
+      const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
     });
   });
 });

@@ -105,11 +105,15 @@ function resolveConfiguredPathCandidates(paths?: AuditEngineConfig['paths']): st
 
 function resolveAdditionalDomainCandidates(paths?: AuditEngineConfig['paths']): string[] {
   if (!paths) return [];
-  return [
+  const additional = [
     ...(paths.codeRoots ?? []),
     ...(paths.demoRoots ?? []),
     ...(paths.dataRoots ?? []),
     ...(paths.cliRoots ?? [])
+  ];
+  return [
+    ...additional,
+    ...extractTopLevelRoots(additional)
   ];
 }
 

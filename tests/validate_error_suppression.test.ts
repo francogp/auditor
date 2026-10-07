@@ -117,6 +117,21 @@ describe('ErrorSuppressionAuditor', () => {
       expect(auditor.getCountsByRule().get('no-silent-promise-catch') ?? 0).toBe(0);
       expect(auditor.getCountsByRule().get('strict-catch-narrowing') ?? 0).toBe(0);
     });
+
+    it('detects violations and fails with status failed and severity error', async () => {
+      const auditor = new TestableErrorSuppressionAuditor([]);
+      const code = `
+        try {
+          doRisky();
+        } catch (err) {
+        }
+      `;
+      auditor.testScanFile('src/utils/bad.ts', code);
+      const result = await auditor.finishAudit();
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(1);
+      expect(result.findings[0]?.severity).toBe('error');
+    });
   });
 
   describe('Clean execution', () => {

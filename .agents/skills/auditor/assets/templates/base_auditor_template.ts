@@ -27,6 +27,10 @@ export const MY_COMPOSITE_RULES: readonly MyCompositeRuleId[] = [
   'composite-missing-config'
 ] as const;
 
+export interface MyCompositeAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   // Optional gitignore requirements for tool caches or ephemeral artifacts:
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
@@ -43,7 +47,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
     // }
   ];
 
-  constructor() {
+  constructor(options: MyCompositeAuditorOptions = {}) {
     super({
       // Optional capabilities: all default to false automatically.
       // Example: capabilities: { lint: true, fix: true },
@@ -73,9 +77,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
         include: ['src/data/**/*.{ts,json}'],
         source: 'runtime'
       },
-      requiredFiles: [
-        path.resolve(process.cwd(), 'src/data/canonicalData.ts')
-      ]
+      projectRoot: options.projectRoot
     });
   }
 

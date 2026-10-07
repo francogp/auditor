@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import childProcess from 'node:child_process';
 import {
   ValidateDependencyVulnerabilitiesAuditor,
   DEPENDENCY_VULNERABILITIES_RULES,
@@ -19,6 +20,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     delete process.env.AUDIT_SUBPROCESS;
     resetAuditConfig();
     try {
@@ -137,6 +139,201 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
 
       const criticalFailFindings = parseNpmAuditReport(report, new Set(), 'critical');
       expect(criticalFailFindings[0]?.severity).toBe('warning');
+    });
+  });
+
+  describe('Violation and Warning Detection in Sandbox', () => {
+    it('detects critical vulnerability and reports status failed with severity error', async () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'vulnerable-project', version: '1.0.0' }, null, 2)
+      );
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({ name: 'vulnerable-project', lockfileVersion: 3 }, null, 2)
+      );
+
+      vi.spyOn(childProcess, 'execFileSync').mockImplementation((cmd, args) => {
+        if (cmd === 'npm' && Array.isArray(args) && args.includes('audit')) {
+          return JSON.stringify({
+            vulnerabilities: {
+              'malicious-pkg': {
+                name: 'malicious-pkg',
+                severity: 'critical',
+                isDirect: true,
+                via: [{ title: 'Remote Code Execution in malicious-pkg', url: 'https://example.com/cve-test' }],
+                range: '<1.0.0',
+                effects: []
+              }
+            }
+          });
+        }
+        return '';
+      });
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Vulnerable Project',
+          dependencyVulnerabilities: { enabled: true, failOn: 'critical' },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          packageDistribution: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateDependencyVulnerabilitiesAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(1);
+      expect(result.summary.warnings).toBe(0);
+
+      const finding = result.findings.find(f => f.ruleId === 'dependency-cve-critical');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+      expect(finding?.message).toContain('CRITICAL');
+      expect(finding?.message).toContain('Remote Code Execution');
+    });
+
+    it('detects moderate vulnerability as warning without failing status when failOn is critical', async () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'moderate-project', version: '1.0.0' }, null, 2)
+      );
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({ name: 'moderate-project', lockfileVersion: 3 }, null, 2)
+      );
+
+      vi.spyOn(childProcess, 'execFileSync').mockImplementation((cmd, args) => {
+        if (cmd === 'npm' && Array.isArray(args) && args.includes('audit')) {
+          return JSON.stringify({
+            vulnerabilities: {
+              'semver-regex': {
+                name: 'semver-regex',
+                severity: 'moderate',
+                isDirect: false,
+                via: [{ title: 'Regular Expression Denial of Service in semver-regex' }],
+                range: '<3.1.4',
+                effects: []
+              }
+            }
+          });
+        }
+        return '';
+      });
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Moderate Vulnerability Project',
+          dependencyVulnerabilities: { enabled: true, failOn: 'critical' },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          packageDistribution: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateDependencyVulnerabilitiesAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBe(1);
+
+      const finding = result.findings.find(f => f.ruleId === 'dependency-cve-moderate');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('warning');
+      expect(finding?.message).toContain('MODERATE');
+      expect(finding?.message).toContain('semver-regex');
+    });
+
+    it('escalates high vulnerability to error when failOn is high', async () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'high-project', version: '1.0.0' }, null, 2)
+      );
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({ name: 'high-project', lockfileVersion: 3 }, null, 2)
+      );
+
+      vi.spyOn(childProcess, 'execFileSync').mockImplementation((cmd, args) => {
+        if (cmd === 'npm' && Array.isArray(args) && args.includes('audit')) {
+          return JSON.stringify({
+            vulnerabilities: {
+              'tar-pkg': {
+                name: 'tar-pkg',
+                severity: 'high',
+                isDirect: true,
+                via: [{ title: 'Arbitrary File Overwrite' }],
+                range: '<6.1.11',
+                effects: []
+              }
+            }
+          });
+        }
+        return '';
+      });
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'High Fail Project',
+          dependencyVulnerabilities: { enabled: true, failOn: 'high' },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          packageDistribution: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateDependencyVulnerabilitiesAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(1);
+      expect(result.summary.warnings).toBe(0);
+
+      const finding = result.findings.find(f => f.ruleId === 'dependency-cve-high');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+    });
+
+    it('handles offline mode gracefully without throwing or reporting errors', async () => {
+      vi.spyOn(childProcess, 'execFileSync').mockImplementation(() => {
+        throw new Error('ENOTFOUND registry.npmjs.org');
+      });
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Offline Project',
+          dependencyVulnerabilities: { enabled: true, failOn: 'critical' },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          packageDistribution: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateDependencyVulnerabilitiesAuditor({ projectRoot: tempDir });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBe(0);
     });
   });
 

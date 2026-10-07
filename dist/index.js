@@ -22,5 +22,7 @@ export * from "./cli/init_agent.js";
 export * from "./cli/sync_env_scripts.js";
 export * from "./cli/cliUtils.js";
 export * from "./core/version.js";
+export * from "./core/auditorContractConformance.js";
 export * from "./plugin/defineAuditorExtension.js";
+export * from "./suites/persistence/validate_valibot_parity.js";
 //# sourceMappingURL=index.js.map

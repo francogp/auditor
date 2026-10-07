@@ -310,6 +310,33 @@ export interface AuditTestCoverageConfig {
     readonly directoryThresholds?: Record<string, number>;
     readonly enforceInAudit?: boolean;
 }
+export interface ValibotNestedParityTarget {
+    readonly id: string;
+    readonly interfaceName: string;
+    readonly schemaVarName: string;
+    readonly serializerFunctionName?: string;
+    readonly initialStateProperty?: string;
+}
+export interface ValibotParityTarget {
+    readonly id: string;
+    readonly typesFile: string;
+    readonly interfaceName: string;
+    readonly schemaFile: string;
+    readonly schemaVarName: string;
+    readonly ephemeralTypeAlias?: string;
+    readonly ephemeralKeys?: readonly string[];
+    readonly serializerFile?: string;
+    readonly serializerFunctionName?: string;
+    readonly initialStateFile?: string;
+    readonly initialStateFunctionName?: string;
+    readonly nestedTargets?: readonly ValibotNestedParityTarget[];
+    readonly allowedNullableFields?: readonly string[];
+    readonly allowedUnknownFields?: readonly string[];
+}
+export interface AuditValibotConfig {
+    readonly enabled?: boolean;
+    readonly targets?: readonly ValibotParityTarget[];
+}
 export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
@@ -317,6 +344,7 @@ export interface AuditEngineConfig {
     readonly name: string;
     readonly ratchet?: AuditRatchetConfig;
     readonly testCoverage?: AuditTestCoverageConfig;
+    readonly valibot?: AuditValibotConfig;
     readonly paths: AuditPathsConfig;
     readonly persistence: AuditPersistenceConfig;
     readonly domain: AuditDomainConfig;

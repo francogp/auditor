@@ -410,5 +410,26 @@ describe('StylelintAuditor Suite', () => {
       expect(Array.isArray(result.findings)).toBe(true);
     });
   });
+
+  describe('Violation Detection in Sandbox', () => {
+    it('detects violations and fails with status failed and severity error', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sl-fail-'));
+      try {
+        await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+        await fs.writeFile(
+          path.join(tempDir, 'src/bad.scss'),
+          `.unclosed-block {\n  color: red;\n`,
+          'utf-8'
+        );
+        const auditor = new StylelintAuditor({ projectRoot: tempDir });
+        const result = await auditor.execute();
+        expect(result.status).toBe('failed');
+        expect(result.summary.errors).toBeGreaterThan(0);
+        expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
 });
 

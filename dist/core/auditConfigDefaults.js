@@ -47,6 +47,10 @@ export const DEFAULT_AUDIT_CONFIG = {
         allowedDatabaseFiles: ['AGENTS.md', '.gitkeep'],
         exemptRlsTables: ['_migrations', 'schema_migrations', 'supabase_migrations']
     },
+    valibot: {
+        enabled: true,
+        targets: []
+    },
     domain: {
         enabled: true,
         timezoneVariable: 'APP_TIMEZONE',
@@ -626,6 +630,13 @@ export function buildCoverageConfig(raw, paths) {
         acknowledgedDegradations: resolveAcknowledgedDegradations(c.acknowledgedDegradations, paths, protectedRoots)
     };
 }
+export function buildValibotConfig(raw) {
+    const v = raw ?? {};
+    return {
+        enabled: v.enabled ?? DEFAULT_AUDIT_CONFIG.valibot?.enabled ?? true,
+        targets: v.targets ? v.targets : []
+    };
+}
 export function defineAuditConfig(config) {
     const declared = collectDeclaredSubsystems(config);
     const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -636,6 +647,7 @@ export function defineAuditConfig(config) {
     return {
         name: config.name,
         ratchet: buildRatchetConfig(config.ratchet),
+        valibot: buildValibotConfig(config.valibot),
         paths,
         persistence: buildPersistenceConfig(config.persistence),
         domain: buildDomainConfig(config.domain),

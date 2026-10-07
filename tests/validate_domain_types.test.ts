@@ -23,6 +23,7 @@ import {
   detectProjectDomainDuplicatesAndSubsets,
   extractLibraryDomainTypes
 } from '../src/suites/domain_data/validate_domain_types.ts';
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('DomainTypesAuditor', () => {
   const scratchDir = path.resolve(process.cwd(), 'scratch/test_domain_types_' + crypto.randomUUID());
@@ -169,6 +170,21 @@ describe('DomainTypesAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('skipped');
+    });
+
+    it('detects violations and fails with status failed and severity error', async () => {
+      const auditorDir = path.join(scratchDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(path.join(auditorDir, 'audit.config.json'), JSON.stringify({ name: 'test', domain: { enabled: true } }), 'utf-8');
+      const srcDir = path.join(scratchDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'badDomain.ts'), "const a = (x as any);\n", 'utf-8');
+      resetAuditConfig();
+      const auditor = new DomainTypesAuditor(['src'], scratchDir);
+      const result = await auditor.execute();
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
     });
   });
 

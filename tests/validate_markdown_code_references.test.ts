@@ -339,5 +339,21 @@ Refer to @/domain-type-first and @/auditor.
     expect(dirs).toContain('supabase');
     expect(dirs).toContain('CHANGELOG.md');
   });
+
+  it('extracts top-level parent directories from nested testRoots and codeRoots without duplicating', async () => {
+    setAuditConfig(defineAuditConfig({
+      name: 'Nested Roots Test',
+      paths: {
+        testRoots: ['tests/unit', 'tests/node', 'tests/e2e'],
+        codeRoots: ['packages/core', 'packages/cli']
+      }
+    }), tempDir);
+
+    const dirs = resolveMarkdownScanDirectories(tempDir);
+    expect(dirs).toContain('tests');
+    expect(dirs).toContain('packages');
+    expect(dirs).toContain('src');
+    expect(dirs).toContain('docs');
+  });
 });
 

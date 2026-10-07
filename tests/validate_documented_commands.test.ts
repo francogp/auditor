@@ -23,6 +23,17 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
+      expect(auditor.id).toBe('validate_documented_commands');
+      expect(auditor.packageName).toBe('Comandos');
+      expect(auditor.family).toBe('documentation');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
+  });
+
   it('passes cleanly when all documented commands exist in package.json', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),

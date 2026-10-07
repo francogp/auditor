@@ -87,11 +87,15 @@ function resolveConfiguredPathCandidates(paths) {
 function resolveAdditionalDomainCandidates(paths) {
     if (!paths)
         return [];
-    return [
+    const additional = [
         ...(paths.codeRoots ?? []),
         ...(paths.demoRoots ?? []),
         ...(paths.dataRoots ?? []),
         ...(paths.cliRoots ?? [])
+    ];
+    return [
+        ...additional,
+        ...extractTopLevelRoots(additional)
     ];
 }
 export function resolveMarkdownScanDirectories(projectRoot, explicitRoots) {

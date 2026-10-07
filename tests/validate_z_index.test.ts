@@ -26,6 +26,17 @@ describe('ZIndexAuditor', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new ZIndexAuditor();
+      expect(auditor.id).toBe('validate_z_index');
+      expect(auditor.packageName).toBe('Z-Index');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
+  });
+
   it('passes when all z-layers match the scss file', async () => {
     const scssEntries = Object.entries(Z_LAYERS)
       .map(([key, val]) => `  --z-${key.toLowerCase().replace(/_/g, '-')}: ${val};`)

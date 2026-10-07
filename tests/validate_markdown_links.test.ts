@@ -187,6 +187,20 @@ describe('MarkdownLinkAuditor', () => {
       expect(brokenLinks).toHaveLength(1);
       expect(brokenLinks[0]?.rawUrl).toBe('./real.md');
     });
+
+    it('detects violations and fails with status failed and severity error', async () => {
+      const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-fail-'));
+      try {
+        await fs.writeFile(path.join(sandbox, 'README.md'), '# Broken\n[Missing](./does_not_exist.md)\n', 'utf-8');
+        const auditor = new MarkdownLinkAuditor([], sandbox);
+        const result = await auditor.execute();
+        expect(result.status).toBe('failed');
+        expect(result.summary.errors).toBeGreaterThan(0);
+        expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+      } finally {
+        await fs.rm(sandbox, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('Clean Execution', () => {

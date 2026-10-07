@@ -29,6 +29,17 @@ describe('ValidateTestCoverageAuditor', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  describe('Rule Declarations & Metadata', () => {
+    it('initializes with correct metadata and rules', () => {
+      const auditor = new ValidateTestCoverageAuditor({ projectRoot: tmpDir });
+      expect(auditor.id).toBe('validate_test_coverage');
+      expect(auditor.packageName).toBe('Cobertura');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds.length).toBeGreaterThan(0);
+      expect(auditor.ruleDescriptions).toBeDefined();
+    });
+  });
+
   it('passes cleanly when enforceInAudit is false (clean path verification)', async () => {
     setAuditConfig(
       defineAuditConfig({

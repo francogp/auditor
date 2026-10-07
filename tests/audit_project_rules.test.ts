@@ -46,6 +46,11 @@ import {
   noInlineLiteralUnions,
   noRawJsonImportsOutsideData,
   namedTimerConstants,
+  zeroTimerLogic,
+  functionCallsInTemplates,
+  doxIndexIntegrity,
+  zIndexAudit,
+  zIndexConstantDeclaration,
   CANONICAL_DEFAULT_Z_LAYERS,
   Z_LAYERS
 } from '../src/suites/architecture/audit_rules.ts';
@@ -259,6 +264,21 @@ describe('Project Architecture Rules & Auditor', () => {
 
       namedTimerConstants.regex.lastIndex = 0;
       expect(namedTimerConstants.regex.test('gsap.delayedCall(3.5, callback);')).toBe(true);
+
+      zeroTimerLogic.regex.lastIndex = 0;
+      expect(zeroTimerLogic.regex.test('sleep(100);')).toBe(true);
+
+      functionCallsInTemplates.regex.lastIndex = 0;
+      expect(functionCallsInTemplates.regex.test('{{ computeTotal(item)}}')).toBe(true);
+
+      doxIndexIntegrity.regex.lastIndex = 0;
+      expect(doxIndexIntegrity.regex.test('# Purpose\n')).toBe(true);
+
+      zIndexAudit.regex.lastIndex = 0;
+      expect(zIndexAudit.regex.test('z-index: 100')).toBe(true);
+
+      zIndexConstantDeclaration.regex.lastIndex = 0;
+      expect(zIndexConstantDeclaration.regex.test('const MODAL_Z_INDEX = 100;')).toBe(true);
     });
 
     it('viewport and gpuGaps detect mobile viewports and GPU transition gaps', () => {
