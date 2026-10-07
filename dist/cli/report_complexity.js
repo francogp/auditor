@@ -153,7 +153,7 @@ function ingestFallbackAuditFindings(findingsMap) {
         return;
     try {
         const auditData = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
-        const compFindings = (auditData.allFindings || []).filter((f) => f.ruleId === 'fallow-complexity');
+        const compFindings = (auditData.allFindings || []).filter((f) => f.ruleId === 'fallow-refactoring-targets');
         for (const cf of compFindings) {
             const filePath = cf.file || '';
             const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');

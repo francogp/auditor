@@ -108,6 +108,9 @@ export interface AuditStylelintConfig {
 export interface AuditEslintConfig {
     readonly enabled?: boolean;
 }
+export interface AuditHtmlValidateConfig {
+    readonly enabled?: boolean;
+}
 export interface AuditStylesConfig {
     readonly globalUtilityClasses?: readonly string[];
     readonly canonicalButtonVariants?: readonly string[];
@@ -353,6 +356,7 @@ export interface AuditEngineConfig {
     readonly styles?: AuditStylesConfig;
     readonly stylelint?: AuditStylelintConfig;
     readonly eslint?: AuditEslintConfig;
+    readonly htmlValidate?: AuditHtmlValidateConfig;
     readonly bundle?: AuditBundleConfig;
     readonly agentPlugin?: AuditAgentPluginConfig;
     readonly animation?: AuditAnimationConfig;

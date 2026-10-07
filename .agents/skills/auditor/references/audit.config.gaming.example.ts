@@ -247,6 +247,25 @@ export default defineAuditConfig({
     includeDev: false // Exclude development tooling dependencies from CVE blocking
   },
 
+  valibot: {
+    enabled: true, // Bidirectional parity between domain TypeScript interfaces, Valibot schemas, and persistence serializers
+    targets: [
+      {
+        name: 'saveData',
+        schemaFile: 'src/schemas/saveDataSchema.ts',
+        schemaVarName: 'saveDataSchema',
+        interfaceFile: 'src/types/gameState.ts',
+        interfaceName: 'GameState',
+        serializerFile: 'src/persistence/saveSerializer.ts',
+        serializerFnName: 'serializeGameState',
+        initialStateFile: 'src/factories/gameStateFactory.ts',
+        initialStateFnName: 'createInitialGameState',
+        ephemeralProperties: ['runtimeDebugFlags'],
+        allowedDomainNullable: ['currentBattle']
+      }
+    ]
+  },
+
   domain: {
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
@@ -397,7 +416,6 @@ export default defineAuditConfig({
     './scripts/auditors/fsm/validate_fsm_flow_parity.ts', // Validates flow parity across decision, animation, and resolution phases
     './scripts/auditors/fsm/validate_fsm_implementation.ts', // Audits finite state machine (FSM) implementation
     './scripts/auditors/fsm/validate_sim_parity.ts', // Verifies consistency of battle mechanics against reference simulator
-    './scripts/auditors/persistence/validate_save_persistence_parity.ts', // Validates serialization and deserialization parity of save games
     './scripts/auditors/persistence/validate_schema_parity.ts', // Ensures complete parity between SQLite and Supabase database schemas
     './scripts/auditors/persistence/validate_sql_migrations.ts' // Verifies idempotency, reversibility, and syntax in SQL migrations
   ]

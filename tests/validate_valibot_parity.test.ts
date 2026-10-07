@@ -36,7 +36,7 @@ describe('ValidateValibotParityAuditor', () => {
   describe('Rule Declarations & Metadata', () => {
     it('conforms to construction metadata contract and exposes manifest', () => {
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      validateAuditorConstruction(auditor);
+      validateAuditorConstruction(auditor, 'validate_valibot_parity');
 
       const manifest = auditor.toManifest();
       expect(manifest.id).toBe('validate_valibot_parity');

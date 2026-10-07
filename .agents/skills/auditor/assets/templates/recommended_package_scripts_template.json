@@ -26,6 +26,8 @@
     "audit:package-hygiene": "auditor task=validate_package_hygiene",
     "audit:type-coverage": "auditor task=validate_type_coverage",
     "audit:test-coverage": "auditor-test-coverage",
+    "audit:coverage": "auditor-coverage",
+    "audit:valibot": "auditor task=validate_valibot_parity",
     "audit:fallow": "auditor-fallow category=all",
     "audit:fallow:dupes": "auditor-fallow category=dupes",
     "audit:fallow:circular": "auditor-fallow category=circular",

@@ -20,7 +20,7 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 10. `paths`: Directory structure, CLI roots (`cliRoots?: string[]`), and test fragmentation whitelist (`testFragmentationWhitelist?: string[]`).
 11. `domain`: Finite domain types (`finiteDomainTypes`), infra ID whitelists (`infraIdWhitelist`), normalization-exempt tokens (`caseNormalizationExemptTokens`), allowed store setter prefixes (`allowedStoreSetterPrefixes`), and allowed numeric constant prefixes (`allowedNumericConstantPrefixes`).
 12. `agentPlugin`: AI agent plugin integration (defaults to `enabled: true`).
-13. `fallow`: Deep static intelligence, security, and semantic code similarity (defaults to `enabled: true`, `security: { enabled: true }`, `similarCode: { enabled: true, threshold: 0.95, ignoreSameFile: true }`).
+13. `fallow`: Deep static intelligence, refactoring targets, security, and semantic code similarity (defaults to `enabled: true`, `enforceTargets: true`, `maxTargetPriority: 'critical'`, `security: { enabled: true }`, `similarCode: { enabled: true, threshold: 0.95, ignoreSameFile: true }`).
 14. `packageScripts`: Build script chaining and recommended scripts governance (defaults to `enabled: true`, `enforceBuildAudit: true`, `recommendedScripts: true`).
 15. `gitIgnore`: Dynamic gitignore entry verification (defaults to `enabled: true`, `extraRequiredEntries: []`).
 16. `packageHygiene`: Knip-powered dependency and binary script hygiene (defaults to `enabled: true`).
@@ -32,6 +32,7 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 22. `dependencyVulnerabilities`: External dependency CVE vulnerability scanner via `npm audit --json` (defaults to `enabled: true`).
 23. `packageDistribution`: Package distribution hygiene, export map resolution, and dual ESM/CJS compatibility (defaults to `enabled: true`, requires post-build `npm run audit:build`).
 24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run audit:build`).
+25. `valibot`: Bidirectional schema and persistence parity verification between TypeScript interfaces, Valibot schemas, and serializers (defaults to `enabled: true`, `targets: []`).
 
 When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.requiresBuild: true`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run audit:build` / `preset=build`).
 

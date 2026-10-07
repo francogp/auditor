@@ -12,7 +12,7 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import type { FallowTargetPriority } from '../../core/auditConfigTypes.ts';
-export declare const FALLOW_RULES: readonly ["fallow-refactoring-targets", "fallow-duplicate-code", "fallow-triplicate-code", "fallow-complexity", "fallow-cognitive-complexity", "fallow-cyclomatic-complexity", "fallow-unused-exports", "fallow-unused-files", "fallow-unused-dependencies", "fallow-circular-dependencies", "fallow-boundary-violations", "fallow-stale-suppressions", "fallow-workspace-diagnostic", "fallow-security-cwe"];
+export declare const FALLOW_RULES: readonly ["fallow-refactoring-targets", "fallow-duplicate-code", "fallow-triplicate-code", "fallow-unused-exports", "fallow-unused-files", "fallow-unused-dependencies", "fallow-circular-dependencies", "fallow-boundary-violations", "fallow-stale-suppressions", "fallow-workspace-diagnostic", "fallow-security-cwe"];
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 export declare const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string>;
 export declare const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;

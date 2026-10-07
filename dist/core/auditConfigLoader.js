@@ -107,6 +107,7 @@ export function tryLoadConfigFromEnv(projectRoot) {
     }
     return null;
 }
+let dynamicImportCounter = 0; // singleton-ok: Singleton instance state container
 export async function loadAuditConfig(projectRoot = process.cwd()) {
     if (cachedConfig && cachedProjectRoot === projectRoot)
         return cachedConfig;
@@ -120,7 +121,9 @@ export async function loadAuditConfig(projectRoot = process.cwd()) {
     const configPath = path.resolve(projectRoot, customConfig ?? AUDIT_CONFIG_FILE);
     const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
     if (fs.existsSync(configPath)) {
-        const mod = (await import(__rewriteRelativeImportExtension(pathToFileURL(configPath).href)));
+        const fileUrl = pathToFileURL(configPath);
+        fileUrl.searchParams.set('t', `${performance.now()}_${++dynamicImportCounter}`);
+        const mod = (await import(__rewriteRelativeImportExtension(fileUrl.href)));
         if (!mod.default) {
             throw new Error(`[AuditConfig] ${path.relative(projectRoot, configPath)} must default-export defineAuditConfig({...}).`);
         }

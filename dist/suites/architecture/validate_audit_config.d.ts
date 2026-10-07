@@ -10,8 +10,10 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { type AuditEngineConfig } from '../../core/auditConfig.ts';
 import type { AuditorConfigFileRequirement, AuditTaskDefinition } from '../../core/auditContract.ts';
+export declare function formatSectionObjectLiteral(value: unknown): string;
+export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
-export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-build-audit' | 'audit-config-removed-commit-gate' | 'audit-config-invalid-production-ref' | 'audit-config-invalid-baseline' | 'audit-config-missing-recommended-script';
+export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-build-audit' | 'audit-config-removed-commit-gate' | 'audit-config-invalid-production-ref' | 'audit-config-invalid-baseline' | 'audit-config-missing-recommended-script' | 'audit-config-missing-section';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>>;
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
@@ -23,6 +25,9 @@ export declare const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Audi
 export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     constructor(targetPathOrOptions?: string | ValidateAuditConfigOptions);
     runAudit(): Promise<void>;
+    private verifyRequiredSections;
+    private applyMissingSectionsFix;
+    private reportMissingSectionViolations;
     /** Validates the committed baseline format when present (its absence is reported by the ratchet itself). */
     private verifyRatchetBaseline;
     private verifyProductionRef;

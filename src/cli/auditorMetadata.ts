@@ -27,6 +27,17 @@ export interface ExtractedAuditorMetadata {
   readonly defaultConfig?: Readonly<Record<string, unknown>>;
 }
 
+type MutableExtractedAuditorMetadata = {
+  capabilities: AuditorCapabilities;
+  gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  icon?: string;
+  manifest?: AuditorManifestDTO;
+  description?: string;
+  ruleDescriptions?: Readonly<Record<string, string>>;
+  configKey?: string;
+  defaultConfig?: Readonly<Record<string, unknown>>;
+};
+
 export function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
   const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
     capabilities: DEFAULT_AUDITOR_CAPABILITIES,
@@ -74,7 +85,7 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
 
 function extractMetadataFromAuditorInstance(
   val: new () => BaseAuditor,
-  result: Record<string, unknown>
+  result: MutableExtractedAuditorMetadata
 ): void {
   try {
     const instance = new val();
@@ -89,16 +100,16 @@ function extractMetadataFromAuditorInstance(
     }
     if (typeof instance?.toManifest === 'function') {
       const manifest = instance.toManifest();
-      (result as { manifest?: AuditorManifestDTO }).manifest = manifest;
-      (result as { description?: string }).description = manifest.description;
-      (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = manifest.rules;
-      (result as { configKey?: string }).configKey = manifest.configKey;
-      (result as { defaultConfig?: Readonly<Record<string, unknown>> }).defaultConfig = manifest.defaultConfig;
+      result.manifest = manifest;
+      result.description = manifest.description;
+      result.ruleDescriptions = manifest.rules;
+      result.configKey = manifest.configKey;
+      result.defaultConfig = manifest.defaultConfig;
     } else if (instance?.description) {
-      (result as { description?: string }).description = instance.description;
-      (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = instance.ruleDescriptions;
-      (result as { configKey?: string }).configKey = instance.configKey;
-      (result as { defaultConfig?: Readonly<Record<string, unknown>> }).defaultConfig = instance.defaultConfig;
+      result.description = instance.description;
+      result.ruleDescriptions = instance.ruleDescriptions;
+      result.configKey = instance.configKey;
+      result.defaultConfig = instance.defaultConfig;
     }
   } catch {
     // catch-ok: Sub-auditor constructor may require specific options
@@ -107,7 +118,7 @@ function extractMetadataFromAuditorInstance(
 
 function extractMetadataFromFunction(
   val: unknown,
-  result: Record<string, unknown>
+  result: MutableExtractedAuditorMetadata
 ): void {
   if (typeof val !== 'function') return;
 
@@ -136,7 +147,7 @@ function extractMetadataFromFunction(
 }
 
 export async function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata> {
-  const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
+  const result: MutableExtractedAuditorMetadata = {
     capabilities: DEFAULT_AUDITOR_CAPABILITIES,
     gitIgnoreEntries: []
   };
@@ -171,6 +182,17 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
 
     for (const val of Object.values(mod)) {
       extractMetadataFromFunction(val, result);
+    }
+
+    const staticMeta = extractStaticMetadataFromFile(fullPath);
+    if (!result.configKey && staticMeta.configKey) {
+      result.configKey = staticMeta.configKey;
+    }
+    if (!result.description && staticMeta.description) {
+      result.description = staticMeta.description;
+    }
+    if (!result.icon && staticMeta.icon) {
+      result.icon = staticMeta.icon;
     }
   } catch {
     // catch-ok: Dynamic import failed or timed out, fallback to static analysis

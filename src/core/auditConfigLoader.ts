@@ -119,6 +119,8 @@ export function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | n
   return null;
 }
 
+let dynamicImportCounter: number = 0; // singleton-ok: Singleton instance state container
+
 export async function loadAuditConfig(projectRoot: string = process.cwd()): Promise<AuditEngineConfig> {
   if (cachedConfig && cachedProjectRoot === projectRoot) return cachedConfig;
 
@@ -133,7 +135,9 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
   const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
 
   if (fs.existsSync(configPath)) {
-    const mod = (await import(pathToFileURL(configPath).href)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
+    const fileUrl = pathToFileURL(configPath);
+    fileUrl.searchParams.set('t', `${performance.now()}_${++dynamicImportCounter}`);
+    const mod = (await import(fileUrl.href)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
     if (!mod.default) {
       throw new Error(`[AuditConfig] ${path.relative(projectRoot, configPath)} must default-export defineAuditConfig({...}).`);
     }

@@ -31,8 +31,6 @@ export declare function colorizeStreamSubLine(line: string, params: {
 }): string;
 export declare class TaskStreamCoordinator {
     private completedCount;
-    private nextPrintIndex;
-    private readonly bufferedTasks;
     private readonly totalTasks;
     private readonly indent;
     private printLock;

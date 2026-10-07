@@ -128,6 +128,9 @@ For a drop-in ready JSON template, see [`recommended_package_scripts_template.js
     "audit:review": "auditor-review",
     "audit:css": "auditor-css",
     "audit:bundle": "auditor-bundle",
+    "audit:test-coverage": "auditor-test-coverage",
+    "audit:coverage": "auditor-coverage",
+    "audit:valibot": "auditor task=validate_valibot_parity",
 
     "// --- FALLOW INTELLIGENCE ---": "",
     "audit:fallow": "auditor-fallow category=all",

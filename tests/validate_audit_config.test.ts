@@ -11,6 +11,30 @@ import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
 const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts').replace(/\\/g, '/');
 const BASE_AUDITOR_PATH = path.resolve(import.meta.dirname, '../src/core/auditorBase.ts').replace(/\\/g, '/');
 
+const BASE_TEST_CONFIG_SECTIONS = `
+  persistence: { engine: 'none', schemaQualified: false },
+  styles: { zLayersEnabled: false },
+  valibot: { enabled: true, targets: [] },
+  eslint: { enabled: true },
+  htmlValidate: { enabled: true },
+  pinia: { enabled: false },
+  domain: { enabled: false },
+  bundle: { enabled: false },
+  fallow: { enabled: false },
+  packageDistribution: { enabled: false },
+  packageHygiene: { enabled: false },
+  accessibility: { enabled: false },
+  typeCoverage: { enabled: false },
+  testCoverage: { enabled: false },
+  secretLeaks: { enabled: false },
+  dependencyVulnerabilities: { enabled: false },
+  constants: { enabled: false },
+  documentation: { enabled: false },
+  templates: { requireInputIds: false },
+  agentPlugin: { enabled: false },
+  coverage: { enabled: false }
+`;
+
 describe('ValidateAuditConfigAuditor', () => {
   let tempDir: string;
 
@@ -78,6 +102,7 @@ describe('ValidateAuditConfigAuditor', () => {
     expect(auditor.ruleIds).toContain('audit-config-invalid-production-ref');
     expect(auditor.ruleIds).toContain('audit-config-invalid-baseline');
     expect(auditor.ruleIds).toContain('audit-config-missing-recommended-script');
+    expect(auditor.ruleIds).toContain('audit-config-missing-section');
   });
 
   it('reports an error when audit.config.ts is missing from project root', async () => {
@@ -231,8 +256,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false },
+  ${BASE_TEST_CONFIG_SECTIONS},
   extensions: ['scripts/custom_ext.ts']
 });
     `;
@@ -274,8 +298,7 @@ export default defineAuditConfig({
     testRoots: ['tests'],
     componentsRoots: ['src/non_existent_components']
   },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false }
+  ${BASE_TEST_CONFIG_SECTIONS}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -377,6 +400,7 @@ export default defineAuditConfig({
     componentsRoots: ['src/components'],
     migrationsDir: 'migrations'
   },
+  ${BASE_TEST_CONFIG_SECTIONS},
   persistence: {
     engine: 'sqlite',
     schemaQualified: false,
@@ -537,8 +561,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false }
+  ${BASE_TEST_CONFIG_SECTIONS}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -569,8 +592,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false }
+  ${BASE_TEST_CONFIG_SECTIONS}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -616,8 +638,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false }
+  ${BASE_TEST_CONFIG_SECTIONS}
 });
     `;
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -737,8 +758,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'custom-app',
   paths: { srcRoots: ['src'] },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false },
+  ${BASE_TEST_CONFIG_SECTIONS},
   packageScripts: { enforceBuildAudit: false, recommendedScripts: false }
 });
     `;
@@ -770,8 +790,7 @@ import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
   name: 'custom-app',
   paths: { srcRoots: ['src'] },
-  persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false },
+  ${BASE_TEST_CONFIG_SECTIONS},
   packageScripts: { enforceBuildAudit: false, recommendedScripts: false }
 });
     `;
@@ -870,6 +889,126 @@ export default defineAuditConfig({
     });
 
     expect(config.constants?.exemptGlobs).toEqual(['scripts/database/seeds/**', 'ui-demo/**']);
+  });
+
+  it('reports errors when required configuration sections are missing from audit.config.ts', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] }
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const missingSections = result.findings.filter(f => f.ruleId === 'audit-config-missing-section');
+    expect(missingSections.length).toBeGreaterThan(0);
+    expect(missingSections.some(f => f.context === 'valibot')).toBe(true);
+    expect(missingSections.some(f => f.context === 'eslint')).toBe(true);
+    expect(missingSections.some(f => f.context === 'pinia')).toBe(true);
+    expect(missingSections.some(f => f.context === 'htmlValidate')).toBe(true);
+  });
+
+  it('automatically appends missing configuration sections in fix mode', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  ${BASE_TEST_CONFIG_SECTIONS}
+});
+    `;
+    // Remove valibot from config
+    const configWithoutValibot = configContent.replace(/valibot:\s*\{[^}]*\},/g, '');
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configWithoutValibot, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    // Verify it fails in check mode
+    const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
+    const checkResult = await checkAuditor.execute();
+    expect(checkResult.findings.some(f => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot')).toBe(true);
+
+    // Run in fix mode
+    resetAuditConfig();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    await fixAuditor.execute();
+
+    // Verify valibot was added to audit.config.ts
+    const updatedContent = await fs.readFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'utf-8');
+    expect(updatedContent).toContain('valibot:');
+    expect(updatedContent).toContain('enabled: true');
+
+    // Re-run check mode: should pass cleanly
+    resetAuditConfig();
+    const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
+    const recheckResult = await recheckAuditor.execute();
+    const valibotFinding = recheckResult.findings.find(f => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot');
+    expect(valibotFinding).toBeUndefined();
+  });
+
+  it('enforces required configuration section declared by host extensions', async () => {
+    const extensionCode = `
+import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
+
+export class CustomExtAuditor extends BaseAuditor {
+  constructor(opts) {
+    super({
+      id: 'custom_ext_suite',
+      name: 'Custom Ext Suite',
+      description: 'Custom extension description',
+      family: 'architecture',
+      ruleIds: ['custom-rule'],
+      packageName: 'Ext',
+      icon: '🧩',
+      coverage: { include: ['scripts/**'] },
+      configKey: 'customExt.enabled',
+      defaultConfig: { enabled: true, customOption: 'default_val' },
+      ruleDescriptions: { 'custom-rule': 'Regla de extension' },
+      projectRoot: opts?.projectRoot
+    });
+  }
+  public override async runAudit(): Promise<void> {}
+}
+    `;
+    await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, 'scripts/custom_ext.ts'), extensionCode, 'utf-8');
+
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  ${BASE_TEST_CONFIG_SECTIONS},
+  extensions: ['scripts/custom_ext.ts']
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    // Extension declared, but customExt section is missing
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const extFinding = result.findings.find(f => f.ruleId === 'audit-config-missing-section' && f.context === 'customExt');
+    expect(extFinding).toBeDefined();
+    expect(extFinding?.message).toContain('customExt');
+
+    // Fix mode should auto-scaffold customExt section
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    await fixAuditor.execute();
+
+    const repairedContent = await fs.readFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'utf-8');
+    expect(repairedContent).toContain('customExt:');
+    expect(repairedContent).toContain('customOption');
   });
 });
 

@@ -119,6 +119,7 @@ Draw from the canonical template at [`.agents/skills/auditor/assets/templates/re
     "audit:type-coverage": "auditor task=validate_type_coverage",
     "audit:test-coverage": "auditor-test-coverage",
     "audit:coverage": "auditor-coverage",
+    "audit:valibot": "auditor task=validate_valibot_parity",
     "audit:fallow": "auditor-fallow category=all",
     "auditor:update": "auditor-update",
     "auditor:version": "auditor-version",
@@ -255,7 +256,8 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 
 | Tool | Integrated Suite | Capability |
 | :--- | :--- | :--- |
-| **`fallow`** | `audit_project`, `report_fallow`, `validate_similar_code` | Dead code, complexity, AST duplicates, Candle CPU vector similarity, CWE security. |
+| **`fallow`** | `validate_fallow`, `report_fallow`, `validate_similar_code` | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security. |
+| **`valibot`** | `validate_valibot_parity` | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers. |
 | **`stylelint`** | `validate_stylelint` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |
@@ -477,6 +479,18 @@ export default defineAuditConfig({
       ignoreSameFile: true
     }
   },
+  valibot: {
+    enabled: true,
+    targets: [
+      {
+        interfaceName: 'SavePayload',
+        schemaFile: 'src/logic/validation/saveSchema.ts',
+        schemaName: 'saveSchema',
+        typeFile: 'src/types/saveTypes.ts',
+        serializerFile: 'src/logic/storage/saveSerializer.ts'
+      }
+    ]
+  },
   extensions: [
     './scripts/auditors/architecture/validate_no_inline_sql.ts'
   ]
@@ -501,6 +515,16 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 
 1. **Zero Live Repository Scanning**: Never execute `auditor.execute()` on `process.cwd()` in unit tests. Use isolated synthetic snippets with `testScanFile` or temporary sandboxes via `projectRoot`.
 2. **Clean Path Verification Mandate**: Every suite must verify that clean code produces `0` errors and `passed` status (`expect(result.summary.errors).toBe(0)`, `expect(result.status).toBe('passed')`).
+3. **Dynamic 5-Point Conformance Testing (`runAuditorContractConformanceTests`)**: Host extensions can verify dynamic conformance across all their custom extension sub-auditors in 2 lines:
+
+```typescript
+import { describe } from 'vitest';
+import { runAuditorContractConformanceTests } from '@francogp/auditor';
+
+describe('All Auditors Dynamic Conformance', () => {
+  runAuditorContractConformanceTests();
+});
+```
 
 ---
 
@@ -516,7 +540,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
 | `auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |
 | `auditor-fallow` | `src/cli/report_fallow.ts` | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`). |
-| `auditor-complexity` | `src/cli/report_complexity.ts` | Cognitive/cyclomatic complexity hotspots and refactoring targets report. |
+| `auditor-complexity` | `src/cli/report_complexity.ts` | Fallow refactoring targets and code complexity analysis report. |
 | `auditor-similar` | `src/cli/report_similar_code.ts` | Semantic clone and function similarity analysis via Fallow vector embeddings. |
 | `auditor-review` | `src/cli/report_review.ts` | Graph-grounded architectural review brief for changed code. |
 | `auditor-css` | `src/cli/report_css.ts` | Stylelint and stylesheet hygiene analysis report. |

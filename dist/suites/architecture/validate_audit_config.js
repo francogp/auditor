@@ -13,10 +13,116 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { loadAuditConfig, buildRatchetConfig, AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "../../core/auditConfig.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
-import { collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
+import { discoverAuditors, collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
 import { resolveGitCommit, describeBaselineDefect } from "../../cli/auditRatchet.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
+import ts from 'typescript';
 enableCompileCache();
+export function formatSectionObjectLiteral(value) {
+    const jsonStr = JSON.stringify(value, null, 2);
+    return jsonStr
+        .split('\n')
+        .map((line, idx) => {
+        if (idx === 0)
+            return line;
+        const unquoted = line.replace(/^(\s*)"([a-z_$][\w$]*)":/i, '$1$2:');
+        return `  ${unquoted}`;
+    })
+        .join('\n');
+}
+function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
+) {
+    try {
+        const code = fs.readFileSync(configFilePath, 'utf8');
+        const json = JSON.parse(code);
+        if (!json || typeof json !== 'object')
+            return;
+        for (const [key, value] of Object.entries(sectionsToInsert)) {
+            if (Reflect.get(json, key) === undefined) {
+                Reflect.set(json, key, value);
+            }
+        }
+        fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
+    }
+    catch {
+        // catch-ok: ignore unparseable json config files
+    }
+}
+function findConfigObjectLiteral(source) {
+    let configObj = null;
+    const visit = (node) => {
+        if (configObj)
+            return;
+        if (ts.isCallExpression(node) &&
+            ts.isIdentifier(node.expression) &&
+            node.expression.text === 'defineAuditConfig' &&
+            node.arguments.length > 0 &&
+            ts.isObjectLiteralExpression(node.arguments[0])) {
+            configObj = node.arguments[0];
+            return;
+        }
+        if (ts.isExportAssignment(node) && ts.isObjectLiteralExpression(node.expression)) {
+            configObj = node.expression;
+            return;
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(source);
+    return configObj;
+}
+function appendMissingSectionsFallback(configFilePath, code, sectionsToInsert // open-record: Dictionary of configuration sections
+) {
+    const lastBrace = code.lastIndexOf('}');
+    if (lastBrace === -1)
+        return;
+    let snippet = '';
+    for (const [key, val] of Object.entries(sectionsToInsert)) {
+        snippet += `,\n  ${key}: ${formatSectionObjectLiteral(val)}`;
+    }
+    snippet += '\n';
+    const updated = code.slice(0, lastBrace) + snippet + code.slice(lastBrace);
+    fs.writeFileSync(configFilePath, updated, 'utf8');
+}
+function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
+) {
+    const code = fs.readFileSync(configFilePath, 'utf8');
+    const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const configObj = findConfigObjectLiteral(source);
+    if (!configObj) {
+        appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
+        return;
+    }
+    const properties = configObj.properties;
+    let hasTrailingComma = false;
+    if (properties.length > 0) {
+        const lastProp = properties[properties.length - 1];
+        const endOfLastProp = lastProp.getEnd();
+        const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
+        const between = code.slice(endOfLastProp, closeBracePos);
+        hasTrailingComma = between.includes(',');
+    }
+    const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
+    if (closeBracePos === -1)
+        return;
+    let snippet = '';
+    let needsLeadingComma = !hasTrailingComma && properties.length > 0;
+    for (const [key, val] of Object.entries(sectionsToInsert)) {
+        const prefix = needsLeadingComma ? ',' : '';
+        snippet += `${prefix}\n  ${key}: ${formatSectionObjectLiteral(val)}`;
+        needsLeadingComma = true;
+    }
+    snippet += '\n';
+    const updated = code.slice(0, closeBracePos) + snippet + code.slice(closeBracePos);
+    fs.writeFileSync(configFilePath, updated, 'utf8');
+}
+export function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
+) {
+    if (configFilePath.endsWith('.json')) {
+        appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert);
+        return;
+    }
+    appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
+}
 function appendTaskDefaultConfig(sections, task) {
     if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core')
         return;
@@ -66,6 +172,40 @@ export default defineAuditConfig({
 });
 `;
 }
+function isSectionConfigured(rootKey, rawConfig) {
+    if (typeof rawConfig !== 'object' || rawConfig === null)
+        return false;
+    if (rootKey === 'stylelint') {
+        const stylesConfig = Reflect.get(rawConfig, 'styles');
+        const isStylesObject = typeof stylesConfig === 'object' && stylesConfig !== null;
+        return (Reflect.get(rawConfig, 'stylelint') !== undefined ||
+            (isStylesObject && Reflect.get(stylesConfig, 'stylelint') !== undefined) ||
+            stylesConfig !== undefined);
+    }
+    return Reflect.get(rawConfig, rootKey) !== undefined;
+}
+function collectMissingSections(tasks, rawConfig) {
+    const missingByRootKey = new Map();
+    for (const task of tasks) {
+        if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core' || task.configKey === 'none') {
+            continue;
+        }
+        const rootKey = task.configKey.split('.')[0];
+        if (!rootKey || isSectionConfigured(rootKey, rawConfig)) {
+            continue;
+        }
+        let entry = missingByRootKey.get(rootKey);
+        if (!entry) {
+            entry = { tasks: [], defaultConfig: {} };
+            missingByRootKey.set(rootKey, entry);
+        }
+        entry.tasks.push(task);
+        if (task.defaultConfig && typeof task.defaultConfig === 'object') {
+            Object.assign(entry.defaultConfig, task.defaultConfig);
+        }
+    }
+    return missingByRootKey;
+}
 export const AUDIT_CONFIG_RULES = [
     'audit-config-missing-path',
     'audit-config-missing-file',
@@ -75,7 +215,8 @@ export const AUDIT_CONFIG_RULES = [
     'audit-config-removed-commit-gate',
     'audit-config-invalid-production-ref',
     'audit-config-invalid-baseline',
-    'audit-config-missing-recommended-script'
+    'audit-config-missing-recommended-script',
+    'audit-config-missing-section'
 ];
 /** Removed `audit:for-commit` gate (superseded by the warning ratchet built into `auditor`). */
 const REMOVED_COMMIT_GATE_PATTERN = /audit:for-commit|auditor-commit|audit_for_commit/u;
@@ -184,7 +325,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 'audit-config-removed-commit-gate': 'Script usa audit:for-commit eliminado',
                 'audit-config-invalid-production-ref': 'Ref de producción no resuelve en git',
                 'audit-config-invalid-baseline': 'Línea base del ratchet inválida',
-                'audit-config-missing-recommended-script': 'Falta script recomendado en package'
+                'audit-config-missing-recommended-script': 'Falta script recomendado en package',
+                'audit-config-missing-section': 'Falta sección en audit.config'
             },
             coverage: {
                 include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore', 'package.json']
@@ -207,6 +349,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         if (fs.existsSync(path.resolve(this.projectRoot, 'package.json')))
             this.recordScanned('package.json');
         const config = await loadAuditConfig(this.projectRoot);
+        await this.verifyRequiredSections(config);
         this.verifyPathRoots(config);
         this.verifyPersistencePaths(config);
         this.verifyDomainAndStylePaths(config);
@@ -215,6 +358,49 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         this.verifyPackageScripts(config);
         this.verifyProductionRef(config);
         this.verifyRatchetBaseline(config);
+    }
+    async verifyRequiredSections(config) {
+        let tasks;
+        try {
+            tasks = await discoverAuditors({ projectRoot: this.projectRoot });
+        }
+        catch {
+            // catch-ok: fallback when running in isolated test environments without suite discovery
+            return;
+        }
+        const missingByRootKey = collectMissingSections(tasks, config._rawConfig ?? {});
+        if (missingByRootKey.size === 0)
+            return;
+        if (this.isFixActive()) {
+            this.applyMissingSectionsFix(missingByRootKey);
+            return;
+        }
+        this.reportMissingSectionViolations(missingByRootKey);
+    }
+    applyMissingSectionsFix(missingByRootKey) {
+        const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+        if (!fs.existsSync(configFilePath))
+            return;
+        const sectionsToInsert = {}; // open-record: Sections dictionary
+        for (const [rootKey, entry] of missingByRootKey.entries()) {
+            sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0
+                ? entry.defaultConfig
+                : { enabled: true };
+        }
+        appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert);
+    }
+    reportMissingSectionViolations(missingByRootKey) {
+        for (const [rootKey, entry] of missingByRootKey.entries()) {
+            const suiteNames = entry.tasks.map(t => t.id).join(', ');
+            this.addViolation({
+                ruleId: 'audit-config-missing-section',
+                severity: 'error',
+                file: AUDIT_CONFIG_FILE,
+                line: 1,
+                message: `Configuration error in ${AUDIT_CONFIG_FILE}: Missing required section "${rootKey}" declared by ${suiteNames}. Run "auditor fix" to add automatically.`,
+                context: rootKey
+            });
+        }
     }
     /** Validates the committed baseline format when present (its absence is reported by the ratchet itself). */
     verifyRatchetBaseline(config) {

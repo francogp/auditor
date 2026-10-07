@@ -184,7 +184,7 @@ function ingestFallbackAuditFindings(findingsMap: Map<string, ComplexityFinding>
 
   try {
     const auditData = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
-    const compFindings = (auditData.allFindings || []).filter((f: { ruleId?: string }) => f.ruleId === 'fallow-complexity');
+    const compFindings = (auditData.allFindings || []).filter((f: { ruleId?: string }) => f.ruleId === 'fallow-refactoring-targets');
     for (const cf of compFindings) {
       const filePath = cf.file || '';
       const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');

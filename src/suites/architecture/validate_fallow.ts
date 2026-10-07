@@ -23,9 +23,6 @@ export const FALLOW_RULES = [
   'fallow-refactoring-targets',
   'fallow-duplicate-code',
   'fallow-triplicate-code',
-  'fallow-complexity',
-  'fallow-cognitive-complexity',
-  'fallow-cyclomatic-complexity',
   'fallow-unused-exports',
   'fallow-unused-files',
   'fallow-unused-dependencies',
@@ -42,9 +39,6 @@ export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {
   'fallow-refactoring-targets': 'Objetivo refactor Fallow',
   'fallow-duplicate-code': 'Código duplicado detectado',
   'fallow-triplicate-code': 'Código triplicado crítico',
-  'fallow-complexity': 'Complejidad función excesiva',
-  'fallow-cognitive-complexity': 'Complejidad cognitiva alta',
-  'fallow-cyclomatic-complexity': 'Complejidad ciclomática alta',
   'fallow-unused-exports': 'Export no utilizado en código',
   'fallow-unused-files': 'Archivo muerto sin uso',
   'fallow-unused-dependencies': 'Dependencia no utilizada',
@@ -292,33 +286,8 @@ function mapDeadCodeFindings(data: FallowAuditData, projectRoot: string): Fallow
   ];
 }
 
-function mapComplexityFinding(cf: FallowComplexityFinding, projectRoot: string): FallowFindingItem {
-  let rId: FallowRuleId = 'fallow-complexity';
-  let msg = `Función '${cf.name || 'anónima'}' excede umbral de complejidad (${cf.line_count || 0} LOC)`;
-  if (cf.exceeded === 'cognitive') {
-    rId = 'fallow-cognitive-complexity';
-    msg = `Complejidad cognitiva excesiva (${cf.cognitive}) en '${cf.name || 'anónima'}'`;
-  } else if (cf.exceeded === 'cyclomatic') {
-    rId = 'fallow-cyclomatic-complexity';
-    msg = `Complejidad ciclomática excesiva (${cf.cyclomatic}) en '${cf.name || 'anónima'}'`;
-  }
-  return {
-    file: path.resolve(projectRoot, cf.path),
-    line: cf.line,
-    message: msg,
-    context: cf.name || cf.path,
-    ruleId: rId,
-    severity: 'error'
-  };
-}
-
 function mapHealthFindings(data: FallowAuditData, projectRoot: string): FallowFindingItem[] {
   const findings: FallowFindingItem[] = [];
-  const complexityFindings = data.findings || data.complexity?.findings || [];
-  for (const cf of complexityFindings) {
-    findings.push(mapComplexityFinding(cf, projectRoot));
-  }
-
   const cfg = getAuditConfig(projectRoot);
   if (cfg.fallow?.enforceTargets) {
     const maxPriority = cfg.fallow.maxTargetPriority ?? 'high';
@@ -379,7 +348,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       capabilities: { lint: true, changedSince: true, heavy: true },
       id: 'validate_fallow',
       name: 'Fallow Architecture & Refactoring Targets',
-      description: 'Audita código muerto, complejidad y targets con Fallow',
+      description: 'Audita código muerto, targets y CWE con Fallow',
       family: 'architecture',
       packageName: 'Fallow',
       configKey: 'fallow.enabled',
@@ -463,7 +432,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     allFindings.push(...deadCode);
 
     // 5. Health & Targets
-    const health = this.runFallowSubCommand('health');
+    const health = this.runFallowSubCommand('health', ['--targets']);
     allFindings.push(...health);
 
     for (const f of allFindings) {

@@ -229,8 +229,8 @@ export interface AuditTaskDefinition {
     gitIgnoreEntries?: readonly GitIgnoreRequirement[];
     configFiles?: readonly AuditorConfigFileRequirement<string>[];
     manifest?: AuditorManifestDTO;
-    configKey: string;
-    defaultConfig: Readonly<Record<string, unknown>>;
+    configKey?: string;
+    defaultConfig?: Readonly<Record<string, unknown>>;
     ruleDescriptions?: Readonly<Record<string, string>>;
 }
 export interface AuditTaskDescriptor {

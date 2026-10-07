@@ -108,10 +108,10 @@ graph TD
    - `isPathIgnored(relPath)` in `auditorBase.ts` unifies `CANONICAL_IGNORE_DIRS` + `config.paths.ignoredDirs` + `config.paths.ignoredPatterns` + `config.paths.ignoreGlobs`.
    - Supports bidirectional leaf and path matching, ensuring both full relative paths and base directory scans in `fs.glob` respect configured ignores.
    - Any sub-auditor discovering or filtering files (`getFilesToAudit`, `FileScanAuditor`, `BaseAuditor`) MUST use `isPathIgnored(p)`.
-7. **Concurrent Execution & Completion-Ordered Output Model**:
+7. **Concurrent Execution & Immediate Completion-Ordered Output Model**:
    - `npm run audit` executes suites concurrently across a pool of background workers (sized to CPU parallelism).
-   - Console progress lines (`[ 01/54 | 2% ]`) stream in the order that suites **FINISH** (`coordinator.onTaskComplete`), NOT in the order of task discovery.
-   - Heavy suites that take longer (such as full-codebase regex or Fallow intelligence) will complete and log towards the end of the run (e.g. `[ 54/54 | 100% ]`).
+   - Console progress lines stream immediately in the order that suites **FINISH** (`coordinator.onTaskComplete`), NOT in the order of task discovery.
+   - Under an atomic async `printLock`, each suite's entire output block (header, child checks, and duration) renders as an unbroken atomic unit, completely eradicating head-of-line blocking and console stalls while preventing interleaved lines between concurrent workers.
 8. **Shared AST Engine & Zero Duplicate Parse Mandate (`SharedAstContext`)**:
    - Whenever a sub-auditor performs TypeScript AST analysis or inspects Vue SFC `<script>` blocks, it MUST declare `requiresAst: true` in its constructor configuration (`BaseAuditor` or `FileScanAuditor`).
    - Sub-auditors MUST NEVER instantiate isolated AST parsers or call `ts.createProgram` / `ts.createSourceFile` inside ad-hoc file loops.
@@ -189,7 +189,7 @@ graph TD
       - `npm run audit:findings` / `npm run audit:errors` / `npm run audit:warnings` / `npm run audit:summary` / `npm run audit:files`: Filtering and breakdown of findings.
       - `npm run audit:test-coverage` (`auditor-test-coverage`): Canonical test execution code coverage analysis, directory aggregates, untracked files detection, uncovered line ranges, and complexity hotspot correlation. Full guide: [`references/test-coverage-guide.md`](./references/test-coverage-guide.md).
       - `npm run audit:by-file`: Hierarchical Box-Drawing tree inspection of findings grouped strictly by file and ordered by line ascending (`├── L12: [Rule] Message`), with filters (`file=`, `category=`, `severity=`, `top=`, `json`).
-      - `npm run audit:complexity`: Cognitive/cyclomatic complexity hotspots and Fallow refactoring targets.
+      - `npm run audit:complexity`: Code complexity hotspots and Fallow refactoring targets report.
       - `npm run audit:similar`: Semantic and structural clone detection using Fallow ML vector embeddings in Box-Drawing tables.
       - `npm run audit:review`: Graph-grounded architectural review brief for changed code using Fallow code review graphs.
       - `npm run audit:fallow:dupes` / `npm run audit:fallow:triplets` / `npm run audit:fallow:security` / `npm run audit:fallow:dead-code`: Fallow intelligence deep dives.
@@ -518,20 +518,16 @@ The findings reporter (`src/cli/report_findings.ts`) is the official SSoT diagno
 
 ---
 
-## 🧠 Fallow Code Quality Governance & Content-Aware Complexity (Zero Arbitrary Line Limits)
+## 🧠 Fallow Code Quality Governance & Refactoring Targets (Zero Micro-Metric Fragmentation)
 
-Fallow is integrated into `@francogp/auditor` (`audit_project.ts` and `report_fallow.ts`) to evaluate **code structure, semantic content, and mental load** through AST parsing, NOT through arbitrary line limits:
+Fallow is integrated into `@francogp/auditor` (`validate_fallow.ts` and `report_fallow.ts`) to evaluate **code structure, architectural debt, and holistic change risk** through AST and graph analysis, NOT through punitive micro-line counters:
 
-1. **AST Content Analysis over Raw Line Counts**:
-   - Arbitrary line limits (such as `≤ 60 LOC` per function or raw file line caps) are **STRICTLY FORBIDDEN**. Raw line counts penalize comments, JSDocs, Mermaid architecture diagrams, TypeScript domain interfaces, blank lines, and formatting.
-   - Code quality is governed strictly by Fallow's native complexity metrics declared in `.fallowrc.json`:
-     - `maxCognitive` (default: 20): Measures mental nesting and cognitive branching.
-     - `maxCyclomatic` (default: 25): Measures independent execution control paths.
-     - `maxCrap` (default: 500): Measures change risk anti-patterns against test coverage.
-2. **Strict Demarcation of Telemetry vs Auditor Errors (`fallow health`)**:
-   - In `fallow health`, Fallow outputs informational statistics (`large_functions`, `targets`, `hotspots`).
-   - The auditor framework maps **ONLY `data.findings`** (true complexity threshold breaches) as blocking auditor errors (`severity: 'error'`).
-   - Converting informational statistics (`large_functions` or `targets`) into fatal auditor errors is strictly prohibited; doing so forces unnatural micro-fragmentation of clear, declarative functions.
+1. **Holistic Refactoring Targets over Punitive Micro-Counters**:
+   - Arbitrary line and complexity micro-limits (`LOC > 60`, `cognitive > 15`, `cyclomatic > 20`) are not part of the active auditor rules, preventing unnatural fragmentation of cohesive, declarative functions (parsers, AST builders, state machines) into artificial helpers.
+   - Code complexity is governed strictly via **Fallow Refactoring Targets** (`fallow-refactoring-targets`, rule in `validate_fallow.ts`). Targets are computed via `fallow health --targets --format json`, evaluating multi-variable technical debt (`prioridad = min(density, 1) × 30 + hotspot_boost × 25 + dead_code_ratio × 20 + fan_in × 15 + fan_out × 10`) ordered by impact.
+2. **Strict Fallow CLI `--targets` Requirement**:
+   - By Fallow CLI design, omitting `--targets` produces only raw metric breaches in `findings[]` and completely omits the `targets[]` array. `validate_fallow` explicitly executes `runFallowSubCommand('health', ['--targets'])`.
+   - Raw micro-complexity breaches in `findings[]` are ignored; prioritized targets exceeding `config.fallow.maxTargetPriority` trigger blocking errors (`severity: 'error'`).
 3. **Module Sizing Protocol**:
    - Modules and components should be decomposed when their **cognitive load** or responsibilities grow unwieldy (Single Responsibility Principle), not by counting lines.
 4. **Pre-flight Architecture Verification (`auditor-guard`) & Feature Flags Governance (`auditor-flags`)**:

@@ -270,6 +270,11 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'persistence',
     'domain',
     'styles',
+    'stylelint',
+    'eslint',
+    'valibot',
+    'pinia',
+    'htmlValidate',
     'templates',
     'bundle',
     'agentPlugin',
@@ -277,16 +282,33 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'fallow',
     'packageDistribution',
     'packageHygiene',
+    'packageScripts',
     'accessibility',
     'typeCoverage',
     'testCoverage',
     'version',
     'secretLeaks',
     'dependencyVulnerabilities',
-    'ratchet'
+    'ratchet',
+    'constants',
+    'documentation',
+    'gitIgnore',
+    'coverage',
+    'animation'
   ] as const;
   for (const k of keys) {
     if (config[k] !== undefined) declared.add(k);
+  }
+  for (const k of Object.keys(config)) {
+    if (
+      k !== '_declaredSubsystems' &&
+      k !== '_rawPaths' &&
+      k !== '_rawConfig' &&
+      k !== 'name' &&
+      Reflect.get(config, k) !== undefined
+    ) {
+      declared.add(k);
+    }
   }
   return declared;
 }

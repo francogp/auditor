@@ -113,6 +113,19 @@ export default defineAuditConfig({
   constants: {
     allowedNumericPrefixes: ['BASE_']
   },
+  eslint: {
+    enabled: true
+  },
+  htmlValidate: {
+    enabled: true
+  },
+  pinia: {
+    enabled: false // Herramienta CLI de Node.js sin stores ni frontend Vue
+  },
+  valibot: {
+    enabled: true,
+    targets: []
+  },
   runner: {
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
   }

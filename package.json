@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "5.3.0-build.20261007-124227",
+  "version": "5.4.0-build.20261007-143402",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -195,6 +195,7 @@
     "validate:o1": "node --permission --experimental-strip-types --allow-fs-read=. --allow-fs-write=. src/suites/domain_data/validate_o1_data_structures.ts",
     "validate:domain-types": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/domain_data/validate_domain_types.ts",
     "validate:sql-anti-patterns": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/persistence/validate_sql_anti_patterns.ts",
+    "validate:valibot-parity": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/persistence/validate_valibot_parity.ts",
     "validate:documented-commands": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/suites/documentation/validate_documented_commands.ts",
     "validate:secret-leaks": "node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_secret_leaks.ts",
     "validate:dependencies": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/suites/architecture/validate_dependency_vulnerabilities.ts"

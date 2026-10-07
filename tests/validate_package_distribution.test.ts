@@ -89,7 +89,7 @@ describe('ValidatePackageDistributionAuditor & parsePublintMessages', () => {
 
     it('creates warning findings for warning type messages', () => {
       const messages: PublintMessageLike[] = [
-        { type: 'warning', code: 'EXPORTS_MODULE_SHOULD_PRECEDE', path: ['exports', '.'], args: {} }
+        { type: 'warning', code: 'EXPORTS_MODULE_SHOULD_PRECEDE_REQUIRE', path: ['exports', '.'], args: {} }
       ];
       const findings = parsePublintMessages(messages, { name: 'test-pkg' }, tempDir);
       expect(findings).toHaveLength(1);

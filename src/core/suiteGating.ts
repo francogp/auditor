@@ -142,6 +142,26 @@ const SIMPLE_GATING_SPECS: Record<string, SuiteGatingSpec> = {
     configKey: 'dependencyVulnerabilities.enabled',
     reason: 'Desactivado en config (dependencyVulnerabilities.enabled = false)',
     path: ['dependencyVulnerabilities', 'enabled']
+  },
+  validate_valibot_parity: {
+    configKey: 'valibot.enabled',
+    reason: 'Desactivado en config (valibot.enabled = false)',
+    path: ['valibot', 'enabled']
+  },
+  validate_pinia_reactivity: {
+    configKey: 'pinia.enabled',
+    reason: 'Desactivado en config (pinia.enabled = false)',
+    path: ['pinia', 'enabled']
+  },
+  validate_eslint: {
+    configKey: 'eslint.enabled',
+    reason: 'Desactivado en config (eslint.enabled = false)',
+    path: ['eslint', 'enabled']
+  },
+  validate_eslint_config: {
+    configKey: 'eslint.enabled',
+    reason: 'Desactivado en config (eslint.enabled = false)',
+    path: ['eslint', 'enabled']
   }
 };
 

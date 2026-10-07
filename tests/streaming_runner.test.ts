@@ -119,6 +119,38 @@ describe('streamingRunner Core Utility', () => {
       const headerLine = outputCalls.find((line: string) => line.includes('Type Check'));
       expect(headerLine).toContain('❌');
     });
+
+    it('streams out-of-order completed tasks immediately without head-of-line blocking', async () => {
+      const coordinator = new TaskStreamCoordinator(3);
+
+      // Task with index 2 completes first
+      await coordinator.onTaskComplete({
+        taskName: 'Task Three',
+        taskId: 'task_3',
+        subLines: [],
+        durationMs: 50,
+        isSuccess: true,
+        taskIndex: 2
+      });
+
+      let outputCalls: string[] = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0]));
+      expect(outputCalls.some((line: string) => line.includes('Task Three'))).toBe(true);
+      expect(outputCalls.find((line: string) => line.includes('Task Three'))).toContain('01/03');
+
+      // Task with index 0 completes next
+      await coordinator.onTaskComplete({
+        taskName: 'Task One',
+        taskId: 'task_1',
+        subLines: [],
+        durationMs: 100,
+        isSuccess: true,
+        taskIndex: 0
+      });
+
+      outputCalls = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0]));
+      expect(outputCalls.some((line: string) => line.includes('Task One'))).toBe(true);
+      expect(outputCalls.find((line: string) => line.includes('Task One'))).toContain('02/03');
+    });
   });
 
   describe('executeAuditorStreaming', () => {

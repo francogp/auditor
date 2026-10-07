@@ -48,8 +48,6 @@ export function colorizeStreamSubLine(line, params) {
 }
 export class TaskStreamCoordinator {
     completedCount = 0;
-    nextPrintIndex = 0;
-    bufferedTasks = new Map();
     totalTasks;
     indent;
     printLock = Promise.resolve();
@@ -65,17 +63,7 @@ export class TaskStreamCoordinator {
         });
         await previousLock;
         try {
-            if (params.taskIndex === undefined) {
-                this.printTaskItem(params, ++this.completedCount);
-                return;
-            }
-            this.bufferedTasks.set(params.taskIndex, params);
-            while (this.bufferedTasks.has(this.nextPrintIndex)) {
-                const nextParams = this.bufferedTasks.get(this.nextPrintIndex);
-                this.bufferedTasks.delete(this.nextPrintIndex);
-                this.nextPrintIndex++;
-                this.printTaskItem(nextParams, ++this.completedCount);
-            }
+            this.printTaskItem(params, ++this.completedCount);
         }
         finally {
             releaseLock();

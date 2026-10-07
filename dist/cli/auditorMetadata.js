@@ -149,6 +149,16 @@ export async function extractAuditorMetadataFromFile(fullPath) {
         for (const val of Object.values(mod)) {
             extractMetadataFromFunction(val, result);
         }
+        const staticMeta = extractStaticMetadataFromFile(fullPath);
+        if (!result.configKey && staticMeta.configKey) {
+            result.configKey = staticMeta.configKey;
+        }
+        if (!result.description && staticMeta.description) {
+            result.description = staticMeta.description;
+        }
+        if (!result.icon && staticMeta.icon) {
+            result.icon = staticMeta.icon;
+        }
     }
     catch {
         // catch-ok: Dynamic import failed or timed out, fallback to static analysis

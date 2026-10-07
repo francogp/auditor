@@ -46,6 +46,14 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(auditor.capabilities.changedSince).toBe(true);
     });
 
+    it('declares exactly 11 active rules without deprecated micro-complexity rules', () => {
+      expect(FALLOW_RULES).toHaveLength(11);
+      expect(FALLOW_RULES).not.toContain('fallow-complexity');
+      expect(FALLOW_RULES).not.toContain('fallow-cognitive-complexity');
+      expect(FALLOW_RULES).not.toContain('fallow-cyclomatic-complexity');
+      expect(FALLOW_RULES).toContain('fallow-refactoring-targets');
+    });
+
     it('declares 100% of rules in ruleDescriptions matching FALLOW_RULES', () => {
       const auditor = new FallowArchitectureAuditor(tempDir);
       for (const ruleId of FALLOW_RULES) {
@@ -196,8 +204,21 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     });
   });
 
-  describe('mapFallowJson - Health, Complexity & Targets', () => {
-    it('maps function complexity findings (cognitive and cyclomatic)', () => {
+  describe('mapFallowJson - Health & Targets', () => {
+    it('executes runFallowSubCommand with health and ["--targets"] argument to prevent design bug where targets were omitted', async () => {
+      const auditor = new FallowArchitectureAuditor(tempDir);
+      const subcommands: Array<{ cmd: string; args?: readonly string[] }> = [];
+      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: readonly string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: readonly string[]) => {
+        subcommands.push({ cmd, args });
+        return [];
+      };
+      await auditor.runAudit();
+      const healthCall = subcommands.find(c => c.cmd === 'health');
+      expect(healthCall).toBeDefined();
+      expect(healthCall?.args).toContain('--targets');
+    });
+
+    it('ignores raw micro-complexity findings and produces zero violations for metric breaching functions', () => {
       const data = {
         findings: [
           { path: 'src/complex.ts', line: 20, name: 'heavyFunc', exceeded: 'cognitive', cognitive: 25 },
@@ -206,9 +227,15 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         ]
       };
       const violations = mapFallowJson('health', data, tempDir);
-      expect(violations.some(v => v.ruleId === 'fallow-cognitive-complexity')).toBe(true);
-      expect(violations.some(v => v.ruleId === 'fallow-cyclomatic-complexity')).toBe(true);
-      expect(violations.some(v => v.ruleId === 'fallow-complexity')).toBe(true);
+      expect(violations).toHaveLength(0);
+    });
+
+    it('clean path: produces zero findings when targets array is empty or undefined', () => {
+      const violationsEmpty = mapFallowJson('health', { targets: [] }, tempDir);
+      expect(violationsEmpty).toHaveLength(0);
+
+      const violationsUndefined = mapFallowJson('health', {}, tempDir);
+      expect(violationsUndefined).toHaveLength(0);
     });
 
     it('enforces refactoring targets when config.fallow.enforceTargets is true', () => {
@@ -230,6 +257,39 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       const targetViolations = violations.filter(v => v.ruleId === 'fallow-refactoring-targets');
       expect(targetViolations).toHaveLength(1);
       expect(targetViolations[0]!.message).toContain('Extract submodules');
+      expect(targetViolations[0]!.severity).toBe('error');
+    });
+
+    it('filters refactoring targets based on maxTargetPriority thresholds', () => {
+      // 1. Critical threshold (>= 30)
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          enforceTargets: true,
+          maxTargetPriority: 'critical'
+        }
+      }));
+
+      const sampleData = {
+        targets: [
+          { path: 'src/critical.ts', priority: 35, recommendation: 'Split critical file' },
+          { path: 'src/high.ts', priority: 25, recommendation: 'Extract high debt function' }
+        ]
+      };
+      const criticalViolations = mapFallowJson('health', sampleData, tempDir);
+      expect(criticalViolations).toHaveLength(1);
+      expect(criticalViolations[0]!.message).toContain('Split critical file');
+
+      // 2. All threshold (>= 1)
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          enforceTargets: true,
+          maxTargetPriority: 'all'
+        }
+      }));
+      const allViolations = mapFallowJson('health', sampleData, tempDir);
+      expect(allViolations).toHaveLength(2);
     });
 
     it('bypasses refactoring targets when config.fallow.enforceTargets is false', () => {

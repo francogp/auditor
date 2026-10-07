@@ -283,10 +283,10 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
 
   describe('Universal Dynamic Gating (suiteGating)', () => {
     it('dynamically gates any suite from its configKey without requiring manual registry entries', () => {
-      const config: AuditConfig = {
+      const config = {
         name: 'test',
         paths: { srcRoots: ['src'], testRoots: ['tests'] }
-      };
+      } as unknown as AuditConfig;
 
       // Unconfigured or default: enabled
       const statusActive = evaluateSuiteStatus('validate_unregistered_extension', config, 'unregisteredSubsystem.enabled');

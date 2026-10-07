@@ -248,8 +248,9 @@ export default defineAuditConfig({
     includeDev: false // Exclude development tooling dependencies from CVE blocking
   },
 
-  packageDistribution: {
-    enabled: true // Validates package export map, dual ESM/CJS compatibility, and distribution artifacts (requires audit:build)
+  valibot: {
+    enabled: true, // Bidirectional parity between domain TypeScript interfaces, Valibot schemas, and persistence serializers
+    targets: [] // List of ValibotParityTarget declarations for state, persistence, and schema parity
   },
 
   packageTypes: {
