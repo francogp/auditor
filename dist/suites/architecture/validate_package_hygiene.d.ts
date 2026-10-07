@@ -1,6 +1,6 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
-export declare const PACKAGE_HYGIENE_RULES: readonly ["package-unused-dependency", "package-unlisted-dependency", "package-unused-binary"];
+export declare const PACKAGE_HYGIENE_RULES: readonly ["package-unused-dependency", "package-unlisted-dependency", "package-unused-binary", "package-lockfile-integrity"];
 export type PackageHygieneRuleId = (typeof PACKAGE_HYGIENE_RULES)[number];
 export interface KnipIssueItem {
     readonly name: string;
@@ -25,6 +25,10 @@ export declare function extractReferencedScriptDependencies(projectRoot: string)
  * Parses raw JSON output from Knip into canonical AuditFindings.
  */
 export declare function parseKnipIssues(report: KnipReport | readonly KnipFileIssues[], projectRoot?: string, isPathIgnored?: (relPath: string) => boolean): AuditFinding[];
+/**
+ * Validates package-lock.json integrity, version standards, and absence of insecure HTTP registries.
+ */
+export declare function verifyLockfileIntegrity(projectRoot: string): AuditFinding[];
 export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
     constructor(options?: {
         projectRoot?: string;

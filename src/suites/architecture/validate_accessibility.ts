@@ -67,6 +67,8 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       description: 'Valida estándares WCAG 2.1/2.2 y accesibilidad',
       family: 'architecture',
       packageName: 'A11y',
+      configKey: 'accessibility.enabled',
+      defaultConfig: { enabled: true },
       icon: '♿',
       ruleIds: ACCESSIBILITY_RULES,
       ruleDescriptions: {

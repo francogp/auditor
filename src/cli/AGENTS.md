@@ -19,6 +19,9 @@ Architecture & Tooling Engineers.
 - **Dynamic Thematic Emoji Propagation**: `auditScanner.ts` extracts mandatory `icon` properties directly from sub-auditor classes or instances during auto-discovery, ensuring every task in the streaming runner displays its dedicated visual symbol.
 - **Transparent Skip Rendering (`⏭️  SKIP`)**: `audit_full.ts` detects bypassed or skipped suites, clears default rule descriptions, and streams `⏭️  SKIP` in cyan with skip reasons rather than falsely reporting passed status.
 - **CLI Flag Precedence & Loud Argument Validation (`bump_version.ts`)**: State-mutating CLI commands MUST intercept `--help` and `-h` flags before parsing positional arguments or executing mutations. Positional parameters and type arguments MUST be strictly validated against the finite domain using O(1) Set membership, failing loudly with exit code 1 on unknown arguments and strictly banning silent fallback to defaults.
+- **Dynamic Task Metadata Resolution (`auditTaskFactory.ts`)**: Task creation extracts mandatory `configKey` and `defaultConfig` directly from auditor instances or manifests, ensuring downstream execution engines and scaffolding routines have zero hardcoded knowledge of specific suite options.
+- **Post-Build Compiled Artifact Partitioning (`audit_build.ts`)**: Default audit runs exclude suites with `capabilities.requiresBuild === true` (`validate_bundle_budget`, `validate_package_distribution`, `validate_package_types`), routing them to `audit_build.ts` (`npm run audit:build` / `auditor-build`) to execute post-build against `dist/`.
+- **Dynamic Configuration Scaffolding (`auditor fix`)**: When repairing or generating `.auditor/audit.config.ts`, `audit_full.ts` dynamically collects `task.defaultConfig` from all discovered tasks across the repository via `collectConfigSectionsFromTasks`, eliminating hardcoded configuration block lists.
 
 ## Key Files
 

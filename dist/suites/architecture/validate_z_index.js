@@ -85,6 +85,8 @@ export class ZIndexAuditor extends BaseAuditor {
             description: 'Valida paridad entre Z_LAYERS (TS) y variables CSS (SCSS)',
             family: 'architecture',
             packageName: 'Z-Index',
+            configKey: 'styles.zLayersEnabled',
+            defaultConfig: { enabled: true, zLayersEnabled: true },
             icon: '🥞',
             ruleIds: Z_INDEX_RULES,
             ruleDescriptions: {

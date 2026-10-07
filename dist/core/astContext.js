@@ -56,7 +56,7 @@ export class SharedAstContext {
         if (cached)
             return cached;
         // Prefer <script setup ...> if present, otherwise standard <script ...>
-        const setupMatch = content.match(/<script\b[^>]*\bsetup\b[^>]*>([\s\S]*?)<\/script>/i);
+        const setupMatch = content.match(/<script\b[^>]+?\bsetup\b[^>]*>([\s\S]*?)<\/script>/i);
         const standardMatch = content.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
         const match = setupMatch || standardMatch;
         if (!match || match.index === undefined) {

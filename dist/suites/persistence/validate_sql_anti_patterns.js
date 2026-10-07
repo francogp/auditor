@@ -51,7 +51,7 @@ export const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.\w+\[\d+\]|\w+\s*->\s*\d+|
 const CAMEL_CASE_KEY_REGEX = /^[a-z]+[A-Z][a-zA-Z0-9]*$/;
 function parseDeclaredPlpgsqlVariables(blockBody) {
     const declaredVars = new Set();
-    const declareMatch = blockBody.match(/\bDECLARE\b([\s\S]*?)\bBEGIN\b/i);
+    const declareMatch = blockBody.match(/\bDECLARE\b([\s\S]+?)\bBEGIN\b/i);
     if (!declareMatch || !declareMatch[1]) {
         return declaredVars;
     }
@@ -88,6 +88,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
             family: 'persistence',
             ruleIds: SQL_ANTI_PATTERN_RULES,
             packageName: 'SQL',
+            configKey: 'persistence.enabled',
+            defaultConfig: { enabled: true },
             icon: '💾',
             ruleDescriptions: {
                 'sql-no-positional-arrays': 'Mutación de array JSON en SQL',
@@ -260,7 +262,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         }
     }
     scanPlpgsqlUndeclaredVariables(relPath, content) {
-        const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)[\s\S]+?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
+        const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)\s*\([^)]*\)[\s\S]*?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
         let blockMatch;
         while ((blockMatch = blockRegex.exec(content)) !== null) {
             const funcName = blockMatch[1] || 'anonymous_do_block';

@@ -38,8 +38,12 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
-      // Optional: declare configKey ONLY if your suite uses a dedicated section in audit.config.ts
-      // configKey: 'mySection',
+      // Mandatory: SSoT configuration key inspected by the dynamic suite gating engine:
+      configKey: 'paths.srcRoots',
+      // Mandatory: Default configuration object dynamically collected for .auditor/audit.config.ts:
+      defaultConfig: {
+        srcRoots: ['src']
+      },
       ruleDescriptions: {
         'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'

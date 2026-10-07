@@ -2,11 +2,13 @@ import js from '@eslint/js';
 import globals from 'globals';
 import unusedImports from 'eslint-plugin-unused-imports';
 import tseslint from 'typescript-eslint';
+import regexpPlugin from 'eslint-plugin-regexp';
 import { globalIgnores } from 'eslint/config';
 
 export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  regexpPlugin.configs['flat/recommended'],
   {
     name: 'auditor/core-rules',
     plugins: {

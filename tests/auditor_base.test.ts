@@ -150,6 +150,8 @@ describe('auditorBase infrastructure', () => {
             family: 'architecture',
             packageName: 'Test',
             icon: '🧪',
+            configKey: 'paths',
+            defaultConfig: {},
             ruleIds: ['test-rule'],
             capabilities: {
               fix: false,
@@ -203,6 +205,8 @@ describe('auditorBase infrastructure', () => {
       family: 'architecture' as const,
       packageName: 'Test',
       icon: '🧪',
+      configKey: 'paths',
+      defaultConfig: {},
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
       coverage: { include: ['src/**/*.ts'] }
@@ -222,6 +226,49 @@ describe('auditorBase infrastructure', () => {
           icon: undefined
         });
       }).toThrow(/must define a mandatory thematic icon\/emoji/);
+    });
+
+    it('enforces mandatory configKey during instantiation', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          configKey: ''
+        });
+      }).toThrow(/must define a mandatory 'configKey'/);
+
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          configKey: undefined as unknown as string
+        });
+      }).toThrow(/must define a mandatory 'configKey'/);
+    });
+
+    it('enforces mandatory defaultConfig during instantiation', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          defaultConfig: undefined as unknown as Record<string, unknown>
+        });
+      }).toThrow(/must define a mandatory 'defaultConfig'/);
+    });
+
+    it('enforces explicit defaultConfig.enabled boolean for subsystem suites', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          configKey: 'mySubsystem.enabled',
+          defaultConfig: {}
+        });
+      }).toThrow(/must explicitly define 'defaultConfig.enabled' as a boolean/);
+
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          configKey: 'mySubsystem.enabled',
+          defaultConfig: { enabled: true }
+        });
+      }).not.toThrow();
     });
 
     it('defaults cleanly to DEFAULT_AUDITOR_CAPABILITIES when capabilities is omitted', () => {
@@ -308,6 +355,8 @@ describe('auditorBase infrastructure', () => {
           family: 'architecture',
           packageName: 'Assert',
           icon: '✅',
+          configKey: 'paths',
+          defaultConfig: {},
           ruleIds: ['rule-a', 'rule-b'],
           ruleDescriptions: {
             'rule-a': 'Regla de asercion A',

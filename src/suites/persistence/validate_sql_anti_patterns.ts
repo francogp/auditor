@@ -66,7 +66,7 @@ const CAMEL_CASE_KEY_REGEX = /^[a-z]+[A-Z][a-zA-Z0-9]*$/;
 
 function parseDeclaredPlpgsqlVariables(blockBody: string): Set<string> {
   const declaredVars = new Set<string>();
-  const declareMatch = blockBody.match(/\bDECLARE\b([\s\S]*?)\bBEGIN\b/i);
+  const declareMatch = blockBody.match(/\bDECLARE\b([\s\S]+?)\bBEGIN\b/i);
   if (!declareMatch || !declareMatch[1]) {
     return declaredVars;
   }
@@ -110,6 +110,8 @@ id: 'validate_sql_anti_patterns',
       family: 'persistence',
       ruleIds: SQL_ANTI_PATTERN_RULES,
       packageName: 'SQL',
+      configKey: 'persistence.enabled',
+      defaultConfig: { enabled: true },
       icon: '💾',
       ruleDescriptions: {
         'sql-no-positional-arrays': 'Mutación de array JSON en SQL',
@@ -300,7 +302,7 @@ id: 'validate_sql_anti_patterns',
   }
 
   private scanPlpgsqlUndeclaredVariables(relPath: string, content: string): void {
-    const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)[\s\S]+?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
+    const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)\s*\([^)]*\)[\s\S]*?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
     let blockMatch: RegExpExecArray | null;
 
     while ((blockMatch = blockRegex.exec(content)) !== null) {

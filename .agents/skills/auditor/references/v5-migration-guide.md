@@ -213,6 +213,12 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
       family: 'domain_data',
       ruleIds: MY_EXTENSION_RULES,
       packageName: 'MyExt',
+      // Mandatory in v5: Single Source of Truth configuration key
+      configKey: 'domain.enabled',
+      // Mandatory in v5: Default configuration object dynamically collected for .auditor/audit.config.ts
+      defaultConfig: {
+        enabled: true
+      },
       ruleDescriptions: MY_RULE_DESCRIPTIONS,
       projectRoot: options.projectRoot,
       // Declare execution capabilities in v5:
@@ -230,14 +236,22 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
 
 ### 4.2 Key v5+ Contracts for Sub-Auditors
 
-1. **Capability-Driven Auto-Coordination**:
+1. **Mandatory Constructor Metadata Contract (Zero Bypass / Zero Optional Defaults)**:
+   Every sub-auditor and extension MUST declare `id`, `name`, `description` (<= 60 chars), `family`, `packageName`, `icon`, `ruleDescriptions` (100% Spanish, <= 50 chars when prefixed), `configKey`, and `defaultConfig` (with mandatory boolean `enabled`). Omitting any field throws an immediate, blocking runtime `Error`.
+2. **Universal Dynamic Suite Gating**:
+   Suite status is resolved dynamically from `configKey` against `audit.config.ts`. No hardcoded registration maps.
+3. **Capability-Driven Auto-Coordination**:
    Declare execution capabilities cleanly via `capabilities: Partial<AuditorCapabilities>` (`lint`, `fix`, `md`, `ast`, `heavy`, `requiresBuild`). When `auditor fix` runs, the engine isolates only suites with `capabilities.fix === true`.
-2. **Modular Descriptions & 50-Character Limit**:
-   Descriptions in `ruleDescriptions` must be pure Spanish without hardcoded package prefixes. The combined string `${packageName}: ${ruleDescription}` must not exceed 50 characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`).
-3. **Consolidated Table Total Row**:
-   All multi-category tables automatically render the `TOTAL CONSOLIDADO` summary footer.
-4. **Prohibition on Modifying Configs Without Authorization**:
+4. **Post-Build Suite Partitioning (`audit:build` / `preset=build`)**:
+   Suites declaring `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, `validate_package_types`) are excluded from pre-build source audit (`npm run audit`) and executed post-build against `dist/` via `npm run audit:build`.
+5. **Security and Distribution Blind Spot Protection**:
+   Framework incorporates `@secretlint/core` token scanning (`validate_secret_leaks`), npm audit CVE checking (`validate_dependency_vulnerabilities`), package export map verification (`validate_package_distribution`), and ATTW type declaration auditing (`validate_package_types`).
+6. **Consolidated Table Total Row & Terminal Font Width Guarantees**:
+   All multi-category tables automatically render the `TOTAL CONSOLIDADO` summary footer. Boxen frames use clean ASCII text within closed 80-column borders to prevent font-width misalignments from ambiguous Unicode glyphs.
+7. **Prohibition on Modifying Configs Without Authorization**:
    AI agents and developers are strictly barred from modifying auditor configs (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) to bypass errors without prior consultation and detailed technical justification.
+8. **Idempotent Injections & Anti-Duplication Pruning in `AGENTS.md` (`audit fix`)**:
+   Auto-repair operations in `AGENTS.md` gather all matching line occurrences, replace the first match in place, and splice out all subsequent duplicates in reverse order. Running `auditor fix` repeatedly across multiple cycles or switching language modes never duplicates lines or blank spacing.
 
 ---
 

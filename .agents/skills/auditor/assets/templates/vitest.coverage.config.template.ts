@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
  * for test execution coverage in projects governed by @francogp/auditor.
  *
  * It produces standard Istanbul/C8 coverage artifacts (`coverage/coverage-final.json`)
- * consumed by the `validate_test_coverage` auditor and `npx auditor-coverage` CLI.
+ * consumed by the `validate_test_coverage` auditor and `auditor-coverage` (`npm run audit:test-coverage`) CLI.
  */
 export default defineConfig({
   test: {

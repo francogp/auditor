@@ -79,7 +79,9 @@ function registerExtensionAuditorFile(fullPath, entryName, projectRoot, tasks) {
         fast: true,
         timeoutMs: DEFAULT_EXTENSION_TASK_TIMEOUT_MS,
         order: DEFAULT_EXTENSION_TASK_ORDER,
-        isBuiltin: false
+        isBuiltin: false,
+        configKey: 'paths',
+        defaultConfig: {}
     });
 }
 function scanExtensionAuditors(projectRoot, tasks) {
@@ -234,6 +236,8 @@ export class AuditorTestsAuditor extends BaseAuditor {
             family: 'architecture',
             ruleIds: AUDITOR_TEST_RULES,
             packageName: 'Auditor',
+            configKey: 'paths',
+            defaultConfig: {},
             icon: '🧪',
             ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
             coverage: {

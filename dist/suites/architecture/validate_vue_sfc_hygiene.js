@@ -53,6 +53,8 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: VUE_SFC_HYGIENE_RULES,
             packageName: 'Vue',
+            configKey: 'paths',
+            defaultConfig: {},
             icon: '💚',
             ruleDescriptions: {
                 'script-setup-required': 'Componente sin script setup',

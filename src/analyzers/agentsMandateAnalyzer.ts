@@ -63,22 +63,38 @@ export interface InjectMandateOptions {
 }
 
 /**
- * Injects or updates a canonical mandate under `## Local Contracts` in AGENTS.md in-place.
+ * Injects or updates a canonical mandate under `## Local Contracts` in AGENTS.md in-place,
+ * guaranteeing zero duplicate lines on repeated executions.
  */
 export function injectOrUpdateMandateInAgentsMd(options: InjectMandateOptions): void {
   const { agentsMdPath, content, canonicalSnippet, isExistingLine } = options;
   const lines = content.split('\n');
-  const existingIndex = lines.findIndex(isExistingLine);
+  const matchingIndices: number[] = [];
 
-  if (existingIndex !== -1) {
-    lines[existingIndex] = canonicalSnippet;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (isExistingLine(line) || line.trim() === canonicalSnippet.trim()) {
+      matchingIndices.push(i);
+    }
+  }
+
+  if (matchingIndices.length > 0) {
+    const firstIndex = matchingIndices[0]!;
+    lines[firstIndex] = canonicalSnippet;
+    for (let i = matchingIndices.length - 1; i > 0; i--) {
+      lines.splice(matchingIndices[i]!, 1);
+    }
     fsSync.writeFileSync(agentsMdPath, lines.join('\n'), 'utf8');
     return;
   }
 
   const contractHeaderIndex = lines.findIndex(l => l.trim().startsWith('## Local Contracts'));
   if (contractHeaderIndex !== -1) {
-    lines.splice(contractHeaderIndex + 1, 0, '', canonicalSnippet);
+    if (lines[contractHeaderIndex + 1] === '') {
+      lines.splice(contractHeaderIndex + 2, 0, canonicalSnippet);
+    } else {
+      lines.splice(contractHeaderIndex + 1, 0, '', canonicalSnippet);
+    }
     fsSync.writeFileSync(agentsMdPath, lines.join('\n'), 'utf8');
     return;
   }

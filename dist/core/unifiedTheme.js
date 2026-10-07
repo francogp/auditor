@@ -7,49 +7,71 @@
  */
 import { styleText } from 'node:util';
 import path from 'node:path';
+import boxen from 'boxen';
+import Table from 'cli-table3';
+if (!process.env.NO_COLOR && process.env.FORCE_COLOR === undefined) {
+    process.env.FORCE_COLOR = '1';
+}
 import { FAMILY_METADATA } from "./auditContract.js";
 const TERMINAL_WIDTH = 80;
 const REGISTRY_DESC_COL_WIDTH = 24;
 const REGISTRY_DESC_TRUNCATE_LIMIT = 23;
 export { getVisualWidth, padVisual, truncateVisual, TEXT_ALIGNMENTS } from "./terminalVisuals.js";
-import { padVisual, truncateVisual } from "./terminalVisuals.js";
-function formatBoxTableRow(row, columns) {
-    const cells = columns.map(c => {
-        const rawVal = c.render ? c.render(row) : String(row[c.key ?? ''] ?? ''); // open-record: Generic table row container
-        const truncated = truncateVisual(rawVal, c.width);
-        return padVisual(truncated, c.width, c.align || 'left');
-    });
-    return '│ ' + cells.join(' │ ') + ' │';
-}
+import { padVisual } from "./terminalVisuals.js";
 export function renderBoxTable(columns, rows, options) {
-    const lines = [];
-    // Top border: ┌───┬───┐
-    lines.push('┌' + columns.map(c => '─'.repeat(c.width + 2)).join('┬') + '┐');
-    // Header row: │ COL 1 │ COL 2 │
-    const headerRow = '│ ' + columns.map(c => padVisual(styleText('bold', c.header), c.width, c.align || 'left')).join(' │ ') + ' │';
-    lines.push(headerRow);
-    // Header divider: ├───┼───┤
-    lines.push('├' + columns.map(c => '─'.repeat(c.width + 2)).join('┼') + '┤');
+    const head = columns.map(c => styleText('bold', c.header));
+    const colAligns = columns.map(c => (c.align === 'center' ? 'center' : c.align === 'right' ? 'right' : 'left'));
+    const colWidths = columns.map(c => c.width + 2);
+    const table = new Table({
+        head,
+        colWidths,
+        colAligns,
+        wordWrap: true,
+        chars: {
+            'top': '─', 'top-mid': '┬', 'top-left': '┌', 'top-right': '┐',
+            'bottom': '─', 'bottom-mid': '┴', 'bottom-left': '└', 'bottom-right': '┘',
+            'left': '│', 'left-mid': '├', 'mid': '─', 'mid-mid': '┼',
+            'right': '│', 'right-mid': '┤', 'middle': '│'
+        },
+        style: { 'padding-left': 1, 'padding-right': 1, head: [], border: ['dim'], compact: true }
+    });
     if (rows.length === 0) {
-        const totalInnerWidth = columns.reduce((acc, c) => acc + c.width + 2, 0) + (columns.length - 1);
         const emptyMsg = options?.emptyMessage || 'No se encontraron registros.';
-        lines.push('│ ' + padVisual(styleText('dim', emptyMsg), totalInnerWidth - 2, 'center') + ' │');
+        table.push([{ colSpan: columns.length, content: styleText('dim', emptyMsg), hAlign: 'center' }]);
     }
     else {
         for (const row of rows) {
-            lines.push(formatBoxTableRow(row, columns));
+            const cellValues = columns.map(c => {
+                return c.render ? c.render(row) : String(row[c.key ?? ''] ?? ''); // open-record: Generic table row container
+            });
+            table.push(cellValues);
         }
     }
-    // Footer rows (e.g. TOTAL CONSOLIDADO)
     if (options?.footerRows && options.footerRows.length > 0) {
-        lines.push('├' + columns.map(c => '─'.repeat(c.width + 2)).join('┼') + '┤');
+        const footerTable = new Table({
+            colWidths,
+            colAligns,
+            wordWrap: true,
+            chars: {
+                'top': '─', 'top-mid': '┼', 'top-left': '├', 'top-right': '┤',
+                'bottom': '─', 'bottom-mid': '┴', 'bottom-left': '└', 'bottom-right': '┘',
+                'left': '│', 'left-mid': '', 'mid': '', 'mid-mid': '',
+                'right': '│', 'right-mid': '', 'middle': '│'
+            },
+            style: { 'padding-left': 1, 'padding-right': 1, head: [], border: ['dim'], compact: true }
+        });
         for (const fRow of options.footerRows) {
-            lines.push(formatBoxTableRow(fRow, columns));
+            const cellValues = columns.map(c => {
+                return c.render ? c.render(fRow) : String(fRow[c.key ?? ''] ?? ''); // open-record: Generic table row container
+            });
+            footerTable.push(cellValues);
         }
+        const bodyLines = table.toString().split('\n');
+        bodyLines.pop();
+        const footerLines = footerTable.toString().split('\n');
+        return [...bodyLines, ...footerLines].join('\n');
     }
-    // Bottom border: └───┴───┘
-    lines.push('└' + columns.map(c => '─'.repeat(c.width + 2)).join('┴') + '┘');
-    return lines.join('\n');
+    return table.toString();
 }
 export function renderFindingsBreakdownTable(items, labelHeader = 'TIPO DE INCIDENCIA / REGLA') {
     const cols = [
@@ -89,37 +111,42 @@ export function renderSampleFindings(findings, limitOrAll = 5) {
     });
     return `${header}${lines.join('\n')}\n`;
 }
-export function renderBanner(title, subtitle) {
-    const line = '═'.repeat(TERMINAL_WIDTH - 4);
-    const lines = [];
-    lines.push(styleText('cyan', `╔═${line}═╗`));
-    lines.push(styleText('cyan', `║  ${styleText(['bold', 'white'], title.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-    if (subtitle) {
-        lines.push(styleText('cyan', `║  ${styleText('dim', subtitle.padEnd(TERMINAL_WIDTH - 6))}  ║`));
+export const NOTICE_BOX_COLORS = ['yellow', 'cyan', 'red', 'green', 'magenta', 'blue'];
+export function renderBanner(title, subtitle, borderColor) {
+    let resolvedColor = borderColor ?? 'cyan';
+    if (!borderColor) {
+        if (title.includes('REPARACIÓN')) {
+            resolvedColor = 'magenta';
+        }
+        else if (title.includes('CRÍTIC') || title.includes('ERROR') || title.includes('FALLO')) {
+            resolvedColor = 'red';
+        }
+        else if (title.includes('WARN') || title.includes('ADVERTENCIA')) {
+            resolvedColor = 'yellow';
+        }
+        else if (title.includes('APROBAD') || title.includes('ÉXITO')) {
+            resolvedColor = 'green';
+        }
     }
-    lines.push(styleText('cyan', `╚═${line}═╝`));
-    return lines.join('\n');
+    const content = subtitle ? `${styleText(['bold', 'white'], title)}\n${styleText('dim', subtitle)}` : styleText(['bold', 'white'], title);
+    return boxen(content, {
+        borderColor: resolvedColor,
+        borderStyle: 'double',
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        width: TERMINAL_WIDTH
+    });
 }
-export const NOTICE_BOX_COLORS = ['yellow', 'cyan', 'red'];
 function buildNoticeBox(options) {
-    const line = '═'.repeat(TERMINAL_WIDTH - 4);
-    const innerWidth = TERMINAL_WIDTH - 6;
     const color = options.borderColor || 'yellow';
-    const colorFn = (s) => styleText(color, s);
-    const outLines = [];
-    outLines.push(colorFn(`╔═${line}═╗`));
-    outLines.push(colorFn('║  ') + padVisual(styleText(['bold', color], options.title), innerWidth) + colorFn('  ║'));
-    outLines.push(colorFn(`╠═${line}═╣`));
-    for (const item of options.lines) {
-        if (item === '') {
-            outLines.push(colorFn('║  ') + padVisual('', innerWidth) + colorFn('  ║'));
-        }
-        else {
-            outLines.push(colorFn('║  ') + padVisual(item, innerWidth) + colorFn('  ║'));
-        }
-    }
-    outLines.push(colorFn(`╚═${line}═╝`));
-    return outLines.join('\n');
+    const header = styleText(['bold', color], options.title);
+    const divider = styleText('dim', '─'.repeat(TERMINAL_WIDTH - 6));
+    const content = [header, divider, ...options.lines].join('\n');
+    return boxen(content, {
+        borderColor: color,
+        borderStyle: 'double',
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        width: TERMINAL_WIDTH
+    });
 }
 /**
  * Renders a prominent 80-column Box-Drawing warning banner when the automatic
@@ -167,7 +194,6 @@ export function renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) {
     });
 }
 export function renderAuditorsRegistryTable(tasks, activeFamilies, options) {
-    const line = '═'.repeat(TERMINAL_WIDTH - 4);
     const output = [];
     const filter = options?.filter ?? 'all';
     let bannerTitle = 'CATÁLOGO DINÁMICO DE AUDITORES Y CAPACIDADES';
@@ -180,10 +206,7 @@ export function renderAuditorsRegistryTable(tasks, activeFamilies, options) {
         bannerTitle = 'CATÁLOGO DE AUDITORES ACTIVOS / ENCENDIDOS';
         bannerSubtitle = 'Suites habilitadas y listas para ejecución';
     }
-    output.push(styleText('cyan', `╔═${line}═╗`));
-    output.push(styleText('cyan', `║  ${styleText(['bold', 'white'], bannerTitle.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-    output.push(styleText('cyan', `║  ${styleText('dim', bannerSubtitle.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-    output.push(styleText('cyan', `╚═${line}═╝\n`));
+    output.push(renderBanner(bannerTitle, bannerSubtitle) + '\n');
     if (tasks.length === 0) {
         if (filter === 'disabled') {
             output.push(styleText('green', '✨ ¡No hay auditores desactivados! Todas las suites descubiertas están encendidas y activas.\n'));
@@ -443,21 +466,24 @@ export { groupFindingsByFile, formatFindingEntry, renderFindingsDetail } from ".
 export { renderFindingsByFileTree, formatSampleErrorLine, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderSampleErrors } from "./fileTreeRenderer.js";
 export function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalWarnings, totalDurationMs, errorFindings, suitesSkipped = 0) {
-    const line = '═'.repeat(TERMINAL_WIDTH - 4);
-    const lines = [];
-    lines.push(styleText('bold', `\n╠═${line}═╣`));
     const statusText = totalErrors === 0
         ? styleText(['bold', 'green'], '🎉 ¡SUITE DE AUDITORÍA GLOBAL APROBADA!')
         : styleText(['bold', 'red'], '🚨 AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
-    lines.push(`  ${statusText}`);
-    const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas ⏭️)` : '';
-    lines.push(styleText('dim', `  Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`));
-    lines.push(`  Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`);
+    const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas)` : '';
+    const durationText = styleText('dim', `Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`);
+    const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`;
+    const bodyLines = [statusText, durationText, countsText];
     if (errorFindings && errorFindings.length > 0) {
-        lines.push(...renderSampleErrors(errorFindings));
+        bodyLines.push(...renderSampleErrors(errorFindings));
     }
-    lines.push(styleText('bold', `╚═${line}═╝\n`));
-    return lines.join('\n');
+    const borderColor = totalErrors > 0 ? 'red' : (totalWarnings > 0 ? 'yellow' : 'green');
+    const box = boxen(bodyLines.join('\n'), {
+        borderColor,
+        borderStyle: 'double',
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        width: TERMINAL_WIDTH
+    });
+    return `\n${box}\n`;
 }
 export { renderMarkdownReport } from "./markdownReport.js";
 //# sourceMappingURL=unifiedTheme.js.map

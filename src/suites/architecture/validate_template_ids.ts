@@ -174,6 +174,8 @@ id: 'validate_template_ids',
       family: 'architecture',
       ruleIds: TEMPLATE_ID_RULES,
       packageName: 'Template',
+      configKey: 'templates.requireInputIds',
+      defaultConfig: { enabled: true, requireInputIds: true },
       icon: '🆔',
       ruleDescriptions: {
         'template-duplicate-static-id': 'ID estático duplicado',

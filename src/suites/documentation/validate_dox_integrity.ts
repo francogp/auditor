@@ -58,6 +58,8 @@ private readonly rootDir: string;
       description: 'Valida jerarquía, enlaces e integridad de AGENTS.md',
       family: 'documentation',
       packageName: 'DOX',
+      configKey: 'documentation.enabled',
+      defaultConfig: { enabled: true },
       icon: '📚',
       ruleIds: DOX_RULES,
       ruleDescriptions: {

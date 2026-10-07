@@ -72,6 +72,13 @@ export default defineAuditConfig({
   packageHygiene: {
     enabled: true
   },
+  secretLeaks: {
+    enabled: true
+  },
+  dependencyVulnerabilities: {
+    enabled: true,
+    failOn: 'critical'
+  },
   accessibility: {
     enabled: false // Herramienta CLI sin vistas SFC Vue interactivas en frontend
   },
@@ -108,24 +115,5 @@ export default defineAuditConfig({
   },
   runner: {
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
-  },
-  presets: {
-    commit: [
-      'validate_dox_integrity',
-      'validate_markdown_syntax',
-      'validate_markdown_code_references',
-      'validate_markdown_links',
-      'validate_markdown_lint',
-      'validate_type_check',
-      'validate_eslint',
-      'validate_console_cleanliness',
-      'validate_audit_headers',
-      'validate_auditor_tests',
-      'validate_test_fragmentation',
-      'validate_agent_plugin',
-      'validate_bundle_budget',
-      'validate_duplicate_constants',
-      'validate_ephemeral_storage_isolation'
-    ]
   }
 });

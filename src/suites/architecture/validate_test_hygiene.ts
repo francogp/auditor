@@ -81,6 +81,8 @@ id: 'validate_test_hygiene',
       family: 'architecture',
       ruleIds: TEST_HYGIENE_RULES,
       packageName: 'Tests',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '🧪',
       ruleDescriptions: {
         'no-tautological-integration-mocks': 'Mock tautológico en integración',

@@ -10,6 +10,7 @@ Architecture & Tooling Engineers.
 
 - **Pure Diagnostics**: Analyzers produce canonical violation records without direct terminal side-effects.
 - **Hermetic AST Processing**: Utilizes the shared TypeScript AST context and visitors for maximum performance and zero platform dependency.
+- **Idempotent Mandate Injection (`agentsMandateAnalyzer.ts`)**: `injectOrUpdateMandateInAgentsMd` collects all matching line occurrences, replaces the first match, and splices out subsequent duplicates in reverse order. It avoids inserting redundant blank lines under `## Local Contracts` and bypasses disk writes if the canonical text is already satisfied.
 
 ## Key Files
 

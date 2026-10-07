@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { stripVTControlCharacters } from 'node:util';
 import {
   sortFindingsByFileAndLine,
   groupFindingsByFileMap,
@@ -113,15 +114,16 @@ describe('Audit Findings Grouped By File and Line Contract', () => {
     const map = groupFindingsByFileMap(dummyFindings);
     const summaries: AuditFileSummary[] = Object.values(map);
     const rendered = renderFindingsByFileTree(summaries);
+    const plain = stripVTControlCharacters(rendered);
 
-    expect(rendered).toContain('📄 src/a.ts (1 error)');
-    expect(rendered).toContain('📄 src/b.ts (2 errores, 1 advertencia)');
-    expect(rendered).toContain('[GLOBAL]');
-    expect(rendered).toContain('L12');
-    expect(rendered).toContain('L45');
-    expect(rendered).toContain('L100');
-    expect(rendered).toContain('├── ');
-    expect(rendered).toContain('└── ');
+    expect(plain).toContain('📄 src/a.ts (1 error)');
+    expect(plain).toContain('📄 src/b.ts (2 errores, 1 advertencia)');
+    expect(plain).toContain('[GLOBAL]');
+    expect(plain).toContain('L12');
+    expect(plain).toContain('L45');
+    expect(plain).toContain('L100');
+    expect(plain).toContain('├── ');
+    expect(plain).toContain('└── ');
   });
 
   it('respects maxFiles and maxFindingsPerFile options in tree rendering', () => {

@@ -147,6 +147,8 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       description: 'Valida estándares y elementos obsoletos con html-validate',
       family: 'architecture',
       packageName: 'HTML',
+      configKey: 'htmlValidate.enabled',
+      defaultConfig: { enabled: true },
       icon: '🌐',
       ruleIds: HTML_VALIDATE_RULES,
       ruleDescriptions: {

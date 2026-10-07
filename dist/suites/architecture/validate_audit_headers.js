@@ -33,13 +33,13 @@ export const HEADER_RULES = [
 ];
 export { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns };
 const FALLOW_IGNORE_FILE_REGEX = /^\s*\/\/\s*fallow-ignore-file\b/i;
-const TS_SUPPRESSION_REGEX = /^\s*\/\/\s*@ts-(nocheck|ignore|expect-error)\b/i;
-const ESLINT_DISABLE_BLOCK_REGEX = /^\s*\/\*\s*eslint-disable\b(?!\s*-(next-line|line)\b)/i;
-const ESLINT_DISABLE_TEMPLATE_REGEX = /^\s*<!--\s*eslint-disable\b(?!\s*-(next-line|line)\b)/i;
-const BANNED_MAGIC_SUPPRESSION_REGEX = /\/\/\s*(no-magic|magic-ok|number-ok)\b/i;
-const BANNED_STYLE_SUPPRESSION_REGEX = /\/\/\s*(style-inherited|style-ok)\b/i;
-const STANDALONE_ESCAPE_HATCHES_REGEX = /^\s*\/\/\s*(domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok)\b\s*$/i;
-const UNJUSTIFIED_ESCAPE_HATCH_REGEX = /\/\/\s*(domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok|uuid-ok|infra-id-ok|spanish-ok|open-record|runtime-set|runtime-map|lib-duplicate-ok|fallback-ok)\b(?!\s*:\s*\S+)/i;
+const TS_SUPPRESSION_REGEX = /^\s*\/\/\s*@ts-(?:nocheck|ignore|expect-error)\b/i;
+const ESLINT_DISABLE_BLOCK_REGEX = /^\s*\/\*\s*eslint-disable\b(?!\s*-(?:next-line|line)\b)/i;
+const ESLINT_DISABLE_TEMPLATE_REGEX = /^\s*<!--\s*eslint-disable\b(?!\s*-(?:next-line|line)\b)/i;
+const BANNED_MAGIC_SUPPRESSION_REGEX = /\/\/\s*(?:no-magic|magic-ok|number-ok)\b/i;
+const BANNED_STYLE_SUPPRESSION_REGEX = /\/\/\s*(?:style-inherited|style-ok)\b/i;
+const STANDALONE_ESCAPE_HATCHES_REGEX = /^\s*\/\/\s*(?:domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok)\s*$/i;
+const UNJUSTIFIED_ESCAPE_HATCH_REGEX = /\/\/\s*(?:domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok|uuid-ok|infra-id-ok|spanish-ok|open-record|runtime-set|runtime-map|lib-duplicate-ok|fallback-ok)\b(?!\s*:\s*\S)/i;
 function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
     const trimmed = rawLine.trim();
     // 1. Check for // fallow-ignore-file starting the comment line
@@ -174,6 +174,8 @@ export class AuditHeadersAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: HEADER_RULES,
             packageName: 'Header',
+            configKey: 'paths',
+            defaultConfig: {},
             icon: '📰',
             ruleDescriptions: {
                 'file-level-fallow-ignore': 'fallow-ignore-file prohibido',

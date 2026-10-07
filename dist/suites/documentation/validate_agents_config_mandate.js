@@ -42,16 +42,16 @@ export function getCanonicalFakePassSnippet(language = 'en') {
  * Checks if a block of markdown text contains the anti-tampering mandate.
  */
 export function containsConfigAntiTamperingMandate(text, expectedLanguage) {
-    const hasConfig = /configuraci(?:ó|o)n|configuraciones|config|auditor|auditor(?:í|i)a|linter/i.test(text);
+    const hasConfig = /config|auditor|linter/i.test(text);
     if (!hasConfig)
         return false;
-    const prohibitionTerms = '(?:apagar|apagando|prender|prendiendo|desactivar|desactivando|activar|activando|modificar|modificando|alterar|alterando|silenciar|silenciando|manipular|manipulando|disabl(?:e|ing|ed)?|turn(?:ing)?\\s+off|turn(?:ing)?\\s+on|modif(?:y|ying|ied)|alter(?:ing|ed)?|silenc(?:e|ing|ed)|tamper(?:ing|ed)?)';
-    const denialTerms = '(?:prohibi[a-z]*|jam(?:á|a)s|nunca|no se debe[n]?|est(?:á|a) estrictamente prohibido|prohibit[a-z]*|never|forbidden|shall not|must not)';
+    const prohibitionTerms = '(?:apagar|apagando|prender|prendiendo|desactivar|desactivando|activar|activando|modificar|modificando|alterar|alterando|silenciar|silenciando|manipular|manipulando|disabl[a-z]*|turn(?:ing)?\\s+(?:off|on)|modif[a-z]*|alter[a-z]*|silenc[a-z]*|tamper[a-z]*)';
+    const denialTerms = '(?:prohibi[a-z]*|jam[aá]s|nunca|no se deben?|never|forbidden|shall not|must not)';
     const hasProhibition = new RegExp(`${denialTerms}[\\s\\S]{0,250}${prohibitionTerms}`, 'i').test(text) ||
         new RegExp(`${prohibitionTerms}[\\s\\S]{0,250}${denialTerms}`, 'i').test(text);
     if (!hasProhibition)
         return false;
-    const consultationTerms = '(?:consultar|consulta|preguntar|autorizaci(?:ó|o)n|consentimiento|permiso|consult|consulting|consultation|ask|asking|authoriz[a-z]*|consent|permission)';
+    const consultationTerms = '(?:consult[a-z]*|preguntar|autorizaci[oó]n|consentimiento|permiso|ask[a-z]*|authoriz[a-z]*|consent|permission)';
     const actorTerms = '(?:programador[a-z]*|desarrollador[a-z]*|humano[a-z]*|programmer[a-z]*|developer[a-z]*|human[a-z]*)';
     const hasProgrammerConsultation = new RegExp(`${consultationTerms}[\\s\\S]{0,200}${actorTerms}`, 'i').test(text) ||
         new RegExp(`${actorTerms}[\\s\\S]{0,200}${consultationTerms}`, 'i').test(text);
@@ -86,7 +86,7 @@ export function containsBackwardCompatMandate(text, expectedLanguage) {
  * Checks if a block of markdown text contains the fake pass prohibition mandate.
  */
 export function containsFakePassMandate(text, expectedLanguage) {
-    const hasSubject = /suppress|silenc|nullify|suprimir|silenciar|anular|eludir|fake pass|pase falso|pases falsos/i.test(text);
+    const hasSubject = /suppress|silenc|nullify|suprimir|anular|eludir|fake pass|pases?\s+falsos?/i.test(text);
     if (!hasSubject)
         return false;
     const hasProhibition = /prohibit|prohibid|categorically|categóricamente|strictly|estrictamente/i.test(text);
@@ -128,7 +128,13 @@ const MANDATE_DEFINITIONS = [
         isExistingLine: l => l.includes('Zero-Tolerance Fake Pass') ||
             l.includes('Cero Tolerancia a Pases Falsos') ||
             l.includes('Suppressing, Silencing, Nullifying') ||
-            l.includes('Suprimir, Silenciar, Anular'),
+            l.includes('Suprimir, Silenciar, Anular') ||
+            l.includes('Fake Pass') ||
+            l.includes('Pases Falsos') ||
+            l.includes('Suppressing Rules') ||
+            l.includes('Silencing Rules') ||
+            l.includes('Suprimir Reglas') ||
+            l.includes('Silenciar Reglas'),
         errorMessageEn: 'Root AGENTS.md must include the mandatory clause prohibiting suppressing or silencing rules for fake clean passes.',
         errorMessageEs: 'AGENTS.md raíz debe incluir obligatoriamente el mandato de prohibición de suprimir reglas para lograr pases limpios falsos.'
     }
@@ -146,6 +152,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
             description: 'Valida mandatos de config y arquitectura en AGENTS.md',
             family: 'documentation',
             packageName: 'AGENTS',
+            configKey: 'documentation.enabled',
+            defaultConfig: { enabled: true },
             icon: '🛡️',
             ruleIds: AGENTS_CONFIG_MANDATE_RULES,
             ruleDescriptions: {
@@ -195,7 +203,10 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
     }
     auditSingleMandate(mandate, currentContent, targetLanguage, agentsMdPath) {
         const sections = extractContractSections(currentContent);
-        if (sections.some(section => mandate.check(section, targetLanguage))) {
+        const matchingSections = sections.filter(section => mandate.check(section, targetLanguage));
+        const lines = currentContent.split('\n');
+        const existingMatches = lines.filter(l => mandate.isExistingLine(l));
+        if (matchingSections.length === 1 && existingMatches.length <= 1) {
             return currentContent;
         }
         if (this.isFixActive()) {
@@ -207,13 +218,15 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
             });
             return fsSync.readFileSync(agentsMdPath, 'utf8');
         }
-        this.addViolation({
-            ruleId: mandate.ruleId,
-            severity: 'error',
-            file: 'AGENTS.md',
-            line: findLocalContractsHeaderLine(currentContent),
-            message: targetLanguage === 'es' ? mandate.errorMessageEs : mandate.errorMessageEn
-        });
+        if (matchingSections.length === 0) {
+            this.addViolation({
+                ruleId: mandate.ruleId,
+                severity: 'error',
+                file: 'AGENTS.md',
+                line: findLocalContractsHeaderLine(currentContent),
+                message: targetLanguage === 'es' ? mandate.errorMessageEs : mandate.errorMessageEn
+            });
+        }
         return currentContent;
     }
 }

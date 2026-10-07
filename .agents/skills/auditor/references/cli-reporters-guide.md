@@ -25,8 +25,8 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 ## 2. Official NPM Reporter Scripts
 
 All inspection routines MUST use the official NPM scripts declared in `package.json`:
-- `npx auditor-update` / `npm run auditor:update`: Dedicated CLI updater executing hermetic npm update, timestamp verification, and Box-Drawing summary table.
-- `npx auditor-version -v`: Displays the active package version, build timestamp, and ISO date metadata.
+- `npm run auditor:update` / `auditor-update`: Dedicated CLI updater executing hermetic npm update, timestamp verification, and Box-Drawing summary table.
+- `npm run auditor:version` / `auditor-version -v`: Displays the active package version, build timestamp, and ISO date metadata.
 - `npm run audit:findings`: Primary findings reporter with full filtering capabilities (`partial`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).
 - `npm run audit:errors`: Preset filtering strictly to errors (`severity=error`).
 - `npm run audit:warnings`: Preset filtering strictly to warnings (`severity=warning`).

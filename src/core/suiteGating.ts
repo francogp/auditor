@@ -113,6 +113,11 @@ const SIMPLE_GATING_SPECS: Record<string, SuiteGatingSpec> = {
     reason: 'Desactivado en config (packageDistribution.enabled = false)',
     path: ['packageDistribution', 'enabled']
   },
+  validate_package_types: {
+    configKey: 'packageDistribution.enabled',
+    reason: 'Desactivado en config (packageDistribution.enabled = false)',
+    path: ['packageDistribution', 'enabled']
+  },
   validate_package_hygiene: {
     configKey: 'packageHygiene.enabled',
     reason: 'Desactivado en config (packageHygiene.enabled = false)',
@@ -127,6 +132,16 @@ const SIMPLE_GATING_SPECS: Record<string, SuiteGatingSpec> = {
     configKey: 'agentPlugin.enabled',
     reason: 'Desactivado en config (agentPlugin.enabled = false)',
     path: ['agentPlugin', 'enabled']
+  },
+  validate_secret_leaks: {
+    configKey: 'secretLeaks.enabled',
+    reason: 'Desactivado en config (secretLeaks.enabled = false)',
+    path: ['secretLeaks', 'enabled']
+  },
+  validate_dependency_vulnerabilities: {
+    configKey: 'dependencyVulnerabilities.enabled',
+    reason: 'Desactivado en config (dependencyVulnerabilities.enabled = false)',
+    path: ['dependencyVulnerabilities', 'enabled']
   }
 };
 
@@ -136,14 +151,46 @@ function checkSimpleGating(spec: SuiteGatingSpec, config: AuditConfig): boolean 
   return sectionObj?.[prop] === false;
 }
 
-export function evaluateSuiteStatus(suiteId: string, config: AuditConfig): SuiteGatingStatus {
+function evaluateDynamicConfigKey(configKey: string, config: AuditConfig): SuiteGatingStatus | null {
+  if (configKey === 'core' || configKey === 'paths' || configKey === 'none') {
+    return { enabled: true, configKey };
+  }
+  const parts = configKey.split('.');
+  let current: unknown = config;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[part]; // open-record: Generic key-value data dictionary container
+  }
+  if (current === false) {
+    return {
+      enabled: false,
+      reason: `Desactivado en config (${configKey} = false)`,
+      configKey
+    };
+  }
+  return { enabled: true, configKey };
+}
+
+export function evaluateSuiteStatus(
+  suiteId: string,
+  config: AuditConfig,
+  declaredConfigKey?: string
+): SuiteGatingStatus {
   const special = checkSpecialGating(suiteId, config);
   if (special) {
     return special;
+  }
+  if (declaredConfigKey) {
+    const dynamic = evaluateDynamicConfigKey(declaredConfigKey, config);
+    if (dynamic) {
+      return dynamic;
+    }
   }
   const spec = SIMPLE_GATING_SPECS[suiteId];
   if (spec && checkSimpleGating(spec, config)) {
     return { enabled: false, reason: spec.reason, configKey: spec.configKey };
   }
-  return { enabled: true };
+  return { enabled: true, configKey: declaredConfigKey ?? spec?.configKey };
 }

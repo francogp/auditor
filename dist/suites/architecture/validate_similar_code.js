@@ -165,10 +165,12 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
             family: 'architecture',
             ruleIds: SIMILAR_CODE_RULES,
             packageName: 'Fallow',
+            configKey: 'fallow.similarCode.enabled',
+            defaultConfig: { enabled: true, threshold: DEFAULT_SIMILAR_CODE_THRESHOLD, ignoreSameFile: true },
             icon: '🔍',
             ruleDescriptions: {
                 'fallow-similar-code': 'Duplicado semántico',
-                'fallow-similar-code-failed': 'Fallo de ejecución similar-code'
+                'fallow-similar-code-failed': 'Salud del motor similar-code'
             },
             coverage: {
                 include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],

@@ -9,8 +9,8 @@
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { type AuditEngineConfig } from '../../core/auditConfig.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
-export declare function createDefaultAuditConfigContent(packageName?: string): string;
+import type { AuditorConfigFileRequirement, AuditTaskDefinition } from '../../core/auditContract.ts';
+export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
 export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-build-audit' | 'audit-config-removed-commit-gate' | 'audit-config-invalid-production-ref' | 'audit-config-invalid-baseline' | 'audit-config-missing-recommended-script';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>>;

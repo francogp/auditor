@@ -32,7 +32,7 @@ const EXECUTION_TIMEOUT_MS = 0 as const;
 const DEFAULT_ERROR_LINE = 1 as const;
 const DECIMAL_RADIX = 10 as const;
 
-const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+)(?::(?<line>\d+):(?<col>\d+)|\((?<line2>\d+),(?<col2>\d+)\))(?::\s*|\s*-\s*|\s+)(?<sev>error|warning)\s+(?<code>TS\d+):\s*(?<msg>.+)$/;
+const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+)(?::(?<line>\d+):\d+|\((?<line2>\d+),\d+\))(?::\s*|\s*-\s*|\s+)(?:error|warning)\s+(?<code>TS\d+):\s*(?<msg>\S.*)$/;
 
 function createFindingFromMatch(groups: Record<string, string>, cwd: string): AuditFinding {
   const rawFile = groups.file ?? '';
@@ -133,6 +133,8 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
       description: 'Errores de tipado y compilación en TypeScript y SFCs Vue',
       family: 'architecture',
       packageName: 'TypeScript',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '🏷️',
       ruleIds: TYPE_CHECK_RULES,
       ruleDescriptions: {

@@ -55,6 +55,10 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       family: 'domain_data',
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
+      configKey: 'domain.enabled',
+      defaultConfig: {
+        enabled: true
+      },
       configFiles: HostDomainCompositeAuditor.configFiles,
       ruleDescriptions: {
         'host-catalog-sync': 'Desincronización en catálogo canónico',

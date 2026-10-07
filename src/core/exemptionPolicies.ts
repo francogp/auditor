@@ -43,7 +43,7 @@ export interface ExemptionPolicy {
 }
 
 export function isCodeFile(relPosixPath: string): boolean {
-  return /\.(ts|tsx|js|jsx|mjs|cjs|vue)$/i.test(relPosixPath);
+  return /\.(?:ts|tsx|js|jsx|mjs|cjs|vue)$/i.test(relPosixPath);
 }
 
 export const EXEMPTION_POLICIES: readonly ExemptionPolicy[] = [

@@ -43,7 +43,7 @@ export function isConstantNameExemptFromNumericSuffixCheck(constName: string, co
 }
 
 export const noAliasConstants: AuditRule = {
-  regex: /\bconst\s+([A-Z0-9_]{3,})\s*(?::[^=]+)?=\s*([A-Z0-9_]+(?:\.[A-Z0-9_]+)*)\s*(?:as\s[^;]+)?;?\s*$/gm,
+  regex: /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*(?:[^\s=;][^=;\r\n]*)?\S)?\s*=\s*([A-Z0-9_]+(?:\.[A-Z0-9_]+)*)(?:\s+as\s+[^\s;]+(?:\s+[^\s;]+)*)?\s*(?:;\s*)?$/gm,
   message: (match: string) => `Alias de constante detectado: '${match.trim()}'. Está PROHIBIDO inicializar una constante con otra constante o propiedad de constante existente para crear un alias duplicado/intermedio. Usa la constante canónica de origen de forma directa.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
@@ -162,7 +162,7 @@ function isInsideVueStyle(content: string, matchIndex: number, filePath: string)
 
 const MAX_OBJECT_DECLARATION_LOOKBACK_CHARS = 250;
 
-const NAMED_CONST_DECL_PATTERN = /(?:export\s+)?(?:(?:public|private|protected|static|declare)\s+)*(?:const|readonly)\s+([A-Z0-9_]{2,})\b(?:\s*:[^=]+)?\s*=\s*$/;
+const NAMED_CONST_DECL_PATTERN = /(?:export\s+)?(?:(?:public|private|protected|static|declare)\s+)*(?:const|readonly)\s+[A-Z0-9_]{2,}(?:\s*:\s*(?:[^\s=;][^=;\r\n]*)?\S)?\s*=\s*$/;
 
 function findEnclosingOpenBrace(content: string, startIndex: number): number {
   let depth = 0;
@@ -252,7 +252,7 @@ function isExemptNumericValue(matchValue?: string): boolean {
 export const EXEMPT_AUDIT_NUMERIC_LITERALS: ReadonlySet<number> = new Set([0, 1, 100, 200, 404, 500, 9999]); // runtime-set: Fast O(1) membership lookup set
 
 export const magicNumbers: AuditRule = {
-  regex: /([^\w#$])(\d{2,})(\b)/g,
+  regex: /([^\w#$])(\d{2,})\b/g,
   message: (match: string) => `Número mágico inline detectado: '${match.trim()}'. Viola el Absolute Prohibition on Magic Numbers (Named Constants Mandate). Declara la constante nominada descriptiva (readonly / as const) o impórtala desde un módulo de constantes.`,
   severity: 'error',
   appliesTo: (filePath: string) => !isMagicNumberExemptFile(filePath),

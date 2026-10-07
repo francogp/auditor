@@ -162,10 +162,10 @@ function applyCommitMessageIntent(metrics, commitMessage) {
     const msg = commitMessage.trim();
     if (msg.includes('BREAKING CHANGE:') ||
         msg.includes('breaking:') ||
-        /^[a-z]+(\([a-z0-9_-]+\))?!:/.test(msg)) {
+        /^[a-z]+(?:\([a-z0-9_-]+\))?!:/.test(msg)) {
         metrics.hasBreakingChanges = true;
     }
-    else if (/^feat(\([a-z0-9_-]+\))?:/.test(msg)) {
+    else if (/^feat(?:\([a-z0-9_-]+\))?:/.test(msg)) {
         metrics.hasNewFeatures = true;
     }
 }

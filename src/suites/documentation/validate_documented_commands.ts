@@ -367,6 +367,8 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
       description: 'Valida comandos npm/npx documentados en markdown',
       family: 'documentation',
       packageName: 'Comandos',
+      configKey: 'documentation.enabled',
+      defaultConfig: { enabled: true },
       icon: '⌨️',
       ruleIds: DOCUMENTED_COMMANDS_RULES,
       ruleDescriptions: {

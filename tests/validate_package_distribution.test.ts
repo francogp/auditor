@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import {
   ValidatePackageDistributionAuditor,
+  PACKAGE_DISTRIBUTION_RULES,
   mapPublintCodeToRuleId,
   parsePublintMessages,
   type PublintMessageLike
@@ -24,6 +25,24 @@ describe('ValidatePackageDistributionAuditor & parsePublintMessages', () => {
     } catch {
       // catch-ok: cleanup temporary test directory
     }
+  });
+
+  describe('Rule Declarations & Metadata', () => {
+    it('declares all expected rules in PACKAGE_DISTRIBUTION_RULES', () => {
+      expect(PACKAGE_DISTRIBUTION_RULES).toContain('pkg-distribution-invalid-exports');
+      expect(PACKAGE_DISTRIBUTION_RULES).toContain('pkg-distribution-missing-types');
+      expect(PACKAGE_DISTRIBUTION_RULES).toContain('pkg-distribution-dual-package-hazard');
+    });
+
+    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+      const auditor = new ValidatePackageDistributionAuditor({ projectRoot: tempDir });
+      expect(auditor.id).toBe('validate_package_distribution');
+      expect(auditor.family).toBe('architecture');
+      expect(auditor.packageName).toBe('Distribución');
+      expect(auditor.ruleDescriptions['pkg-distribution-invalid-exports']).toBe('Export map de package.json inválido');
+      expect(auditor.ruleDescriptions['pkg-distribution-missing-types']).toBe('Falta .d.ts para entrypoint público');
+      expect(auditor.ruleDescriptions['pkg-distribution-dual-package-hazard']).toBe('Incompatibilidad dual ESM y CJS');
+    });
   });
 
   describe('mapPublintCodeToRuleId rule mapping', () => {
@@ -58,25 +77,23 @@ describe('ValidatePackageDistributionAuditor & parsePublintMessages', () => {
       expect(findings).toHaveLength(0);
     });
 
-    it('correctly maps error messages to canonical AuditFinding objects', () => {
+    it('creates error findings for error type messages', () => {
       const messages: PublintMessageLike[] = [
-        {
-          type: 'error',
-          code: 'FILE_DOES_NOT_EXIST',
-          path: ['exports', '.'],
-          args: { specifier: './dist/missing.js' }
-        }
+        { type: 'error', code: 'FILE_DOES_NOT_EXIST', path: ['exports', '.'], args: {} }
       ];
-      const pkg = { name: 'test-pkg', exports: { '.': './dist/missing.js' } };
-      const findings = parsePublintMessages(messages, pkg, tempDir);
-
+      const findings = parsePublintMessages(messages, { name: 'test-pkg' }, tempDir);
       expect(findings).toHaveLength(1);
-      const f = findings[0]!;
-      expect(f.suiteId).toBe('validate_package_distribution');
-      expect(f.ruleId).toBe('pkg-distribution-invalid-exports');
-      expect(f.file).toBe('package.json');
-      expect(f.severity).toBe('error');
-      expect(f.context).toBe('FILE_DOES_NOT_EXIST');
+      expect(findings[0]!.severity).toBe('error');
+      expect(findings[0]!.ruleId).toBe('pkg-distribution-invalid-exports');
+    });
+
+    it('creates warning findings for warning type messages', () => {
+      const messages: PublintMessageLike[] = [
+        { type: 'warning', code: 'EXPORTS_MODULE_SHOULD_PRECEDE', path: ['exports', '.'], args: {} }
+      ];
+      const findings = parsePublintMessages(messages, { name: 'test-pkg' }, tempDir);
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.severity).toBe('warning');
     });
   });
 

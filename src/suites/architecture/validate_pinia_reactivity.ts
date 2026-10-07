@@ -76,6 +76,8 @@ private readonly storesRoots: readonly string[];
       family: 'architecture',
       ruleIds: PINIA_REACTIVITY_RULES,
       packageName: 'Pinia',
+      configKey: 'pinia.enabled',
+      defaultConfig: { enabled: true },
       icon: '🍍',
       ruleDescriptions: {
         'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',

@@ -333,7 +333,7 @@ function checkStandaloneTextViolations(
   return textViolations;
 }
 
-const HISTORICAL_OR_EXAMPLE_LINE_REGEX = /\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b|\be\.g\./i;
+const HISTORICAL_OR_EXAMPLE_LINE_REGEX = /\b(?:migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b|\be\.g\./i;
 
 function isHistoricalOrExampleLine(lineText: string): boolean {
   return HISTORICAL_OR_EXAMPLE_LINE_REGEX.test(lineText);
@@ -495,6 +495,8 @@ private readonly scanRoots: readonly string[];
       family: 'documentation',
       ruleIds: MARKDOWN_LINK_RULES,
       packageName: 'Doc',
+      configKey: 'documentation.enabled',
+      defaultConfig: { enabled: true },
       icon: '🔗',
       ruleDescriptions: {
         'markdown-broken-relative-link': 'Enlace relativo roto',

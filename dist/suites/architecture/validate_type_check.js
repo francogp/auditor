@@ -24,7 +24,7 @@ const MAX_BUFFER_BYTES = 52428800;
 const EXECUTION_TIMEOUT_MS = 0;
 const DEFAULT_ERROR_LINE = 1;
 const DECIMAL_RADIX = 10;
-const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+)(?::(?<line>\d+):(?<col>\d+)|\((?<line2>\d+),(?<col2>\d+)\))(?::\s*|\s*-\s*|\s+)(?<sev>error|warning)\s+(?<code>TS\d+):\s*(?<msg>.+)$/;
+const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+)(?::(?<line>\d+):\d+|\((?<line2>\d+),\d+\))(?::\s*|\s*-\s*|\s+)(?:error|warning)\s+(?<code>TS\d+):\s*(?<msg>\S.*)$/;
 function createFindingFromMatch(groups, cwd) {
     const rawFile = groups.file ?? '';
     const lineStr = groups.line ?? groups.line2 ?? '1';
@@ -114,6 +114,8 @@ export class TypeCheckAuditor extends BaseAuditor {
             description: 'Errores de tipado y compilación en TypeScript y SFCs Vue',
             family: 'architecture',
             packageName: 'TypeScript',
+            configKey: 'paths',
+            defaultConfig: {},
             icon: '🏷️',
             ruleIds: TYPE_CHECK_RULES,
             ruleDescriptions: {

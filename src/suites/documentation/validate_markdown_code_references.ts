@@ -329,7 +329,7 @@ function checkNpmRunCommands(
 export const TARGET_NODE_MAJOR_VERSION = '26';
 export const TARGET_NPM_MAJOR_VERSION = '12';
 const HARDCODED_RUNTIME_VERSION_REGEX = new RegExp(
-  `(?:Node(?:\\.js)?\\s*(?:>=|>|v)?\\s*${TARGET_NODE_MAJOR_VERSION}\\.[0-9]+|npm\\s*(?:>=|>|v)?\\s*${TARGET_NPM_MAJOR_VERSION}\\.[0-9]+)`,
+  `Node(?:\\.js)?\\s+(?:(?:>=|>|v)\\s*)?${TARGET_NODE_MAJOR_VERSION}\\.\\d+|npm\\s+(?:(?:>=|>|v)\\s*)?${TARGET_NPM_MAJOR_VERSION}\\.\\d+`,
   'i'
 );
 
@@ -467,7 +467,7 @@ function checkSourcePathReferences(
   let pathMatch: RegExpExecArray | null;
   while ((pathMatch = pathRegex.exec(line)) !== null) {
     const candidate = pathMatch[1]!.replace(/[.,:;)\]`'"]+$/, '').split('#')[0]!;
-    if (candidate.startsWith('packages/') && /\b(migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa])\b/i.test(line)) {
+    if (candidate.startsWith('packages/') && /\b(?:migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa])\b/i.test(line)) {
       continue;
     }
     checked++;
@@ -576,6 +576,8 @@ private readonly rootDir: string;
       family: 'documentation',
       ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
       packageName: 'Doc',
+      configKey: 'documentation.enabled',
+      defaultConfig: { enabled: true },
       icon: '💻',
       ruleDescriptions: {
         'markdown-broken-source-ref': 'Ruta de código inexistente',

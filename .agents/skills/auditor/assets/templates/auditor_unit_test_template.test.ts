@@ -75,4 +75,14 @@ describe('MyFeatureAuditor', () => {
     expect(result.findings.length).toBe(0);
     expect(result.status).toBe('passed');
   });
+
+  it('exposes mandatory metadata, configKey, and defaultConfig in manifest', () => {
+    const auditor = new MyFeatureAuditor();
+    const manifest = auditor.toManifest();
+    expect(manifest.id).toBe('validate_my_feature');
+    expect(manifest.family).toBe('architecture');
+    expect(manifest.configKey).toBe('paths.srcRoots');
+    expect(manifest.rules['my-feature-forbidden-pattern']).toBeDefined();
+    expect(manifest.rules['my-feature-missing-attribute']).toBeDefined();
+  });
 });

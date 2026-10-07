@@ -543,6 +543,22 @@ function validateAuditorIdentity(options) {
         throw new Error(`Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`);
     }
 }
+function validateAuditorConfigKey(options) {
+    if (typeof options.configKey !== 'string' || options.configKey.trim() === '') {
+        throw new Error(`Auditor [${options.id}] must define a mandatory 'configKey' (e.g. 'secretLeaks.enabled', 'packageDistribution.enabled', 'paths', 'core') to ensure zero hardcoded gating in the orchestrator.`);
+    }
+}
+function validateAuditorDefaultConfig(options) {
+    if (!options.defaultConfig || typeof options.defaultConfig !== 'object') {
+        throw new Error(`Auditor [${options.id}] must define a mandatory 'defaultConfig' (object). Zero-configuration or optional configurations are prohibited; every suite must self-declare its defaults.`);
+    }
+    if (options.configKey !== 'paths' && options.configKey !== 'core') {
+        const defaultCfg = options.defaultConfig; // open-record: Generic key-value data dictionary container
+        if (typeof defaultCfg.enabled !== 'boolean') {
+            throw new Error(`Auditor [${options.id}] must explicitly define 'defaultConfig.enabled' as a boolean (true or false). Ambiguous or optional activation states are strictly prohibited.`);
+        }
+    }
+}
 function validateAuditorCapabilities(options) {
     if (options.capabilities === undefined)
         return;
@@ -566,6 +582,8 @@ function validateAuditorRules(options) {
 }
 function validateAuditorOptions(options) {
     validateAuditorIdentity(options);
+    validateAuditorConfigKey(options);
+    validateAuditorDefaultConfig(options);
     validateAuditorCapabilities(options);
     validateAuditorRules(options);
     if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
@@ -610,6 +628,7 @@ export class BaseAuditor {
     requiresAst;
     projectRoot;
     configKey;
+    defaultConfig;
     context;
     countsByRule = new Map();
     subAuditorReports = [];
@@ -682,6 +701,7 @@ export class BaseAuditor {
         this.description = options.description;
         this.family = options.family;
         this.configKey = options.configKey;
+        this.defaultConfig = options.defaultConfig;
         this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
         this.configFiles = options.configFiles ?? [];
         this.fixMode = Boolean(options.fix);
@@ -775,7 +795,7 @@ export class BaseAuditor {
      */
     isSuiteGatingDisabled(defaultReason = 'Suite desactivada en config') {
         const config = getAuditConfig(this.projectRoot);
-        const gating = evaluateSuiteStatus(this.id, config);
+        const gating = evaluateSuiteStatus(this.id, config, this.configKey);
         if (!gating.enabled) {
             const reason = gating.reason ?? defaultReason;
             for (const ruleId of this.ruleIds) {
@@ -1164,7 +1184,8 @@ export class BaseAuditor {
                 postRun: this.capabilities.postRun
             },
             rules: rulesRecord,
-            configKey: this.configKey
+            configKey: this.configKey,
+            defaultConfig: { ...this.defaultConfig }
         };
     }
     static isExecutingCli = false;

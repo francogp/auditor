@@ -5,29 +5,14 @@
  * supporting ANSI escapes, wide emojis, and single-width glyphs.
  */
 
-import { stripVTControlCharacters } from 'node:util';
+import stringWidth from 'string-width';
 
 /**
  * Calculates the visual monospace terminal display width of a string,
  * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
  */
 export function getVisualWidth(str: string): number {
-  const clean = stripVTControlCharacters(str);
-  let width = 0;
-  for (const char of clean) {
-    const cp = char.codePointAt(0) ?? 0;
-    if (cp === 0xfe0f || cp === 0xfe0e) continue;
-    if (
-      (cp >= 0x2600 && cp <= 0x27bf) ||
-      cp === 0x2139 ||
-      (cp >= 0x1f300 && cp <= 0x1f9ff)
-    ) {
-      width += 2;
-    } else {
-      width += 1;
-    }
-  }
-  return width;
+  return stringWidth(str);
 }
 
 export const TEXT_ALIGNMENTS = ['left', 'right', 'center'] as const;

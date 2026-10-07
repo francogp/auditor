@@ -43,6 +43,8 @@ constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
       family: 'architecture',
       ruleIds: DUPLICATE_CONSTANTS_RULES,
       packageName: 'Constantes',
+      configKey: 'constants.enabled',
+      defaultConfig: { enabled: true },
       icon: '🔢',
       ruleDescriptions: {
         'duplicate-constant-identical': 'Constante idéntica duplicada',

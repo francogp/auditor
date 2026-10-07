@@ -261,6 +261,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       description: 'Audita calidad, sintaxis y patrones CSS/SCSS con Stylelint',
       family: 'architecture',
       packageName: 'Stylelint',
+      configKey: 'stylelint.enabled',
+      defaultConfig: { enabled: true },
       icon: '🎨',
       ruleIds: STYLELINT_RULES,
       ruleDescriptions: {

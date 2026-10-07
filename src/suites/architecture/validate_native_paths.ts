@@ -75,7 +75,7 @@ export interface NativePathAuditResult {
   readonly countsByRule: Record<NativePathRuleId, number>;
 }
 
-const ESCAPE_HATCH_REGEX = /\/\/\s*(path-ok|url-ok|env-ok|cross-platform-ok|security-ok|string-ok|no-domain|fallow-ignore-next-line|test-ok)\b/i;
+const ESCAPE_HATCH_REGEX = /\/\/\s*(?:path-ok|url-ok|env-ok|cross-platform-ok|security-ok|string-ok|no-domain|fallow-ignore-next-line|test-ok)\b/i;
 
 const FS_SINK_METHOD_REGEX = /\b(?:fs(?:\.promises)?|fsSync)?\.(?:readFileSync|readFile|writeFileSync|writeFile|existsSync|mkdirSync|mkdir|readdirSync|readdir|statSync|stat|lstatSync|lstat|unlinkSync|unlink|rmSync|rm|rmdirSync|rmdir|copyFileSync|copyFile|openSync|open|createReadStream|createWriteStream)\s*\(/;
 
@@ -327,7 +327,7 @@ function checkHardcodedSlashPath(
     }
   }
 
-  if (/(['"`])([a-z]:(?:\\\\|\/)[^'"`\n]+)\1/i.test(rawLine)) {
+  if (/(['"`])[a-z]:(?:\\\\|\/)[^'"`\n]+\1/i.test(rawLine)) {
     if (!rawLine.includes('// no-domain: Non-domain utility collection or data structure') && !rawLine.includes('// test-ok') && !rawLine.includes('// cross-platform-ok')) {
       return {
         file: filePath,
@@ -340,7 +340,7 @@ function checkHardcodedSlashPath(
     }
   }
 
-  if (/\b(\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*)\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
+  if (/\b\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
     if (!rawLine.includes('.split(path.sep)') && !rawLine.includes('.replace(') && !rawLine.includes('.join(')) {
       return {
         file: filePath,
@@ -378,13 +378,15 @@ function checkHomebrewPathManipulation(
     if (!isSeparatorNormalization) {
       // Traversal stripping via regex: targets '..' inside the regex replacing with empty string
       // e.g. .replace(/(\.\.[/\\])+/g, '') or .replace(/\.\./g, '')
-      const isTraversalStrip =
-        /\.replace\s*\(\s*\/.*(?:\.\\?\.|\.{2}|%2e).*\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
+      const replaceRegexArgMatch = /\.replace\s*\(\s*(\/(?:\\.|[^/\\\n])+\/[gimsuy]*)\s*,\s*(?:""|'')\s*\)/.exec(rawLine);
+      const isTraversalStrip = replaceRegexArgMatch
+        ? /\.\.|\.\\\.|\\\.\\\.|%2e/i.test(replaceRegexArgMatch[1] ?? '')
+        : false;
 
       // Character stripping via negative character classes on path variables
       // e.g. rawPath.replace(/[^a-zA-Z0-9_\- /.:\\]/g, '')
       const isPathVar =
-        /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\b\s*\.\s*replace/i.test(
+        /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\s*\.\s*replace/i.test(
           rawLine
         );
       const isExclusionStrip =
@@ -406,7 +408,7 @@ function checkHomebrewPathManipulation(
 
   // 2. Check for naive string traversal checks like filePath.includes('..')
   const hasNaiveTraversalCheck =
-    /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\b\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine);
+    /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine);
 
   if (hasNaiveTraversalCheck) {
     return {
@@ -520,6 +522,8 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
       family: 'architecture',
       ruleIds: NATIVE_PATH_RULES,
       packageName: 'Path',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '🛤️',
       ruleDescriptions: {
         'unsafe-path-concat': 'Concatenación insegura de rutas',

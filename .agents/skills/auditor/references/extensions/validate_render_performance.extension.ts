@@ -60,6 +60,10 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       family: 'architecture',
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',
+      configKey: 'styles.heavyEffectPaths',
+      defaultConfig: {
+        heavyEffectPaths: []
+      },
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
       roots: effectiveRoots,
       allowedExtensions: new Set(['.scss', '.css', '.vue', '.ts'])

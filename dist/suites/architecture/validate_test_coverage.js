@@ -15,6 +15,7 @@ export const TEST_COVERAGE_RULES = [
     'test-coverage-missing-report',
     'test-coverage-untracked-files'
 ];
+export const DEFAULT_COVERAGE_THRESHOLD = 80;
 export class ValidateTestCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
@@ -24,6 +25,8 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
             description: 'Gobernanza de cobertura real de pruebas unitarias',
             family: 'architecture',
             packageName: 'Cobertura',
+            configKey: 'testCoverage.enforceInAudit',
+            defaultConfig: { enabled: true, enforceInAudit: true, threshold: DEFAULT_COVERAGE_THRESHOLD },
             icon: '🧪',
             ruleIds: TEST_COVERAGE_RULES,
             ruleDescriptions: {

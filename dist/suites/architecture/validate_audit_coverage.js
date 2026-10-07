@@ -203,6 +203,8 @@ export class AuditCoverageAuditor extends BaseAuditor {
             description: 'Detecta puntos ciegos: archivos, reglas y exenciones',
             family: 'architecture',
             packageName: 'Cobertura',
+            configKey: 'coverage.enabled',
+            defaultConfig: { enabled: true },
             icon: '🗺️',
             ruleIds: AUDIT_COVERAGE_RULES,
             ruleDescriptions: {

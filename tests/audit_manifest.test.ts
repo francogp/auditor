@@ -37,6 +37,8 @@ describe('Auditor Manifest & Introspection Registry', () => {
           family: 'architecture',
           ruleIds: ['test-rule'],
           packageName: 'Test',
+          configKey: 'paths',
+          defaultConfig: {},
           ruleDescriptions: {
             'test-rule': 'Regla de prueba'
           }

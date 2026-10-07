@@ -37,6 +37,9 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
       ruleIds: OVERSCROLL_LOCK_RULES,
       packageName: 'Móvil',
       configKey: 'styles.baseScssFile',
+      defaultConfig: {
+        baseScssFile: 'src/styles/base.scss'
+      },
       ruleDescriptions: {
         'overscroll-behavior-lock': 'Falta overscroll-behavior en hoja base'
       },

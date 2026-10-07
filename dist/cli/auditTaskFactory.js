@@ -99,6 +99,30 @@ export function buildTaskCliArguments(filename, fullPath, id, isBuiltin, options
     }
     return taskArgs;
 }
+function resolveTaskConfigKey(metadata) {
+    if (metadata.configKey)
+        return metadata.configKey;
+    if (metadata.manifest?.configKey)
+        return metadata.manifest.configKey;
+    return 'paths';
+}
+function resolveTaskDefaultConfig(metadata) {
+    if (metadata.defaultConfig)
+        return metadata.defaultConfig;
+    if (metadata.manifest?.defaultConfig)
+        return metadata.manifest.defaultConfig;
+    return {};
+}
+function resolveTaskRuleDescriptions(metadata) {
+    if (metadata.ruleDescriptions)
+        return metadata.ruleDescriptions;
+    return metadata.manifest?.rules;
+}
+function resolveTaskDescription(metadata) {
+    if (metadata.description)
+        return metadata.description;
+    return metadata.manifest?.description;
+}
 export async function createAuditTaskDefinition(fullPath, filename, family, config, options, isBuiltin, targetSuiteIds) {
     const id = filename;
     const isFast = family === 'architecture' || filename.includes('domain_types');
@@ -121,7 +145,7 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
     return {
         id,
         name: formatTaskTitle(filename),
-        description: metadata.description ?? metadata.manifest?.description,
+        description: resolveTaskDescription(metadata),
         family,
         scriptPath: relScriptPath,
         command: 'node',
@@ -129,14 +153,15 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
         fast: isFast,
         timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
         order: familyMeta.order,
-        requiresAst: capabilities?.ast ?? false,
+        requiresAst: Boolean(capabilities?.ast),
         isBuiltin,
         icon: effectiveIcon,
         capabilities: capabilities ?? undefined,
         gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
         manifest: metadata.manifest,
-        configKey: metadata.configKey ?? metadata.manifest?.configKey,
-        ruleDescriptions: metadata.ruleDescriptions ?? metadata.manifest?.rules
+        configKey: resolveTaskConfigKey(metadata),
+        defaultConfig: resolveTaskDefaultConfig(metadata),
+        ruleDescriptions: resolveTaskRuleDescriptions(metadata)
     };
 }
 //# sourceMappingURL=auditTaskFactory.js.map

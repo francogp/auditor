@@ -51,6 +51,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
       configKey: 'paths.srcRoots',
+      defaultConfig: {
+        srcRoots: ['src']
+      },
       ruleDescriptions: {
         'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
@@ -125,6 +128,9 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       ruleIds: MY_DATA_RULES,
       packageName: 'Datos',
       configKey: 'paths.dataRoots',
+      defaultConfig: {
+        dataRoots: ['src/data']
+      },
       ruleDescriptions: {
         'my-data-key-missing': 'Clave faltante en registro de datos',
         'my-data-value-invalid': 'Valor no válido en propiedad requerida'
@@ -204,6 +210,9 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       ruleIds: MY_AST_RULES,
       packageName: 'AST',
       configKey: 'paths.srcRoots',
+      defaultConfig: {
+        srcRoots: ['src']
+      },
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
       },
@@ -619,6 +628,10 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
       family: 'architecture',
       packageName: 'MyTool',
       ruleIds: MY_TOOL_RULES,
+      configKey: 'tools.myTool',
+      defaultConfig: {
+        enabled: true
+      },
       configFiles: MyToolAuditor.configFiles,
       ruleDescriptions: MY_TOOL_DESCRIPTIONS
     });
@@ -646,6 +659,52 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
 1. **Dynamic Registration**: `BaseAuditor` registers all declared `configFiles` into `ConfigFileRegistry` automatically during instantiation.
 2. **Auto-Repair Protocol (`--fix`)**: When executed with `auditor fix` (`this.isFixActive()`), `verifyAndFixConfigFiles()` writes the canonical default content atomically to disk and avoids logging violations.
 3. **Extension Support**: Extensions registered via `defineAuditorExtension({ configFiles: [...] })` also register requirements dynamically without modifying framework internals.
+
+---
+
+## 17. Mandatory Constructor Metadata Contract (Zero Bypass / Zero Optional Defaults)
+
+Under the v5 architecture, it is mathematically impossible to instantiate a sub-auditor or extension without supplying all canonical metadata in the constructor:
+
+| Option | Type | Constraint | Purpose |
+| :--- | :--- | :--- | :--- |
+| `id` | `string` | Canonical ID | Unique identifier across the orchestrator (`validate_<name>`). |
+| `name` | `string` | Non-empty | Formal human-readable name of the suite. |
+| `description` | `string` | `<= 60` chars | Concise Spanish explanation of what the suite verifies. |
+| `family` | `AuditFamily` | Strict enum | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'fsm'`, `'assets'`, `'documentation'`. |
+| `packageName` | `string` | Non-empty | Technology scope prefix (`'ESLint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
+| `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
+| `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
+| `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
+| `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
+| `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
+
+If any of these fields are missing or invalid, `BaseAuditor` throws an immediate runtime `Error` during instantiation.
+
+---
+
+## 18. Dynamic Introspection, Auto-Registration & Dynamic Suite Gating
+
+The master orchestrator does not maintain hardcoded lists of enabled suites. Every auditor dropped into `src/suites/` or declared as a host extension is discovered automatically:
+1. **Dynamic Status Resolution**: `evaluateSuiteStatus(suiteId, config, declaredConfigKey)` evaluates the declared `configKey` against `.auditor/audit.config.ts`. If the value resolves to `false` or `'none'`, the suite is cleanly marked `⏭️  SKIP`.
+2. **Dynamic Config Scaffolding (`auditor fix`)**: When generating `.auditor/audit.config.ts`, `collectConfigSectionsFromTasks` iterates over all discovered tasks, dynamically assembling their declared `defaultConfig` with zero hardcoding.
+
+---
+
+## 19. Post-Build Compiled Artifact Partitioning (`audit:build` / `preset=build`)
+
+Suites that validate compiled distribution artifacts (such as bundle budgets, export maps, or TypeScript `.d.ts` declaration maps) declare:
+
+```typescript
+capabilities: { requiresBuild: true }
+```
+
+1. **Pre-Build Exclusion**: `npm run audit` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.
+2. **Post-Build Chaining**: In `package.json`, the standard build script chains `audit:build`:
+   ```json
+   "build": "npm run audit && tsc -p tsconfig.build.json && npm run audit:build"
+   ```
+   Executing `npm run audit:build` isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
 
 
 

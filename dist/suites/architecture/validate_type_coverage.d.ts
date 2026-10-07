@@ -21,6 +21,7 @@ export interface TypeCoverageReport {
  * Parses raw JSON output from type-coverage into canonical AuditFindings.
  */
 export declare function parseTypeCoverageReport(report: TypeCoverageReport, threshold: number, projectRoot?: string): AuditFinding[];
+export declare const DEFAULT_TYPE_COVERAGE_THRESHOLD = 95;
 export declare class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId> {
     constructor(options?: {
         projectRoot?: string;

@@ -3,7 +3,7 @@
  *
  * Canonical default configuration, builders, and defineAuditConfig coordinator.
  */
-import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig } from './auditConfigTypes.ts';
+import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditSecretLeaksConfig, type AuditDependencyVulnerabilitiesConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig } from './auditConfigTypes.ts';
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export declare const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export declare const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
@@ -38,6 +38,8 @@ export declare function buildTypeCoverageConfig(raw?: DeepPartial<AuditTypeCover
 export declare function buildGitIgnoreConfig(raw?: DeepPartial<AuditGitIgnoreConfig>): AuditGitIgnoreConfig;
 export declare function buildEslintConfig(raw?: DeepPartial<AuditEslintConfig>): AuditEslintConfig;
 export declare function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): AuditVersionConfig;
+export declare function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeaksConfig>): AuditSecretLeaksConfig;
+export declare function buildDependencyVulnerabilitiesConfig(raw?: DeepPartial<AuditDependencyVulnerabilitiesConfig>): AuditDependencyVulnerabilitiesConfig;
 export declare function buildCoverageConfig(raw: DeepPartial<AuditCoverageConfig> | undefined, paths: AuditEngineConfig['paths']): AuditCoverageConfig;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
     name: string;

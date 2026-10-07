@@ -168,6 +168,17 @@ export const DEFAULT_AUDIT_CONFIG = {
         autoSyncPublicVersionJson: true,
         syncTargets: []
     },
+    secretLeaks: {
+        enabled: true,
+        maskSecrets: true,
+        allowedPatterns: []
+    },
+    dependencyVulnerabilities: {
+        enabled: true,
+        failOn: 'critical',
+        allowList: [],
+        includeDev: false
+    },
     coverage: {
         enabled: true,
         exemptGlobs: [],
@@ -214,6 +225,8 @@ export function collectDeclaredSubsystems(config) {
         'typeCoverage',
         'testCoverage',
         'version',
+        'secretLeaks',
+        'dependencyVulnerabilities',
         'ratchet'
     ];
     for (const k of keys) {
@@ -550,6 +563,25 @@ export function buildVersionConfig(raw) {
         syncTargets: v.syncTargets ? [...v.syncTargets] : (def?.syncTargets ?? [])
     };
 }
+export function buildSecretLeaksConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.secretLeaks;
+    const s = raw ?? {};
+    return {
+        enabled: s.enabled ?? def?.enabled ?? true,
+        maskSecrets: s.maskSecrets ?? def?.maskSecrets ?? true,
+        allowedPatterns: s.allowedPatterns ? [...s.allowedPatterns] : (def?.allowedPatterns ?? [])
+    };
+}
+export function buildDependencyVulnerabilitiesConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.dependencyVulnerabilities;
+    const d = raw ?? {};
+    return {
+        enabled: d.enabled ?? def?.enabled ?? false,
+        failOn: d.failOn ?? def?.failOn ?? 'critical',
+        allowList: d.allowList ? [...d.allowList] : (def?.allowList ?? []),
+        includeDev: d.includeDev ?? def?.includeDev ?? false
+    };
+}
 function resolveCoverageExemptGlobs(rawGlobs, protectedRoots) {
     const exemptGlobs = [];
     for (const entry of rawGlobs ?? []) {
@@ -628,6 +660,8 @@ export function defineAuditConfig(config) {
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
         testCoverage: buildTestCoverageConfig(config.testCoverage),
         version: buildVersionConfig(config.version),
+        secretLeaks: buildSecretLeaksConfig(config.secretLeaks),
+        dependencyVulnerabilities: buildDependencyVulnerabilitiesConfig(config.dependencyVulnerabilities),
         coverage: buildCoverageConfig(config.coverage, paths),
         ...agentAndSecurity,
         ...constantsAndDoc,

@@ -57,6 +57,8 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       family: 'architecture',
       ruleIds: CONSOLE_CLEANLINESS_RULES,
       packageName: 'Consola',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '🧹',
       ruleDescriptions: {
         'no-debugger-statement': 'Instrucciones debugger en src/',

@@ -190,6 +190,8 @@ export class BundleBudgetAuditor extends BaseAuditor {
             family: 'architecture',
             ruleIds: BUNDLE_BUDGET_RULES,
             packageName: 'Bundle',
+            configKey: 'bundle.enabled',
+            defaultConfig: { enabled: true },
             icon: '📦',
             coverage: {
                 include: ['src/**/*.ts', 'src/**/*.vue', 'src/**/*.js', 'dist/**']

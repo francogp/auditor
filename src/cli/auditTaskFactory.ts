@@ -144,6 +144,28 @@ export function buildTaskCliArguments(
   return taskArgs;
 }
 
+function resolveTaskConfigKey(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): string {
+  if (metadata.configKey) return metadata.configKey;
+  if (metadata.manifest?.configKey) return metadata.manifest.configKey;
+  return 'paths';
+}
+
+function resolveTaskDefaultConfig(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Readonly<Record<string, unknown>> {
+  if (metadata.defaultConfig) return metadata.defaultConfig;
+  if (metadata.manifest?.defaultConfig) return metadata.manifest.defaultConfig;
+  return {};
+}
+
+function resolveTaskRuleDescriptions(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Record<string, string> | undefined {
+  if (metadata.ruleDescriptions) return metadata.ruleDescriptions;
+  return metadata.manifest?.rules;
+}
+
+function resolveTaskDescription(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): string | undefined {
+  if (metadata.description) return metadata.description;
+  return metadata.manifest?.description;
+}
+
 export async function createAuditTaskDefinition(
   fullPath: string,
   filename: string,
@@ -179,7 +201,7 @@ export async function createAuditTaskDefinition(
   return {
     id,
     name: formatTaskTitle(filename),
-    description: metadata.description ?? metadata.manifest?.description,
+    description: resolveTaskDescription(metadata),
     family,
     scriptPath: relScriptPath,
     command: 'node',
@@ -187,13 +209,14 @@ export async function createAuditTaskDefinition(
     fast: isFast,
     timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
     order: familyMeta.order,
-    requiresAst: capabilities?.ast ?? false,
+    requiresAst: Boolean(capabilities?.ast),
     isBuiltin,
     icon: effectiveIcon,
     capabilities: capabilities ?? undefined,
     gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
     manifest: metadata.manifest,
-    configKey: metadata.configKey ?? metadata.manifest?.configKey,
-    ruleDescriptions: metadata.ruleDescriptions ?? metadata.manifest?.rules
+    configKey: resolveTaskConfigKey(metadata),
+    defaultConfig: resolveTaskDefaultConfig(metadata),
+    ruleDescriptions: resolveTaskRuleDescriptions(metadata)
   };
 }

@@ -16,7 +16,7 @@ export const STRUCTURAL_EXEMPTION_POLICIES = ['test', 'constants'];
 export const EXEMPTION_POLICY_IDS = [...ACKNOWLEDGEABLE_EXEMPTION_POLICIES, ...STRUCTURAL_EXEMPTION_POLICIES];
 export const EXEMPTION_POLICY_KINDS = ['configured', 'structural'];
 export function isCodeFile(relPosixPath) {
-    return /\.(ts|tsx|js|jsx|mjs|cjs|vue)$/i.test(relPosixPath);
+    return /\.(?:ts|tsx|js|jsx|mjs|cjs|vue)$/i.test(relPosixPath);
 }
 export const EXEMPTION_POLICIES = [
     {

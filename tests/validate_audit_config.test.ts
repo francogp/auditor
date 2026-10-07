@@ -211,6 +211,8 @@ export class CustomExtAuditor extends BaseAuditor {
       family: 'architecture',
       packageName: 'CustomTool',
       icon: '🔧',
+      configKey: 'paths',
+      defaultConfig: {},
       ruleDescriptions: {
         'custom-tool-rule': 'Regla de herramienta custom'
       },

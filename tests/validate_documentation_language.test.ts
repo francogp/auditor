@@ -418,4 +418,80 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
     expect(finalResult.summary.errors).toBe(0);
     expect(finalResult.status).toBe('passed');
   });
+
+  describe('Anti-duplication & Idempotency in fix mode', () => {
+    it('guarantees strict idempotency when fix mode runs 5 consecutive times from missing mandate', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandateAgentsMd(), 'utf8');
+
+      const run1 = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+      await run1.execute();
+      const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+
+      const matchesRun1 = contentAfterRun1.match(/Universal English Documentation Default Mandate & Language Governance/g);
+      expect(matchesRun1?.length).toBe(1);
+
+      for (let i = 2; i <= 5; i++) {
+        const auditor = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+        await auditor.execute();
+
+        const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+        const matches = current.match(/Universal English Documentation Default Mandate & Language Governance/g);
+        expect(matches?.length).toBe(1);
+        expect(current).toBe(contentAfterRun1);
+      }
+    });
+
+    it('guarantees zero duplicate mandates when running fix mode 5 consecutive times on completely empty AGENTS.md', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '', 'utf8');
+
+      const run1 = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+      await run1.execute();
+      const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+
+      const matchesRun1 = contentAfterRun1.match(/Universal English Documentation Default Mandate & Language Governance/g);
+      expect(matchesRun1?.length).toBe(1);
+
+      for (let i = 2; i <= 5; i++) {
+        const auditor = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+        await auditor.execute();
+
+        const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+        const matches = current.match(/Universal English Documentation Default Mandate & Language Governance/g);
+        expect(matches?.length).toBe(1);
+        expect(current).toBe(contentAfterRun1);
+      }
+    });
+
+    it('automatically prunes and eliminates pre-existing duplicate language mandates in fix mode', async () => {
+      const duplicatedContent = `# Purpose
+
+Core engine documentation.
+
+## Local Contracts
+
+- **Domain Agnostic**: Zero coupling.
+${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
+${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
+${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
+`;
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), duplicatedContent, 'utf8');
+
+      const beforeFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect((beforeFix.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(3);
+
+      const fixAuditor = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+      await fixAuditor.execute();
+
+      const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect((afterFix.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(1);
+
+      // Run fix again: must remain strictly 1
+      const fixAuditor2 = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+      await fixAuditor2.execute();
+
+      const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect((afterFix2.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(1);
+      expect(afterFix2).toBe(afterFix);
+    });
+  });
 });

@@ -13,5 +13,5 @@ export interface SuiteGatingStatus {
     readonly reason?: string;
     readonly configKey?: string;
 }
-export declare function evaluateSuiteStatus(suiteId: string, config: AuditConfig): SuiteGatingStatus;
+export declare function evaluateSuiteStatus(suiteId: string, config: AuditConfig, declaredConfigKey?: string): SuiteGatingStatus;
 //# sourceMappingURL=suiteGating.d.ts.map

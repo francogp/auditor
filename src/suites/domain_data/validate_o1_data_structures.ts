@@ -47,7 +47,7 @@ export function getResolvedO1CatalogPatterns(): Array<{
   return DEFAULT_O1_CATALOG_PATTERNS;
 }
 
-export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))\b(?:\s+as\s[^)]+)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
+export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
 export const P_OBJECT_SCAN_LOOKUP = /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
 export const P_JSON_CLONE = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(/g;
 export const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
@@ -202,6 +202,8 @@ id: 'validate_o1_data_structures',
       family: 'domain_data',
       ruleIds: O1_RULES,
       packageName: 'O(1)',
+      configKey: 'constants.enabled',
+      defaultConfig: { enabled: true },
       icon: '⚡',
       ruleDescriptions: {
         'o1-catalog-lookup': 'Búsqueda lineal en catálogo',

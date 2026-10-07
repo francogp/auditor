@@ -8,6 +8,13 @@
 
 import { styleText } from 'node:util';
 import path from 'node:path';
+import boxen from 'boxen';
+import Table from 'cli-table3';
+
+if (!process.env.NO_COLOR && process.env.FORCE_COLOR === undefined) {
+  process.env.FORCE_COLOR = '1';
+}
+
 import {
   type StandardAuditResult,
   type AuditFinding,
@@ -30,7 +37,6 @@ export {
 } from './terminalVisuals.ts';
 import {
   padVisual,
-  truncateVisual,
   type TextAlignment
 } from './terminalVisuals.ts';
 
@@ -42,54 +48,69 @@ export interface TableColumn<T = Record<string, unknown>> {
   render?: (row: T) => string;
 }
 
-function formatBoxTableRow<T>(row: T, columns: readonly TableColumn<T>[]): string {
-  const cells = columns.map(c => {
-    const rawVal = c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key ?? ''] ?? ''); // open-record: Generic table row container
-    const truncated = truncateVisual(rawVal, c.width);
-    return padVisual(truncated, c.width, c.align || 'left');
-  });
-  return '│ ' + cells.join(' │ ') + ' │';
-}
-
 export function renderBoxTable<T = Record<string, unknown>>(
   columns: readonly TableColumn<T>[],
   rows: readonly T[],
   options?: { emptyMessage?: string; footerRows?: readonly T[] }
 ): string {
-  const lines: string[] = [];
+  const head = columns.map(c => styleText('bold', c.header));
+  const colAligns = columns.map(c => (c.align === 'center' ? 'center' : c.align === 'right' ? 'right' : 'left'));
+  const colWidths = columns.map(c => c.width + 2);
 
-  // Top border: ┌───┬───┐
-  lines.push('┌' + columns.map(c => '─'.repeat(c.width + 2)).join('┬') + '┐');
-
-  // Header row: │ COL 1 │ COL 2 │
-  const headerRow = '│ ' + columns.map(c => padVisual(styleText('bold', c.header), c.width, c.align || 'left')).join(' │ ') + ' │';
-  lines.push(headerRow);
-
-  // Header divider: ├───┼───┤
-  lines.push('├' + columns.map(c => '─'.repeat(c.width + 2)).join('┼') + '┤');
+  const table = new Table({
+    head,
+    colWidths,
+    colAligns,
+    wordWrap: true,
+    chars: {
+      'top': '─', 'top-mid': '┬', 'top-left': '┌', 'top-right': '┐',
+      'bottom': '─', 'bottom-mid': '┴', 'bottom-left': '└', 'bottom-right': '┘',
+      'left': '│', 'left-mid': '├', 'mid': '─', 'mid-mid': '┼',
+      'right': '│', 'right-mid': '┤', 'middle': '│'
+    },
+    style: { 'padding-left': 1, 'padding-right': 1, head: [], border: ['dim'], compact: true }
+  });
 
   if (rows.length === 0) {
-    const totalInnerWidth = columns.reduce((acc, c) => acc + c.width + 2, 0) + (columns.length - 1);
     const emptyMsg = options?.emptyMessage || 'No se encontraron registros.';
-    lines.push('│ ' + padVisual(styleText('dim', emptyMsg), totalInnerWidth - 2, 'center') + ' │');
+    table.push([{ colSpan: columns.length, content: styleText('dim', emptyMsg), hAlign: 'center' }]);
   } else {
     for (const row of rows) {
-      lines.push(formatBoxTableRow(row, columns));
+      const cellValues = columns.map(c => {
+        return c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key ?? ''] ?? ''); // open-record: Generic table row container
+      });
+      table.push(cellValues);
     }
   }
 
-  // Footer rows (e.g. TOTAL CONSOLIDADO)
   if (options?.footerRows && options.footerRows.length > 0) {
-    lines.push('├' + columns.map(c => '─'.repeat(c.width + 2)).join('┼') + '┤');
+    const footerTable = new Table({
+      colWidths,
+      colAligns,
+      wordWrap: true,
+      chars: {
+        'top': '─', 'top-mid': '┼', 'top-left': '├', 'top-right': '┤',
+        'bottom': '─', 'bottom-mid': '┴', 'bottom-left': '└', 'bottom-right': '┘',
+        'left': '│', 'left-mid': '', 'mid': '', 'mid-mid': '',
+        'right': '│', 'right-mid': '', 'middle': '│'
+      },
+      style: { 'padding-left': 1, 'padding-right': 1, head: [], border: ['dim'], compact: true }
+    });
+
     for (const fRow of options.footerRows) {
-      lines.push(formatBoxTableRow(fRow, columns));
+      const cellValues = columns.map(c => {
+        return c.render ? c.render(fRow) : String((fRow as Record<string, unknown>)[c.key ?? ''] ?? ''); // open-record: Generic table row container
+      });
+      footerTable.push(cellValues);
     }
+
+    const bodyLines = table.toString().split('\n');
+    bodyLines.pop();
+    const footerLines = footerTable.toString().split('\n');
+    return [...bodyLines, ...footerLines].join('\n');
   }
 
-  // Bottom border: └───┴───┘
-  lines.push('└' + columns.map(c => '─'.repeat(c.width + 2)).join('┴') + '┘');
-
-  return lines.join('\n');
+  return table.toString();
 }
 
 export interface FindingCountData {
@@ -153,20 +174,31 @@ export function renderSampleFindings(
   return `${header}${lines.join('\n')}\n`;
 }
 
-export function renderBanner(title: string, subtitle?: string): string {
-  const line = '═'.repeat(TERMINAL_WIDTH - 4);
-  const lines: string[] = [];
-  lines.push(styleText('cyan', `╔═${line}═╗`));
-  lines.push(styleText('cyan', `║  ${styleText(['bold', 'white'], title.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-  if (subtitle) {
-    lines.push(styleText('cyan', `║  ${styleText('dim', subtitle.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-  }
-  lines.push(styleText('cyan', `╚═${line}═╝`));
-  return lines.join('\n');
-}
-
-export const NOTICE_BOX_COLORS = ['yellow', 'cyan', 'red'] as const;
+export const NOTICE_BOX_COLORS = ['yellow', 'cyan', 'red', 'green', 'magenta', 'blue'] as const;
 export type NoticeBoxColor = (typeof NOTICE_BOX_COLORS)[number];
+
+export function renderBanner(title: string, subtitle?: string, borderColor?: NoticeBoxColor): string {
+  let resolvedColor: NoticeBoxColor = borderColor ?? 'cyan';
+  if (!borderColor) {
+    if (title.includes('REPARACIÓN')) {
+      resolvedColor = 'magenta';
+    } else if (title.includes('CRÍTIC') || title.includes('ERROR') || title.includes('FALLO')) {
+      resolvedColor = 'red';
+    } else if (title.includes('WARN') || title.includes('ADVERTENCIA')) {
+      resolvedColor = 'yellow';
+    } else if (title.includes('APROBAD') || title.includes('ÉXITO')) {
+      resolvedColor = 'green';
+    }
+  }
+
+  const content = subtitle ? `${styleText(['bold', 'white'], title)}\n${styleText('dim', subtitle)}` : styleText(['bold', 'white'], title);
+  return boxen(content, {
+    borderColor: resolvedColor,
+    borderStyle: 'double',
+    padding: { top: 0, bottom: 0, left: 1, right: 1 },
+    width: TERMINAL_WIDTH
+  });
+}
 
 interface NoticeBoxOptions {
   borderColor?: NoticeBoxColor;
@@ -175,26 +207,16 @@ interface NoticeBoxOptions {
 }
 
 function buildNoticeBox(options: NoticeBoxOptions): string {
-  const line = '═'.repeat(TERMINAL_WIDTH - 4);
-  const innerWidth = TERMINAL_WIDTH - 6;
   const color = options.borderColor || 'yellow';
-  const colorFn = (s: string) => styleText(color, s);
-
-  const outLines: string[] = [];
-  outLines.push(colorFn(`╔═${line}═╗`));
-  outLines.push(colorFn('║  ') + padVisual(styleText(['bold', color], options.title), innerWidth) + colorFn('  ║'));
-  outLines.push(colorFn(`╠═${line}═╣`));
-
-  for (const item of options.lines) {
-    if (item === '') {
-      outLines.push(colorFn('║  ') + padVisual('', innerWidth) + colorFn('  ║'));
-    } else {
-      outLines.push(colorFn('║  ') + padVisual(item, innerWidth) + colorFn('  ║'));
-    }
-  }
-
-  outLines.push(colorFn(`╚═${line}═╝`));
-  return outLines.join('\n');
+  const header = styleText(['bold', color], options.title);
+  const divider = styleText('dim', '─'.repeat(TERMINAL_WIDTH - 6));
+  const content = [header, divider, ...options.lines].join('\n');
+  return boxen(content, {
+    borderColor: color,
+    borderStyle: 'double',
+    padding: { top: 0, bottom: 0, left: 1, right: 1 },
+    width: TERMINAL_WIDTH
+  });
 }
 
 /**
@@ -261,7 +283,6 @@ export function renderAuditorsRegistryTable(
   activeFamilies: readonly string[],
   options?: AuditorsRegistryTableOptions
 ): string {
-  const line = '═'.repeat(TERMINAL_WIDTH - 4);
   const output: string[] = [];
   const filter = options?.filter ?? 'all';
 
@@ -276,10 +297,7 @@ export function renderAuditorsRegistryTable(
     bannerSubtitle = 'Suites habilitadas y listas para ejecución';
   }
 
-  output.push(styleText('cyan', `╔═${line}═╗`));
-  output.push(styleText('cyan', `║  ${styleText(['bold', 'white'], bannerTitle.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-  output.push(styleText('cyan', `║  ${styleText('dim', bannerSubtitle.padEnd(TERMINAL_WIDTH - 6))}  ║`));
-  output.push(styleText('cyan', `╚═${line}═╝\n`));
+  output.push(renderBanner(bannerTitle, bannerSubtitle) + '\n');
 
   if (tasks.length === 0) {
     if (filter === 'disabled') {
@@ -625,25 +643,29 @@ export function renderConsolidatedFooter(
   errorFindings?: AuditFinding[],
   suitesSkipped: number = 0
 ): string {
-  const line = '═'.repeat(TERMINAL_WIDTH - 4);
-  const lines: string[] = [];
-  lines.push(styleText('bold', `\n╠═${line}═╣`));
-
   const statusText = totalErrors === 0 
     ? styleText(['bold', 'green'], '🎉 ¡SUITE DE AUDITORÍA GLOBAL APROBADA!') 
     : styleText(['bold', 'red'], '🚨 AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
 
-  lines.push(`  ${statusText}`);
-  const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas ⏭️)` : '';
-  lines.push(styleText('dim', `  Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`));
-  lines.push(`  Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`);
+  const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas)` : '';
+  const durationText = styleText('dim', `Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`);
+  const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`;
 
+  const bodyLines = [statusText, durationText, countsText];
   if (errorFindings && errorFindings.length > 0) {
-    lines.push(...renderSampleErrors(errorFindings));
+    bodyLines.push(...renderSampleErrors(errorFindings));
   }
 
-  lines.push(styleText('bold', `╚═${line}═╝\n`));
-  return lines.join('\n');
+  const borderColor: NoticeBoxColor = totalErrors > 0 ? 'red' : (totalWarnings > 0 ? 'yellow' : 'green');
+
+  const box = boxen(bodyLines.join('\n'), {
+    borderColor,
+    borderStyle: 'double',
+    padding: { top: 0, bottom: 0, left: 1, right: 1 },
+    width: TERMINAL_WIDTH
+  });
+
+  return `\n${box}\n`;
 }
 
 export { renderMarkdownReport } from './markdownReport.ts';

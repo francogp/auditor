@@ -264,6 +264,19 @@ export interface AuditVersionConfig {
     readonly autoSyncPublicVersionJson?: boolean;
     readonly syncTargets?: readonly (string | AuditVersionTargetConfig)[];
 }
+export interface AuditSecretLeaksConfig {
+    readonly enabled?: boolean;
+    readonly maskSecrets?: boolean;
+    readonly allowedPatterns?: readonly string[];
+}
+export declare const NPM_AUDIT_SEVERITY_LEVELS: readonly ["info", "low", "moderate", "high", "critical"];
+export type NpmAuditSeverityLevel = (typeof NPM_AUDIT_SEVERITY_LEVELS)[number];
+export interface AuditDependencyVulnerabilitiesConfig {
+    readonly enabled?: boolean;
+    readonly failOn?: NpmAuditSeverityLevel;
+    readonly allowList?: readonly string[];
+    readonly includeDev?: boolean;
+}
 export declare const ACKNOWLEDGEABLE_EXEMPTION_POLICIES: readonly ["cli", "scripts", "data", "demo", "exemptFiles"];
 export type AcknowledgeableExemptionPolicy = (typeof ACKNOWLEDGEABLE_EXEMPTION_POLICIES)[number];
 export interface AuditCoverageExemption {
@@ -326,6 +339,8 @@ export interface AuditEngineConfig {
     readonly accessibility?: AuditAccessibilityConfig;
     readonly typeCoverage?: AuditTypeCoverageConfig;
     readonly version?: AuditVersionConfig;
+    readonly secretLeaks?: AuditSecretLeaksConfig;
+    readonly dependencyVulnerabilities?: AuditDependencyVulnerabilitiesConfig;
     readonly coverage?: AuditCoverageConfig;
     readonly customFamilies?: readonly CustomAuditFamilyConfig[];
     readonly extensions?: readonly string[];

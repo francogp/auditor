@@ -4,6 +4,7 @@
  * Unit tests for unifiedTheme box-drawing, banners, tables, and markdown report generators.
  */
 
+import { stripVTControlCharacters } from 'node:util';
 import { describe, it, expect } from 'vitest';
 import {
   renderBanner,
@@ -344,11 +345,12 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
     it('renders all suites with dynamic headers and flags', () => {
       const table = renderAuditorsRegistryTable(sampleTasks, ['architecture', 'domain_data']);
-      expect(table).toContain('CATÁLOGO DINÁMICO DE AUDITORES');
-      expect(table).toContain('suite_a');
-      expect(table).toContain('suite_b');
-      expect(table).toContain('FIX LINT');
-      expect(table).toContain('MD HVY');
+      const cleanTable = stripVTControlCharacters(table);
+      expect(cleanTable).toContain('CATÁLOGO DINÁMICO DE AUDITORES');
+      expect(cleanTable).toContain('suite_a');
+      expect(cleanTable).toContain('suite_b');
+      expect(cleanTable).toContain('FIX LINT');
+      expect(cleanTable).toContain('MD HVY');
     });
 
     it('renders enabled filter correctly', () => {

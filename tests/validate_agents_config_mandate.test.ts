@@ -23,6 +23,12 @@ import {
   containsBackwardCompatMandate,
   containsFakePassMandate
 } from '../src/suites/documentation/validate_agents_config_mandate.ts';
+import { DocumentationLanguageAuditor } from '../src/suites/documentation/validate_documentation_language.ts';
+
+function countOccurrences(content: string, substring: string): number {
+  if (!substring) return 0;
+  return (content.match(new RegExp(substring.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+}
 
 function createValidAgentsMd(extraContract = ''): string {
   return `# Purpose
@@ -316,5 +322,219 @@ describe('AgentsConfigMandateAuditor', () => {
     const verifyAuditorEn = new AgentsConfigMandateAuditor(scratchDir, { language: 'en' });
     const finalVerify = await verifyAuditorEn.execute();
     expect(finalVerify.summary.errors).toBe(0);
+  });
+
+  describe('Anti-duplication & Idempotency in audit fix', () => {
+    it('guarantees strict idempotency when fix mode runs 5 consecutive times on clean file', async () => {
+      const initial = createValidAgentsMd();
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), initial, 'utf8');
+
+      for (let i = 0; i < 5; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+        const result = await auditor.execute();
+        expect(result.summary.errors).toBe(0);
+        expect(result.status).toBe('passed');
+
+        const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(countOccurrences(current, '## Local Contracts')).toBe(1);
+        expect(current).toBe(initial);
+      }
+    });
+
+    it('guarantees zero duplicate mandates when running fix mode 5 consecutive times from missing mandates', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandatesAgentsMd(), 'utf8');
+
+      // First run injects the missing mandates
+      const auditorRun1 = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+      await auditorRun1.execute();
+      const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+
+      expect(countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
+
+      // Runs 2 to 5 must keep content completely identical without injecting any duplicates
+      for (let i = 2; i <= 5; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+        const result = await auditor.execute();
+        expect(result.summary.errors).toBe(0);
+
+        const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(countOccurrences(current, '## Local Contracts')).toBe(1);
+        expect(current).toBe(contentAfterRun1);
+      }
+    });
+
+    it('guarantees zero duplicate mandates when running fix mode 5 consecutive times from completely empty AGENTS.md', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '', 'utf8');
+
+      const auditorRun1 = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+      await auditorRun1.execute();
+      const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+
+      expect(countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
+
+      for (let i = 2; i <= 5; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+        await auditor.execute();
+
+        const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(countOccurrences(current, '## Local Contracts')).toBe(1);
+        expect(current).toBe(contentAfterRun1);
+      }
+    });
+
+    it('guarantees zero duplicate mandates when auto-repairing outdated legacy mandates repeatedly', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createOutdatedMandatesAgentsMd(), 'utf8');
+
+      const auditorRun1 = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+      await auditorRun1.execute();
+      const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+
+      expect(countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
+
+      // Verify outdated headings were completely replaced, not duplicated alongside canonical ones
+      expect(contentAfterRun1).not.toContain('Backward-Compatible Code**: Shims');
+      expect(contentAfterRun1).not.toContain('Suppressing Rules**: Rules');
+
+      for (let i = 2; i <= 4; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+        await auditor.execute();
+
+        const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(current).toBe(contentAfterRun1);
+      }
+    });
+
+    it('automatically prunes and eliminates pre-existing duplicate mandates when running in fix mode', async () => {
+      const duplicatedContent = `# Purpose
+
+Core engine documentation.
+
+## Local Contracts
+
+- **Domain Agnostic**: Zero coupling to utility billing or specific host business domains.
+${CANONICAL_MANDATE_SNIPPET_EN}
+${CANONICAL_MANDATE_SNIPPET_EN}
+${CANONICAL_MANDATE_SNIPPET_EN}
+${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}
+${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}
+${CANONICAL_FAKE_PASS_SNIPPET_EN}
+${CANONICAL_FAKE_PASS_SNIPPET_EN}
+`;
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), duplicatedContent, 'utf8');
+
+      // Before fix: ensure test fixture actually has duplicates
+      const beforeFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(beforeFix, 'Prohibition on Modifying or Disabling Configurations')).toBe(3);
+      expect(countOccurrences(beforeFix, 'Absolute Prohibition on Backward-Compatible Code')).toBe(2);
+      expect(countOccurrences(beforeFix, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(2);
+
+      // Run fix mode: must prune duplicates to exactly 1 of each
+      const fixAuditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+      await fixAuditor.execute();
+
+      const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(afterFix, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(afterFix, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(afterFix, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(countOccurrences(afterFix, '## Local Contracts')).toBe(1);
+
+      // Subsequent fix run must remain stable at exactly 1
+      const fixAuditor2 = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
+      await fixAuditor2.execute();
+
+      const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(afterFix2, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(afterFix2, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(afterFix2, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(afterFix2).toBe(afterFix);
+    });
+
+    it('guarantees zero duplicate mandates when alternating language fix between English and Spanish repeatedly', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandatesAgentsMd(), 'utf8');
+
+      // 1. In English mode 2x
+      for (let i = 0; i < 2; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'en' });
+        await auditor.execute();
+      }
+      let content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(content, 'Prohibición de Modificar o Desactivar')).toBe(0);
+
+      // 2. Switch to Spanish mode 2x
+      for (let i = 0; i < 2; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'es' });
+        await auditor.execute();
+      }
+      content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(content, 'Prohibición de Modificar o Desactivar')).toBe(1);
+      expect(countOccurrences(content, 'Prohibición Absoluta de Código Retrocompatible')).toBe(1);
+      expect(countOccurrences(content, 'Prohibición Absoluta de Suprimir, Silenciar')).toBe(1);
+      expect(countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')).toBe(0);
+
+      // 3. Switch back to English mode 2x
+      for (let i = 0; i < 2; i++) {
+        const auditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'en' });
+        await auditor.execute();
+      }
+      content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(content, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(content, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(countOccurrences(content, 'Prohibición de Modificar o Desactivar')).toBe(0);
+      expect(countOccurrences(content, '## Local Contracts')).toBe(1);
+    });
+
+    it('guarantees zero duplicate mandates when coordinated with DocumentationLanguageAuditor over multiple iterations', async () => {
+      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandatesAgentsMd(), 'utf8');
+
+      // Alternating execution of both fix auditors across 3 cycles
+      for (let cycle = 1; cycle <= 3; cycle++) {
+        const mandateAuditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'en' });
+        await mandateAuditor.execute();
+
+        const langAuditor = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+        await langAuditor.execute();
+      }
+
+      const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
+      expect(countOccurrences(finalContent, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(countOccurrences(finalContent, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
+      expect(countOccurrences(finalContent, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(countOccurrences(finalContent, 'Universal English Documentation Default Mandate & Language Governance')).toBe(1);
+      expect(countOccurrences(finalContent, '## Local Contracts')).toBe(1);
+
+      // Clean non-fix execution must pass with 0 errors
+      const verifyMandate = new AgentsConfigMandateAuditor(scratchDir, { language: 'en' });
+      const mandateResult = await verifyMandate.execute();
+      expect(mandateResult.summary.errors).toBe(0);
+      expect(mandateResult.status).toBe('passed');
+
+      const verifyLang = new DocumentationLanguageAuditor(scratchDir, { language: 'en' });
+      const langResult = await verifyLang.execute();
+      expect(langResult.summary.errors).toBe(0);
+      expect(langResult.status).toBe('passed');
+    });
   });
 });

@@ -12,7 +12,8 @@ enableCompileCache();
 export const PACKAGE_HYGIENE_RULES = [
   'package-unused-dependency',
   'package-unlisted-dependency',
-  'package-unused-binary'
+  'package-unused-binary',
+  'package-lockfile-integrity'
 ] as const;
 export type PackageHygieneRuleId = (typeof PACKAGE_HYGIENE_RULES)[number];
 
@@ -158,6 +159,120 @@ export function parseKnipIssues(
   return findings;
 }
 
+/**
+ * Validates package-lock.json integrity, version standards, and absence of insecure HTTP registries.
+ */
+export function verifyLockfileIntegrity(projectRoot: string): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  const lockfilePath = path.resolve(projectRoot, 'package-lock.json');
+  const pkgJsonPath = path.resolve(projectRoot, 'package.json');
+
+  if (!fs.existsSync(pkgJsonPath)) {
+    return findings;
+  }
+
+  if (!fs.existsSync(lockfilePath)) {
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-lockfile-integrity',
+      ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+      severity: 'error',
+      file: 'package-lock.json',
+      line: 1,
+      context: 'package-lock.json',
+      message: 'No se encontró package-lock.json. El proyecto debe versionar el lockfile.'
+    });
+    return findings;
+  }
+
+  let rawContent: string;
+  try {
+    rawContent = fs.readFileSync(lockfilePath, 'utf-8');
+  } catch (err: unknown) {
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-lockfile-integrity',
+      ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+      severity: 'error',
+      file: 'package-lock.json',
+      line: 1,
+      context: 'package-lock.json',
+      message: `Error al leer package-lock.json: ${err instanceof Error ? err.message : String(err)}`
+    });
+    return findings;
+  }
+
+  // 1. Check for unresolved merge conflict markers
+  const conflictMatch = /^(?:<<<<<<<|=======|>>>>>>>)/m.exec(rawContent);
+  if (conflictMatch) {
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-lockfile-integrity',
+      ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+      severity: 'error',
+      file: 'package-lock.json',
+      line: 1,
+      context: 'merge-conflict',
+      message: 'package-lock.json contiene marcadores de conflicto de merge sin resolver.'
+    });
+    return findings;
+  }
+
+  let lockfileJson: Record<string, unknown>;
+  try {
+    lockfileJson = JSON.parse(rawContent);
+  } catch (err: unknown) {
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-lockfile-integrity',
+      ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+      severity: 'error',
+      file: 'package-lock.json',
+      line: 1,
+      context: 'json-syntax',
+      message: `package-lock.json contiene JSON inválido: ${err instanceof Error ? err.message : String(err)}`
+    });
+    return findings;
+  }
+
+  // 2. Lockfile version check (must be lockfileVersion >= 3 for modern Node 18+)
+  const lockfileVersion = lockfileJson.lockfileVersion;
+  if (typeof lockfileVersion === 'number' && lockfileVersion < 3) {
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-lockfile-integrity',
+      ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+      severity: 'error',
+      file: 'package-lock.json',
+      line: 1,
+      context: `lockfileVersion: ${lockfileVersion}`,
+      message: `lockfileVersion obsoleto (${lockfileVersion}). Se requiere lockfileVersion 3 (Node.js 18+ / npm v9+).`
+    });
+  }
+
+  // 3. Insecure HTTP registry check (CWE-319 cleartext transmission / MitM hazard)
+  if (/"resolved"\s*:\s*"http:\/\//.test(rawContent)) {
+    findings.push({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-lockfile-integrity',
+      ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+      severity: 'error',
+      file: 'package-lock.json',
+      line: 1,
+      context: 'insecure-http-resolved',
+      message: 'package-lock.json contiene resoluciones de paquetes insecure vía http:// no cifrado.'
+    });
+  }
+
+  return findings;
+}
+
 export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
@@ -169,15 +284,18 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       description: 'Higiene de dependencias huérfanas y fantasmas',
       family: 'architecture',
       packageName: 'Dependencias',
+      configKey: 'packageHygiene.enabled',
+      defaultConfig: { enabled: true },
       icon: '📦',
       ruleIds: PACKAGE_HYGIENE_RULES,
       ruleDescriptions: {
         'package-unused-dependency': 'Dependencia no utilizada en package',
         'package-unlisted-dependency': 'Dependencia fantasma no declarada',
-        'package-unused-binary': 'Binario o script no referenciado'
+        'package-unused-binary': 'Binario o script no referenciado',
+        'package-lockfile-integrity': 'Lockfile corrupto o inseguro'
       },
       coverage: {
-        include: ['package.json']
+        include: ['package.json', 'package-lock.json']
       },
       projectRoot: effectiveRoot
     });
@@ -192,6 +310,22 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       this.markRuleEvaluated(r);
     }
     this.recordScanned('package.json');
+    if (fs.existsSync(path.resolve(this.projectRoot, 'package-lock.json'))) {
+      this.recordScanned('package-lock.json');
+    }
+
+    const lockFindings = verifyLockfileIntegrity(this.projectRoot);
+    for (const lf of lockFindings) {
+      this.addViolation({
+        ruleId: lf.ruleId as PackageHygieneRuleId,
+        severity: lf.severity,
+        file: lf.file,
+        line: lf.line,
+        col: lf.col,
+        context: lf.context,
+        message: lf.message
+      });
+    }
 
     const config = getAuditConfig(this.projectRoot);
     const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');

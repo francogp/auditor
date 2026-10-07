@@ -25,9 +25,9 @@ export interface FindingCountData {
 }
 export declare function renderFindingsBreakdownTable(items: readonly [string, FindingCountData][], labelHeader?: string): string;
 export declare function renderSampleFindings(findings: readonly AuditFinding[], limitOrAll?: number | 'all'): string;
-export declare function renderBanner(title: string, subtitle?: string): string;
-export declare const NOTICE_BOX_COLORS: readonly ["yellow", "cyan", "red"];
+export declare const NOTICE_BOX_COLORS: readonly ["yellow", "cyan", "red", "green", "magenta", "blue"];
 export type NoticeBoxColor = (typeof NOTICE_BOX_COLORS)[number];
+export declare function renderBanner(title: string, subtitle?: string, borderColor?: NoticeBoxColor): string;
 /**
  * Renders a prominent 80-column Box-Drawing warning banner when the automatic
  * installation of Fallow's vector embedding model fails, notifying both human

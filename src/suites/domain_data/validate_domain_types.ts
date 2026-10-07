@@ -64,16 +64,16 @@ const P_TYPE_ALIAS_STRING = /\b(?:export\s+)?type\s+\w+\s*=\s*string\s*;/g;
 const P_REDUNDANT_TYPE_ALIAS = /\b(?:export\s+)?type\s+([A-Z_a-z]\w*)\s*=\s*([A-Z_a-z]\w*)\s*;/g;
 const P_REDUNDANT_VALUE_ALIAS = /^\s*export\s+const\s+([A-Z_a-z]\w*)\s*=\s*([A-Z_a-z]\w*)\s*;/gm;
 const P_BOOLEAN_LITERAL_TYPE_ANNOTATION = /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm;
-const P_STRING_SINK_UNION = /\b(?:export\s+)?type\s+\w+\s*=\s*(?=[^;\n]*['"`][^'"`]+['"`])[^;\n]*\|\s*string\s*;/g;
-const P_FIELD_WILDCARD_STRING_UNION = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*(?!string\s*(?:\[\])?\s*[;,]?)[^;\n]*\|\s*string\b[^;\n]*[;,]?/gm;
+const P_STRING_SINK_UNION = /\b(?:export\s+)?type\s+\w+\s*=(?=[^;\n]*['"`][^'"`]+['"`])[^;\n]*\|\s*string\s*;/g;
+const P_FIELD_WILDCARD_STRING_UNION = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:(?!\s*string\b)[^;\n]*\|\s*string\b[^;\n]*[;,]?/gm;
 const P_INLINE_LITERAL_UNION_PROPERTY = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*(?:'[^']+'|"[^"]+")(?:\s*\|\s*(?:'[^']+'|"[^"]+"))+/gm;
 const P_OPEN_STRING_INTERSECTION = /\b(?:export\s+)?type\s+\w+\s*=[^;\n]*string\s*&\s*\{\s*\}[^;\n]*;/g;
 const P_RECORD_STRING_KEY = /\bRecord\s*<\s*string\s*,/g;
 const P_RECORD_PROPERTY_KEY = /\bRecord\s*<\s*PropertyKey\s*,/g;
 const P_INDEX_SIGNATURE = /\[\s*\w+\s*:\s*string\s*\]\s*:/g;
 const P_DOMAIN_STRING_FIELD = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*string(?:\[\])?\s*[;,]?/gm;
-const P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS = /^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*;|^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*;/gm;
-const P_AMBIGUOUS_EMPTY_NULL_FIELD = /^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n]*)?(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*[;,]?|^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n]*)?(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*[;,]?/gm;
+const P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS = /^\s*(?:export\s+)?type\s+\w+\s*=[^;\n'"`]*(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*;|^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*;/gm;
+const P_AMBIGUOUS_EMPTY_NULL_FIELD = /^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n'"`]*)?(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*[;,]?|^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n]*)?(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*[;,]?/gm;
 const P_RUNTIME_CASE_NORMALIZATION = /\b\w+\.(?:toLowerCase|toUpperCase)\s*\(\s*\)\s*(?:as\s+\w+|satisfies\s+\w+)?/g;
 const P_TYPECAST_UNKNOWN = /\bas\s+unknown\s+as\b/g;
 const P_TYPECAST_INLINE_ANY = /\bas\s+any\b/g;
@@ -88,10 +88,10 @@ const P_INLINE_ANONYMOUS_OBJECT_PARAM = /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\
 const P_UNNAMED_POSITIONAL_TUPLE_RETURN = /\breturn\s*\[\s*[A-Z_a-z]\w*(?:\.[A-Z_a-z]\w*)*\s*,\s*[A-Z_a-z]\w*(?:\.[A-Z_a-z]\w*)*\s*\]\s*;/g;
 const P_UNBRANDED_DOMAIN_ID_ALIAS = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=\s*string\s*;/g;
 const P_UNENFORCED_STATIC_MAP = /\bexport\s+const\s+[A-Z][A-Z0-9_]{3,}\s*=\s*\{/g;
-const P_FLOATING_PROMISE = /^\s*(?!(?:await|void|return|const|let|var)\s+)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm;
+const P_FLOATING_PROMISE = /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm;
 const P_LEAKED_GLOBAL_MUTABLE = /^(?:export\s+)?let\s+[a-z]\w*\s*=/gm;
 const P_DYNAMIC_IMPORT_IN_HOT_PATH = /\b(?:for|while)\s*\([^)]*\)\s*\{[^}]*?\bimport\s*\(/g;
-const P_PARAM_WILDCARD_STRING_UNION = /\b(\w{2,}[iI]d)\s*\??:\s*(?:[A-Z]\w*Id|[A-Z]\w*)\s*\|\s*string\b/g;
+const P_PARAM_WILDCARD_STRING_UNION = /\b(\w{2,}[iI]d)\s*\??:\s*[A-Z]\w*\s*\|\s*string\b/g;
 const P_PARAM_DOMAIN_ID_NULLABLE = /\b(\w{2,}[iI]d)\s*:\s*[A-Z]\w*Id\s*\|\s*(?:null|undefined)\b|\b(\w{2,}[iI]d)\s*:\s*(?:null|undefined)\s*\|\s*[A-Z]\w*Id\b/g;
 const P_DOMAIN_TYPE_NULLABLE = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=[^;\n]*\|\s*(?:null|undefined)\b/g;
 const P_DOUBLE_CAST_DOMAIN_ID = /\bas\s+(?:unknown|any)\s+as\s+[A-Z]\w*Id\b/g;
@@ -747,7 +747,7 @@ function collectFileStringUnions(
 export function detectRepeatedStringUnions(
   files: Array<{ file: string; content: string }>
 ): Map<string, Finding[]> {
-  const P_GENERIC_STRING_UNION = /\b(?:as\s+|:\s*|\btype\s+[A-Za-z]\w*\s*=\s*)\(?(?:\s*['"`][\w-]+['"`]\s*\|)+\s*['"`][\w-]+['"`]\)?/g;
+  const P_GENERIC_STRING_UNION = /\b(?:as\s+|:\s*|\btype\s+[A-Za-z]\w*\s*=\s*)(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
   const unionOccurrences = new Map<string, Finding[]>();
 
   for (const { file, content } of files) {
@@ -885,8 +885,8 @@ export function detectLibraryDomainTypeDuplicates(
   if (libraryTypes.size === 0) return findings;
 
   const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-  const P_TYPE_UNION_DECL = /\b(?:export\s+)?type\s+(\w+)\s*=\s*([^\n;]+(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`][^\n;]*)/g;
-  const P_PROP_UNION_DECL = /\b(\w+)\??:\s*([^\n;{]+(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`][^\n;]*)/g;
+  const P_TYPE_UNION_DECL = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*|\|\s*)?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])/g;
+  const P_PROP_UNION_DECL = /\b(\w+)\??:\s*(?:\(\s*|\|\s*)?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])/g;
 
   const reportIfLibraryDuplicate = (
     sigKey: string | null,
@@ -1085,7 +1085,7 @@ export function extractProjectCanonicalDomains(
 }
 
 const P_ANY_LITERAL_ARRAY = /\b(?:(?:export\s+)?const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+(\w+)\s*=\s*\(?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])\)?/g;
+const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
 
 interface CanonicalDomainIndex {
   bySignature: Map<string, CanonicalDomainInfo>;
@@ -1264,6 +1264,8 @@ id: 'validate_domain_types',
       family: 'domain_data',
       ruleIds: DOMAIN_TYPES_RULES,
       packageName: 'Dominio',
+      configKey: 'domain.enabled',
+      defaultConfig: { enabled: true },
       icon: '🔒',
       ruleDescriptions: {
         'domain-type-violation': 'String crudo en vez de tipo de dominio'

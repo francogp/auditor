@@ -31,6 +31,8 @@ import {
   type AuditTypeCoverageConfig,
   type AuditGitIgnoreConfig,
   type AuditVersionConfig,
+  type AuditSecretLeaksConfig,
+  type AuditDependencyVulnerabilitiesConfig,
   type AuditVersionTargetConfig,
   type AuditCoverageConfig,
   type AuditCoverageExemption,
@@ -214,6 +216,17 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     autoSyncPublicVersionJson: true,
     syncTargets: []
   },
+  secretLeaks: {
+    enabled: true,
+    maskSecrets: true,
+    allowedPatterns: []
+  },
+  dependencyVulnerabilities: {
+    enabled: true,
+    failOn: 'critical',
+    allowList: [],
+    includeDev: false
+  },
   coverage: {
     enabled: true,
     exemptGlobs: [],
@@ -261,6 +274,8 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'typeCoverage',
     'testCoverage',
     'version',
+    'secretLeaks',
+    'dependencyVulnerabilities',
     'ratchet'
   ] as const;
   for (const k of keys) {
@@ -665,6 +680,27 @@ export function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): Audit
   };
 }
 
+export function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeaksConfig>): AuditSecretLeaksConfig {
+  const def = DEFAULT_AUDIT_CONFIG.secretLeaks;
+  const s = raw ?? {};
+  return {
+    enabled: s.enabled ?? def?.enabled ?? true,
+    maskSecrets: s.maskSecrets ?? def?.maskSecrets ?? true,
+    allowedPatterns: s.allowedPatterns ? [...s.allowedPatterns] : (def?.allowedPatterns ?? [])
+  };
+}
+
+export function buildDependencyVulnerabilitiesConfig(raw?: DeepPartial<AuditDependencyVulnerabilitiesConfig>): AuditDependencyVulnerabilitiesConfig {
+  const def = DEFAULT_AUDIT_CONFIG.dependencyVulnerabilities;
+  const d = raw ?? {};
+  return {
+    enabled: d.enabled ?? def?.enabled ?? false,
+    failOn: d.failOn ?? def?.failOn ?? 'critical',
+    allowList: d.allowList ? [...d.allowList] : (def?.allowList ?? []),
+    includeDev: d.includeDev ?? def?.includeDev ?? false
+  };
+}
+
 function resolveCoverageExemptGlobs(
   rawGlobs: DeepPartial<AuditCoverageConfig>['exemptGlobs'],
   protectedRoots: readonly string[]
@@ -759,6 +795,8 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
     testCoverage: buildTestCoverageConfig(config.testCoverage),
     version: buildVersionConfig(config.version),
+    secretLeaks: buildSecretLeaksConfig(config.secretLeaks),
+    dependencyVulnerabilities: buildDependencyVulnerabilitiesConfig(config.dependencyVulnerabilities),
     coverage: buildCoverageConfig(config.coverage, paths),
     ...agentAndSecurity,
     ...constantsAndDoc,

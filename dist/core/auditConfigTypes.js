@@ -13,5 +13,6 @@ export const FALLOW_TARGET_PRIORITIES = ['critical', 'high', 'all'];
 export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
 export const PACKAGE_DISTRIBUTION_LEVELS = ['suggestion', 'warning', 'error'];
 export const VERSION_TARGET_TYPES = ['json', 'ts'];
+export const NPM_AUDIT_SEVERITY_LEVELS = ['info', 'low', 'moderate', 'high', 'critical'];
 export const ACKNOWLEDGEABLE_EXEMPTION_POLICIES = ['cli', 'scripts', 'data', 'demo', 'exemptFiles'];
 //# sourceMappingURL=auditConfigTypes.js.map

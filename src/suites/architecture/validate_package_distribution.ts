@@ -7,7 +7,7 @@ import { formatMessage } from 'publint/utils';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { PackageDistributionLevel } from '../../core/auditConfigTypes.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
@@ -56,20 +56,22 @@ export function parsePublintMessages(
     try {
       formatted = formatMessage(msg, pkg) ?? '';
     } catch {
-      formatted = `${msg.code}: ${JSON.stringify(msg.args ?? {})}`;
+      formatted = `${msg.code}: ${msg.type}`;
     }
+
     const cleanMessage = stripVTControlCharacters(formatted).trim();
+    const severity: FindingSeverity = msg.type === 'error' ? 'error' : 'warning';
 
     findings.push({
       suiteId: 'validate_package_distribution',
       suiteName: 'Package Distribution & Exports Hygiene Auditor',
       ruleId,
       ruleDescription: 'Distribución: Export map o tipos inválidos',
-      severity: msg.type === 'error' ? 'error' : 'warning',
+      severity,
       file: 'package.json',
       line: 1,
       context: msg.code,
-      message: cleanMessage || `Error de empaquetado en exports: ${msg.code}`
+      message: cleanMessage || `Incidencia de distribución: ${msg.code}`
     });
   }
 
@@ -83,7 +85,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
       capabilities: { requiresBuild: true },
       id: 'validate_package_distribution',
       name: 'Package Distribution & Exports Hygiene Auditor',
-      description: 'Valida export maps y tipos .d.ts de distribución',
+      description: 'Valida export maps y packaging con Publint',
       family: 'architecture',
       packageName: 'Distribución',
       icon: '📦',
@@ -96,7 +98,9 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
       coverage: {
         include: ['package.json', 'dist/**']
       },
-      projectRoot: effectiveRoot
+      projectRoot: effectiveRoot,
+      configKey: 'packageDistribution.enabled',
+      defaultConfig: { enabled: true },
     });
   }
 
@@ -105,9 +109,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
       return;
     }
 
-    for (const r of PACKAGE_DISTRIBUTION_RULES) {
-      this.markRuleEvaluated(r);
-    }
+    PACKAGE_DISTRIBUTION_RULES.forEach((r) => this.markRuleEvaluated(r));
     this.recordScanned('package.json');
 
     const config = getAuditConfig(this.projectRoot);
@@ -140,7 +142,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
     }
 
     try {
-      return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+      return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')) as Record<string, unknown>; // open-record: Generic key-value data dictionary container
     } catch (err: unknown) {
       this.addViolation({
         ruleId: 'pkg-distribution-invalid-exports',
@@ -148,7 +150,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         file: 'package.json',
         line: 1,
         context: 'package.json',
-        message: `package.json contiene JSON inválido: ${err instanceof Error ? err.message : String(err)}`
+        message: `package.json corrupto o inválido: ${err instanceof Error ? err.message : String(err)}`
       });
       return null;
     }

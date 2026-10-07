@@ -219,6 +219,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       description: 'Valida idioma de la documentación',
       family: 'documentation',
       packageName: 'DOCS',
+      configKey: 'documentation.language',
+      defaultConfig: { enabled: true, language: 'en' },
       icon: '🌐',
       ruleIds: DOCUMENTATION_LANGUAGE_RULES,
       ruleDescriptions: {
@@ -299,9 +301,15 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
 
     const canonicalSnippet = getCanonicalLanguageMandateSnippet(targetLanguage);
     const sections = extractContractSections(content);
-    const hasMandate = sections.some(section => containsLanguageMandate(section, targetLanguage));
+    const matchingSections = sections.filter(section => containsLanguageMandate(section, targetLanguage));
+    const lines = content.split('\n');
+    const isExistingLine = (l: string) =>
+      l.includes('validate_documentation_language') ||
+      (l.includes('Documentation Default Mandate') && l.includes('Language Governance')) ||
+      (l.includes('Mandato de Idioma de Documentación') && l.includes('Gobernanza de Lenguaje'));
+    const existingMatches = lines.filter(isExistingLine);
 
-    if (hasMandate) {
+    if (matchingSections.length === 1 && existingMatches.length <= 1) {
       return;
     }
 
@@ -310,24 +318,23 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         agentsMdPath,
         content,
         canonicalSnippet,
-        isExistingLine: l =>
-          l.includes('validate_documentation_language') ||
-          (l.includes('Documentation Default Mandate') && l.includes('Language Governance')) ||
-          (l.includes('Mandato de Idioma de Documentación') && l.includes('Gobernanza de Lenguaje'))
+        isExistingLine
       });
       return;
     }
 
-    this.addViolation({
-      ruleId: 'docs-missing-language-mandate',
-      severity: 'error',
-      file: 'AGENTS.md',
-      line: findLocalContractsHeaderLine(content),
-      message:
-        targetLanguage === 'es'
-          ? 'AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma y gobernanza de documentación en español (validate_documentation_language).'
-          : 'AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma y gobernanza de documentación en inglés (validate_documentation_language).'
-    });
+    if (matchingSections.length === 0) {
+      this.addViolation({
+        ruleId: 'docs-missing-language-mandate',
+        severity: 'error',
+        file: 'AGENTS.md',
+        line: findLocalContractsHeaderLine(content),
+        message:
+          targetLanguage === 'es'
+            ? 'AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma y gobernanza de documentación en español (validate_documentation_language).'
+            : 'AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma y gobernanza de documentación en inglés (validate_documentation_language).'
+      });
+    }
   }
 
   public override async runAudit(): Promise<void> {

@@ -134,6 +134,8 @@ id: 'validate_typography_line_height',
       family: 'architecture',
       ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
       packageName: 'Tipografía',
+      configKey: 'styles.enabled',
+      defaultConfig: { enabled: true },
       icon: '🔤',
       ruleDescriptions: {
         'line-height-overlap': 'Colisión de line-height'

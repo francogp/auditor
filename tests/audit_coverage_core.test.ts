@@ -31,7 +31,9 @@ const BASE_OPTIONS = {
   description: 'Sonda de cobertura',
   family: 'architecture',
   packageName: 'Sonda',
-  icon: '🧪'
+  icon: '🧪',
+  configKey: 'core',
+  defaultConfig: {}
 } as const;
 
 class ProbeAuditor extends BaseAuditor<'probe-rule'> {

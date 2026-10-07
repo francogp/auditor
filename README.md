@@ -228,7 +228,7 @@ npm run audit:build
 auditor preset=build
 ```
 
-Executes `validate_package_distribution` (Publint) and `validate_bundle_budget` post-compilation.
+Executes `validate_package_distribution` (Publint), `validate_package_types` (ATTW), and `validate_bundle_budget` post-compilation.
 
 ---
 
@@ -260,6 +260,9 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |
 | **`publint`** | `validate_package_distribution` | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation. |
+| **`@arethetypeswrong/core`** | `validate_package_types` | Multi-resolution `.d.ts` typing validation and dual-package hazard checks. |
+| **`@secretlint/core`** | `validate_secret_leaks` | High-entropy secret, API key, and cryptographic token leak detection. |
+| **`npm audit`** | `validate_dependency_vulnerabilities` | Vulnerability scanning and known CVEs across package dependencies. |
 | **`type-coverage`** | `validate_type_coverage` | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery. |
 | **`eslint-plugin-vuejs-accessibility`** | `validate_accessibility` | Static WCAG 2.2 accessibility rules for Vue SFC templates. |
 | **`markdownlint-cli`** | `validate_markdown_lint` | Markdown style, table formatting, and document hygiene with `--fix`. |
@@ -338,6 +341,8 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
       icon: '💾', // Mandatory thematic emoji
       family: 'architecture',
       packageName: 'Base de Datos',
+      configKey: 'persistence.enabled',
+      defaultConfig: { enabled: true },
       ruleIds: NO_INLINE_SQL_RULES,
       ruleDescriptions: {
         'inline-sql-detected': 'Consulta SQL en capa de presentación'
@@ -506,6 +511,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | Binary Command | Script | Description |
 | :--- | :--- | :--- |
 | `auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
+| `auditor-build` | `src/cli/audit_build.ts` | Runs post-build compiled artifact audit suites against `dist/` (`preset=build`). |
 | `auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
 | `auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
 | `auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |
@@ -555,6 +561,8 @@ See [`LICENSE`](LICENSE) for complete details.
 | **Fallow** | [`fallow-rs/fallow`](https://git.mitgai.net/fallow-rs/fallow) | [Apache-2.0 / MIT Dual License](https://git.mitgai.net/fallow-rs/fallow/blob/main/LICENSE) |
 | **Knip** | [`webpro-nl/knip`](https://github.com/webpro-nl/knip) | [ISC License](https://github.com/webpro-nl/knip/blob/main/LICENSE) |
 | **Publint** | [`bluwy/publint`](https://github.com/bluwy/publint) | [MIT License](https://github.com/bluwy/publint/blob/master/LICENSE) |
+| **@arethetypeswrong/core** | [`arethetypeswrong/arethetypeswrong`](https://github.com/arethetypeswrong/arethetypeswrong) | [MIT License](https://github.com/arethetypeswrong/arethetypeswrong/blob/main/LICENSE) |
+| **@secretlint/core** | [`secretlint/secretlint`](https://github.com/secretlint/secretlint) | [MIT License](https://github.com/secretlint/secretlint/blob/master/LICENSE) |
 | **Type-Coverage** | [`plantain-00/type-coverage`](https://github.com/plantain-00/type-coverage) | [MIT License](https://github.com/plantain-00/type-coverage/blob/master/LICENSE) |
 | **TypeScript** | [`microsoft/TypeScript`](https://github.com/microsoft/TypeScript) | [Apache-2.0 License](https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt) |
 | **Vitest** | [`vitest-dev/vitest`](https://github.com/vitest-dev/vitest) | [MIT License](https://github.com/vitest-dev/vitest/blob/main/LICENSE) |

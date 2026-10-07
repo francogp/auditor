@@ -58,8 +58,12 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       family: 'domain_data', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_COMPOSITE_RULES,
       packageName: 'Datos',
-      // Optional: declare configKey ONLY if your suite uses a dedicated section in audit.config.ts
-      // configKey: 'mySection',
+      // Mandatory: SSoT configuration key inspected by the dynamic suite gating engine:
+      configKey: 'paths.dataRoots',
+      // Mandatory: Default configuration object dynamically collected for .auditor/audit.config.ts:
+      defaultConfig: {
+        dataRoots: ['src/data']
+      },
       ruleDescriptions: {
         'composite-missing-entry': 'Entrada faltante en registro canónico',
         'composite-parity-mismatch': 'Desincronización entre datasets',

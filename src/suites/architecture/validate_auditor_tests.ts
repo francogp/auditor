@@ -96,7 +96,9 @@ function registerExtensionAuditorFile(
     fast: true,
     timeoutMs: DEFAULT_EXTENSION_TASK_TIMEOUT_MS,
     order: DEFAULT_EXTENSION_TASK_ORDER,
-    isBuiltin: false
+    isBuiltin: false,
+    configKey: 'paths',
+    defaultConfig: {}
   });
 }
 
@@ -283,6 +285,8 @@ id: 'validate_auditor_tests',
       family: 'architecture',
       ruleIds: AUDITOR_TEST_RULES,
       packageName: 'Auditor',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '🧪',
       ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
       coverage: {

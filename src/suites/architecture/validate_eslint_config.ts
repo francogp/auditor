@@ -242,6 +242,8 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       description: 'Valida reglas estrictas de ESLint y /domain-type-first',
       family: 'architecture',
       packageName: 'ESLint',
+      configKey: 'eslint.enabled',
+      defaultConfig: { enabled: true },
       icon: '📜',
       ruleIds: ESLINT_CONFIG_RULES,
       ruleDescriptions: {

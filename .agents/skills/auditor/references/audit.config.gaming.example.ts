@@ -218,6 +218,35 @@ export default defineAuditConfig({
     }
   },
 
+  packageDistribution: {
+    enabled: true, // Post-build distribution package verification via Publint & ATTW
+    level: 'warning' // Problem report threshold ('error' | 'warning' | 'suggestion')
+  },
+
+  packageTypes: {
+    enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires audit:build)
+  },
+
+  packageHygiene: {
+    enabled: true, // Orphan and ghost dependency detection via Knip and lockfile audit
+    allowedLicenses: ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'ISC', 'CC0-1.0'], // Whitelist of legally compliant software licenses
+    allowedHosts: ['registry.npmjs.org'], // Authorized package manager host registries
+    requireLockfile: true // Requires lockfile presence and strict integrity validation
+  },
+
+  secretLeaks: {
+    enabled: true, // Secret, credential, and API token detection via @secretlint/core
+    maskSecrets: true, // Automatically masks exposed token values in logs and reports
+    allowedPatterns: [] // Whitelisted patterns or test strings exempt from secret detection
+  },
+
+  dependencyVulnerabilities: {
+    enabled: true, // Known dependency vulnerability auditing via npm audit
+    failOn: 'critical', // Minimum CVE severity level blocking audit ('critical' | 'high' | 'moderate')
+    allowList: [], // Advisory CVE IDs or package names explicitly permitted
+    includeDev: false // Exclude development tooling dependencies from CVE blocking
+  },
+
   domain: {
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions

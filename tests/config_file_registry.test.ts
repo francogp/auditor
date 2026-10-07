@@ -87,6 +87,8 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         family: 'architecture',
         packageName: 'CustomTool',
         icon: '🔧',
+        configKey: 'paths',
+        defaultConfig: {},
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
         ruleDescriptions: {
           'custom-config-missing': 'Configuración ausente',
@@ -177,6 +179,8 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           family: 'architecture',
           packageName: 'OptConfig',
           icon: '⚙️',
+          configKey: 'paths',
+          defaultConfig: {},
           ruleDescriptions: {
             'optional-config-missing': 'Configuración condicional ausente'
           },

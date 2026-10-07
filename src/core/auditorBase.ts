@@ -708,8 +708,10 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly requiredFiles?: readonly string[];
   readonly requiresAst?: boolean;
   readonly projectRoot?: string;
-  /** Section in .auditor/audit.config.ts utilized specifically by this suite (concise key, e.g. 'styles.baseScssFile', 'fallow.security') */
-  readonly configKey?: string;
+  /** Section in .auditor/audit.config.ts utilized specifically by this suite (concise key, e.g. 'styles.baseScssFile', 'fallow.security', 'paths', 'core') */
+  readonly configKey: string;
+  /** Mandatory default configuration object for this suite to be injected into .auditor/audit.config.ts by auditor fix */
+  readonly defaultConfig: Readonly<Record<string, unknown>>;
   /**
    * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
    * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
@@ -754,6 +756,30 @@ function validateAuditorIdentity<TRuleId extends string>(options: AuditorOptions
   }
 }
 
+function validateAuditorConfigKey<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (typeof options.configKey !== 'string' || options.configKey.trim() === '') {
+    throw new Error(
+      `Auditor [${options.id}] must define a mandatory 'configKey' (e.g. 'secretLeaks.enabled', 'packageDistribution.enabled', 'paths', 'core') to ensure zero hardcoded gating in the orchestrator.`
+    );
+  }
+}
+
+function validateAuditorDefaultConfig<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (!options.defaultConfig || typeof options.defaultConfig !== 'object') {
+    throw new Error(
+      `Auditor [${options.id}] must define a mandatory 'defaultConfig' (object). Zero-configuration or optional configurations are prohibited; every suite must self-declare its defaults.`
+    );
+  }
+  if (options.configKey !== 'paths' && options.configKey !== 'core') {
+    const defaultCfg = options.defaultConfig as Record<string, unknown>; // open-record: Generic key-value data dictionary container
+    if (typeof defaultCfg.enabled !== 'boolean') {
+      throw new Error(
+        `Auditor [${options.id}] must explicitly define 'defaultConfig.enabled' as a boolean (true or false). Ambiguous or optional activation states are strictly prohibited.`
+      );
+    }
+  }
+}
+
 function validateAuditorCapabilities<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
   if (options.capabilities === undefined) return;
   if (typeof options.capabilities !== 'object' || options.capabilities === null) {
@@ -778,6 +804,8 @@ function validateAuditorRules<TRuleId extends string>(options: AuditorOptions<TR
 
 function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
   validateAuditorIdentity(options);
+  validateAuditorConfigKey(options);
+  validateAuditorDefaultConfig(options);
   validateAuditorCapabilities(options);
   validateAuditorRules(options);
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
@@ -828,7 +856,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly requiredFiles: readonly string[];
   public readonly requiresAst: boolean;
   public readonly projectRoot: string;
-  public readonly configKey?: string;
+  public readonly configKey: string;
+  public readonly defaultConfig: Readonly<Record<string, unknown>>;
 
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
@@ -912,6 +941,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.description = options.description;
     this.family = options.family;
     this.configKey = options.configKey;
+    this.defaultConfig = options.defaultConfig;
     this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
     this.configFiles = options.configFiles ?? [];
     this.fixMode = Boolean(options.fix);
@@ -1030,7 +1060,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
    */
   protected isSuiteGatingDisabled(defaultReason = 'Suite desactivada en config'): boolean {
     const config = getAuditConfig(this.projectRoot);
-    const gating = evaluateSuiteStatus(this.id, config);
+    const gating = evaluateSuiteStatus(this.id, config, this.configKey);
     if (!gating.enabled) {
       const reason = gating.reason ?? defaultReason;
       for (const ruleId of this.ruleIds) {
@@ -1488,7 +1518,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         postRun: this.capabilities.postRun
       },
       rules: rulesRecord,
-      configKey: this.configKey
+      configKey: this.configKey,
+      defaultConfig: { ...this.defaultConfig }
     };
   }
 

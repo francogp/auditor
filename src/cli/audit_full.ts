@@ -802,7 +802,7 @@ function handleListCommand(
   config: AuditEngineConfig
 ): void {
   const evaluated = allAvailableTasks.map(t => {
-    const status = evaluateSuiteStatus(t.id, config);
+    const status = evaluateSuiteStatus(t.id, config, t.configKey);
     return { task: t, enabled: status.enabled, disabledReason: status.reason };
   });
 

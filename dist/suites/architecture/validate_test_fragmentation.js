@@ -64,6 +64,8 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             family: 'architecture',
             ruleIds: TEST_FRAGMENTATION_RULES,
             packageName: 'Tests',
+            configKey: 'paths',
+            defaultConfig: {},
             icon: '🧪',
             ruleDescriptions: {
                 'no-fragmented-tests': 'Archivo fragmentado (<60 líneas)',
@@ -141,8 +143,8 @@ export class TestFragmentationAuditor extends FileScanAuditor {
         }
         // Legitimate browser/DOM indicators:
         const hasVueMount = /@vue\/test-utils|mount\(|shallowMount\(/.test(content);
-        const hasDomGlobals = /\b(document\.|window\.|localStorage|sessionStorage|navigator\.|HTMLElement|customElements|MutationObserver|ResizeObserver|IntersectionObserver)\b/.test(content);
-        const hasWorkerGlobals = /\bself\.(onmessage|postMessage|importScripts)\b/.test(content);
+        const hasDomGlobals = /\b(?:document\.|window\.|localStorage|sessionStorage|navigator\.|HTMLElement|customElements|MutationObserver|ResizeObserver|IntersectionObserver)\b/.test(content);
+        const hasWorkerGlobals = /\bself\.(?:onmessage|postMessage|importScripts)\b/.test(content);
         if (!hasVueMount && !hasDomGlobals && !hasWorkerGlobals) {
             const line = this.getLineNumber(content, jsdomMatch.index);
             this.addViolation({

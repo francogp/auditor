@@ -298,6 +298,8 @@ export class ComponentStylesAuditor extends BaseAuditor {
             description: 'Valida enlaces de estilos de componentes y huérfanos SCSS',
             family: 'architecture',
             packageName: 'Estilos',
+            configKey: 'styles.enabled',
+            defaultConfig: { enabled: true },
             icon: '🎨',
             ruleIds: COMPONENT_STYLE_RULES,
             ruleDescriptions: {

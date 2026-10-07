@@ -5,6 +5,7 @@ import os from 'node:os';
 import {
   ValidatePackageHygieneAuditor,
   parseKnipIssues,
+  verifyLockfileIntegrity,
   type KnipReport
 } from '../src/suites/architecture/validate_package_hygiene.ts';
 import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
@@ -118,6 +119,66 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       expect(f.ruleId).toBe('package-unused-binary');
       expect(f.context).toBe('orphan-bin');
       expect(f.message).toContain('orphan-bin');
+    });
+  });
+
+  describe('verifyLockfileIntegrity', () => {
+    it('reports error when package.json exists but package-lock.json is missing', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.ruleId).toBe('package-lockfile-integrity');
+      expect(findings[0]!.message).toContain('No se encontró package-lock.json');
+    });
+
+    it('detects unresolved merge conflict markers in package-lock.json', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+      fs.writeFileSync(path.join(tempDir, 'package-lock.json'), '{\n<<<<<<< HEAD\n  "name": "foo"\n=======\n  "name": "bar"\n>>>>>>> main\n}\n');
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings.some(f => f.context === 'merge-conflict')).toBe(true);
+    });
+
+    it('detects obsolete lockfileVersion < 3', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+      fs.writeFileSync(path.join(tempDir, 'package-lock.json'), JSON.stringify({ name: 'pkg', lockfileVersion: 2 }));
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings.some(f => f.message.includes('lockfileVersion obsoleto'))).toBe(true);
+    });
+
+    it('detects insecure http:// registry resolutions', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({
+          name: 'pkg',
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/bad': {
+              resolved: 'http://insecure-registry.internal/bad.tgz'
+            }
+          }
+        })
+      );
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings.some(f => f.context === 'insecure-http-resolved')).toBe(true);
+    });
+
+    it('passes cleanly on valid modern lockfileVersion 3 with https', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({
+          name: 'pkg',
+          lockfileVersion: 3,
+          packages: {
+            'node_modules/good': {
+              resolved: 'https://registry.npmjs.org/good.tgz'
+            }
+          }
+        })
+      );
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings).toHaveLength(0);
     });
   });
 

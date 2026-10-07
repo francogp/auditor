@@ -4,7 +4,7 @@
  * AGENT PLUGIN & SKILL INTEGRATION AUDITOR (Node.js 26+ Native)
  *
  * Verifies that the host project has properly integrated the official @francogp/auditor
- * AI agent plugin in `.agents/plugins.json` (via `npx auditor-init-agent`).
+ * AI agent plugin in `.agents/plugins.json` (via `auditor-init-agent` / `npm run init-agent`).
  * In --fix mode, automatically registers the plugin into `.agents/plugins.json`.
  */
 
@@ -63,6 +63,8 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
       family: 'architecture',
       ruleIds: AGENT_PLUGIN_RULES,
       packageName: 'Agente',
+      configKey: 'agentPlugin.enabled',
+      defaultConfig: { enabled: true },
       icon: '🤖',
       ruleDescriptions: {
         'missing-agent-plugin-registration': 'Plugin/skills no registrados en .agents'

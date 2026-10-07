@@ -17,7 +17,40 @@ import { collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
 import { resolveGitCommit, describeBaselineDefect } from "../../cli/auditRatchet.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 enableCompileCache();
-export function createDefaultAuditConfigContent(packageName = 'Project') {
+function appendTaskDefaultConfig(sections, task) {
+    if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core')
+        return;
+    const rootKey = task.configKey.split('.')[0];
+    if (!rootKey)
+        return;
+    if (!task.defaultConfig || typeof task.defaultConfig !== 'object' || Object.keys(task.defaultConfig).length === 0)
+        return;
+    sections[rootKey] = {
+        ...sections[rootKey],
+        ...task.defaultConfig
+    };
+}
+function collectConfigSectionsFromTasks(tasks) {
+    const sections = {};
+    for (const task of tasks) {
+        appendTaskDefaultConfig(sections, task);
+    }
+    return sections;
+}
+function renderConfigSectionsCode(sections) {
+    let customSectionsCode = '';
+    for (const [key, value] of Object.entries(sections)) {
+        const lines = JSON.stringify(value, null, 2)
+            .split('\n')
+            .map((line, idx) => (idx === 0 ? line : `  ${line}`))
+            .join('\n');
+        customSectionsCode += `,\n  ${key}: ${lines}`;
+    }
+    return customSectionsCode;
+}
+export function createDefaultAuditConfigContent(packageName = 'Project', tasks = []) {
+    const sections = collectConfigSectionsFromTasks(tasks);
+    const customSectionsCode = renderConfigSectionsCode(sections);
     return `import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
@@ -29,7 +62,7 @@ export default defineAuditConfig({
   },
   documentation: {
     language: 'en'
-  }
+  }${customSectionsCode}
 });
 `;
 }
@@ -82,7 +115,7 @@ export const AUDIT_CONFIG_REQUIREMENT = {
     candidateFiles: [AUDIT_CONFIG_FILE, '.auditor/audit.config.json'],
     description: 'Configuración del auditor en .auditor/',
     ruleId: 'audit-config-missing-file',
-    generateDefaultContent: (ctx) => {
+    generateDefaultContent: async (ctx) => {
         const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
         if (legacy) {
             migrateLegacyAuditConfig(ctx.projectRoot);
@@ -101,7 +134,15 @@ export const AUDIT_CONFIG_REQUIREMENT = {
         catch {
             // catch-ok: fallback to 'Project'
         }
-        return createDefaultAuditConfigContent(pkgName);
+        let tasks = [];
+        try {
+            const { discoverAuditors } = await import("../../cli/auditScanner.js");
+            tasks = await discoverAuditors({ projectRoot: ctx.projectRoot });
+        }
+        catch {
+            // catch-ok: fallback when running isolated
+        }
+        return createDefaultAuditConfigContent(pkgName, tasks);
     },
     customMissingMessage: (ctx, file) => {
         const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
@@ -133,6 +174,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             packageName: 'Config',
             icon: '⚙️',
             configKey: 'paths',
+            defaultConfig: {},
             ruleDescriptions: {
                 'audit-config-missing-path': 'Ruta configurada no existe',
                 'audit-config-missing-file': 'Archivo configurado no existe',
@@ -438,8 +480,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
     checkBuildScriptChainsAuditor(buildScript) {
         if (REMOVED_COMMIT_GATE_PATTERN.test(buildScript))
             return true;
-        return (/\bauditor(\.js|\.ts)?(\s|$|[&;])/.test(buildScript) ||
-            /\b(npm|pnpm|bun)\s+run\s+audit(\s|$|[&;])/.test(buildScript));
+        return (/\bauditor(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
+            /\b(?:npm|pnpm|bun)\s+run\s+audit(?:\s|$|[&;])/.test(buildScript));
     }
     verifyBuildScript(pkg, config) {
         if (config.packageScripts?.enforceBuildAudit === false)

@@ -28,8 +28,12 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 18. `typeCoverage`: Strict TypeScript type coverage (defaults to `enabled: true`, `atLeast: 95`).
 19. `coverage`: Full file audit coverage ledger, blind-spot detection, and acknowledged degradation policies (defaults to `enabled: true`).
 20. `version`: Semantic version synchronization across files and build metadata (defaults to `enabled: true`).
+21. `secretLeaks`: Static secret token and private credential leak detection via `@secretlint/core` (defaults to `enabled: true`).
+22. `dependencyVulnerabilities`: External dependency CVE vulnerability scanner via `npm audit --json` (defaults to `enabled: true`).
+23. `packageDistribution`: Package distribution hygiene, export map resolution, and dual ESM/CJS compatibility (defaults to `enabled: true`, requires post-build `npm run audit:build`).
+24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run audit:build`).
 
-When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics.
+When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.requiresBuild: true`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run audit:build` / `preset=build`).
 
 ---
 

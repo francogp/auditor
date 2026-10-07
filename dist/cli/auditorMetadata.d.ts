@@ -12,6 +12,7 @@ export interface ExtractedAuditorMetadata {
     readonly description?: string;
     readonly ruleDescriptions?: Readonly<Record<string, string>>;
     readonly configKey?: string;
+    readonly defaultConfig?: Readonly<Record<string, unknown>>;
 }
 export declare function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata;
 export declare function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata>;

@@ -81,11 +81,13 @@ function extractMetadataFromAuditorInstance(val, result) {
             result.description = manifest.description;
             result.ruleDescriptions = manifest.rules;
             result.configKey = manifest.configKey;
+            result.defaultConfig = manifest.defaultConfig;
         }
         else if (instance?.description) {
             result.description = instance.description;
             result.ruleDescriptions = instance.ruleDescriptions;
             result.configKey = instance.configKey;
+            result.defaultConfig = instance.defaultConfig;
         }
     }
     catch {

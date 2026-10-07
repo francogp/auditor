@@ -69,6 +69,8 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       family: 'architecture',
       ruleIds: REACTIVE_LEAK_RULES,
       packageName: 'Fuga',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '💧',
       ruleDescriptions: {
         'dom-event-leak': 'addEventListener sin limpiar',

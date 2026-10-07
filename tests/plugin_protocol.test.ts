@@ -41,6 +41,8 @@ describe('Auditor Plugin Protocol', () => {
           family: 'domain_data',
           packageName: 'Dummy',
           icon: '🧩',
+          configKey: 'domain.enabled',
+          defaultConfig: { enabled: true },
           capabilities: {
             fix: false,
             ast: false,
@@ -84,6 +86,8 @@ describe('Auditor Plugin Protocol', () => {
           family: 'domain_data',
           packageName: 'Dummy',
           icon: '🛡️',
+          configKey: 'domain.enabled',
+          defaultConfig: { enabled: true },
           coverage: {
             include: ['src/**/*.ts']
           },
@@ -116,6 +120,8 @@ describe('Auditor Plugin Protocol', () => {
           family: 'domain_data',
           packageName: 'ExtComp',
           icon: '📦',
+          configKey: 'domain.enabled',
+          defaultConfig: { enabled: true },
           coverage: {
             include: ['src/**/*.ts']
           },

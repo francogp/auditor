@@ -121,6 +121,8 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       description: 'Estilo, espaciado y formato en documentación markdown',
       family: 'documentation',
       packageName: 'Markdownlint',
+      configKey: 'documentation.enabled',
+      defaultConfig: { enabled: true },
       icon: '📘',
       ruleIds: MARKDOWN_LINT_RULES,
       ruleDescriptions: {

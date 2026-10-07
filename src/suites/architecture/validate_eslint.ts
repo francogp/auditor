@@ -74,6 +74,8 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       description: 'Reglas de estilo, buenas prácticas y sintaxis con ESLint',
       family: 'architecture',
       packageName: 'ESLint',
+      configKey: 'eslint.enabled',
+      defaultConfig: { enabled: true },
       icon: '📜',
       ruleIds: ESLINT_RULES,
       ruleDescriptions: {

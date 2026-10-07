@@ -433,7 +433,7 @@ function isGarbageOrEmptyContent(rawContent) {
             .replace(/^[-*_\s]+/, '')
             .replace(/[:.?!]+$/, '')
             .trim();
-        return PLACEHOLDER_KEYWORDS.has(cleaned) || /^(\.{3,}|\?+|-+|_+)$/.test(cleaned);
+        return PLACEHOLDER_KEYWORDS.has(cleaned) || /^(?:\.{3,}|\?+|-+|_+)$/.test(cleaned);
     });
     if (allLinesPlaceholder)
         return true;
@@ -473,7 +473,7 @@ function parseDoxHeaders(maskedLines) {
         const lineText = maskedLines[i];
         if (lineText === undefined)
             continue;
-        const match = /^(#{1,2})\s+(.+)$/.exec(lineText);
+        const match = /^(#{1,2})\s+(\S.*)$/.exec(lineText);
         if (match) {
             const level = match[1]?.length ?? 1;
             const rawTitle = (match[2] ?? '').trim();

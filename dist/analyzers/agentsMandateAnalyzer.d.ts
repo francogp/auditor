@@ -22,7 +22,8 @@ export interface InjectMandateOptions {
     isExistingLine: (line: string) => boolean;
 }
 /**
- * Injects or updates a canonical mandate under `## Local Contracts` in AGENTS.md in-place.
+ * Injects or updates a canonical mandate under `## Local Contracts` in AGENTS.md in-place,
+ * guaranteeing zero duplicate lines on repeated executions.
  */
 export declare function injectOrUpdateMandateInAgentsMd(options: InjectMandateOptions): void;
 /**

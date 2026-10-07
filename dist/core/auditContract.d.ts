@@ -200,9 +200,13 @@ export interface AuditorManifestDTO {
     readonly rules: Readonly<Record<string, string>>;
     /**
      * Clave o sección de configuración en .auditor/audit.config.ts si la utiliza de forma específica.
-     * Conciso (ej: 'styles.baseScssFile', 'fallow.security', 'testCoverage.thresholds').
+     * Conciso (ej: 'styles.baseScssFile', 'fallow.security', 'testCoverage.thresholds', 'paths', 'core').
      */
-    readonly configKey?: string;
+    readonly configKey: string;
+    /**
+     * Configuración por defecto obligatoria declarada por el auditor para su inyección dinámica en audit.config.ts.
+     */
+    readonly defaultConfig: Readonly<Record<string, unknown>>;
 }
 export interface AuditTaskDefinition {
     id: string;
@@ -223,7 +227,8 @@ export interface AuditTaskDefinition {
     gitIgnoreEntries?: readonly GitIgnoreRequirement[];
     configFiles?: readonly AuditorConfigFileRequirement<string>[];
     manifest?: AuditorManifestDTO;
-    configKey?: string;
+    configKey: string;
+    defaultConfig: Readonly<Record<string, unknown>>;
     ruleDescriptions?: Readonly<Record<string, string>>;
 }
 export interface AuditTaskDescriptor {

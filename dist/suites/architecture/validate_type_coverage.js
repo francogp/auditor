@@ -53,6 +53,7 @@ export function parseTypeCoverageReport(report, threshold, projectRoot = process
     }
     return findings;
 }
+export const DEFAULT_TYPE_COVERAGE_THRESHOLD = 95;
 export class ValidateTypeCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
@@ -63,6 +64,8 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
             description: 'Gobernanza cuantitativa de cobertura de tipos estricta',
             family: 'architecture',
             packageName: 'Tipos',
+            configKey: 'typeCoverage.enabled',
+            defaultConfig: { enabled: true, atLeast: DEFAULT_TYPE_COVERAGE_THRESHOLD },
             icon: '📊',
             ruleIds: TYPE_COVERAGE_RULES,
             ruleDescriptions: {

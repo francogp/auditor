@@ -35,7 +35,7 @@ npm install github:francogp/auditor
     ]
   }
   ```
-  This is committed once in the host repository (or generated automatically via `npx auditor-init-agent`). It allows Antigravity to dynamically discover all official skills (`.agents/skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree or using fragile symlinks.
+  This is committed once in the host repository (or generated automatically via `auditor-init-agent` / `npm run init-agent`). It allows Antigravity to dynamically discover all official skills (`.agents/skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree or using fragile symlinks.
 
 ---
 
@@ -79,6 +79,7 @@ npm ci
 Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in their `package.json`.
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
 - `auditor` (master orchestrator `audit_full.ts`)
+- `auditor-build` (post-build compiled artifact runner `audit_build.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
 - `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
 - `auditor-by-file` (hierarchical tree findings reporter grouped by file and line `report_findings.ts`)
@@ -116,6 +117,7 @@ For a drop-in ready JSON template, see [`recommended_package_scripts_template.js
     "// --- PRESETS & LINT ---": "",
     "audit:lint": "auditor preset=lint",
     "audit:md": "auditor preset=md",
+    "audit:build": "auditor preset=build",
     "lint": "npm run audit:lint",
     "lint:fix": "auditor preset=lint fix",
     "lint:md": "auditor preset=md",

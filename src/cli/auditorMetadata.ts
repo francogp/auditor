@@ -24,6 +24,7 @@ export interface ExtractedAuditorMetadata {
   readonly description?: string;
   readonly ruleDescriptions?: Readonly<Record<string, string>>;
   readonly configKey?: string;
+  readonly defaultConfig?: Readonly<Record<string, unknown>>;
 }
 
 export function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
@@ -92,10 +93,12 @@ function extractMetadataFromAuditorInstance(
       (result as { description?: string }).description = manifest.description;
       (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = manifest.rules;
       (result as { configKey?: string }).configKey = manifest.configKey;
+      (result as { defaultConfig?: Readonly<Record<string, unknown>> }).defaultConfig = manifest.defaultConfig;
     } else if (instance?.description) {
       (result as { description?: string }).description = instance.description;
       (result as { ruleDescriptions?: Readonly<Record<string, string>> }).ruleDescriptions = instance.ruleDescriptions;
       (result as { configKey?: string }).configKey = instance.configKey;
+      (result as { defaultConfig?: Readonly<Record<string, unknown>> }).defaultConfig = instance.defaultConfig;
     }
   } catch {
     // catch-ok: Sub-auditor constructor may require specific options

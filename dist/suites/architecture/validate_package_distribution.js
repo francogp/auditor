@@ -40,19 +40,20 @@ export function parsePublintMessages(messages, pkg, _projectRoot = process.cwd()
             formatted = formatMessage(msg, pkg) ?? '';
         }
         catch {
-            formatted = `${msg.code}: ${JSON.stringify(msg.args ?? {})}`;
+            formatted = `${msg.code}: ${msg.type}`;
         }
         const cleanMessage = stripVTControlCharacters(formatted).trim();
+        const severity = msg.type === 'error' ? 'error' : 'warning';
         findings.push({
             suiteId: 'validate_package_distribution',
             suiteName: 'Package Distribution & Exports Hygiene Auditor',
             ruleId,
             ruleDescription: 'Distribución: Export map o tipos inválidos',
-            severity: msg.type === 'error' ? 'error' : 'warning',
+            severity,
             file: 'package.json',
             line: 1,
             context: msg.code,
-            message: cleanMessage || `Error de empaquetado en exports: ${msg.code}`
+            message: cleanMessage || `Incidencia de distribución: ${msg.code}`
         });
     }
     return findings;
@@ -64,7 +65,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
             capabilities: { requiresBuild: true },
             id: 'validate_package_distribution',
             name: 'Package Distribution & Exports Hygiene Auditor',
-            description: 'Valida export maps y tipos .d.ts de distribución',
+            description: 'Valida export maps y packaging con Publint',
             family: 'architecture',
             packageName: 'Distribución',
             icon: '📦',
@@ -77,16 +78,16 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
             coverage: {
                 include: ['package.json', 'dist/**']
             },
-            projectRoot: effectiveRoot
+            projectRoot: effectiveRoot,
+            configKey: 'packageDistribution.enabled',
+            defaultConfig: { enabled: true },
         });
     }
     async runAudit() {
         if (this.isSuiteGatingDisabled('Distribución de paquete desactivada en config')) {
             return;
         }
-        for (const r of PACKAGE_DISTRIBUTION_RULES) {
-            this.markRuleEvaluated(r);
-        }
+        PACKAGE_DISTRIBUTION_RULES.forEach((r) => this.markRuleEvaluated(r));
         this.recordScanned('package.json');
         const config = getAuditConfig(this.projectRoot);
         const targetPkgDir = config.packageDistribution?.pkgDir
@@ -111,7 +112,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
             return null;
         }
         try {
-            return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+            return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')); // open-record: Generic key-value data dictionary container
         }
         catch (err) {
             this.addViolation({
@@ -120,7 +121,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
                 file: 'package.json',
                 line: 1,
                 context: 'package.json',
-                message: `package.json contiene JSON inválido: ${err instanceof Error ? err.message : String(err)}`
+                message: `package.json corrupto o inválido: ${err instanceof Error ? err.message : String(err)}`
             });
             return null;
         }

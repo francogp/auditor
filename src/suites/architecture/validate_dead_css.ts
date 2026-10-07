@@ -229,6 +229,8 @@ id: 'validate_dead_css',
       family: 'architecture',
       ruleIds: DEAD_CSS_RULES,
       packageName: 'CSS',
+      configKey: 'styles.enabled',
+      defaultConfig: { enabled: true },
       icon: '💀',
       ruleDescriptions: {
         'dead-scoped-css': 'Clase scoped huérfana sin uso'

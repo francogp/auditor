@@ -280,6 +280,8 @@ export class FallowArchitectureAuditor extends BaseAuditor {
             description: 'Audita código muerto, complejidad y targets con Fallow',
             family: 'architecture',
             packageName: 'Fallow',
+            configKey: 'fallow.enabled',
+            defaultConfig: { enabled: true },
             icon: '🌾',
             ruleIds: FALLOW_RULES,
             ruleDescriptions: FALLOW_RULE_DESCRIPTIONS,

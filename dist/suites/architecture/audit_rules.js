@@ -95,13 +95,13 @@ function isStyleContext(content, matchIndex, filePath) {
     return true;
 }
 function isHighDensityOrSuppressed(content, start, matchIndex, context, filePath) {
-    if (/audit-disable\s+gpu-gaps|will-change:\s*(skip|ignore|false)/i.test(context)) {
+    if (/audit-disable\s+gpu-gaps|will-change:\s*(?:skip|ignore|false)/i.test(context)) {
         return true;
     }
     const beforeMatch = content.substring(start, matchIndex);
     const lastSemi = Math.max(beforeMatch.lastIndexOf(';'), beforeMatch.lastIndexOf('}'), beforeMatch.lastIndexOf('{'));
     const selectorText = beforeMatch.substring(lastSemi + 1).trim();
-    const highDensityKeywords = /(card|item|avatar|badge|icon|grid|list|row|cell|overlay|background)/i;
+    const highDensityKeywords = /card|item|avatar|badge|icon|grid|list|row|cell|overlay|background/i;
     return highDensityKeywords.test(selectorText) || (filePath ? highDensityKeywords.test(filePath) : false);
 }
 export const gpuGaps = {
@@ -121,10 +121,10 @@ export const gpuGaps = {
         if (isHighDensityOrSuppressed(content, start, match.index, context, filePath)) {
             return false;
         }
-        const isDynamic = /transition\s*:[^;]*(filter|backdrop-filter|all)|animation\s*:/i.test(context);
+        const isDynamic = /transition\s*:[^;]*(?:filter|backdrop-filter|all)|animation\s*:/i.test(context);
         if (!isDynamic)
             return false;
-        return !/(will-change|will-animate)/i.test(context);
+        return !/will-change|will-animate/i.test(context);
     },
     fixable: false
 };
@@ -259,7 +259,7 @@ export const esmExtensions = {
         if (!filePath || filePath.endsWith('.vue') || filePath.includes('audit_rules.ts'))
             return false;
         const importPath = match[1] || '';
-        if (/\.(ts|js|vue|json|scss|css|svg|png|jpg|jpeg|webp|ogg|mp3|wasm)$/i.test(importPath))
+        if (/\.(?:ts|js|vue|json|scss|css|svg|png|jpg|jpeg|webp|ogg|mp3|wasm)$/i.test(importPath))
             return false;
         return true;
     }
@@ -475,7 +475,7 @@ export const functionCallsInTemplates = {
     fixable: false
 };
 export const forbiddenFallbacks = {
-    regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|id|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b|\.catch\(\s*(?:(?:\([^)]*\)|[\w$]+)\s*)?=>\s*(?:true|false|null|undefined|\{\}|""|''|\[\])\s*\)/g,
+    regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b|\.catch\(\s*(?:(?:\([^)]*\)|[\w$]+)\s*)?=>\s*(?:true|false|null|undefined|\{\}|""|''|\[\])\s*\)/g,
     message: (match) => `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio, usar descripciones como fallback de ID, o silenciar promesas con .catch(() => false/null/{}/void). Se debe fallar ruidosamente con throw new Error().`,
     severity: 'error',
     check: (_content, _match, filePath) => {
@@ -523,11 +523,11 @@ export const doxIndexIntegrity = {
     fixable: false
 };
 function validateChildDoxIndexLinks(childSectionContent, dir) {
-    const linkRegex = /-\s*\[([^\]]+)\]\(([^)]+)\)/g;
+    const linkRegex = /-\s*\[[^\]]+\]\(([^)]+)\)/g;
     let linkMatch;
     const indexedSubdirs = new Set();
     while ((linkMatch = linkRegex.exec(childSectionContent)) !== null) {
-        const linkPath = linkMatch[2];
+        const linkPath = linkMatch[1];
         if (!linkPath || linkPath.startsWith('http') || linkPath.startsWith('#') || linkPath.includes('(gitignored')) {
             continue;
         }
@@ -637,7 +637,7 @@ export const noInlineAnonymousObjectType = createTypeScriptRule({
     bypassAnnotations: ['// type-ok: Type contract declaration', 'withDefaults']
 });
 export const noFloatingPromises = createTypeScriptRule({
-    regex: /^\s*(?!(?:await|void|return|const|let|var)\s+)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm,
+    regex: /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm,
     message: (match) => `Promesa flotante detectada: '${match.trim()}'. Toda llamada a función asíncrona debe ser manejada explícitamente con await, void o .catch().`,
     bypassAnnotations: ['// promise-ok: Background promise handler'],
     fixable: true,
@@ -712,7 +712,7 @@ function getEffectiveInfraIdentifiers() {
 export const strictDomainParamTypes = {
     id: 'strictDomainParamTypes',
     name: 'Strict Domain Param Types',
-    regex: /\b(\w{2,}[iI]d)\s*\??:\s*(?:string\b(?!\s*\[\])|(?:[A-Z]\w*Id|[A-Z]\w*)\s*\|\s*string\b)/g,
+    regex: /\b(\w{2,}[iI]d)\s*\??:\s*(?:string\b(?!\s*\[\])|[A-Z]\w*\s*\|\s*string\b)/g,
     message: (match) => match.includes('|')
         ? `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' combina un tipo de dominio con '| string'.
    📚 REGLA: (/domain-type-first) está ESTRICTAMENTE PROHIBIDO combinar uniones finitas con '| string'.
@@ -738,7 +738,7 @@ export const strictDomainParamTypes = {
         }
         // Check for genuine instance UIDs (e.g. invoiceUid, readingUid, calculationUid, targetUid, uid)
         // Distinguishes genuine UIDs from domain IDs ending in 'u' + 'Id' (like 'australopithecuId')
-        const GENUINE_UID_PATTERN = /^_{0,2}(?:uid|UID|\w+(?:Uid|UID|_uid|_UID)|\w+[uU]idOr\w+|\w+OrUid)$/;
+        const GENUINE_UID_PATTERN = /^_{0,2}(?:uid|UID|\w+(?:Uid|UID|_uid|_UID)|\w+[uU]idOr\w+)$/;
         if (GENUINE_UID_PATTERN.test(idParamName)) {
             return false;
         }
@@ -882,7 +882,7 @@ export const noLayoutAnimationInGsap = {
         // Look ahead within the GSAP call for tween config object
         const startIdx = match.index ?? 0;
         const chunk = content.slice(startIdx, startIdx + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
-        const layoutPropRegex = /\b(backgroundPosition|backgroundPositionX|backgroundPositionY)\s*:/;
+        const layoutPropRegex = /\b(?:backgroundPosition|backgroundPositionX|backgroundPositionY)\s*:/;
         const found = layoutPropRegex.exec(chunk);
         if (!found)
             return false;

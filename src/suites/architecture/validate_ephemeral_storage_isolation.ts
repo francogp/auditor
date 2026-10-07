@@ -67,7 +67,7 @@ const DEFAULT_ALLOWED_DATABASE_DIRS = new Set(['backups', 'migrations', 'schemas
 const DEFAULT_ALLOWED_DATABASE_FILES = new Set(['AGENTS.md', '.gitkeep']);
 
 const FORBIDDEN_CODE_REF_REGEX = /(?:['"`]|path\.(?:resolve|join)\([^)]*)\b(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|temp_\w+|tmp_\w+)\b/;
-const GITIGNORE_FORBIDDEN_REGEX = /(?:^|\/)(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|\.temp|\.tmp|temp_|tmp_)/;
+const GITIGNORE_FORBIDDEN_REGEX = /(?:^|\/)(?:src|scripts|tests|supabase|data|database)\/(?:\.?temp|\.?tmp)/;
 
 export interface EphemeralStorageIsolationAuditorOptions {
   projectRoot?: string;
@@ -124,6 +124,8 @@ id: 'validate_ephemeral_storage_isolation',
       family: 'architecture',
       ruleIds: EPHEMERAL_STORAGE_RULES,
       packageName: 'Aislamiento',
+      configKey: 'persistence.enabled',
+      defaultConfig: { enabled: true },
       icon: '📁',
       ruleDescriptions: {
         'ephemeral-no-source-temp-dirs': 'Carpeta temporal en código',

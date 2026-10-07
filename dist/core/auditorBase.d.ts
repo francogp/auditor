@@ -109,8 +109,10 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly requiredFiles?: readonly string[];
     readonly requiresAst?: boolean;
     readonly projectRoot?: string;
-    /** Section in .auditor/audit.config.ts utilized specifically by this suite (concise key, e.g. 'styles.baseScssFile', 'fallow.security') */
-    readonly configKey?: string;
+    /** Section in .auditor/audit.config.ts utilized specifically by this suite (concise key, e.g. 'styles.baseScssFile', 'fallow.security', 'paths', 'core') */
+    readonly configKey: string;
+    /** Mandatory default configuration object for this suite to be injected into .auditor/audit.config.ts by auditor fix */
+    readonly defaultConfig: Readonly<Record<string, unknown>>;
     /**
      * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
      * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
@@ -147,7 +149,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly requiredFiles: readonly string[];
     readonly requiresAst: boolean;
     readonly projectRoot: string;
-    readonly configKey?: string;
+    readonly configKey: string;
+    readonly defaultConfig: Readonly<Record<string, unknown>>;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];

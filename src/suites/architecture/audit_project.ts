@@ -920,6 +920,8 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       description: 'Audita reglas de arquitectura, TypeScript y estilo',
       family: 'architecture',
       packageName: 'Arquitectura',
+      configKey: 'paths',
+      defaultConfig: {},
       icon: '🏛️',
       coverage: {
         include: ['**/*.{vue,scss,css,ts,js,md}'],
