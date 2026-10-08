@@ -255,6 +255,12 @@ if (-not $activated -and (Get-Command nvm -ErrorAction SilentlyContinue)) {
     } catch {}
 }
 
+if (-not $activated -and (Get-Command fnm -ErrorAction SilentlyContinue)) {
+    try {
+        fnm use $targetNodeVer 2>$null
+    } catch {}
+}
+
 # 6. Limpieza de versiones obsoletas (ESTRICTAMENTE OPT-IN con -PruneOtherVersions)
 if ($PruneOtherVersions) {
     Write-Host ""
@@ -272,6 +278,15 @@ if ($PruneOtherVersions) {
 } else {
     Write-Host ""
     Write-Host "[INFO] Preservando todas las demás versiones de Node.js instaladas para convivencia multi-proyecto." -ForegroundColor Cyan
+}
+
+# Asegurar precedencia de la versión objetivo en el PATH del proceso actual (Aislamiento de Sesión)
+# Esto garantiza que el proceso actual siempre ejecute la versión exacta de .nvmrc incluso si otro
+# proceso en Windows modifica concurrentemente el Junction global ($nodeSymlinkPath).
+if ($targetNodeDir -and (Test-Path (Join-Path $targetNodeDir "node.exe"))) {
+    if ($env:Path -notlike "*$targetNodeDir*") {
+        $env:Path = "$targetNodeDir;" + $env:Path
+    }
 }
 
 # Asegurar que el symlink activo de Node y Roaming npm estén en el PATH de la sesión actual

@@ -197,12 +197,16 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 
 **Step 3.2** — Create Walkthrough
 - Document changes and verification evidence in `<appDataDir>/brain/<conversation-id>/walkthrough.md`.
+- Save `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: false`, and a detailed `Summary`). `walkthrough.md` is an informative verification record of past actions and MUST NOT request execution feedback.
 
 **Step 3.3** — Workspace Scratch Cleanup
 - Remove transient debug files, leaving only `scratch/backups/`.
 
 **Step 3.4** — Learning Proposal & Final Commit Approval Gate (Regular Text & Artifact Review)
-- **Artifact Creation with Feedback Request**: Save `learning_proposal.md` and `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), equipping them with native review controls in the Antigravity UI.
+- **Artifact Governance (`RequestFeedback`)**:
+  - `learning_proposal.md` is the actionable, executable artifact governing Phase 4 (applying lessons to DOX/docs and proceeding to commit). It MUST be saved via `learn-with-docs` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which attaches the native `[ Proceed ]` execution button directly to `Learning Proposal` in the Antigravity UI.
+  - `walkthrough.md` is an informative historical record and verification evidence. It MUST have `RequestFeedback: false` so it never displaces or usurps the Proceed action button of `learning_proposal.md`.
+  - *(Exception: If and only if a commit involves zero architectural lessons and `learning_proposal.md` is completely omitted, `walkthrough.md` may set `RequestFeedback: true` as the sole commit authorization artifact).*
 - **Mandatory Artifact Reference & Direct Linking in Regular Chat Text**:
   The agent MUST present direct clickable Markdown links to both artifacts (`[learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) accompanied by a concise executive summary of key changes and target DOX paths directly in regular chat text. Do NOT dump the full raw file contents into the chat; point the user clearly to the artifacts so they can open, inspect, and review them in the Antigravity UI.
 - **Absolute Prohibition on `ask_question` for Artifact Approval**:
