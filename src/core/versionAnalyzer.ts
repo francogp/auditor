@@ -13,7 +13,7 @@ export const MAJOR_DIFF_LINES_THRESHOLD = 1000 as const;
 export const MAJOR_CORE_LINES_THRESHOLD = 500 as const;
 export const MINOR_DIFF_LINES_THRESHOLD = 100 as const;
 
-export const VERSION_BUMP_TYPES = ['major', 'minor', 'patch'] as const;
+export const VERSION_BUMP_TYPES = ['major', 'minor', 'patch', 'build'] as const;
 export type VersionBumpType = (typeof VERSION_BUMP_TYPES)[number];
 
 export const GIT_STATUS_FLAGS = ['A', 'M', 'D', 'R', '?'] as const;
@@ -37,11 +37,19 @@ export interface DiffMetrics {
   changedFiles: ChangedFileDetail[];
 }
 
+export interface CandidateVersions {
+  readonly major: string;
+  readonly minor: string;
+  readonly patch: string;
+  readonly build: string;
+}
+
 export interface VersionAnalysisResult {
   currentVersion: string;
   baseVersion: string;
   recommendedBump: VersionBumpType;
   recommendedVersion: string;
+  candidates: CandidateVersions;
   buildId: string;
   buildDate: string;
   rationale: string;
@@ -78,6 +86,8 @@ export function calculateNextBaseVersion(currentBase: string, bump: VersionBumpT
       return `${major}.${minor + 1}.0`;
     case 'patch':
       return `${major}.${minor}.${patch + 1}`;
+    case 'build':
+      return `${major}.${minor}.${patch}`;
   }
 }
 
@@ -280,15 +290,23 @@ export function analyzeVersionBump(options: VersionAnalysisOptions = {}): Versio
 
   const { recommendedBump, rationale } = evaluateBumpRationale(metrics);
 
-  const nextBaseVersion = calculateNextBaseVersion(baseVersion, recommendedBump);
   const { buildId, buildDate } = generateBuildId(options.customNow);
+  const nextBaseVersion = calculateNextBaseVersion(baseVersion, recommendedBump);
   const recommendedVersion = `${nextBaseVersion}-build.${buildId}`;
+
+  const candidates: CandidateVersions = {
+    major: `${calculateNextBaseVersion(baseVersion, 'major')}-build.${buildId}`,
+    minor: `${calculateNextBaseVersion(baseVersion, 'minor')}-build.${buildId}`,
+    patch: `${calculateNextBaseVersion(baseVersion, 'patch')}-build.${buildId}`,
+    build: `${baseVersion}-build.${buildId}`
+  };
 
   return {
     currentVersion,
     baseVersion,
     recommendedBump,
     recommendedVersion,
+    candidates,
     buildId,
     buildDate,
     rationale,

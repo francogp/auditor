@@ -16,7 +16,7 @@ export interface MetricTableRow {
     readonly label: string;
     readonly value: string;
 }
-export declare const CLI_BUMP_TYPES: readonly ["major", "minor", "patch", "auto"];
+export declare const CLI_BUMP_TYPES: readonly ["major", "minor", "patch", "build", "auto"];
 export type CliBumpType = (typeof CLI_BUMP_TYPES)[number];
 export declare function isCliBumpType(val: string): val is CliBumpType;
 export interface ApplyBumpOptions {

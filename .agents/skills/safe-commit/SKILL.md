@@ -119,10 +119,19 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
   ```
 
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
-- Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, and commit intent.
+- Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, commit intent, and fresh candidate version stamps.
 - Solicit explicit user review via `ask_question` at this early stage:
-  - Ask whether to apply a version bump (recommended when preparing a release or pushing to `main`) or maintain the current version (for local/branch development commits to prevent merge conflicts).
-  - If bumping, present the recommended SemVer bump (`major`, `minor`, or `patch`) with its rationale and next version (`X.Y.Z-build.YYYYMMDD-HHmmss`), allowing the user to confirm or select a different bump type.
+  - **MANDATORY UPDATED BUILD & TIMESTAMP ACROSS ALL 3 SEMVER OPTIONS**:
+    The build identifier and timestamp (`-build.YYYYMMDD-HHmmss`) **MUST ALWAYS BE FRESHLY UPDATED AND EXPLICITLY INCLUDED IN ALL 3 VERSION OPTIONS (MAJOR, MINOR, BUGFIX/PATCH)** as well as in the build-only option.
+    - **Foundational Rationale**: The build and timestamp ALWAYS change on every build/commit (`generateBuildId()`), whereas the base SemVer version (major, minor, bugfix) may change or not depending on the commit scope.
+    - **Strict Prohibition on Naked Versions**: Presenting bare base versions without the updated build timestamp (e.g. `(1.0.0)`, `(0.7.0)`, `(0.6.3)`) or preserving stale build timestamps across options is STRICTLY AND CATEGORICALLY PROHIBITED.
+    - The agent MUST retrieve the freshly computed candidate strings from the `npm run version:analyze -- --json` output (`candidates.major`, `candidates.minor`, `candidates.patch`, `candidates.build`).
+  - **Canonical Options Structure for `ask_question`**:
+    1. `(Recommended) Aplicar salto SemVer: <RECOMENDADO> (<candidates.recommended>) - <justificación de analyze>`
+    2. `Aplicar salto SemVer: <OTRA_OPCIÓN_1> (<candidates.otra_1>) - <descripción de alcance>`
+    3. `Aplicar salto SemVer: <OTRA_OPCIÓN_2> (<candidates.otra_2>) - <descripción de alcance>`
+    4. `Solo actualizar build y timestamp: BUILD (<candidates.build>) - Mantener versión base <baseVersion> sin salto en mayor, menor ni bugfix, estampando nueva build y timestamp`
+    5. `Mantener versión actual intacta (<currentVersion>) sin actualizar build ni versión base (solo para ramas de trabajo intermedias)`
 - If the user approves a bump, execute immediately:
   ```bash
   npm run version:bump -- --type=<approved_type>

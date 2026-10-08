@@ -10,7 +10,7 @@ import path from 'node:path';
 export const MAJOR_DIFF_LINES_THRESHOLD = 1000;
 export const MAJOR_CORE_LINES_THRESHOLD = 500;
 export const MINOR_DIFF_LINES_THRESHOLD = 100;
-export const VERSION_BUMP_TYPES = ['major', 'minor', 'patch'];
+export const VERSION_BUMP_TYPES = ['major', 'minor', 'patch', 'build'];
 export const GIT_STATUS_FLAGS = ['A', 'M', 'D', 'R', '?'];
 /**
  * Extracts base SemVer major.minor.patch tuple from a version string.
@@ -34,6 +34,8 @@ export function calculateNextBaseVersion(currentBase, bump) {
             return `${major}.${minor + 1}.0`;
         case 'patch':
             return `${major}.${minor}.${patch + 1}`;
+        case 'build':
+            return `${major}.${minor}.${patch}`;
     }
 }
 /**
@@ -216,14 +218,21 @@ export function analyzeVersionBump(options = {}) {
     const metrics = collectGitDiffMetrics(cwd, options.baseRef ?? 'HEAD');
     applyCommitMessageIntent(metrics, options.commitMessage);
     const { recommendedBump, rationale } = evaluateBumpRationale(metrics);
-    const nextBaseVersion = calculateNextBaseVersion(baseVersion, recommendedBump);
     const { buildId, buildDate } = generateBuildId(options.customNow);
+    const nextBaseVersion = calculateNextBaseVersion(baseVersion, recommendedBump);
     const recommendedVersion = `${nextBaseVersion}-build.${buildId}`;
+    const candidates = {
+        major: `${calculateNextBaseVersion(baseVersion, 'major')}-build.${buildId}`,
+        minor: `${calculateNextBaseVersion(baseVersion, 'minor')}-build.${buildId}`,
+        patch: `${calculateNextBaseVersion(baseVersion, 'patch')}-build.${buildId}`,
+        build: `${baseVersion}-build.${buildId}`
+    };
     return {
         currentVersion,
         baseVersion,
         recommendedBump,
         recommendedVersion,
+        candidates,
         buildId,
         buildDate,
         rationale,

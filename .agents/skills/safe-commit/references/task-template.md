@@ -15,7 +15,7 @@
   - [ ] Test Gap Analysis (Audit non-trivial logic for unit tests in `tests/`)
   - [ ] `npm run audit:fallow` (Record BASELINE_HEALTH)
   - [ ] Code-Only Safety Backup (`mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch`)
-  - [ ] Version Bump Decision (`npm run version:analyze` & `ask_question`; run `version:bump` if approved)
+  - [ ] Version Bump Decision (`npm run version:analyze` & `ask_question` with updated build stamps across all 3 SemVer options + build-only; run `version:bump` if approved)
   - [ ] Pre-draft commit message (The Elegant Protocol synthesis in `task.md`)
 - [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 5 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:

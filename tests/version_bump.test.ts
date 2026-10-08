@@ -67,6 +67,11 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(calculateNextBaseVersion('1.4.3', 'patch')).toBe('1.4.4');
       expect(calculateNextBaseVersion('2.1.0', 'patch')).toBe('2.1.1');
     });
+
+    it('keeps base version when bump type is build', () => {
+      expect(calculateNextBaseVersion('1.4.3', 'build')).toBe('1.4.3');
+      expect(calculateNextBaseVersion('2.0.0', 'build')).toBe('2.0.0');
+    });
   });
 
   describe('generateBuildId', () => {
@@ -116,6 +121,22 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       expect(analysis.recommendedBump).toBe('patch');
       expect(analysis.recommendedVersion).toContain('1.2.1-build.');
+    });
+
+    it('calculates all candidates (major, minor, patch, build) stamped with the exact same buildId', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.2.0-build.20261001-000000' }), 'utf-8');
+      const fixedDate = Temporal.ZonedDateTime.from('2026-10-08T12:00:00-03:00[America/Buenos_Aires]');
+
+      const analysis = analyzeVersionBump({
+        cwd: tempDir,
+        customNow: fixedDate
+      });
+
+      expect(analysis.buildId).toBe('20261008-120000');
+      expect(analysis.candidates.major).toBe('2.0.0-build.20261008-120000');
+      expect(analysis.candidates.minor).toBe('1.3.0-build.20261008-120000');
+      expect(analysis.candidates.patch).toBe('1.2.1-build.20261008-120000');
+      expect(analysis.candidates.build).toBe('1.2.0-build.20261008-120000');
     });
   });
 
@@ -190,6 +211,25 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       expect(result.newVersion).toBe('2.0.1-build.20261002-180000');
       expect(result.bumpType).toBe('patch');
+    });
+
+    it('honors build bump override preserving base semver and updating build timestamp', () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'my-project', version: '2.5.3-build.20261001-080000' }, null, 2), 'utf-8');
+
+      const fixedDate = Temporal.ZonedDateTime.from('2026-10-08T15:45:00-03:00[America/Buenos_Aires]');
+      const result = applyVersionBump({
+        cwd: tempDir,
+        bumpType: 'build',
+        customNow: fixedDate
+      });
+
+      expect(result.newVersion).toBe('2.5.3-build.20261008-154500');
+      expect(result.bumpType).toBe('build');
+      expect(result.previousVersion).toBe('2.5.3-build.20261001-080000');
+
+      const updated = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      expect(updated.version).toBe('2.5.3-build.20261008-154500');
     });
 
     it('automatically synchronizes public/version.json preserving v prefix when it exists', () => {
@@ -402,6 +442,25 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(result.newVersion).toContain('5.0.0-build.');
       const updated = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
       expect(updated.version).toBe(result.newVersion);
+    });
+
+    it('accepts build as a valid CLI bump type in positional and --type flags', () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test-pkg', version: '3.1.4-build.20261001-000000' }), 'utf-8');
+
+      const origCwd = process.cwd();
+      try {
+        process.chdir(tempDir);
+
+        runBumpCli(['bump', 'build', '--json']);
+        const updated1 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+        expect(updated1.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
+
+        runBumpCli(['bump', '--type=build', '--json']);
+        const updated2 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+        expect(updated2.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
+      } finally {
+        process.chdir(origCwd);
+      }
     });
   });
 });

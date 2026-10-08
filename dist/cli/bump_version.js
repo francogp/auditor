@@ -18,7 +18,7 @@ import { AUDITOR_VERSION, AUDITOR_BUILD_ID, AUDITOR_BUILD_DATE } from "../core/v
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { getAuditConfig } from "../core/auditConfig.js";
 import { isMainModule } from "./cliUtils.js";
-export const CLI_BUMP_TYPES = ['major', 'minor', 'patch', 'auto'];
+export const CLI_BUMP_TYPES = ['major', 'minor', 'patch', 'build', 'auto'];
 const CLI_BUMP_TYPE_SET = new Set(CLI_BUMP_TYPES);
 export function isCliBumpType(val) {
     return CLI_BUMP_TYPE_SET.has(val);
@@ -196,6 +196,10 @@ function renderAnalysisTable(analysis) {
         { label: 'Base SemVer detectada', value: analysis.baseVersion },
         { label: 'Salto recomendado', value: styleText('bold', analysis.recommendedBump.toUpperCase()) },
         { label: 'Versión sugerida', value: styleText(['bold', 'green'], analysis.recommendedVersion) },
+        { label: 'Candidata MAJOR', value: analysis.candidates.major },
+        { label: 'Candidata MINOR', value: analysis.candidates.minor },
+        { label: 'Candidata PATCH (bugfix)', value: analysis.candidates.patch },
+        { label: 'Candidata BUILD (sin salto)', value: analysis.candidates.build },
         { label: 'Justificación', value: analysis.rationale },
         { label: 'Archivos modificados', value: String(analysis.metrics.filesChanged) },
         { label: 'Inserciones / Supresiones', value: `+${analysis.metrics.insertions} / -${analysis.metrics.deletions} (${analysis.metrics.totalLinesChanged} líneas)` },
@@ -225,11 +229,12 @@ function printHelp(command) {
         console.log(`Uso: auditor-version bump [tipo] [opciones]\n\n` +
             `Tipos de salto:\n` +
             `  auto     Calcula automáticamente el salto según análisis heurístico (por defecto)\n` +
-            `  major    Incrementa versión principal (X.0.0)\n` +
-            `  minor    Incrementa versión menor (x.Y.0)\n` +
-            `  patch    Incrementa parche (x.y.Z)\n\n` +
+            `  major    Incrementa versión principal (X.0.0-build.TIMESTAMP)\n` +
+            `  minor    Incrementa versión menor (x.Y.0-build.TIMESTAMP)\n` +
+            `  patch    Incrementa parche/bugfix (x.y.Z-build.TIMESTAMP)\n` +
+            `  build    Actualiza solo el estampado de build sin alterar versión base (x.y.z-build.TIMESTAMP)\n\n` +
             `Opciones:\n` +
-            `  --type=<tipo>              Especifica el tipo de salto (major | minor | patch | auto)\n` +
+            `  --type=<tipo>              Especifica el tipo de salto (major | minor | patch | build | auto)\n` +
             `  --target-version=<versión> Especifica versión base o completa explícita\n` +
             `  --json                     Muestra el resultado en formato JSON\n` +
             `  --no-sync-public           Omite sincronización de public/version.json\n` +
@@ -248,11 +253,11 @@ function printHelp(command) {
         `Uso:\n` +
         `  auditor-version                     Muestra la versión actual\n` +
         `  auditor-version analyze [opciones]  Analiza el diff y sugiere el salto\n` +
-        `  auditor-version bump [tipo] [opt]   Aplica el salto (auto | major | minor | patch)\n\n` +
+        `  auditor-version bump [tipo] [opt]   Aplica el salto (auto | major | minor | patch | build)\n\n` +
         `Comandos:\n` +
         `  version, -v, --version              Muestra la versión actual\n` +
         `  analyze                             Analiza cambios git y recomienda major/minor/patch\n` +
-        `  bump [tipo]                         Aplica salto: major | minor | patch | auto\n\n` +
+        `  bump [tipo]                         Aplica salto: major | minor | patch | build | auto\n\n` +
         `Opciones globales:\n` +
         `  -h, --help                          Muestra esta ayuda\n`);
 }

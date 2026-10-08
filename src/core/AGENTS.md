@@ -102,7 +102,7 @@ Architecture & Tooling Engineers.
 - [`testCoverageCore.ts`](./testCoverageCore.ts): Centralized Istanbul/C8 coverage analysis engine and metric calculations.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
 - [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.
-- [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, and SemVer bump calculation engine.
+- [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, CandidateVersions contract, and SemVer bump calculation engine (supporting major, minor, patch, and build).
 
 ## Work Guidance
 

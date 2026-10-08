@@ -232,7 +232,7 @@ graph TD
     - *Sole Exception: Interactive terminal tables and human-readable CLI audit rule descriptions (`ruleDescriptions` in sub-auditors) are declared in Spanish by deliberate UX design for the local developer console.*
 36. **Mandatory Safe-Commit Protocol & Absolute Prohibition on Manual Git Commit/Push**:
     - Executing manual `git commit`, `git tag`, or `git push` directly in the shell without running the certified `/safe-commit` workflow is STRICTLY FORBIDDEN across the entire repository. Every change, bug fix, release, or version bump MUST execute all phases of `/safe-commit` sequentially.
-    - In Phase 1 (Step 1.4), agents MUST explicitly analyze version diffs and consult the user via `ask_question` regarding the recommended SemVer bump (`major`, `minor`, `patch`) or maintaining the current version, NEVER unilaterally bumping versions or tagging releases without prior explicit user approval.
+    - In Phase 1 (Step 1.4), agents MUST explicitly analyze version diffs and consult the user via `ask_question` regarding the recommended SemVer bump (`major`, `minor`, `patch`, or `build`), ensuring the build identifier and timestamp (`-build.YYYYMMDD-HHmmss`) is ALWAYS updated across all options presented, NEVER unilaterally bumping versions or tagging releases without prior explicit user approval.
 37. **Strict Single Build & Atomic Tagging Mandate**:
     - In `/safe-commit`, version bump decisions occur in Phase 1 (Step 1.4) to guarantee that Phase 2 compiles the target version exactly once (`Strict Single Build Mandate`). When bumped, annotated Git tags (`v<version>`) are created atomically with the commit and pushed with `--follow-tags`.
 38. **Universal Standard Build Script Mandate (`npm run build`)**:

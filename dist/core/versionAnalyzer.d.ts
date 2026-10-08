@@ -7,7 +7,7 @@
 export declare const MAJOR_DIFF_LINES_THRESHOLD: 1000;
 export declare const MAJOR_CORE_LINES_THRESHOLD: 500;
 export declare const MINOR_DIFF_LINES_THRESHOLD: 100;
-export declare const VERSION_BUMP_TYPES: readonly ["major", "minor", "patch"];
+export declare const VERSION_BUMP_TYPES: readonly ["major", "minor", "patch", "build"];
 export type VersionBumpType = (typeof VERSION_BUMP_TYPES)[number];
 export declare const GIT_STATUS_FLAGS: readonly ["A", "M", "D", "R", "?"];
 export type GitStatusFlag = (typeof GIT_STATUS_FLAGS)[number];
@@ -27,11 +27,18 @@ export interface DiffMetrics {
     hasBreakingChanges: boolean;
     changedFiles: ChangedFileDetail[];
 }
+export interface CandidateVersions {
+    readonly major: string;
+    readonly minor: string;
+    readonly patch: string;
+    readonly build: string;
+}
 export interface VersionAnalysisResult {
     currentVersion: string;
     baseVersion: string;
     recommendedBump: VersionBumpType;
     recommendedVersion: string;
+    candidates: CandidateVersions;
     buildId: string;
     buildDate: string;
     rationale: string;
