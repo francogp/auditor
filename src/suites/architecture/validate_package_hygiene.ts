@@ -112,19 +112,47 @@ function parseUnlistedDeps(fileIssue: KnipFileIssues, relFile: string): AuditFin
   }));
 }
 
-function parseUnusedBinaries(fileIssue: KnipFileIssues, relFile: string): AuditFinding[] {
-  return (fileIssue.binaries ?? []).map(bin => ({
-    suiteId: 'validate_package_hygiene',
-    suiteName: 'Package & Dependency Hygiene Auditor',
-    ruleId: 'package-unused-binary',
-    ruleDescription: 'Dependencias: Binario o script no referenciado',
-    severity: 'error',
-    file: relFile,
-    line: bin.line ?? 1,
-    col: bin.col ?? 1,
-    context: bin.name,
-    message: `Binario o script ejecutable no referenciado en el proyecto: "${bin.name}"`
-  }));
+export function extractOwnPackageBinaries(projectRoot: string): Set<string> {
+  const binaries = new Set<string>();
+  const pkgJsonPath = path.resolve(projectRoot, 'package.json');
+  if (!fs.existsSync(pkgJsonPath)) return binaries;
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    if (typeof pkg.bin === 'string') {
+      if (pkg.name) {
+        binaries.add(pkg.name.replace(/^@[^/]+\//, ''));
+      }
+    } else if (pkg.bin && typeof pkg.bin === 'object') {
+      for (const binName of Object.keys(pkg.bin)) {
+        binaries.add(binName);
+      }
+    }
+  } catch {
+    // catch-ok: Ignore parse errors
+  }
+  return binaries;
+}
+
+function parseUnusedBinaries(
+  fileIssue: KnipFileIssues,
+  relFile: string,
+  ownBinaries: ReadonlySet<string> = new Set()
+): AuditFinding[] {
+  return (fileIssue.binaries ?? [])
+    .filter(bin => !ownBinaries.has(bin.name))
+    .map(bin => ({
+      suiteId: 'validate_package_hygiene',
+      suiteName: 'Package & Dependency Hygiene Auditor',
+      ruleId: 'package-unused-binary',
+      ruleDescription: 'Dependencias: Binario o script no referenciado',
+      severity: 'error',
+      file: relFile,
+      line: bin.line ?? 1,
+      col: bin.col ?? 1,
+      context: bin.name,
+      message: `Binario o script ejecutable no referenciado en el proyecto: "${bin.name}"`
+    }));
 }
 
 /**
@@ -140,6 +168,7 @@ export function parseKnipIssues(
     : (report && 'issues' in report && Array.isArray(report.issues) ? report.issues : []);
   const findings: AuditFinding[] = [];
   const scriptReferencedDeps = extractReferencedScriptDependencies(projectRoot);
+  const ownBinaries = extractOwnPackageBinaries(projectRoot);
 
   for (const fileIssue of issues) {
     const rawFile = fileIssue.file || 'package.json';
@@ -153,7 +182,7 @@ export function parseKnipIssues(
 
     findings.push(...parseUnusedDeps(fileIssue, relFile, scriptReferencedDeps));
     findings.push(...parseUnlistedDeps(fileIssue, relFile));
-    findings.push(...parseUnusedBinaries(fileIssue, relFile));
+    findings.push(...parseUnusedBinaries(fileIssue, relFile, ownBinaries));
   }
 
   return findings;
@@ -379,6 +408,8 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
     const allIgnoredDeps = Array.from(new Set([...fallowIgnoredDeps, ...customIgnoredDeps, ...scriptReferencedDeps]));
     const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];
+    const ownBinaries = Array.from(extractOwnPackageBinaries(this.projectRoot));
+    const allIgnoredBinaries = Array.from(new Set([...customIgnoredBinaries, ...ownBinaries]));
 
     const customEntry = config.packageHygiene?.entry;
     const effectiveEntry = customEntry && customEntry.length > 0
@@ -417,7 +448,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         ...(config.paths.ignoreGlobs ?? [])
       ],
       ignoreDependencies: allIgnoredDeps,
-      ignoreBinaries: customIgnoredBinaries
+      ignoreBinaries: allIgnoredBinaries
     };
 
     const ephemeralConfigPath = path.resolve(scratchDir, 'knip-ephemeral.json');

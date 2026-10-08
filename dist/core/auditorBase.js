@@ -13,8 +13,11 @@ import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import "./permissionGuard.js";
+import { deriveCanonicalAuditorScript } from "./auditContract.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
+import { PackageScriptRegistry } from "./packageScriptRegistry.js";
+export { deriveCanonicalAuditorScript };
 import { CoverageRecorder, deriveCoverageFromRoots, deriveCoverageFromRequiredFiles, isDeclaredByCoverage, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
@@ -580,12 +583,30 @@ function validateAuditorRules(options) {
         throw new Error(`Auditor [${options.id}] must define mandatory 'ruleDescriptions' covering all its declared rules.`);
     }
 }
+function validateAuditorScripts(options) {
+    if (!Array.isArray(options.scripts) || options.scripts.length === 0) {
+        throw new Error(`Auditor [${options.id}] must define a mandatory 'scripts' contract (array of AuditorPackageScriptRequirement). ` +
+            `Every sub-auditor and host extension must explicitly declare the canonical package.json script and CLI command used to execute it.`);
+    }
+    for (const script of options.scripts) {
+        if (!script.name || typeof script.name !== 'string' || script.name.trim() === '') {
+            throw new Error(`Auditor [${options.id}] defines an invalid script requirement: 'name' must be a non-empty string.`);
+        }
+        if (!script.command || typeof script.command !== 'string' || script.command.trim() === '') {
+            throw new Error(`Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'command' must be a non-empty string.`);
+        }
+        if (!script.description || typeof script.description !== 'string' || script.description.trim() === '') {
+            throw new Error(`Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'description' must be a non-empty string.`);
+        }
+    }
+}
 function validateAuditorOptions(options) {
     validateAuditorIdentity(options);
     validateAuditorConfigKey(options);
     validateAuditorDefaultConfig(options);
     validateAuditorCapabilities(options);
     validateAuditorRules(options);
+    validateAuditorScripts(options);
     if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
         throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
     }
@@ -617,6 +638,7 @@ export class BaseAuditor {
     capabilities;
     gitIgnoreEntries;
     configFiles;
+    scripts;
     ruleIds;
     ruleDescriptions;
     explicitSubAuditors;
@@ -661,12 +683,26 @@ export class BaseAuditor {
         }
         return undefined;
     }
-    registerAuditorDependencies(options) {
+    resolveEffectiveScripts(options) {
+        if (options.scripts && options.scripts.length > 0) {
+            return options.scripts;
+        }
+        return [
+            deriveCanonicalAuditorScript(options.id, options.description, {
+                category: options.family,
+                isApplicable: (config) => evaluateSuiteStatus(options.id, config, options.configKey).enabled !== false
+            })
+        ];
+    }
+    registerAuditorDependencies(options, effectiveScripts) {
         if (options.gitIgnoreEntries && options.gitIgnoreEntries.length > 0) {
             GitIgnoreRegistry.registerMany(options.gitIgnoreEntries);
         }
         if (options.configFiles && options.configFiles.length > 0) {
             ConfigFileRegistry.registerMany(options.configFiles);
+        }
+        if (effectiveScripts && effectiveScripts.length > 0) {
+            PackageScriptRegistry.registerMany(effectiveScripts, options.id);
         }
     }
     initExecutionContext(coverageDeclaration) {
@@ -692,7 +728,8 @@ export class BaseAuditor {
     constructor(options) {
         const effectiveProjectRoot = options.projectRoot || process.cwd();
         const effectiveCoverage = this.resolveEffectiveCoverage(options, effectiveProjectRoot);
-        validateAuditorOptions({ ...options, coverage: effectiveCoverage });
+        const effectiveScripts = this.resolveEffectiveScripts(options);
+        validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts });
         const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
         this.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, ...options.capabilities, ast: astRequired };
         this.requiresAst = astRequired;
@@ -706,6 +743,8 @@ export class BaseAuditor {
         this.defaultConfig = options.defaultConfig;
         this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
         this.configFiles = options.configFiles ?? [];
+        this.scripts = effectiveScripts;
+        this.registerAuditorDependencies(options, effectiveScripts);
         this.fixMode = Boolean(options.fix);
         this.ruleIds = options.ruleIds ?? Object.keys(options.ruleDescriptions);
         this.ruleDescriptions = options.ruleDescriptions;
@@ -717,7 +756,6 @@ export class BaseAuditor {
         this.requiredFiles = options.requiredFiles ?? [];
         this.projectRoot = effectiveProjectRoot;
         this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage);
-        this.registerAuditorDependencies(options);
         validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
         for (const ruleId of this.ruleIds) {
             this.countsByRule.set(ruleId, 0);
@@ -1215,7 +1253,8 @@ export class BaseAuditor {
             },
             rules: rulesRecord,
             configKey: this.configKey,
-            defaultConfig: { ...this.defaultConfig }
+            defaultConfig: { ...this.defaultConfig },
+            scripts: [...this.scripts]
         };
     }
     static isExecutingCli = false;

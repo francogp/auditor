@@ -27,11 +27,16 @@ import {
   type AuditorCoverageDeclaration,
   type GitIgnoreRequirement,
   type AuditorConfigFileRequirement,
+  type AuditorPackageScriptRequirement,
   type AuditorConfigFixContext,
-  type AuditorManifestDTO
+  type AuditorManifestDTO,
+  deriveCanonicalAuditorScript
 } from './auditContract.ts';
 import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
 import { ConfigFileRegistry } from './configFileRegistry.ts';
+import { PackageScriptRegistry } from './packageScriptRegistry.ts';
+
+export { deriveCanonicalAuditorScript };
 import {
   CoverageRecorder,
   deriveCoverageFromRoots,
@@ -699,6 +704,7 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly fix?: boolean;
   readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   readonly configFiles?: readonly AuditorConfigFileRequirement<TRuleId>[];
+  readonly scripts?: readonly AuditorPackageScriptRequirement[];
   readonly ruleIds?: readonly TRuleId[];
   readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   readonly subAuditors?: readonly SubAuditorStep[];
@@ -803,12 +809,33 @@ function validateAuditorRules<TRuleId extends string>(options: AuditorOptions<TR
   }
 }
 
+function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (!Array.isArray(options.scripts) || options.scripts.length === 0) {
+    throw new Error(
+      `Auditor [${options.id}] must define a mandatory 'scripts' contract (array of AuditorPackageScriptRequirement). ` +
+      `Every sub-auditor and host extension must explicitly declare the canonical package.json script and CLI command used to execute it.`
+    );
+  }
+  for (const script of options.scripts) {
+    if (!script.name || typeof script.name !== 'string' || script.name.trim() === '') {
+      throw new Error(`Auditor [${options.id}] defines an invalid script requirement: 'name' must be a non-empty string.`);
+    }
+    if (!script.command || typeof script.command !== 'string' || script.command.trim() === '') {
+      throw new Error(`Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'command' must be a non-empty string.`);
+    }
+    if (!script.description || typeof script.description !== 'string' || script.description.trim() === '') {
+      throw new Error(`Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'description' must be a non-empty string.`);
+    }
+  }
+}
+
 function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
   validateAuditorIdentity(options);
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
   validateAuditorCapabilities(options);
   validateAuditorRules(options);
+  validateAuditorScripts(options);
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
     throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
   }
@@ -847,6 +874,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly capabilities: AuditorCapabilities;
   public readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   public readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
+  public readonly scripts: readonly AuditorPackageScriptRequirement[];
   public readonly ruleIds: readonly TRuleId[];
   public readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   public readonly explicitSubAuditors?: readonly SubAuditorStep[];
@@ -899,12 +927,27 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     return undefined;
   }
 
-  private registerAuditorDependencies(options: AuditorOptions<TRuleId>): void {
+  private resolveEffectiveScripts(options: AuditorOptions<TRuleId>): readonly AuditorPackageScriptRequirement[] {
+    if (options.scripts && options.scripts.length > 0) {
+      return options.scripts;
+    }
+    return [
+      deriveCanonicalAuditorScript(options.id, options.description, {
+        category: options.family,
+        isApplicable: (config) => evaluateSuiteStatus(options.id, config, options.configKey).enabled !== false
+      })
+    ];
+  }
+
+  private registerAuditorDependencies(options: AuditorOptions<TRuleId>, effectiveScripts: readonly AuditorPackageScriptRequirement[]): void {
     if (options.gitIgnoreEntries && options.gitIgnoreEntries.length > 0) {
       GitIgnoreRegistry.registerMany(options.gitIgnoreEntries);
     }
     if (options.configFiles && options.configFiles.length > 0) {
       ConfigFileRegistry.registerMany(options.configFiles as readonly AuditorConfigFileRequirement<string>[]);
+    }
+    if (effectiveScripts && effectiveScripts.length > 0) {
+      PackageScriptRegistry.registerMany(effectiveScripts, options.id);
     }
   }
 
@@ -932,7 +975,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   constructor(options: AuditorOptions<TRuleId>) {
     const effectiveProjectRoot = options.projectRoot || process.cwd();
     const effectiveCoverage = this.resolveEffectiveCoverage(options, effectiveProjectRoot);
-    validateAuditorOptions({ ...options, coverage: effectiveCoverage });
+    const effectiveScripts = this.resolveEffectiveScripts(options);
+    validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts });
 
     const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
     this.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, ...options.capabilities, ast: astRequired };
@@ -947,6 +991,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.defaultConfig = options.defaultConfig;
     this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
     this.configFiles = options.configFiles ?? [];
+    this.scripts = effectiveScripts;
+    this.registerAuditorDependencies(options, effectiveScripts);
     this.fixMode = Boolean(options.fix);
     this.ruleIds = options.ruleIds ?? (Object.keys(options.ruleDescriptions) as TRuleId[]);
     this.ruleDescriptions = options.ruleDescriptions;
@@ -959,7 +1005,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.projectRoot = effectiveProjectRoot;
     this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage!);
 
-    this.registerAuditorDependencies(options);
     validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
 
     for (const ruleId of this.ruleIds) {
@@ -1558,7 +1603,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       },
       rules: rulesRecord,
       configKey: this.configKey,
-      defaultConfig: { ...this.defaultConfig }
+      defaultConfig: { ...this.defaultConfig },
+      scripts: [...this.scripts]
     };
   }
 

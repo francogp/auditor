@@ -15,11 +15,13 @@ import {
   type AuditTaskDefinition,
   type AuditorCapabilities,
   type GitIgnoreRequirement,
+  type AuditorPackageScriptRequirement,
   getActiveFamilies,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
+import { PackageScriptRegistry, CORE_PACKAGE_SCRIPT_REQUIREMENTS } from '../core/packageScriptRegistry.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 
@@ -278,5 +280,56 @@ export async function collectAllGitIgnoreRequirements(
   }
 
   return GitIgnoreRegistry.getRequirements();
+}
+
+/**
+ * Dynamically collects package.json script requirements from all discovered subauditors,
+ * registered extensions, and audit.config.ts, collecting unique script names in a Set
+ * to prevent duplicates when multiple auditors share or expose the same command.
+ */
+export async function collectAllPackageScriptRequirements(
+  projectRoot: string = process.cwd(),
+  config?: Awaited<ReturnType<typeof loadAuditConfig>>
+): Promise<readonly AuditorPackageScriptRequirement[]> {
+  const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
+  const tasks = await discoverAuditors({ projectRoot });
+
+  const seenScriptNames = new Set<string>();
+  const collected: AuditorPackageScriptRequirement[] = [];
+
+  const addRequirement = (req: AuditorPackageScriptRequirement): void => {
+    if (!req || !req.name || !req.command) return;
+    if (seenScriptNames.has(req.name)) return;
+    seenScriptNames.add(req.name);
+    collected.push(req);
+    PackageScriptRegistry.register(req);
+  };
+
+  // 1. Discovered sub-auditors and extensions (their specific declared command contracts take high priority)
+  for (const task of tasks) {
+    if (task.scripts && task.scripts.length > 0) {
+      for (const script of task.scripts) {
+        addRequirement(script);
+      }
+    }
+  }
+
+  // 2. Core framework CLI and versioning requirements
+  for (const req of CORE_PACKAGE_SCRIPT_REQUIREMENTS) {
+    addRequirement(req);
+  }
+
+  // 3. Extra scripts configured in audit.config.ts
+  const customScripts = effectiveConfig.packageScripts?.extraRequiredScripts ?? [];
+  for (const scriptName of customScripts) {
+    addRequirement({
+      name: scriptName,
+      command: `auditor task=${scriptName}`,
+      description: `Script requerido adicional configurado en audit.config.ts (${scriptName})`,
+      category: 'custom'
+    });
+  }
+
+  return collected;
 }
 

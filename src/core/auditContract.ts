@@ -225,6 +225,22 @@ export interface GitIgnoreRequirement {
 }
 
 /**
+ * Requirement declaration for package.json scripts exposed by the auditor framework or sub-auditors.
+ */
+export interface AuditorPackageScriptRequirement {
+  /** Unique script key in package.json (e.g. 'version:bump', 'audit:valibot', 'audit:package-hygiene') */
+  readonly name: string;
+  /** Canonical command to execute (e.g. 'auditor-version bump', 'auditor task=validate_valibot_parity') */
+  readonly command: string;
+  /** Human-readable description of what this command executes */
+  readonly description: string;
+  /** Logical category (e.g. 'core', 'versioning', 'reporting', 'suite', 'fallow', 'family', 'env', 'aliases') */
+  readonly category?: string;
+  /** Optional predicate determining if this script is applicable in the current project */
+  readonly isApplicable?: (config: AuditEngineConfig, projectRoot: string) => boolean;
+}
+
+/**
  * Context provided to configuration fix generators when auto-repairing or scaffolding files.
  */
 export interface AuditorConfigFixContext {
@@ -298,6 +314,28 @@ export interface AuditorManifestDTO {
    * Configuración por defecto obligatoria declarada por el auditor para su inyección dinámica en audit.config.ts.
    */
   readonly defaultConfig: Readonly<Record<string, unknown>>;
+  /**
+   * Contrato obligatorio de comandos de ejecución y scripts en package.json expuestos por este auditor.
+   */
+  readonly scripts: readonly AuditorPackageScriptRequirement[];
+}
+
+/**
+ * Derives the canonical package.json script requirement for any auditor by convention.
+ */
+export function deriveCanonicalAuditorScript(
+  id: string,
+  description: string,
+  overrides?: Partial<AuditorPackageScriptRequirement>
+): AuditorPackageScriptRequirement {
+  const shortId = id.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '').replace(/_/g, '-');
+  return {
+    name: overrides?.name ?? `audit:${shortId}`, // domain-ok: Script requirement identifier convention
+    command: overrides?.command ?? `auditor task=${id}`,
+    description: overrides?.description ?? description,
+    category: overrides?.category ?? 'suite',
+    ...(overrides?.isApplicable ? { isApplicable: overrides.isApplicable } : {})
+  };
 }
 
 export interface AuditTaskDefinition {
@@ -318,6 +356,7 @@ export interface AuditTaskDefinition {
   capabilities?: AuditorCapabilities;
   gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   configFiles?: readonly AuditorConfigFileRequirement<string>[];
+  scripts?: readonly AuditorPackageScriptRequirement[];
   manifest?: AuditorManifestDTO;
   configKey?: string;
   defaultConfig?: Readonly<Record<string, unknown>>;
@@ -337,6 +376,7 @@ export interface AuditTaskDescriptor {
   capabilities?: AuditorCapabilities;
   gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   configFiles?: readonly AuditorConfigFileRequirement<string>[];
+  scripts?: readonly AuditorPackageScriptRequirement[];
 }
 
 export type AuditRunMode = 'full' | 'preset' | 'family' | 'suites' | 'single';

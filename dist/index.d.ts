@@ -16,6 +16,7 @@ export * from './core/safePath.ts';
 export * from './core/gitignoreMatcher.ts';
 export * from './core/gitIgnoreRegistry.ts';
 export * from './core/configFileRegistry.ts';
+export * from './core/packageScriptRegistry.ts';
 export * from './cli/auditScanner.ts';
 export * from './cli/check_environment.ts';
 export * from './cli/init_agent.ts';

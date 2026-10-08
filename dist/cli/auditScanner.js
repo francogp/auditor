@@ -12,6 +12,7 @@ import path from 'node:path';
 import { getActiveFamilies, FALLBACK_FAMILY_ORDER } from "../core/auditContract.js";
 import { loadAuditConfig } from "../core/auditConfig.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
+import { PackageScriptRegistry, CORE_PACKAGE_SCRIPT_REQUIREMENTS } from "../core/packageScriptRegistry.js";
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 export const AUDIT_PRESETS = {};
 export { getTimeoutForTask, DEFAULT_PERMISSIONS, getPermissionsForTask, formatTaskTitle, shouldSkipTaskByFilters, shouldSkipTaskByCapabilities, buildTaskCliArguments, createAuditTaskDefinition } from "./auditTaskFactory.js";
@@ -190,5 +191,48 @@ export async function collectAllGitIgnoreRequirements(projectRoot = process.cwd(
         }
     }
     return GitIgnoreRegistry.getRequirements();
+}
+/**
+ * Dynamically collects package.json script requirements from all discovered subauditors,
+ * registered extensions, and audit.config.ts, collecting unique script names in a Set
+ * to prevent duplicates when multiple auditors share or expose the same command.
+ */
+export async function collectAllPackageScriptRequirements(projectRoot = process.cwd(), config) {
+    const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
+    const tasks = await discoverAuditors({ projectRoot });
+    const seenScriptNames = new Set();
+    const collected = [];
+    const addRequirement = (req) => {
+        if (!req || !req.name || !req.command)
+            return;
+        if (seenScriptNames.has(req.name))
+            return;
+        seenScriptNames.add(req.name);
+        collected.push(req);
+        PackageScriptRegistry.register(req);
+    };
+    // 1. Discovered sub-auditors and extensions (their specific declared command contracts take high priority)
+    for (const task of tasks) {
+        if (task.scripts && task.scripts.length > 0) {
+            for (const script of task.scripts) {
+                addRequirement(script);
+            }
+        }
+    }
+    // 2. Core framework CLI and versioning requirements
+    for (const req of CORE_PACKAGE_SCRIPT_REQUIREMENTS) {
+        addRequirement(req);
+    }
+    // 3. Extra scripts configured in audit.config.ts
+    const customScripts = effectiveConfig.packageScripts?.extraRequiredScripts ?? [];
+    for (const scriptName of customScripts) {
+        addRequirement({
+            name: scriptName,
+            command: `auditor task=${scriptName}`,
+            description: `Script requerido adicional configurado en audit.config.ts (${scriptName})`,
+            category: 'custom'
+        });
+    }
+    return collected;
 }
 //# sourceMappingURL=auditScanner.js.map

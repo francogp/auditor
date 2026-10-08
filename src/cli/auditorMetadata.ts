@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import {
   type AuditorCapabilities,
   type GitIgnoreRequirement,
+  type AuditorPackageScriptRequirement,
   type AuditorManifestDTO
 } from '../core/auditContract.ts';
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.ts';
@@ -19,6 +20,7 @@ const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
 export interface ExtractedAuditorMetadata {
   readonly capabilities: AuditorCapabilities;
   readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  readonly scripts?: readonly AuditorPackageScriptRequirement[];
   readonly icon?: string;
   readonly manifest?: AuditorManifestDTO;
   readonly description?: string;
@@ -30,6 +32,7 @@ export interface ExtractedAuditorMetadata {
 type MutableExtractedAuditorMetadata = {
   capabilities: AuditorCapabilities;
   gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  scripts?: readonly AuditorPackageScriptRequirement[];
   icon?: string;
   manifest?: AuditorManifestDTO;
   description?: string;
@@ -98,6 +101,9 @@ function extractMetadataFromAuditorInstance(
     if (Array.isArray(instance?.gitIgnoreEntries)) {
       result.gitIgnoreEntries = instance.gitIgnoreEntries;
     }
+    if (Array.isArray(instance?.scripts)) {
+      result.scripts = instance.scripts;
+    }
     if (typeof instance?.toManifest === 'function') {
       const manifest = instance.toManifest();
       result.manifest = manifest;
@@ -125,6 +131,7 @@ function extractMetadataFromFunction(
   const withStatic = val as {
     capabilities?: Partial<AuditorCapabilities>;
     gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+    scripts?: readonly AuditorPackageScriptRequirement[];
     icon?: string;
   };
 
@@ -139,6 +146,9 @@ function extractMetadataFromFunction(
   }
   if (Array.isArray(withStatic.gitIgnoreEntries)) {
     result.gitIgnoreEntries = withStatic.gitIgnoreEntries;
+  }
+  if (Array.isArray(withStatic.scripts)) {
+    result.scripts = withStatic.scripts;
   }
 
   if (val.prototype instanceof BaseAuditor) {

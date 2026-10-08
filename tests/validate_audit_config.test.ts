@@ -7,6 +7,8 @@ import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_
 import { migrateLegacyAuditConfig } from '../src/cli/migrateAuditConfig.ts';
 import { resetAuditConfig, defineAuditConfig, assertNoLegacyRootConfig, loadAuditConfig } from '../src/core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
+import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
+import { collectAllPackageScriptRequirements } from '../src/cli/auditScanner.ts';
 
 const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts').replace(/\\/g, '/');
 const BASE_AUDITOR_PATH = path.resolve(import.meta.dirname, '../src/core/auditorBase.ts').replace(/\\/g, '/');
@@ -57,22 +59,21 @@ describe('ValidateAuditConfigAuditor', () => {
     );
 
     // Baseline valid package.json with standard build and auditor scripts
+    const baselineScripts: Record<string, string> = {
+      build: 'auditor && vite build'
+    };
+    const allReqs = await collectAllPackageScriptRequirements(tempDir);
+    for (const req of allReqs) {
+      baselineScripts[req.name] = req.command;
+    }
+    resetAuditConfig();
+
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
       JSON.stringify(
         {
           name: 'test-app',
-          scripts: {
-            build: 'auditor && vite build',
-            audit: 'auditor',
-            'audit:fix': 'auditor fix',
-            'audit:by-file': 'auditor-by-file',
-            'audit:lint': 'auditor preset=lint',
-            'audit:md': 'auditor preset=md',
-            'audit:build': 'auditor preset=build',
-            'auditor:update': 'auditor-update',
-            'auditor:version': 'auditor-version'
-          }
+          scripts: baselineScripts
         },
         null,
         2
@@ -85,6 +86,7 @@ describe('ValidateAuditConfigAuditor', () => {
     delete process.env.AUDIT_SUBPROCESS;
     resetAuditConfig();
     GitIgnoreRegistry.reset();
+    PackageScriptRegistry.reset();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
@@ -690,7 +692,8 @@ export default defineAuditConfig({
         name: 'test-app',
         scripts: {
           build: 'auditor && vite build',
-          audit: 'auditor'
+          audit: 'auditor',
+          'custom:task': 'echo custom'
         }
       }, null, 2),
       'utf-8'
@@ -701,6 +704,9 @@ export default defineAuditConfig({
     expect(fixResult.status).toBe('passed');
 
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
+    expect(updatedPkg.scripts['custom:task']).toBe('echo custom');
+    expect(updatedPkg.scripts['build']).toBe('auditor && vite build');
+    expect(updatedPkg.scripts['audit']).toBe('auditor');
     expect(updatedPkg.scripts['audit:fix']).toBe('auditor fix');
     expect(updatedPkg.scripts['audit:by-file']).toBe('auditor-by-file');
     expect(updatedPkg.scripts['audit:lint']).toBe('auditor preset=lint');

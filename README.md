@@ -91,45 +91,24 @@ npm install
 }
 ```
 
-### Recommended Host `package.json` Scripts
+### Automated Package Scripts Setup (`auditor fix`)
 
-Draw from the canonical template at [`.agents/skills/auditor/assets/templates/recommended_package_scripts_template.json`](.agents/skills/auditor/assets/templates/recommended_package_scripts_template.json):
+Every sub-auditor and registered host extension automatically derives and exposes its canonical package scripts (`audit:<short-id>` and CLI utilities) via `PackageScriptRegistry`.
 
-```json
-{
-  "scripts": {
-    "build": "auditor && vite build",
-    "audit": "auditor",
-    "audit:changed": "auditor changed-since=main",
-    "audit:fix": "auditor fix",
-    "audit:lint": "auditor preset=lint",
-    "audit:md": "auditor preset=md",
-    "audit:build": "auditor preset=build",
-    "audit:findings": "auditor-findings",
-    "audit:by-file": "auditor-by-file",
-    "audit:complexity": "auditor-complexity",
-    "audit:similar": "auditor-similar",
-    "audit:review": "auditor-review",
-    "audit:guard": "auditor-guard",
-    "audit:flags": "auditor-flags",
-    "audit:coverage-gaps": "auditor-fallow category=coverage-gaps",
-    "audit:css": "auditor-css",
-    "audit:bundle": "auditor-bundle",
-    "audit:package-hygiene": "auditor task=validate_package_hygiene",
-    "audit:type-coverage": "auditor task=validate_type_coverage",
-    "audit:test-coverage": "auditor-test-coverage",
-    "audit:coverage": "auditor-coverage",
-    "audit:valibot": "auditor task=validate_valibot_parity",
-    "audit:fallow": "auditor-fallow category=all",
-    "auditor:update": "auditor-update",
-    "auditor:version": "auditor-version",
-    "init-agent": "auditor-init-agent",
-    "sync:env": "auditor-sync-env",
-    "env:setup": "auditor-setup-env",
-    "env:check": "auditor-check-env"
-  }
-}
+To automatically and non-destructively inject missing auditor scripts into your host `package.json`, simply run:
+
+```bash
+auditor fix
+# or if running via npm:
+npm run audit:fix
 ```
+
+The engine will:
+
+1. Inspect all active built-in sub-auditors and registered host extensions.
+2. Check for naming collisions across commands (`[COLISIÓN DE COMANDOS]`).
+3. Inject any missing scripts into your `package.json` without modifying or duplicating your existing custom scripts or aliases.
+4. Automatically chain `auditor &&` into your `build` script.
 
 ---
 

@@ -4,13 +4,14 @@
  * AUDITOR EXTENSION PROTOCOL (Node.js 26+)
  * Contract and helper functions for defining and registering project-specific audit extensions.
  */
-import type { AuditFamily, AuditorConfigFileRequirement, GitIgnoreRequirement } from '../core/auditContract.ts';
+import type { AuditFamily, AuditorConfigFileRequirement, GitIgnoreRequirement, AuditorPackageScriptRequirement } from '../core/auditContract.ts';
 import type { BaseAuditor } from '../core/auditorBase.ts';
 export interface AuditorExtensionDefinition {
     readonly id: string;
     readonly name: string;
     readonly family: AuditFamily;
     readonly description?: string;
+    readonly scripts?: readonly AuditorPackageScriptRequirement[];
     readonly auditorClass?: new () => BaseAuditor<string>;
     readonly factory?: () => BaseAuditor<string>;
     readonly scriptPath?: string;

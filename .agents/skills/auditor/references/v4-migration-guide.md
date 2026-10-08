@@ -46,52 +46,19 @@ Manual cloning (`git clone`), git submodules, or direct file copying into host r
 
 ## 2. Package Scripts Synchronization
 
-Modernize the host application's `package.json` scripts using the canonical template (`recommended_package_scripts_template.json`):
+All sub-auditors and registered host extensions automatically declare their required scripts. Hardcoding or copy-pasting static script lists is strictly prohibited.
 
-```json
-{
-  "scripts": {
-    "audit": "auditor",
-    "audit:changed": "auditor changed-since=main",
-    "audit:fix": "auditor fix",
-    "audit:lint": "auditor preset=lint",
-    "audit:md": "auditor preset=md",
-    "audit:build": "auditor preset=build",
-    "audit:findings": "auditor-findings",
-    "audit:errors": "auditor-findings severity=error",
-    "audit:warnings": "auditor-findings severity=warning",
-    "audit:summary": "auditor-findings",
-    "audit:files": "auditor-findings files",
-    "audit:by-file": "auditor-by-file",
-    "audit:complexity": "auditor-complexity",
-    "audit:similar": "auditor-similar",
-    "audit:review": "auditor-review",
-    "audit:guard": "auditor-guard",
-    "audit:flags": "auditor-flags",
-    "audit:coverage-gaps": "auditor-fallow category=coverage-gaps",
-    "audit:css": "auditor-css",
-    "audit:bundle": "auditor-bundle",
-    "audit:package-hygiene": "auditor task=validate_package_hygiene",
-    "audit:type-coverage": "auditor task=validate_type_coverage",
-    "audit:fallow": "auditor-fallow category=all",
-    "audit:fallow:dupes": "auditor-fallow category=dupes",
-    "audit:fallow:circular": "auditor-fallow category=circular",
-    "audit:fallow:exports": "auditor-fallow category=exports",
-    "audit:fallow:security": "auditor-fallow category=security",
-    "audit:fallow:dead-code": "auditor-fallow category=dead-code",
-    "audit:family:architecture": "auditor family=architecture",
-    "audit:family:domain": "auditor family=domain_data",
-    "audit:family:persistence": "auditor family=persistence",
-    "audit:family:documentation": "auditor family=documentation",
-    "lint": "npm run audit:lint",
-    "lint:fix": "auditor preset=lint fix",
-    "lint:md": "auditor preset=md",
-    "auditor:update": "auditor-update",
-    "auditor:version": "auditor-version",
-    "init-agent": "auditor-init-agent"
-  }
-}
+To inject all canonical scripts non-destructively into `package.json`:
+
+```bash
+auditor fix
+# or
+npm run audit:fix
 ```
+
+This command automatically chains `auditor &&` into your `build` script and appends all missing auditor commands without altering your existing custom scripts or aliases.
+
+---
 
 ---
 

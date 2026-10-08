@@ -95,70 +95,17 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 - `auditor-setup-env` (environment setup runner `setup_env.ts`)
 - `auditor-check-env` (runtime environment validator `check_environment.ts`)
 
-### Canonical Recommended `scripts` in Host `package.json`:
-For a drop-in ready JSON template, see [`recommended_package_scripts_template.json`](../assets/templates/recommended_package_scripts_template.json).
+### Dynamic Script Injection via `auditor fix`:
+Hardcoding manual package script lists is strictly prohibited. `PackageScriptRegistry` dynamically collects canonical script requirements from all discovered sub-auditors and registered extensions.
 
-```json
-{
-  "scripts": {
-    "// --- GLOBAL & COMMITS ---": "",
-    "audit": "auditor",
-    "audit:changed": "auditor changed-since=main",
-    "audit:fix": "auditor fix",
-
-    "// --- FINDINGS & REPORTS ---": "",
-    "audit:findings": "auditor-findings",
-    "audit:by-file": "auditor-by-file",
-    "audit:errors": "auditor-findings severity=error",
-    "audit:warnings": "auditor-findings severity=warning",
-    "audit:summary": "auditor-findings",
-    "audit:files": "auditor-findings files",
-
-    "// --- PRESETS & LINT ---": "",
-    "audit:lint": "auditor preset=lint",
-    "audit:md": "auditor preset=md",
-    "audit:build": "auditor preset=build",
-    "lint": "npm run audit:lint",
-    "lint:fix": "auditor preset=lint fix",
-    "lint:md": "auditor preset=md",
-
-    "// --- SPECIALIZED ANALYZERS ---": "",
-    "audit:complexity": "auditor-complexity",
-    "audit:similar": "auditor-similar",
-    "audit:review": "auditor-review",
-    "audit:css": "auditor-css",
-    "audit:bundle": "auditor-bundle",
-    "audit:test-coverage": "auditor-test-coverage",
-    "audit:coverage": "auditor-coverage",
-    "audit:valibot": "auditor task=validate_valibot_parity",
-
-    "// --- FALLOW INTELLIGENCE ---": "",
-    "audit:fallow": "auditor-fallow category=all",
-    "audit:fallow:dupes": "auditor-fallow category=dupes",
-    "audit:fallow:circular": "auditor-fallow category=circular",
-    "audit:fallow:exports": "auditor-fallow category=exports",
-    "audit:fallow:security": "auditor-fallow category=security",
-    "audit:fallow:dead-code": "auditor-fallow category=dead-code",
-
-    "// --- SUITE FAMILIES ---": "",
-    "audit:family:architecture": "auditor family=architecture",
-    "audit:family:domain": "auditor family=domain_data",
-    "audit:family:persistence": "auditor family=persistence",
-    "audit:family:documentation": "auditor family=documentation",
-
-    "// --- PACKAGE & ENVIRONMENT GOVERNANCE ---": "",
-    "auditor:update": "auditor-update",
-    "auditor:version": "auditor-version",
-    "init-agent": "auditor-init-agent",
-    "sync:env": "auditor-sync-env",
-    "env:setup": "auditor-setup-env",
-    "env:check": "auditor-check-env",
-
-    "// --- BESPOKE EXTENSIONS (IF APPLICABLE) ---": "",
-    "validate:script-hardcoding": "auditor task=validate_script_hardcoding"
-  }
-}
+To inject all missing auditor and extension scripts into `package.json`:
+```bash
+auditor fix
+# or
+npm run audit:fix
 ```
+
+Missing scripts are appended non-destructively without modifying your existing scripts, custom aliases, or project build commands.
 
 Host extensions declared in `.auditor/audit.config.ts` are automatically discovered and executed by `npm run audit`. No manual runner registration is required.
 

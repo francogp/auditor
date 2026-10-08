@@ -14,6 +14,7 @@ import {
 } from '../core/auditContract.ts';
 import { type loadAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
+import { PackageScriptRegistry } from '../core/packageScriptRegistry.ts';
 import { extractAuditorMetadataFromFile } from './auditorMetadata.ts';
 
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
@@ -188,6 +189,10 @@ export async function createAuditTaskDefinition(
   if (gitIgnoreEntries.length > 0) {
     GitIgnoreRegistry.registerMany(gitIgnoreEntries);
   }
+  const scripts = metadata.scripts;
+  if (scripts && scripts.length > 0) {
+    PackageScriptRegistry.registerMany(scripts, id);
+  }
 
   if (shouldSkipTaskByCapabilities(capabilities, options)) {
     return null;
@@ -214,6 +219,7 @@ export async function createAuditTaskDefinition(
     icon: effectiveIcon,
     capabilities: capabilities ?? undefined,
     gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
+    scripts: scripts && scripts.length > 0 ? scripts : undefined,
     manifest: metadata.manifest,
     configKey: resolveTaskConfigKey(metadata),
     defaultConfig: resolveTaskDefaultConfig(metadata),

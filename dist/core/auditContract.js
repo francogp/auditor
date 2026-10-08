@@ -76,6 +76,19 @@ export const FINDING_SEVERITIES = ['error', 'warning', 'info'];
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
 export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'];
 export const COVERAGE_SOURCES = ['runtime', 'declared-only'];
+/**
+ * Derives the canonical package.json script requirement for any auditor by convention.
+ */
+export function deriveCanonicalAuditorScript(id, description, overrides) {
+    const shortId = id.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '').replace(/_/g, '-');
+    return {
+        name: overrides?.name ?? `audit:${shortId}`, // domain-ok: Script requirement identifier convention
+        command: overrides?.command ?? `auditor task=${id}`,
+        description: overrides?.description ?? description,
+        category: overrides?.category ?? 'suite',
+        ...(overrides?.isApplicable ? { isApplicable: overrides.isApplicable } : {})
+    };
+}
 export const RATCHET_STATUSES = ['passed', 'failed', 'initialized'];
 /**
  * Normalizes a file path from an AuditFinding into a clean relative POSIX path.

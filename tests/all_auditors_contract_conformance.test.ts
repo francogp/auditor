@@ -82,7 +82,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               defaultConfig: {},
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1', 'rule-2'] as never,
-              ruleDescriptions: { 'rule-1': 'Desc' } as never
+              ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              scripts: [{ name: 'audit:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
             });
           }
           public override async runAudit() {}
@@ -105,7 +106,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               defaultConfig: {},
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
-              ruleDescriptions: { 'rule-1': 'Desc' } as never
+              ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              scripts: [{ name: 'audit:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
             });
           }
           public override async runAudit() {}
@@ -131,7 +133,14 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           ruleDescriptions: {
             'test-rule-alpha': 'Desc alpha',
             'test-rule-beta': 'Desc beta'
-          }
+          },
+          scripts: [
+            {
+              name: 'audit:mock-compliant',
+              command: 'auditor task=mock_compliant',
+              description: 'Mock compliant'
+            }
+          ]
         });
       }
       public override async runAudit() {}

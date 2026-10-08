@@ -258,7 +258,7 @@ graph TD
     - Across ALL projects governed by `@francogp/auditor` (consumer applications and standalone package distributions alike), the `"build"` script in `package.json` MUST be chained with a prior invocation of the full auditor (e.g., `"build": "auditor && vite build"`, `"build": "npm run audit && vite build"`, or `"build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run audit:build"`).
     - The `audit:for-commit` / `auditor-commit` gate was removed; any script still referencing it fails with `audit-config-removed-commit-gate` (`auditor fix` deletes or rewrites it to `auditor`).
     - Bypassing build chaining is permitted only via explicit configuration (`config.packageScripts.enforceBuildAudit: false`).
-    - `validate_audit_config` provides auto-repair (`--fix`) to automatically chain `auditor &&` into the build script and populate missing essential auditor scripts from `recommended_package_scripts_template.json`.
+    - `validate_audit_config` provides auto-repair (`--fix`) to automatically chain `auditor &&` into the build script and populate missing package scripts dynamically discovered from registered sub-auditors and `PackageScriptRegistry`.
 45. **Mandatory Third-Party Licenses & Open-Source Attribution Contract**:
     - Every package `README.md` MUST conclude with a comprehensive "Third-Party Software & Open-Source Licenses" attribution section linking every integrated tool, library, and living specification engine (ESLint, Stylelint, HTML-Validate, Markdownlint, Fallow, Knip, Publint, Type-Coverage, TypeScript, Vitest, Valibot, GSAP, Jina embeddings) to its respective project repository and open-source license.
 46. **Strict Local Execution Mandate & Absolute Prohibition of Bypassing Vector Duplication in Local/Development**:
@@ -310,7 +310,7 @@ graph TD
       - **Case B: Documentation Defect (Legacy, Typo, or Misformatted)**: If the command is an obsolete legacy leftover, has invalid syntax (such as invoking a custom script directly without `run`), or references an external/project-specific tool without generic placeholder notation (`<script>`), the correct resolution is to **UPDATE the documentation** to reflect canonical, working commands or use generic placeholders.
 57. **Mandatory README Synchronization & Modernization Mandate**:
     - Whenever releasing framework features, updating generic suites, adjusting canonical package scripts, or performing auditor upgrades in host applications, developers and AI agents MUST review, update, and modernize the root `README.md`.
-    - **Script Synchronization**: Verify that all scripts in `package.json` matching `recommended_package_scripts_template.json` (such as `audit:build`, `audit:fix`, `audit:lint`, `audit:similar`, `auditor:update`) are correctly documented in the root `README.md`.
+    - **Script Synchronization**: Verify that canonical scripts in `package.json` (such as `audit:build`, `audit:fix`, `audit:lint`, `audit:similar`, `auditor:update`) are correctly documented in the root `README.md`.
     - **Suite Synchronization**: Ensure generic suites, capabilities, and family breakdowns reflect canonical standards without hardcoding brittle suite counts.
     - **Configuration Examples**: Ensure configuration snippets in `README.md` include all mandatory active subsystems, including the `coverage` ledger (`exemptGlobs` and `acknowledgedDegradations`).
 58. **Single Source of Truth Configuration & `.auditor/` Directory Layout**:
@@ -346,7 +346,7 @@ graph TD
     - **Zero Hardcoding**: The master orchestrator NEVER hardcodes suite lists or descriptions; all catalog data is extracted dynamically via reflection or AST.
 63. **Auto-Fix First Protocol & Script Sync Gate**:
     - **Auto-Fix First**: When an audit completes with fixable errors/warnings, `audit_full` renders an emphatic Box-Drawing banner urging `npm run audit:fix` (or `auditor fix`). Agents and developers MUST run auto-fix first to resolve mechanical defects before attempting manual refactoring, and are strictly prohibited from muting or silencing rules in panic.
-    - **Script Sync First**: If a recommended auditor script (`audit:by-file`, `audit:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run audit:fix` (or `node --experimental-strip-types ...`) to synchronize scripts from `recommended_package_scripts_template.json` before attempting manual ad-hoc executions.
+    - **Script Sync First**: If a package script (`audit:by-file`, `audit:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run audit:fix` (or `auditor fix`) to dynamically discover and synchronize scripts from `PackageScriptRegistry` and registered sub-auditors before attempting manual ad-hoc executions.
 64. **Universal Configuration-Driven Language Resolution Mandate (Zero Hardcoding) & Language Governance (`validate_documentation_language`, `validate_agents_config_mandate`)**:
     - Across `@francogp/auditor` and all consumer projects, all AI agents, skills, and CLI tools MUST resolve language dynamically from `.auditor/audit.config.ts` without hardcoding:
       - `config.documentation.language`: Strictly defaults to English (`'en'`) if omitted. Governs repository documentation, markdown files, DOX indices (`AGENTS.md`), code comments, commit messages, release notes, and codebase artifacts. Enforced by `validate_documentation_language`.
@@ -386,6 +386,12 @@ graph TD
 72. **Idempotent Injections & Anti-Duplication Pruning in `AGENTS.md` Auto-Repair**:
     - Auto-repair analyzers (`agentsMandateAnalyzer.ts`, `validate_agents_config_mandate.ts`, `validate_documentation_language.ts`) that inject or update mandatory sections in `AGENTS.md` MUST be strictly idempotent.
     - Running `auditor fix` repeatedly across multiple cycles or switching language modes must never duplicate lines or blank spacing. The injection engine gathers all matching line indices, updates the first instance in place, and splices out all subsequent duplicate matches in reverse order. If exactly one valid section already exists, disk writes are bypassed completely.
+73. **Dynamic Package Script Requirements & Collision Detection Contract (`PackageScriptRegistry`, `AuditorPackageScriptRequirement`, `[COLISIÓN DE COMANDOS]`)**:
+    - Every sub-auditor and host extension has a mandatory execution contract (`scripts`) defining how it is invoked via CLI and package scripts.
+    - `BaseAuditor` automatically derives canonical script requirements (`audit:<short-id>` executing `auditor task=<id>`) by convention from `id`, `description`, and `family` with zero boilerplate.
+    - Sub-auditors and extensions may declare custom script aliases or multi-argument CLI tools via `AuditorOptions.scripts`.
+    - `PackageScriptRegistry` tracks all registered scripts and throws an immediate, explicit error (`[COLISIÓN DE COMANDOS]`) if two sub-auditors or extensions register the same command name with conflicting targets.
+    - `validate_audit_config` in `--fix` mode (`auditor fix`) dynamically discovers all required scripts and injects missing ones into `package.json` non-destructively, preserving existing commands and custom aliases. Static hardcoded script templates are strictly prohibited.
 
 ---
 
@@ -464,7 +470,6 @@ Pre-formatted, production-ready templates conforming to all project standards ar
 - **Composite / Database / Asset Auditor (`BaseAuditor`)**: [`assets/templates/base_auditor_template.ts`](./assets/templates/base_auditor_template.ts) — Best for multi-source comparisons, database schema validations, or dataset integrity checks.
 - **AST-Driven Sub-Auditor (`requiresAst: true` & `SharedAstContext`)**: [`assets/templates/ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts) — Best for TypeScript AST analysis without redundant compiler overhead.
 - **Dedicated Vitest Unit Test**: [`assets/templates/auditor_unit_test_template.test.ts`](./assets/templates/auditor_unit_test_template.test.ts) — Mandatory companion unit test covering 100% of rule IDs and clean execution.
-- **Recommended Host NPM Scripts Template (`package.json`)**: [`assets/templates/recommended_package_scripts_template.json`](./assets/templates/recommended_package_scripts_template.json) — Complete canonical `scripts` block for consumer projects, exposing all 25+ auditor tools, CLI reporters, and quality gates.
 
 📘 **Comprehensive Walkthrough**: See [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md) for complete step-by-step code implementations of Options A, B, and C.
 

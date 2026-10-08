@@ -75,6 +75,9 @@ function extractMetadataFromAuditorInstance(val, result) {
         if (Array.isArray(instance?.gitIgnoreEntries)) {
             result.gitIgnoreEntries = instance.gitIgnoreEntries;
         }
+        if (Array.isArray(instance?.scripts)) {
+            result.scripts = instance.scripts;
+        }
         if (typeof instance?.toManifest === 'function') {
             const manifest = instance.toManifest();
             result.manifest = manifest;
@@ -109,6 +112,9 @@ function extractMetadataFromFunction(val, result) {
     }
     if (Array.isArray(withStatic.gitIgnoreEntries)) {
         result.gitIgnoreEntries = withStatic.gitIgnoreEntries;
+    }
+    if (Array.isArray(withStatic.scripts)) {
+        result.scripts = withStatic.scripts;
     }
     if (val.prototype instanceof BaseAuditor) {
         extractMetadataFromAuditorInstance(val, result);

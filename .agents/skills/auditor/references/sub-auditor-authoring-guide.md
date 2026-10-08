@@ -764,3 +764,51 @@ describe('All Auditors Dynamic Conformance', () => {
   runAuditorContractConformanceTests();
 });
 ```
+
+---
+
+## 21. Dynamic Package Script Contract & Collision Prevention (`PackageScriptRegistry`)
+
+Every sub-auditor and host extension has a mandatory execution contract (`scripts`) defining how it is invoked via CLI and package scripts:
+
+### 1. Automatic Derivation by Convention (`BaseAuditor`)
+Sub-auditors and extensions extending `BaseAuditor` do not need to write manual script definitions. The base class automatically derives canonical script requirements by convention:
+- **Script Name**: `audit:<short-id>` (e.g. `validate_my_feature` -> `audit:my-feature`).
+- **Command**: `auditor task=<id>` (e.g. `auditor task=validate_my_feature`).
+- **Description**: Derived directly from the auditor's `description`.
+- **Category**: Derived directly from the auditor's `family`.
+
+### 2. Custom Aliases & Flags (`AuditorOptions.scripts`)
+If a sub-auditor or extension requires custom aliases or specialized multi-flag commands, they can be declared explicitly:
+```typescript
+import { BaseAuditor, type AuditorPackageScriptRequirement } from '@francogp/auditor';
+
+export class MyFeatureAuditor extends BaseAuditor<MyFeatureRuleId> {
+  public static readonly scripts: readonly AuditorPackageScriptRequirement[] = [
+    {
+      name: 'audit:my-feature:fast',
+      command: 'auditor task=validate_my_feature fast=true',
+      description: 'Fast check for my feature violations',
+      category: 'architecture'
+    }
+  ];
+
+  constructor(options: MyFeatureAuditorOptions = {}) {
+    super({
+      // ...
+      scripts: MyFeatureAuditor.scripts,
+      // ...
+    });
+  }
+}
+```
+
+### 3. Collision Prevention (`[COLISIÓN DE COMANDOS]`)
+All scripts are registered into `PackageScriptRegistry`. If two sub-auditors or extensions declare the same command name with conflicting commands, the registry throws an immediate, loud error:
+```
+[COLISIÓN DE COMANDOS] El comando de script 'audit:my-feature' está duplicado entre 'validate_my_feature' ('auditor task=validate_my_feature') y 'otra_extension' ('auditor task=otra_extension'). Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. Cambia el nombre del comando para resolver la colisión.
+```
+
+### 4. Automated Non-Destructive Injection (`auditor fix`)
+When running `auditor fix` (or `npm run audit:fix`), `validate_audit_config` dynamically inspects the host's `package.json` against all registered scripts in `PackageScriptRegistry` and appends missing ones without modifying existing custom scripts.
+

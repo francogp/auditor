@@ -11,6 +11,7 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   type AuditorConfigFileRequirement,
+  type AuditorPackageScriptRequirement,
   type GitIgnoreRequirement
 } from '@francogp/auditor';
 
@@ -46,6 +47,12 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
     //   customMissingMessage: 'Missing .mytoolrc.json configuration file.'
     // }
   ];
+
+  // Optional custom package script aliases:
+  // By default, BaseAuditor automatically derives "audit:<short-id>" (auditor task=<id>)
+  // from your auditor id, description, and family with zero boilerplate.
+  // Custom scripts are only declared here when you require non-standard aliases or CLI flags.
+  public static readonly scripts: readonly AuditorPackageScriptRequirement[] = [];
 
   constructor(options: MyCompositeAuditorOptions = {}) {
     super({

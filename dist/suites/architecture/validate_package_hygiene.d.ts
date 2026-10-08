@@ -21,6 +21,7 @@ export interface KnipReport {
     readonly issues?: readonly KnipFileIssues[];
 }
 export declare function extractReferencedScriptDependencies(projectRoot: string): Set<string>;
+export declare function extractOwnPackageBinaries(projectRoot: string): Set<string>;
 /**
  * Parses raw JSON output from Knip into canonical AuditFindings.
  */

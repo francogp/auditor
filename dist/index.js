@@ -16,6 +16,7 @@ export * from "./core/safePath.js";
 export * from "./core/gitignoreMatcher.js";
 export * from "./core/gitIgnoreRegistry.js";
 export * from "./core/configFileRegistry.js";
+export * from "./core/packageScriptRegistry.js";
 export * from "./cli/auditScanner.js";
 export * from "./cli/check_environment.js";
 export * from "./cli/init_agent.js";

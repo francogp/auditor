@@ -7,6 +7,7 @@
 import path from 'node:path';
 import { resolveFamilyMetadata } from "../core/auditContract.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
+import { PackageScriptRegistry } from "../core/packageScriptRegistry.js";
 import { extractAuditorMetadataFromFile } from "./auditorMetadata.js";
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
 export function getTimeoutForTask(_filename, configRunnerTimeout) {
@@ -135,6 +136,10 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
     if (gitIgnoreEntries.length > 0) {
         GitIgnoreRegistry.registerMany(gitIgnoreEntries);
     }
+    const scripts = metadata.scripts;
+    if (scripts && scripts.length > 0) {
+        PackageScriptRegistry.registerMany(scripts, id);
+    }
     if (shouldSkipTaskByCapabilities(capabilities, options)) {
         return null;
     }
@@ -158,6 +163,7 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
         icon: effectiveIcon,
         capabilities: capabilities ?? undefined,
         gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
+        scripts: scripts && scripts.length > 0 ? scripts : undefined,
         manifest: metadata.manifest,
         configKey: resolveTaskConfigKey(metadata),
         defaultConfig: resolveTaskDefaultConfig(metadata),

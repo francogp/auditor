@@ -13,7 +13,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { loadAuditConfig, buildRatchetConfig, AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "../../core/auditConfig.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
-import { discoverAuditors, collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
+import { discoverAuditors, collectAllGitIgnoreRequirements, collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
 import { resolveGitCommit, describeBaselineDefect } from "../../cli/auditRatchet.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import ts from 'typescript';
@@ -355,7 +355,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         this.verifyDomainAndStylePaths(config);
         this.verifyExtensionPaths(config);
         await this.verifyGitIgnore(config);
-        this.verifyPackageScripts(config);
+        await this.verifyPackageScripts(config);
         this.verifyProductionRef(config);
         this.verifyRatchetBaseline(config);
     }
@@ -705,33 +705,36 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         }
         return false;
     }
-    getMissingRecommendedScripts(scripts, config) {
+    async getMissingRecommendedScripts(scripts, config) {
+        const allRequirements = await collectAllPackageScriptRequirements(this.projectRoot, config);
+        const seenNames = new Set();
         const missing = [];
-        for (const [scriptName, scriptCmd] of Object.entries(ESSENTIAL_AUDITOR_SCRIPTS)) {
-            if (!scripts[scriptName]) {
-                missing.push([scriptName, scriptCmd]);
+        for (const req of allRequirements) {
+            if (seenNames.has(req.name))
+                continue;
+            seenNames.add(req.name);
+            if (typeof req.isApplicable === 'function' && !req.isApplicable(config, this.projectRoot)) {
+                continue;
             }
-        }
-        if (Array.isArray(config.packageScripts?.extraRequiredScripts)) {
-            for (const reqScript of config.packageScripts.extraRequiredScripts) {
-                if (!scripts[reqScript]) {
-                    missing.push([reqScript, `auditor task=${reqScript}`]);
-                }
+            if (!scripts[req.name]) {
+                missing.push([req.name, req.command]);
             }
         }
         return missing;
     }
-    verifyRecommendedScripts(pkg, config) {
+    async verifyRecommendedScripts(pkg, config) {
         if (config.packageScripts?.recommendedScripts === false)
             return false;
         const scripts = pkg.scripts ?? {};
-        const missing = this.getMissingRecommendedScripts(scripts, config);
+        const missing = await this.getMissingRecommendedScripts(scripts, config);
         if (missing.length === 0)
             return false;
         if (this.isFixActive()) {
             pkg.scripts = pkg.scripts ?? {};
             for (const [scriptName, scriptCmd] of missing) {
-                pkg.scripts[scriptName] = scriptCmd;
+                if (!pkg.scripts[scriptName]) {
+                    pkg.scripts[scriptName] = scriptCmd;
+                }
             }
             return true;
         }
@@ -747,7 +750,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         }
         return false;
     }
-    verifyPackageScripts(config) {
+    async verifyPackageScripts(config) {
         if (config.packageScripts?.enabled === false)
             return;
         const pkgPath = path.resolve(this.projectRoot, 'package.json');
@@ -757,7 +760,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         let modified = pkg.scripts ? this.verifyRemovedCommitGate(pkg.scripts) : false;
         if (this.verifyBuildScript(pkg, config))
             modified = true;
-        if (this.verifyRecommendedScripts(pkg, config))
+        if (await this.verifyRecommendedScripts(pkg, config))
             modified = true;
         if (modified) {
             fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');

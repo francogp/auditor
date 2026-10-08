@@ -3,10 +3,11 @@
  *
  * Dedicated metadata extractor for auditor suites and tasks.
  */
-import { type AuditorCapabilities, type GitIgnoreRequirement, type AuditorManifestDTO } from '../core/auditContract.ts';
+import { type AuditorCapabilities, type GitIgnoreRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO } from '../core/auditContract.ts';
 export interface ExtractedAuditorMetadata {
     readonly capabilities: AuditorCapabilities;
     readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+    readonly scripts?: readonly AuditorPackageScriptRequirement[];
     readonly icon?: string;
     readonly manifest?: AuditorManifestDTO;
     readonly description?: string;

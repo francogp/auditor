@@ -223,6 +223,16 @@ export function validateAuditorConstruction(auditor: BaseAuditor<string>, taskId
   validateRuleDescriptions(auditor, taskId, errors);
   validateAuditorManifest(auditor, taskId, errors);
 
+  if (!Array.isArray(auditor.scripts) || auditor.scripts.length === 0) {
+    errors.push(`Auditor [${taskId}] no define el contrato obligatorio de comandos de ejecución en 'scripts'.`);
+  } else {
+    for (const s of auditor.scripts) {
+      if (!s.name || !s.command || !s.description) {
+        errors.push(`Auditor [${taskId}] define un script inválido en 'scripts' (faltan campos obligatorios name, command o description).`);
+      }
+    }
+  }
+
   return errors;
 }
 
