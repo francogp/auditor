@@ -241,7 +241,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const banner = renderAutoFixNoticeBanner(5, 2);
       expect(banner).toContain('INCIDENCIAS REPARABLES AUTOMÁTICAMENTE');
       expect(banner).toContain('5 error(es) y 2 advertencia(s)');
-      expect(banner).toContain('npm run audit:fix');
+      expect(banner).toContain('npm run auditor:fix');
     });
 
     it('renders notice banner with only errors', () => {

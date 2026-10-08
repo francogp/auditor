@@ -253,11 +253,11 @@ export async function runCoverageMapReport(options = parseCoverageMapCliArgs()) 
         console.log(JSON.stringify(result, null, 2));
         return;
     }
-    const runSubtitle = result.runId ? `Run ID: ${result.runId}` : 'Sin ledgers activos (ejecuta npm run audit)';
+    const runSubtitle = result.runId ? `Run ID: ${result.runId}` : 'Sin ledgers activos (ejecuta npm run auditor)';
     console.log(renderBanner('MAPA DE COBERTURA DE AUDITORÍA Y PUNTOS CIEGOS', `v${AUDITOR_VERSION}  |  ${runSubtitle}`));
     if (!result.runId) {
         console.log(styleText('yellow', '\n⚠️  No se encontraron ledgers de cobertura en scratch/audits/coverage.'));
-        console.log(styleText('dim', '   Ejecuta una corrida completa con `npm run audit` para registrar qué suites escanean cada archivo.\n'));
+        console.log(styleText('dim', '   Ejecuta una corrida completa con `npm run auditor` para registrar qué suites escanean cada archivo.\n'));
     }
     if (options.uncoveredOnly) {
         const uncovered = result.files.filter(f => f.status === 'uncovered');
@@ -294,7 +294,7 @@ export async function runCoverageMapReport(options = parseCoverageMapCliArgs()) 
     console.log();
     if (result.totalUncovered > 0) {
         console.log(styleText('red', `❌ Se detectaron ${result.totalUncovered} archivo(s) sin cobertura de auditoría.`));
-        console.log(styleText('dim', '   Usa `npm run audit:coverage-map -- --uncovered` para ver el detalle de archivos.\n'));
+        console.log(styleText('dim', '   Usa `npm run auditor:coverage-map -- --uncovered` para ver el detalle de archivos.\n'));
     }
     else {
         console.log(styleText('green', `✨ Cobertura completa: ${result.overallCoveragePercent}% de los archivos activos tienen verificación arquitectónica.\n`));
@@ -302,7 +302,7 @@ export async function runCoverageMapReport(options = parseCoverageMapCliArgs()) 
 }
 if (isMainModule(import.meta.url)) {
     runCoverageMapReport().catch(err => {
-        console.error(styleText('red', `\n💥 Error en audit:coverage-map: ${err.message}`));
+        console.error(styleText('red', `\n💥 Error en auditor:coverage-map: ${err.message}`));
         process.exit(1);
     });
 }

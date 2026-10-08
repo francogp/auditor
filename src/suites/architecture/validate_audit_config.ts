@@ -268,7 +268,8 @@ export type AuditConfigRuleId =
   | 'audit-config-invalid-production-ref'
   | 'audit-config-invalid-baseline'
   | 'audit-config-missing-recommended-script'
-  | 'audit-config-missing-section';
+  | 'audit-config-missing-section'
+  | 'audit-config-obsolete-script';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
@@ -280,7 +281,8 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-invalid-production-ref',
   'audit-config-invalid-baseline',
   'audit-config-missing-recommended-script',
-  'audit-config-missing-section'
+  'audit-config-missing-section',
+  'audit-config-obsolete-script'
 ] as const;
 
 /** Removed `audit:for-commit` gate (superseded by the warning ratchet built into `auditor`). */
@@ -289,12 +291,12 @@ const FIXABLE_COMMIT_GATE_PATTERN = /\b(?:(?:npm|pnpm|bun|yarn)\s+run\s+audit:fo
 const REMOVED_COMMIT_GATE_SCRIPT = 'audit:for-commit';
 
 export const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>> = {
-  'audit': 'auditor',
-  'audit:fix': 'auditor fix',
-  'audit:by-file': 'auditor-by-file',
-  'audit:lint': 'auditor preset=lint',
-  'audit:md': 'auditor preset=md',
-  'audit:build': 'auditor preset=build',
+  'auditor': 'auditor',
+  'auditor:fix': 'auditor fix',
+  'auditor:by-file': 'auditor-by-file',
+  'auditor:lint': 'auditor preset=lint',
+  'auditor:md': 'auditor preset=md',
+  'auditor:build': 'auditor preset=build',
   'auditor:update': 'auditor-update',
   'auditor:version': 'auditor-version'
 };
@@ -398,7 +400,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-invalid-production-ref': 'Ref de producción no resuelve en git',
         'audit-config-invalid-baseline': 'Línea base del ratchet inválida',
         'audit-config-missing-recommended-script': 'Falta script recomendado en package',
-        'audit-config-missing-section': 'Falta sección en audit.config'
+        'audit-config-missing-section': 'Falta sección en audit.config',
+        'audit-config-obsolete-script': 'Script legado u obsoleto en package.json'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore', 'package.json']
@@ -531,7 +534,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         severity: 'error',
         file: 'package.json',
         line: 1,
-        message: `Script "${name}" references the removed audit:for-commit gate. Use "auditor" (npm run audit), which now enforces 0 errors and 0 new warnings via the warning ratchet.`,
+        message: `Script "${name}" references the removed audit:for-commit gate. Use "auditor" (npm run auditor), which now enforces 0 errors and 0 new warnings via the warning ratchet.`,
         context: `${name}: ${command}`
       });
     }
@@ -766,7 +769,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (REMOVED_COMMIT_GATE_PATTERN.test(buildScript)) return true;
     return (
       /\bauditor(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
-      /\b(?:npm|pnpm|bun)\s+run\s+audit(?:\s|$|[&;])/.test(buildScript)
+      /\b(?:npm|pnpm|bun)\s+run\s+auditor(?:\s|$|[&;])/.test(buildScript)
     );
   }
 
@@ -785,10 +788,24 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         severity: 'error',
         file: 'package.json',
         line: 1,
-        message: 'Build script in package.json is missing or does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
+        message: 'Build script in package.json is missing or does not chain auditor before compilation. Expected "auditor && ..." or "npm run auditor && ...".',
         context: 'package.json:scripts.build'
       });
       return false;
+    }
+
+    if (this.isFixActive()) {
+      let rewritten = buildScript;
+      if (/\b(?:npm|pnpm|bun)\s+run\s+audit:build\b/.test(rewritten)) {
+        rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit:build\b/g, '$1auditor:build');
+      }
+      if (/\b(?:npm|pnpm|bun)\s+run\s+audit\b/.test(rewritten)) {
+        rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit\b/g, '$1auditor');
+      }
+      if (rewritten !== buildScript) {
+        pkg.scripts!.build = rewritten;
+        return true;
+      }
     }
 
     if (!this.checkBuildScriptChainsAuditor(buildScript)) {
@@ -801,12 +818,69 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         severity: 'error',
         file: 'package.json',
         line: 1,
-        message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run audit && ...".',
+        message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run auditor && ...".',
         context: buildScript
       });
     }
 
     return false;
+  }
+
+  private verifyLintScript(scripts: Record<string, string>): boolean {
+    let modified = false;
+    if (scripts.lint && /\b(?:npm|pnpm|bun)\s+run\s+audit:lint\b/.test(scripts.lint)) {
+      if (this.isFixActive()) {
+        scripts.lint = scripts.lint.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit:lint\b/g, '$1auditor:lint');
+        modified = true;
+      }
+    }
+    return modified;
+  }
+
+  private isObsoleteAuditorScript(name: string, command: string): boolean {
+    if (
+      name === 'audit' ||
+      name === 'init-agent' ||
+      name === 'sync:env' ||
+      name === 'env:setup' ||
+      name === 'env:check' ||
+      name === 'audit:family:documentation' ||
+      name === 'auditor:sync-env'
+    ) {
+      return true;
+    }
+    if (name.startsWith('audit:')) {
+      return true;
+    }
+    if (
+      name.startsWith('validate:') &&
+      (command.includes('auditor') || command.includes('scripts/auditors') || command.includes('src/suites'))
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private pruneObsoleteAuditorScripts(scripts: Record<string, string>): boolean {
+    let modified = false;
+    for (const [name, command] of Object.entries(scripts)) {
+      if (this.isObsoleteAuditorScript(name, command)) {
+        if (this.isFixActive()) {
+          delete scripts[name];
+          modified = true;
+        } else {
+          this.addViolation({
+            ruleId: 'audit-config-obsolete-script',
+            severity: 'warning',
+            file: 'package.json',
+            line: 1,
+            message: `Script obsoleto o legado del auditor detectado en package.json: "${name}". Ejecuta "auditor fix" para sanear automáticamente.`,
+            context: `${name}: ${command}`
+          });
+        }
+      }
+    }
+    return modified;
   }
 
   private async getMissingRecommendedScripts(
@@ -868,7 +942,12 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     const pkg = this.loadPackageJson(pkgPath);
     if (!pkg) return;
 
-    let modified = pkg.scripts ? this.verifyRemovedCommitGate(pkg.scripts) : false;
+    let modified = false;
+    if (pkg.scripts) {
+      if (this.verifyRemovedCommitGate(pkg.scripts)) modified = true;
+      if (this.verifyLintScript(pkg.scripts)) modified = true;
+      if (this.pruneObsoleteAuditorScripts(pkg.scripts)) modified = true;
+    }
     if (this.verifyBuildScript(pkg, config)) modified = true;
     if (await this.verifyRecommendedScripts(pkg, config)) modified = true;
 

@@ -107,5 +107,5 @@ Whenever a new pattern, rule, or architectural shift is captured, the agent MUST
 7. **Phase 4 Application & Verification**:
    - Apply approved lessons and modernizations across all targeted `AGENTS.md` files in the DOX hierarchy.
    - Apply approved corrections to the affected `README.md` and documentation files.
-   - Run pre-commit sanity check: `npm run audit:md`.
+   - Run pre-commit sanity check: `npm run auditor:md`.
    - **STRICT PROHIBITION ON RUNNING TESTS FOR DOCS**: You are STRICTLY FORBIDDEN from running `npm run test`, Vitest, Node test runners, or E2E simulations when updating documentation, DOX indices, or `.md` files. Test suites are exclusively for code logic changes in `src/` or `database/`.

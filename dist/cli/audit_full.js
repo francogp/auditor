@@ -378,7 +378,7 @@ function buildConsolidatedReport(params) {
             ...(params.fixableErrors !== undefined && { fixableErrors: params.fixableErrors }),
             ...(params.fixableWarnings !== undefined && { fixableWarnings: params.fixableWarnings }),
             ...(params.autoFixRecommended !== undefined && { autoFixRecommended: params.autoFixRecommended }),
-            ...(params.autoFixRecommended && { autoFixCommand: 'npm run audit:fix' })
+            ...(params.autoFixRecommended && { autoFixCommand: 'npm run auditor:fix' })
         },
         families: Object.fromEntries(ctx.activeFamilies.map(f => [
             f,
@@ -565,7 +565,7 @@ async function renderAndPersistMasterReport(ctx) {
     if (!isFullAudit && !isBuildMode && !isFixMode) {
         console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
         console.log(styleText('yellow', `   latest_audit.json se actualizó con meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`));
-        console.log(styleText('dim', `   Los inspectores de calidad exigirán una corrida completa ('npm run audit').\n`));
+        console.log(styleText('dim', `   Los inspectores de calidad exigirán una corrida completa ('npm run auditor').\n`));
     }
     console.log(styleText('dim', `💾 Reporte detallado para IA / herramientas disponible en:`));
     console.log(styleText('cyan', `   📄 ${path.relative(process.cwd(), latestAuditPath)}\n`));

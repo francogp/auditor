@@ -9,12 +9,12 @@ description: MANDATORY safeguard for repository operations. You MUST trigger and
 > **PRIMORDIAL & FOUNDATIONAL MANDATE: ABSOLUTE PROHIBITION ON DISABLING OR MODIFYING CONFIGURATION TO BYPASS ERRORS WITHOUT EXPLICIT PROGRAMMER CONSULTATION**
 > You MUST NEVER turn off, disable, relax, revert, or modify auditor configuration (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`, etc.) because a verification suite reported errors or warnings. If a check fails (even with hundreds or thousands of errors), **THEY ARE REAL DEFECTS**.
 >
-> Making changes to configurations to produce a "fake pass" is **STRICTLY AND CATEGORICALLY PROHIBITED**. If defects cannot be legitimately resolved in the source code or via canonical auto-repair (`npm run audit:fix`), the agent **MUST HALT SAFE-COMMIT IMMEDIATELY**, report the exact defects truthfully, and **OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** before touching any configuration.
+> Making changes to configurations to produce a "fake pass" is **STRICTLY AND CATEGORICALLY PROHIBITED**. If defects cannot be legitimately resolved in the source code or via canonical auto-repair (`npm run auditor:fix`), the agent **MUST HALT SAFE-COMMIT IMMEDIATELY**, report the exact defects truthfully, and **OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** before touching any configuration.
 
 > [!IMPORTANT]
 > **PROMPT-DRIVEN TRIGGER ONLY**: Activate when the user explicitly requests a commit or push. Do NOT activate for automatic agent-internal saves or background operations.
 >
-> **SINGLE AUDIT GATE (`npm run audit`)**: There is no separate differential commit gate. The full `npm run audit` enforces **0 errors AND 0 new warnings** through the built-in warning ratchet, which compares every warning fingerprint against `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`). The removed `audit:for-commit` / `auditor-commit` commands MUST NOT be invoked or recreated.
+> **SINGLE AUDIT GATE (`npm run auditor`)**: There is no separate differential commit gate. The full `npm run auditor` enforces **0 errors AND 0 new warnings** through the built-in warning ratchet, which compares every warning fingerprint against `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`). The removed `audit:for-commit` / `auditor-commit` commands MUST NOT be invoked or recreated.
 
 ---
 
@@ -30,7 +30,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
 | **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 5 validation gates exit cleanly with code 0 on the final code. |
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
-| **Categorical Prohibition on Modifying or Turning Off Audit Configurations (`audit.config.ts`, Linters, Subsystems)** | During `/safe-commit`, agents are STRICTLY AND CATEGORICALLY FORBIDDEN from disabling, turning off, reverting, or tampering with `.auditor/audit.config.ts` (such as setting `domain.enabled: false`, `bundle.enabled: false`, `enforceTargets: false`, neutering thresholds, or adding ad-hoc whitelist entries), ESLint configurations, Stylelint configurations, or Fallow configurations to make gates pass or silence findings. If an audit gate reveals errors or warnings (even hundreds or thousands), THEY ARE REAL DEFECTS. The agent MUST NOT touch configuration to fake a clean pass. If issues cannot be legitimately resolved in the source code or via canonical auto-fix (`npm run audit:fix`), the agent MUST STOP the safe-commit immediately, halt Phase 2, report the exact defects to the user, and ask how they wish to proceed. Silencing rules or flipping config toggles during safe-commit is considered a critical architectural violation and gross misconduct. |
+| **Categorical Prohibition on Modifying or Turning Off Audit Configurations (`audit.config.ts`, Linters, Subsystems)** | During `/safe-commit`, agents are STRICTLY AND CATEGORICALLY FORBIDDEN from disabling, turning off, reverting, or tampering with `.auditor/audit.config.ts` (such as setting `domain.enabled: false`, `bundle.enabled: false`, `enforceTargets: false`, neutering thresholds, or adding ad-hoc whitelist entries), ESLint configurations, Stylelint configurations, or Fallow configurations to make gates pass or silence findings. If an audit gate reveals errors or warnings (even hundreds or thousands), THEY ARE REAL DEFECTS. The agent MUST NOT touch configuration to fake a clean pass. If issues cannot be legitimately resolved in the source code or via canonical auto-fix (`npm run auditor:fix`), the agent MUST STOP the safe-commit immediately, halt Phase 2, report the exact defects to the user, and ask how they wish to proceed. Silencing rules or flipping config toggles during safe-commit is considered a critical architectural violation and gross misconduct. |
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.3). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.3 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
@@ -51,16 +51,16 @@ graph TD
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        C0[2.1 git fetch origin\n+ npm run audit\n(0 errors + warning ratchet)] -->|Errors / new warnings| REPAIR[🛠️ Repair:\n1. npm run audit:fix\n2. Manual code / DOX editing]
+        C0[2.1 git fetch origin\n+ npm run auditor\n(0 errors + warning ratchet)] -->|Errors / new warnings| REPAIR[🛠️ Repair:\n1. npm run auditor:fix\n2. Manual code / DOX editing]
         C0 -->|0 errors, 0 new warnings| C2[2.2 npm run test]
         
         C2 -->|Tests Fail| REPAIR
         C2 -->|100% Pass| C3[2.3 npm run build\n🔒 THE BUILD GATE (Single Run)]
         
         C3 -->|Exit code ≠ 0 / Fail| REPAIR
-        C3 -->|Exit 0 ✅| C4[2.4 Post-Build Artifact Audit\nnpm run audit:build]
+        C3 -->|Exit 0 ✅| C4[2.4 Post-Build Artifact Audit\nnpm run auditor:build]
         C4 -->|Chunk bloat / budget exceeded| REPAIR
-        C4 -->|Optimized ✅| C5[2.5 Fallow Health & Quality Gate\nnpm run audit:fallow]
+        C4 -->|Optimized ✅| C5[2.5 Fallow Health & Quality Gate\nnpm run auditor:fallow]
         
         C5 -->|Score < 85 or new issues| REPAIR
         REPAIR -->|Re-verify full cycle| C0
@@ -69,7 +69,7 @@ graph TD
     C5 -->|Score ≥ 85 & Build Exit 0 & Chunks OK| EXIT_GATE[✅ Loop Exit]
     EXIT_GATE --> A3[Phase 3\nLessons + Walkthrough]
     A3 --> STOP1{🛑 USER APPROVES\nlearning_proposal.md?}
-    STOP1 -->|Approved| A4[Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run audit:md\n+ Tag & Push]
+    STOP1 -->|Approved| A4[Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push]
 
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style C0 fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
@@ -104,7 +104,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 **Step 1.1** — Inspect changes (`git status` & `git diff`)
 - Run `git status` to identify 100% of modified, untracked, and deleted files across the entire repository.
-- Pay special attention to `.auditor/audit-baseline.json`: if warnings were resolved during the task, `npm run audit` auto-shrinks this file. It is a versioned framework artifact and MUST be staged and committed alongside your code changes.
+- Pay special attention to `.auditor/audit-baseline.json`: if warnings were resolved during the task, `npm run auditor` auto-shrinks this file. It is a versioned framework artifact and MUST be staged and committed alongside your code changes.
 - Record the full list under `### Workspace Safety Backup` in `task.md`.
 
 **Step 1.2** — Test Gap Analysis
@@ -112,7 +112,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 - If gaps exist, write the unit tests immediately in `tests/` before moving forward.
 
 **Step 1.3** — Record Baseline Health & Create Code-Only Safety Patch
-- Run `npm run audit:fallow` (or `npx fallow health --format json --quiet`) to record `BASELINE_HEALTH`.
+- Run `npm run auditor:fallow` (or `fallow health --format json --quiet`) to record `BASELINE_HEALTH`.
 - Create the safety patch:
   ```bash
   mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch
@@ -150,12 +150,12 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 You must execute the 5 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from 2.1 until all pass consecutively.
 
-### 2.1 Full Audit & Warning Ratchet (`npm run audit`)
+### 2.1 Full Audit & Warning Ratchet (`npm run auditor`)
 - Run `git fetch origin` first (if remote is reachable) so `ratchet.productionRef` (default `origin/main`) reflects the latest production baseline.
-- Run `npm run audit` (or `auditor`). Never add presets, families, or filters: the ratchet only runs on the full default run.
+- Run `npm run auditor` (or `auditor`). Never add presets, families, or filters: the ratchet only runs on the full default run.
 - MUST exit 0: **0 errors** and **0 new warnings** (`🔒 Ratchet de warnings OK`).
 - If new warnings appear, they are listed by file and line. They MUST be resolved at the code source, even in pre-existing or untouched files. Never edit `.auditor/audit-baseline.json` by hand, re-run `--init-baseline`, or disable the ratchet.
-- When warnings are resolved, `npm run audit` shrinks `.auditor/audit-baseline.json` automatically. That file MUST be included in the commit.
+- When warnings are resolved, `npm run auditor` shrinks `.auditor/audit-baseline.json` automatically. That file MUST be included in the commit.
 - Inspect `meta.ratchet` in `scratch/audits/latest_audit.json` to verify the verdict (`status`, `newWarnings`, `resolvedWarnings`, `baselineUpdated`).
 
 ### 2.2 Test Suite Execution
@@ -167,19 +167,19 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 - Compiles the production bundle with strict exit code 0. Zero bypasses.
 - **Strict Single Build**: This is the ONLY time `npm run build` executes in the entire workflow. Because any version bump was already applied in Step 1.4, this build compiles the definitive version directly into `dist/`.
 
-### 2.4 Post-Build Compiled Artifact Audit (`npm run audit:build`)
-- Run `npm run audit:build` (or `auditor preset=build`). If `npm run build` in Gate 2.3 already chained and executed it, inspect its output from Gate 2.3.
+### 2.4 Post-Build Compiled Artifact Audit (`npm run auditor:build`)
+- Run `npm run auditor:build` (or `auditor preset=build`). If `npm run build` in Gate 2.3 already chained and executed it, inspect its output from Gate 2.3.
 - Audits compiled production artifacts in `dist/` (client chunk budgets in `dist/assets/`, package export maps, `.d.ts` entrypoints, and bundle budgets).
 - Exclusively runs suites that declare `capabilities.requiresBuild === true`.
 
-### 2.5 Fallow Health & Quality Gate (`npm run audit:fallow`)
-- Run `npm run audit:fallow`.
+### 2.5 Fallow Health & Quality Gate (`npm run auditor:fallow`)
+- Run `npm run auditor:fallow`.
 - Score must be >= 85 and >= `BASELINE_HEALTH`, with zero unaddressed high-severity issues.
 
 ### Repair Protocol (on ANY Gate Failure):
-1. **Auto-Repair**: Run `npm run audit:fix` (or `auditor fix`) to automatically repair fixable lint/style/import/config issues.
+1. **Auto-Repair**: Run `npm run auditor:fix` (or `auditor fix`) to automatically repair fixable lint/style/import/config issues.
 2. **Manual Repair**: Manually resolve remaining source code, test, build, or DOX defects.
-3. **Loop Restart**: Always re-start the loop from **Gate 2.1** (`npm run audit`), ensuring all 5 gates pass consecutively on the final code.
+3. **Loop Restart**: Always re-start the loop from **Gate 2.1** (`npm run auditor`), ensuring all 5 gates pass consecutively on the final code.
 
 **✓ Completion gate**: All 5 gates passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
 
@@ -212,7 +212,7 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 
 Once the user approves:
 - **Step 4.1**: Apply approved lessons and modernizations across targeted `AGENTS.md` files and affected documentation.
-- **Step 4.2**: Run pre-commit sanity check: `npm run audit:md`.
+- **Step 4.2**: Run pre-commit sanity check: `npm run auditor:md`.
 - **Step 4.3**: Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
 - **Step 4.4**: **Single Atomic Commit & Tag**:
   - If version was bumped in Step 1.4, write the synthesized message to a temporary file (`scratch/release_notes.txt`) and run the atomic chained command:
@@ -250,11 +250,11 @@ Every completed safe-commit run MUST finish with a standardized Markdown templat
 ### Puertas de Calidad Verificadas (5/5)
 | Puerta | Descripción | Estado |
 |:---|:---|:---:|
-| 2.1 | `npm run audit` (Auditoría completa + ratchet de warnings) | ✅ Aprobado (0 err, 0 warn nuevos) |
+| 2.1 | `npm run auditor` (Auditoría completa + ratchet de warnings) | ✅ Aprobado (0 err, 0 warn nuevos) |
 | 2.2 | `npm run test` (Tests Automatizados) | ✅ Aprobado (100% pasando) |
 | 2.3 | `npm run build` (Single Build Mandate) | ✅ Aprobado (Exit 0) |
-| 2.4 | `npm run audit:build` (Auditoría Post-Build de Artefactos) | ✅ Aprobado |
-| 2.5 | `npm run audit:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
+| 2.4 | `npm run auditor:build` (Auditoría Post-Build de Artefactos) | ✅ Aprobado |
+| 2.5 | `npm run auditor:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
 
 ### Publicación Remota (Git Push)
 > ⚠️ **Control de Seguridad**: Por gobernanza del repositorio, el agente **NO** realiza push automático a ramas remotas sin petición explícita previa.
@@ -280,11 +280,11 @@ git push origin <branch> --follow-tags
 ### Quality Gates Verified (5/5)
 | Gate | Description | Status |
 |:---|:---|:---:|
-| 2.1 | `npm run audit` (Full audit + warning ratchet) | ✅ Passed (0 err, 0 new warn) |
+| 2.1 | `npm run auditor` (Full audit + warning ratchet) | ✅ Passed (0 err, 0 new warn) |
 | 2.2 | `npm run test` (Automated Tests) | ✅ Passed (100% passing) |
 | 2.3 | `npm run build` (Single Build Mandate) | ✅ Passed (Exit 0) |
-| 2.4 | `npm run audit:build` (Post-Build Artifact Audit) | ✅ Passed |
-| 2.5 | `npm run audit:fallow` (Architecture & Health) | ✅ Passed (Score ≥ 85) |
+| 2.4 | `npm run auditor:build` (Post-Build Artifact Audit) | ✅ Passed |
+| 2.5 | `npm run auditor:fallow` (Architecture & Health) | ✅ Passed (Score ≥ 85) |
 
 ### Remote Publishing (Git Push)
 > ⚠️ **Security Control**: Repository governance strictly bars automated push to remote branches without prior explicit instructions.

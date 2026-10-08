@@ -35,7 +35,7 @@ flowchart TD
 | **3** | `## Local Contracts` | **Mandatory** | Inviolable architectural invariants, domain rules, naming conventions, and constraints governing code inside this directory. |
 | *opt* | `## Key Files` | *Optional* | Bidirectional file inventory mapping every non-test source code file in this directory to its architectural role. |
 | **4** | `## Work Guidance` | **Mandatory** | Actionable instructions for developers and AI agents on how to modify, extend, or refactor code in this folder. |
-| **5** | `## Verification` | **Mandatory** | Real, runnable terminal commands (e.g. `npm test -- tests/...`, `npm run audit:...`) to verify changes hermetically. |
+| **5** | `## Verification` | **Mandatory** | Real, runnable terminal commands (e.g. `npm test -- tests/...`, `npm run auditor:...`) to verify changes hermetically. |
 | **6** | `## Child DOX Index` | **Mandatory** | Relative links to child `AGENTS.md` files, or an explicit note stating that no subdirectories exist. |
 
 > [!NOTE]
@@ -84,7 +84,7 @@ flowchart TD
   ## Verification
 
   - Run unit tests: `npm test -- tests/parser.test.ts`
-  - Run lint suite: `npm run audit:lint`
+  - Run lint suite: `npm run auditor:lint`
   ```
 - **Strict Prohibition**: Stubs like `npm test` alone or `TODO: Add tests` trigger `dox-empty-section`.
 
@@ -174,7 +174,7 @@ Architecture & Tooling Engineers.
 ## Verification
 
 - Run all family suites: `npm test -- tests/validate_*.test.ts`
-- Run lint preset suites: `npm run audit:lint`
+- Run lint preset suites: `npm run auditor:lint`
 
 ## Child DOX Index
 
@@ -246,5 +246,5 @@ To check DOX integrity across the entire workspace:
 node --experimental-strip-types src/suites/documentation/validate_dox_integrity.ts
 
 # Run general Markdown and DOX preset:
-npm run audit:md
+npm run auditor:md
 ```

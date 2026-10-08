@@ -8,43 +8,43 @@
 export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
     // Core Auditor Invocations
     {
-        name: 'audit',
+        name: 'auditor',
         command: 'auditor',
         description: 'Ejecución del orquestador completo de auditoría estática y arquitectura',
         category: 'core'
     },
     {
-        name: 'audit:fix',
+        name: 'auditor:fix',
         command: 'auditor fix',
         description: 'Modo de auto-reparación mecánica y scaffolding de configuraciones',
         category: 'core'
     },
     {
-        name: 'audit:by-file',
+        name: 'auditor:by-file',
         command: 'auditor-by-file',
         description: 'Desglose detallado de hallazgos ordenados por archivo y línea',
         category: 'reporting'
     },
     {
-        name: 'audit:lint',
+        name: 'auditor:lint',
         command: 'auditor preset=lint',
         description: 'Preset rápido de linter y análisis estático (ast, eslint, markdown)',
         category: 'core'
     },
     {
-        name: 'audit:md',
+        name: 'auditor:md',
         command: 'auditor preset=md',
         description: 'Preset rápido de documentación y markdown (enlaces relativos e índices DOX)',
         category: 'core'
     },
     {
-        name: 'audit:build',
+        name: 'auditor:build',
         command: 'auditor preset=build',
         description: 'Preset de validación post-compilación sobre artefactos distribuidos en dist/',
         category: 'core'
     },
     {
-        name: 'audit:changed',
+        name: 'auditor:changed',
         command: 'auditor changed-since=main',
         description: 'Auditoría incremental acotada a diferencias respecto a la rama principal',
         category: 'core'
@@ -76,103 +76,103 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
     },
     // Reports and CLI Diagnostic Tools
     {
-        name: 'audit:findings',
+        name: 'auditor:findings',
         command: 'auditor-findings',
         description: 'Visor de hallazgos en formato Box-Drawing de 80 columnas',
         category: 'reporting'
     },
     {
-        name: 'audit:errors',
+        name: 'auditor:errors',
         command: 'auditor-findings severity=error',
         description: 'Filtro de hallazgos exclusivo para errores bloqueantes',
         category: 'reporting'
     },
     {
-        name: 'audit:warnings',
+        name: 'auditor:warnings',
         command: 'auditor-findings severity=warning',
         description: 'Filtro de hallazgos exclusivo para advertencias de deuda técnica',
         category: 'reporting'
     },
     {
-        name: 'audit:summary',
+        name: 'auditor:summary',
         command: 'auditor-findings',
         description: 'Resumen consolidado de métricas y violaciones de la última auditoría',
         category: 'reporting'
     },
     {
-        name: 'audit:files',
+        name: 'auditor:files',
         command: 'auditor-findings files',
         description: 'Lista consolidada de archivos con violaciones de arquitectura',
         category: 'reporting'
     },
     {
-        name: 'audit:complexity',
+        name: 'auditor:complexity',
         command: 'auditor-complexity',
         description: 'Diagnóstico de complejidad ciclomática y refactoring targets de Fallow',
         category: 'reporting'
     },
     {
-        name: 'audit:similar',
+        name: 'auditor:similar',
         command: 'auditor-similar',
         description: 'Detección de código duplicado semántico por vectores Candle CPU',
         category: 'reporting',
         isApplicable: (config) => config.fallow?.similarCode?.enabled !== false
     },
     {
-        name: 'audit:review',
+        name: 'auditor:review',
         command: 'auditor-review',
         description: 'Revisión arquitectónica de diffs contra grafo estático de Fallow',
         category: 'reporting'
     },
     {
-        name: 'audit:guard',
+        name: 'auditor:guard',
         command: 'auditor-guard',
         description: 'Barrera de control de sanidad y bloqueo de regresiones',
         category: 'reporting'
     },
     {
-        name: 'audit:flags',
+        name: 'auditor:flags',
         command: 'auditor-flags',
         description: 'Auditoría de feature flags y dead-code derivado de condicionales',
         category: 'reporting'
     },
     {
-        name: 'audit:coverage-gaps',
+        name: 'auditor:coverage-gaps',
         command: 'auditor-fallow category=coverage-gaps',
         description: 'Brechas de cobertura y código no ejecutado detectado por Fallow',
         category: 'reporting'
     },
     // Fallow Categories
     {
-        name: 'audit:fallow:dupes',
+        name: 'auditor:fallow:dupes',
         command: 'auditor-fallow category=dupes',
         description: 'Detección de bloques de código duplicados sintácticos vía Fallow',
         category: 'fallow',
         isApplicable: (config) => config.fallow?.enabled !== false
     },
     {
-        name: 'audit:fallow:circular',
+        name: 'auditor:fallow:circular',
         command: 'auditor-fallow category=circular',
         description: 'Detección de dependencias circulares entre módulos vía Fallow',
         category: 'fallow',
         isApplicable: (config) => config.fallow?.enabled !== false
     },
     {
-        name: 'audit:fallow:exports',
+        name: 'auditor:fallow:exports',
         command: 'auditor-fallow category=exports',
         description: 'Detección de exportaciones huérfanas y símbolos no importados',
         category: 'fallow',
         isApplicable: (config) => config.fallow?.enabled !== false
     },
     {
-        name: 'audit:fallow:security',
+        name: 'auditor:fallow:security',
         command: 'auditor-fallow category=security',
         description: 'Escaneo estático de vulnerabilidades y sinks de seguridad CWE',
         category: 'fallow',
         isApplicable: (config) => config.fallow?.enabled !== false && config.fallow?.security?.enabled !== false
     },
     {
-        name: 'audit:fallow:dead-code',
+        name: 'auditor:fallow:dead-code',
         command: 'auditor-fallow category=dead-code',
         description: 'Detección de archivos muertos y código no referenciado vía Fallow',
         category: 'fallow',
@@ -180,60 +180,29 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
     },
     // Family Invocations
     {
-        name: 'audit:family:architecture',
+        name: 'auditor:family:architecture',
         command: 'auditor family=architecture',
         description: 'Ejecución de la familia de arquitectura, estándares AST y Fallow',
         category: 'family'
     },
     {
-        name: 'audit:family:domain',
+        name: 'auditor:family:domain',
         command: 'auditor family=domain_data',
         description: 'Ejecución de la familia de tipos de dominio y cuadros de datos',
         category: 'family',
         isApplicable: (config) => config.domain?.enabled !== false
     },
     {
-        name: 'audit:family:persistence',
+        name: 'auditor:family:persistence',
         command: 'auditor family=persistence',
         description: 'Ejecución de la familia de persistencia, SQL y migraciones',
         category: 'family',
         isApplicable: (config) => config.persistence?.engine !== 'none'
     },
-    {
-        name: 'audit:family:documentation',
-        command: 'auditor family=documentation',
-        description: 'Ejecución de la familia de documentación, markdown e índices DOX',
-        category: 'family'
-    },
-    // Environment and AI Agent Tools
-    {
-        name: 'init-agent',
-        command: 'auditor-init-agent',
-        description: 'Inicialización de entorno y sincronización de skills del agente de IA',
-        category: 'agent'
-    },
-    {
-        name: 'sync:env',
-        command: 'auditor-sync-env',
-        description: 'Sincronización de scripts y dependencias de entorno multiplataforma',
-        category: 'env'
-    },
-    {
-        name: 'env:setup',
-        command: 'auditor-setup-env',
-        description: 'Configuración e inicialización de entorno de ejecución local',
-        category: 'env'
-    },
-    {
-        name: 'env:check',
-        command: 'auditor-check-env',
-        description: 'Verificación de requisitos de entorno, versiones de Node.js y permisos',
-        category: 'env'
-    },
     // Standard Linter Aliases
     {
         name: 'lint',
-        command: 'npm run audit:lint',
+        command: 'npm run auditor:lint',
         description: 'Alias canónico de linter delegando en auditor preset=lint',
         category: 'aliases'
     },

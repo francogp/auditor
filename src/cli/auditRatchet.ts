@@ -158,7 +158,7 @@ function loadAuthoritativeBaseline(
   const local = readLocalBaseline(projectRoot, ratchet);
   if (production === null) {
     if (local === null) {
-      throw new Error(`[Ratchet] No warning baseline found locally nor at '${ratchet.productionRef}'. Bootstrap it with 'npm run audit -- --init-baseline' and commit '${ratchet.baselineFile}'.`);
+      throw new Error(`[Ratchet] No warning baseline found locally nor at '${ratchet.productionRef}'. Bootstrap it with 'npm run auditor -- --init-baseline' and commit '${ratchet.baselineFile}'.`);
     }
     return { baseline: local, source: 'local-bootstrap' };
   }

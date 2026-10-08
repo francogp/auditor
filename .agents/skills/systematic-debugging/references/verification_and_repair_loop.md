@@ -16,7 +16,7 @@ flowchart TD
     VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Regression Suite: npm test"]
     RunNodeRegression -- "Fail" --> Diagnose
     RunNodeRegression -- "Pass (0 Regressions)" --> CheckTier3{"E2E / Integration Affected?"}
-    CheckTier3 -- "No" --> LintAndDox["5. Lint & DOX Pass: npm run lint && npm run audit:md"]
+    CheckTier3 -- "No" --> LintAndDox["5. Lint & DOX Pass: npm run lint && npm run auditor:md"]
     CheckTier3 -- "Yes" --> RunPlaywright["5. Run E2E: npm run test:e2e"]
     RunPlaywright -- "Pass" --> CleanZeroPass["6. Step 6B: Verification Pass"]
     CleanZeroPass -- "Pass" --> LintAndDox
@@ -68,7 +68,7 @@ If the bug touched persistence, database migrations, or SQL schemas:
 1. Confirm the reproduction test runs and passes GREEN against the configured database engine.
 2. Validate SQL migration syntax and schema integrity:
    ```bash
-   npm run audit:family:persistence
+   auditor family=persistence
    ```
 
 ### Step 2: UI & Component Interaction Verification
@@ -86,7 +86,7 @@ If the bug affected UI, GSAP animations, or view interactions:
    Ensures domain types, vue-tsc type checking, ESLint, and markdownlint pass cleanly.
 2. **Documentation & DOX Audit**:
    ```bash
-   npm run audit:md
+   npm run auditor:md
    ```
 3. **DOX Lesson Update (`dox-navigator`)**:
    Update the nearest owning `AGENTS.md` file with the lesson learned, contract clarification, or invariant established by this fix.

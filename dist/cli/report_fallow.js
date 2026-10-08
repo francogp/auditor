@@ -517,14 +517,14 @@ function printTableSummary(m) {
     console.log('\n' + renderBoxTable(sumCols, sumRows));
     console.log('\n🛠️ COMANDOS DISPONIBLES EN NPM:');
     console.log('─────────────────────────────────────────────────────────────────────────────');
-    console.log('  • npm run audit:complexity         → Reporte de complejidad ciclomática/cognitiva');
-    console.log('  • npm run audit:fallow:dupes       → Detección de bloques de código clonados');
-    console.log('  • npm run audit:fallow:circular    → Detección de dependencias circulares');
-    console.log('  • npm run audit:fallow:exports     → Detección de exports no usados');
-    console.log('  • npm run audit:fallow:security    → Auditoría de seguridad y CWE');
-    console.log('  • npm run audit:fallow:dead-code   → Detección de código muerto y dependencias');
-    console.log('  • npm run audit:fallow:boundaries  → Auditoría de límites arquitectónicos');
-    console.log('  • npm run audit                    → Suite de auditoría unificada');
+    console.log('  • npm run auditor:complexity         → Reporte de complejidad ciclomática/cognitiva');
+    console.log('  • npm run auditor:fallow:dupes       → Detección de bloques de código clonados');
+    console.log('  • npm run auditor:fallow:circular    → Detección de dependencias circulares');
+    console.log('  • npm run auditor:fallow:exports     → Detección de exports no usados');
+    console.log('  • npm run auditor:fallow:security    → Auditoría de seguridad y CWE');
+    console.log('  • npm run auditor:fallow:dead-code   → Detección de código muerto y dependencias');
+    console.log('  • npm run auditor:fallow:boundaries  → Auditoría de límites arquitectónicos');
+    console.log('  • npm run auditor                    → Suite de auditoría unificada');
     console.log('─────────────────────────────────────────────────────────────────────────────\n');
 }
 function reportAllSummary(json) {

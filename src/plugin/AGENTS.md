@@ -23,7 +23,7 @@ Architecture & Tooling Engineers.
 ## Verification
 
 - Run plugin unit tests: `npm test -- tests/plugin_protocol.test.ts`
-- Run general auditor: `npm run audit:lint`
+- Run general auditor: `npm run auditor:lint`
 
 ## Child DOX Index
 

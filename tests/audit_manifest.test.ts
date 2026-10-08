@@ -24,7 +24,8 @@ describe('Auditor Manifest & Introspection Registry', () => {
 
     expect(manifest.rules['audit-config-missing-path']).toBe('Ruta configurada no existe');
     expect(manifest.rules['audit-config-missing-section']).toBe('Falta sección en audit.config');
-    expect(Object.keys(manifest.rules).length).toBe(10);
+    expect(manifest.rules['audit-config-obsolete-script']).toBe('Script legado u obsoleto en package.json');
+    expect(Object.keys(manifest.rules).length).toBe(11);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {

@@ -28,7 +28,7 @@ Architecture & Tooling Engineers.
 
 - Run TypeScript syntax and strip-types check: `node --experimental-strip-types src/index.ts`
 - Run core unit tests: `npm test`
-- Run source linter and auditors: `npm run audit:lint`
+- Run source linter and auditors: `npm run auditor:lint`
 
 ## Child DOX Index
 

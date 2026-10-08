@@ -114,7 +114,7 @@ Architecture & Tooling Engineers.
 
 - Run core unit tests: `npm test -- tests/unified_theme.test.ts`
 - Run config loader tests: `npm test -- tests/validate_audit_config.test.ts`
-- Run architecture rules: `npm run audit:lint`
+- Run architecture rules: `npm run auditor:lint`
 
 ## Child DOX Index
 

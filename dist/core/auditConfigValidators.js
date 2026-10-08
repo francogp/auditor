@@ -95,7 +95,7 @@ export function assertNoLegacyRootConfig(projectRoot) {
     const legacy = LEGACY_ROOT_CONFIG_FILES.filter(f => fs.existsSync(path.resolve(projectRoot, f)));
     if (legacy.length > 0) {
         throw new Error(`[AuditConfig] Root-level ${legacy.join(', ')} is no longer supported: auditor configuration lives in '${AUDITOR_DIR}/'. ` +
-            `Run 'auditor fix' (or 'npm run audit:fix') to move it to '${AUDIT_CONFIG_FILE}' and rewrite its relative imports.`);
+            `Run 'auditor fix' (or 'npm run auditor:fix') to move it to '${AUDIT_CONFIG_FILE}' and rewrite its relative imports.`);
     }
 }
 //# sourceMappingURL=auditConfigValidators.js.map

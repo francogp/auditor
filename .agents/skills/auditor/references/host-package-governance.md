@@ -102,12 +102,12 @@ To inject all missing auditor and extension scripts into `package.json`:
 ```bash
 auditor fix
 # or
-npm run audit:fix
+npm run auditor:fix
 ```
 
 Missing scripts are appended non-destructively without modifying your existing scripts, custom aliases, or project build commands.
 
-Host extensions declared in `.auditor/audit.config.ts` are automatically discovered and executed by `npm run audit`. No manual runner registration is required.
+Host extensions declared in `.auditor/audit.config.ts` are automatically discovered and executed by `npm run auditor`. No manual runner registration is required.
 
 ---
 
@@ -119,7 +119,7 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
   ```json
   {
     "scripts": {
-      "build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run audit:build"
+      "build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build"
     }
   }
   ```
@@ -132,7 +132,7 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
   ```json
   {
     "scripts": {
-      "build": "npm run audit && vite build"
+      "build": "npm run auditor && vite build"
     }
   }
   ```
@@ -209,6 +209,15 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 > Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer.
 > 
 > When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.
+
+---
+
+## 11. Upstream Build Sequencing & Consumer Safety Mandate
+
+When implementing core auditor features or script modernizations in `@francogp/auditor`:
+1. **Upstream First**: Complete all code changes, unit tests (`npm test`), distribution compilation (`npm run build`), and post-build audits (`auditor:build`) exclusively inside `@francogp/auditor`.
+2. **Zero Premature Host Updates**: NEVER edit or run auto-fix scripts on consumer applications (`package.json`) before the upstream package is committed and ready.
+3. **Consumer Upgrade via Canonical Workflow**: Once upstream is published or committed, upgrade consumer projects exclusively via `npm run auditor:update` (or `auditor-update`) followed by `auditor fix` to apply script updates cleanly.
 
 
 

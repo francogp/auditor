@@ -15,7 +15,7 @@ Consult this skill whenever you need to:
 
 - Access general project info, domain models, or manual files.
 - Search for components or locate specific directories.
-- **Audit DOX integrity & detect missing/unindexed AGENTS.md files**: Run `npm run audit:md` to discover missing indices or broken DOX hierarchy links.
+- **Audit DOX integrity & detect missing/unindexed AGENTS.md files**: Run `npm run auditor:md` to discover missing indices or broken DOX hierarchy links.
 - **Perform refactorings or major structural changes** to the codebase (which require refreshing and updating DOX indices and `AGENTS.md` files).
 - Run the `/learn` command to persist new rules, preferences, or lessons.
 - Perform the **Lessons Extraction** (Phase 3, Step 3.1) or **DOX Maintenance** (Phase 4, Step 4.1) during `/safe-commit`.
@@ -89,7 +89,7 @@ Update the closest owning `AGENTS.md` when a change affects:
 Create a child `AGENTS.md` when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards.
 
 - **Work Guidance**: Must reflect the current operational standards of the project, subsystem practices, or development instructions. Leaving it empty, whitespace-only, or filled with placeholder/garbage text (`TODO`, `TBD`, `N/A`, `...`) is strictly prohibited (`dox-empty-section`).
-- **Verification**: Must document concrete verification checks and execution commands (e.g. `npm test -- ...`, `npm run audit:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
+- **Verification**: Must document concrete verification checks and execution commands (e.g. `npm test -- ...`, `npm run auditor:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
 
 **Default section order:**
 1. `# Purpose`
@@ -131,7 +131,7 @@ Before concluding any task that touched code or docs:
 2. **Update nearest owning docs** and any affected parents or children.
 3. **Refresh every affected Child DOX Index**.
 4. **Remove stale or contradictory text**.
-5. **Run existing verification** when relevant (`npm run audit:md`).
+5. **Run existing verification** when relevant (`npm run auditor:md`).
 6. **Report any docs intentionally left unchanged and why**.
 
 ---
@@ -146,8 +146,8 @@ Whenever persisting new knowledge, rules, lessons, or constraints:
 - **Governed by `learn-with-docs`**: During safe-commit (Phase 3, Step 3.1), lessons extraction, DOX index traversal for inconsistencies, and proposal drafting are governed strictly by [learn-with-docs](../learn-with-docs/SKILL.md).
 
 ### Strict Verification Contract for Documentation
-- **DOX Audit Only**: Run `npm run audit:md` to verify there are 0 errors in the `DOX (AGENTS.md) Integrity` category.
-- **Strict No-Test Mandate for Documentation**: Never run `npm test`, Vitest, or test runners when performing DOX updates, docs maintenance, or markdown edits. Verification is strictly restricted to DOX audit and markdown linting via `npm run audit:md`.
+- **DOX Audit Only**: Run `npm run auditor:md` to verify there are 0 errors in the `DOX (AGENTS.md) Integrity` category.
+- **Strict No-Test Mandate for Documentation**: Never run `npm test`, Vitest, or test runners when performing DOX updates, docs maintenance, or markdown edits. Verification is strictly restricted to DOX audit and markdown linting via `npm run auditor:md`.
 
 ---
 
@@ -157,7 +157,7 @@ To detect missing `AGENTS.md` files, unindexed child DOX indices, absolute path 
 
 ```bash
 # General DOX + Markdown Preset:
-npm run audit:md
+npm run auditor:md
 
 # Direct DOX Suite Execution (via canonical @francogp/auditor runner):
 node --experimental-strip-types .agents/skills/dox-navigator/scripts/audit_dox.ts

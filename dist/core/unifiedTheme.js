@@ -189,7 +189,7 @@ export function renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) {
             styleText(['bold', 'yellow'], 'ESTÁ CATEGÓRICAMENTE PROHIBIDO SILENCIAR O APAGAR REGLAS EN PÁNICO.'),
             '',
             styleText(['bold', 'white'], 'Ejecuta primero la auto-reparación antes de continuar:'),
-            styleText(['bold', 'cyan'], '  👉  npm run audit:fix   (o auditor fix)')
+            styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (o auditor fix)')
         ]
     });
 }
@@ -374,7 +374,7 @@ export function renderCliHelp(activeFamilies) {
     lines.push(renderBanner('@francogp/auditor — Framework de Auditoría Estática y Gobernanza', 'Node.js 26+ Native | UnifiedTheme Box-Drawing | Cero Hardcoding') + '\n');
     const boldYellow = (s) => styleText(['bold', 'yellow'], s);
     lines.push(boldYellow('USO:'));
-    lines.push('  auditor [opciones] [comandos]  (o npm run audit [opciones])\n');
+    lines.push('  auditor [opciones] [comandos]  (o npm run auditor [opciones])\n');
     lines.push(boldYellow('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:'));
     lines.push('  --list, list                 Lista todas las suites descubiertas y sus flags.');
     lines.push('  --list --enabled             Lista exclusivamente las suites activas/encendidas en config.');
@@ -395,9 +395,9 @@ export function renderCliHelp(activeFamilies) {
     lines.push('  --errors-only                Muestra únicamente errores suprimiendo advertencias.');
     lines.push('  changed-since=<ref>          Filtra archivos modificados respecto de git ref.\n');
     lines.push(boldYellow('HERRAMIENTAS ASOCIADAS (NPM SCRIPTS):'));
-    lines.push('  npm run audit:by-file        Árbol jerárquico de incidencias por archivo y línea.');
-    lines.push('  npm run audit:findings       Consulta interactiva con filtros y desgloses.');
-    lines.push('  npm run audit:fix            Aplica auto-reparaciones mecánicas en el código.');
+    lines.push('  npm run auditor:by-file      Árbol jerárquico de incidencias por archivo y línea.');
+    lines.push('  npm run auditor:findings     Consulta interactiva con filtros y desgloses.');
+    lines.push('  npm run auditor:fix          Aplica auto-reparaciones mecánicas en el código.');
     lines.push('  npm run auditor:update       Actualiza el paquete upstream de @francogp/auditor.\n');
     return lines.join('\n');
 }

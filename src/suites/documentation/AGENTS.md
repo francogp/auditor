@@ -43,7 +43,7 @@ Architecture & Tooling Engineers.
 
 - Run DOX integrity suite: `node --experimental-strip-types src/suites/documentation/validate_dox_integrity.ts`
 - Run markdown links suite: `node --experimental-strip-types src/suites/documentation/validate_markdown_links.ts`
-- Run markdown preset: `npm run audit:md`
+- Run markdown preset: `npm run auditor:md`
 
 ## Child DOX Index
 

@@ -1,13 +1,13 @@
 ---
 name: auditor
-description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, or whenever the user asks to UPDATE OR UPGRADE the auditor package (e.g. 'actualizar auditor', 'actualizame el auditor', 'update auditor', 'actualizar paquete auditor', 'actualizar dependencias de auditor', 'update @francogp/auditor', 'auditor:update', 'auditor-update', 'auditor-version', 'version de auditor'), or mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `.auditor/`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run audit', 'npm run audit:findings', 'npm run audit:complexity', 'npm run audit:fallow:*', 'npm run audit:lint'). When updating the auditor in host projects, agents MUST use 'auditor-update' or 'npm run auditor:update' and 'auditor-version -v'. STRICTLY FORBIDDEN to use ad-hoc node -e scripts, git clone into /tmp, or git log inside node_modules; ALWAYS use the framework's native CLI tools. Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
+description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, or whenever the user asks to UPDATE OR UPGRADE the auditor package (e.g. 'actualizar auditor', 'actualizame el auditor', 'update auditor', 'actualizar paquete auditor', 'actualizar dependencias de auditor', 'update @francogp/auditor', 'auditor:update', 'auditor-update', 'auditor-version', 'version de auditor'), or mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `.auditor/`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run auditor', 'npm run auditor:findings', 'npm run auditor:complexity', 'npm run auditor:fallow:*', 'npm run auditor:lint'). When updating the auditor in host projects, agents MUST use 'auditor-update' or 'npm run auditor:update' and 'auditor-version -v'. STRICTLY FORBIDDEN to use ad-hoc node -e scripts, git clone into /tmp, or git log inside node_modules; ALWAYS use the framework's native CLI tools. Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
 ---
 
 # Auditor: Architecture, Verification & Governance Engine
 
 This skill defines the immutable standard and architectural contract for creating, administering, refactoring, and maintaining all sub-auditors, reporting scripts, and the `@francogp/auditor` engine across the repository.
 
-Every sub-auditor and reporter is part of a unified static analysis and verification system orchestrated by `npm run audit`.
+Every sub-auditor and reporter is part of a unified static analysis and verification system orchestrated by `npm run auditor`.
 
 ## 🏗️ 3-Tier Hierarchical Architecture & Atomic Console Mandate
 
@@ -41,8 +41,8 @@ graph TD
    - For all subsystem suites (`configKey !== 'paths' && configKey !== 'core'`), `defaultConfig.enabled` MUST be explicitly defined as a boolean (`true` or `false`). Ambiguous or optional activation states are strictly prohibited.
    - If an auditor or extension attempts to emit a violation for any rule that was not declared at construction time in `ruleDescriptions`, `BaseAuditor.addViolation` immediately throws a loud, blocking runtime `Error`.
    - `createDefaultAuditConfigContent` and `AUDIT_CONFIG_REQUIREMENT` dynamically collect `task.defaultConfig` from all discovered tasks across the workspace, guaranteeing that new suites and extensions are automatically scaffolded into `.auditor/audit.config.ts` with zero hardcoding in generator engines.
-6. **Post-Build Compiled Artifact Verification (`audit:build` / `preset=build`)**:
-   - Suites declaring `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, and `validate_package_types`) are excluded from pre-build source audit (`npm run audit`) and executed post-build against `dist/` via `npm run audit:build` (`auditor-build`).
+6. **Post-Build Compiled Artifact Verification (`auditor:build` / `preset=build`)**:
+   - Suites declaring `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, and `validate_package_types`) are excluded from pre-build source audit (`npm run auditor`) and executed post-build against `dist/` via `npm run auditor:build` (`auditor-build`).
 
 ---
 
@@ -65,7 +65,7 @@ graph TD
 0.2. **Absolute Prohibition on NPX & Mandate of Native Node.js 26+ (`node --experimental-strip-types`) / Canonical NPM Scripts**:
    - Running, recommending, or executing `npx` (e.g., `npx tsx`, `npx auditor`, `npx vitest`) or third-party runtime wrappers across `@francogp/auditor` and consumer host projects is **STRICTLY AND CATEGORICALLY PROHIBITED**.
    - Node.js 26+ runs TypeScript natively without third-party transpiladores. All internal tool executions, inspections, and scripts MUST use native Node.js (`node --experimental-strip-types <script.ts>`) or canonical npm package scripts (`npm run <script>`, `npm test`).
-   - If a host project lacks an auditor script in `package.json`, agents MUST run `npm run audit:fix` (or `node --experimental-strip-types ...`) to synchronize scripts, NEVER attempt ad-hoc `npx` commands.
+   - If a host project lacks an auditor script in `package.json`, agents MUST run `npm run auditor:fix` (or `node --experimental-strip-types ...`) to synchronize scripts, NEVER attempt ad-hoc `npx` commands.
 1. **Strict OOP Inheritance Mandate**:
    - Every sub-auditor MUST extend either `BaseAuditor<TRuleId>` or `FileScanAuditor<TRuleId>` from `@francogp/auditor`.
    - Creating standalone procedural scripts, custom CLI loggers, or ad-hoc result printers is **STRICTLY FORBIDDEN**.
@@ -75,7 +75,7 @@ graph TD
    - Tables must fit within the standard 80-column terminal width (`TERMINAL_WIDTH = 80`) and use `getVisualWidth()` for padding so emojis (`✅`, `❌`, `⚠️`) do NOT throw column borders out of alignment.
    - **Consolidated Total Row Requirement**: Every multi-row summary or breakdown table displaying numeric findings across categories or rules MUST include a dedicated `footerRows` entry labeled `TOTAL CONSOLIDADO` separated by a standard divider (`├───┼───┤`), providing explicit, mathematically transparent sums for all error and warning columns.
 3. **Dynamic Auto-Discovery & Extension Mandate (Zero Hardcoded Lists)**:
-   - The master orchestrator (`npm run audit`, which also enforces the warning ratchet: 0 errors and 0 new warnings vs `.auditor/audit-baseline.json` at `ratchet.productionRef`) discovers all generic suites dynamically via `@francogp/auditor` and host-specific extensions registered in `.auditor/audit.config.ts`.
+   - The master orchestrator (`npm run auditor`, which also enforces the warning ratchet: 0 errors and 0 new warnings vs `.auditor/audit-baseline.json` at `ratchet.productionRef`) discovers all generic suites dynamically via `@francogp/auditor` and host-specific extensions registered in `.auditor/audit.config.ts`.
    - **Never hardcode an array of auditors or task IDs**. Any generic suite placed in `src/suites/<family>/` or host extension registered in `.auditor/audit.config.ts` is automatically discovered, categorized, timed, and executed.
 4. **Strict Agnostic Engine & Zero Project Hardcoding Mandate**:
    - The `@francogp/auditor` core package MUST remain 100% project-agnostic.
@@ -109,7 +109,7 @@ graph TD
    - Supports bidirectional leaf and path matching, ensuring both full relative paths and base directory scans in `fs.glob` respect configured ignores.
    - Any sub-auditor discovering or filtering files (`getFilesToAudit`, `FileScanAuditor`, `BaseAuditor`) MUST use `isPathIgnored(p)`.
 7. **Concurrent Execution & Immediate Completion-Ordered Output Model**:
-   - `npm run audit` executes suites concurrently across a pool of background workers (sized to CPU parallelism).
+   - `npm run auditor` executes suites concurrently across a pool of background workers (sized to CPU parallelism).
    - Console progress lines stream immediately in the order that suites **FINISH** (`coordinator.onTaskComplete`), NOT in the order of task discovery.
    - Under an atomic async `printLock`, each suite's entire output block (header, child checks, and duration) renders as an unbroken atomic unit, completely eradicating head-of-line blocking and console stalls while preventing interleaved lines between concurrent workers.
 8. **Shared AST Engine & Zero Duplicate Parse Mandate (`SharedAstContext`)**:
@@ -146,7 +146,7 @@ graph TD
     - Sub-auditors must NEVER implement manual line-counting loops, regex line filters, or ad-hoc SLOC checkers (`checkSloc`, line counting loops).
     - Fallow is the Single Source of Truth (SSoT) for all AST metrics, cognitive and cyclomatic complexity, function unit size, maintainability, dead code, and duplication detection across the codebase.
 15. **Human-Friendly Descriptions & Category Breakdown Mandate (Zero Code Slugs & Zero Family Grouping)**:
-    - The master audit orchestrator (`npm run audit`) and warnings reporter (`npm run audit:warnings`) MUST render results desglosados strictly by category/rule in an official Box-Drawing table.
+    - The master audit orchestrator (`npm run auditor`) and warnings reporter (`npm run auditor:warnings`) MUST render results desglosados strictly by category/rule in an official Box-Drawing table.
     - The table MUST display **100% human-friendly Spanish descriptions** (`finding.ruleDescription` or `suite.description`) defined via inheritance in `BaseAuditor` (`ruleDescriptions: Record<TRuleId, string>`). Displaying raw code slugs, identifiers, or technical keys (e.g. displaying `icon-missing-asset` instead of `'Ícono no encontrado en catálogo de assets'`) is **STRICTLY FORBIDDEN**.
     - Following the table, they MUST output ONLY an illustrative sample of the last 5 errors (`❌ Muestra de errores detectados (últimos 5 de N)`).
     - Listing the full set of warnings or dumping all errors in console output is **STRICTLY FORBIDDEN**.
@@ -158,8 +158,8 @@ graph TD
     - Sub-auditors supporting unit-test sandboxes (`tempDir`) must forward `projectRoot: effectiveRoot` via `AuditorOptions` into `super({...})` to guarantee isolation from the live project repository.
 17. **Mandatory Audit Metadata & Anti-Staleness Header Mandate (`AuditRunMetadata`)**:
     - The master orchestrator (`src/cli/audit_full.ts`) MUST embed an explicit `meta: AuditRunMetadata` header into `scratch/audits/latest_audit.json` and `scratch/audits/latest_summary.json` containing: `isFullAudit`, `runMode`, `preset`, `timestamp`, `totalDiscoveredSuites`, `executedSuiteCount`, `executedSuites`, and `omittedSuites`.
-    - Partial audit runs (such as `npm run audit:md`, `preset=lint`, or single suite executions) update `scratch/audits/latest_audit.json` with `isFullAudit: false` and populate `omittedSuites`.
-    - **Strict 5-Minute Staleness Policy (`MAX_AUDIT_STALENESS_MS = 5 * 60 * 1000`)**: If more than 5 minutes have elapsed since `meta.timestamp`, the audit file is considered OBSOLETE. Any tool, script, or AI agent reading `latest_audit.json` MUST reject it with Exit Code 1, forcing a fresh run (`npm run audit`) to prevent decisions based on stale code data.
+    - Partial audit runs (such as `npm run auditor:md`, `preset=lint`, or single suite executions) update `scratch/audits/latest_audit.json` with `isFullAudit: false` and populate `omittedSuites`.
+    - **Strict 5-Minute Staleness Policy (`MAX_AUDIT_STALENESS_MS = 5 * 60 * 1000`)**: If more than 5 minutes have elapsed since `meta.timestamp`, the audit file is considered OBSOLETE. Any tool, script, or AI agent reading `latest_audit.json` MUST reject it with Exit Code 1, forcing a fresh run (`npm run auditor`) to prevent decisions based on stale code data.
     - **Zero Tolerated Misleading Reports**: Downstream scripts consuming audit results (`report_complexity.ts`, `report_fallow.ts`, `report_findings.ts`) MUST validate this metadata. If a required suite was omitted, if the report is older than 5 minutes, or if a global report is requested on a partial run, the script MUST fail fast with Exit Code 1 (`assertAuditorExecuted(...)`).
 18. **Fallow 100% Error Severity & Zero-Warning Mandate**:
     - Sub-auditors, architecture runners, and plugins integrating Fallow (such as `audit_project.ts` or standalone Fallow inspectors) MUST map ALL Fallow findings to `severity: 'error'`.
@@ -185,15 +185,15 @@ graph TD
 26. **Prohibition of Ad-Hoc Audit Result Parsing & Mandatory Native CLI Reporters Mandate**:
     - AI agents and developers MUST NEVER write or execute ad-hoc inline node scripts (`node -e "..."`), python scripts, or bash one-liners to read, inspect, or summarize `scratch/audits/latest_audit.json` or test coverage files (`coverage/coverage-final.json`).
     - All audit result inspections, category breakdowns, severity filtering, complexity hotspot analyses, and test coverage evaluations MUST be conducted strictly through the framework's native CLI tools:
-      - `npm run audit`: Global execution and consolidated Box-Drawing table.
-      - `npm run audit:findings` / `npm run audit:errors` / `npm run audit:warnings` / `npm run audit:summary` / `npm run audit:files`: Filtering and breakdown of findings.
-      - `npm run audit:test-coverage` (`auditor-test-coverage`): Canonical test execution code coverage analysis, directory aggregates, untracked files detection, uncovered line ranges, and complexity hotspot correlation. Full guide: [`references/test-coverage-guide.md`](./references/test-coverage-guide.md).
-      - `npm run audit:by-file`: Hierarchical Box-Drawing tree inspection of findings grouped strictly by file and ordered by line ascending (`├── L12: [Rule] Message`), with filters (`file=`, `category=`, `severity=`, `top=`, `json`).
-      - `npm run audit:complexity`: Code complexity hotspots and Fallow refactoring targets report.
-      - `npm run audit:similar`: Semantic and structural clone detection using Fallow ML vector embeddings in Box-Drawing tables.
-      - `npm run audit:review`: Graph-grounded architectural review brief for changed code using Fallow code review graphs.
-      - `npm run audit:fallow:dupes` / `npm run audit:fallow:triplets` / `npm run audit:fallow:security` / `npm run audit:fallow:dead-code`: Fallow intelligence deep dives.
-    - If `report_findings` warns that `latest_audit.json` is stale (>5 min), the agent MUST immediately execute `npm run audit` to produce a fresh, valid report before inspecting findings. Bypassing the anti-staleness check with homebrew scripts is strictly forbidden.
+      - `npm run auditor`: Global execution and consolidated Box-Drawing table.
+      - `npm run auditor:findings` / `npm run auditor:errors` / `npm run auditor:warnings` / `npm run auditor:summary` / `npm run auditor:files`: Filtering and breakdown of findings.
+      - `npm run auditor:test-coverage` (`auditor-test-coverage`): Canonical test execution code coverage analysis, directory aggregates, untracked files detection, uncovered line ranges, and complexity hotspot correlation. Full guide: [`references/test-coverage-guide.md`](./references/test-coverage-guide.md).
+      - `npm run auditor:by-file`: Hierarchical Box-Drawing tree inspection of findings grouped strictly by file and ordered by line ascending (`├── L12: [Rule] Message`), with filters (`file=`, `category=`, `severity=`, `top=`, `json`).
+      - `npm run auditor:complexity`: Code complexity hotspots and Fallow refactoring targets report.
+      - `npm run auditor:similar`: Semantic and structural clone detection using Fallow ML vector embeddings in Box-Drawing tables.
+      - `npm run auditor:review`: Graph-grounded architectural review brief for changed code using Fallow code review graphs.
+      - `npm run auditor:fallow:dupes` / `npm run auditor:fallow:triplets` / `npm run auditor:fallow:security` / `npm run auditor:fallow:dead-code`: Fallow intelligence deep dives.
+    - If `report_findings` warns that `latest_audit.json` is stale (>5 min), the agent MUST immediately execute `npm run auditor` to produce a fresh, valid report before inspecting findings. Bypassing the anti-staleness check with homebrew scripts is strictly forbidden.
     - **Missing Tool Mandate (Solicitud y Creación de Nuevas Herramientas)**: If a specific inspection, filtering, or reporting capability is missing or not provided by existing native tools, AI agents and developers MUST NOT create ad-hoc scripts or one-off terminal hacks. Instead, they MUST explicitly propose and create a new official native CLI tool in `src/cli/` (or extend an existing reporter), registering its canonical script in `package.json` with full Box-Drawing theme support (`unifiedTheme.ts`), 80-column limits, and permission flags.
 27. **Fallow Refactoring Targets & Workspace Diagnostics Governance (`config.fallow`)**:
     - Fallow provides hotspot refactoring targets and project workspace diagnostics.
@@ -201,7 +201,7 @@ graph TD
     - Workspace-level diagnostics (e.g. invalid configurations or structural issues) are validated under `validate_fallow_config` as `fallow-workspace-diagnostic`.
 28. **Semantic Vector Code Duplication Governance & Fast-Preset Bypass (`validate_similar_code`)**:
     - Vector embeddings similarity detection (`fallow similar-code`) identifies semantic duplicates across files even with different syntax or function signatures.
-    - **Fast Preset Isolation**: Vector analysis MUST NEVER execute under fast presets (`preset=lint`, `preset=md`). It runs exclusively in full audits (`npm run audit`) or via the dedicated CLI tool (`npm run audit:similar`).
+    - **Fast Preset Isolation**: Vector analysis MUST NEVER execute under fast presets (`preset=lint`, `preset=md`). It runs exclusively in full audits (`npm run auditor`) or via the dedicated CLI tool (`npm run auditor:similar`).
     - **Surgical Sensitivity (`threshold: 0.95`, `ignoreSameFile: true`)**: Core default threshold of `0.95` combined with intra-file exclusion eliminates false positives between synchronous/asynchronous variants or polymorphic class methods, isolating true cross-module duplication.
     - **Hardware Runtime & Multi-Threading**: Fallow runs the local companion model (`jina-embeddings-v2-base-code`) via Hugging Face Candle in **CPU-only mode** (no GPU/CUDA support). Parallelism is accelerated across CPU cores via `--threads ${os.availableParallelism()}`.
     - **Vector Cache Architecture & Windows OS Error 3 Pre-Creation**: Fallow persists model weights and vector embeddings in the standard OS user cache directory: `%LOCALAPPDATA%\fallow\similar-code` on Windows (`~/.cache/fallow/similar-code` on Linux). Subdirectories `models/` and `vectors/` MUST be pre-created prior to execution to avoid Windows `os error 3: The system cannot find the path specified`. With cached vectors, audit time drops from ~230s down to ~2s.
@@ -236,7 +236,7 @@ graph TD
 37. **Strict Single Build & Atomic Tagging Mandate**:
     - In `/safe-commit`, version bump decisions occur in Phase 1 (Step 1.4) to guarantee that Phase 2 compiles the target version exactly once (`Strict Single Build Mandate`). When bumped, annotated Git tags (`v<version>`) are created atomically with the commit and pushed with `--follow-tags`.
 38. **Universal Standard Build Script Mandate (`npm run build`)**:
-    - The `@francogp/auditor` engine and consumer projects MUST strictly use the universal standard npm convention `npm run build` (`"build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run audit:build"`) for compiling and emitting distribution artifacts into `dist/`. Using platform-specific shell commands like `chmod` that fail on Windows is strictly forbidden; executable permissions are set via cross-platform Node.js filesystem APIs. Inventing arbitrary non-standard script names (such as `compile` or `build:dist`) is strictly forbidden across the framework. Compiling distribution artifacts and executing architectural verification suites MUST remain strictly chained into the build script to ensure non-conforming builds are aborted.
+    - The `@francogp/auditor` engine and consumer projects MUST strictly use the universal standard npm convention `npm run build` (`"build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build"`) for compiling and emitting distribution artifacts into `dist/`. Using platform-specific shell commands like `chmod` that fail on Windows is strictly forbidden; executable permissions are set via cross-platform Node.js filesystem APIs. Inventing arbitrary non-standard script names (such as `compile` or `build:dist`) is strictly forbidden across the framework. Compiling distribution artifacts and executing architectural verification suites MUST remain strictly chained into the build script to ensure non-conforming builds are aborted.
 39. **Public Package Anonymity & Zero Host Leakage Mandate**:
     - Standalone tooling packages, exported AI skills (`.agents/skills/**`), reference blueprints (`.agents/skills/*/references/**`), test fixtures, and public documentation MUST NEVER mention or leak private host project names, repository slugs, database schemas, or proprietary business domains. Reference blueprints and examples MUST strictly use generic, domain-neutral archetypes (e.g. `enterprise.example.ts`, `gaming.example.ts`, `app-postgres`, `app_db`, `test@example.com`).
 40. **Host AGENTS.md Independence Mandate**:
@@ -255,7 +255,7 @@ graph TD
     - `BaseAuditor` dynamically registers them into `GitIgnoreRegistry`.
     - `ValidateAuditConfigAuditor` dynamically collects requirements from all discovered modules, active subsystems, and user extensions, verifying `.gitignore` coverage and providing auto-repair (`--fix`).
 44. **Mandatory Pre-Compilation Audit Chaining Across All Projects (`validate_audit_config`)**:
-    - Across ALL projects governed by `@francogp/auditor` (consumer applications and standalone package distributions alike), the `"build"` script in `package.json` MUST be chained with a prior invocation of the full auditor (e.g., `"build": "auditor && vite build"`, `"build": "npm run audit && vite build"`, or `"build": "npm run audit && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run audit:build"`).
+    - Across ALL projects governed by `@francogp/auditor` (consumer applications and standalone package distributions alike), the `"build"` script in `package.json` MUST be chained with a prior invocation of the full auditor (e.g., `"build": "auditor && vite build"`, `"build": "npm run auditor && vite build"`, or `"build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build"`).
     - The `audit:for-commit` / `auditor-commit` gate was removed; any script still referencing it fails with `audit-config-removed-commit-gate` (`auditor fix` deletes or rewrites it to `auditor`).
     - Bypassing build chaining is permitted only via explicit configuration (`config.packageScripts.enforceBuildAudit: false`).
     - `validate_audit_config` provides auto-repair (`--fix`) to automatically chain `auditor &&` into the build script and populate missing package scripts dynamically discovered from registered sub-auditors and `PackageScriptRegistry`.
@@ -279,9 +279,9 @@ graph TD
     - Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and fail validation immediately with loud errors.
 50. **Anti-Abuse Protection for `constants.exemptGlobs`**:
     - Broad wildcards matching primary source trees (`**/*`, `src/**`) are strictly rejected. Glob patterns must target specific maintenance scripts or tabular seed data.
-51. **Hierarchical By-File & Line Grouping Mandate (`audit:by-file`, `scratch/audits/by_file.json`)**:
+51. **Hierarchical By-File & Line Grouping Mandate (`auditor:by-file`, `scratch/audits/by_file.json`)**:
     - All audit findings in `latest_audit.json` (`allFindings`) MUST be sorted stably by relative file path (case-insensitive ASC) and line number ascending (`f.line ?? 0`), with structured index `findingsByFile` and an ephemeral lightweight index `scratch/audits/by_file.json`.
-    - The framework exposes the canonical CLI tool `npm run audit:by-file` (binary `auditor-by-file`) rendering a Box-Drawing tree (`├── L<line>: [Rule] Message`) with filters (`file=`, `category=`, `severity=`, `top=`, `json`) to allow developers and AI agents to inspect and repair all violations in a file in a single pass without thrashing or repeated file reads.
+    - The framework exposes the canonical CLI tool `npm run auditor:by-file` (binary `auditor-by-file`) rendering a Box-Drawing tree (`├── L<line>: [Rule] Message`) with filters (`file=`, `category=`, `severity=`, `top=`, `json`) to allow developers and AI agents to inspect and repair all violations in a file in a single pass without thrashing or repeated file reads.
 52. **Canonical Magic Numbers Heuristics & Radix Exemption Contract**:
     - The `magicNumbers` analyzer strictly prohibits naked numeric literals in business logic (`severity: 'error'`).
     - Provides canonical exemptions for: (1) standard identity values, HTTP status codes, and the universal upper-bound sentinel (`0, 1, 100, 200, 404, 500, 9999`), (2) standard radix arguments (`2, 8, 10, 16, 36`) in `parseInt`, `Number.parseInt`, and `toString(radix)`, (3) descriptive property assignments in module-level constant objects (`const UPPER_CASE = { ... }` or `as const`), and (4) deterministic PRNG / trigonometric hashing patterns (`Math.sin(seed) * N`, `seed * N`). Domain-specific sentinels are configured dynamically via `config.constants.exemptMagicNumbers`.
@@ -320,11 +320,11 @@ graph TD
     - A root-level `audit.config.ts`/`audit.config.json` fails loudly with `audit-config-root-file`; `auditor fix` moves it into `.auditor/` and rebases its relative imports through the TypeScript AST (`migrateAuditConfig.ts`).
     - Paths declared inside the config remain project-root relative. A configuration that fails to import throws instead of silently falling back to defaults.
 59. **Warning Ratchet & Baseline Governance (`ratchet`)**:
-    - The master orchestrator (`npm run audit`) automatically enforces **0 errors AND 0 new warnings** through the built-in warning ratchet.
+    - The master orchestrator (`npm run auditor`) automatically enforces **0 errors AND 0 new warnings** through the built-in warning ratchet.
     - Warning fingerprints (`sha256(suite|rule|posixRelFile|lineText|occurrenceIndex)`) are compared against `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`).
     - Resolving existing warnings automatically shrinks `.auditor/audit-baseline.json` on the next full audit run, ratcheting code quality monotonically upward.
     - Bypassing the ratchet, disabling `ratchet.enabled`, or hand-editing `.auditor/audit-baseline.json` to absorb new warnings is strictly forbidden.
-    - The differential `audit:for-commit` gate was completely removed; `npm run audit` itself is the single, definitive quality gate.
+    - The differential `audit:for-commit` gate was completely removed; `npm run auditor` itself is the single, definitive quality gate.
 60. **Canonical DOX Hierarchy & Section Structure Governance (`validate_dox_integrity`)**:
     - **6 Mandatory Canonical Sections (`dox-missing-section`, `dox-section-order`, `dox-empty-section`)**: Every `AGENTS.md` file MUST contain all 6 canonical sections in strict sequential order: `# Purpose` ➔ `## Ownership` ➔ `## Local Contracts` ➔ `## Work Guidance` ➔ `## Verification` ➔ `## Child DOX Index`.
     - **Optional `## Key Files` Placement**: When present for bidirectional code mapping, `## Key Files` must be canonically placed immediately after `## Local Contracts` or immediately before `## Child DOX Index`.
@@ -345,8 +345,8 @@ graph TD
       - `node --experimental-strip-types src/cli/audit_full.ts --help` (or `auditor --help`): Interactive CLI manual in 80 columns.
     - **Zero Hardcoding**: The master orchestrator NEVER hardcodes suite lists or descriptions; all catalog data is extracted dynamically via reflection or AST.
 63. **Auto-Fix First Protocol & Script Sync Gate**:
-    - **Auto-Fix First**: When an audit completes with fixable errors/warnings, `audit_full` renders an emphatic Box-Drawing banner urging `npm run audit:fix` (or `auditor fix`). Agents and developers MUST run auto-fix first to resolve mechanical defects before attempting manual refactoring, and are strictly prohibited from muting or silencing rules in panic.
-    - **Script Sync First**: If a package script (`audit:by-file`, `audit:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run audit:fix` (or `auditor fix`) to dynamically discover and synchronize scripts from `PackageScriptRegistry` and registered sub-auditors before attempting manual ad-hoc executions.
+    - **Auto-Fix First**: When an audit completes with fixable errors/warnings, `audit_full` renders an emphatic Box-Drawing banner urging `npm run auditor:fix` (or `auditor fix`). Agents and developers MUST run auto-fix first to resolve mechanical defects before attempting manual refactoring, and are strictly prohibited from muting or silencing rules in panic.
+    - **Script Sync First**: If a package script (`auditor:by-file`, `auditor:findings`, `auditor:update`, etc.) is missing in `package.json`, agents MUST run `npm run auditor:fix` (or `auditor fix`) to dynamically discover and synchronize scripts from `PackageScriptRegistry` and registered sub-auditors before attempting manual ad-hoc executions.
 64. **Universal Configuration-Driven Language Resolution Mandate (Zero Hardcoding) & Language Governance (`validate_documentation_language`, `validate_agents_config_mandate`)**:
     - Across `@francogp/auditor` and all consumer projects, all AI agents, skills, and CLI tools MUST resolve language dynamically from `.auditor/audit.config.ts` without hardcoding:
       - `config.documentation.language`: Strictly defaults to English (`'en'`) if omitted. Governs repository documentation, markdown files, DOX indices (`AGENTS.md`), code comments, commit messages, release notes, and codebase artifacts. Enforced by `validate_documentation_language`.
@@ -364,7 +364,7 @@ graph TD
       - `this.verifyAndFixConfigFiles()`: Checks existence and automatically creates default configurations if running in `--fix` mode (`this.isFixActive()`).
       - `this.ensureConfigFile(requirement)`: Programmatically creates or verifies a specific configuration file with canonical fallback content.
       - `this.resolveConfigFile(file)`: Resolves absolute paths safely within `this.projectRoot`.
-    - Missing configuration files trigger `severity: 'error'` findings that are dynamically repairable via `auditor fix` (`npm run audit:fix`).
+    - Missing configuration files trigger `severity: 'error'` findings that are dynamically repairable via `auditor fix` (`npm run auditor:fix`).
 66. **Mandatory Auditor Constructor Contract & Zero-Bypass Architecture**:
     - Every `BaseAuditor` and `FileScanAuditor` subclass MUST pass explicit, non-empty metadata in `AuditorOptions`: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `configKey`, and `defaultConfig`.
     - Omitting any metadata field throws an immediate, blocking runtime `Error`.
@@ -375,8 +375,8 @@ graph TD
 68. **Dynamic Configuration Scaffolding (`auditor fix`)**:
     - When generating or repairing `.auditor/audit.config.ts`, `createDefaultAuditConfigContent` and `AUDIT_CONFIG_REQUIREMENT` dynamically collect `task.defaultConfig` from all discovered tasks across the workspace.
     - Adding new suites or extensions automatically scaffolds their configuration blocks with zero hardcoded suite maps.
-69. **Post-Build Compiled Artifact Verification (`audit:build` / `preset=build`)**:
-    - Suites with `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, `validate_package_types`) are strictly excluded from pre-build source audit (`npm run audit`) and routed dynamically to post-build verification (`npm run audit:build` / `auditor-build`) against `dist/`.
+69. **Post-Build Compiled Artifact Verification (`auditor:build` / `preset=build`)**:
+    - Suites with `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, `validate_package_types`) are strictly excluded from pre-build source audit (`npm run auditor`) and routed dynamically to post-build verification (`npm run auditor:build` / `auditor-build`) against `dist/`.
 70. **Terminal Alignment & Monospace Unicode Variation Selector Discrepancy**:
     - Ambiguous symbols with variation selectors (like `⏭️` / `\u23ED\uFE0F`) are treated as width 2 by Node's `string-width` but rendered as width 1 in many Linux monospace fonts, causing closed Box-Drawing borders (`boxen`) to misalign.
     - Inside closed Box-Drawing frames, terminal themes MUST use clean ASCII text (e.g. `(3 Omitidas)`) or standard universally-supported wide emojis, avoiding ambiguous symbols with optional variation selectors.
@@ -521,7 +521,7 @@ Every sub-auditor (generic suites in `src/suites/` and host extension plugins in
 
 The findings reporter (`src/cli/report_findings.ts`) is the official SSoT diagnostic tool for querying, grouping, and inspecting audit results without running arbitrary terminal scripts or raw grep commands:
 - **CLI Options & Filters**: Supports `severity=...`, `category=...`, `dir=...`, `scope=...`, `search=...`, and directory breakdowns (`breakdown`).
-- **Official NPM Scripts**: `npm run audit:findings`, `npm run audit:errors`, `npm run audit:warnings`, `npm run audit:summary`, `npm run audit:similar`, `npm run audit:review`.
+- **Official NPM Scripts**: `npm run auditor:findings`, `npm run auditor:errors`, `npm run auditor:warnings`, `npm run auditor:summary`, `npm run auditor:similar`, `npm run auditor:review`.
 - **Proactive Tool Evolution Mandate**: Proactively add missing capabilities directly into official native tools (`report_findings.ts`) rather than using disposable terminal one-liners (`node -e`).
 - **Full Reference**: Detailed flag tables and usage examples are maintained in [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md).
 
@@ -540,11 +540,11 @@ Fallow is integrated into `@francogp/auditor` (`validate_fallow.ts` and `report_
 3. **Module Sizing Protocol**:
    - Modules and components should be decomposed when their **cognitive load** or responsibilities grow unwieldy (Single Responsibility Principle), not by counting lines.
 4. **Pre-flight Architecture Verification (`auditor-guard`) & Feature Flags Governance (`auditor-flags`)**:
-   - `auditor-guard` (`npm run audit:guard <files>`): Inspects architecture boundaries, allowed import zones, forbidden calls, and policy rules for candidate or changed files before modification.
-   - `auditor-flags` (`npm run audit:flags [--retirement]`): Governs feature flags usage, detecting branches, single-read sites, and retirement candidates.
-5. **Vitest Coverage & CRAP Score Integration (`audit:coverage-gaps`)**:
+   - `auditor-guard` (`npm run auditor:guard <files>`): Inspects architecture boundaries, allowed import zones, forbidden calls, and policy rules for candidate or changed files before modification.
+   - `auditor-flags` (`npm run auditor:flags [--retirement]`): Governs feature flags usage, detecting branches, single-read sites, and retirement candidates.
+5. **Vitest Coverage & CRAP Score Integration (`auditor:coverage-gaps`)**:
    - Discovers `coverage/coverage-final.json` or `config.fallow.coverage.path` and forwards `--coverage` to `fallow health`.
-   - Analyzes runtime-reachable exports with zero test references (`npm run audit:coverage-gaps`) and computes test-informed CRAP change risk scores.
+   - Analyzes runtime-reachable exports with zero test references (`npm run auditor:coverage-gaps`) and computes test-informed CRAP change risk scores.
 
 ---
 

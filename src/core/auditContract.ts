@@ -162,9 +162,9 @@ export interface StandardAuditResult {
 export interface AuditorCapabilities {
   /** Whether the sub-auditor implements automated repairs when invoked with --fix */
   readonly fix: boolean;
-  /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run audit:lint) */
+  /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
   readonly lint: boolean;
-  /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run audit:md) */
+  /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */
   readonly md: boolean;
   /** Whether the sub-auditor requires the shared in-memory TypeScript AST context */
   readonly ast: boolean;
@@ -330,7 +330,7 @@ export function deriveCanonicalAuditorScript(
 ): AuditorPackageScriptRequirement {
   const shortId = id.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '').replace(/_/g, '-');
   return {
-    name: overrides?.name ?? `audit:${shortId}`, // domain-ok: Script requirement identifier convention
+    name: overrides?.name ?? `auditor:${shortId}`, // domain-ok: Script requirement identifier convention
     command: overrides?.command ?? `auditor task=${id}`,
     description: overrides?.description ?? description,
     category: overrides?.category ?? 'suite',
@@ -548,13 +548,13 @@ function assertAuditFreshness(
       const limitMins = Math.round(maxAge / ONE_MINUTE_MS);
       throw new Error(
         `[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). ` +
-        `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run audit' para refrescar el reporte.`
+        `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run auditor' para refrescar el reporte.`
       );
     }
   } catch (err) {
     if ((err as Error).message.includes('OBSOLETO')) throw err;
     throw new Error(
-      `[${consumerName}] scratch/audits/latest_audit.json contiene un timestamp inválido ('${meta.timestamp}'). Ejecuta 'npm run audit' para regenerarlo.`,
+      `[${consumerName}] scratch/audits/latest_audit.json contiene un timestamp inválido ('${meta.timestamp}'). Ejecuta 'npm run auditor' para regenerarlo.`,
       { cause: err }
     );
   }
@@ -573,7 +573,7 @@ function assertAuditSuiteExecuted(
     throw new Error(
       `[${consumerName}] La suite requerida '${requiredSuiteId}' NO fue ejecutada en la última auditoría. ` +
       `latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). ` +
-      `👉 DEBES ejecutar 'npm run audit' (completo) o 'npm run audit task=${requiredSuiteId}' para obtener datos válidos.`
+      `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${requiredSuiteId}' para obtener datos válidos.`
     );
   }
 }
@@ -593,7 +593,7 @@ export function assertAuditorExecuted(
   if (!report || !report.meta) {
     throw new Error(
       `[${consumerName}] scratch/audits/latest_audit.json no contiene la cabecera de metadatos 'meta'. ` +
-      `Es posible que provenga de una versión obsoleta o esté corrupto. Ejecuta 'npm run audit' para regenerarlo.`
+      `Es posible que provenga de una versión obsoleta o esté corrupto. Ejecuta 'npm run auditor' para regenerarlo.`
     );
   }
 

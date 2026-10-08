@@ -267,7 +267,7 @@ All repositories governed by `@francogp/auditor` enforce test execution coverage
 - Every source module must have companion unit or integration tests, eliminating un-tested shadow modules.
 
 ### 14.3 Reporting & Inspection Tools
-- Run coverage verification suite: `npm run audit` or `preset=audit`.
-- Inspect detailed table reports: `npm run audit:coverage` or `auditor-coverage`.
+- Run coverage verification suite: `npm run auditor` or `preset=audit`.
+- Inspect detailed table reports: `npm run auditor:coverage` or `auditor-coverage`.
 
 

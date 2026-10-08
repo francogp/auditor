@@ -137,9 +137,9 @@ export default defineAuditConfig({
   },
 
   ratchet: {
-    enabled: true, // Warning ratchet on full `npm run audit` runs: 0 errors and 0 NEW warnings (active by default)
+    enabled: true, // Warning ratchet on full `npm run auditor` runs: 0 errors and 0 NEW warnings (active by default)
     productionRef: 'origin/main', // Git ref holding the authoritative baseline; must resolve (verified by validate_audit_config)
-    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run audit -- --init-baseline`
+    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor -- --init-baseline`
   },
 
   coverage: {

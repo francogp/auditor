@@ -171,10 +171,10 @@ function loadAuditReport(inspectFix = false) {
     const reportPath = path.resolve(process.cwd(), `scratch/audits/${targetFileName}`);
     if (!fs.existsSync(reportPath)) {
         if (inspectFix) {
-            console.error('❌ No se encontró scratch/audits/latest_fix_audit.json. Ejecuta primero "npm run audit:fix".');
+            console.error('❌ No se encontró scratch/audits/latest_fix_audit.json. Ejecuta primero "npm run auditor:fix".');
         }
         else {
-            console.error('❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero "npm run audit".');
+            console.error('❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero "npm run auditor".');
         }
         return null;
     }
@@ -182,7 +182,7 @@ function loadAuditReport(inspectFix = false) {
         const raw = fs.readFileSync(reportPath, 'utf8');
         const parsed = JSON.parse(raw);
         if (!parsed.meta) {
-            console.error(`❌ scratch/audits/${targetFileName} no contiene la cabecera de metadatos "meta". Ejecuta "npm run audit" para regenerarlo.`);
+            console.error(`❌ scratch/audits/${targetFileName} no contiene la cabecera de metadatos "meta". Ejecuta "npm run auditor" para regenerarlo.`);
             return null;
         }
         return parsed;
@@ -242,7 +242,7 @@ function validateReportFreshnessAndScope(report, args) {
             const limitMins = configuredMinutes;
             console.error(styleText('red', `❌ scratch/audits/${targetFileName} está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min).\n`) +
                 styleText('yellow', `   El código fuente pudo haber cambiado desde la última auditoría.\n`) +
-                styleText('cyan', `👉 DEBES ejecutar 'npm run audit' para regenerar y validar el reporte.`));
+                styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
             process.exit(1);
         }
     }
@@ -250,7 +250,7 @@ function validateReportFreshnessAndScope(report, args) {
         if (err.message.includes('OBSOLETO'))
             throw err;
         console.error(styleText('red', `❌ scratch/audits/${targetFileName} contiene un timestamp inválido ('${report.meta.timestamp}').\n`) +
-            styleText('cyan', `👉 DEBES ejecutar 'npm run audit' para regenerar y validar el reporte.`));
+            styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
         process.exit(1);
     }
     if (report.meta.isFullAudit)
@@ -259,7 +259,7 @@ function validateReportFreshnessAndScope(report, args) {
         if (args.category === 'all') {
             console.error(styleText('red', `❌ scratch/audits/${targetFileName} proviene de una auditoría PARCIAL (${report.meta.runMode}, ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites ejecutadas).\n`) +
                 styleText('yellow', `   No es posible emitir reportes globales de hallazgos sobre una corrida parcial.\n`) +
-                styleText('cyan', `👉 DEBES ejecutar 'npm run audit' (completo) o agregar 'partial' para inspeccionar esta corrida.`));
+                styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' (completo) o agregar 'partial' para inspeccionar esta corrida.`));
             process.exit(1);
         }
         const matchesExecutedSuite = report.meta.executedSuites.some((s) => s.toLowerCase().includes(args.category.toLowerCase()) ||
@@ -280,7 +280,7 @@ function validateReportFreshnessAndScope(report, args) {
             console.error(styleText('red', `❌ La categoría solicitada ('${args.category}') NO fue auditada en la última corrida parcial.\n`) +
                 styleText('yellow', `   Suites ejecutadas en esta corrida: ${report.meta.executedSuites.join(', ')}\n`) +
                 styleText('yellow', `   Suites omitidas: ${report.meta.omittedSuites.length} suites.\n`) +
-                styleText('cyan', `👉 DEBES ejecutar 'npm run audit' (completo) o 'npm run audit task=${args.category}' primero.`));
+                styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${args.category}' primero.`));
             process.exit(1);
         }
     }

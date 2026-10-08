@@ -93,14 +93,14 @@ npm install
 
 ### Automated Package Scripts Setup (`auditor fix`)
 
-Every sub-auditor and registered host extension automatically derives and exposes its canonical package scripts (`audit:<short-id>` and CLI utilities) via `PackageScriptRegistry`.
+Every sub-auditor and registered host extension automatically derives and exposes its canonical package scripts (`auditor:<short-id>` and CLI utilities) via `PackageScriptRegistry`.
 
 To automatically and non-destructively inject missing auditor scripts into your host `package.json`, simply run:
 
 ```bash
 auditor fix
 # or if running via npm:
-npm run audit:fix
+npm run auditor:fix
 ```
 
 The engine will:
@@ -119,7 +119,7 @@ The engine will:
 Executes all discovered built-in suites and registered host extensions:
 
 ```bash
-npm run audit
+npm run auditor
 # or directly with binary in PATH:
 auditor
 ```
@@ -151,7 +151,7 @@ auditor --help
 Dynamically isolates and executes only suites declaring `capabilities: { lint: true }` in milliseconds:
 
 ```bash
-npm run audit:lint
+npm run auditor:lint
 # or:
 auditor preset=lint
 ```
@@ -163,7 +163,7 @@ Discovers lint-capable suites dynamically (including ESLint, Stylelint, HTML-Val
 Dynamically isolates and executes suites declaring `capabilities: { md: true }`:
 
 ```bash
-npm run audit:md
+npm run auditor:md
 # or:
 auditor preset=md
 ```
@@ -175,7 +175,7 @@ Discovers documentation suites dynamically (including DOX hierarchy, Markdown sy
 Dynamically isolates and runs only suites declaring `capabilities: { fix: true }` under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface:
 
 ```bash
-npm run audit:fix
+npm run auditor:fix
 # or:
 auditor fix
 ```
@@ -184,12 +184,12 @@ Auto-repair suites include: `validate_eslint`, `validate_stylelint`, `validate_h
 
 ### 4.6. Built-In Warning Ratchet (0 errors, 0 new warnings)
 
-Every full default run (`npm run audit` / `auditor`) is also the commit gate. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
+Every full default run (`npm run auditor` / `auditor`) is also the commit gate. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
 
 ```bash
 git fetch origin
-npm run audit                     # 0 errors + 0 new warnings vs origin/main
-npm run audit -- --init-baseline  # one-time bootstrap when the production ref has no baseline yet
+npm run auditor                     # 0 errors + 0 new warnings vs origin/main
+npm run auditor -- --init-baseline  # one-time bootstrap when the production ref has no baseline yet
 ```
 
 - The baseline only shrinks: clean full runs rewrite it when warnings disappear; commit the updated file.
@@ -203,7 +203,7 @@ npm run audit -- --init-baseline  # one-time bootstrap when the production ref h
 Dynamically isolates and executes suites declaring `capabilities: { requiresBuild: true }` against compiled distribution artifacts in `dist/`:
 
 ```bash
-npm run audit:build
+npm run auditor:build
 # or:
 auditor preset=build
 ```
@@ -256,7 +256,7 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 The `auditor-bundle` command inspects compiled production outputs in `dist/assets/`:
 
 ```bash
-npm run audit:bundle
+npm run auditor:bundle
 # or directly:
 auditor-bundle
 ```
@@ -277,12 +277,7 @@ auditor-bundle
 auditor-init-agent
 ```
 
-Or via npm script:
-
-```bash
-npm run init-agent
-```
-
+Automatically runs on `npm install` (via `postinstall`), or directly via the `auditor-init-agent` CLI.
 Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomous agents automatically discover and trigger the bundled skills and `AGENTS.md` guidelines.
 
 ### 8.2. Skill Catalog Summary
@@ -366,7 +361,7 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
 
 ## 10. Centralized Configuration (`audit.config.ts`)
 
-Every host project declares its configuration via `defineAuditConfig` in `.auditor/audit.config.ts`. The `.auditor/` directory holds every versioned auditor artifact (configuration and `.auditor/audit-baseline.json`), while run results stay in the git-ignored `scratch/audits/`. Tool configs such as `eslint.config.js` or `.stylelintrc.json` remain at the root so editors keep discovering them. A root-level `audit.config.ts` fails loudly; `auditor fix` (or `npm run audit:fix`) moves it into `.auditor/` and rewrites its relative imports. Paths inside the config stay relative to the project root.
+Every host project declares its configuration via `defineAuditConfig` in `.auditor/audit.config.ts`. The `.auditor/` directory holds every versioned auditor artifact (configuration and `.auditor/audit-baseline.json`), while run results stay in the git-ignored `scratch/audits/`. Tool configs such as `eslint.config.js` or `.stylelintrc.json` remain at the root so editors keep discovering them. A root-level `audit.config.ts` fails loudly; `auditor fix` (or `npm run auditor:fix`) moves it into `.auditor/` and rewrites its relative imports. Paths inside the config stay relative to the project root.
 
 ```typescript
 // .auditor/audit.config.ts

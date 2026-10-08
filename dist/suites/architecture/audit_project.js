@@ -542,7 +542,7 @@ function renderHumanDetailView(fileGroups) {
     }
     if (entries.length > MAX_FILES_TO_SHOW_IN_TERMINAL) {
         console.log(styleText('cyan', `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`));
-        console.log(styleText('cyan', `👉 Usa "npm run audit errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`));
+        console.log(styleText('cyan', `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`));
     }
 }
 function renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount, warningsCount, topLimit, values, archJsonPath) {

@@ -157,7 +157,7 @@ Once all tests pass cleanly:
    ```
 2. **DOX Pass (`dox-navigator`)**:
    - Update the nearest owning `AGENTS.md` to persist the lesson learned, contract clarification, or invariant established by this fix.
-   - Run `npm run audit:md` to ensure zero broken links or unindexed paths.
+   - Run `npm run auditor:md` to ensure zero broken links or unindexed paths.
 3. **Final Status Walkthrough**:
    - Present a concise walkthrough summarizing root cause, files touched, test results, and critical decisions.
 

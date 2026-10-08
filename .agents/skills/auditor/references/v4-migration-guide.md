@@ -53,7 +53,7 @@ To inject all canonical scripts non-destructively into `package.json`:
 ```bash
 auditor fix
 # or
-npm run audit:fix
+npm run auditor:fix
 ```
 
 This command automatically chains `auditor &&` into your `build` script and appends all missing auditor commands without altering your existing custom scripts or aliases.
@@ -64,7 +64,7 @@ This command automatically chains `auditor &&` into your `build` script and appe
 
 ## 3. Configuration Modernization (`.auditor/audit.config.ts`)
 
-Host applications configure the auditor via `.auditor/audit.config.ts` using `defineAuditConfig(...)` (root-level configs fail loudly; `auditor fix` or `npm run audit:fix` migrates them).
+Host applications configure the auditor via `.auditor/audit.config.ts` using `defineAuditConfig(...)` (root-level configs fail loudly; `auditor fix` or `npm run auditor:fix` migrates them).
 
 ### 3.1 Path Governance and Policy Mapping
 
@@ -170,11 +170,11 @@ Vector code duplication runs on Candle CPU via Jina code embeddings in ~2s lever
 
 ### 3.4 Warning Ratchet Replaces `audit:for-commit` (`ratchet`)
 
-The differential `audit:for-commit` / `auditor-commit` gate no longer exists. `npm run audit` itself now fails on any NEW warning compared with `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`). Migration steps:
+The differential `audit:for-commit` / `auditor-commit` gate no longer exists. `npm run auditor` itself now fails on any NEW warning compared with `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`). Migration steps:
 
-1. Run `npm run audit:fix` (or `auditor fix`) to delete the `audit:for-commit` script and rewrite any script that referenced it (otherwise `audit-config-removed-commit-gate` fails).
+1. Run `npm run auditor:fix` (or `auditor fix`) to delete the `audit:for-commit` script and rewrite any script that referenced it (otherwise `audit-config-removed-commit-gate` fails).
 2. Make sure the production ref resolves (`git fetch origin`; CI checkouts need full history), or set `ratchet.productionRef`.
-3. Reach 0 errors, then run `npm run audit -- --init-baseline` once and commit `.auditor/audit-baseline.json` to the production branch.
+3. Reach 0 errors, then run `npm run auditor -- --init-baseline` once and commit `.auditor/audit-baseline.json` to the production branch.
 
 ```typescript
   ratchet: {
@@ -268,7 +268,7 @@ When refactoring code to eliminate semantic or duplicated code findings:
 ## 6. Root README Modernization Pass
 
 When upgrading a host application to v4+:
-1. **Audit Script Table**: Update the scripts table in `README.md` to reflect canonical v4 runner commands (`npm run audit`, `npm run audit:fix`, `npm run audit:build`, `npm run audit:similar`, `npm run auditor:update`).
+1. **Audit Script Table**: Update the scripts table in `README.md` to reflect canonical v4 runner commands (`npm run auditor`, `npm run auditor:fix`, `npm run auditor:build`, `npm run auditor:similar`, `npm run auditor:update`).
 2. **Remove Deprecated Flags**: Eradicate obsolete CLI instructions or deprecated script references.
 3. **Environment & Node Prerequisites**: Align documentation with Node.js 26+ native requirements (`--permission`).
 

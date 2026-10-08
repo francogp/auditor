@@ -80,9 +80,9 @@ export interface StandardAuditResult {
 export interface AuditorCapabilities {
     /** Whether the sub-auditor implements automated repairs when invoked with --fix */
     readonly fix: boolean;
-    /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run audit:lint) */
+    /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
     readonly lint: boolean;
-    /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run audit:md) */
+    /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */
     readonly md: boolean;
     /** Whether the sub-auditor requires the shared in-memory TypeScript AST context */
     readonly ast: boolean;

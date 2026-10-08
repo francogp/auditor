@@ -85,7 +85,7 @@ Herramienta canónica de inspección y análisis de cobertura de pruebas.
 
 ${styleText('bold', 'USO:')}
   auditor-test-coverage [OPCIONES]
-  npm run audit:test-coverage [-- OPCIONES]
+  npm run auditor:test-coverage [-- OPCIONES]
 
 ${styleText('bold', 'OPCIONES:')}
   --run              Ejecuta los tests con cobertura antes de analizar ('npm test -- --coverage').
@@ -317,7 +317,7 @@ ${styleText('bold', '🎯 DISTRIBUCIÓN DE ARCHIVOS:')}
     if (report.hotspots && report.hotspots.length > 0) {
         const topHotspot = report.hotspots[0];
         console.log(styleText('yellow', `💡 Sugerencia: Hay ${report.hotspots.length} archivo(s) con alta complejidad y baja cobertura.`));
-        console.log(styleText('dim', `   Ejecuta 'npm run audit:test-coverage -- --hotspots' para ver la lista de riesgo (Top: ${topHotspot.relPath}).\n`));
+        console.log(styleText('dim', `   Ejecuta 'npm run auditor:test-coverage -- --hotspots' para ver la lista de riesgo (Top: ${topHotspot.relPath}).\n`));
     }
 }
 function runTestRunnerIfRequested(shouldRun, runCommand, projectRoot) {
@@ -335,7 +335,7 @@ function loadCoveragePayloadOrExit(projectRoot, configPath) {
     if (!coverageFile) {
         console.error(styleText('red', `\n❌ No se encontró el archivo de cobertura en '${configPath}'.`));
         console.log(styleText('yellow', '   Ejecuta tus pruebas con cobertura primero usando:'));
-        console.log(styleText('bold', `   npm run audit:test-coverage -- --run\n`));
+        console.log(styleText('bold', `   npm run auditor:test-coverage -- --run\n`));
         process.exit(1);
     }
     return JSON.parse(fs.readFileSync(coverageFile, 'utf8')); // open-record: Istanbul coverage json payload

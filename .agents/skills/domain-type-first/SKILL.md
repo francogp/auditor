@@ -24,7 +24,7 @@ Apply this workflow whenever the task involves any of the following:
 - **Finite Domain IDs & Values**: Finite identifiers such as entity species, moves, abilities, items, maps, trainers, factions, statuses, weather, ranks, categories, modes, slots, phases, classes, tables, or routes across `src/` and `scripts/`.
 - **Collections & Dictionaries**: Constants declared as arrays, sets, maps, records, or object dictionaries in `src/` and `scripts/`.
 - **Generated Data & Boundary Validation**: Generated data under `src/data/**`, generated wrappers from JSON, npm scripts under `scripts/**`, or runtime boundary validators (`isDomainId`, `requireDomainId`).
-- **Audit Findings**: Review/audit findings from `npm run audit:family:domain` (or `auditor task=validate_domain_types`) or `npm run audit`.
+- **Audit Findings**: Review/audit findings from `npm run auditor -- task=validate_domain_types` (or `auditor task=validate_domain_types`) or `npm run auditor`.
 
 If it represents a finite domain, design and use the domain type first.
 
@@ -442,15 +442,14 @@ The canonical domain type auditor is `validate_domain_types` from `@francogp/aud
 
 ```bash
 # Standard in-depth audit across src/ and scripts/
-npm run audit -- task=validate_domain_types
+npm run auditor -- task=validate_domain_types
 # or: auditor task=validate_domain_types
 
 # Full domain data suite audit
-npm run audit:family:domain
-# or: auditor family=domain_data
+auditor family=domain_data
 
 # Inspect domain findings in Box-Drawing tables
-npm run audit:findings category=validate_domain_types
+npm run auditor:findings category=validate_domain_types
 ```
 
 ### Full Verification Pipeline

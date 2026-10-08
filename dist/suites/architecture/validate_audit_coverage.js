@@ -228,7 +228,7 @@ export class AuditCoverageAuditor extends BaseAuditor {
             return;
         }
         if (!runId || process.env[COVERAGE_RUN_MODE_ENV] !== 'full') {
-            this.markSkipped('Requiere una corrida completa (npm run audit) para verificar cobertura');
+            this.markSkipped('Requiere una corrida completa (npm run auditor) para verificar cobertura');
             return;
         }
         const configPath = path.join(this.projectRoot, AUDIT_CONFIG_FILE);

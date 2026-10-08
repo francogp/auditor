@@ -440,7 +440,7 @@ export default defineAuditConfig({
 });
 ```
 
-When `auditor` or `npm run audit` runs, `auditScanner.ts` automatically discovers registered extensions and executes them seamlessly within the main Box-Drawing summary table.
+When `auditor` or `npm run auditor` runs, `auditScanner.ts` automatically discovers registered extensions and executes them seamlessly within the main Box-Drawing summary table.
 
 ---
 
@@ -477,7 +477,7 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
 The orchestrator and `validate_audit_config` will:
 1. Dynamically discover this requirement from your extension or subauditor without hardcoding.
 2. Assert that `.gitignore` contains the pattern matching your entry (`severity: 'error'`).
-3. Automatically append missing entries to `.gitignore` when running with `--fix` (`npm run audit:fix` or `auditor fix`).
+3. Automatically append missing entries to `.gitignore` when running with `--fix` (`npm run auditor:fix` or `auditor fix`).
 
 ---
 
@@ -707,12 +707,12 @@ Suites that validate compiled distribution artifacts (such as bundle budgets, ex
 capabilities: { requiresBuild: true }
 ```
 
-1. **Pre-Build Exclusion**: `npm run audit` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.
-2. **Post-Build Chaining**: In `package.json`, the standard build script chains `audit:build`:
+1. **Pre-Build Exclusion**: `npm run auditor` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.
+2. **Post-Build Chaining**: In `package.json`, the standard build script chains `auditor:build`:
    ```json
-   "build": "npm run audit && tsc -p tsconfig.build.json && npm run audit:build"
+   "build": "npm run auditor && tsc -p tsconfig.build.json && npm run auditor:build"
    ```
-   Executing `npm run audit:build` isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
+   Executing `npm run auditor:build` isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
 
 ---
 
@@ -806,9 +806,9 @@ export class MyFeatureAuditor extends BaseAuditor<MyFeatureRuleId> {
 ### 3. Collision Prevention (`[COLISIÓN DE COMANDOS]`)
 All scripts are registered into `PackageScriptRegistry`. If two sub-auditors or extensions declare the same command name with conflicting commands, the registry throws an immediate, loud error:
 ```
-[COLISIÓN DE COMANDOS] El comando de script 'audit:my-feature' está duplicado entre 'validate_my_feature' ('auditor task=validate_my_feature') y 'otra_extension' ('auditor task=otra_extension'). Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. Cambia el nombre del comando para resolver la colisión.
+[COLISIÓN DE COMANDOS] El comando de script 'auditor:my-feature' está duplicado entre 'validate_my_feature' ('auditor task=validate_my_feature') y 'otra_extension' ('auditor task=otra_extension'). Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. Cambia el nombre del comando para resolver la colisión.
 ```
 
 ### 4. Automated Non-Destructive Injection (`auditor fix`)
-When running `auditor fix` (or `npm run audit:fix`), `validate_audit_config` dynamically inspects the host's `package.json` against all registered scripts in `PackageScriptRegistry` and appends missing ones without modifying existing custom scripts.
+When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` dynamically inspects the host's `package.json` against all registered scripts in `PackageScriptRegistry` and appends missing ones without modifying existing custom scripts.
 

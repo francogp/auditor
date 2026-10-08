@@ -105,6 +105,7 @@ describe('ValidateAuditConfigAuditor', () => {
     expect(auditor.ruleIds).toContain('audit-config-invalid-baseline');
     expect(auditor.ruleIds).toContain('audit-config-missing-recommended-script');
     expect(auditor.ruleIds).toContain('audit-config-missing-section');
+    expect(auditor.ruleIds).toContain('audit-config-obsolete-script');
   });
 
   it('reports an error when audit.config.ts is missing from project root', async () => {
@@ -654,7 +655,7 @@ export default defineAuditConfig({
         name: 'test-app',
         scripts: {
           build: 'auditor && vite build',
-          audit: 'auditor'
+          auditor: 'auditor'
         }
       }, null, 2),
       'utf-8'
@@ -668,8 +669,8 @@ export default defineAuditConfig({
     expect(result.status).toBe('passed');
     const missingRecommended = result.findings.filter(f => f.ruleId === 'audit-config-missing-recommended-script');
     expect(missingRecommended.length).toBeGreaterThan(0);
-    expect(missingRecommended.some(f => f.context === 'audit:lint')).toBe(true);
-    expect(missingRecommended.some(f => f.context === 'audit:fix')).toBe(true);
+    expect(missingRecommended.some(f => f.context === 'auditor:lint')).toBe(true);
+    expect(missingRecommended.some(f => f.context === 'auditor:fix')).toBe(true);
   });
 
   it('automatically adds missing recommended scripts in fix mode', async () => {
@@ -692,7 +693,7 @@ export default defineAuditConfig({
         name: 'test-app',
         scripts: {
           build: 'auditor && vite build',
-          audit: 'auditor',
+          auditor: 'auditor',
           'custom:task': 'echo custom'
         }
       }, null, 2),
@@ -706,14 +707,113 @@ export default defineAuditConfig({
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
     expect(updatedPkg.scripts['custom:task']).toBe('echo custom');
     expect(updatedPkg.scripts['build']).toBe('auditor && vite build');
-    expect(updatedPkg.scripts['audit']).toBe('auditor');
-    expect(updatedPkg.scripts['audit:fix']).toBe('auditor fix');
-    expect(updatedPkg.scripts['audit:by-file']).toBe('auditor-by-file');
-    expect(updatedPkg.scripts['audit:lint']).toBe('auditor preset=lint');
-    expect(updatedPkg.scripts['audit:md']).toBe('auditor preset=md');
-    expect(updatedPkg.scripts['audit:build']).toBe('auditor preset=build');
+    expect(updatedPkg.scripts['auditor']).toBe('auditor');
+    expect(updatedPkg.scripts['auditor:fix']).toBe('auditor fix');
+    expect(updatedPkg.scripts['auditor:by-file']).toBe('auditor-by-file');
+    expect(updatedPkg.scripts['auditor:lint']).toBe('auditor preset=lint');
+    expect(updatedPkg.scripts['auditor:md']).toBe('auditor preset=md');
+    expect(updatedPkg.scripts['auditor:build']).toBe('auditor preset=build');
     expect(updatedPkg.scripts['auditor:update']).toBe('auditor-update');
     expect(updatedPkg.scripts['auditor:version']).toBe('auditor-version');
+  });
+
+  it('detects obsolete and legacy auditor scripts in package.json', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  persistence: { engine: 'none', schemaQualified: false },
+  styles: { zLayersEnabled: false }
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-app',
+        scripts: {
+          build: 'auditor && vite build',
+          auditor: 'auditor',
+          audit: 'auditor',
+          'init-agent': 'auditor-init-agent',
+          'sync:env': 'auditor-sync-env',
+          'audit:family:documentation': 'auditor family=documentation',
+          'validate:script-hardcoding': 'auditor task=validate_script_hardcoding'
+        }
+      }, null, 2),
+      'utf-8'
+    );
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    const obsoleteFindings = result.findings.filter(f => f.ruleId === 'audit-config-obsolete-script');
+    expect(obsoleteFindings.length).toBeGreaterThanOrEqual(4);
+    expect(obsoleteFindings.some(f => f.context.includes('init-agent'))).toBe(true);
+    expect(obsoleteFindings.some(f => f.context.includes('sync:env'))).toBe(true);
+    expect(obsoleteFindings.some(f => f.context.includes('audit:family:documentation'))).toBe(true);
+    expect(obsoleteFindings.some(f => f.context.includes('validate:script-hardcoding'))).toBe(true);
+  });
+
+  it('prunes obsolete scripts and surgically rewrites build and lint in fix mode', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  persistence: { engine: 'none', schemaQualified: false },
+  styles: { zLayersEnabled: false }
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-app',
+        scripts: {
+          build: 'npm run servers:configure && npm run audit && vite build',
+          lint: 'npm run audit:lint',
+          'init-agent': 'auditor-init-agent',
+          'sync:env': 'auditor-sync-env',
+          'env:setup': 'auditor-setup-env',
+          'env:check': 'auditor-check-env',
+          'audit:family:documentation': 'auditor family=documentation',
+          'validate:script-hardcoding': 'auditor task=validate_script_hardcoding',
+          'custom:preserve': 'echo hello'
+        }
+      }, null, 2),
+      'utf-8'
+    );
+
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    await fixAuditor.execute();
+
+    const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
+    // Surgical rewrite preserved custom prefix and suffix
+    expect(updatedPkg.scripts.build).toBe('npm run servers:configure && npm run auditor && vite build');
+    expect(updatedPkg.scripts.lint).toBe('npm run auditor:lint');
+    expect(updatedPkg.scripts['custom:preserve']).toBe('echo hello');
+
+    // Obsolete scripts were pruned
+    expect(updatedPkg.scripts['init-agent']).toBeUndefined();
+    expect(updatedPkg.scripts['sync:env']).toBeUndefined();
+    expect(updatedPkg.scripts['env:setup']).toBeUndefined();
+    expect(updatedPkg.scripts['env:check']).toBeUndefined();
+    expect(updatedPkg.scripts['audit:family:documentation']).toBeUndefined();
+    expect(updatedPkg.scripts['validate:script-hardcoding']).toBeUndefined();
+    expect(updatedPkg.scripts['audit']).toBeUndefined();
+
+    // Canonical auditor scripts were populated
+    expect(updatedPkg.scripts['auditor']).toBe('auditor');
+    expect(updatedPkg.scripts['auditor:fix']).toBe('auditor fix');
+    expect(updatedPkg.scripts['auditor:lint']).toBe('auditor preset=lint');
   });
 
   it('enforces build script chaining even when packageDistribution.enabled is true', async () => {

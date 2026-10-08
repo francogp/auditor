@@ -51,7 +51,7 @@ To inject all canonical scripts non-destructively into `package.json`:
 ```bash
 auditor fix
 # or
-npm run audit:fix
+npm run auditor:fix
 ```
 
 This command automatically chains `auditor &&` into your `build` script and appends all missing auditor commands without altering your existing custom scripts or aliases.
@@ -136,7 +136,7 @@ Vector code duplication runs on Candle CPU via Jina code embeddings in ~2s lever
 
 ### 3.4 Warning Ratchet (`ratchet`)
 
-The differential warning ratchet prevents baseline degradation. `npm run audit` fails on any NEW warning compared with `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`):
+The differential warning ratchet prevents baseline degradation. `npm run auditor` fails on any NEW warning compared with `.auditor/audit-baseline.json` committed at `ratchet.productionRef` (default `origin/main`):
 
 ```typescript
   ratchet: {
@@ -208,8 +208,8 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
    Suite status is resolved dynamically from `configKey` against `audit.config.ts`. No hardcoded registration maps.
 3. **Capability-Driven Auto-Coordination**:
    Declare execution capabilities cleanly via `capabilities: Partial<AuditorCapabilities>` (`lint`, `fix`, `md`, `ast`, `heavy`, `requiresBuild`). When `auditor fix` runs, the engine isolates only suites with `capabilities.fix === true`.
-4. **Post-Build Suite Partitioning (`audit:build` / `preset=build`)**:
-   Suites declaring `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, `validate_package_types`) are excluded from pre-build source audit (`npm run audit`) and executed post-build against `dist/` via `npm run audit:build`.
+4. **Post-Build Suite Partitioning (`auditor:build` / `preset=build`)**:
+   Suites declaring `capabilities: { requiresBuild: true }` (`validate_bundle_budget`, `validate_package_distribution`, `validate_package_types`) are excluded from pre-build source audit (`npm run auditor`) and executed post-build against `dist/` via `npm run auditor:build`.
 5. **Security and Distribution Blind Spot Protection**:
    Framework incorporates `@secretlint/core` token scanning (`validate_secret_leaks`), npm audit CVE checking (`validate_dependency_vulnerabilities`), package export map verification (`validate_package_distribution`), and ATTW type declaration auditing (`validate_package_types`).
 6. **Consolidated Table Total Row & Terminal Font Width Guarantees**:
