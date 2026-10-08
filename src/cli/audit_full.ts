@@ -697,9 +697,15 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
     autoFixRecommended
   });
 
-  const latestAuditPath = path.join(scratchAuditsDir, 'latest_audit.json');
-  const latestSummaryPath = path.join(scratchAuditsDir, 'latest_summary.json');
-  const latestByFilePath = path.join(scratchAuditsDir, 'by_file.json');
+  const latestAuditPath = isFixMode
+    ? path.join(scratchAuditsDir, 'latest_fix_audit.json')
+    : path.join(scratchAuditsDir, 'latest_audit.json');
+  const latestSummaryPath = isFixMode
+    ? path.join(scratchAuditsDir, 'latest_fix_summary.json')
+    : path.join(scratchAuditsDir, 'latest_summary.json');
+  const latestByFilePath = isFixMode
+    ? path.join(scratchAuditsDir, 'by_file_fix.json')
+    : path.join(scratchAuditsDir, 'by_file.json');
 
   await fs.writeFile(latestAuditPath, JSON.stringify(consolidatedReport, null, 2), 'utf-8');
   await fs.writeFile(latestSummaryPath, JSON.stringify({

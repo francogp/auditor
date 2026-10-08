@@ -175,4 +175,30 @@ describe('report_findings CLI Tool', () => {
     expect(() => runReport()).not.toThrow();
     expect(consoleLogSpy).toHaveBeenCalled();
   });
+
+  it('loads and renders latest_fix_audit.json when fix flag is passed', () => {
+    fsExistsSpy.mockImplementation((targetPath) => {
+      if (String(targetPath).includes('latest_fix_audit.json')) return true;
+      return originalExistsSync(targetPath);
+    });
+
+    fsReadSpy.mockImplementation((targetPath, options) => {
+      if (String(targetPath).includes('latest_fix_audit.json')) {
+        return JSON.stringify({
+          ...mockReport,
+          meta: {
+            ...mockReport.meta,
+            isFullAudit: false,
+            runMode: 'fix',
+            timestamp: Temporal.Now.instant().toString()
+          }
+        });
+      }
+      return originalReadFileSync(targetPath, options);
+    });
+
+    process.argv = ['node', 'report_findings.ts', 'fix', '--json', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
 });

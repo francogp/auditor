@@ -55,6 +55,7 @@ interface ReportOptions {
   filesOnly: boolean;
   allowStale: boolean;
   allowPartial: boolean;
+  inspectFix: boolean;
 }
 
 const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
@@ -64,6 +65,7 @@ const BREAKDOWN_FLAGS = new Set(['breakdown', '--breakdown', 'breakdown=true', '
 const BY_FILE_FLAGS = new Set(['by-file', '--by-file', 'by_file', 'group=file', 'group-by=file', 'byfile']);
 const STALE_FLAGS = new Set(['allow-stale', '--allow-stale', 'stale']);
 const PARTIAL_FLAGS = new Set(['allow-partial', '--allow-partial', 'partial']);
+const FIX_FLAGS = new Set(['fix', '--fix', 'fix-report', '--fix-report']);
 
 function isInvokedAsByFile(): boolean {
   const scriptArg = process.argv[1] ?? '';
@@ -79,6 +81,7 @@ function parseFlagArg(arg: string, opts: ReportOptions): boolean {
   if (BY_FILE_FLAGS.has(arg)) { opts.byFile = true; return true; }
   if (STALE_FLAGS.has(arg)) { opts.allowStale = true; return true; }
   if (PARTIAL_FLAGS.has(arg)) { opts.allowPartial = true; return true; }
+  if (FIX_FLAGS.has(arg)) { opts.inspectFix = true; opts.allowPartial = true; return true; }
   return false;
 }
 
@@ -154,7 +157,8 @@ function parseReportOptions(): ReportOptions {
     summaryOnly: false,
     filesOnly: false,
     allowStale: false,
-    allowPartial: false
+    allowPartial: false,
+    inspectFix: false
   };
 
   for (const arg of argv) {
@@ -173,22 +177,27 @@ function parseReportOptions(): ReportOptions {
   return opts;
 }
 
-function loadAuditReport(): AuditReport | null {
-  const reportPath = path.resolve(process.cwd(), 'scratch/audits/latest_audit.json');
+function loadAuditReport(inspectFix: boolean = false): AuditReport | null {
+  const targetFileName = inspectFix ? 'latest_fix_audit.json' : 'latest_audit.json';
+  const reportPath = path.resolve(process.cwd(), `scratch/audits/${targetFileName}`);
   if (!fs.existsSync(reportPath)) {
-    console.error('❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero "npm run audit".');
+    if (inspectFix) {
+      console.error('❌ No se encontró scratch/audits/latest_fix_audit.json. Ejecuta primero "npm run audit:fix".');
+    } else {
+      console.error('❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero "npm run audit".');
+    }
     return null;
   }
   try {
     const raw = fs.readFileSync(reportPath, 'utf8');
     const parsed = JSON.parse(raw) as AuditReport;
     if (!parsed.meta) {
-      console.error('❌ scratch/audits/latest_audit.json no contiene la cabecera de metadatos "meta". Ejecuta "npm run audit" para regenerarlo.');
+      console.error(`❌ scratch/audits/${targetFileName} no contiene la cabecera de metadatos "meta". Ejecuta "npm run audit" para regenerarlo.`);
       return null;
     }
     return parsed;
   } catch (e) {
-    console.error(`❌ Error al parsear scratch/audits/latest_audit.json: ${(e as Error).message}`);
+    console.error(`❌ Error al parsear scratch/audits/${targetFileName}: ${(e as Error).message}`);
     return null;
   }
 }
@@ -237,6 +246,7 @@ function aggregateAndSortFindings(
 }
 
 function validateReportFreshnessAndScope(report: AuditReport, args: ReportOptions): void {
+  const targetFileName = args.inspectFix ? 'latest_fix_audit.json' : 'latest_audit.json';
   try {
     const auditInstant = Temporal.Instant.from(report.meta.timestamp);
     const now = Temporal.Now.instant();
@@ -248,7 +258,7 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
       const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
       const limitMins = configuredMinutes;
       console.error(
-        styleText('red', `❌ scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min).\n`) +
+        styleText('red', `❌ scratch/audits/${targetFileName} está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min).\n`) +
         styleText('yellow', `   El código fuente pudo haber cambiado desde la última auditoría.\n`) +
         styleText('cyan', `👉 DEBES ejecutar 'npm run audit' para regenerar y validar el reporte.`)
       );
@@ -257,7 +267,7 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
   } catch (err) {
     if ((err as Error).message.includes('OBSOLETO')) throw err;
     console.error(
-      styleText('red', `❌ scratch/audits/latest_audit.json contiene un timestamp inválido ('${report.meta.timestamp}').\n`) +
+      styleText('red', `❌ scratch/audits/${targetFileName} contiene un timestamp inválido ('${report.meta.timestamp}').\n`) +
       styleText('cyan', `👉 DEBES ejecutar 'npm run audit' para regenerar y validar el reporte.`)
     );
     process.exit(1);
@@ -268,7 +278,7 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
   if (!args.allowPartial) {
     if (args.category === 'all') {
       console.error(
-        styleText('red', `❌ scratch/audits/latest_audit.json proviene de una auditoría PARCIAL (${report.meta.runMode}, ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites ejecutadas).\n`) +
+        styleText('red', `❌ scratch/audits/${targetFileName} proviene de una auditoría PARCIAL (${report.meta.runMode}, ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites ejecutadas).\n`) +
         styleText('yellow', `   No es posible emitir reportes globales de hallazgos sobre una corrida parcial.\n`) +
         styleText('cyan', `👉 DEBES ejecutar 'npm run audit' (completo) o agregar 'partial' para inspeccionar esta corrida.`)
       );
@@ -589,7 +599,7 @@ function renderByFileView(
 
 export function runReport(): void {
   const args = parseReportOptions();
-  const report = loadAuditReport();
+  const report = loadAuditReport(args.inspectFix);
   if (!report) process.exit(1);
 
   validateReportFreshnessAndScope(report, args);

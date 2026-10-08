@@ -168,5 +168,42 @@ describe('check_environment CLI Utility', () => {
       expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
+
+    it('automatically executes setup script when divergence is detected and setup script exists', () => {
+      const isWindows = process.platform === 'win32';
+      const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
+      const auditorEngines = getAuditorEngines();
+
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
+        name: 'legacy-app',
+        engines: { node: '>=20.0.0', npm: '>=10.0.0' }
+      }), 'utf-8');
+
+      if (isWindows) {
+        fs.writeFileSync(path.join(tempDir, setupScriptName), `
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $pkg.engines.node = "${auditorEngines.node}"
+          $pkg.engines.npm = "${auditorEngines.npm}"
+          $pkg | ConvertTo-Json | Set-Content package.json
+          exit 0
+        `, 'utf-8');
+      } else {
+        fs.writeFileSync(path.join(tempDir, setupScriptName), `#!/bin/sh
+cat << 'EOF' > package.json
+{
+  "name": "legacy-app",
+  "engines": {
+    "node": "${auditorEngines.node}",
+    "npm": "${auditorEngines.npm}"
+  }
+}
+EOF
+exit 0
+`, { mode: 0o755 });
+      }
+
+      const result = checkEnvironment(tempDir);
+      expect(result).toBe(true);
+    });
   });
 });

@@ -17,5 +17,5 @@ export declare function getAuditorEngines(): {
     node: string;
     npm: string;
 };
-export declare function checkEnvironment(targetDir?: string): boolean;
+export declare function checkEnvironment(targetDir?: string, autoRemediate?: boolean): boolean;
 //# sourceMappingURL=check_environment.d.ts.map
