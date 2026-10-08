@@ -92,6 +92,8 @@ Whenever a new pattern, rule, or architectural shift is captured, the agent MUST
    - Save the artifact strictly to the Artifact Directory `<appDataDir>/brain/<conversation-id>/learning_proposal.md`. NEVER save it inside `scratch/` or the project repository workspace.
    - Pass complete `ArtifactMetadata` containing `UserFacing: true`, `RequestFeedback: true`, and a detailed multi-line `Summary` describing the proposed rules/lessons and documentation corrections.
    - Write the proposal in the language defined by `config.documentation.language` (defaulting to English if unconfigured or in doubt).
+   - **Mandatory Artifact Reference & Direct Linking Mandate**:
+     When presenting the proposal for review, you MUST present a direct clickable Markdown link to the artifact (`[learning_proposal.md](file://...)`) accompanied by a concise high-level summary of the proposed learning and target files in the regular chat conversation. Do NOT dump the full raw file contents into the chat; point the user clearly to the artifact so they can open, inspect, and review it in the Antigravity UI. Using `ask_question` for artifact review is STRICTLY FORBIDDEN as it conceals the artifact and blocks the UI.
    - **Section 1: DOX Additions**: Exact diffs for placing the new learning at the proper `AGENTS.md` boundary.
    - **Section 2: DOX Modernization & Consistency Diffs**: Exact diffs correcting, modernizing, or removing conflicting contracts and legacy code across existing `AGENTS.md` files.
    - **Section 3: Documentation & README Modernization**: Exact diffs correcting legacy or contradictory text in `README.md`, reference guides, or manuals.
@@ -103,7 +105,11 @@ Whenever a new pattern, rule, or architectural shift is captured, the agent MUST
        > These changes MUST NOT be applied locally or inside `node_modules/`. They must be transferred and applied to the `@francogp/auditor` repository.
        ```
 5. **Language Integrity Check**: Verify that `learning_proposal.md`, proposed rules, and documentation additions are written in the project's configured language (`config.documentation.language`), strictly defaulting to English (`'en'`) if unconfigured or when in doubt, ensuring zero language mixing.
-6. **Phase 3 Hard Stop & User Approval**: Wait for the user's explicit approval on `learning_proposal.md` via `ask_question` before proceeding to Phase 4.
+6. **Phase 3 Hard Stop & User Approval (Artifact Review via Regular Text & Feedback)**:
+   - **Artifact Creation with Feedback Request**: Save `learning_proposal.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which equips the artifact with interactive review controls in the Antigravity UI.
+   - **Link & Summarize in Regular Chat Text**: Present the clickable artifact link `[learning_proposal.md](file:///path/to/learning_proposal.md)` accompanied by a concise executive summary of the target DOX path and proposed rule in regular chat text. Do NOT dump the raw file contents into the chat.
+   - **Absolute Prohibition on `ask_question` for Artifact Approval**: Invoking `ask_question` for artifact review is strictly prohibited because it suppresses chat text, blinds the conversation window, and creates an uninformative modal that conceals the artifact. The agent MUST ask for approval via regular chat text and stop calling tools so the user can inspect the artifact in the Antigravity UI.
+   - Wait for explicit user confirmation before proceeding to Phase 4.
 7. **Phase 4 Application & Verification**:
    - Apply approved lessons and modernizations across all targeted `AGENTS.md` files in the DOX hierarchy.
    - Apply approved corrections to the affected `README.md` and documentation files.

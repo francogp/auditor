@@ -32,7 +32,7 @@ In **Explicit Mode**, the agent MUST pause execution and consult the user whenev
 
 ## 3. Structured Consultation Format
 
-When halting for user consultation in Explicit Mode, the agent MUST present the issue using the following format:
+When halting for user consultation in Explicit Mode, the agent MUST render the full structured consultation matrix directly in visible chat text (and in any consultation artifact) before prompting the user or calling `ask_question`:
 
 ```markdown
 ### ⚠️ Architectural Consultation Required
@@ -57,6 +57,7 @@ When halting for user consultation in Explicit Mode, the agent MUST present the 
 
 *Please select an option to proceed with the repair.*
 ```
+
 
 ---
 

@@ -35,7 +35,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.3). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.3 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
 | **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
-| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` (default `'es'`) dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4 & 3.4), and the completion template; `config.documentation.language` (default `'en'`) dynamically governs commit messages, `scratch/release_notes.txt`, and git tags. Zero hardcoded languages. |
+| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` (default `'es'`) dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), and the completion template; `config.documentation.language` (default `'en'`) dynamically governs commit messages, `scratch/release_notes.txt`, and git tags. Zero hardcoded languages. |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -120,6 +120,8 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
 - Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, commit intent, and fresh candidate version stamps.
+- **Mandatory Analysis Presentation in Chat Before Prompting**:
+  Before calling `ask_question`, the agent MUST display the complete Version Analysis breakdown table directly in the visible chat message (detected Git diff metrics, affected subsystems, candidate version options with their freshly updated build identifiers and timestamps `-build.YYYYMMDD-HHmmss`, and SemVer rationale), along with a clickable link to `task.md`. Calling `ask_question` blindly without displaying the version candidates table in chat is STRICTLY FORBIDDEN, as the modal blocks the UI and conceals the analysis.
 - Solicit explicit user review via `ask_question` at this early stage:
   - **MANDATORY UPDATED BUILD & TIMESTAMP ACROSS ALL 3 SEMVER OPTIONS**:
     The build identifier and timestamp (`-build.YYYYMMDD-HHmmss`) **MUST ALWAYS BE FRESHLY UPDATED AND EXPLICITLY INCLUDED IN ALL 3 VERSION OPTIONS (MAJOR, MINOR, BUGFIX/PATCH)** as well as in the build-only option.
@@ -199,10 +201,12 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 **Step 3.3** — Workspace Scratch Cleanup
 - Remove transient debug files, leaving only `scratch/backups/`.
 
-**Step 3.4** — Learning Proposal & Final Commit Approval Gate (`ask_question`)
-- Solicit explicit user review and approval before creating the git commit via `ask_question`:
-  - Present `learning_proposal.md` for review.
-  - Request final user confirmation to proceed with the atomic git commit and release.
+**Step 3.4** — Learning Proposal & Final Commit Approval Gate (Regular Text & Artifact Review)
+- **Artifact Creation with Feedback Request**: Save `learning_proposal.md` and `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), equipping them with native review controls in the Antigravity UI.
+- **Mandatory Artifact Reference & Direct Linking in Regular Chat Text**:
+  The agent MUST present direct clickable Markdown links to both artifacts (`[learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) accompanied by a concise executive summary of key changes and target DOX paths directly in regular chat text. Do NOT dump the full raw file contents into the chat; point the user clearly to the artifacts so they can open, inspect, and review them in the Antigravity UI.
+- **Absolute Prohibition on `ask_question` for Artifact Approval**:
+  Invoking `ask_question` for artifact review is strictly prohibited because it suppresses chat text, blinds the conversation window, and creates an uninformative modal that conceals the artifact. The agent MUST ask for commit approval via regular chat text and stop calling tools so the user can inspect the artifacts in the Antigravity UI before deciding.
 
 **✓ Completion gate**: Wait for user response. Do NOT proceed to Phase 4 until approved.
 

@@ -286,7 +286,7 @@ Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomo
 - **Vue 3, SFC & Reactivity**: `create-adaptable-composable`, `vue-best-practices`, `vue-debug-guides`, `vue-jsx-best-practices`, `vue-options-api-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vueuse-functions`.
 - **GSAP UI Animation**: `gsap-core`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline`, `gsap-utils`.
 - **Codebase Intelligence & Optimization**: `fallow`, `fallow-review`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
-- **Security, Pentesting & Hardening**: `penetration-testing-with-strix`, `security-and-hardening`, `security-review`.
+- **Security, Pentesting & Hardening**: `security-and-hardening`, `security-review`.
 - **Database & Validation**: `database-design`, `supabase-postgres-best-practices`, `valibot`.
 - **Documentation & DOX Governance**: `dox-navigator`, `learn-with-docs`.
 - **Testing & QA Automation**: `playwright-cli`, `tdd`, `testing-patterns`, `vitest`.

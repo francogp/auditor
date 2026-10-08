@@ -115,12 +115,6 @@
       "skillPath": "skills/mcp-builder/SKILL.md",
       "computedHash": "826e46adf81e1372282e205c34e1a2ee876e72148007726e4a2512599d2fef7b"
     },
-    "penetration-testing-with-strix": {
-      "source": "usestrix/strix",
-      "sourceType": "github",
-      "skillPath": "skills/penetration-testing-with-strix/SKILL.md",
-      "computedHash": "476406af8b4d3bf8d09873cf6445f66b428e3efa8b5f55e69f52b1d0685f7fe2"
-    },
     "playwright-cli": {
       "source": "microsoft/playwright-cli",
       "sourceType": "github",
