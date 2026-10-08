@@ -7,11 +7,19 @@
  */
 import { AUDIT_LIST_FILTERS } from "./auditConfigTypes.js";
 export { AUDIT_LIST_FILTERS };
+import { isProductionEnvironment } from "./auditorEnvironment.js";
 function isSimilarEnvSkipped() {
     const v = process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS ?? process.env.AUDIT_SKIP_SIMILAR;
     return v === '1' || v === 'true';
 }
 function checkSimilarCodeGating(config) {
+    if (isProductionEnvironment()) {
+        return {
+            enabled: false,
+            reason: 'Omitido en entorno de producción (AUDITOR_ENV=production)',
+            configKey: 'env:AUDITOR_ENV'
+        };
+    }
     if (isSimilarEnvSkipped()) {
         return {
             enabled: false,
@@ -39,12 +47,21 @@ function checkSpecialGating(suiteId, config) {
             configKey: 'stylelint.enabled'
         };
     }
-    if (suiteId === 'validate_test_coverage' && (config.testCoverage?.enabled === false || !config.testCoverage?.enforceInAudit)) {
-        return {
-            enabled: false,
-            reason: 'Desactivado en config (testCoverage no habilitado o enforceInAudit = false)',
-            configKey: 'testCoverage.enforceInAudit'
-        };
+    if (suiteId === 'validate_test_coverage') {
+        if (isProductionEnvironment()) {
+            return {
+                enabled: false,
+                reason: 'Omitido en entorno de producción (AUDITOR_ENV=production)',
+                configKey: 'env:AUDITOR_ENV'
+            };
+        }
+        if (config.testCoverage?.enabled === false || !config.testCoverage?.enforceInAudit) {
+            return {
+                enabled: false,
+                reason: 'Desactivado en config (testCoverage no habilitado o enforceInAudit = false)',
+                configKey: 'testCoverage.enforceInAudit'
+            };
+        }
     }
     return null;
 }

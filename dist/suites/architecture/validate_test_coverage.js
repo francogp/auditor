@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { getAuditConfig, buildTestCoverageConfig } from "../../core/auditConfig.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
 enableCompileCache();
@@ -45,6 +46,10 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
+        if (isProductionEnvironment()) {
+            this.markSkipped('Test coverage omitido en entorno de producción (AUDITOR_ENV=production)');
+            return;
+        }
         if (this.isSuiteGatingDisabled('Test coverage enforceInAudit desactivado'))
             return;
         for (const r of TEST_COVERAGE_RULES) {

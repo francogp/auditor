@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, buildTestCoverageConfig } from '../../core/auditConfig.ts';
 import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
 
@@ -56,6 +57,11 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
   }
 
   public override async runAudit(): Promise<void> {
+    if (isProductionEnvironment()) {
+      this.markSkipped('Test coverage omitido en entorno de producción (AUDITOR_ENV=production)');
+      return;
+    }
+
     if (this.isSuiteGatingDisabled('Test coverage enforceInAudit desactivado')) return;
 
     for (const r of TEST_COVERAGE_RULES) {

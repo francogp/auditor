@@ -60,7 +60,7 @@ describe('ValidateAuditConfigAuditor', () => {
 
     // Baseline valid package.json with standard build and auditor scripts
     const baselineScripts: Record<string, string> = {
-      build: 'auditor && vite build'
+      build: 'auditor && vite build && npm run auditor:build'
     };
     const allReqs = await collectAllPackageScriptRequirements(tempDir);
     for (const req of allReqs) {
@@ -534,7 +534,7 @@ export default defineAuditConfig({
     expect(fixResult.summary.errors).toBe(0);
     const repaired = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
     expect(repaired.scripts['audit:for-commit']).toBeUndefined();
-    expect(repaired.scripts.build).toBe('auditor && vite build');
+    expect(repaired.scripts.build).toBe('auditor && vite build && npm run auditor:build');
   });
 
   it('reports an error when the ratchet production ref does not resolve in git', async () => {
@@ -626,7 +626,7 @@ export default defineAuditConfig({
     expect(fixResult.status).toBe('passed');
 
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
-    expect(updatedPkg.scripts.build).toBe('auditor && vite build');
+    expect(updatedPkg.scripts.build).toBe('auditor && vite build && npm run auditor:build');
 
     // Run clean check
     const verifyAuditor = new ValidateAuditConfigAuditor(tempDir);
@@ -654,7 +654,7 @@ export default defineAuditConfig({
       JSON.stringify({
         name: 'test-app',
         scripts: {
-          build: 'auditor && vite build',
+          build: 'auditor && vite build && npm run auditor:build',
           auditor: 'auditor'
         }
       }, null, 2),
@@ -692,7 +692,7 @@ export default defineAuditConfig({
       JSON.stringify({
         name: 'test-app',
         scripts: {
-          build: 'auditor && vite build',
+          build: 'auditor && vite build && npm run auditor:build',
           auditor: 'auditor',
           'custom:task': 'echo custom'
         }
@@ -706,7 +706,7 @@ export default defineAuditConfig({
 
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
     expect(updatedPkg.scripts['custom:task']).toBe('echo custom');
-    expect(updatedPkg.scripts['build']).toBe('auditor && vite build');
+    expect(updatedPkg.scripts['build']).toBe('auditor && vite build && npm run auditor:build');
     expect(updatedPkg.scripts['auditor']).toBe('auditor');
     expect(updatedPkg.scripts['auditor:fix']).toBe('auditor fix');
     expect(updatedPkg.scripts['auditor:by-file']).toBe('auditor-by-file');
@@ -796,8 +796,8 @@ export default defineAuditConfig({
     await fixAuditor.execute();
 
     const updatedPkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8'));
-    // Surgical rewrite preserved custom prefix and suffix
-    expect(updatedPkg.scripts.build).toBe('npm run servers:configure && npm run auditor && vite build');
+    // Surgical rewrite preserved custom prefix and suffix and appended post-build auditor
+    expect(updatedPkg.scripts.build).toBe('npm run servers:configure && npm run auditor && vite build && npm run auditor:build');
     expect(updatedPkg.scripts.lint).toBe('npm run auditor:lint');
     expect(updatedPkg.scripts['custom:preserve']).toBe('echo hello');
 

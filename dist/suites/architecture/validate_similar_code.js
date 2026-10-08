@@ -19,6 +19,7 @@ import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } from "../../cli/cliUtils.js";
 enableCompileCache();
@@ -41,7 +42,8 @@ export function isFastPresetActive() {
         args.includes('--preset=md'));
 }
 export function isSimilarCodeSkipped() {
-    return (process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === 'true' ||
+    return (isProductionEnvironment() ||
+        process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === 'true' ||
         process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === '1' ||
         process.env.AUDIT_SKIP_SIMILAR === 'true' ||
         process.env.AUDIT_SKIP_SIMILAR === '1');
@@ -271,6 +273,10 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
         const similarCfg = config.fallow?.similarCode;
         if (!similarCfg?.enabled) {
             this.markSkipped('Deshabilitado en audit.config.ts (fallow.similarCode.enabled: false)');
+            return;
+        }
+        if (isProductionEnvironment()) {
+            this.markSkipped('Omitido en entorno de producción (AUDITOR_ENV=production)');
             return;
         }
         if (isSimilarCodeSkipped()) {

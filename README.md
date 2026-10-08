@@ -108,7 +108,7 @@ The engine will:
 1. Inspect all active built-in sub-auditors and registered host extensions.
 2. Check for naming collisions across commands (`[COLISIÓN DE COMANDOS]`).
 3. Inject any missing scripts into your `package.json` without modifying or duplicating your existing custom scripts or aliases.
-4. Automatically chain `auditor &&` into your `build` script.
+4. Automatically chain `npm run auditor` and `npm run auditor:build` into your `build` script.
 
 ---
 
@@ -209,6 +209,22 @@ auditor preset=build
 ```
 
 Executes `validate_package_distribution` (Publint), `validate_package_types` (ATTW), and `validate_bundle_budget` post-compilation.
+
+### 4.8. Production Build Runner (`build:prod` / `auditor-build-prod`)
+
+In production environments (Docker builds, deployment scripts, CI containers), execute:
+
+```bash
+npm run build:prod
+# or directly:
+auditor-build-prod
+```
+
+Under `AUDITOR_ENV=production`:
+
+- Automatically skips `validate_similar_code` (Candle CPU vector embeddings).
+- Automatically skips `validate_test_coverage` (coverage artifacts are git-ignored and not generated in production).
+- Executes all remaining 48+ static analysis suites and post-build verification (`auditor:build`) at 100% strictness.
 
 ---
 

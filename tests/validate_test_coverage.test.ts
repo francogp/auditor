@@ -233,4 +233,37 @@ describe('ValidateTestCoverageAuditor', () => {
     expect(untrackedFinding).toBeDefined();
     expect(result.status).toBe('passed');
   });
+
+  it('skips cleanly with zero errors when AUDITOR_ENV=production even if coverage file is missing', async () => {
+    process.env.AUDITOR_ENV = 'production';
+
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'test-app',
+        paths: { srcRoots: ['src'] },
+        testCoverage: {
+          enabled: true,
+          threshold: 80,
+          enforceInAudit: true
+        },
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        packageDistribution: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false }
+      }),
+      tmpDir
+    );
+
+    const auditor = new ValidateTestCoverageAuditor({ projectRoot: tmpDir });
+    await auditor.runAudit();
+    const result = await auditor.finishAudit();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.summary.warnings).toBe(0);
+    expect(result.status).toBe('skipped');
+
+    delete process.env.AUDITOR_ENV;
+  });
 });

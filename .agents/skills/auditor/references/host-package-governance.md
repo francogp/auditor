@@ -80,6 +80,7 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
 - `auditor` (master orchestrator `audit_full.ts`)
 - `auditor-build` (post-build compiled artifact runner `audit_build.ts`)
+- `auditor-build-prod` (production build runner setting `AUDITOR_ENV=production`, `build_prod.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
 - `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
 - `auditor-by-file` (hierarchical tree findings reporter grouped by file and line `report_findings.ts`)
@@ -113,13 +114,19 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
 
 ## 5. Universal Standard `build` Script Contract
 
+The build execution is partitioned into a **2-part auditor lifecycle**:
+1. **Pre-build verification** (`npm run auditor`): enforces source code architecture, linting, and domain type constraints before compilation starts.
+2. **Compilation**: runs the bundler / TypeScript compiler (`vite build`, `tsc`, etc.).
+3. **Post-build verification** (`npm run auditor:build`): verifies compiled distribution artifacts in `dist/` (bundle budgets, export maps, type definitions).
+
 - **Tooling Packages (TypeScript CLI / Library Packages)**:
   Tool packages distributing CLI tools or pre-compiled distribution bundles (`dist/`) MUST strictly use the cross-platform Node.js executable script:
 
   ```json
   {
     "scripts": {
-      "build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build"
+      "build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build",
+      "build:prod": "auditor-build-prod"
     }
   }
   ```
@@ -127,12 +134,13 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
   Using platform-specific shell commands like `chmod` that fail on Windows is strictly forbidden; executable permissions are set via cross-platform Node.js filesystem APIs. Inventing arbitrary non-standard script names (such as `compile` or `build:dist`) is strictly forbidden across the framework.
 
 - **Web Application Host Projects (Vite / Vue / Webpack)**:
-  Host web applications compile their production assets through standard bundlers chained with the auditor:
+  Host web applications compile their production assets through standard bundlers chained with both pre-audit and post-audit:
 
   ```json
   {
     "scripts": {
-      "build": "npm run auditor && vite build"
+      "build": "npm run auditor && vite build && npm run auditor:build",
+      "build:prod": "auditor-build-prod"
     }
   }
   ```
@@ -156,23 +164,27 @@ When authoring or maintaining host extensions in `scripts/auditors/`:
 
 ---
 
-## 7. Specifically Defined Remote CI & GitHub Pages Deployments ONLY (Environment Variable Bypass)
+## 7. Production Builds, Docker Containers & Remote Deployments (`AUDITOR_ENV=production`)
 
-In consumer host projects deploying to GitHub Pages or executing in lightweight CI environments:
-- Running the full auditor executes `validate_similar_code`, which queries or downloads local Fallow vector embeddings models (`jina-embeddings-v2-base-code`).
-- There is NO CLI flag to skip similar code. To cleanly omit vector embeddings analysis in headless remote containers or GitHub Actions with strict timeouts, pass the explicit environment variable `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1`:
+In consumer host projects deploying to production, building Docker containers, running deployment scripts (`deploy-install.sh`, `deploy-update.sh`), or deploying to GitHub Pages:
+- The full auditor normally validates 100% of architectural and quality checks.
+- In production environments, coverage files (`coverage/coverage-final.json`) are git-ignored and not generated during build, and computing vector embeddings via Candle CPU is undesirable.
+- Setting `AUDITOR_ENV=production` (or invoking `npm run build:prod` / `auditor-build-prod`) cleanly skips `validate_similar_code` and `validate_test_coverage` with 0 violations.
+- All other 48+ suites and post-build artifact verification (`auditor:build`) execute at 100% strictness.
 
 ```yaml
-# In GitHub Actions workflow step:
+# In GitHub Actions workflow step (e.g. GitHub Pages deploy):
 - name: Audit & Build
-  run: auditor && npm run build
-  env:
-    AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS: 1
+  run: npm run build:prod
+  # or:
+  # run: npm run build
+  # env:
+  #   AUDITOR_ENV: production
 ```
 
 > [!CAUTION]
 > **Strict Local Execution Mandate & Absolute Bypassing Prohibition in Local/Development**:
-> AI agents and developers MUST NEVER set `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`) during local development, interactive coding turns, bug triage, or local verification runs. Vector semantic duplication executes locally on Candle CPU in ~2 seconds leveraging disk cache. Bypassing vector analysis is strictly and exclusively reserved for specifically defined remote deployment environments.
+> AI agents and developers MUST NEVER set `AUDITOR_ENV=production` or bypass vector analysis/test coverage during local development, interactive coding turns, bug triage, or local verification runs. Vector semantic duplication executes locally on Candle CPU in ~2 seconds leveraging disk cache. Production mode is strictly and exclusively reserved for headless production builds, Docker containers, and deployment workflows.
 
 ---
 

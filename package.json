@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "5.8.3-build.20261008-113030",
+  "version": "5.9.0-build.20261008-134323",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -82,6 +82,7 @@
     "auditor-review": "./dist/cli/report_review.js",
     "auditor-update": "./dist/cli/update_package.js",
     "auditor-build": "./dist/cli/audit_build.js",
+    "auditor-build-prod": "./dist/cli/build_prod.js",
     "auditor-init-agent": "./dist/cli/init_agent.js",
     "auditor-sync-env": "./dist/cli/sync_env_scripts.js",
     "auditor-check-env": "./dist/cli/check_environment.js",
@@ -119,6 +120,7 @@
     "auditor:findings": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts",
     "typecheck": "tsc --noEmit",
     "build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build",
+    "build:prod": "node --experimental-strip-types src/cli/build_prod.ts",
     "auditor:changed": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts changed-since=main",
     "auditor:lint": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=lint",
     "auditor:build": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=build",

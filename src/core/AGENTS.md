@@ -85,6 +85,7 @@ Architecture & Tooling Engineers.
 - [`auditCoverage.ts`](./auditCoverage.ts): Audit file and rule coverage map tracking and verification engine.
 - [`auditorBase.ts`](./auditorBase.ts): Abstract base classes (`BaseAuditor`, `FileScanAuditor`) and canonical ignore directories.
 - [`auditorContractConformance.ts`](./auditorContractConformance.ts): Dynamic auditor discovery, constructor contract, metadata validation, and test conformance engine.
+- [`auditorEnvironment.ts`](./auditorEnvironment.ts): Environment detection helper checking strictly for `AUDITOR_ENV=production`.
 - [`auditPathPredicates.ts`](./auditPathPredicates.ts): Project root matching, path category predicates, and Z-Layers resolution helpers.
 - [`configFileRegistry.ts`](./configFileRegistry.ts): Centralized registry for dynamic configuration file requirements and auto-fix scaffolding declared across sub-auditors and extensions.
 - [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.

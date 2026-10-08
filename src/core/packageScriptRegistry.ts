@@ -47,6 +47,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'core'
   },
   {
+    name: 'build:prod',
+    command: 'auditor-build-prod',
+    description: 'Compilación de producción bajo AUDITOR_ENV=production (omite similar-code y cobertura)',
+    category: 'core'
+  },
+  {
     name: 'auditor:changed',
     command: 'auditor changed-since=main',
     description: 'Auditoría incremental acotada a diferencias respecto a la rama principal',

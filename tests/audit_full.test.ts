@@ -132,6 +132,7 @@ describe('audit_full CLI orchestration helpers', () => {
     });
 
     it('returns false when neither environment variable is active', () => {
+      delete process.env.AUDITOR_ENV;
       delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;
       delete process.env.AUDIT_SKIP_SIMILAR;
       expect(resolveSkipSimilar()).toBe(false);

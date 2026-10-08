@@ -297,6 +297,7 @@ export const ESSENTIAL_AUDITOR_SCRIPTS: Readonly<Record<string, string>> = {
   'auditor:lint': 'auditor preset=lint',
   'auditor:md': 'auditor preset=md',
   'auditor:build': 'auditor preset=build',
+  'build:prod': 'auditor-build-prod',
   'auditor:update': 'auditor-update',
   'auditor:version': 'auditor-version'
 };
@@ -765,11 +766,19 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private checkBuildScriptChainsAuditor(buildScript: string): boolean {
+  private checkBuildScriptChainsPreAudit(buildScript: string): boolean {
     if (REMOVED_COMMIT_GATE_PATTERN.test(buildScript)) return true;
     return (
       /\bauditor(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
       /\b(?:npm|pnpm|bun)\s+run\s+auditor(?:\s|$|[&;])/.test(buildScript)
+    );
+  }
+
+  private checkBuildScriptChainsPostAudit(buildScript: string): boolean {
+    return (
+      /\b(?:npm|pnpm|bun)\s+run\s+auditor:build(?:\s|$|[&;])/.test(buildScript) ||
+      /\bauditor-build(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
+      /\bauditor\s+preset=build(?:\s|$|[&;])/.test(buildScript)
     );
   }
 
@@ -780,7 +789,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (!buildScript) {
       if (this.isFixActive()) {
         pkg.scripts = pkg.scripts ?? {};
-        pkg.scripts.build = 'auditor';
+        pkg.scripts.build = 'auditor && npm run auditor:build';
         return true;
       }
       this.addViolation({
@@ -788,7 +797,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         severity: 'error',
         file: 'package.json',
         line: 1,
-        message: 'Build script in package.json is missing or does not chain auditor before compilation. Expected "auditor && ..." or "npm run auditor && ...".',
+        message: 'Build script in package.json is missing or does not chain auditor before and after compilation. Expected "auditor && ... && npm run auditor:build".',
         context: 'package.json:scripts.build'
       });
       return false;
@@ -802,25 +811,34 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       if (/\b(?:npm|pnpm|bun)\s+run\s+audit\b/.test(rewritten)) {
         rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit\b/g, '$1auditor');
       }
+      if (!this.checkBuildScriptChainsPreAudit(rewritten)) {
+        rewritten = `auditor && ${rewritten}`;
+      }
+      if (!this.checkBuildScriptChainsPostAudit(rewritten)) {
+        rewritten = `${rewritten} && npm run auditor:build`;
+      }
       if (rewritten !== buildScript) {
         pkg.scripts!.build = rewritten;
         return true;
       }
     }
 
-    if (!this.checkBuildScriptChainsAuditor(buildScript)) {
-      if (this.isFixActive()) {
-        pkg.scripts!.build = `auditor && ${buildScript}`;
-        return true;
-      }
+    const hasPre = this.checkBuildScriptChainsPreAudit(buildScript);
+    const hasPost = this.checkBuildScriptChainsPostAudit(buildScript);
+
+    if (!hasPre || !hasPost) {
+      const missingPart = !hasPre && !hasPost
+        ? 'does not chain auditor before compilation nor post-build auditor after compilation'
+        : (!hasPre ? 'does not chain auditor before compilation' : 'does not chain post-build auditor after compilation');
       this.addViolation({
         ruleId: 'audit-config-missing-build-audit',
         severity: 'error',
         file: 'package.json',
         line: 1,
-        message: 'Build script in package.json does not chain auditor before compilation. Expected "auditor && ..." or "npm run auditor && ...".',
+        message: `Build script in package.json ${missingPart}. Expected "npm run auditor && ... && npm run auditor:build".`,
         context: buildScript
       });
+      return false;
     }
 
     return false;

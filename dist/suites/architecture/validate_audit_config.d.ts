@@ -44,7 +44,8 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
     private verifyDomainAndStylePaths;
     private verifyExtensionPaths;
     private loadPackageJson;
-    private checkBuildScriptChainsAuditor;
+    private checkBuildScriptChainsPreAudit;
+    private checkBuildScriptChainsPostAudit;
     private verifyBuildScript;
     private verifyLintScript;
     private isObsoleteAuditorScript;

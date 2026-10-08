@@ -278,9 +278,14 @@ describe('ValidateSimilarCodeAuditor', () => {
 
   describe('Skip-Similar Environment Variable & CI/Deploy Bypassing', () => {
     it('detects environment variables in isSimilarCodeSkipped', () => {
+      delete process.env.AUDITOR_ENV;
       delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;
       delete process.env.AUDIT_SKIP_SIMILAR;
       expect(isSimilarCodeSkipped()).toBe(false);
+
+      process.env.AUDITOR_ENV = 'production';
+      expect(isSimilarCodeSkipped()).toBe(true);
+      delete process.env.AUDITOR_ENV;
 
       process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS = '1';
       expect(isSimilarCodeSkipped()).toBe(true);

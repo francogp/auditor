@@ -50,5 +50,5 @@ The auditor streaming runner (`streamingRunner.ts`) and summary tables display 4
 ### Vector Semantic Duplication Governance (`validate_similar_code`)
 - **No CLI Skip Flags**: There is no CLI flag (`--skip-similar` or `--skip-similar-code`) to bypass similar-code vector analysis.
 - **Fast Local Execution**: Executes on Candle CPU in ~2s leveraging persistent disk cache (`%LOCALAPPDATA%\fallow\similar-code` on Windows, `~/.cache/fallow/similar-code` on Linux).
-- **Environment Variable Guard**: Bypassing vector analysis via `AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1` (or `AUDIT_SKIP_SIMILAR=1`) is strictly reserved for headless remote CI/deploy workflows (e.g. GitHub Pages deploy). It is strictly forbidden in local development or interactive agent turns. When active in remote CI, it transparently renders `⏭️  SKIP` with justification rather than masking as passed.
+- **Production Environment Guard (`AUDITOR_ENV=production` / `npm run build:prod`)**: Bypassing vector analysis and test coverage is strictly and exclusively reserved for headless production builds, Docker containers, and remote CI/deploy workflows (e.g. GitHub Pages deploy). It is strictly forbidden in local development or interactive agent turns. When active in production, it transparently renders `⏭️  SKIP` with justification rather than masking as passed.
 
