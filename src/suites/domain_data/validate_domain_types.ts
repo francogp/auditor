@@ -29,7 +29,7 @@ const ROOT = process.cwd();
 const EXTENSIONS = new Set(['.ts', '.vue']); // runtime-set: Fast O(1) membership lookup set
 export const DEFAULT_TEST_PATH_MARKERS = ['.test.', '.spec.'] as const;
 export const DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS = 80 as const;
-const ESCAPE_HATCHES = ['domain-ok', 'string-ok', 'open-record', 'runtime-set', 'runtime-map', 'no-domain', 'lib-duplicate-ok', 'result-ok'] as const;
+const ESCAPE_HATCHES = ['domain-ok', 'string-ok', 'open-record', 'runtime-set', 'runtime-map', 'no-domain', 'lib-duplicate-ok', 'result-ok', 'nullable-ok', 'prop-ok', 'dto-ok', 'state-ok'] as const;
 
 export const CANONICAL_INFRA_ID_WHITELIST = [
   'suiteId',
@@ -39,7 +39,13 @@ export const CANONICAL_INFRA_ID_WHITELIST = [
   'eslintRuleId',
   'candidate_id',
   'requiredSuiteId',
-  'rule_id'
+  'rule_id',
+  'timerId',
+  'wallClockTimerId',
+  'intervalId',
+  'timeoutId',
+  'tickerId',
+  'backgroundTickerId'
 ] as const;
 
 function isExemptDomainCastTarget(castTarget: string): boolean {
@@ -48,6 +54,30 @@ function isExemptDomainCastTarget(castTarget: string): boolean {
   const infraList = [...CANONICAL_INFRA_ID_WHITELIST, ...(config.domain.infraIdWhitelist ?? [])].map(id => id.toLowerCase().replace(/_/g, ''));
   const lowerTarget = castTarget.toLowerCase().replace(/_/g, '');
   return infraList.some(infra => lowerTarget.includes(infra));
+}
+
+const MAX_FUNCTION_PARAM_SCAN_DISTANCE = 600;
+
+function isFunctionParameterContext(content: string, matchIndex: number): boolean {
+  let i = matchIndex - 1;
+  let parenDepth = 0;
+  let braceDepth = 0;
+  const limit = Math.max(0, matchIndex - MAX_FUNCTION_PARAM_SCAN_DISTANCE);
+
+  while (i >= limit) {
+    const ch = content[i];
+    if (ch === ')') parenDepth++;
+    else if (ch === '(') {
+      if (parenDepth > 0) parenDepth--;
+      else return braceDepth === 0;
+    } else if (ch === '}') braceDepth++;
+    else if (ch === '{') {
+      if (braceDepth > 0) braceDepth--;
+      else return false;
+    }
+    i--;
+  }
+  return false;
 }
 
 export const DOMAIN_TYPES_RULES = [
@@ -419,7 +449,17 @@ export async function auditFile(filePath: string): Promise<Finding[]> {
     'Domain ID parameter is nullable — use undefined optional param `id?: DomainId` or explicit null-handling object',
     'ERROR',
     'domain-naked-string-primitive',
-    (_match, line) => !line.includes('// nullable-ok:') && !line.includes('// domain-ok:')
+    (match, line) => {
+      if (line.includes('// nullable-ok:') || line.includes('// domain-ok:') || line.includes('// prop-ok:') || line.includes('// dto-ok:') || line.includes('// state-ok:')) return false;
+      const matchedText = match[0] ?? '';
+      const idName = (match[1] || match[2] || '').trim();
+      const typeName = matchedText.replace(/^[a-z_]\w*\s*:\s*/i, '').replace(/\s*\|\s*(?:null|undefined)/, '').replace(/(?:null|undefined)\s*\|\s*/, '').trim();
+      if (isExemptDomainCastTarget(idName) || isExemptDomainCastTarget(typeName)) return false;
+      if (/(?:timer|timeout|interval|suite|rule|run|build)id/i.test(idName) || /(?:timer|timeout|interval|suite|rule|run|build)id/i.test(typeName)) return false;
+      if (line.trim().startsWith('private ') || line.trim().startsWith('protected ') || line.trim().startsWith('public ') || line.trim().startsWith('readonly ')) return false;
+      if (line.includes('defineProps') || line.includes('defineEmits')) return false;
+      return isFunctionParameterContext(content, match.index);
+    }
   ));
 
   findings.push(...findMatches(

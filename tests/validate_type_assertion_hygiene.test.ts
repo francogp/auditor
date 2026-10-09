@@ -164,12 +164,14 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     expect(findings[0]?.severity).toBe('error');
   });
 
-  it('honors inline escape hatches (any-ok, double-cast-ok, void-ok, array-ok)', async () => {
+  it('honors inline escape hatches (any-ok, double-cast-ok, void-ok, array-ok, no-domain, open-record, type-ok)', async () => {
     const code = [
       'const a = val ' + 'as any; // any-ok: third party integration',
       'const b = val ' + 'as unknown ' + 'as string; // double-cast-ok: dynamic untyped buffer',
       'syncDataAsync(); // void-ok: fire and forget background task',
-      'const c = raw ' + 'as string[]; // array-ok: external array parser'
+      'const c = raw ' + 'as string[]; // array-ok: external array parser',
+      'const d = raw ' + 'as string[]; // no-domain: Non-domain utility collection',
+      'const e = raw ' + 'as unknown[]; // open-record: Generic key-value dictionary'
     ].join('\n');
 
     await fs.writeFile(path.join(tempDir, 'src/escaped.ts'), code, 'utf-8');

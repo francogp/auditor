@@ -97,7 +97,7 @@ export function normalizePosixPath(filePath, cwd = process.cwd()) {
     if (!filePath)
         return '';
     const resolved = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
-    return resolved.split(path.sep).join(path.posix.sep);
+    return resolved.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 /**
  * Parses raw JSON output containing an object, handling stdout strings or execSync error objects.

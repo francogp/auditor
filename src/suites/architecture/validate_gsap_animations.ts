@@ -25,6 +25,7 @@ import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from '../../core/auditConfig.ts';
 import { normalizePosixPath as normalizeFilePath } from '../../core/safePath.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
+import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 
 enableCompileCache();
 
@@ -339,6 +340,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           while ((m = timerRegex.exec(content)) !== null) {
             if (m.index >= range.end) break;
             const { line, column, lineText } = getLineAndColumnAt(content, m.index);
+            const trimmedLine = lineText.trim();
+            if (isCommentLine(trimmedLine)) continue;
+            const textBefore = lineText.slice(0, column - 1);
+            if (textBefore.includes('//')) continue;
             if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText)) continue;
             this.addViolation({
               ruleId: 'gsap-banned-ui-timers',

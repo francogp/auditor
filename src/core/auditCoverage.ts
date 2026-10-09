@@ -34,8 +34,9 @@ export function resolveActiveCoverageRunId(): string | undefined {
 
 /** Converts an absolute or relative path into a POSIX path relative to the project root. */
 export function toPosixRelative(projectRoot: string, filePath: string): string {
+  if (!filePath) return '';
   const rel = path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath;
-  return rel.split(path.sep).join(path.posix.sep).replace(/^\.\//, '');
+  return rel.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 
 export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean {
@@ -108,12 +109,16 @@ export function isDeclaredByCoverage(relPosixPath: string, declaration: AuditorC
 /** Derives a coverage declaration from scan roots + extensions (used by FileScanAuditor). */
 export function deriveCoverageFromRoots(
   roots: readonly string[],
-  extensions: ReadonlySet<string>
+  extensions: ReadonlySet<string>,
+  projectRoot: string = process.cwd()
 ): AuditorCoverageDeclaration {
   const effectiveRoots = roots.length > 0 ? roots : ['src', 'scripts', 'tests'];
   const include: string[] = []; // no-domain: Non-domain utility collection or data structure
   for (const root of effectiveRoots) {
-    const cleanRoot = path.posix.normalize(root.split('\\').join('/')).replace(/^\.\/?|\/+$/g, '');
+    let cleanRoot = path.posix.normalize(root.split('\\').join('/')).replace(/^\.\/?|\/+$/g, '');
+    if (path.isAbsolute(cleanRoot)) {
+      cleanRoot = path.relative(projectRoot, cleanRoot).split('\\').join('/').replace(/^\.\/?|\/+$/g, '');
+    }
     const prefix = cleanRoot === '' || cleanRoot === '.' ? '' : `${cleanRoot}/`;
     for (const ext of extensions) {
       include.push(`${prefix}**/*${ext}`);

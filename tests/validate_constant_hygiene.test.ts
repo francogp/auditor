@@ -181,5 +181,21 @@ const delay = 45; // inline magic number without named constant
       expect(magicFindings.length).toBeGreaterThanOrEqual(1);
       expect(magicFindings[0]?.severity).toBe('error');
     });
+
+    it('does not flag JSON module default exports or end-of-line escape hatches as redundant aliases', async () => {
+      const jsonImportFile = path.join(srcDir, 'dataCatalog.ts');
+      const content = [
+        "import dbJson from './data.json' with { type: 'json' };",
+        'export const DATA_CATALOG = dbJson;',
+        'export const OTHER_ALIAS = SOURCE_CONST; // const-ok: intentional passthrough'
+      ].join('\n');
+      await fs.writeFile(jsonImportFile, content, 'utf-8');
+
+      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const result = await auditor.execute();
+
+      const aliasFindings = result.findings.filter(f => f.ruleId === 'constant-no-alias' && f.file.includes('dataCatalog.ts'));
+      expect(aliasFindings).toHaveLength(0);
+    });
   });
 });

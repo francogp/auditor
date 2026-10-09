@@ -91,12 +91,12 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
 
     // 1. Zero any casts
     this.scanPattern(content, lines, rel, P_TYPECAST_INLINE_ANY, 'type-assertion-zero-any', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// any-ok:') || line.includes('// type-ok:')) return false;
+      if (line.includes('// domain-ok:') || line.includes('// any-ok:') || line.includes('// type-ok:') || line.includes('// no-domain:') || line.includes('// open-record:')) return false;
       return true;
     }, 'Type assertion `as any` degrades type safety — derive domain type or specify precise union');
 
     this.scanPattern(content, lines, rel, P_TYPECAST_ARRAY_ANY_UNKNOWN, 'type-assertion-zero-any', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// any-ok:')) return false;
+      if (line.includes('// domain-ok:') || line.includes('// any-ok:') || line.includes('// type-ok:') || line.includes('// no-domain:') || line.includes('// open-record:')) return false;
       return true;
     }, 'Array typecast `as any[]` or `as unknown[]` degrades type safety');
 
@@ -125,7 +125,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
 
     // 5. Broad array casts
     this.scanPattern(content, lines, rel, P_TYPECAST_READONLY_STRING_ARRAY, 'type-assertion-loose-array', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// array-ok:')) return false;
+      if (line.includes('// domain-ok:') || line.includes('// array-ok:') || line.includes('// no-domain:') || line.includes('// type-ok:') || line.includes('// open-record:')) return false;
       return true;
     }, 'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`');
   }

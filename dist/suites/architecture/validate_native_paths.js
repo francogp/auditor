@@ -281,18 +281,18 @@ function checkHomebrewPathManipulation(rawLine, trimmed, filePath, lineNum) {
     // 1. Check for homemade regex sanitization on paths (character stripping or traversal stripping)
     // e.g. .replace(/[^a-zA-Z0-9_\- /.:\\]/g, '') or .replace(/(\.\.[/\\])+/g, '')
     if (rawLine.includes('.replace(')) {
-        // Whitelist path separator normalization: replace(/\\/g, '/') or replace(/\//g, '\\')
         const isSeparatorNormalization = /\.replace\s*\(\s*\/(?:\\\\|\/)\/[gi]*\s*,\s*['"][\\/]['"]\s*\)/.test(rawLine);
         if (!isSeparatorNormalization) {
-            // Traversal stripping via regex: targets '..' inside the regex replacing with empty string
+            // Path variable check
+            const isPathVar = /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\s*\.\s*replace/i.test(rawLine);
+            // Traversal stripping via regex: targets '..' inside the regex replacing with empty string on path variables
             // e.g. .replace(/(\.\.[/\\])+/g, '') or .replace(/\.\./g, '')
             const replaceRegexArgMatch = /\.replace\s*\(\s*(\/(?:\\.|[^/\\\n])+\/[gimsuy]*)\s*,\s*(?:""|'')\s*\)/.exec(rawLine);
-            const isTraversalStrip = replaceRegexArgMatch
-                ? /\.\.|\.\\\.|\\\.\\\.|%2e/i.test(replaceRegexArgMatch[1] ?? '')
-                : false;
+            const isTraversalStrip = isPathVar &&
+                replaceRegexArgMatch &&
+                /\.\.|\.\\\.|\\\.\\\.|%2e/i.test(replaceRegexArgMatch[1] ?? '');
             // Character stripping via negative character classes on path variables
             // e.g. rawPath.replace(/[^a-zA-Z0-9_\- /.:\\]/g, '')
-            const isPathVar = /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\s*\.\s*replace/i.test(rawLine);
             const isExclusionStrip = isPathVar &&
                 /\.replace\s*\(\s*\/\[\^[^\]]+\]\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
             if (isTraversalStrip || isExclusionStrip) {

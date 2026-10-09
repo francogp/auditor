@@ -15,7 +15,7 @@ export function getVisualWidth(str: string): number {
   return stringWidth(str);
 }
 
-export const TEXT_ALIGNMENTS = ['left', 'right', 'center'] as const;
+export const TEXT_ALIGNMENTS = ['left', 'right', 'center'] as const; // lib-duplicate-ok: Monospace terminal visual alignment
 export type TextAlignment = (typeof TEXT_ALIGNMENTS)[number];
 
 export function padVisual(str: string, targetWidth: number, align: TextAlignment = 'left'): string {

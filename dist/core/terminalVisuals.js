@@ -12,7 +12,7 @@ import stringWidth from 'string-width';
 export function getVisualWidth(str) {
     return stringWidth(str);
 }
-export const TEXT_ALIGNMENTS = ['left', 'right', 'center'];
+export const TEXT_ALIGNMENTS = ['left', 'right', 'center']; // lib-duplicate-ok: Monospace terminal visual alignment
 export function padVisual(str, targetWidth, align = 'left') {
     const currentWidth = getVisualWidth(str);
     const diff = targetWidth - currentWidth;

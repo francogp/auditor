@@ -25,7 +25,7 @@ export declare function isAuditableCodebaseFile(relPosixPath: string, customExem
 /** Whether a file falls inside the static coverage declaration of a suite. */
 export declare function isDeclaredByCoverage(relPosixPath: string, declaration: AuditorCoverageDeclaration): boolean;
 /** Derives a coverage declaration from scan roots + extensions (used by FileScanAuditor). */
-export declare function deriveCoverageFromRoots(roots: readonly string[], extensions: ReadonlySet<string>): AuditorCoverageDeclaration;
+export declare function deriveCoverageFromRoots(roots: readonly string[], extensions: ReadonlySet<string>, projectRoot?: string): AuditorCoverageDeclaration;
 /** Derives a coverage declaration from requiredFiles (used by BaseAuditor when coverage is omitted). */
 export declare function deriveCoverageFromRequiredFiles(requiredFiles: readonly string[], projectRoot?: string, allowedExtensions?: ReadonlySet<string>): AuditorCoverageDeclaration;
 /** Fails loudly when a suite declares an invalid coverage contract. */

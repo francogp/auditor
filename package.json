@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "6.1.0-build.20261009-063646",
+  "version": "6.2.0-build.20261009-074430",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -206,7 +206,6 @@
     "auditor:vue-router": "auditor task=validate_vue_router"
   },
   "dependencies": {
-    "@a24z/mermaid-parser": "^1.0.0",
     "@arethetypeswrong/core": "^0.18.5",
     "@secretlint/core": "^13.0.7",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
@@ -221,6 +220,7 @@
     "html-validate-vue": "^9.3.1",
     "knip": "^6.39.0",
     "markdownlint-cli": "^0.49.1",
+    "mermaid": "^12.1.0",
     "postcss-html": "^2.0.0",
     "postcss-value-parser": "^4.2.0",
     "publint": "^0.3.25",
@@ -238,6 +238,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.3",
     "eslint-plugin-unused-imports": "^4.4.1",
@@ -247,6 +248,8 @@
     "vitest": "^5.0.3"
   },
   "overrides": {
-    "js-yaml": "^5.4.2"
+    "js-yaml": "^5.4.2",
+    "katex": "^0.19.0",
+    "smol-toml": "^1.9.1"
   }
 }

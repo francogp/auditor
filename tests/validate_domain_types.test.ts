@@ -160,6 +160,28 @@ describe('DomainTypesAuditor', () => {
     expect(findings).toHaveLength(0);
   });
 
+  it('discriminates function parameters from interface properties and allows nullable props / infra IDs', async () => {
+    const filePath = path.join(tempDir, 'src/nullableIdTests.ts');
+    const code = [
+      'export interface ActiveBattleSerialized {',
+      '  gymId: GymId | null;',
+      '  locationId: MapRouteId | null;',
+      '}',
+      'export class PvPTimerManager {',
+      '  private backgroundTickerId: WallClockTimerId | null = null;',
+      '}',
+      'export function clearWallClockInterval(timerId: WallClockTimerId | null): void {}',
+      'export function findUser(userId: UserId | null): void {} // Should violate',
+      'export function findUserEscaped(userId: UserId | null): void {} // nullable-ok: Optional user search'
+    ].join('\n');
+
+    await fs.writeFile(filePath, code, 'utf-8');
+    const findings = await auditFile(filePath);
+    const nullableParamFindings = findings.filter(f => f.pattern.includes('Domain ID parameter is nullable'));
+    expect(nullableParamFindings).toHaveLength(1);
+    expect(nullableParamFindings[0]?.line).toBe(9);
+  });
+
   it('bypasses suite when config.domain.enabled is false', async () => {
     await fs.writeFile(
       path.join(tempDir, '.auditor/audit.config.json'),

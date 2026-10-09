@@ -15,7 +15,7 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 export declare const DEFAULT_TEST_PATH_MARKERS: readonly [".test.", ".spec."];
 export declare const DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS: 80;
-export declare const CANONICAL_INFRA_ID_WHITELIST: readonly ["suiteId", "ruleId", "runId", "buildId", "eslintRuleId", "candidate_id", "requiredSuiteId", "rule_id"];
+export declare const CANONICAL_INFRA_ID_WHITELIST: readonly ["suiteId", "ruleId", "runId", "buildId", "eslintRuleId", "candidate_id", "requiredSuiteId", "rule_id", "timerId", "wallClockTimerId", "intervalId", "timeoutId", "tickerId", "backgroundTickerId"];
 export declare const DOMAIN_TYPES_RULES: readonly ["domain-naked-string-primitive", "domain-untyped-collection", "domain-ambiguous-union", "domain-unbranded-id"];
 export type DomainTypesRuleId = (typeof DOMAIN_TYPES_RULES)[number];
 export type FindingSeverity = 'ERROR' | 'WARN';

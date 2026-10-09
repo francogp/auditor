@@ -24,6 +24,7 @@ import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from "../../core/auditConfig.js";
 import { normalizePosixPath as normalizeFilePath } from "../../core/safePath.js";
 import { parseVueSfcBlocks } from "../../core/vueSfcParser.js";
+import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 enableCompileCache();
 export const GSAP_ANIMATION_RULES = [
     'gsap-banned-css-animations',
@@ -286,6 +287,12 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
                         if (m.index >= range.end)
                             break;
                         const { line, column, lineText } = getLineAndColumnAt(content, m.index);
+                        const trimmedLine = lineText.trim();
+                        if (isCommentLine(trimmedLine))
+                            continue;
+                        const textBefore = lineText.slice(0, column - 1);
+                        if (textBefore.includes('//'))
+                            continue;
                         if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText))
                             continue;
                         this.addViolation({

@@ -368,5 +368,20 @@ function animateEntry(el: HTMLElement) {
       const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
       expect(layoutViolations).toHaveLength(0);
     });
+
+    it('does not produce false positive when comments mention setInterval or setTimeout', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      const vueSfc = `<template><div>Breeding</div></template>
+<script setup lang="ts">
+// Ticker GSAP: actualiza el display del timer cada frame sin setInterval
+const display = '10:00';
+/* Another comment mentioning setTimeout */
+const inlineComment = true; // No need for clearInterval here
+</script>`;
+
+      auditor.testScanFile('src/components/BreedingSummary.vue', vueSfc);
+      const timerViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-ui-timers');
+      expect(timerViolations).toHaveLength(0);
+    });
   });
 });

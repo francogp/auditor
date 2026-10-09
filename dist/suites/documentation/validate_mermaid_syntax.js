@@ -1,15 +1,67 @@
 /**
  * @file validate_mermaid_syntax.ts
- * @description Sub-auditor that validates syntax and escapes in Mermaid diagrams within Markdown files.
+ * @description Sub-auditor that validates syntax and escapes in Mermaid diagrams within Markdown files
+ * using the official modern Mermaid engine (mermaid.parse).
  */
 import { enableCompileCache } from 'node:module';
+import { JSDOM } from 'jsdom';
 import { FileScanAuditor, BaseAuditor } from "../../core/auditorBase.js";
-import { validate } from '@a24z/mermaid-parser';
 enableCompileCache();
+if (typeof globalThis.window === 'undefined') {
+    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+    Reflect.set(globalThis, 'window', dom.window);
+    Reflect.set(globalThis, 'document', dom.window.document);
+}
+const mermaidModule = await import('mermaid');
+const mermaid = mermaidModule.default;
+mermaid.initialize({
+    startOnLoad: false,
+    suppressErrorRendering: true
+});
 export const MERMAID_SYNTAX_RULES = [
     'mermaid-syntax-error',
     'mermaid-unquoted-special-chars'
 ];
+/**
+ * Validates syntax of a Mermaid diagram block using the official Mermaid parser.
+ */
+export async function validateMermaid(diagramCode) {
+    if (!diagramCode || typeof diagramCode !== 'string' || diagramCode.trim().length === 0) {
+        return {
+            valid: false,
+            error: { line: 1, message: 'El diagrama Mermaid está vacío o no contiene código' }
+        };
+    }
+    try {
+        const parseResult = await mermaid.parse(diagramCode);
+        const diagramType = typeof parseResult === 'object' && parseResult !== null && 'diagramType' in parseResult
+            ? String(parseResult.diagramType)
+            : 'unknown';
+        return { valid: true, diagramType };
+    }
+    catch (err) {
+        const rawMessage = err instanceof Error ? err.message : String(err);
+        const lineMatch = rawMessage.match(/line\s+(\d+)/i);
+        const line = lineMatch ? Number.parseInt(lineMatch[1] ?? '1', 10) : 1;
+        return {
+            valid: false,
+            error: { line, message: rawMessage }
+        };
+    }
+}
+/**
+ * Validates diagram and returns or throws an Error (for backward compatibility).
+ */
+export async function validate(diagramCode, parseOptions) {
+    const result = await validateMermaid(diagramCode);
+    if (!result.valid && result.error) {
+        if (parseOptions?.suppressErrors) {
+            return false;
+        }
+        throw new Error(`Parse error on line ${result.error.line}: ${result.error.message}`);
+    }
+    return { diagramType: result.diagramType ?? 'unknown', valid: true };
+}
 const UNQUOTED_EDGE_CHARS_REGEX = /[%&<>\u2260\u2265\u2264()/?!+:=#*~]/;
 const UNQUOTED_EDGE_LABEL_REGEX = /\|([^|"\n]+)\|/g;
 const UNQUOTED_SQUARE_NODE_REGEX = /\b\w+\[([^\]"()\n]*[()][^\]"\n]*)\]/g;
@@ -105,21 +157,17 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor {
                         .join('\n')
                         .trim();
                     if (diagramCode) {
-                        try {
-                            await validate(diagramCode);
-                        }
-                        catch (err) {
-                            const rawMessage = err instanceof Error ? err.message : String(err);
-                            const lineMatch = rawMessage.match(/line\s+(\d+)/i);
-                            const offsetLine = lineMatch ? Number.parseInt(lineMatch[1] ?? '1', 10) - 1 : 0;
+                        const validation = await validateMermaid(diagramCode);
+                        if (!validation.valid && validation.error) {
+                            const offsetLine = Math.max(0, validation.error.line - 1);
                             const errorLine = mermaidStartLine + offsetLine;
                             this.addViolation({
                                 ruleId: 'mermaid-syntax-error',
                                 severity: 'error',
                                 file: relPath,
                                 line: errorLine,
-                                context: rawMessage.slice(0, 100),
-                                message: `Error de sintaxis en diagrama Mermaid: ${rawMessage}`
+                                context: validation.error.message.slice(0, 100),
+                                message: `Error de sintaxis en diagrama Mermaid: ${validation.error.message}`
                             });
                         }
                     }

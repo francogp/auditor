@@ -39,7 +39,11 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
             : undefined;
         const effectiveProjectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
         const config = getAuditConfig(effectiveProjectRoot);
-        const effectiveRoots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? ['src']));
+        const rawRoots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? ['src']));
+        const effectiveRoots = rawRoots.map(r => {
+            const rel = path.isAbsolute(r) ? path.relative(effectiveProjectRoot, r) : r;
+            return rel.replace(/\\/g, '/');
+        });
         super({
             capabilities: {
                 ast: true,
@@ -128,7 +132,13 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
                     continue;
                 const preceding = content.slice(0, m.index);
                 const lineText = preceding.split('\n').pop() ?? '';
-                if (lineText.includes('// value-ok:') || lineText.includes('// const-ok:'))
+                const nextNl = content.indexOf('\n', m.index);
+                const fullLine = lineText + content.slice(m.index, nextNl === -1 ? undefined : nextNl);
+                if (fullLine.includes('// value-ok:') || fullLine.includes('// const-ok:') || fullLine.includes('// json-ok:') || fullLine.includes('// alias-ok:'))
+                    continue;
+                // Skip if targetName is imported from a .json file or is a json data import
+                const isJsonImport = new RegExp(`import\\s+${targetName}\\s+from\\s+['"][^'"]*\\.json['"]`).test(content) || /(?:json|dbjson)$/i.test(targetName);
+                if (isJsonImport)
                     continue;
                 const line = preceding.split('\n').length;
                 const column = lineText.length + 1;
