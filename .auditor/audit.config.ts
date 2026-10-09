@@ -137,6 +137,9 @@ export default defineAuditConfig({
   packageScripts: {
     enabled: true
   },
+  scriptExtensions: {
+    enabled: true
+  },
   runner: {
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
   }

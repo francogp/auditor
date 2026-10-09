@@ -12,6 +12,7 @@ import {
   type AuditDomainConfig,
   type AuditEnvironmentConfig,
   type AuditAuditorHygieneConfig,
+  type AuditScriptExtensionsConfig,
   type AuditTemplatesConfig,
   type AuditStylesConfig,
   type AuditStylelintConfig,
@@ -221,6 +222,14 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     exemptFiles: [],
     disabledDetectors: []
   },
+  scriptExtensions: {
+    enabled: true,
+    enforceTypeScript: true,
+    allowMjs: false,
+    allowCjs: false,
+    allowJsScripts: false,
+    exemptFiles: []
+  },
   accessibility: {
     enabled: true,
     rules: {}
@@ -285,6 +294,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'domain',
     'environment',
     'auditorHygiene',
+    'scriptExtensions',
     'styles',
     'stylelint',
     'eslint',
@@ -599,6 +609,19 @@ export function buildAuditorHygieneConfig(raw?: DeepPartial<AuditAuditorHygieneC
   };
 }
 
+export function buildScriptExtensionsConfig(raw?: DeepPartial<AuditScriptExtensionsConfig>): AuditScriptExtensionsConfig {
+  const def = DEFAULT_AUDIT_CONFIG.scriptExtensions;
+  const p = raw ?? {};
+  return {
+    enabled: p.enabled ?? def?.enabled ?? true,
+    enforceTypeScript: p.enforceTypeScript ?? def?.enforceTypeScript ?? true,
+    allowMjs: p.allowMjs ?? def?.allowMjs ?? false,
+    allowCjs: p.allowCjs ?? def?.allowCjs ?? false,
+    allowJsScripts: p.allowJsScripts ?? def?.allowJsScripts ?? false,
+    exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? [])
+  };
+}
+
 export function buildPackageDistributionConfig(raw?: DeepPartial<AuditPackageDistributionConfig>): AuditPackageDistributionConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
   const p = raw ?? {};
@@ -872,6 +895,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     packageScripts: buildPackageScriptsConfig(config.packageScripts),
     environment: buildEnvironmentConfig(config.environment),
     auditorHygiene: buildAuditorHygieneConfig(config.auditorHygiene),
+    scriptExtensions: buildScriptExtensionsConfig(config.scriptExtensions),
     accessibility: buildAccessibilityConfig(config.accessibility),
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
     testCoverage: buildTestCoverageConfig(config.testCoverage),

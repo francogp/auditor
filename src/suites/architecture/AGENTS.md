@@ -52,6 +52,7 @@ Architecture & Tooling Engineers.
 - **SSoT Git Configuration & Hygiene Governance (`validate_git_config`)**: `validate_git_config.ts` enforces standard local Git repository hygiene settings (`core.filemode = false`, `core.autocrlf = input`, `core.eol = lf`) and auto-repairs them in `--fix` mode. In production mode (`AUDITOR_ENV=production`), it is cleanly skipped alongside `validate_similar_code` and `validate_test_coverage` as a development-only verification.
 - **SSoT Environment Engines & Shell Setup Isolation (`validate_environment_engines`)**: `validate_environment_engines.ts` enforces `engines.node` and `engines.npm` in `package.json` against the auditor minimum floor, and checks active runtime alignment. In `--fix` mode, it automatically repairs `package.json` engines and synchronizes setup scripts (`syncEnvScripts`), but is strictly prohibited from executing in-process shell setup scripts (`setup-linux.sh`, `setup-windows.ps1`) under `node --permission` to eliminate permission denial errors and recursive execution loops.
 - **SCSS Enforcement & Component Style Governance (`validate_component_styles`)**: When `styles.enforceScss: true` is configured in `audit.config.ts`, every `<style>` block in a `.vue` component must declare `lang="scss"` (`banned-plain-css-style`) and all stylesheets in code/styles roots must use `.scss` (`banned-raw-css-file`). Plain `<style>` or `<style scoped>` tags in `.vue` SFCs are automatically upgraded to `lang="scss"` via `auditor fix`. Specific third-party vendor CSS files can be exempted via `styles.exemptCssFiles`.
+- **Script Extensions & TypeScript Migration Governance (`validate_script_extensions`)**: Prohibits `.mjs` (`banned-mjs-extension`), `.cjs` (`banned-cjs-extension`), and unmigrated `.js` scripts in script directories (`banned-raw-js-script`). In `--fix` mode, atomically renames files to `.ts` (safely refusing to overwrite existing files), rewrites import references across the codebase, and updates corresponding `package.json` scripts.
 
 ## Key Files
 
@@ -91,6 +92,7 @@ Architecture & Tooling Engineers.
 - [`validate_pinia_reactivity.ts`](./validate_pinia_reactivity.ts): Pinia store destructuring and reactivity rules.
 - [`validate_reactive_leaks.ts`](./validate_reactive_leaks.ts): Vue memory leak prevention (uncleaned listeners and timers).
 - [`validate_reactive_purity.ts`](./validate_reactive_purity.ts): Pure computed getters and zero side-effects verification.
+- [`validate_script_extensions.ts`](./validate_script_extensions.ts): Prohibition of .mjs, .cjs, and raw .js scripts with automated TypeScript renaming, import rewrites, and package.json script updates.
 - [`validate_secret_leaks.ts`](./validate_secret_leaks.ts): Exposed secrets, API tokens, and cryptographic private keys auditor via `@secretlint/core`.
 - [`validate_similar_code.ts`](./validate_similar_code.ts): Fallow ML vector and structural similar-code sub-auditor.
 - [`validate_stylelint.ts`](./validate_stylelint.ts): Official Stylelint engine verifying CSS/SCSS hygiene, nesting, and Vue 3 SFC styles with content caching.

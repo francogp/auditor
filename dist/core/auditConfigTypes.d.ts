@@ -354,6 +354,14 @@ export interface AuditAuditorHygieneConfig {
     readonly exemptFiles?: readonly string[];
     readonly disabledDetectors?: readonly string[];
 }
+export interface AuditScriptExtensionsConfig {
+    readonly enabled?: boolean;
+    readonly enforceTypeScript?: boolean;
+    readonly allowMjs?: boolean;
+    readonly allowCjs?: boolean;
+    readonly allowJsScripts?: boolean;
+    readonly exemptFiles?: readonly string[];
+}
 export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
@@ -367,6 +375,7 @@ export interface AuditEngineConfig {
     readonly domain: AuditDomainConfig;
     readonly environment?: AuditEnvironmentConfig;
     readonly auditorHygiene?: AuditAuditorHygieneConfig;
+    readonly scriptExtensions?: AuditScriptExtensionsConfig;
     readonly gitIgnore?: AuditGitIgnoreConfig;
     readonly templates?: AuditTemplatesConfig;
     readonly styles?: AuditStylesConfig;

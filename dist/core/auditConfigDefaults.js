@@ -169,6 +169,14 @@ export const DEFAULT_AUDIT_CONFIG = {
         exemptFiles: [],
         disabledDetectors: []
     },
+    scriptExtensions: {
+        enabled: true,
+        enforceTypeScript: true,
+        allowMjs: false,
+        allowCjs: false,
+        allowJsScripts: false,
+        exemptFiles: []
+    },
     accessibility: {
         enabled: true,
         rules: {}
@@ -232,6 +240,7 @@ export function collectDeclaredSubsystems(config) {
         'domain',
         'environment',
         'auditorHygiene',
+        'scriptExtensions',
         'styles',
         'stylelint',
         'eslint',
@@ -491,6 +500,18 @@ export function buildAuditorHygieneConfig(raw) {
         disabledDetectors: p.disabledDetectors ? [...p.disabledDetectors] : (def?.disabledDetectors ?? [])
     };
 }
+export function buildScriptExtensionsConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.scriptExtensions;
+    const p = raw ?? {};
+    return {
+        enabled: p.enabled ?? def?.enabled ?? true,
+        enforceTypeScript: p.enforceTypeScript ?? def?.enforceTypeScript ?? true,
+        allowMjs: p.allowMjs ?? def?.allowMjs ?? false,
+        allowCjs: p.allowCjs ?? def?.allowCjs ?? false,
+        allowJsScripts: p.allowJsScripts ?? def?.allowJsScripts ?? false,
+        exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? [])
+    };
+}
 export function buildPackageDistributionConfig(raw) {
     const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
     const p = raw ?? {};
@@ -726,6 +747,7 @@ export function defineAuditConfig(config) {
         packageScripts: buildPackageScriptsConfig(config.packageScripts),
         environment: buildEnvironmentConfig(config.environment),
         auditorHygiene: buildAuditorHygieneConfig(config.auditorHygiene),
+        scriptExtensions: buildScriptExtensionsConfig(config.scriptExtensions),
         accessibility: buildAccessibilityConfig(config.accessibility),
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
         testCoverage: buildTestCoverageConfig(config.testCoverage),

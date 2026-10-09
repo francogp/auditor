@@ -38,6 +38,12 @@ function checkPackageGovernanceSubsystem(config, missing) {
     if (config.packageScripts?.enforceBuildAudit !== undefined && typeof config.packageScripts.enforceBuildAudit !== 'boolean') {
         missing.push("  - 'packageScripts': El campo 'enforceBuildAudit' debe ser un booleano estricto (true o false).");
     }
+    if (config.scriptExtensions?.enabled !== undefined && typeof config.scriptExtensions.enabled !== 'boolean') {
+        missing.push("  - 'scriptExtensions': El campo 'enabled' debe ser un booleano estricto (true o false).");
+    }
+    if (config.scriptExtensions?.enforceTypeScript !== undefined && typeof config.scriptExtensions.enforceTypeScript !== 'boolean') {
+        missing.push("  - 'scriptExtensions': El campo 'enforceTypeScript' debe ser un booleano estricto (true o false).");
+    }
 }
 function checkConstantsSubsystem(config, missing) {
     if (config.constants?.exemptGlobs) {

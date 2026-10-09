@@ -255,6 +255,7 @@ describe('Auditor Architecture Conformance', () => {
         'validate_mermaid_syntax',
         'validate_package_hygiene',
         'validate_package_scripts',
+        'validate_script_extensions',
         'validate_similar_code',
         'validate_stylelint',
         'validate_z_index'

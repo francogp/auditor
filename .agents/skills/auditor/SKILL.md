@@ -434,6 +434,13 @@ graph TD
       - **Automated SFC Style Upgrade**: Executing `auditor fix` automatically and non-destructively upgrades plain or CSS `<style>` tags to `lang="scss"` (e.g. `<style scoped>` -> `<style scoped lang="scss">`), processing blocks in reverse order of character offsets to prevent file corruption.
       - **Raw CSS File Prohibition (`banned-raw-css-file`)**: Plain standalone `.css` stylesheets in `srcRoots` and `stylesRoots` are forbidden (`severity: 'error'`). All project stylesheets must use the `.scss` preprocessor.
       - **Vendor CSS Exemptions (`styles.exemptCssFiles`)**: Specific third-party vendor CSS files (e.g. `normalize.css`, `vendor.css`) can be declared in `styles.exemptCssFiles` to bypass `banned-raw-css-file`.
+79. **Script Extensions Governance & Automated TypeScript Migration Protocol (`validate_script_extensions`, `scriptExtensions`)**:
+    - Governs script extensions, legacy module eradication, and automated TypeScript migration across Node.js 26+ native workspaces.
+    - When `scriptExtensions.enabled !== false`:
+      - **Legacy Module Prohibition (`banned-mjs-extension`, `banned-cjs-extension`)**: Standalone `.mjs` and CommonJS `.cjs` files are prohibited anywhere in the repository (`severity: 'error'`).
+      - **Untyped Script Prohibition (`banned-raw-js-script`)**: Standalone `.js` scripts in `scriptsRoots` and `cliRoots` must be TypeScript (`.ts`).
+      - **Canonical Root Exemptions**: Standard configuration files (`eslint.config.js`, `postcss.config.js`, `vite.config.js`, etc.) and explicitly declared entries in `scriptExtensions.exemptFiles` are exempt.
+      - **Automated `--fix` Migration Pipeline**: Executing `auditor fix` safely checks for target collision, renames `.mjs`/`.cjs`/`.js` to `.ts` on disk, rewrites internal relative import references across project code files, and updates referencing scripts in `package.json`.
 
 ---
 

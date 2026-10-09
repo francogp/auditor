@@ -37,7 +37,8 @@ const BASE_TEST_CONFIG_SECTIONS = `
   environment: { enabled: false },
   coverage: { enabled: false },
   auditorHygiene: { enabled: false },
-  packageScripts: { enabled: true }
+  packageScripts: { enabled: true },
+  scriptExtensions: { enabled: false }
 `;
 
 describe('ValidateAuditConfigAuditor', () => {

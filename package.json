@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "6.6.0-build.20261009-182323",
+  "version": "6.7.0-build.20261009-185920",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -207,7 +207,8 @@
     "auditor:vue-reactivity": "auditor task=validate_vue_reactivity",
     "auditor:vue-router": "auditor task=validate_vue_router",
     "auditor:git-config": "auditor task=validate_git_config",
-    "auditor:auditor-hygiene": "auditor task=validate_auditor_hygiene"
+    "auditor:auditor-hygiene": "auditor task=validate_auditor_hygiene",
+    "auditor:script-extensions": "auditor task=validate_script_extensions"
   },
   "dependencies": {
     "@arethetypeswrong/core": "^0.18.5",

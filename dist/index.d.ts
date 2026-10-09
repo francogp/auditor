@@ -35,5 +35,6 @@ export * from './plugin/defineAuditorExtension.ts';
 export { VUE_SFC_BLOCK_TAGS, type VueSfcBlockTag, type VueSfcBlock, parseVueSfc, parseVueSfcBlocks, type VueSfcBlocks as VueParsedSfcBlocks } from './core/vueSfcParser.ts';
 export * from './analyzers/homebrew/index.ts';
 export * from './suites/architecture/validate_auditor_hygiene.ts';
+export * from './suites/architecture/validate_script_extensions.ts';
 export * from './suites/persistence/validate_valibot_parity.ts';
 //# sourceMappingURL=index.d.ts.map
