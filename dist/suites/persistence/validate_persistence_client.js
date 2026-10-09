@@ -29,7 +29,7 @@ export const PERSISTENCE_CLIENT_RULES = [
     'persistence-client-unhandled-quota-error'
 ];
 const EXTENSIONS = new Set(['.ts', '.vue']);
-const P_STORAGE_SET_ITEM = /\b(?:localStorage|sessionStorage)\.setItem\s*\(\s*([^,\s][^,]*),/g;
+const P_STORAGE_METHOD = /\b(?:localStorage|sessionStorage)\.(setItem|getItem|removeItem)\s*\(\s*([^,)\s][^,)]*)/g;
 export class ValidatePersistenceClientAuditor extends FileScanAuditor {
     authorizedSaveFiles;
     saveKeyPrefixes;
@@ -76,9 +76,9 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
             return;
         const lines = content.split('\n');
         const isAuthorizedFile = this.isAuthorizedSaveFile(file);
-        P_STORAGE_SET_ITEM.lastIndex = 0;
+        P_STORAGE_METHOD.lastIndex = 0;
         let match;
-        while ((match = P_STORAGE_SET_ITEM.exec(content)) !== null) {
+        while ((match = P_STORAGE_METHOD.exec(content)) !== null) {
             const matchIndex = match.index;
             const lineNum = content.slice(0, matchIndex).split('\n').length;
             const line = lines[lineNum - 1] ?? '';
@@ -90,9 +90,10 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
                 this.hasStorageEscapeHatch(prevPrevLine)) {
                 continue;
             }
-            const rawKeyArg = match[1]?.trim() ?? '';
-            // Check 1: Uncoordinated save bypass
-            if (!isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
+            const method = match[1];
+            const rawKeyArg = match[2]?.trim() ?? '';
+            // Check 1: Uncoordinated save bypass (mutations only)
+            if (method === 'setItem' && !isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
                 const matchesSavePrefix = this.saveKeyPrefixes.some(prefix => rawKeyArg.includes(`'${prefix}`) ||
                     rawKeyArg.includes(`"${prefix}`) ||
                     rawKeyArg.includes(`\`${prefix}`));
@@ -107,7 +108,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
                     });
                 }
             }
-            // Check 2: Untyped string key literal
+            // Check 2: Untyped string key literal (for setItem, getItem, and removeItem)
             const isLiteralStringKey = /^['"`][\w$-]+['"`]$/.test(rawKeyArg);
             if (isLiteralStringKey) {
                 this.addViolationAtMatch({
@@ -120,7 +121,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
                 });
             }
             // Check 3: SetItem without try/catch handling for QuotaExceededError
-            if (!this.isInsideTryCatch(content, matchIndex)) {
+            if (method === 'setItem' && !this.isInsideTryCatch(content, matchIndex)) {
                 this.addViolationAtMatch({
                     ruleId: 'persistence-client-unhandled-quota-error',
                     filePath: file,

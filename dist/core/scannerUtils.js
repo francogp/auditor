@@ -206,4 +206,44 @@ export function isPositionInsideFunctionParams(content, position, maxDistance = 
     }
     return false;
 }
+export const DEFAULT_COMMENT_LOOKBACK_LINES = 10;
+/**
+ * Checks if the current line or any preceding lines contain a comment matching `directiveRegex`.
+ * Useful for multiline constructs in TypeScript or Vue SFC templates where a directive or suppression
+ * comment (e.g. `<!-- ui-branching-ok: ... -->` or `// layout-ok: ...`) is placed above a multiline tag.
+ *
+ * @param lines Array of code lines.
+ * @param lineIndex 0-indexed line number of the target statement or tag.
+ * @param directiveRegex Regular expression to match against comment lines.
+ * @param options Lookback configuration (default: 10 lines, ignoring empty lines).
+ */
+export function hasPrecedingComment(lines, lineIndex, directiveRegex, options) {
+    if (lineIndex < 0 || lineIndex >= lines.length) {
+        return false;
+    }
+    const currentLine = lines[lineIndex];
+    if (currentLine && directiveRegex.test(currentLine)) {
+        return true;
+    }
+    const maxLookback = options?.maxLookbackLines ?? DEFAULT_COMMENT_LOOKBACK_LINES;
+    const ignoreEmpty = options?.ignoreEmptyLines ?? true;
+    let inspectedNonEmpty = 0;
+    for (let i = lineIndex - 1; i >= 0 && inspectedNonEmpty < maxLookback; i--) {
+        const line = lines[i];
+        if (line === undefined)
+            break;
+        const trimmed = line.trim();
+        if (trimmed.length === 0) {
+            if (ignoreEmpty) {
+                continue;
+            }
+            break;
+        }
+        if (directiveRegex.test(line)) {
+            return true;
+        }
+        inspectedNonEmpty++;
+    }
+    return false;
+}
 //# sourceMappingURL=scannerUtils.js.map

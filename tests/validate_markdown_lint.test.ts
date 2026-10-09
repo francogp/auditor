@@ -165,5 +165,82 @@ describe('MarkdownLintAuditor', () => {
       }
     });
   });
+
+  describe('Auto-repair .markdownlint.json (MD033 allowed_elements)', () => {
+    it('injects "br" into MD033 when missing', async () => {
+      const nodeFs = await import('node:fs');
+      const os = await import('node:os');
+      const tmpDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'mdlint-test-'));
+      const testConfigPath = path.join(tmpDir, '.markdownlint.json');
+
+      try {
+        nodeFs.writeFileSync(testConfigPath, JSON.stringify({ default: true }, null, 2), 'utf8');
+
+        const auditor = new MarkdownLintAuditor(tmpDir);
+        auditor.repairMarkdownLintConfig(testConfigPath);
+
+        const updated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
+        expect(updated.MD033).toEqual({ allowed_elements: ['br'] });
+      } finally {
+        nodeFs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('appends "br" to pre-existing allowed_elements list without duplicates', async () => {
+      const nodeFs = await import('node:fs');
+      const os = await import('node:os');
+      const tmpDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'mdlint-test-'));
+      const testConfigPath = path.join(tmpDir, '.markdownlint.json');
+
+      try {
+        nodeFs.writeFileSync(
+          testConfigPath,
+          JSON.stringify({ default: true, MD033: { allowed_elements: ['span'] } }, null, 2),
+          'utf8'
+        );
+
+        const auditor = new MarkdownLintAuditor(tmpDir);
+        auditor.repairMarkdownLintConfig(testConfigPath);
+
+        const updated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
+        expect(updated.MD033.allowed_elements).toEqual(['span', 'br']);
+
+        // Second run should be idempotent
+        auditor.repairMarkdownLintConfig(testConfigPath);
+        const secondUpdated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
+        expect(secondUpdated.MD033.allowed_elements).toEqual(['span', 'br']);
+      } finally {
+        nodeFs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('does not alter configuration if MD033 is explicitly disabled (false)', async () => {
+      const nodeFs = await import('node:fs');
+      const os = await import('node:os');
+      const tmpDir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'mdlint-test-'));
+      const testConfigPath = path.join(tmpDir, '.markdownlint.json');
+
+      try {
+        nodeFs.writeFileSync(
+          testConfigPath,
+          JSON.stringify({ default: true, MD033: false }, null, 2),
+          'utf8'
+        );
+
+        const auditor = new MarkdownLintAuditor(tmpDir);
+        auditor.repairMarkdownLintConfig(testConfigPath);
+
+        const updated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
+        expect(updated.MD033).toBe(false);
+      } finally {
+        nodeFs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('safely handles non-existent or invalid configuration file', async () => {
+      const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+      expect(() => auditor.repairMarkdownLintConfig('/non/existent/path/.markdownlint.json')).not.toThrow();
+    });
+  });
 });
 

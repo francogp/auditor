@@ -54,6 +54,8 @@ describe('ValidatePersistenceClientAuditor', () => {
       } catch (err: unknown) {
         console.error('Storage quota exceeded', err);
       }
+      const rawTheme = localStorage.getItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
     `;
 
     await testAuditor.testScan('src/services/cleanStorage.ts', cleanCode);
@@ -95,7 +97,7 @@ describe('ValidatePersistenceClientAuditor', () => {
     expect(result.status).toBe('failed');
   });
 
-  it('fulfills point 3 & 5: detects persistence-client-untyped-key violations', async () => {
+  it('fulfills point 3 & 5: detects persistence-client-untyped-key violations across setItem, getItem, and removeItem', async () => {
     class TestableAuditor extends ValidatePersistenceClientAuditor {
       public async testScan(file: string, content: string): Promise<void> {
         this.scanFile(file, content);
@@ -107,15 +109,20 @@ describe('ValidatePersistenceClientAuditor', () => {
       try {
         sessionStorage.setItem('random_raw_key', 'some-value');
       } catch {}
+      const item = localStorage.getItem('untyped_read_key');
+      localStorage.removeItem('untyped_delete_key');
     `;
 
     await auditor.testScan('src/logic/session.ts', violatingCode);
     const result = await auditor.finishAudit();
 
     const violations = result.findings.filter(f => f.ruleId === 'persistence-client-untyped-key');
-    expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0]?.severity).toBe('error');
-    expect(result.summary.errors).toBeGreaterThan(0);
+    expect(violations).toHaveLength(3);
+    expect(violations.every(v => v.severity === 'error')).toBe(true);
+    expect(result.summary.errors).toBe(3);
+    // Ensure getItem and removeItem did NOT trigger quota errors
+    const quotaViolations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    expect(quotaViolations).toHaveLength(0);
   });
 
   it('fulfills point 3 & 5: detects persistence-client-unhandled-quota-error violations', async () => {

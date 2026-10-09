@@ -115,6 +115,9 @@ Architecture & Tooling Engineers.
   7. **Zero Manual CWE-22 Path Escape Checks**: Checking directory containment with `startsWith('..')` is prohibited; containment MUST be verified via `isPathInside(candidate, parent)` from `safePath.ts`.
   8. **Zero Handcrafted `package.json` Parsers**: Reading `package.json` manually with `fs.readFileSync` and `JSON.parse` is prohibited; suites MUST use `getPackageJson(projectRoot)`.
   9. **Zero Ad-Hoc Test File Predicates**: Handcrafted path regexes for test files are prohibited; suites MUST use `isTestPath(filePath)` from `auditTestPredicates.ts`.
+  10. **Zero Handcrafted Multiline Comment Lookbacks**: Searching backwards across lines for directive or suppression comments (`<!-- ui-branching-ok: -->`, `// layout-ok:`) is prohibited; suites MUST use `hasPrecedingComment(lines, lineIndex, directiveRegex)` from `@francogp/auditor`.
+- **Web Storage Multi-Method Auditing & Quota Scope (`validate_persistence_client`)**: Storage key typing (`persistence-client-untyped-key`) verifies `setItem`, `getItem`, and `removeItem` across `localStorage` and `sessionStorage` preventing raw string literal keys across all web storage operations, while quota handling (`persistence-client-unhandled-quota-error`) remains strictly scoped to mutations (`setItem`).
+- **Markdownlint Table Breakline Auto-Repair (`validate_markdown_lint`)**: In `--fix` mode, `validate_markdown_lint` automatically inspects `.markdownlint.json` and injects `"br"` into `MD033.allowed_elements` if not already present or disabled, preventing false positive violations on GitHub-Flavored Markdown table line breaks.
 
 ## Key Files
 

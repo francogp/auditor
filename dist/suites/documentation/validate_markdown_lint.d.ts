@@ -36,5 +36,10 @@ export declare function parseMarkdownLintIssues(input: string | object[], cwd?: 
 export declare class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     constructor(projectRoot?: string);
     runAudit(): Promise<void>;
+    /**
+     * Automatically repairs .markdownlint.json in --fix mode to ensure "br" is allowed
+     * in MD033 (inline HTML elements), standardizing GFM linebreaks in table cells.
+     */
+    repairMarkdownLintConfig(configPath: string): void;
 }
 //# sourceMappingURL=validate_markdown_lint.d.ts.map

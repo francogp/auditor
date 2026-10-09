@@ -158,6 +158,9 @@ export class MarkdownLintAuditor extends BaseAuditor {
             this.markRuleEvaluated('markdownlint-issue');
         }
         const isFixMode = this.isFixModeRequested();
+        if (isFixMode && hasConfigFile) {
+            this.repairMarkdownLintConfig(configPath);
+        }
         const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
         const args = ['**/*.md', '--dot']; // no-domain: Non-domain utility collection or data structure
         for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
@@ -176,6 +179,45 @@ export class MarkdownLintAuditor extends BaseAuditor {
         this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
         this.context.setMetric('markdown_violations', findings.length);
         this.context.setMetric('mode', isFixMode ? 'fix' : 'check');
+    }
+    /**
+     * Automatically repairs .markdownlint.json in --fix mode to ensure "br" is allowed
+     * in MD033 (inline HTML elements), standardizing GFM linebreaks in table cells.
+     */
+    repairMarkdownLintConfig(configPath) {
+        try {
+            if (!nodeFs.existsSync(configPath)) {
+                return;
+            }
+            const raw = nodeFs.readFileSync(configPath, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (typeof parsed !== 'object' || parsed === null) {
+                return;
+            }
+            // If MD033 is explicitly disabled (false), no need to add allowed_elements
+            if (parsed.MD033 === false) {
+                return;
+            }
+            if (typeof parsed.MD033 === 'object' && parsed.MD033 !== null) {
+                const allowed = Array.isArray(parsed.MD033.allowed_elements) ? parsed.MD033.allowed_elements : [];
+                if (!allowed.includes('br')) {
+                    parsed.MD033.allowed_elements = [...allowed, 'br'];
+                    nodeFs.writeFileSync(configPath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+                }
+            }
+            else {
+                parsed.MD033 = {
+                    allowed_elements: ['br']
+                };
+                nodeFs.writeFileSync(configPath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+            }
+        }
+        catch (err) {
+            // catch-ok: Non-fatal if config is malformed or inaccessible during auto-repair
+            if (process.env.DEBUG) {
+                console.debug('Failed to auto-repair .markdownlint.json:', err);
+            }
+        }
     }
 }
 // Canonical CLI Entrypoint
