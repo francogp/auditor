@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "6.0.0-build.20261009-020705",
+  "version": "6.1.0-build.20261009-063646",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -201,7 +201,9 @@
     "auditor:canonical-domains": "auditor task=validate_canonical_domains",
     "auditor:persistence-client": "auditor task=validate_persistence_client",
     "auditor:gsap-scrolltrigger": "auditor task=validate_gsap_scrolltrigger",
-    "auditor:gsap-framework-hygiene": "auditor task=validate_gsap_framework_hygiene"
+    "auditor:gsap-framework-hygiene": "auditor task=validate_gsap_framework_hygiene",
+    "auditor:vue-reactivity": "auditor task=validate_vue_reactivity",
+    "auditor:vue-router": "auditor task=validate_vue_router"
   },
   "dependencies": {
     "@a24z/mermaid-parser": "^1.0.0",

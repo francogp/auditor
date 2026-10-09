@@ -20,6 +20,7 @@ import { getAuditConfig } from "../../core/auditConfig.js";
 import { detectDuplicateConstants } from "../../analyzers/constantAnalyzer.js";
 import { magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName } from "../../analyzers/constantRules.js";
 import { normalizePosixPath } from "../../core/safePath.js";
+import { parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 enableCompileCache();
 export const CONSTANT_HYGIENE_RULES = [
     'duplicate-constant-identical',
@@ -75,6 +76,14 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
         if (!relPath.includes('.spec.') && !relPath.includes('.test.') && !relPath.includes('.d.ts')) {
             this.scannedAbsFiles.push(absPath);
         }
+        const isVue = relPath.endsWith('.vue');
+        const vueBlocks = isVue ? parseVueSfcBlocks(content) : null;
+        const scriptRanges = vueBlocks
+            ? vueBlocks.scripts.map(s => ({ start: s.contentStartIndex, end: s.contentStartIndex + s.content.length }))
+            : [{ start: 0, end: content.length }];
+        if (isVue && scriptRanges.length === 0) {
+            return;
+        }
         // Inspección unificada de reglas de constantes basadas en regex
         const regexChecks = [
             { ruleId: 'constant-magic-numbers', rule: magicNumbers },
@@ -82,51 +91,57 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
             { ruleId: 'constant-no-literal-suffix', rule: noLiteralSuffixInConstantName },
             { ruleId: 'constant-no-alias', rule: noAliasConstants }
         ];
-        let m;
-        for (const { ruleId, rule } of regexChecks) {
-            rule.regex.lastIndex = 0;
-            while ((m = rule.regex.exec(content)) !== null) {
-                if (rule.check && !rule.check(content, m, relPath)) {
-                    continue;
+        for (const range of scriptRanges) {
+            let m;
+            for (const { ruleId, rule } of regexChecks) {
+                rule.regex.lastIndex = range.start;
+                while ((m = rule.regex.exec(content)) !== null) {
+                    if (m.index >= range.end)
+                        break;
+                    if (rule.check && !rule.check(content, m, relPath)) {
+                        continue;
+                    }
+                    const message = typeof rule.message === 'function' ? rule.message(m[0]) : rule.message;
+                    this.addViolationAtMatch({
+                        ruleId,
+                        filePath: relPath,
+                        content,
+                        matchIndex: m.index,
+                        message,
+                        context: m[0]
+                    });
                 }
-                const message = typeof rule.message === 'function' ? rule.message(m[0]) : rule.message;
-                this.addViolationAtMatch({
-                    ruleId,
+            }
+            // Chequeo de alias redundante en exportaciones (P_EXPORT_REDUNDANT_ALIAS)
+            P_EXPORT_REDUNDANT_ALIAS.lastIndex = range.start;
+            while ((m = P_EXPORT_REDUNDANT_ALIAS.exec(content)) !== null) {
+                if (m.index >= range.end)
+                    break;
+                const aliasName = m[1];
+                const targetName = m[2];
+                if (!aliasName || !targetName || aliasName === targetName)
+                    continue;
+                if (/^(?:true|false|null|undefined|NaN|Infinity|\d+)$/.test(targetName))
+                    continue;
+                const norm = normalizePosixPath(relPath).toLowerCase();
+                if (norm.includes('node_modules') || norm.includes('.test.') || norm.includes('.spec.'))
+                    continue;
+                const preceding = content.slice(0, m.index);
+                const lineText = preceding.split('\n').pop() ?? '';
+                if (lineText.includes('// value-ok:') || lineText.includes('// const-ok:'))
+                    continue;
+                const line = preceding.split('\n').length;
+                const column = lineText.length + 1;
+                this.addViolation({
+                    ruleId: 'constant-no-alias',
+                    severity: 'error',
                     filePath: relPath,
-                    content,
-                    matchIndex: m.index,
-                    message,
-                    context: m[0]
+                    line,
+                    column,
+                    message: `Redefinición redundante 1:1 de constante/función: '${m[0].trim()}'. Usa la constante canónica de origen directamente en lugar de declarar alias passthrough.`,
+                    context: m[0].trim()
                 });
             }
-        }
-        // Chequeo de alias redundante en exportaciones (P_EXPORT_REDUNDANT_ALIAS)
-        P_EXPORT_REDUNDANT_ALIAS.lastIndex = 0;
-        while ((m = P_EXPORT_REDUNDANT_ALIAS.exec(content)) !== null) {
-            const aliasName = m[1];
-            const targetName = m[2];
-            if (!aliasName || !targetName || aliasName === targetName)
-                continue;
-            if (/^(?:true|false|null|undefined|NaN|Infinity|\d+)$/.test(targetName))
-                continue;
-            const norm = normalizePosixPath(relPath).toLowerCase();
-            if (norm.includes('node_modules') || norm.includes('.test.') || norm.includes('.spec.'))
-                continue;
-            const preceding = content.slice(0, m.index);
-            const lineText = preceding.split('\n').pop() ?? '';
-            if (lineText.includes('// value-ok:') || lineText.includes('// const-ok:'))
-                continue;
-            const line = preceding.split('\n').length;
-            const column = lineText.length + 1;
-            this.addViolation({
-                ruleId: 'constant-no-alias',
-                severity: 'error',
-                filePath: relPath,
-                line,
-                column,
-                message: `Redefinición redundante 1:1 de constante/función: '${m[0].trim()}'. Usa la constante canónica de origen directamente en lugar de declarar alias passthrough.`,
-                context: m[0].trim()
-            });
         }
     }
     async runAudit(astContext) {

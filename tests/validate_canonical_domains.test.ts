@@ -166,4 +166,35 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
   });
+
+  it('marks rules not applicable when no candidate code files are found', async () => {
+    const emptySubDir = path.join(tempDir, 'empty');
+    await fs.mkdir(emptySubDir, { recursive: true });
+
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir, roots: [emptySubDir] });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('extracts project canonical domains and library domain types correctly', () => {
+    const files = [
+      {
+        file: 'src/types.ts',
+        content: `
+          export const STATUSES = ['active', 'inactive', 'pending'] as const;
+          export type Status = (typeof STATUSES)[number];
+        `
+      }
+    ];
+
+    const { bySignature, list, collisions } = extractProjectCanonicalDomains(files);
+    expect(collisions).toHaveLength(0);
+    expect(bySignature.size).toBe(1);
+    expect(list.length).toBe(1);
+
+    const libMap = extractLibraryDomainTypes(tempDir);
+    expect(libMap).toBeDefined();
+  });
 });

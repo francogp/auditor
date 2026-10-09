@@ -45,6 +45,9 @@ Architecture & Tooling Engineers.
 - **Post-Build Compiled Artifact Partitioning (`requiresBuild: true`, `npm run auditor:build`)**: Suites verifying distribution artifacts (`validate_bundle_budget.ts`, `validate_package_distribution.ts`, `validate_package_types.ts`) declare `capabilities: { requiresBuild: true }` and are partitioned to execute post-build against `dist/` via `npm run auditor:build` (`auditor-build`). They are strictly excluded from default pre-build source audits.
 - **Static Security Blind-Spot Expansion**: Specialized security suites (`validate_secret_leaks.ts` using `@secretlint/core`, `validate_dependency_vulnerabilities.ts` using `npm audit`) target vectors outside Fallow's AST scope (leaked tokens/private keys and dependency CVEs) with zero rule overlap, conforming to the Zero Duplicate Verifications Mandate.
 - **Positive Health Phrasing for Streaming Rule Descriptions**: Invariant and health rules (e.g. `validate_similar_code.ts` rule `fallow-similar-code-failed`) must describe the positive invariant or health property being checked (e.g. `'Salud del motor similar-code'`) rather than using alarming words like "Fallo" or "Error" that mislead users during streaming execution.
+- **Vue SFC Script Isolation Mandate**: Any sub-auditor evaluating TypeScript/JavaScript logic in `.vue` Single File Components MUST use `extractVueBlocks()` from `src/core/vueSfcParser.ts` to isolate `<script>` and `<script setup>` contents, preventing template markup from triggering false positives in script-level AST and regex analyzers.
+- **Host Empirical Verification Mandate (`--project`)**: Prior to releasing new architecture suites or AST rules, suites must be empirically verified against real-world host projects (via `--project` remote execution) to confirm zero false positives across legitimate UI patterns.
+- **Negative Verification & Suite Activation Contract**: Unit tests for sub-auditors must explicitly verify error detection paths, proving that violating fixtures trigger `status: 'failed'` with `severity: 'error'` and exact `ruleId` mappings, rejecting tautological or fake-pass test suites.
 
 ## Key Files
 
@@ -94,6 +97,8 @@ Architecture & Tooling Engineers.
 - [`validate_type_coverage.ts`](./validate_type_coverage.ts): TypeScript type coverage and untyped symbol threshold auditor.
 - [`validate_typography_line_height.ts`](./validate_typography_line_height.ts): CSS typography line-height collision detector.
 - [`validate_vue_sfc_hygiene.ts`](./validate_vue_sfc_hygiene.ts): Vue SFC `<script setup lang="ts">` standards and template hygiene.
+- [`validate_vue_reactivity.ts`](./validate_vue_reactivity.ts): Vue 3 Composition API reactivity rules, pure computed derivations, and getter-wrapped watchers.
+- [`validate_vue_router.ts`](./validate_vue_router.ts): Vue Router 4 navigation standards, deprecation prevention, and SPA state preservation.
 - [`validate_z_index.ts`](./validate_z_index.ts): Z-Index layer scale synchronization between TypeScript and SCSS.
 
 ## Work Guidance

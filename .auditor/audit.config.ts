@@ -88,7 +88,7 @@ export default defineAuditConfig({
   },
   testCoverage: {
     enabled: true,
-    threshold: 80, // Elevated achievable threshold ratcheted to 80%
+    threshold: 82, // Ratcheted threshold elevated from 80% to 82%
     enforceInAudit: true
   },
   agentPlugin: {

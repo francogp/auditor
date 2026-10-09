@@ -27,11 +27,11 @@
     - [ ] Re-run cycle checks until all 3 gates exit with code 0
 - [ ] **Phase 3: Lessons Extraction, Walkthrough & 🛑 Hard Stop**
   - [ ] Extract lessons learned via `learn-with-docs`
-  - [ ] Create `<appDataDir>/brain/<conversation-id>/plan_learning_proposal.md`
-  - [ ] Create/Update `<appDataDir>/brain/<conversation-id>/walkthrough.md`
   - [ ] Workspace cleanup (Clean temporary files from `scratch/`)
+  - [ ] Create/Update `<appDataDir>/brain/<conversation-id>/walkthrough.md` (Informative record, `RequestFeedback: false`)
+  - [ ] Create `<appDataDir>/brain/<conversation-id>/plan_learning_proposal.md` (Actionable plan with `RequestFeedback: true` as final tool call)
   - [ ] Present artifact links (`plan_learning_proposal.md` & `walkthrough.md`) in chat for user review and commit approval
-  - [ ] 🛑 HARD STOP (Wait for approval before Phase 4)
+  - [ ] 🛑 HARD STOP (Wait for approval via `[ Proceed ]` button or chat before Phase 4)
 - [ ] **Phase 4: Single Atomic Certified Commit & Completion**
   - [ ] Apply approved lessons and modernizations to `AGENTS.md` and documentation
   - [ ] Pre-commit Sanity Check (`npm run auditor:md`)

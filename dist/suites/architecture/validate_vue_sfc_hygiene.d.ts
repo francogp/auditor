@@ -34,6 +34,8 @@ export declare class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneR
     private auditScriptSetupExports;
     private extractTemplateBlock;
     private auditTemplateQuoteEscaping;
+    private extractDynamicExpressions;
     private auditDataProviderInTemplate;
+    private reportTemplateViolation;
 }
 //# sourceMappingURL=validate_vue_sfc_hygiene.d.ts.map

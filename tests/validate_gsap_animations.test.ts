@@ -343,5 +343,30 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-named-timer-constants');
       expect(violations).toHaveLength(0);
     });
+
+    it('does not produce false positive when gsap.to in script is followed by template :style="{ top: ... }"', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      // Reproduce the exact pattern from BattleGroundHazards.vue
+      const vueSfc = `<template>
+  <div class="hazards-layer" :style="{ top: localGroundY + 'px', left: '0px' }">
+    <span class="hazard-icon">⚡</span>
+  </div>
+</template>
+
+<script setup lang="ts">
+import gsap from 'gsap';
+import { ref } from 'vue';
+
+const localGroundY = ref(150);
+
+function animateEntry(el: HTMLElement) {
+  gsap.to(el, { opacity: 1, duration: 0.3 });
+}
+</script>`;
+
+      auditor.testScanFile('src/components/BattleGroundHazards.vue', vueSfc);
+      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      expect(layoutViolations).toHaveLength(0);
+    });
   });
 });

@@ -183,23 +183,82 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
             }
         }
     }
+    extractDynamicExpressions(templateContent) {
+        // 1. Mask HTML comments with whitespace to preserve character indices
+        const masked = templateContent.replace(/<!--[\s\S]*?-->/g, match => ' '.repeat(match.length));
+        const results = [];
+        // 2. Extract mustache interpolations: {{ ... }}
+        const interpolationRegex = /\{\{([\s\S]*?)\}\}/g;
+        let m;
+        while ((m = interpolationRegex.exec(masked)) !== null) {
+            const inner = m[1] ?? '';
+            results.push({
+                expression: inner,
+                offsetInTemplate: m.index + 2
+            });
+        }
+        // 3. Extract dynamic directives in tag attributes: :prop="...", v-bind:prop="...", v-if="...", @event="...", etc.
+        const directiveRegex = /(?:v-[\w.:-]+|:[\w.-]+|@[\w.-]+)\s*=\s*(["'])([\s\S]*?)\1/g;
+        while ((m = directiveRegex.exec(masked)) !== null) {
+            const fullMatch = m[0];
+            const inner = m[2] ?? '';
+            const quoteChar = m[1] ?? '"';
+            const quoteIdx = fullMatch.indexOf(quoteChar);
+            const offsetInTemplate = m.index + quoteIdx + 1;
+            results.push({
+                expression: inner,
+                offsetInTemplate
+            });
+        }
+        return results;
+    }
     auditDataProviderInTemplate(relPath, content) {
         const template = this.extractTemplateBlock(content);
         if (!template)
             return;
+        this.markRuleEvaluated('no-data-provider-in-template');
         const { templateContent, templateStartIndex } = template;
+        const dynamicExpressions = this.extractDynamicExpressions(templateContent);
         const config = getAuditConfig(this.projectRoot);
         const customPatterns = config.templates?.forbiddenTemplateCallPatterns;
-        const regex = customPatterns && customPatterns.length > 0
-            ? new RegExp(`\\{\\{[^}]*\\b(?:${customPatterns.join('|')})`, 'g')
-            : DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX;
-        this.scanRegexMatches(templateContent, regex, relPath, 'no-data-provider-in-template', ['template-ok', 'sfc-ok'], `Direct call to heavy data provider inside template render loop. Move calls to computed properties or script helpers.`, undefined, content, templateStartIndex);
+        const providerRegex = customPatterns && customPatterns.length > 0
+            ? new RegExp(`\\b(?:${customPatterns.join('|')})`, 'i')
+            : /\b\w*DataProvider\.\w+\s*\(/i;
         const prohibitedDb = config.persistence?.prohibitedTemplateIdentifiers?.length
             ? config.persistence.prohibitedTemplateIdentifiers
             : (config.persistence?.engine === 'none' ? [] : ['supabase', 'db']);
-        if (prohibitedDb.length > 0) {
-            const dbRegex = new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'gi');
-            this.scanRegexMatches(templateContent, dbRegex, relPath, 'no-data-provider-in-template', ['template-ok', 'sfc-ok'], `Acceso directo a persistencia/base de datos detectado en template Vue. Cachea los datos con computed o acciones en <script>.`, undefined, content, templateStartIndex);
+        const dbRegex = prohibitedDb.length > 0 ? new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'i') : null;
+        for (const { expression, offsetInTemplate } of dynamicExpressions) {
+            // 1. Check heavy data providers (e.g. dataProvider.get...)
+            const providerMatch = providerRegex.exec(expression);
+            if (providerMatch) {
+                const fullIndex = templateStartIndex + offsetInTemplate + providerMatch.index;
+                this.reportTemplateViolation(relPath, content, fullIndex, `Direct call to heavy data provider inside template render loop. Move calls to computed properties or script helpers.`);
+            }
+            // 2. Check prohibited database client identifiers outside string literals
+            if (dbRegex) {
+                // Strip string literals inside expression to avoid matching strings like tab === 'db'
+                const strippedExpression = expression.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"/g, match => ' '.repeat(match.length));
+                const dbMatch = dbRegex.exec(strippedExpression);
+                if (dbMatch) {
+                    const fullIndex = templateStartIndex + offsetInTemplate + dbMatch.index;
+                    this.reportTemplateViolation(relPath, content, fullIndex, `Acceso directo a persistencia/base de datos detectado en template Vue. Cachea los datos con computed o acciones en <script>.`);
+                }
+            }
+        }
+    }
+    reportTemplateViolation(relPath, content, fullIndex, message) {
+        const line = this.getLineNumber(content, fullIndex);
+        const lineContent = this.getLineAt(content, line);
+        if (!this.hasEscapeHatch(lineContent, ['template-ok', 'sfc-ok'])) {
+            this.addViolation({
+                ruleId: 'no-data-provider-in-template',
+                severity: 'error',
+                file: relPath,
+                line,
+                message,
+                context: lineContent.trim()
+            });
         }
     }
 }

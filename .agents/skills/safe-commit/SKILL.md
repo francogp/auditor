@@ -197,29 +197,28 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 - Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern lessons extraction and target DOX placement.
 - Analyze debugging discoveries, architectural insights, or edge cases resolved during the task.
 - Traverse the DOX index hierarchy (`AGENTS.md`) and documentation for inconsistencies or legacy code compared to the new learning.
-- Draft `<appDataDir>/brain/<conversation-id>/plan_learning_proposal.md` following canonical Implementation Plan formatting.
 
-**Step 3.2** — Create Walkthrough
+**Step 3.2** — Workspace Scratch Cleanup
+
+- Remove transient debug files, leaving only `scratch/backups/`. Ensure workspace cleanup runs before final artifact generation so no further shell commands are executed after creating the executable plan.
+
+**Step 3.3** — Create Informative Walkthrough
 
 - Document changes and verification evidence in `<appDataDir>/brain/<conversation-id>/walkthrough.md`.
-- Save `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: false`, and a detailed `Summary`). `walkthrough.md` is an informative verification record of past actions and MUST NOT request execution feedback.
+- Save `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: false`, and a detailed `Summary`).
+- `walkthrough.md` is an informative verification record of past actions and MUST NOT request execution feedback (`RequestFeedback: false`).
 
-**Step 3.3** — Workspace Scratch Cleanup
+**Step 3.4** — Create Actionable Implementation Plan & Final Commit Approval Gate (🛑 HARD STOP)
 
-- Remove transient debug files, leaving only `scratch/backups/`.
-
-**Step 3.4** — Learning Proposal & Final Commit Approval Gate (Regular Text & Artifact Review)
-
-- **Artifact Governance (`RequestFeedback`)**:
-  - `plan_learning_proposal.md` is the actionable, executable artifact governing Phase 4 (applying lessons to DOX/docs and proceeding to commit). It MUST be saved via `learn-with-docs` as an Implementation Plan (`# Implementation Plan: ...`) with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which attaches the native `[ Proceed ]` execution button directly to the Plan Card in the Antigravity UI.
-  - `walkthrough.md` is an informative historical record and verification evidence. It MUST have `RequestFeedback: false` so it never displaces or usurps the Proceed action button of `plan_learning_proposal.md`.
-  - *(Exception: If and only if a commit involves zero architectural lessons and `plan_learning_proposal.md` is completely omitted, `walkthrough.md` may set `RequestFeedback: true` as the sole commit authorization artifact).*
-- **Mandatory Artifact Reference & Direct Linking in Regular Chat Text (Zero Redundant Summaries)**:
-  - In strict compliance with `/antigravity-guide` and `<artifacts>` guidelines, AI agents MUST NEVER re-summarize the artifact's contents, diffs, or scope into the chat message.
-  - The agent MUST present direct clickable Markdown links to both artifacts (`👉 [plan_learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and highlight ONLY critical decisions or open questions requiring human input.
-  - Remind the user that they can review the plan in the interactive artifact card and click **`[ Proceed ]`**, or confirm in the chat.
-- **Absolute Prohibition on `ask_question` for Artifact Approval**:
-  Invoking `ask_question` for artifact review is strictly prohibited because it suppresses chat text, blinds the conversation window, and creates an uninformative modal that conceals the artifact. The agent MUST ask for commit approval via regular chat text and stop calling tools so the user can inspect the artifacts in the Antigravity UI before deciding.
+- **Artifact Sequencing & `RequestFeedback` Governance**:
+  - The actionable plan governing Phase 4 (applying lessons to DOX/docs and executing the certified atomic commit) MUST be saved as `<appDataDir>/brain/<conversation-id>/plan_learning_proposal.md` (or `implementation_plan.md`) following canonical Implementation Plan formatting (`# Implementation Plan: ...`).
+  - Pass `ArtifactMetadata` with `UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`.
+  - **CRITICAL SEQUENCING RULE**: The actionable plan with `RequestFeedback: true` MUST be the **FINAL tool call** executed in the turn. Calling any subsequent tool (such as writing another artifact or executing shell commands) displaces the active artifact review card and suppresses the native `[ Proceed ]` button in the Antigravity UI.
+  - *(Exception: If a commit involves zero architectural lessons and the proposal plan is completely omitted, `walkthrough.md` may set `RequestFeedback: true` as the sole commit authorization artifact).*
+- **Artifact Reference & Direct Linking in Regular Chat Text**:
+  - Present direct clickable Markdown links to both artifacts (`👉 [plan_learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and highlight ONLY critical decisions or open questions requiring human input.
+  - Remind the user that they can review the plan in the interactive artifact card and click **`[ Proceed ]`**, or confirm directly in the chat.
+  - The agent MUST stop calling tools immediately after writing the plan artifact so the user can review the proposal in the Antigravity UI and decide via `[ Proceed ]` or chat.
 
 **✓ Completion gate**: Wait for user response. Do NOT proceed to Phase 4 until approved.
 

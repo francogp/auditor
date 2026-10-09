@@ -125,3 +125,22 @@ export function parseVueSfcBlocks(sfcContent: string): VueSfcBlocks {
 
   return { template, scripts, styles };
 }
+
+/**
+ * Extracts concatenated inner script content from all script blocks in a Vue SFC.
+ * Returns null if the SFC contains no script blocks.
+ */
+export function extractSfcScriptContent(sfcContent: string): string | null {
+  const parsed = parseVueSfcBlocks(sfcContent);
+  if (parsed.scripts.length === 0) return null;
+  return parsed.scripts.map(s => s.content).join('\n');
+}
+
+/**
+ * Returns script content for .vue files, or the raw file content for other script files (.ts, .js).
+ * Returns null if a .vue file contains no <script> blocks.
+ */
+export function extractVueScriptOrRaw(relPath: string, content: string): string | null {
+  return relPath.endsWith('.vue') ? extractSfcScriptContent(content) : content;
+}
+

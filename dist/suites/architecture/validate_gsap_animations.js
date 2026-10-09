@@ -23,6 +23,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from "../../core/auditConfig.js";
 import { normalizePosixPath as normalizeFilePath } from "../../core/safePath.js";
+import { parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 enableCompileCache();
 export const GSAP_ANIMATION_RULES = [
     'gsap-banned-css-animations',
@@ -49,6 +50,111 @@ export const NO_IMPORTANT_ON_FILTERS_REGEX = /(?<![\w-])filter\s*:[^;]*!importan
 export const EMPTY_VUE_TRANSITIONS_REGEX = /\.[\w-]+-(?:enter|leave)-(?:active|from|to)(?:[\s,]+\.[\w-]+-(?:enter|leave)-(?:active|from|to))*\s*\{\s*(?:@include\s+[\w-]+;\s*)?\}/g;
 export const GSAP_TWEEN_CALL_REGEX = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g;
 export const GPU_FILTER_REGEX = /(?:backdrop-filter|filter):/gi;
+function advancePastStringOrComment(content, index, limit) {
+    const ch = content[index];
+    if (ch === "'" || ch === '"' || ch === '`') {
+        const quote = ch;
+        let i = index + 1;
+        while (i < limit) {
+            if (content[i] === '\\') {
+                i += 2;
+                continue;
+            }
+            if (content[i] === quote) {
+                return i + 1;
+            }
+            i++;
+        }
+        return i;
+    }
+    if (ch === '/' && content[index + 1] === '/') {
+        let i = index + 2;
+        while (i < limit && content[i] !== '\n') {
+            i++;
+        }
+        return i;
+    }
+    if (ch === '/' && content[index + 1] === '*') {
+        let i = index + 2;
+        while (i < limit && !(content[i] === '*' && content[i + 1] === '/')) {
+            i++;
+        }
+        return Math.min(limit, i + 2);
+    }
+    return index;
+}
+/**
+ * Extracts configuration object literals directly passed as arguments to a GSAP tween call.
+ * Deterministically balances parentheses and object braces, stopping strictly at the closing
+ * parenthesis of the tween call, at EOF, or at '</script>' boundary in Vue SFCs.
+ */
+function extractTweenConfigObjects(content, openParenIndex, maxIndex) {
+    const configs = [];
+    const limit = maxIndex !== undefined ? Math.min(content.length, maxIndex) : content.length;
+    let parenDepth = 1;
+    let i = openParenIndex + 1;
+    while (i < limit && parenDepth > 0) {
+        const ch = content[i];
+        if (ch === '<' && content.startsWith('</script>', i)) {
+            break;
+        }
+        const skipped = advancePastStringOrComment(content, i, limit);
+        if (skipped !== i) {
+            i = skipped;
+            continue;
+        }
+        if (ch === '(') {
+            parenDepth++;
+            i++;
+            continue;
+        }
+        if (ch === ')') {
+            parenDepth--;
+            i++;
+            if (parenDepth === 0)
+                break;
+            continue;
+        }
+        if (ch === '{' && parenDepth === 1) {
+            const braceStart = i;
+            let braceDepth = 1;
+            i++;
+            while (i < limit && braceDepth > 0) {
+                const bCh = content[i];
+                if (bCh === '<' && content.startsWith('</script>', i)) {
+                    break;
+                }
+                const bSkipped = advancePastStringOrComment(content, i, limit);
+                if (bSkipped !== i) {
+                    i = bSkipped;
+                    continue;
+                }
+                if (bCh === '{') {
+                    braceDepth++;
+                    i++;
+                    continue;
+                }
+                if (bCh === '}') {
+                    braceDepth--;
+                    i++;
+                    if (braceDepth === 0)
+                        break;
+                    continue;
+                }
+                i++;
+            }
+            if (braceDepth === 0) {
+                configs.push({
+                    startOffset: braceStart,
+                    text: content.slice(braceStart, i)
+                });
+            }
+            continue;
+        }
+        i++;
+    }
+    return configs;
+}
 function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -159,6 +265,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
                 });
             }
         }
+        const vueBlocks = norm.endsWith('.vue') ? parseVueSfcBlocks(content) : null;
+        const scriptRanges = vueBlocks
+            ? vueBlocks.scripts.map(s => ({ start: s.contentStartIndex, end: s.endIndex }))
+            : [{ start: 0, end: content.length }];
         // 2. gsap-banned-ui-timers
         if (isCodeFile && !isExemptFile(relPath) && isInCodeRoots(relPath)) {
             const config = getAuditConfig(this.projectRoot);
@@ -169,47 +279,18 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             const isUiFile = norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
             if (isUiFile && !/audit-disable\s+timers/i.test(content)) {
                 const timerRegex = /\b(?:set|clear)(?:Timeout|Interval)\b/g;
-                let m;
-                while ((m = timerRegex.exec(content)) !== null) {
-                    const { line, column, lineText } = getLineAndColumnAt(content, m.index);
-                    if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText))
-                        continue;
-                    this.addViolation({
-                        ruleId: 'gsap-banned-ui-timers',
-                        message: `Timer de ANIMACIÓN/UI detectado: '${m[0]}'. MIGRACIÓN OBLIGATORIA A GSAP: Prohibido en UI. Usa gsap.delayedCall o promesas deterministas.`,
-                        filePath: relPath,
-                        line,
-                        column,
-                        severity: 'error'
-                    });
-                }
-            }
-        }
-        // 3. GSAP Tweens: layout properties, kebab-case, raw transform, svgOrigin conflict
-        if (isCodeFile && !isExemptFile(relPath)) {
-            const gsapTweenRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g;
-            let m;
-            while ((m = gsapTweenRegex.exec(content)) !== null) {
-                const startIdx = m.index;
-                const chunk = content.slice(startIdx, startIdx + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
-                const openBrace = chunk.indexOf('{');
-                const closeBrace = chunk.lastIndexOf('}');
-                const effectiveChunk = (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace)
-                    ? chunk.slice(openBrace, closeBrace + 1)
-                    : chunk;
-                // 3a. gsap-no-layout-properties
-                const layoutPropRegex = /\b(?:backgroundPosition|backgroundPositionX|backgroundPositionY|top|bottom|left|right|width|height|margin|marginTop|marginBottom|marginLeft|marginRight|padding|paddingTop|paddingBottom|paddingLeft|paddingRight)\s*:/;
-                const foundLayout = layoutPropRegex.exec(effectiveChunk);
-                if (foundLayout) {
-                    const beforeChunk = content.slice(Math.max(0, startIdx - 200), startIdx);
-                    const lineEnd = content.indexOf('\n', startIdx);
-                    const currentLine = content.slice(startIdx, lineEnd === -1 ? undefined : lineEnd);
-                    const nearby = beforeChunk + '\n' + currentLine;
-                    if (!/\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(nearby)) {
-                        const { line, column } = getLineAndColumnAt(content, startIdx + foundLayout.index);
+                for (const range of scriptRanges) {
+                    timerRegex.lastIndex = range.start;
+                    let m;
+                    while ((m = timerRegex.exec(content)) !== null) {
+                        if (m.index >= range.end)
+                            break;
+                        const { line, column, lineText } = getLineAndColumnAt(content, m.index);
+                        if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText))
+                            continue;
                         this.addViolation({
-                            ruleId: 'gsap-no-layout-properties',
-                            message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout[0]}'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity).`,
+                            ruleId: 'gsap-banned-ui-timers',
+                            message: `Timer de ANIMACIÓN/UI detectado: '${m[0]}'. MIGRACIÓN OBLIGATORIA A GSAP: Prohibido en UI. Usa gsap.delayedCall o promesas deterministas.`,
                             filePath: relPath,
                             line,
                             column,
@@ -217,45 +298,84 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
                         });
                     }
                 }
-                // 3b. gsap-kebab-case-properties
-                const kebabRegex = /(['"])(?:background-color|border-radius|font-size|z-index|box-shadow|line-height|letter-spacing)\1\s*:/g;
-                let kebabMatch;
-                while ((kebabMatch = kebabRegex.exec(effectiveChunk)) !== null) {
-                    const { line, column } = getLineAndColumnAt(content, startIdx + kebabMatch.index);
-                    this.addViolation({
-                        ruleId: 'gsap-kebab-case-properties',
-                        message: `Clave CSS en kebab-case detectada en tween GSAP: '${kebabMatch[0]}'. Usa camelCase según el estándar de GSAP.`,
-                        filePath: relPath,
-                        line,
-                        column,
-                        severity: 'error'
-                    });
-                }
-                // 3c. gsap-raw-transform-string
-                const rawTransformRegex = /\btransform\s*:\s*(['"`])(?:translate|rotate|scale|skew|matrix)[^'"`]*\1/i;
-                const rawMatch = rawTransformRegex.exec(effectiveChunk);
-                if (rawMatch) {
-                    const { line, column } = getLineAndColumnAt(content, startIdx + rawMatch.index);
-                    this.addViolation({
-                        ruleId: 'gsap-raw-transform-string',
-                        message: `Uso de string CSS 'transform' en GSAP detectado: '${rawMatch[0]}'. Usa alias nativos optimizados de GSAP ('x', 'y', 'rotation', 'scale').`,
-                        filePath: relPath,
-                        line,
-                        column,
-                        severity: 'error'
-                    });
-                }
-                // 3d. gsap-simultaneous-origin-conflict
-                if (/\bsvgOrigin\s*:/i.test(effectiveChunk) && /\btransformOrigin\s*:/i.test(effectiveChunk)) {
-                    const { line, column } = getLineAndColumnAt(content, startIdx);
-                    this.addViolation({
-                        ruleId: 'gsap-simultaneous-origin-conflict',
-                        message: "Conflicto de orígenes SVG detectado: no declares 'svgOrigin' y 'transformOrigin' simultáneamente en el mismo tween.",
-                        filePath: relPath,
-                        line,
-                        column,
-                        severity: 'error'
-                    });
+            }
+        }
+        // 3. GSAP Tweens: layout properties, kebab-case, raw transform, svgOrigin conflict
+        if (isCodeFile && !isExemptFile(relPath)) {
+            const gsapTweenRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g;
+            for (const range of scriptRanges) {
+                gsapTweenRegex.lastIndex = range.start;
+                let m;
+                while ((m = gsapTweenRegex.exec(content)) !== null) {
+                    if (m.index >= range.end)
+                        break;
+                    const openParenIdx = m.index + m[0].length - 1;
+                    const configObjects = extractTweenConfigObjects(content, openParenIdx, range.end);
+                    for (const cfg of configObjects) {
+                        // 3a. gsap-no-layout-properties
+                        const layoutPropRegex = /\b(?:backgroundPosition|backgroundPositionX|backgroundPositionY|top|bottom|left|right|width|height|margin|marginTop|marginBottom|marginLeft|marginRight|padding|paddingTop|paddingBottom|paddingLeft|paddingRight)\s*:/;
+                        const foundLayout = layoutPropRegex.exec(cfg.text);
+                        if (foundLayout) {
+                            const matchIdx = cfg.startOffset + foundLayout.index;
+                            const beforeChunk = content.slice(Math.max(0, matchIdx - 200), matchIdx);
+                            const lineEnd = content.indexOf('\n', matchIdx);
+                            const currentLine = content.slice(matchIdx, lineEnd === -1 ? undefined : lineEnd);
+                            const nearby = beforeChunk + '\n' + currentLine;
+                            if (!/\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(nearby)) {
+                                const { line, column } = getLineAndColumnAt(content, matchIdx);
+                                this.addViolation({
+                                    ruleId: 'gsap-no-layout-properties',
+                                    message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout[0]}'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity).`,
+                                    filePath: relPath,
+                                    line,
+                                    column,
+                                    severity: 'error'
+                                });
+                            }
+                        }
+                        // 3b. gsap-kebab-case-properties
+                        const kebabRegex = /(['"])(?:background-color|border-radius|font-size|z-index|box-shadow|line-height|letter-spacing)\1\s*:/g;
+                        let kebabMatch;
+                        while ((kebabMatch = kebabRegex.exec(cfg.text)) !== null) {
+                            const matchIdx = cfg.startOffset + kebabMatch.index;
+                            const { line, column } = getLineAndColumnAt(content, matchIdx);
+                            this.addViolation({
+                                ruleId: 'gsap-kebab-case-properties',
+                                message: `Clave CSS en kebab-case detectada en tween GSAP: '${kebabMatch[0]}'. Usa camelCase según el estándar de GSAP.`,
+                                filePath: relPath,
+                                line,
+                                column,
+                                severity: 'error'
+                            });
+                        }
+                        // 3c. gsap-raw-transform-string
+                        const rawTransformRegex = /\btransform\s*:\s*(['"`])(?:translate|rotate|scale|skew|matrix)[^'"`]*\1/i;
+                        const rawMatch = rawTransformRegex.exec(cfg.text);
+                        if (rawMatch) {
+                            const matchIdx = cfg.startOffset + rawMatch.index;
+                            const { line, column } = getLineAndColumnAt(content, matchIdx);
+                            this.addViolation({
+                                ruleId: 'gsap-raw-transform-string',
+                                message: `Uso de string CSS 'transform' en GSAP detectado: '${rawMatch[0]}'. Usa alias nativos optimizados de GSAP ('x', 'y', 'rotation', 'scale').`,
+                                filePath: relPath,
+                                line,
+                                column,
+                                severity: 'error'
+                            });
+                        }
+                        // 3d. gsap-simultaneous-origin-conflict
+                        if (/\bsvgOrigin\s*:/i.test(cfg.text) && /\btransformOrigin\s*:/i.test(cfg.text)) {
+                            const { line, column } = getLineAndColumnAt(content, cfg.startOffset);
+                            this.addViolation({
+                                ruleId: 'gsap-simultaneous-origin-conflict',
+                                message: "Conflicto de orígenes SVG detectado: no declares 'svgOrigin' y 'transformOrigin' simultáneamente en el mismo tween.",
+                                filePath: relPath,
+                                line,
+                                column,
+                                severity: 'error'
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -404,7 +524,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             const hfListenerRegex = /\b\w+\.addEventListener\s*\(\s*['"](?:mousemove|pointermove|touchmove|wheel|scroll)['"]/g;
             let m;
             while ((m = hfListenerRegex.exec(content)) !== null) {
-                const listenerChunk = content.slice(m.index, m.index + 400);
+                const listenerChunk = content.slice(m.index, m.index + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
                 if (/\bgsap\.(?:to|from|fromTo)\s*\(/.test(listenerChunk)) {
                     if (!/\/\/\s*(?:quickto-ok|listener-ok):\s*\S+/i.test(listenerChunk)) {
                         const { line, column } = getLineAndColumnAt(content, m.index);

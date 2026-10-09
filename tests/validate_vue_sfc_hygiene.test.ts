@@ -159,6 +159,44 @@ describe('VueSfcHygieneAuditor', () => {
       auditor.testScanFile('src/components/Exempt.vue', sfc);
       expect(auditor.collectedViolations).toHaveLength(0);
     });
+
+    it('does not produce false positives for HTML comments, static classes or static text containing "db" or "supabase"', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      // Reproduce exact patterns from DevShadowHeaderToolbar.vue and PokemonSummaryTab.vue
+      const sfc = `
+        <template>
+          <!-- DB Info and Diagnostics Panel -->
+          <div class="db-info-section shadow-card">
+            <span class="label">ID ÚNICO DB:</span>
+            <span class="val">{{ userId }}</span>
+            <button :class="{ active: currentTab === 'db' }">Pestaña DB</button>
+          </div>
+        </template>
+        <script setup lang="ts">
+          import { ref } from 'vue';
+          const userId = ref('usr_123');
+          const currentTab = ref('db');
+        </script>
+      `;
+      auditor.testScanFile('src/components/PokemonSummaryTab.vue', sfc);
+      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'no-data-provider-in-template');
+      expect(violations).toHaveLength(0);
+    });
+
+    it('detects prohibited database access in dynamic event handlers like @click="supabase.auth.signOut()"', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      const sfc = `
+        <template>
+          <button @click="supabase.auth.signOut()">Salir</button>
+        </template>
+        <script setup lang="ts">
+        </script>
+      `;
+      auditor.testScanFile('src/components/SignOutButton.vue', sfc);
+      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-data-provider-in-template');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+    });
   });
 
   describe('Clean Execution', () => {

@@ -136,5 +136,50 @@ describe('ValidateConstantHygieneAuditor', () => {
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
+
+    it('does not flag template button text like "+10" or "Agregar 10" as magic numbers in .vue files', async () => {
+      const vueFile = path.join(srcDir, 'CounterButtons.vue');
+      const vueContent = `<template>
+  <div class="actions">
+    <button @click="increment(10)">+10</button>
+    <button>Agregar 10 de cada uno</button>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+
+const count = ref(0);
+function increment(step: number) {
+  count.value += step;
+}
+</script>`;
+      await fs.writeFile(vueFile, vueContent, 'utf-8');
+
+      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const result = await auditor.execute();
+
+      const magicFindings = result.findings.filter(f => f.ruleId === 'constant-magic-numbers');
+      expect(magicFindings).toHaveLength(0);
+    });
+
+    it('detects magic numbers inside .vue script setup logic', async () => {
+      const vueFile = path.join(srcDir, 'BadScript.vue');
+      const vueContent = `<template>
+  <div>Hello</div>
+</template>
+
+<script setup lang="ts">
+const delay = 45; // inline magic number without named constant
+</script>`;
+      await fs.writeFile(vueFile, vueContent, 'utf-8');
+
+      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const result = await auditor.execute();
+
+      const magicFindings = result.findings.filter(f => f.ruleId === 'constant-magic-numbers');
+      expect(magicFindings.length).toBeGreaterThanOrEqual(1);
+      expect(magicFindings[0]?.severity).toBe('error');
+    });
   });
 });
