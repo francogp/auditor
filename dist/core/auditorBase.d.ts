@@ -14,6 +14,8 @@ import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
+import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
+export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
 export declare const ALWAYS_IGNORE_DIRS: ReadonlySet<string>;
 /** Additional directories ignored during code scanning (documentation/skills and static assets) */
@@ -134,6 +136,7 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly column?: number;
     readonly message: string;
     readonly context?: string;
+    readonly fixable?: boolean;
 }
 export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
     readonly id: string;
@@ -277,7 +280,15 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
-    protected abstract scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void | Promise<void>;
+    /**
+     * Primary file scanning entry point receiving an immutable AuditedDocument.
+     * By default, delegates to scanFile(relPath, content, sourceFile, doc).
+     */
+    protected scanDocument(doc: AuditedDocument): void | Promise<void>;
+    /**
+     * Overridable file scanning method for sub-auditors.
+     */
+    protected scanFile(_relPath: string, _content: string, _sourceFile?: ts.SourceFile, _doc?: AuditedDocument): void | Promise<void>;
     constructor(options: AuditorOptions<TRuleId>);
     /**
      * Adds a violation calculating 1-indexed line and column numbers from a string offset.
@@ -290,7 +301,20 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
         message: string;
         severity?: FindingSeverity;
         context?: string;
+        doc?: AuditedDocument;
     }): void;
+    /**
+     * High-level pattern scanner that skips comments and strings automatically
+     * and verifies escape hatches before registering violations.
+     */
+    protected scanSafePattern(doc: AuditedDocument, options: {
+        regex: RegExp;
+        ruleId: TRuleId;
+        message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+        severity?: FindingSeverity;
+        skipComments?: boolean;
+        skipStrings?: boolean;
+    }, onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void): void;
     private resolveEffectiveAst;
     private scanSingleDiscoveredFile;
     runAudit(astContext?: SharedAstContext): Promise<void>;

@@ -31,6 +31,8 @@ export declare const NO_IMPORTANT_ON_FILTERS_REGEX: RegExp;
 export declare const EMPTY_VUE_TRANSITIONS_REGEX: RegExp;
 export declare const GSAP_TWEEN_CALL_REGEX: RegExp;
 export declare const GPU_FILTER_REGEX: RegExp;
+export declare const GSAP_LAYOUT_PROPERTIES: readonly ["backgroundPosition", "backgroundPositionX", "backgroundPositionY", "top", "bottom", "left", "right", "width", "height", "margin", "marginTop", "marginBottom", "marginLeft", "marginRight", "padding", "paddingTop", "paddingBottom", "paddingLeft", "paddingRight"];
+export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 export declare class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
     private getNamedTimerConstantsRegex;

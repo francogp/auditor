@@ -103,7 +103,17 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       const lineNum = content.slice(0, matchIndex).split('\n').length;
       const line = lines[lineNum - 1] ?? '';
 
-      if (isCommentLine(line.trim()) || this.hasStorageEscapeHatch(line)) continue;
+      const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
+      const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
+
+      if (
+        isCommentLine(line.trim()) ||
+        this.hasStorageEscapeHatch(line) ||
+        this.hasStorageEscapeHatch(prevLine) ||
+        this.hasStorageEscapeHatch(prevPrevLine)
+      ) {
+        continue;
+      }
 
       const rawKeyArg = match[1]?.trim() ?? '';
 
@@ -160,22 +170,70 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
   }
 
   private hasStorageEscapeHatch(line: string): boolean {
-    return line.includes('// storage-ok:') || line.includes('/* storage-ok:');
+    return /\/\/\s*storage-ok:|\/\*\s*storage-ok:/i.test(line);
   }
 
   private isInsideTryCatch(content: string, position: number): boolean {
     const preceding = content.slice(0, position);
-    const tryIndex = preceding.lastIndexOf('try');
-    if (tryIndex === -1) return false;
+    const tryRegex = /\btry\s*\{/g;
+    let match: RegExpExecArray | null;
 
-    // Check if there is an unclosed try block between tryIndex and position
-    const textBetween = content.slice(tryIndex, position);
-    let openBraces = 0;
-    for (const char of textBetween) {
-      if (char === '{') openBraces++;
-      else if (char === '}') openBraces--;
+    while ((match = tryRegex.exec(preceding)) !== null) {
+      const openBraceIdx = match.index + match[0].indexOf('{');
+      let braceDepth = 1;
+      let i = openBraceIdx + 1;
+      const limit = position;
+
+      while (i < limit && braceDepth > 0) {
+        const ch = content[i];
+
+        if (ch === "'" || ch === '"' || ch === '`') {
+          const quote = ch;
+          i++;
+          while (i < limit) {
+            if (content[i] === '\\') {
+              i += 2;
+            } else if (content[i] === quote) {
+              i++;
+              break;
+            } else {
+              i++;
+            }
+          }
+          continue;
+        }
+
+        if (ch === '/' && content[i + 1] === '/') {
+          i += 2;
+          while (i < limit && content[i] !== '\n') {
+            i++;
+          }
+          continue;
+        }
+
+        if (ch === '/' && content[i + 1] === '*') {
+          i += 2;
+          while (i < limit && !(content[i] === '*' && content[i + 1] === '/')) {
+            i++;
+          }
+          i = Math.min(limit, i + 2);
+          continue;
+        }
+
+        if (ch === '{') {
+          braceDepth++;
+        } else if (ch === '}') {
+          braceDepth--;
+        }
+        i++;
+      }
+
+      if (braceDepth > 0) {
+        return true;
+      }
     }
-    return openBraces > 0;
+
+    return false;
   }
 }
 

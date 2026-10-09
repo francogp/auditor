@@ -83,13 +83,15 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
 
     // 1. gsap-unscoped-component-selectors
     if (isUiComponent && isInCodeRoots(relPath)) {
-      const unscopedRegex = /\bgsap\.(?:to|from|fromTo)\s*\(\s*['"]([.#][\w-]+)['"]/g;
+      const unscopedRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(\s*['"]([.#][\w\s>+~.:#-]+)['"]/g;
       let m: RegExpExecArray | null;
       while ((m = unscopedRegex.exec(content)) !== null) {
         const selector = m[1];
+        const preceding = content.slice(Math.max(0, m.index - 200), m.index);
         const lineEnd = content.indexOf('\n', m.index);
-        const lineText = content.slice(m.index, lineEnd === -1 ? undefined : lineEnd);
-        if (/\/\/\s*(?:scope-ok|selector-ok):\s*\S+/i.test(lineText)) continue;
+        const currentLine = content.slice(m.index, lineEnd === -1 ? undefined : lineEnd);
+        const nearby = preceding + '\n' + currentLine;
+        if (/\/\/\s*(?:scope-ok|selector-ok):\s*\S+/i.test(nearby)) continue;
 
         // Check if inside gsap.context or useGSAP
         const hasScopeContext = /gsap\.context\s*\(|useGSAP\s*\(/.test(content);

@@ -383,5 +383,43 @@ const inlineComment = true; // No need for clearInterval here
       const timerViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-ui-timers');
       expect(timerViolations).toHaveLength(0);
     });
+
+    it('does not trigger gsap-no-layout-properties for layout properties inside nested callbacks or objects', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      const code = `
+        gsap.to(target, {
+          opacity: 1,
+          duration: 0.5,
+          onComplete: () => {
+            const pos = calculatePosition({ top: 100, left: 50 });
+            applyPos(pos);
+          }
+        });
+      `;
+      auditor.testScanFile('src/components/Modal.vue', code);
+      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      expect(layoutViolations).toHaveLength(0);
+    });
+
+    it('honors // layout-ok: escape hatch placed above long multi-line gsap.fromTo tween', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      const code = `
+        // layout-ok: accordion height animation requires layout measurement
+        gsap.fromTo(accordionRef.value, {
+          opacity: 0,
+          scale: 0.95,
+          margin: 0,
+          padding: 0
+        }, {
+          opacity: 1,
+          scale: 1,
+          height: 'auto',
+          duration: 0.4
+        });
+      `;
+      auditor.testScanFile('src/components/Accordion.vue', code);
+      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      expect(layoutViolations).toHaveLength(0);
+    });
   });
 });

@@ -29,6 +29,7 @@ export declare function validate(diagramCode: string, parseOptions?: {
 } | false>;
 export declare class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
+    private fixMermaidLine;
     private checkSpecialCharacters;
     protected scanFile(relPath: string, content: string): Promise<void>;
 }

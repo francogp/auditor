@@ -515,14 +515,19 @@ async function renderAndPersistMasterReport(ctx) {
     const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
     const anyFailed = totalErrors > 0 || (suitesPassed + suitesSkipped) < results.length || ratchet?.status === 'failed';
     const fixableSuiteIds = new Set(tasksToRun.filter(t => t.capabilities?.fix).map(t => t.id));
+    const isFindingFixable = (f, isFixSuite) => {
+        if (f.fixable !== undefined)
+            return f.fixable;
+        return isFixSuite;
+    };
     const fixableErrors = results.reduce((acc, r) => {
         const isFixSuite = fixableSuiteIds.has(r.id);
-        const errCount = r.findings?.filter(f => f.severity === 'error' && (isFixSuite || f.fixable)).length ?? 0;
+        const errCount = r.findings?.filter(f => f.severity === 'error' && isFindingFixable(f, isFixSuite)).length ?? 0;
         return acc + errCount;
     }, 0);
     const fixableWarnings = results.reduce((acc, r) => {
         const isFixSuite = fixableSuiteIds.has(r.id);
-        const warnCount = r.findings?.filter(f => f.severity === 'warning' && (isFixSuite || f.fixable)).length ?? 0;
+        const warnCount = r.findings?.filter(f => f.severity === 'warning' && isFindingFixable(f, isFixSuite)).length ?? 0;
         return acc + warnCount;
     }, 0);
     const autoFixRecommended = !isFixMode && (fixableErrors > 0 || fixableWarnings > 0);

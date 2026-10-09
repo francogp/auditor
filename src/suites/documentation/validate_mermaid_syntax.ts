@@ -4,6 +4,8 @@
  * using the official modern Mermaid engine (mermaid.parse).
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { JSDOM } from 'jsdom';
 import { FileScanAuditor, BaseAuditor } from '../../core/auditorBase.ts';
@@ -93,7 +95,7 @@ const UNQUOTED_BRACE_NODE_REGEX = /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
   public constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     super({
-      capabilities: { md: true, lint: true },
+      capabilities: { md: true, lint: true, fix: true },
       id: 'validate_mermaid_syntax',
       name: 'Mermaid Diagram Syntax Auditor',
       description: 'Sintaxis y caracteres válidos en diagramas Mermaid',
@@ -115,6 +117,33 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
     });
   }
 
+  private fixMermaidLine(line: string): string {
+    let fixed = line;
+
+    // 1. Edge labels |...| with unquoted delimiter characters
+    fixed = fixed.replace(/\|([^|"\n]+)\|/g, (match, text) => {
+      const trimmed = text.trim();
+      if (UNQUOTED_EDGE_CHARS_REGEX.test(trimmed)) {
+        return `|"${trimmed}"|`;
+      }
+      return match;
+    });
+
+    // 2. Node definitions [ ... ] with unquoted parentheses
+    fixed = fixed.replace(/\b(\w+)\[([^\]"()\n]*[()][^\]"\n]*)\]/g, (_match, id, label) => {
+      const trimmed = label.trim();
+      return `${id}["${trimmed}"]`;
+    });
+
+    // 3. Node definitions { ... } with unquoted special characters
+    fixed = fixed.replace(/\b(\w+)\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g, (_match, id, label) => {
+      const trimmed = label.trim();
+      return `${id}{"${trimmed}"}`;
+    });
+
+    return fixed;
+  }
+
   private checkSpecialCharacters(
     line: string,
     lineNum: number,
@@ -131,7 +160,8 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
           file: relPath,
           line: lineNum,
           context: match[0],
-          message: `Etiqueta de arista Mermaid contiene caracteres especiales no entrecomillados ("${text}"). Envuélvela en comillas: |"${text}"|.`
+          message: `Etiqueta de arista Mermaid contiene caracteres especiales no entrecomillados ("${text}"). Envuélvela en comillas: |"${text}"|.`,
+          fixable: true
         });
       }
     }
@@ -146,7 +176,8 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         file: relPath,
         line: lineNum,
         context: match[0],
-        message: `Definición de nodo con paréntesis no entrecomillados ("${label}"). Envuélvela en comillas dobles: ["${label}"].`
+        message: `Definición de nodo con paréntesis no entrecomillados ("${label}"). Envuélvela en comillas dobles: ["${label}"].`,
+        fixable: true
       });
     }
 
@@ -160,7 +191,8 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         file: relPath,
         line: lineNum,
         context: match[0],
-        message: `Definición de rombo/decisión con caracteres especiales no entrecomillados ("${label}"). Envuélvela en comillas dobles: {"${label}"}.`
+        message: `Definición de rombo/decisión con caracteres especiales no entrecomillados ("${label}"). Envuélvela en comillas dobles: {"${label}"}.`,
+        fixable: true
       });
     }
   }
@@ -171,6 +203,8 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
     let diagramIgnored = false;
     let mermaidStartLine = 0;
     const mermaidLines: string[] = [];
+    let fileModified = false;
+    const isFix = this.isFixModeRequested();
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? '';
@@ -216,10 +250,24 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         if (this.isLineIgnored(line, ['mermaid-ok', 'doc-ok'])) {
           diagramIgnored = true;
         } else {
+          if (isFix) {
+            const fixedLine = this.fixMermaidLine(line);
+            if (fixedLine !== line) {
+              lines[i] = fixedLine;
+              fileModified = true;
+              mermaidLines.push(fixedLine);
+              continue;
+            }
+          }
           mermaidLines.push(line);
           this.checkSpecialCharacters(line, i + 1, relPath);
         }
       }
+    }
+
+    if (isFix && fileModified) {
+      const absPath = path.resolve(this.projectRoot, relPath);
+      fs.writeFileSync(absPath, lines.join('\n'), 'utf-8');
     }
   }
 }

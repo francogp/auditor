@@ -7,6 +7,7 @@
 export * from './core/auditContract.ts';
 export * from './core/auditConfig.ts';
 export * from './core/auditorBase.ts';
+export * from './core/auditedDocument.ts';
 export * from './core/astContext.ts';
 export * from './core/streamingRunner.ts';
 export * from './core/unifiedTheme.ts';

@@ -108,6 +108,7 @@ export interface AuditFinding {
   suiteId?: string;
   suiteName?: string;
   context?: string;
+  fixable?: boolean;
 }
 
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'] as const;

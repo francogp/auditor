@@ -62,6 +62,18 @@ export function getMarkdownIgnoreGlobs(projectRoot) {
     }
     return Array.from(new Set(globs));
 }
+export const MARKDOWNLINT_FIXABLE_RULE_LIST = [
+    'MD004', 'MD005', 'MD007', 'MD009', 'MD010', 'MD011', 'MD012', 'MD014',
+    'MD018', 'MD019', 'MD020', 'MD021', 'MD022', 'MD023', 'MD024', 'MD026',
+    'MD027', 'MD030', 'MD031', 'MD032', 'MD034', 'MD037', 'MD038', 'MD039',
+    'MD044', 'MD047', 'MD049', 'MD050', 'MD051', 'MD053'
+];
+export const MARKDOWNLINT_FIXABLE_RULES = new Set(MARKDOWNLINT_FIXABLE_RULE_LIST);
+function isMarkdownLintRuleFixable(ruleNames) {
+    if (!ruleNames || ruleNames.length === 0)
+        return false;
+    return ruleNames.some(name => MARKDOWNLINT_FIXABLE_RULES.has(name));
+}
 /**
  * Parses raw JSON output or an array of issues from markdownlint into canonical AuditFindings.
  */
@@ -78,6 +90,7 @@ export function parseMarkdownLintIssues(input, cwd = process.cwd()) {
         const ruleCode = Array.isArray(issue.ruleNames) ? issue.ruleNames.join('/') : 'MD';
         const detail = issue.errorDetail ? ` (${issue.errorDetail})` : '';
         const desc = issue.ruleDescription || 'Markdown formatting issue';
+        const isFixable = isMarkdownLintRuleFixable(issue.ruleNames);
         findings.push({
             suiteId: 'validate_markdown_lint',
             suiteName: 'Markdownlint Style & Hygiene Validator',
@@ -87,7 +100,8 @@ export function parseMarkdownLintIssues(input, cwd = process.cwd()) {
             file: cleanFile,
             line: issue.lineNumber || DEFAULT_ERROR_LINE,
             context: ruleCode,
-            message: `${ruleCode}: ${desc}${detail}`
+            message: `${ruleCode}: ${desc}${detail}`,
+            fixable: isFixable
         });
     }
     return findings;

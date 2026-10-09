@@ -159,4 +159,49 @@ describe('ValidatePersistenceClientAuditor', () => {
     expect(result.findings).toHaveLength(0);
     expect(result.status).toBe('passed');
   });
+
+  it('honors storage-ok escape hatch placed on preceding line', async () => {
+    class TestableAuditor extends ValidatePersistenceClientAuditor {
+      public async testScan(file: string, content: string): Promise<void> {
+        this.scanFile(file, content);
+      }
+    }
+    const auditor = new TestableAuditor();
+
+    const escapedCode = `
+      // storage-ok: verified isolated test utility writing raw key
+      localStorage.setItem('raw_key_preceding', 'val');
+    `;
+
+    await auditor.testScan('src/utils/debugStorage2.ts', escapedCode);
+    const result = await auditor.finishAudit();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.findings).toHaveLength(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('correctly flags unhandled quota error when code has retry or entry variables without try/catch', async () => {
+    class TestableAuditor extends ValidatePersistenceClientAuditor {
+      public async testScan(file: string, content: string): Promise<void> {
+        this.scanFile(file, content);
+      }
+    }
+    const auditor = new TestableAuditor();
+
+    const code = `
+      const retryAttempts = 3;
+      const entryPoint = 'main';
+      const KEY = 'typed_key';
+      if (retryAttempts > 0) {
+        localStorage.setItem(KEY, 'val');
+      }
+    `;
+
+    await auditor.testScan('src/utils/retryUtils.ts', code);
+    const result = await auditor.finishAudit();
+
+    const quotaViolations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    expect(quotaViolations.length).toBe(1);
+  });
 });

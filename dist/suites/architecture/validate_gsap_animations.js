@@ -156,6 +156,97 @@ function extractTweenConfigObjects(content, openParenIndex, maxIndex) {
     }
     return configs;
 }
+const TWEEN_CALL_ESCAPE_WINDOW_OFFSET = 400;
+const MATCH_ESCAPE_WINDOW_OFFSET = 800;
+export const GSAP_LAYOUT_PROPERTIES = [
+    'backgroundPosition',
+    'backgroundPositionX',
+    'backgroundPositionY',
+    'top',
+    'bottom',
+    'left',
+    'right',
+    'width',
+    'height',
+    'margin',
+    'marginTop',
+    'marginBottom',
+    'marginLeft',
+    'marginRight',
+    'padding',
+    'paddingTop',
+    'paddingBottom',
+    'paddingLeft',
+    'paddingRight'
+];
+const LAYOUT_PROPERTIES_SET = new Set(GSAP_LAYOUT_PROPERTIES);
+function findTopLevelLayoutProperty(cfgText) {
+    const limit = cfgText.length;
+    let braceDepth = 0;
+    let parenDepth = 0;
+    let bracketDepth = 0;
+    let i = 0;
+    while (i < limit) {
+        const skipped = advancePastStringOrComment(cfgText, i, limit);
+        if (skipped !== i) {
+            i = skipped;
+            continue;
+        }
+        const ch = cfgText[i];
+        if (ch === '{') {
+            braceDepth++;
+            i++;
+            continue;
+        }
+        if (ch === '}') {
+            braceDepth--;
+            i++;
+            continue;
+        }
+        if (ch === '(') {
+            parenDepth++;
+            i++;
+            continue;
+        }
+        if (ch === ')') {
+            parenDepth--;
+            i++;
+            continue;
+        }
+        if (ch === '[') {
+            bracketDepth++;
+            i++;
+            continue;
+        }
+        if (ch === ']') {
+            bracketDepth--;
+            i++;
+            continue;
+        }
+        if (braceDepth === 1 && parenDepth === 0 && bracketDepth === 0) {
+            if (ch && /[a-z_$]/i.test(ch)) {
+                const idStart = i;
+                while (i < limit && /[\w$]/.test(cfgText[i] ?? '')) {
+                    i++;
+                }
+                const id = cfgText.slice(idStart, i);
+                let j = i;
+                while (j < limit && (cfgText[j] === ' ' || cfgText[j] === '\t' || cfgText[j] === '\n' || cfgText[j] === '\r')) {
+                    j++;
+                }
+                if (j < limit && cfgText[j] === ':') {
+                    if (LAYOUT_PROPERTIES_SET.has(id)) {
+                        return { index: idStart, propName: id };
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+        i++;
+    }
+    return null;
+}
 function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -320,19 +411,18 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
                     const configObjects = extractTweenConfigObjects(content, openParenIdx, range.end);
                     for (const cfg of configObjects) {
                         // 3a. gsap-no-layout-properties
-                        const layoutPropRegex = /\b(?:backgroundPosition|backgroundPositionX|backgroundPositionY|top|bottom|left|right|width|height|margin|marginTop|marginBottom|marginLeft|marginRight|padding|paddingTop|paddingBottom|paddingLeft|paddingRight)\s*:/;
-                        const foundLayout = layoutPropRegex.exec(cfg.text);
+                        const foundLayout = findTopLevelLayoutProperty(cfg.text);
                         if (foundLayout) {
                             const matchIdx = cfg.startOffset + foundLayout.index;
-                            const beforeChunk = content.slice(Math.max(0, matchIdx - 200), matchIdx);
+                            const tweenCallStart = m.index;
+                            const windowStart = Math.max(0, Math.min(tweenCallStart - TWEEN_CALL_ESCAPE_WINDOW_OFFSET, matchIdx - MATCH_ESCAPE_WINDOW_OFFSET));
                             const lineEnd = content.indexOf('\n', matchIdx);
-                            const currentLine = content.slice(matchIdx, lineEnd === -1 ? undefined : lineEnd);
-                            const nearby = beforeChunk + '\n' + currentLine;
+                            const nearby = content.slice(windowStart, lineEnd === -1 ? content.length : lineEnd);
                             if (!/\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(nearby)) {
                                 const { line, column } = getLineAndColumnAt(content, matchIdx);
                                 this.addViolation({
                                     ruleId: 'gsap-no-layout-properties',
-                                    message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout[0]}'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity).`,
+                                    message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout.propName}:'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity).`,
                                     filePath: relPath,
                                     line,
                                     column,

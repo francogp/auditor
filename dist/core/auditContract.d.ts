@@ -34,6 +34,7 @@ export interface AuditFinding {
     suiteId?: string;
     suiteName?: string;
     context?: string;
+    fixable?: boolean;
 }
 export declare const AUDIT_STATUSES: readonly ["passed", "failed", "skipped"];
 export type AuditExecutionStatus = (typeof AUDIT_STATUSES)[number];

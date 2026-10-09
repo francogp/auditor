@@ -178,18 +178,34 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       expect(violations).toHaveLength(0);
     });
 
-    it('honors // revert-ok: suppression when context lifecycle is managed externally', () => {
+    it('honors // scope-ok: suppression placed on preceding line', () => {
       const auditor = new TestableGsapFrameworkHygieneAuditor();
       auditor.testScanFile(
-        'src/components/ExternalRevert.vue',
+        'src/components/SuppressedPrecedingSelector.vue',
         `<script setup lang="ts">
-        // revert-ok: context returned to parent coordinator
-        const ctx = gsap.context(() => {});
+        import gsap from 'gsap';
+        // scope-ok: intentional full-page portal
+        gsap.to('.global-overlay', { opacity: 0 });
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-missing-context-revert');
+      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
       expect(violations).toHaveLength(0);
+    });
+
+    it('detects unscoped selector on timeline instances', () => {
+      const auditor = new TestableGsapFrameworkHygieneAuditor();
+      auditor.testScanFile(
+        'src/components/TimelineSelector.vue',
+        `<script setup lang="ts">
+        import gsap from 'gsap';
+        const tl = gsap.timeline();
+        tl.to('.unscoped-item', { opacity: 1 });
+        </script>`
+      );
+
+      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      expect(violations.length).toBe(1);
     });
   });
 });

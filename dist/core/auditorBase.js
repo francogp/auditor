@@ -23,6 +23,8 @@ import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCo
 import { isMainModule } from "../cli/cliUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfig.js";
 import { evaluateSuiteStatus } from "./suiteGating.js";
+import { AuditedDocument } from "./auditedDocument.js";
+export { AuditedDocument };
 enableCompileCache();
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
 export const ALWAYS_IGNORE_DIRS = new Set([
@@ -993,7 +995,8 @@ export class BaseAuditor {
                 ruleId: v.ruleId,
                 ruleDescription: ruleDesc,
                 suiteId: this.id,
-                suiteName: this.name
+                suiteName: this.name,
+                fixable: v.fixable
             });
         }
         else {
@@ -1008,7 +1011,8 @@ export class BaseAuditor {
                     ruleId: v.ruleId,
                     ruleDescription: ruleDesc,
                     suiteId: this.id,
-                    suiteName: this.name
+                    suiteName: this.name,
+                    fixable: v.fixable
                 });
             }
         }
@@ -1306,6 +1310,19 @@ export class BaseAuditor {
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export class FileScanAuditor extends BaseAuditor {
+    /**
+     * Primary file scanning entry point receiving an immutable AuditedDocument.
+     * By default, delegates to scanFile(relPath, content, sourceFile, doc).
+     */
+    scanDocument(doc) {
+        return this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : undefined, doc);
+    }
+    /**
+     * Overridable file scanning method for sub-auditors.
+     */
+    scanFile(_relPath, _content, _sourceFile, _doc) {
+        // Can be overridden by subclasses
+    }
     constructor(options) {
         super(options.coverage || options.roots !== undefined
             ? options
@@ -1315,18 +1332,61 @@ export class FileScanAuditor extends BaseAuditor {
      * Adds a violation calculating 1-indexed line and column numbers from a string offset.
      */
     addViolationAtMatch(params) {
-        const preceding = params.content.slice(0, params.matchIndex);
-        const line = preceding.split('\n').length;
-        const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
+        const pos = params.doc
+            ? params.doc.getLineAndColumn(params.matchIndex)
+            : (() => {
+                const preceding = params.content.slice(0, params.matchIndex);
+                const line = preceding.split('\n').length;
+                const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
+                return { line, column, lineText: params.context ?? '' };
+            })();
         this.addViolation({
             ruleId: params.ruleId,
             severity: params.severity ?? 'error',
             filePath: params.filePath,
-            line,
-            column,
+            line: pos.line,
+            column: pos.column,
             message: params.message,
-            context: params.context
+            context: params.context ?? pos.lineText.trim()
         });
+    }
+    /**
+     * High-level pattern scanner that skips comments and strings automatically
+     * and verifies escape hatches before registering violations.
+     */
+    scanSafePattern(doc, options, onMatch) {
+        const skipComments = options.skipComments ?? true;
+        const skipStrings = options.skipStrings ?? true;
+        const regex = new RegExp(options.regex.source, options.regex.flags.includes('g') ? options.regex.flags : options.regex.flags + 'g');
+        let m;
+        while ((m = regex.exec(doc.rawContent)) !== null) {
+            const matchIdx = m.index;
+            if (skipComments && doc.isInsideComment(matchIdx)) {
+                continue;
+            }
+            if (skipStrings && doc.isInsideString(matchIdx)) {
+                continue;
+            }
+            const pos = doc.getLineAndColumn(matchIdx);
+            if (doc.hasEscapeHatch(pos.line, options.ruleId)) {
+                continue;
+            }
+            if (onMatch) {
+                const shouldContinue = onMatch(m, pos);
+                if (shouldContinue === false)
+                    continue;
+            }
+            const msg = typeof options.message === 'function' ? options.message(m, pos) : options.message;
+            this.addViolation({
+                ruleId: options.ruleId,
+                filePath: doc.relPath,
+                line: pos.line,
+                column: pos.column,
+                message: msg,
+                severity: options.severity ?? 'error',
+                context: pos.lineText.trim()
+            });
+        }
     }
     async resolveEffectiveAst(astContext) {
         if (astContext || !this.requiresAst)
@@ -1345,9 +1405,12 @@ export class FileScanAuditor extends BaseAuditor {
             this.unrecordScanned(relPath);
             return;
         }
-        const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
+        const doc = new AuditedDocument(file, content, relPath, effectiveAst);
         const prevTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
-        await this.scanFile(relPath, content, sourceFile);
+        await this.scanDocument(doc);
+        if (this.isFixActive() && doc.hasFixes()) {
+            doc.applyFixesToFile();
+        }
         this.recordScanned(relPath);
         const newTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
         if (newTotalEvals === prevTotalEvals) {

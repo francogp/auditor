@@ -7,6 +7,7 @@
 export * from "./core/auditContract.js";
 export * from "./core/auditConfig.js";
 export * from "./core/auditorBase.js";
+export * from "./core/auditedDocument.js";
 export * from "./core/astContext.js";
 export * from "./core/streamingRunner.js";
 export * from "./core/unifiedTheme.js";

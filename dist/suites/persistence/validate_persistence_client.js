@@ -80,8 +80,14 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
             const matchIndex = match.index;
             const lineNum = content.slice(0, matchIndex).split('\n').length;
             const line = lines[lineNum - 1] ?? '';
-            if (isCommentLine(line.trim()) || this.hasStorageEscapeHatch(line))
+            const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
+            const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
+            if (isCommentLine(line.trim()) ||
+                this.hasStorageEscapeHatch(line) ||
+                this.hasStorageEscapeHatch(prevLine) ||
+                this.hasStorageEscapeHatch(prevPrevLine)) {
                 continue;
+            }
             const rawKeyArg = match[1]?.trim() ?? '';
             // Check 1: Uncoordinated save bypass
             if (!isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
@@ -129,23 +135,64 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
         return Array.from(this.authorizedSaveFiles).some(auth => normalized.endsWith(auth) || normalized.includes(auth));
     }
     hasStorageEscapeHatch(line) {
-        return line.includes('// storage-ok:') || line.includes('/* storage-ok:');
+        return /\/\/\s*storage-ok:|\/\*\s*storage-ok:/i.test(line);
     }
     isInsideTryCatch(content, position) {
         const preceding = content.slice(0, position);
-        const tryIndex = preceding.lastIndexOf('try');
-        if (tryIndex === -1)
-            return false;
-        // Check if there is an unclosed try block between tryIndex and position
-        const textBetween = content.slice(tryIndex, position);
-        let openBraces = 0;
-        for (const char of textBetween) {
-            if (char === '{')
-                openBraces++;
-            else if (char === '}')
-                openBraces--;
+        const tryRegex = /\btry\s*\{/g;
+        let match;
+        while ((match = tryRegex.exec(preceding)) !== null) {
+            const openBraceIdx = match.index + match[0].indexOf('{');
+            let braceDepth = 1;
+            let i = openBraceIdx + 1;
+            const limit = position;
+            while (i < limit && braceDepth > 0) {
+                const ch = content[i];
+                if (ch === "'" || ch === '"' || ch === '`') {
+                    const quote = ch;
+                    i++;
+                    while (i < limit) {
+                        if (content[i] === '\\') {
+                            i += 2;
+                        }
+                        else if (content[i] === quote) {
+                            i++;
+                            break;
+                        }
+                        else {
+                            i++;
+                        }
+                    }
+                    continue;
+                }
+                if (ch === '/' && content[i + 1] === '/') {
+                    i += 2;
+                    while (i < limit && content[i] !== '\n') {
+                        i++;
+                    }
+                    continue;
+                }
+                if (ch === '/' && content[i + 1] === '*') {
+                    i += 2;
+                    while (i < limit && !(content[i] === '*' && content[i + 1] === '/')) {
+                        i++;
+                    }
+                    i = Math.min(limit, i + 2);
+                    continue;
+                }
+                if (ch === '{') {
+                    braceDepth++;
+                }
+                else if (ch === '}') {
+                    braceDepth--;
+                }
+                i++;
+            }
+            if (braceDepth > 0) {
+                return true;
+            }
         }
-        return openBraces > 0;
+        return false;
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

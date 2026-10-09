@@ -88,6 +88,7 @@ Architecture & Tooling Engineers.
 - [`auditorContractConformance.ts`](./auditorContractConformance.ts): Dynamic auditor discovery, constructor contract, metadata validation, and test conformance engine.
 - [`auditorEnvironment.ts`](./auditorEnvironment.ts): Environment detection helper checking strictly for `AUDITOR_ENV=production`.
 - [`auditPathPredicates.ts`](./auditPathPredicates.ts): Project root matching, path category predicates, and Z-Layers resolution helpers.
+- [`auditedDocument.ts`](./auditedDocument.ts): Central AuditedDocument engine providing O(log N) line lookup, lexical indexing, Vue SFC blocks, and auto-fix coordination.
 - [`configFileRegistry.ts`](./configFileRegistry.ts): Centralized registry for dynamic configuration file requirements and auto-fix scaffolding declared across sub-auditors and extensions.
 - [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.
 - [`fileTreeRenderer.ts`](./fileTreeRenderer.ts): Box-Drawing hierarchical file and finding tree renderer.

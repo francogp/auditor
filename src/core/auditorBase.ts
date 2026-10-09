@@ -58,6 +58,9 @@ import { type AuditEngineConfig, getAuditConfig, loadAuditConfig } from './audit
 import { evaluateSuiteStatus } from './suiteGating.ts';
 import type { SharedAstContext } from './astContext.ts';
 import type ts from 'typescript';
+import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
+
+export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
 
 enableCompileCache();
 
@@ -760,6 +763,7 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly column?: number;
   readonly message: string;
   readonly context?: string;
+  readonly fixable?: boolean;
 }
 
 /**
@@ -1297,7 +1301,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         ruleId: v.ruleId,
         ruleDescription: ruleDesc,
         suiteId: this.id,
-        suiteName: this.name
+        suiteName: this.name,
+        fixable: v.fixable
       });
     } else {
       if (!this.context.values['errors-only']) {
@@ -1311,7 +1316,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
           ruleId: v.ruleId,
           ruleDescription: ruleDesc,
           suiteId: this.id,
-          suiteName: this.name
+          suiteName: this.name,
+          fixable: v.fixable
         });
       }
     }
@@ -1661,7 +1667,20 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
-  protected abstract scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void | Promise<void>;
+  /**
+   * Primary file scanning entry point receiving an immutable AuditedDocument.
+   * By default, delegates to scanFile(relPath, content, sourceFile, doc).
+   */
+  protected scanDocument(doc: AuditedDocument): void | Promise<void> {
+    return this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : undefined, doc);
+  }
+
+  /**
+   * Overridable file scanning method for sub-auditors.
+   */
+  protected scanFile(_relPath: string, _content: string, _sourceFile?: ts.SourceFile, _doc?: AuditedDocument): void | Promise<void> {
+    // Can be overridden by subclasses
+  }
 
   constructor(options: AuditorOptions<TRuleId>) {
     super(options.coverage || options.roots !== undefined
@@ -1681,20 +1700,80 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
     message: string;
     severity?: FindingSeverity;
     context?: string;
+    doc?: AuditedDocument;
   }): void {
-    const preceding = params.content.slice(0, params.matchIndex);
-    const line = preceding.split('\n').length;
-    const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
+    const pos = params.doc
+      ? params.doc.getLineAndColumn(params.matchIndex)
+      : (() => {
+          const preceding = params.content.slice(0, params.matchIndex);
+          const line = preceding.split('\n').length;
+          const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
+          return { line, column, lineText: params.context ?? '' };
+        })();
 
     this.addViolation({
       ruleId: params.ruleId,
       severity: params.severity ?? 'error',
       filePath: params.filePath,
-      line,
-      column,
+      line: pos.line,
+      column: pos.column,
       message: params.message,
-      context: params.context
+      context: params.context ?? pos.lineText.trim()
     });
+  }
+
+  /**
+   * High-level pattern scanner that skips comments and strings automatically
+   * and verifies escape hatches before registering violations.
+   */
+  protected scanSafePattern(
+    doc: AuditedDocument,
+    options: {
+      regex: RegExp;
+      ruleId: TRuleId;
+      message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+      severity?: FindingSeverity;
+      skipComments?: boolean;
+      skipStrings?: boolean;
+    },
+    onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void
+  ): void {
+    const skipComments = options.skipComments ?? true;
+    const skipStrings = options.skipStrings ?? true;
+    const regex = new RegExp(options.regex.source, options.regex.flags.includes('g') ? options.regex.flags : options.regex.flags + 'g');
+    let m: RegExpExecArray | null;
+
+    while ((m = regex.exec(doc.rawContent)) !== null) {
+      const matchIdx = m.index;
+
+      if (skipComments && doc.isInsideComment(matchIdx)) {
+        continue;
+      }
+      if (skipStrings && doc.isInsideString(matchIdx)) {
+        continue;
+      }
+
+      const pos = doc.getLineAndColumn(matchIdx);
+      if (doc.hasEscapeHatch(pos.line, options.ruleId)) {
+        continue;
+      }
+
+      if (onMatch) {
+        const shouldContinue = onMatch(m, pos);
+        if (shouldContinue === false) continue;
+      }
+
+      const msg = typeof options.message === 'function' ? options.message(m, pos) : options.message;
+      this.addViolation({
+        ruleId: options.ruleId,
+        filePath: doc.relPath,
+        line: pos.line,
+        column: pos.column,
+        message: msg,
+        severity: options.severity ?? 'error',
+        context: pos.lineText.trim()
+      });
+    }
   }
 
   private async resolveEffectiveAst(astContext?: SharedAstContext): Promise<SharedAstContext | undefined> {
@@ -1717,9 +1796,12 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
       this.unrecordScanned(relPath);
       return;
     }
-    const sourceFile = effectiveAst && this.requiresAst ? effectiveAst.getSourceFile(file, content) : undefined;
+    const doc = new AuditedDocument(file, content, relPath, effectiveAst);
     const prevTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
-    await this.scanFile(relPath, content, sourceFile);
+    await this.scanDocument(doc);
+    if (this.isFixActive() && doc.hasFixes()) {
+      doc.applyFixesToFile();
+    }
     this.recordScanned(relPath);
     const newTotalEvals = catalog.reduce((acc, r) => acc + this.getEvaluations(r), 0);
     if (newTotalEvals === prevTotalEvals) {
