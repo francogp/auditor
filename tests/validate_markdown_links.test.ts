@@ -201,6 +201,23 @@ describe('MarkdownLinkAuditor', () => {
         await fs.rm(sandbox, { recursive: true, force: true });
       }
     });
+
+    it('audits AGENTS.md files and detects broken links within them', async () => {
+      const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-agents-'));
+      try {
+        await fs.writeFile(
+          path.join(sandbox, 'AGENTS.md'),
+          '# Purpose\n\n[Broken Link](./non_existent_module.ts)\n',
+          'utf-8'
+        );
+        const auditor = new MarkdownLinkAuditor([], sandbox);
+        const result = await auditor.execute();
+        expect(result.status).toBe('failed');
+        expect(result.findings.some(f => f.ruleId === 'markdown-broken-relative-link' && f.file.includes('AGENTS.md'))).toBe(true);
+      } finally {
+        await fs.rm(sandbox, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('Clean Execution', () => {

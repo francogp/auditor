@@ -24,6 +24,7 @@ Master setup scripts (`setup-linux.sh` and `setup-windows.ps1`) are distributed 
 > **Prohibition on Local Host Patches**: AI agents and developers **ARE STRICTLY PROHIBITED** from applying local patches, ad-hoc rewrites, or logic mutations to `setup-linux.sh` or `setup-windows.ps1` in host projects to circumvent version synchronization issues, NVM edge cases, or runtime behaviors.
 
 **Mandatory Protocol for Agents**:
+
 1. If an agent identifies a defect, version discrepancy (e.g. Node vs NPM in `--declared-versions`), or needed optimization in `setup-linux.sh` or `setup-windows.ps1`:
 2. **DO NOT modify the script locally within the host project.**
 3. **Proactively warn the user**, detailing the precise root cause and stating clearly that the fix **must be communicated to the `@francogp/auditor` maintainer** so it is resolved upstream in the master framework and cleanly distributed across all projects via `npm run auditor:update`.
@@ -34,7 +35,7 @@ Master setup scripts (`setup-linux.sh` and `setup-windows.ps1`) are distributed 
 
 Two canonical mechanisms exist for extending the setup workflow:
 
-```
+```text
 ┌────────────────────────────────────────────────────────┐
 │             setup-linux.sh / setup-windows.ps1          │
 │  1. Node.js 26+ check & NVM resolution                 │
@@ -56,7 +57,8 @@ Two canonical mechanisms exist for extending the setup workflow:
 The setup runner automatically searches for a `scripts/setup/plugins/` directory at the project root. If found, it executes all executable scripts in alphabetical/numerical order.
 
 #### Recommended Directory Structure
-```
+
+```text
 scripts/setup/plugins/
 ├── 01-docker-db.sh          # Linux/macOS: Starts local DB container
 ├── 01-docker-db.ps1         # Windows: Starts local DB container
@@ -65,6 +67,7 @@ scripts/setup/plugins/
 ```
 
 #### Naming Conventions & Numerical Ordering
+
 - Use two-digit numerical prefixes (`01-`, `02-`, `10-`) to ensure deterministic execution order.
 - Every Bash plugin must have an identically functioning PowerShell counterpart (and vice-versa) to guarantee cross-platform parity.
 
@@ -94,6 +97,7 @@ The base setup script executes `npm run env:post-setup --if-present` upon comple
 ### Plugin 1: Local Docker Database Container
 
 #### Linux / macOS (`01-docker-db.sh`)
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
@@ -128,6 +132,7 @@ fi
 ```
 
 #### Windows (`01-docker-db.ps1`)
+
 ```powershell
 # Requires -Version 5.1
 $ErrorActionPreference = 'Stop'
@@ -173,6 +178,7 @@ Write-Host "  ✅ Container $containerName created and listening on port $dbPort
 ### Plugin 2: Local SSL Certificates with `mkcert`
 
 #### Linux / macOS (`02-local-ssl-certs.sh`)
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
@@ -202,6 +208,7 @@ fi
 ```
 
 #### Windows (`02-local-ssl-certs.ps1`)
+
 ```powershell
 # Requires -Version 5.1
 $ErrorActionPreference = 'Stop'

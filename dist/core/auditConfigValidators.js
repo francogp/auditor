@@ -10,7 +10,7 @@ import { validateConstantsExemptGlobs } from "./auditConfigAntiAbuse.js";
 export { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES };
 function checkPersistenceSubsystem(config, missing) {
     const engine = config.persistence?.engine;
-    if (!engine || !PERSISTENCE_ENGINES.includes(engine)) { // no-domain: Non-domain utility collection or data structure
+    if (!engine || !PERSISTENCE_ENGINES.some(e => e === engine)) {
         missing.push(`  - 'persistence': Motor de persistencia no válido ('${engine}'). Debe ser uno de: ${PERSISTENCE_ENGINES.join(' | ')}.`);
     }
 }
@@ -29,7 +29,7 @@ function checkPackageGovernanceSubsystem(config, missing) {
     if (typeof config.packageDistribution?.enabled !== 'boolean') {
         missing.push("  - 'packageDistribution': El campo 'enabled' debe ser booleano (true o false).");
     }
-    else if (config.packageDistribution.level && !PACKAGE_DISTRIBUTION_LEVELS.includes(config.packageDistribution.level)) { // no-domain: Non-domain utility collection or data structure
+    else if (config.packageDistribution.level && !PACKAGE_DISTRIBUTION_LEVELS.some(lvl => lvl === config.packageDistribution?.level)) {
         missing.push(`  - 'packageDistribution': Nivel de distribución no válido ('${config.packageDistribution.level}'). Debe ser uno de: ${PACKAGE_DISTRIBUTION_LEVELS.join(' | ')}.`);
     }
     if (config.packageScripts?.recommendedScripts !== undefined && typeof config.packageScripts.recommendedScripts !== 'boolean') {
@@ -65,7 +65,7 @@ export function checkUiSubsystems(config, missing) {
     if (typeof config.agentPlugin?.enabled !== 'boolean') {
         missing.push("  - 'agentPlugin': El campo 'enabled' debe ser booleano (true o false).");
     }
-    if (config.fallow?.maxTargetPriority && !FALLOW_TARGET_PRIORITIES.includes(config.fallow.maxTargetPriority)) { // no-domain: Non-domain utility collection or data structure
+    if (config.fallow?.maxTargetPriority && !FALLOW_TARGET_PRIORITIES.some(p => p === config.fallow?.maxTargetPriority)) {
         missing.push(`  - 'fallow': Prioridad de objetivo no válida ('${config.fallow.maxTargetPriority}'). Debe ser una de: ${FALLOW_TARGET_PRIORITIES.join(' | ')}.`);
     }
     if (config.runner?.maxStalenessMinutes !== undefined && config.runner.maxStalenessMinutes <= 0) {

@@ -99,8 +99,41 @@ describe('report_fallow CLI Tool', () => {
     expect(consoleLogSpy).toHaveBeenCalled();
   });
 
+  it('runs report for category=circular in json and table mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=circular', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=circular', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
+  it('runs report for category=exports in json and table mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=exports', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=exports', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
+  it('runs report for category=security in json and table mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=security', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=security', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
+  it('runs report for category=boundaries in json and table mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=boundaries', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=boundaries', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
   it('handles unknown category gracefully', () => {
     process.argv = ['node', 'report_fallow.ts', 'category=unknown'];
     expect(() => runFallowReportCli()).not.toThrow();
   });
 });
+

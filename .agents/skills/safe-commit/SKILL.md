@@ -11,6 +11,8 @@ description: MANDATORY safeguard for repository operations. You MUST trigger and
 >
 > Making changes to configurations to produce a "fake pass" is **STRICTLY AND CATEGORICALLY PROHIBITED**. If defects cannot be legitimately resolved in the source code or via canonical auto-repair (`npm run auditor:fix`), the agent **MUST HALT SAFE-COMMIT IMMEDIATELY**, report the exact defects truthfully, and **OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** before touching any configuration.
 
+---
+
 > [!IMPORTANT]
 > **PROMPT-DRIVEN TRIGGER ONLY**: Activate when the user explicitly requests a commit or push. Do NOT activate for automatic agent-internal saves or background operations.
 >
@@ -28,14 +30,14 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Read before continuing** | "I ran it" ≠ "I verified the result." Read every output before proceeding. |
 | **No optional phases** | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN. |
 | **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
-| **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 5 validation gates exit cleanly with code 0 on the final code. |
+| **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 3 validation gates exit cleanly with code 0 on the final code. |
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
 | **Categorical Prohibition on Modifying or Turning Off Audit Configurations (`audit.config.ts`, Linters, Subsystems)** | During `/safe-commit`, agents are STRICTLY AND CATEGORICALLY FORBIDDEN from disabling, turning off, reverting, or tampering with `.auditor/audit.config.ts` (such as setting `domain.enabled: false`, `bundle.enabled: false`, `enforceTargets: false`, neutering thresholds, or adding ad-hoc whitelist entries), ESLint configurations, Stylelint configurations, or Fallow configurations to make gates pass or silence findings. If an audit gate reveals errors or warnings (even hundreds or thousands), THEY ARE REAL DEFECTS. The agent MUST NOT touch configuration to fake a clean pass. If issues cannot be legitimately resolved in the source code or via canonical auto-fix (`npm run auditor:fix`), the agent MUST STOP the safe-commit immediately, halt Phase 2, report the exact defects to the user, and ask how they wish to proceed. Silencing rules or flipping config toggles during safe-commit is considered a critical architectural violation and gross misconduct. |
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
-| **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.3). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.3 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
+| **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.2). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.2 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
 | **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
-| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` (default `'es'`) dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), the completion template, AND the narrative explanations in brain artifacts (`learning_proposal.md`, `walkthrough.md`); `config.documentation.language` (default `'en'`) dynamically governs commit messages, `scratch/release_notes.txt`, and git tags, as well as code contracts embedded within artifacts. Zero hardcoded languages. |
+| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` (default `'es'`) dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), the completion template, AND the narrative explanations in brain artifacts (`plan_learning_proposal.md`, `walkthrough.md`); `config.documentation.language` (default `'en'`) dynamically governs commit messages, `scratch/release_notes.txt`, and git tags, as well as code contracts embedded within artifacts. Zero hardcoded languages. |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -46,35 +48,29 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 
 ```mermaid
 graph TD
-    A0[Phase 0\nCreate task.md] --> A1[Phase 1\nTest Gaps + Safety Backup\n+ Version Bump Decision]
+    A0["Phase 0\nCreate task.md"] --> A1["Phase 1\nTest Gaps + Safety Backup\n+ Version Bump Decision"]
     A1 --> LOOP
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        C0[2.1 git fetch origin\n+ npm run auditor\n(0 errors + warning ratchet)] -->|Errors / new warnings| REPAIR[🛠️ Repair:\n1. npm run auditor:fix\n2. Manual code / DOX editing]
-        C0 -->|0 errors, 0 new warnings| C2[2.2 npm run test]
+        T["2.1 Tests & Cobertura\n(npm run test:coverage / test / Skip)"] -->|"Pass o Cobertura Skip"| B["2.2 The Master Build Gate\nnpm run build\n(auditor fuente + tsc + auditor:build)"]
+        B -->|"Exit 0 ✅"| F["2.3 Fallow Health Gate\nnpm run auditor:fallow"]
         
-        C2 -->|Tests Fail| REPAIR
-        C2 -->|100% Pass| C3[2.3 npm run build\n🔒 THE BUILD GATE (Single Run)]
-        
-        C3 -->|Exit code ≠ 0 / Fail| REPAIR
-        C3 -->|Exit 0 ✅| C4[2.4 Post-Build Artifact Audit\nnpm run auditor:build]
-        C4 -->|Chunk bloat / budget exceeded| REPAIR
-        C4 -->|Optimized ✅| C5[2.5 Fallow Health & Quality Gate\nnpm run auditor:fallow]
-        
-        C5 -->|Score < 85 or new issues| REPAIR
-        REPAIR -->|Re-verify full cycle| C0
+        T -->|"Tests Fallan / Cobertura Baja"| REPAIR["🛠️ Reparación:\n1. npm run auditor:fix\n2. Edición de código y tests"]
+        B -->|"Exit Code != 0 / Error"| REPAIR
+        F -->|"Score < 85 / Nuevos Defectos"| REPAIR
+        REPAIR -->|"Re-verificar ciclo completo"| T
     end
 
-    C5 -->|Score ≥ 85 & Build Exit 0 & Chunks OK| EXIT_GATE[✅ Loop Exit]
-    EXIT_GATE --> A3[Phase 3\nLessons + Walkthrough]
-    A3 --> STOP1{🛑 USER APPROVES\nlearning_proposal.md?}
-    STOP1 -->|Approved| A4[Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push]
+    F -->|"Exit 0 y Score >= 85"| EXIT_GATE["✅ Loop Exit"]
+    EXIT_GATE --> A3["Phase 3\nLessons + Walkthrough"]
+    A3 --> STOP1{"🛑 USER APPROVES\nplan_learning_proposal.md?"}
+    STOP1 -->|Approved| A4["Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push"]
 
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
-    style C0 fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
-    style C3 fill:#e94560,stroke:#fff,stroke-width:2px,color:#fff
-    style C4 fill:#162447,stroke:#00b4d8,stroke-width:2px,color:#fff
+    style T fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
+    style B fill:#e94560,stroke:#fff,stroke-width:2px,color:#fff
+    style F fill:#162447,stroke:#00b4d8,stroke-width:2px,color:#fff
     style EXIT_GATE fill:#0f3460,stroke:#00b4d8,stroke-width:2px,color:#fff
     style STOP1 fill:#533483,stroke:#fff,stroke-width:2px,color:#fff
 ```
@@ -103,22 +99,27 @@ The temporary working directory is `<appDataDir>/brain/<conversation-id>/scratch
 This phase audits test coverage for modified logic and captures a zero-commit safety backup in the workspace. If subsequent audit auto-fixes or repairs corrupt logic, the patch file in `scratch/backups/` allows instantaneous recovery without polluting git history with premature, unverified commits.
 
 **Step 1.1** — Inspect changes (`git status` & `git diff`)
+
 - Run `git status` to identify 100% of modified, untracked, and deleted files across the entire repository.
 - Pay special attention to `.auditor/audit-baseline.json`: if warnings were resolved during the task, `npm run auditor` auto-shrinks this file. It is a versioned framework artifact and MUST be staged and committed alongside your code changes.
 - Record the full list under `### Workspace Safety Backup` in `task.md`.
 
 **Step 1.2** — Test Gap Analysis
+
 - Verify if any non-trivial logic was modified in `src/` without corresponding unit tests.
 - If gaps exist, write the unit tests immediately in `tests/` before moving forward.
 
 **Step 1.3** — Record Baseline Health & Create Code-Only Safety Patch
+
 - Run `npm run auditor:fallow` (or `fallow health --format json --quiet`) to record `BASELINE_HEALTH`.
 - Create the safety patch:
+
   ```bash
   mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch
   ```
 
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
+
 - Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, commit intent, and fresh candidate version stamps.
 - **Mandatory Analysis Presentation in Chat Before Prompting**:
   Before calling `ask_question`, the agent MUST display the complete Version Analysis breakdown table directly in the visible chat message (detected Git diff metrics, affected subsystems, candidate version options with their freshly updated build identifiers and timestamps `-build.YYYYMMDD-HHmmss`, and SemVer rationale), along with a clickable link to `task.md`. Calling `ask_question` blindly without displaying the version candidates table in chat is STRICTLY FORBIDDEN, as the modal blocks the UI and conceals the analysis.
@@ -135,13 +136,16 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
     4. `Solo actualizar build y timestamp: BUILD (<candidates.build>) - Mantener versión base <baseVersion> sin salto en mayor, menor ni bugfix, estampando nueva build y timestamp`
     5. `Mantener versión actual intacta (<currentVersion>) sin actualizar build ni versión base (solo para ramas de trabajo intermedias)`
 - If the user approves a bump, execute immediately:
+
   ```bash
   npm run version:bump -- --type=<approved_type>
   # or directly: auditor-version bump --type=<approved_type>
   ```
+
   *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)*
 
 **Step 1.5** — Pre-Draft Commit Message
+
 - Pre-draft the commit message in `task.md` following [commit-standards.md](./references/commit-standards.md).
 
 **✓ Completion gate**: Mark Phase 1 `[x]` in `task.md`. Proceed to Phase 2.
@@ -150,65 +154,70 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 ## Phase 2: Active Verification & Repair Loop 🔁
 
-You must execute the 5 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from 2.1 until all pass consecutively.
+You must execute the 3 gates sequentially. If ANY gate fails, execute the repair protocol and restart the loop from Gate 2.1 until all pass consecutively.
 
-### 2.1 Full Audit & Warning Ratchet (`npm run auditor`)
-- Run `git fetch origin` first (if remote is reachable) so `ratchet.productionRef` (default `origin/main`) reflects the latest production baseline.
-- Run `npm run auditor` (or `auditor`). Never add presets, families, or filters: the ratchet only runs on the full default run.
-- MUST exit 0: **0 errors** and **0 new warnings** (`🔒 Ratchet de warnings OK`).
-- If new warnings appear, they are listed by file and line. They MUST be resolved at the code source, even in pre-existing or untouched files. Never edit `.auditor/audit-baseline.json` by hand, re-run `--init-baseline`, or disable the ratchet.
-- When warnings are resolved, `npm run auditor` shrinks `.auditor/audit-baseline.json` automatically. That file MUST be included in the commit.
-- Inspect `meta.ratchet` in `scratch/audits/latest_audit.json` to verify the verdict (`status`, `newWarnings`, `resolvedWarnings`, `baselineUpdated`).
+### 2.1 Dynamic Test Suite & Coverage Gate (`npm run test:coverage` / `npm test` / Skip)
 
-### 2.2 Test Suite Execution
-- Run `npm run test` (or `npm test`).
-- 100% of automated unit and integration suites must pass.
+- **Dynamic Configuration Check**: Consult `.auditor/audit.config.ts` (`config.testCoverage`):
+  - **Coverage Active (`testCoverage.enabled !== false && testCoverage.enforceInAudit !== false`)**:
+    Run `npm run test:coverage` (or `vitest run --coverage`). 100% of automated unit and integration suites must pass AND emit a freshly updated `coverage/coverage-final.json` artifact for the upstream auditor.
+  - **Coverage Inactive / Disabled (`testCoverage.enabled === false || testCoverage.enforceInAudit === false`)**:
+    The coverage reporting requirement is dynamically marked as **`[SKIPPED]`**. Run `npm run test` (or `npm test`) to verify that 100% of test suites pass without coverage instrumentation overhead.
+  - **No Tests Declared / Deactivated**:
+    If the project does not declare automated test scripts in `package.json` or tests are explicitly disabled in configuration, Gate 2.1 is marked as **`[SKIPPED]`** and execution advances immediately to Gate 2.2.
 
-### 2.3 The Build Gate (`npm run build`)
+### 2.2 The Master Build & Audit Gate (`npm run build`)
+
 - Run `npm run build`.
-- Compiles the production bundle with strict exit code 0. Zero bypasses.
-- **Strict Single Build**: This is the ONLY time `npm run build` executes in the entire workflow. Because any version bump was already applied in Step 1.4, this build compiles the definitive version directly into `dist/`.
+- **Strict Single Build & Atomic Verification**: This is the ONLY time `npm run build` executes in the workflow. Because `validate_audit_config` mandates that `"build"` chains `"npm run auditor && <compile> && npm run auditor:build"`:
+  1. **Pre-build Source Audit & Ratchet**: `npm run auditor` runs first, evaluating source code against 0 errors and 0 new warnings vs `ratchet.productionRef`, verifying freshly generated test coverage (if active) or skipping it cleanly (if disabled).
+  2. **Production Compilation**: TypeScript / bundler compiles the stamped code into `dist/` with strict exit code 0.
+  3. **Post-build Artifact Audit**: `npm run auditor:build` executes immediately post-compilation, evaluating chunk budgets, entrypoint types, and distribution hygiene in `dist/`.
+- Strict exit code 0. Zero bypasses.
 
-### 2.4 Post-Build Compiled Artifact Audit (`npm run auditor:build`)
-- Run `npm run auditor:build` (or `auditor preset=build`). If `npm run build` in Gate 2.3 already chained and executed it, inspect its output from Gate 2.3.
-- Audits compiled production artifacts in `dist/` (client chunk budgets in `dist/assets/`, package export maps, `.d.ts` entrypoints, and bundle budgets).
-- Exclusively runs suites that declare `capabilities.requiresBuild === true`.
+### 2.3 Fallow Health & Quality Gate (`npm run auditor:fallow`)
 
-### 2.5 Fallow Health & Quality Gate (`npm run auditor:fallow`)
 - Run `npm run auditor:fallow`.
 - Score must be >= 85 and >= `BASELINE_HEALTH`, with zero unaddressed high-severity issues.
 
-### Repair Protocol (on ANY Gate Failure):
+### Repair Protocol (on ANY Gate Failure)
+
 1. **Auto-Repair**: Run `npm run auditor:fix` (or `auditor fix`) to automatically repair fixable lint/style/import/config issues.
 2. **Manual Repair**: Manually resolve remaining source code, test, build, or DOX defects.
-3. **Loop Restart**: Always re-start the loop from **Gate 2.1** (`npm run auditor`), ensuring all 5 gates pass consecutively on the final code.
+3. **Loop Restart**: Always re-start the loop from **Gate 2.1**, ensuring all 3 gates pass consecutively on the final code.
 
-**✓ Completion gate**: All 5 gates passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
+**✓ Completion gate**: All 3 gates passed consecutively on the final code. Mark Phase 2 `[x]` in `task.md`. Proceed to Phase 3.
 
 ---
 
 ## Phase 3: Lessons Extraction & User Approval Gate (🛑 HARD STOP)
 
 **Step 3.1** — Extract Lessons Learned (`learn-with-docs`)
+
 - Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern lessons extraction and target DOX placement.
 - Analyze debugging discoveries, architectural insights, or edge cases resolved during the task.
 - Traverse the DOX index hierarchy (`AGENTS.md`) and documentation for inconsistencies or legacy code compared to the new learning.
-- Draft `<appDataDir>/brain/<conversation-id>/learning_proposal.md`.
+- Draft `<appDataDir>/brain/<conversation-id>/plan_learning_proposal.md` following canonical Implementation Plan formatting.
 
 **Step 3.2** — Create Walkthrough
+
 - Document changes and verification evidence in `<appDataDir>/brain/<conversation-id>/walkthrough.md`.
 - Save `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: false`, and a detailed `Summary`). `walkthrough.md` is an informative verification record of past actions and MUST NOT request execution feedback.
 
 **Step 3.3** — Workspace Scratch Cleanup
+
 - Remove transient debug files, leaving only `scratch/backups/`.
 
 **Step 3.4** — Learning Proposal & Final Commit Approval Gate (Regular Text & Artifact Review)
+
 - **Artifact Governance (`RequestFeedback`)**:
-  - `learning_proposal.md` is the actionable, executable artifact governing Phase 4 (applying lessons to DOX/docs and proceeding to commit). It MUST be saved via `learn-with-docs` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which attaches the native `[ Proceed ]` execution button directly to `Learning Proposal` in the Antigravity UI.
-  - `walkthrough.md` is an informative historical record and verification evidence. It MUST have `RequestFeedback: false` so it never displaces or usurps the Proceed action button of `learning_proposal.md`.
-  - *(Exception: If and only if a commit involves zero architectural lessons and `learning_proposal.md` is completely omitted, `walkthrough.md` may set `RequestFeedback: true` as the sole commit authorization artifact).*
-- **Mandatory Artifact Reference & Direct Linking in Regular Chat Text**:
-  The agent MUST present direct clickable Markdown links to both artifacts (`[learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) accompanied by a concise executive summary of key changes and target DOX paths directly in regular chat text. Do NOT dump the full raw file contents into the chat; point the user clearly to the artifacts so they can open, inspect, and review them in the Antigravity UI.
+  - `plan_learning_proposal.md` is the actionable, executable artifact governing Phase 4 (applying lessons to DOX/docs and proceeding to commit). It MUST be saved via `learn-with-docs` as an Implementation Plan (`# Implementation Plan: ...`) with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which attaches the native `[ Proceed ]` execution button directly to the Plan Card in the Antigravity UI.
+  - `walkthrough.md` is an informative historical record and verification evidence. It MUST have `RequestFeedback: false` so it never displaces or usurps the Proceed action button of `plan_learning_proposal.md`.
+  - *(Exception: If and only if a commit involves zero architectural lessons and `plan_learning_proposal.md` is completely omitted, `walkthrough.md` may set `RequestFeedback: true` as the sole commit authorization artifact).*
+- **Mandatory Artifact Reference & Direct Linking in Regular Chat Text (Zero Redundant Summaries)**:
+  - In strict compliance with `/antigravity-guide` and `<artifacts>` guidelines, AI agents MUST NEVER re-summarize the artifact's contents, diffs, or scope into the chat message.
+  - The agent MUST present direct clickable Markdown links to both artifacts (`👉 [plan_learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and highlight ONLY critical decisions or open questions requiring human input.
+  - Remind the user that they can review the plan in the interactive artifact card and click **`[ Proceed ]`**, or confirm in the chat.
 - **Absolute Prohibition on `ask_question` for Artifact Approval**:
   Invoking `ask_question` for artifact review is strictly prohibited because it suppresses chat text, blinds the conversation window, and creates an uninformative modal that conceals the artifact. The agent MUST ask for commit approval via regular chat text and stop calling tools so the user can inspect the artifacts in the Antigravity UI before deciding.
 
@@ -219,19 +228,24 @@ You must execute the 5 gates sequentially. If ANY gate fails, execute the repair
 ## Phase 4: Single Atomic Certified Commit & Release
 
 Once the user approves:
+
 - **Step 4.1**: Apply approved lessons and modernizations across targeted `AGENTS.md` files and affected documentation.
 - **Step 4.2**: Run pre-commit sanity check: `npm run auditor:md`.
 - **Step 4.3**: Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
 - **Step 4.4**: **Single Atomic Commit & Tag**:
   - If version was bumped in Step 1.4, write the synthesized message to a temporary file (`scratch/release_notes.txt`) and run the atomic chained command:
+
     ```bash
     git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt
     ```
+
     *(The tag annotation MUST contain 100% of the synthesized commit message and subsystem breakdown, ensuring GitHub Tags and Releases display the technical details rather than a blank "Release v...". The tag name MUST be strictly `v<base_version>` e.g. `v1.2.0`).*
   - If no version bump occurred:
+
     ```bash
     git add . && git commit -F scratch/release_notes.txt
     ```
+
 - **Step 4.5**: **Autonomous Git Push Prohibition & User Handoff**:
   - **AI AGENTS MUST NEVER EXECUTE `git push` AUTONOMOUSLY**: Publishing commits and tags to remote repositories (`origin`) is an external, irreversible operation. Once the atomic commit and tag are created locally, Phase 4 execution stops.
   - Do NOT run `git push` unless the user explicitly gave an unambiguous command in their prompt (e.g. "hace push", "push changes to remote").
@@ -246,7 +260,7 @@ Every completed safe-commit run MUST finish with a standardized Markdown templat
 
 ### Spanish Variant (`chatLanguage: 'es'`)
 
-```markdown
+````markdown
 # ✅ SAFE-COMMIT COMPLETADO CON ÉXITO
 
 ### Resumen de la Operación
@@ -255,14 +269,12 @@ Every completed safe-commit run MUST finish with a standardized Markdown templat
 - **Mensaje**: `<commit-title>`
 - **Archivos Modificados**: `<count>` archivos
 
-### Puertas de Calidad Verificadas (5/5)
+### Puertas de Calidad Verificadas (3/3)
 | Puerta | Descripción | Estado |
 |:---|:---|:---:|
-| 2.1 | `npm run auditor` (Auditoría completa + ratchet de warnings) | ✅ Aprobado (0 err, 0 warn nuevos) |
-| 2.2 | `npm run test` (Tests Automatizados) | ✅ Aprobado (100% pasando) |
-| 2.3 | `npm run build` (Single Build Mandate) | ✅ Aprobado (Exit 0) |
-| 2.4 | `npm run auditor:build` (Auditoría Post-Build de Artefactos) | ✅ Aprobado |
-| 2.5 | `npm run auditor:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
+| 2.1 | `npm run test:coverage` (Tests & Cobertura Dinámica) | ✅ Aprobado / Skip |
+| 2.2 | `npm run build` (Master Build: Auditoría + Compilación + Post-Build) | ✅ Aprobado (Exit 0) |
+| 2.3 | `npm run auditor:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
 
 ### Publicación Remota (Git Push)
 > ⚠️ **Control de Seguridad**: Por gobernanza del repositorio, el agente **NO** realiza push automático a ramas remotas sin petición explícita previa.
@@ -271,12 +283,14 @@ Para publicar los cambios y tags en el repositorio remoto, ejecuta manualmente:
 ```bash
 git push origin <branch> --follow-tags
 ```
+
 *O indícame explícitamente "hace push" si deseas que lo ejecute por ti.*
-```
+
+````
 
 ### English Variant (`chatLanguage: 'en'`)
 
-```markdown
+````markdown
 # ✅ SAFE-COMMIT SUCCESSFULLY COMPLETED
 
 ### Operation Summary
@@ -285,14 +299,12 @@ git push origin <branch> --follow-tags
 - **Message**: `<commit-title>`
 - **Modified Files**: `<count>` files
 
-### Quality Gates Verified (5/5)
+### Quality Gates Verified (3/3)
 | Gate | Description | Status |
 |:---|:---|:---:|
-| 2.1 | `npm run auditor` (Full audit + warning ratchet) | ✅ Passed (0 err, 0 new warn) |
-| 2.2 | `npm run test` (Automated Tests) | ✅ Passed (100% passing) |
-| 2.3 | `npm run build` (Single Build Mandate) | ✅ Passed (Exit 0) |
-| 2.4 | `npm run auditor:build` (Post-Build Artifact Audit) | ✅ Passed |
-| 2.5 | `npm run auditor:fallow` (Architecture & Health) | ✅ Passed (Score ≥ 85) |
+| 2.1 | `npm run test:coverage` (Automated Tests & Dynamic Coverage) | ✅ Passed / Skip |
+| 2.2 | `npm run build` (Master Build: Pre-Audit + Compile + Post-Audit) | ✅ Passed (Exit 0) |
+| 2.3 | `npm run auditor:fallow` (Architecture & Health) | ✅ Passed (Score ≥ 85) |
 
 ### Remote Publishing (Git Push)
 > ⚠️ **Security Control**: Repository governance strictly bars automated push to remote branches without prior explicit instructions.
@@ -301,6 +313,7 @@ To publish commits and tags to the remote repository, execute manually:
 ```bash
 git push origin <branch> --follow-tags
 ```
-*Or explicitly tell me "push" if you want me to execute it for you.*
-```
 
+*Or explicitly tell me "push" if you want me to execute it for you.*
+
+````

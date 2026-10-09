@@ -9,6 +9,23 @@
 export declare function isMainModule(metaUrl: string): boolean;
 export declare const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES: number;
 export declare const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
+export interface CliBootstrapResult {
+    readonly projectRoot: string;
+    readonly isRemote: boolean;
+    readonly auditorHomeDir: string;
+}
+/**
+ * Early Pre-flight CLI Bootstrap:
+ * Parses --project=<path>, --project <path>, project=<path>, -p <path>, -p=<path>
+ * before any configuration load or sub-auditor discovery.
+ * If targeting a remote project, verifies the directory and package.json,
+ * records AUDITOR_HOME_DIR and AUDIT_PROJECT_ROOT, and switches process.cwd().
+ */
+export declare function bootstrapCliProject(argv?: readonly string[]): CliBootstrapResult;
+/**
+ * Strips project-targeting CLI flags (--project, project=, -p) from an argument list.
+ */
+export declare function stripProjectCliArgs(argv: readonly string[]): string[];
 export interface ExecuteNodeCliOptions {
     cwd?: string;
     maxBuffer?: number;

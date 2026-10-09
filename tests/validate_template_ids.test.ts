@@ -93,6 +93,23 @@ describe('TemplateIdAuditor', () => {
       expect(violations[0]?.severity).toBe('error');
     });
 
+    it('detects button and interactive event bindings without id (template-missing-input-id)', () => {
+      const auditor = new TestableTemplateIdAuditor();
+      const sfc = `
+        <template>
+          <div>
+            <button type="submit">Submit</button>
+            <div @click="handleClick">Clickable</div>
+            <a @keydown.enter="handleEnter">Enterable</a>
+          </div>
+        </template>
+      `;
+      auditor.testScanFile('src/components/Interactive.vue', sfc);
+      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+      expect(violations.length).toBe(3);
+      expect(violations[0]?.severity).toBe('error');
+    });
+
     it('detects shared static id across different components (template-shared-static-id)', async () => {
       const auditor = new TestableTemplateIdAuditor();
       const sfc1 = `

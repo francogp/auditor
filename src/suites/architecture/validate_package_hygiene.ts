@@ -6,6 +6,7 @@ import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
 import type { AuditConfig } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
+import { getPackageJson } from '../../core/packageJson.ts';
 
 enableCompileCache();
 
@@ -40,11 +41,10 @@ export interface KnipReport {
 
 export function extractReferencedScriptDependencies(projectRoot: string): Set<string> {
   const referenced = new Set<string>();
-  const pkgJsonPath = path.resolve(projectRoot, 'package.json');
-  if (!fs.existsSync(pkgJsonPath)) return referenced;
+  const pkg = getPackageJson(projectRoot);
+  if (!pkg) return referenced;
 
   try {
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
     const scripts = pkg.scripts ? Object.values(pkg.scripts).join(' ') : '';
     const allDeps = [
       ...Object.keys(pkg.dependencies ?? {}),
@@ -114,22 +114,17 @@ function parseUnlistedDeps(fileIssue: KnipFileIssues, relFile: string): AuditFin
 
 export function extractOwnPackageBinaries(projectRoot: string): Set<string> {
   const binaries = new Set<string>();
-  const pkgJsonPath = path.resolve(projectRoot, 'package.json');
-  if (!fs.existsSync(pkgJsonPath)) return binaries;
+  const pkg = getPackageJson(projectRoot);
+  if (!pkg) return binaries;
 
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    if (typeof pkg.bin === 'string') {
-      if (pkg.name) {
-        binaries.add(pkg.name.replace(/^@[^/]+\//, ''));
-      }
-    } else if (pkg.bin && typeof pkg.bin === 'object') {
-      for (const binName of Object.keys(pkg.bin)) {
-        binaries.add(binName);
-      }
+  if (typeof pkg.bin === 'string') {
+    if (pkg.name) {
+      binaries.add(pkg.name.replace(/^@[^/]+\//, ''));
     }
-  } catch {
-    // catch-ok: Ignore parse errors
+  } else if (pkg.bin && typeof pkg.bin === 'object') {
+    for (const binName of Object.keys(pkg.bin)) {
+      binaries.add(binName);
+    }
   }
   return binaries;
 }

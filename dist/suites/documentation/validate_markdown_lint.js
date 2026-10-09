@@ -16,7 +16,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, loadLockedSkills, getEffectiveUnignoreDirs } from "../../core/auditorBase.js";
 import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { parseJsonArrayOutput, normalizePosixPath } from "../../core/reportUtils.js";
@@ -54,9 +54,14 @@ export function getMarkdownIgnoreGlobs(projectRoot) {
     if (config.persistence?.supabaseDir) {
         globs.push(`${config.persistence.supabaseDir}/**`);
     }
+    const lockedSkills = loadLockedSkills(projectRoot);
+    for (const s of lockedSkills) {
+        globs.push(`.agents/skills/${s}/**`);
+        globs.push(`skills/${s}/**`);
+        globs.push(`.skills/${s}/**`);
+    }
     return Array.from(new Set(globs));
 }
-export const MARKDOWN_IGNORE_GLOBS = DEFAULT_MARKDOWN_IGNORE_GLOBS; // value-ok: Canonical constant value reference
 /**
  * Parses raw JSON output or an array of issues from markdownlint into canonical AuditFindings.
  */
@@ -103,6 +108,7 @@ export class MarkdownLintAuditor extends BaseAuditor {
             ruleDescriptions: {
                 'markdownlint-issue': 'Formato o estilo inválido'
             },
+            unignoreDirs: getEffectiveUnignoreDirs(projectRoot),
             coverage: {
                 include: ['**/*.md', '.markdownlint.json'],
                 exclude: getMarkdownIgnoreGlobs(projectRoot),
@@ -139,7 +145,7 @@ export class MarkdownLintAuditor extends BaseAuditor {
         }
         const isFixMode = this.isFixModeRequested();
         const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
-        const args = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
+        const args = ['**/*.md', '--dot']; // no-domain: Non-domain utility collection or data structure
         for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
             args.push('--ignore', pattern);
         }

@@ -131,6 +131,21 @@ describe('VueSfcHygieneAuditor', () => {
       expect(violation?.severity).toBe('error');
     });
 
+    it('detects direct database identifiers in template (no-data-provider-in-template)', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      const sfc = `
+        <template>
+          <div>{{ supabase.from('users').select() }}</div>
+        </template>
+        <script setup lang="ts">
+        </script>
+      `;
+      auditor.testScanFile('src/components/DbTemplate.vue', sfc);
+      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-data-provider-in-template');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+    });
+
     it('allows exceptions with // sfc-ok and // template-ok escape hatches', () => {
       const auditor = new TestableVueSfcHygieneAuditor();
       const sfc = `

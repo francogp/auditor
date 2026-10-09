@@ -8,7 +8,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { getAuditConfig, isInCodeRoots } from "../core/auditConfig.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from "./cliUtils.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from "./cliUtils.js";
 import { runGuardReport } from "./report_guard.js";
 import { runFlagsReport } from "./report_flags.js";
 const DEFAULT_TOP_LIMIT = 20;
@@ -621,6 +621,7 @@ export function runFallowReportCli() {
     }
 }
 if (isMainModule(import.meta.url)) {
+    bootstrapCliProject();
     runFallowReportCli();
 }
 //# sourceMappingURL=report_fallow.js.map

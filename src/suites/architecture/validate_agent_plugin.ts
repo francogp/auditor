@@ -56,7 +56,7 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
 constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     super({
-      capabilities: { fix: true },
+      capabilities: { fix: true, fixPriority: true },
       id: 'validate_agent_plugin',
       name: 'Agent Plugin & Skill Integration Validator',
       description: 'Verifica registro del plugin de auditoría para agentes',

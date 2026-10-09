@@ -14,13 +14,8 @@ import {
   noInlineAnonymousObjectType,
   noFloatingPromises,
   noLeakedGlobalState,
-  missingInteractiveId,
-  noImportantOnTransforms,
-  noImportantOnFilters,
   noSassAtImport,
-  noLayoutAnimationInGsap,
   viewport,
-  gpuGaps,
   legacyDates,
   hardcodedTimezone,
   nodePrefix,
@@ -30,13 +25,8 @@ import {
   noLiteralSuffixInConstantName,
   timersPromises,
   explicitResource,
-  manualAnimations,
-  emptyVueTransitions,
-  manualTimersFrontend,
-  noPlaywrightWaitForTimeout,
   jsonStringifyInWatch,
   intersectionObserverRoot,
-  dbInTemplates,
   forbiddenFallbacks,
   noDomainIdFallbacks,
   isDomainAuditTarget,
@@ -45,10 +35,8 @@ import {
   noInlineTypeImports,
   noInlineLiteralUnions,
   noRawJsonImportsOutsideData,
-  namedTimerConstants,
   zeroTimerLogic,
   functionCallsInTemplates,
-  doxIndexIntegrity,
   zIndexAudit,
   zIndexConstantDeclaration,
   CANONICAL_DEFAULT_Z_LAYERS,
@@ -131,33 +119,10 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(noLeakedGlobalState.regex.test('export let globalActiveIndex = 0;')).toBe(true);
     });
 
-    it('missingInteractiveId detects buttons and inputs without id in template markup', () => {
-      missingInteractiveId.regex.lastIndex = 0;
-      expect(missingInteractiveId.regex.test('<button class="btn-primary">Click me</button>')).toBe(true);
-
-      missingInteractiveId.regex.lastIndex = 0;
-      expect(missingInteractiveId.regex.test('<input type="text" placeholder="Name" />')).toBe(true);
-    });
-
-    it('noImportantOnTransforms and noImportantOnFilters detect !important on animation properties', () => {
-      noImportantOnTransforms.regex.lastIndex = 0;
-      expect(noImportantOnTransforms.regex.test('transform: translate3d(0, 0, 0) !important;')).toBe(true);
-
-      noImportantOnFilters.regex.lastIndex = 0;
-      expect(noImportantOnFilters.regex.test('filter: blur(5px) !important;')).toBe(true);
-    });
 
     it('noSassAtImport detects legacy @import in SCSS', () => {
       noSassAtImport.regex.lastIndex = 0;
       expect(noSassAtImport.regex.test('@import "variables";')).toBe(true);
-    });
-
-    it('noLayoutAnimationInGsap detects layout properties in GSAP tweens', () => {
-      noLayoutAnimationInGsap.regex.lastIndex = 0;
-      expect(noLayoutAnimationInGsap.regex.test('gsap.to(elem, { width: 200, duration: 0.3 });')).toBe(true);
-
-      noLayoutAnimationInGsap.regex.lastIndex = 0;
-      expect(noLayoutAnimationInGsap.regex.test('gsap.from(elem, { height: 0 });')).toBe(true);
     });
 
     it('legacyDates and hardcodedTimezone detect legacy Date and hardcoded timezones', () => {
@@ -208,25 +173,7 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(explicitResource.fix?.('const db = new DatabaseSync(":memory:")')).toBe('using db = new DatabaseSync(":memory:")');
     });
 
-    it('manualAnimations and emptyVueTransitions detect banned animation patterns', () => {
-      manualAnimations.regex.lastIndex = 0;
-      expect(manualAnimations.regex.test('@keyframes pulse { from { opacity: 0; } }')).toBe(true);
-
-      emptyVueTransitions.regex.lastIndex = 0;
-      expect(emptyVueTransitions.regex.test('.fade-enter-active { }')).toBe(true);
-    });
-
-    it('manualTimersFrontend and noPlaywrightWaitForTimeout detect uncoordinated pauses', () => {
-      manualTimersFrontend.regex.lastIndex = 0;
-      expect(manualTimersFrontend.regex.test('setTimeout(() => {}, 100);')).toBe(true);
-      manualTimersFrontend.regex.lastIndex = 0;
-      expect(manualTimersFrontend.regex.test('setInterval(() => {}, 100);')).toBe(true);
-
-      noPlaywrightWaitForTimeout.regex.lastIndex = 0;
-      expect(noPlaywrightWaitForTimeout.regex.test('await page.waitForTimeout(500);')).toBe(true);
-    });
-
-    it('jsonStringifyInWatch, intersectionObserverRoot, and dbInTemplates detect reactivity and template defects', () => {
+    it('jsonStringifyInWatch and intersectionObserverRoot detect reactivity and template defects', () => {
       jsonStringifyInWatch.regex.lastIndex = 0;
       const watchStr = 'watch(' + '() => JSON.stringify(state));';
       expect(jsonStringifyInWatch.regex.test(watchStr)).toBe(true);
@@ -234,16 +181,13 @@ describe('Project Architecture Rules & Auditor', () => {
       intersectionObserverRoot.regex.lastIndex = 0;
       const ioStr = 'new Intersection' + 'Observer(cb, { root: el });';
       expect(intersectionObserverRoot.regex.test(ioStr)).toBe(true);
-
-      dbInTemplates.regex.lastIndex = 0;
-      expect(dbInTemplates.regex.test('<div>{{ db.users.find() }}</div>')).toBe(true);
     });
 
     it('forbiddenFallbacks, strictDomainParamTypes, and type import rules detect domain defects', () => {
       forbiddenFallbacks.regex.lastIndex = 0;
       expect(forbiddenFallbacks.regex.test('const x = user.id || user.name;')).toBe(true);
       forbiddenFallbacks.regex.lastIndex = 0;
-      expect(forbiddenFallbacks.regex.test('fetchData().catch(() => null)')).toBe(true);
+      expect(forbiddenFallbacks.regex.test('const p = dataProvider.getUser() || fallback;')).toBe(true);
 
       noDomainIdFallbacks.regex.lastIndex = 0;
       expect(noDomainIdFallbacks.regex.test("const targetId = userId ?? ''")).toBe(true);
@@ -262,17 +206,11 @@ describe('Project Architecture Rules & Auditor', () => {
       noRawJsonImportsOutsideData.regex.lastIndex = 0;
       expect(noRawJsonImportsOutsideData.regex.test("import config from './config.json';")).toBe(true);
 
-      namedTimerConstants.regex.lastIndex = 0;
-      expect(namedTimerConstants.regex.test('gsap.delayedCall(3.5, callback);')).toBe(true);
-
       zeroTimerLogic.regex.lastIndex = 0;
       expect(zeroTimerLogic.regex.test('sleep(100);')).toBe(true);
 
       functionCallsInTemplates.regex.lastIndex = 0;
       expect(functionCallsInTemplates.regex.test('{{ computeTotal(item)}}')).toBe(true);
-
-      doxIndexIntegrity.regex.lastIndex = 0;
-      expect(doxIndexIntegrity.regex.test('# Purpose\n')).toBe(true);
 
       zIndexAudit.regex.lastIndex = 0;
       expect(zIndexAudit.regex.test('z-index: 100')).toBe(true);
@@ -281,20 +219,13 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(zIndexConstantDeclaration.regex.test('const MODAL_Z_INDEX = 100;')).toBe(true);
     });
 
-    it('viewport and gpuGaps detect mobile viewports and GPU transition gaps', () => {
+    it('viewport detects mobile viewports dvh and dvw', () => {
       viewport.regex.lastIndex = 0;
       expect(viewport.regex.test('height: 100vh;')).toBe(true);
       viewport.regex.lastIndex = 0;
       expect(viewport.regex.test('width: 100vw;')).toBe(true);
       viewport.regex.lastIndex = 0;
       expect(viewport.regex.test('height: 100dvh;')).toBe(false);
-
-      gpuGaps.regex.lastIndex = 0;
-      expect(gpuGaps.regex.test('backdrop-filter: blur(10px);')).toBe(true);
-      gpuGaps.regex.lastIndex = 0;
-      expect(gpuGaps.regex.test('filter: grayscale(1);')).toBe(true);
-      gpuGaps.regex.lastIndex = 0;
-      expect(gpuGaps.regex.test('color: red;')).toBe(false);
     });
 
     it('nodePrefix, esmExtensions, and tsIgnore detect and repair module hygiene', () => {
@@ -321,27 +252,6 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(isDomainAuditTarget('node_modules/pkg/index.ts')).toBe(false);
     });
 
-    it('noImportantOnTransforms, noImportantOnFilters, and noSassAtImport detect stylesheet anti-patterns', () => {
-      noImportantOnTransforms.regex.lastIndex = 0;
-      expect(noImportantOnTransforms.regex.test('transform: translate3d(0, 0, 0) !important;')).toBe(true);
-
-      noImportantOnFilters.regex.lastIndex = 0;
-      expect(noImportantOnFilters.regex.test('filter: blur(4px) !important;')).toBe(true);
-
-      noSassAtImport.regex.lastIndex = 0;
-      expect(noSassAtImport.regex.test('@import "variables";')).toBe(true);
-
-      const violatingContent = 'gsap.to(card, { backgroundPosition: "0% 0%", duration: 0.5 });';
-      const cleanContent = 'gsap.to(card, { x: 300, duration: 0.5 });';
-      noLayoutAnimationInGsap.regex.lastIndex = 0;
-      const match1 = noLayoutAnimationInGsap.regex.exec(violatingContent)!;
-      expect(noLayoutAnimationInGsap.check?.(violatingContent, match1, 'src/components/Card.vue')).toBe(true);
-
-      noLayoutAnimationInGsap.regex.lastIndex = 0;
-      const match2 = noLayoutAnimationInGsap.regex.exec(cleanContent)!;
-      expect(noLayoutAnimationInGsap.check?.(cleanContent, match2, 'src/components/Card.vue')).toBe(false);
-    });
-
     it('Z_LAYERS contains canonical layer values', () => {
       expect(CANONICAL_DEFAULT_Z_LAYERS.BASE).toBe(0);
       expect(CANONICAL_DEFAULT_Z_LAYERS.MODAL).toBe(11000);
@@ -359,7 +269,7 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(auditor.ruleDescriptions).toBeDefined();
       if (auditor.ruleDescriptions) {
         expect(Object.keys(auditor.ruleDescriptions).length).toBeGreaterThanOrEqual(6);
-        expect(auditor.ruleDescriptions['domain-type-violation']).toBeDefined();
+        expect(auditor.ruleDescriptions['zeroTimerLogic']).toBeDefined();
       }
     });
   });

@@ -104,6 +104,28 @@ export function getEffectiveIgnoreDirs(): ReadonlySet<string> {
   return new Set([...CANONICAL_IGNORE_DIRS, ...custom]);
 }
 
+/** Returns the effective set of unignore directories combining audit.config.ts paths.unignoreDirs, documentation.unignoreDirs, and derived skillsRoots */
+export function getEffectiveUnignoreDirs(projectRoot = process.cwd()): readonly string[] {
+  const config = getAuditConfig(projectRoot);
+  const customPaths = config.paths?.unignoreDirs;
+  if (customPaths && customPaths.length > 0) return customPaths;
+
+  const customDocs = config.documentation?.unignoreDirs;
+  if (customDocs && customDocs.length > 0) return customDocs;
+
+  const derived = new Set<string>();
+  if (config.documentation?.skillsRoots && config.documentation.skillsRoots.length > 0) {
+    for (const r of config.documentation.skillsRoots) {
+      const topSegment = r.replace(/\\/g, '/').replace(/^\/+/, '').split('/')[0];
+      if (topSegment) derived.add(topSegment);
+    }
+  }
+  if (derived.size > 0) {
+    return Array.from(derived);
+  }
+  return ['.agents', 'skills', 'docs'];
+}
+
 export const SCANNABLE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.js', '.vue', '.cjs', '.mjs']); // runtime-set: Fast O(1) membership lookup set
 
 export const CANONICAL_SCANNABLE_ROOTS = [
@@ -555,7 +577,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     return !scannableRoots.some(r => r === norm || norm.startsWith(`${r}/`));
   });
   const combinedIgnores = [...fallowIgnores, ...(config.extraIgnorePatterns || [])];
-  const unignoreDirs = config.unignoreDirs ?? [];
+  const unignoreDirs = config.unignoreDirs ?? (config.family === 'documentation' ? getEffectiveUnignoreDirs(projectRoot) : []);
 
   const isSubprocess = process.env.AUDIT_SUBPROCESS === 'true';
   const findings: AuditFinding[] = [];
@@ -681,6 +703,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
 
 export const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities = Object.freeze({
   fix: false,
+  fixPriority: false,
   lint: false,
   md: false,
   ast: false,
@@ -731,8 +754,10 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly ruleDescription?: string;
   readonly severity: FindingSeverity;
   readonly file?: string;
+  readonly filePath?: string;
   readonly line?: number;
   readonly col?: number;
+  readonly column?: number;
   readonly message: string;
   readonly context?: string;
 }
@@ -792,7 +817,7 @@ function validateAuditorCapabilities<TRuleId extends string>(options: AuditorOpt
   if (typeof options.capabilities !== 'object' || options.capabilities === null) {
     throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
   }
-  const KNOWN_CAPABILITIES = ['fix', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'] as const;
+  const KNOWN_CAPABILITIES = ['fix', 'fixPriority', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'] as const;
   for (const [key, val] of Object.entries(options.capabilities)) {
     if (!KNOWN_CAPABILITIES.includes(key as typeof KNOWN_CAPABILITIES[number])) {
       throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
@@ -1000,7 +1025,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
     this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
-    this.unignoreDirs = options.unignoreDirs ?? [];
+    this.unignoreDirs = options.unignoreDirs ?? (options.family === 'documentation' ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
     this.requiredFiles = options.requiredFiles ?? [];
     this.projectRoot = effectiveProjectRoot;
     this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage!);
@@ -1237,7 +1262,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       );
     }
 
-    if (v.file && isLockedSkillPath(v.file, this.projectRoot)) {
+    const targetFile = v.file ?? v.filePath;
+    if (targetFile && isLockedSkillPath(targetFile, this.projectRoot)) {
       return;
     }
 
@@ -1252,11 +1278,13 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
 
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
-    const normalizedFile = v.file
-      ? (path.isAbsolute(v.file)
-          ? path.relative(this.projectRoot, v.file).replace(/\\/g, '/')
-          : v.file.replace(/\\/g, '/'))
-      : v.file;
+    const normalizedFile = targetFile
+      ? (path.isAbsolute(targetFile)
+          ? path.relative(this.projectRoot, targetFile).replace(/\\/g, '/')
+          : targetFile.replace(/\\/g, '/'))
+      : targetFile;
+
+    const targetCol = v.col ?? v.column;
 
     if (v.severity === 'error') {
       this.context.addFinding({
@@ -1264,7 +1292,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         message: v.message,
         file: normalizedFile,
         line: v.line,
-        col: v.col,
+        col: targetCol,
         context: v.context,
         ruleId: v.ruleId,
         ruleDescription: ruleDesc,
@@ -1278,7 +1306,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
           message: v.message,
           file: normalizedFile,
           line: v.line,
-          col: v.col,
+          col: targetCol,
           context: v.context,
           ruleId: v.ruleId,
           ruleDescription: ruleDesc,
@@ -1640,6 +1668,33 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
       ? options
       : { ...options, roots: getEffectiveScannableRoots() }
     );
+  }
+
+  /**
+   * Adds a violation calculating 1-indexed line and column numbers from a string offset.
+   */
+  protected addViolationAtMatch(params: {
+    ruleId: TRuleId;
+    filePath: string;
+    content: string;
+    matchIndex: number;
+    message: string;
+    severity?: FindingSeverity;
+    context?: string;
+  }): void {
+    const preceding = params.content.slice(0, params.matchIndex);
+    const line = preceding.split('\n').length;
+    const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
+
+    this.addViolation({
+      ruleId: params.ruleId,
+      severity: params.severity ?? 'error',
+      filePath: params.filePath,
+      line,
+      column,
+      message: params.message,
+      context: params.context
+    });
   }
 
   private async resolveEffectiveAst(astContext?: SharedAstContext): Promise<SharedAstContext | undefined> {

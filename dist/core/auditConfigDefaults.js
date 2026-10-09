@@ -34,6 +34,7 @@ export const DEFAULT_AUDIT_CONFIG = {
         includeTestsInCodeAudit: false,
         ignoreGlobs: [],
         ignoredDirs: [],
+        unignoreDirs: [],
         ignoredPatterns: []
     },
     persistence: {
@@ -158,6 +159,9 @@ export const DEFAULT_AUDIT_CONFIG = {
         recommendedScripts: true,
         extraRequiredScripts: []
     },
+    environment: {
+        enabled: true
+    },
     accessibility: {
         enabled: true,
         rules: {}
@@ -219,6 +223,7 @@ export function collectDeclaredSubsystems(config) {
     const keys = [
         'persistence',
         'domain',
+        'environment',
         'styles',
         'stylelint',
         'eslint',
@@ -390,6 +395,7 @@ function buildDocumentationSubConfig(d) {
     return {
         knownValidAbstractPaths: d?.knownValidAbstractPaths ?? [],
         skillsRoots: d?.skillsRoots ?? [],
+        unignoreDirs: d?.unignoreDirs ?? [],
         allowedNpxBinaries: d?.allowedNpxBinaries ?? [],
         language: d?.language ?? 'en',
         chatLanguage: d?.chatLanguage ?? 'es',
@@ -457,6 +463,13 @@ export function buildPackageHygieneConfig(raw) {
         ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? []),
         entry: p.entry ? [...p.entry] : undefined,
         project: p.project ? [...p.project] : undefined
+    };
+}
+export function buildEnvironmentConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.environment;
+    const p = raw ?? {};
+    return {
+        enabled: p.enabled ?? def?.enabled ?? true
     };
 }
 export function buildPackageDistributionConfig(raw) {
@@ -692,6 +705,7 @@ export function defineAuditConfig(config) {
         packageHygiene: buildPackageHygieneConfig(config.packageHygiene),
         packageDistribution: buildPackageDistributionConfig(config.packageDistribution),
         packageScripts: buildPackageScriptsConfig(config.packageScripts),
+        environment: buildEnvironmentConfig(config.environment),
         accessibility: buildAccessibilityConfig(config.accessibility),
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
         testCoverage: buildTestCoverageConfig(config.testCoverage),

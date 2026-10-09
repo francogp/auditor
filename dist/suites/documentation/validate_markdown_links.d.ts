@@ -48,7 +48,6 @@ export interface MarkdownLinkAuditOptions {
 export { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories } from './validate_markdown_code_references.ts';
 export declare const DEFAULT_MARKDOWN_IGNORE_PATTERNS: readonly ["coverage/**"];
 export declare function getGitIgnoreMatcher(rootDir: string): GitIgnoreMatcher;
-export declare function getGitIgnoredPaths(rootDir: string): Set<string>;
 export declare function clearRepoFileIndexCache(): void;
 export declare function clearGitIgnoredPathsCache(): void;
 /**

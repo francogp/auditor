@@ -58,6 +58,7 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     if (content.includes('requiresBuild: true')) caps.requiresBuild = true;
     if (content.includes('ast: true') || content.includes('requiresAst: true')) caps.ast = true;
     if (content.includes('fix: true')) caps.fix = true;
+    if (content.includes('fixPriority: true')) caps.fixPriority = true;
     if (content.includes('lint: true')) caps.lint = true;
     if (content.includes('md: true')) caps.md = true;
     if (content.includes('heavy: true')) caps.heavy = true;

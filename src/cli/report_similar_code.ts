@@ -12,7 +12,7 @@ import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
-import { isMainModule, DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from './cliUtils.ts';
+import { isMainModule, DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject } from './cliUtils.ts';
 import {
   resolveFallowBinary,
   checkOrInitializeModel,
@@ -141,5 +141,6 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
 }
 
 if (isMainModule(import.meta.url)) {
+  bootstrapCliProject();
   runSimilarCodeReport();
 }

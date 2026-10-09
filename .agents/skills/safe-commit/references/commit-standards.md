@@ -5,6 +5,7 @@ Commit messages MUST NOT be terse. They MUST provide a clear, technical chronicl
 ## Source of Truth for Commit Synthesis (Full Working Tree Mandate)
 
 The final commit message is synthesized exclusively in **Phase 4 (Step 4.3)** from:
+
 1. The actual **`git diff HEAD` and `git status` covering 100% of all modified, added, and deleted files across the ENTIRE working tree**.
    - **MANDATORY FULL REPOSITORY AUDIT**: Because Phase 4 executes `git add .` to create a single atomic certified commit, the commit message MUST reflect all modified files in the working tree.
    - **MULTI-SUBSYSTEM MANDATE**: It is STRICTLY FORBIDDEN to restrict the commit message to only the immediate chat conversation, prompt, or last bugfix when `git status` contains uncommitted changes across other features or modules. If multiple subsystems are modified, the commit message MUST categorize and detail every single modified subsystem (e.g., grouped by subsystem headers or categorized bullets).
@@ -37,6 +38,7 @@ The project mandates **Atomic Commits**. A commit is never created until all tes
 **Types**: `feat`, `fix`, `refactor`, `perf`, `chore`, `docs`, `test`
 
 **Rules**:
+
 - The header line is the commit summary — make it clear, concise, and descriptive across the primary modified scopes. Never artificially truncate or cripple header clarity for arbitrary character limits.
 - Every bullet must specify *what* changed and *why* it matters technically.
 - For changes across 2+ files, a bulleted list is MANDATORY.
@@ -49,7 +51,7 @@ When the working tree contains extensive, multi-subsystem changes across multipl
 2. **File List**: Each subsystem list MUST specify the affected files.
 3. **Behavioral Detail**: Describe the specific functional enhancements, bug fixes, or performance gains.
 
-#### Standard Feature Multi-Subsystem Commit Template
+### Standard Feature Multi-Subsystem Commit Template
 
 ```markdown
 feat(core,bundle): integrate production chunk bottleneck analyzer and expand budget config

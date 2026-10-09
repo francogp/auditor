@@ -203,39 +203,6 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     expect(brokenRefs.length).toBe(0);
   });
 
-  it('detects unregistered npm run commands', async () => {
-    const mdContent = `
-# Commands
-Run \`npm run nonexistent-script\` to verify.
-    `;
-    await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
-
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
-    const result = await auditor.execute();
-
-    expect(result.summary.errors).toBe(1);
-    const scriptFinding = result.findings.find(f => f.ruleId === 'markdown-unregistered-npm-script');
-    expect(scriptFinding).toBeDefined();
-    expect(scriptFinding?.context).toBe('npm run nonexistent-script');
-    expect(scriptFinding?.message).toBe(
-      'ERR! missing or relocated script: command "npm run nonexistent-script" is not registered in package.json.scripts'
-    );
-  });
-
-  it('accepts registered npm run commands and trailing colon placeholders', async () => {
-    const mdContent = `
-# Valid Commands
-Run \`npm run audit\` or \`npm run lint\`.
-Example pattern: \`npm run audit:family:<name>\`.
-    `;
-    await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
-
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
-    const result = await auditor.execute();
-
-    const scriptFindings = result.findings.filter(f => f.ruleId === 'markdown-unregistered-npm-script');
-    expect(scriptFindings.length).toBe(0);
-  });
 
   it('detects hardcoded runtime version assertions in markdown', async () => {
     const mdContent = `

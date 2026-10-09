@@ -23,7 +23,7 @@ import {
   renderSampleFindings,
   renderFindingsByFileTree
 } from '../core/unifiedTheme.ts';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
@@ -643,5 +643,6 @@ export function runReport(): void {
 }
 
 if (isMainModule(import.meta.url)) {
+  bootstrapCliProject();
   runReport();
 }

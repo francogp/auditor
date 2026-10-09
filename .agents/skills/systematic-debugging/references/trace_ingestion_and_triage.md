@@ -71,5 +71,6 @@ Before touching any code or formulating hypotheses, identify the authoritative c
 ## 3. Pre-Fix Fallback Audit
 
 Before writing tests or modifying `src/`, inspect the execution path:
+
 - Search for masking fallbacks (`||`, `??`, default assignments, or `.catch(() => true)`).
 - If present, remove them immediately so that the test harness and engine fail fast and loudly with an explicit, traceable error message.

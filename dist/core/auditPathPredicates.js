@@ -50,6 +50,16 @@ export function isTestPath(filePath) {
     return false;
 }
 /**
+ * Determines whether a file path is a test file that should be skipped during source code audits,
+ * honoring config.paths.includeTestsInCodeAudit.
+ */
+export function isTestFileForCodeAudit(filePath, projectRoot) {
+    const config = getAuditConfig(projectRoot);
+    if (config?.paths?.includeTestsInCodeAudit)
+        return false;
+    return isTestPath(filePath);
+}
+/**
  * Determines whether a file path belongs to a data catalog directory (e.g. static game data,
  * catalogs, domain fixtures) configured in paths.dataRoots.
  */

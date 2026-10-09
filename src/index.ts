@@ -14,6 +14,7 @@ export * from './core/unifiedTheme.ts';
 export * from './core/suiteGating.ts';
 export * from './core/reportUtils.ts';
 export * from './core/safePath.ts';
+export * from './core/auditPathPredicates.ts';
 export * from './core/gitignoreMatcher.ts';
 export * from './core/gitIgnoreRegistry.ts';
 export * from './core/configFileRegistry.ts';

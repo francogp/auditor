@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 
 export interface SyncEnvOptions {
   targetDir?: string;
@@ -90,6 +90,7 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean
 
 // CLI entrypoint
 if (isMainModule(import.meta.url)) {
+  bootstrapCliProject();
   const isDryRun = process.argv.includes('--dry-run');
   console.log('\n┌────────────────────────────────────────────────────────┐');
   console.log('│  🔄 Sincronizador de Scripts de Entorno (@francogp/auditor) │');

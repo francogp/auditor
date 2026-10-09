@@ -26,7 +26,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const similarCodePath = path.resolve('src/suites/architecture/validate_similar_code.ts');
     const similarCaps = await extractCapabilitiesFromFile(similarCodePath);
     expect(similarCaps).not.toBeNull();
-    expect(similarCaps?.fix).toBe(false);
+    expect(similarCaps?.fix).toBe(true);
     expect(similarCaps?.heavy).toBe(true);
 
     const piniaPath = path.resolve('src/suites/architecture/validate_pinia_reactivity.ts');
@@ -75,7 +75,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     }
   });
 
-  it('filters strictly to the 14 fix-capable suites when fixOnly: true', async () => {
+  it('filters strictly to the fix-capable suites when fixOnly: true', async () => {
     const fixTasks = await discoverAuditors({ fixOnly: true });
     const fixSuiteIds = fixTasks.map(t => t.id).sort();
 
@@ -86,12 +86,15 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_agents_config_mandate',
       'validate_audit_config',
       'validate_documentation_language',
+      'validate_environment_engines',
       'validate_eslint',
       'validate_eslint_config',
       'validate_fallow_config',
       'validate_html_validate',
       'validate_markdown_lint',
       'validate_package_hygiene',
+      'validate_package_scripts',
+      'validate_similar_code',
       'validate_stylelint',
       'validate_z_index'
     ].sort();
@@ -110,7 +113,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const EXPECTED_AST_SUITES = [
       'audit_project',
       'validate_bundle_budget',
-      'validate_duplicate_constants',
+      'validate_constant_hygiene',
       'validate_pinia_reactivity',
       'validate_reactive_leaks',
       'validate_valibot_parity'

@@ -154,20 +154,21 @@ function buildNoticeBox(options) {
  * developers and AI agents with the exact command to install it manually.
  */
 export function renderSimilarCodeWarningBanner() {
+    const isWindows = process.platform === 'win32';
+    const lines = [
+        styleText('white', 'La inicialización automática del modelo de embeddings de Fallow falló.'),
+        styleText('white', 'El sub-auditor especializado de similar-code no se pudo ejecutar.'),
+        styleText('dim', 'Esta funcionalidad requiere instalación manual o desbloqueo en este entorno.'),
+        ''
+    ];
+    if (isWindows) {
+        lines.push(styleText(['bold', 'yellow'], 'Si Windows Smart App Control o Antivirus bloqueó el binario (error 4551):'), styleText('white', '  1. En la notificación de Windows: Clic en "Más información" -> "Permitir".'), styleText('white', '  2. O intenta la auto-reparación con: npm run auditor:fix'), '');
+    }
+    lines.push(styleText(['bold', 'white'], 'Comando de instalación manual:'), styleText(['bold', 'cyan'], '  👉  fallow similar-code setup --local --yes'), '', styleText('dim', 'Nota para CI/headless: puedes omitir esta suite con:'), styleText('dim', '  AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1 (o AUDITOR_ENV=production)'));
     return buildNoticeBox({
         borderColor: 'yellow',
         title: '⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE',
-        lines: [
-            styleText('white', 'La inicialización automática del modelo de embeddings de Fallow falló.'),
-            styleText('white', 'El sub-auditor especializado de similar-code no se pudo ejecutar.'),
-            styleText('dim', 'Esta funcionalidad requiere instalación manual en este entorno.'),
-            '',
-            styleText(['bold', 'white'], 'Para instalarlo manualmente, ejecuta el siguiente comando en tu terminal:'),
-            styleText(['bold', 'cyan'], '  👉  fallow similar-code setup --local --yes'),
-            '',
-            styleText('dim', 'Nota para CI: puedes omitir esta suite en entornos remotos o GitHub Pages'),
-            styleText('dim', 'exportando la variable AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1.')
-        ]
+        lines
     });
 }
 /**

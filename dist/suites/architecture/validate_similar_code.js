@@ -21,20 +21,16 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } from "../../cli/cliUtils.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, resolvePackageBin } from "../../cli/cliUtils.js";
 enableCompileCache();
 export const SIMILAR_CODE_RULES = [
     'fallow-similar-code',
     'fallow-similar-code-failed'
 ];
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
+export const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;
 export function resolveFallowBinary(projectRoot = process.cwd()) {
-    const candidates = [
-        path.resolve(projectRoot, 'node_modules/fallow/bin/fallow'),
-        path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow'),
-        path.resolve(import.meta.dirname, '../../../node_modules/fallow/bin/fallow')
-    ];
-    return candidates.find(c => fs.existsSync(c)) ?? null;
+    return resolvePackageBin('fallow', { projectRoot, fallbackRelativeBin: 'bin/fallow' });
 }
 export function isFastPresetActive() {
     const args = process.argv.join(' ');
@@ -48,18 +44,17 @@ export function isSimilarCodeSkipped() {
         process.env.AUDIT_SKIP_SIMILAR === 'true' ||
         process.env.AUDIT_SKIP_SIMILAR === '1');
 }
-import { sanitizePath } from "../../core/safePath.js";
 export function resolveFallowUserCacheDir() {
     if (process.platform === 'win32') {
         const rawLocal = process.env.LOCALAPPDATA;
-        const localAppData = rawLocal ? sanitizePath(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
+        const localAppData = rawLocal ? path.resolve(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
         return path.join(localAppData, 'fallow', 'similar-code');
     }
     if (process.platform === 'darwin') {
         return path.join(os.homedir(), 'Library', 'Caches', 'fallow', 'similar-code');
     }
     const rawXdg = process.env.XDG_CACHE_HOME;
-    const xdg = rawXdg ? sanitizePath(rawXdg) : path.join(os.homedir(), '.cache');
+    const xdg = rawXdg ? path.resolve(rawXdg) : path.join(os.homedir(), '.cache');
     return path.join(xdg, 'fallow', 'similar-code');
 }
 export function ensureSimilarCodeCacheDir(_projectRoot) {
@@ -77,8 +72,24 @@ export function ensureSimilarCodeCacheDir(_projectRoot) {
     }
     return cacheDir;
 }
-export function checkOrInitializeModel(fallowBin, projectRoot) {
+export function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
     ensureSimilarCodeCacheDir(projectRoot);
+    if (isFix && process.platform === 'win32') {
+        try {
+            const candidates = [
+                path.resolve(projectRoot, 'node_modules/@fallow-cli'),
+                path.resolve(process.cwd(), 'node_modules/@fallow-cli')
+            ];
+            for (const dir of candidates) {
+                if (fs.existsSync(dir)) {
+                    childProcess.execSync(`powershell.exe -NoProfile -Command "Get-ChildItem -Path '${dir}' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Unblock-File"`, { stdio: 'ignore', timeout: WINDOWS_UNBLOCK_TIMEOUT_MS });
+                }
+            }
+        }
+        catch {
+            // catch-ok: non-fatal unblock attempt on Windows binaries
+        }
+    }
     try {
         const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
             cwd: projectRoot,
@@ -160,7 +171,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
     constructor(targetPath) {
         const projectRoot = targetPath || process.cwd();
         super({
-            capabilities: { heavy: true },
+            capabilities: { heavy: true, fix: true },
             id: 'validate_similar_code',
             name: 'Fallow Similar Code Semantics Validator',
             description: 'Detecta duplicados semánticos de funciones',
@@ -194,7 +205,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
             });
             return null;
         }
-        const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot);
+        const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot, this.isFixActive());
         if (!modelReady) {
             this.context.setMetric('Similar-Code', 'Instalación manual');
             this.addViolation({

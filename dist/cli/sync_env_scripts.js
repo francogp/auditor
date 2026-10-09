@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isMainModule } from "./cliUtils.js";
+import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
 function syncCanonicalScriptFile(file, packageRootDir, targetDir, dryRun) {
     const srcPath = path.join(packageRootDir, file);
     const destPath = path.join(targetDir, file);
@@ -69,6 +69,7 @@ export function syncEnvScripts(options = {}) {
 }
 // CLI entrypoint
 if (isMainModule(import.meta.url)) {
+    bootstrapCliProject();
     const isDryRun = process.argv.includes('--dry-run');
     console.log('\n┌────────────────────────────────────────────────────────┐');
     console.log('│  🔄 Sincronizador de Scripts de Entorno (@francogp/auditor) │');

@@ -272,6 +272,22 @@ if grep -q '"env:post-setup"' "$PKG_PATH"; then
     npm run env:post-setup
 fi
 
+# 11. Ejecución Automática de Auditor Fix (Reparación y Sincronización Inicial)
+AUDITOR_DIST_ENTRY="$SCRIPT_DIR/node_modules/@francogp/auditor/dist/cli/audit_full.js"
+AUDITOR_SELF_ENTRY="$SCRIPT_DIR/src/cli/audit_full.ts"
+IS_AUDITOR_SELF=false
+if [ -f "$AUDITOR_SELF_ENTRY" ] && [ "$PROJECT_NAME" = "@francogp/auditor" ]; then
+    IS_AUDITOR_SELF=true
+fi
+
+if [ "$IS_AUDITOR_SELF" = true ]; then
+    echo -e "\n🛠️  [AUDITOR] Ejecutando reparación automática inicial (npm run auditor:fix)..."
+    npm run auditor:fix || echo "  [WARN] Fallo no fatal en auditor fix inicial."
+elif [ -f "$AUDITOR_DIST_ENTRY" ]; then
+    echo -e "\n🛠️  [AUDITOR] Ejecutando sincronización automática de auditor (auditor fix)..."
+    node --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons "$AUDITOR_DIST_ENTRY" fix || echo "  [WARN] Fallo no fatal al ejecutar auditor fix."
+fi
+
 
 
 echo "======================================================"

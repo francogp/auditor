@@ -4,7 +4,8 @@ param(
     [switch]$Pinned = $false,
     [switch]$UpdateVersion = $false,
     [switch]$PruneOtherVersions = $false,
-    [switch]$SetDefault = $false
+    [switch]$SetDefault = $false,
+    [switch]$ConfigureFallow = $false
 )
 
 # Script Canónico de Inicialización y Preparación de Entorno para Windows (PowerShell)
@@ -125,32 +126,90 @@ Write-Host " [SETUP] PREPARACIÓN DE ENTORNO NODE (v$targetNodeVer) [$projectNam
 Write-Host "======================================================" -ForegroundColor Cyan
 
 # 2. Detectar NVM para Windows y asegurar rutas
-$nvmPossiblePaths = @(
-    $env:NVM_HOME,
-    "$env:LOCALAPPDATA\nvm",
-    "$env:APPDATA\nvm",
-    "C:\Program Files\nvm"
-)
-$nvmRoot = ""
-foreach ($nvmDir in $nvmPossiblePaths) {
-    if ($nvmDir -and (Test-Path -Path (Join-Path $nvmDir "nvm.exe"))) {
-        $nvmRoot = $nvmDir
-        if (-not $env:NVM_HOME) { $env:NVM_HOME = $nvmDir }
-        if ($env:Path -notlike "*$nvmDir*") { $env:Path = "$nvmDir;" + $env:Path }
-        break
+function Find-NvmInstallation {
+    $candidates = @(
+        $env:NVM_HOME,
+        [System.Environment]::GetEnvironmentVariable("NVM_HOME", "Machine"),
+        [System.Environment]::GetEnvironmentVariable("NVM_HOME", "User"),
+        "$env:LOCALAPPDATA\nvm",
+        "$env:APPDATA\nvm",
+        "C:\Program Files\nvm",
+        "C:\Program Files (x86)\nvm"
+    )
+    foreach ($dir in $candidates) {
+        if ($dir -and (Test-Path -Path (Join-Path $dir "nvm.exe"))) {
+            return $dir
+        }
     }
+    return ""
 }
 
-if (-not $nvmRoot) {
-    if (-not (Get-Command nvm -ErrorAction SilentlyContinue)) {
-        Write-Host ""
-        Write-Host "[NVM] NVM para Windows no detectado. Intentando instalar via winget..." -ForegroundColor Yellow
-        try {
-            winget install CoreyButler.NVMforWindows --accept-source-agreements --accept-package-agreements
-            Refresh-ProcessEnvironment
-        } catch {
-            Write-Host "  [WARN] No se pudo instalar NVM via winget: $_" -ForegroundColor Yellow
+$nvmRoot = Find-NvmInstallation
+if ($nvmRoot) {
+    if (-not $env:NVM_HOME) { $env:NVM_HOME = $nvmRoot }
+    if ($env:Path -notlike "*$nvmRoot*") { $env:Path = "$nvmRoot;" + $env:Path }
+}
+
+if (-not $nvmRoot -and -not (Get-Command nvm -ErrorAction SilentlyContinue)) {
+    $wingetCmd = if (Get-Command winget -ErrorAction SilentlyContinue) {
+        "winget"
+    } elseif (Test-Path "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget.exe") {
+        "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget.exe"
+    } else {
+        ""
+    }
+
+    if ($wingetCmd) {
+        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        $wingetArgs = "install CoreyButler.NVMforWindows --accept-source-agreements --accept-package-agreements"
+
+        if ($isAdmin) {
+            Write-Host ""
+            Write-Host "[NVM] NVM para Windows no detectado. Instalando via winget..." -ForegroundColor Cyan
+            try {
+                if ($wingetCmd -eq "winget") {
+                    winget install CoreyButler.NVMforWindows --accept-source-agreements --accept-package-agreements
+                } else {
+                    & $wingetCmd install CoreyButler.NVMforWindows --accept-source-agreements --accept-package-agreements
+                }
+                Refresh-ProcessEnvironment
+            } catch {
+                Write-Host "  [WARN] No se pudo instalar NVM via winget: $_" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host ""
+            Write-Host "[NVM] NVM para Windows no detectado. Intentando instalar via winget..." -ForegroundColor Yellow
+            Write-Host "  [SECURITY] Se requieren permisos de Administrador para instalar NVM for Windows." -ForegroundColor Yellow
+            Write-Host "  [SECURITY] Solicitando elevación para instalar NVM via winget..." -ForegroundColor Cyan
+            $wingetInstallCmd = if ($wingetCmd -eq "winget") {
+                "winget $wingetArgs; exit `$LASTEXITCODE"
+            } else {
+                "& '$wingetCmd' $wingetArgs; exit `$LASTEXITCODE"
+            }
+            try {
+                $elevProc = Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -Command `"$wingetInstallCmd`"" -PassThru -Wait
+                if ($elevProc.ExitCode -eq 0) {
+                    Write-Host "  [OK] NVM for Windows instalado con éxito mediante elevación UAC." -ForegroundColor Green
+                    Refresh-ProcessEnvironment
+                } else {
+                    Write-Host "  [WARN] La instalación de NVM mediante elevación finalizó con código $($elevProc.ExitCode)." -ForegroundColor Yellow
+                }
+            } catch {
+                Write-Host "  [WARN] Permisos de Administrador omitidos o denegados. NVM for Windows no se pudo instalar automáticamente." -ForegroundColor Yellow
+                Write-Host "         Para instalarlo manualmente en una consola con privilegios de Administrador:" -ForegroundColor Gray
+                Write-Host "         winget install CoreyButler.NVMforWindows" -ForegroundColor Cyan
+            }
         }
+
+        # Re-detectar NVM tras el intento de instalación
+        $nvmRoot = Find-NvmInstallation
+        if ($nvmRoot) {
+            if (-not $env:NVM_HOME) { $env:NVM_HOME = $nvmRoot }
+            if ($env:Path -notlike "*$nvmRoot*") { $env:Path = "$nvmRoot;" + $env:Path }
+        }
+    } else {
+        Write-Host ""
+        Write-Host "[NVM] NVM para Windows no detectado y winget no está disponible." -ForegroundColor Yellow
     }
 }
 
@@ -158,6 +217,18 @@ if (-not $nvmRoot) {
     $nvmRoot = "$env:LOCALAPPDATA\nvm"
     if (-not (Test-Path $nvmRoot)) {
         New-Item -ItemType Directory -Path $nvmRoot -Force | Out-Null
+    }
+} else {
+    # Verificar si el directorio nvmRoot tiene permisos de escritura; de lo contrario, usar fallback de usuario
+    try {
+        $testFile = Join-Path $nvmRoot ".test-write-$PID"
+        [System.IO.File]::WriteAllText($testFile, "test")
+        Remove-Item -Path $testFile -Force -ErrorAction SilentlyContinue
+    } catch {
+        $nvmRoot = "$env:LOCALAPPDATA\nvm"
+        if (-not (Test-Path $nvmRoot)) {
+            New-Item -ItemType Directory -Path $nvmRoot -Force | Out-Null
+        }
     }
 }
 
@@ -396,13 +467,89 @@ foreach ($dir in $requiredDirs) {
     }
 }
 
-# Inicializar directorio de caché persistente de Fallow similar-code si no existe
-$fallowBase = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $HOME "AppData\Local" }
-$fallowUserCache = Join-Path $fallowBase "fallow\similar-code"
-if (-not (Test-Path $fallowUserCache)) {
-    New-Item -ItemType Directory -Path (Join-Path $fallowUserCache "models") -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $fallowUserCache "vectors") -Force | Out-Null
-    Write-Host "  [+] Creado directorio de caché Fallow: $fallowUserCache" -ForegroundColor Green
+# 11.1 Configuración de Fallow, Modelo de Embeddings de IA y Lista Blanca en Windows
+$hasFallow = $ConfigureFallow -or `
+    ($pkgContent.dependencies -and $pkgContent.dependencies.fallow) -or `
+    ($pkgContent.devDependencies -and $pkgContent.devDependencies.fallow) -or `
+    (Test-Path (Join-Path $PSScriptRoot "node_modules\fallow"))
+
+if ($hasFallow) {
+    Write-Host ""
+    Write-Host "[FALLOW] Configurando Fallow similar-code y lista blanca de seguridad en Windows..." -ForegroundColor Cyan
+
+    # 1. Asegurar directorios de caché de modelos y vectores
+    $fallowBase = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $HOME "AppData\Local" }
+    $fallowUserCache = Join-Path $fallowBase "fallow\similar-code"
+    $fallowModelsDir = Join-Path $fallowUserCache "models"
+    $fallowVectorsDir = Join-Path $fallowUserCache "vectors"
+
+    if (-not (Test-Path $fallowModelsDir)) {
+        New-Item -ItemType Directory -Path $fallowModelsDir -Force | Out-Null
+    }
+    if (-not (Test-Path $fallowVectorsDir)) {
+        New-Item -ItemType Directory -Path $fallowVectorsDir -Force | Out-Null
+    }
+    Write-Host "  [✓] Directorio de caché persistente verificado: $fallowUserCache" -ForegroundColor Gray
+
+    # 2. Desbloquear binarios de Fallow (SmartScreen / Marca de la Web)
+    $fallowCliDirs = @(
+        (Join-Path $PSScriptRoot "node_modules\@fallow-cli"),
+        (Join-Path $PSScriptRoot "node_modules\fallow")
+    )
+    foreach ($dir in $fallowCliDirs) {
+        if (Test-Path $dir) {
+            Get-ChildItem -Path $dir -Include "*.exe", "*.dll", "*.node" -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
+        }
+    }
+    Write-Host "  [✓] Binarios de Fallow desbloqueados (Unblock-File)." -ForegroundColor Gray
+
+    # 3. Lista Blanca en Windows Defender Antivirus
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $fallowCliPath = Join-Path $PSScriptRoot "node_modules\@fallow-cli"
+
+    if ($isAdmin) {
+        try {
+            Add-MpPreference -ExclusionProcess "fallow.exe", "fallow-similar-code.exe" -ErrorAction SilentlyContinue
+            Add-MpPreference -ExclusionPath $fallowUserCache, $fallowCliPath -ErrorAction SilentlyContinue
+            Write-Host "  [OK] Exclusiones de Windows Defender aplicadas con éxito." -ForegroundColor Green
+        } catch {
+            Write-Host "  [WARN] No se pudieron registrar exclusiones de Defender: $_" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  [SECURITY] Se requieren permisos de Administrador para registrar la lista blanca en Windows Defender." -ForegroundColor Yellow
+        Write-Host "  [SECURITY] Solicitando elevación para registrar exclusiones de Defender..." -ForegroundColor Cyan
+        $elevateCmd = "Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath' -ErrorAction SilentlyContinue"
+        try {
+            $elevProc = Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -WindowStyle Hidden -Command `"$elevateCmd`"" -PassThru -Wait
+            if ($elevProc.ExitCode -eq 0) {
+                Write-Host "  [OK] Exclusiones de Windows Defender registradas mediante elevación UAC." -ForegroundColor Green
+            } else {
+                Write-Host "  [WARN] La solicitud de elevación finalizó con código $($elevProc.ExitCode)." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "  [WARN] Permisos de Administrador omitidos o denegados. Las exclusiones de Defender no se pudieron registrar automáticamente." -ForegroundColor Yellow
+            Write-Host "         Para registrarlas manualmente en una consola con privilegios de Administrador:" -ForegroundColor Gray
+            Write-Host "         Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe'" -ForegroundColor Cyan
+            Write-Host "         Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath'" -ForegroundColor Cyan
+        }
+    }
+
+    # 4. Inicializar y verificar modelo de IA de similar-code
+    $fallowBin = Join-Path $PSScriptRoot "node_modules\fallow\bin\fallow"
+    if (Test-Path $fallowBin) {
+        Write-Host "  [+] Verificando estado del modelo vectorial de similar-code..." -ForegroundColor Cyan
+        try {
+            $statusJson = node $fallowBin similar-code status --format json 2>$null | ConvertFrom-Json
+            if ($statusJson.model_ready -ne $true) {
+                Write-Host "  [+] Descargando e inicializando modelo de embeddings de IA (jina-embeddings-v2-base-code)..." -ForegroundColor Cyan
+                node $fallowBin similar-code setup --local --yes
+            } else {
+                Write-Host "  [✓] Modelo de embeddings de IA para similar-code verificado y listo." -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "  [WARN] No se pudo inicializar similar-code automáticamente: $_" -ForegroundColor Yellow
+        }
+    }
 }
 
 # Verificación de exclusión de scratch/ en .gitignore
@@ -440,6 +587,29 @@ if ($pkgContent.scripts -and $pkgContent.scripts.'env:post-setup') {
     Write-Host ""
     Write-Host "[HOOK] Ejecutando gancho post-setup (npm run env:post-setup)..." -ForegroundColor Cyan
     npm run env:post-setup
+}
+
+# 14. Ejecución Automática de Auditor Fix (Reparación y Sincronización Inicial)
+$auditorDistEntry = Join-Path $PSScriptRoot "node_modules\@francogp\auditor\dist\cli\audit_full.js"
+$auditorSelfEntry = Join-Path $PSScriptRoot "src\cli\audit_full.ts"
+$isAuditorSelf = (Test-Path $auditorSelfEntry) -and ($projectName -eq "@francogp/auditor")
+
+if ($isAuditorSelf) {
+    Write-Host ""
+    Write-Host "[AUDITOR] Ejecutando reparación automática inicial (npm run auditor:fix)..." -ForegroundColor Cyan
+    try {
+        npm run auditor:fix
+    } catch {
+        Write-Host "  [WARN] Fallo no fatal en auditor fix inicial: $_" -ForegroundColor Yellow
+    }
+} elseif (Test-Path $auditorDistEntry) {
+    Write-Host ""
+    Write-Host "[AUDITOR] Ejecutando sincronización automática de auditor (auditor fix)..." -ForegroundColor Cyan
+    try {
+        node --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons "$auditorDistEntry" fix
+    } catch {
+        Write-Host "  [WARN] Fallo no fatal al ejecutar auditor fix: $_" -ForegroundColor Yellow
+    }
 }
 
 Write-Host ""

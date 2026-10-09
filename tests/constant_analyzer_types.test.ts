@@ -9,9 +9,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { DuplicateConstantsAuditor } from '../src/suites/architecture/validate_duplicate_constants.ts';
+import { ConstantHygieneAuditor } from '../src/suites/architecture/validate_constant_hygiene.ts';
 
-describe('DuplicateConstantsAuditor Type Unwrapping', () => {
+describe('ConstantHygieneAuditor Type Unwrapping', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -33,7 +33,7 @@ describe('DuplicateConstantsAuditor Type Unwrapping', () => {
     await fs.writeFile(fileA, 'export const RATIO_FACTOR = 0.75;\n', 'utf-8');
     await fs.writeFile(fileB, 'export const RATIO_FACTOR = 0.75 as const;\n', 'utf-8');
 
-    const auditor = new DuplicateConstantsAuditor({ projectRoot: tempDir });
+    const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
     const identical = result.findings.filter(f => f.ruleId === 'duplicate-constant-identical');
@@ -53,7 +53,7 @@ describe('DuplicateConstantsAuditor Type Unwrapping', () => {
     await fs.writeFile(fileA, 'export const SENTINEL_LIMIT = (5000);\n', 'utf-8');
     await fs.writeFile(fileB, 'export const SENTINEL_LIMIT = <const>5000;\n', 'utf-8');
 
-    const auditor = new DuplicateConstantsAuditor({ projectRoot: tempDir });
+    const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
     const identical = result.findings.filter(f => f.ruleId === 'duplicate-constant-identical');
@@ -72,7 +72,7 @@ describe('DuplicateConstantsAuditor Type Unwrapping', () => {
     await fs.writeFile(fileA, 'export const SPEED_MULTIPLIER = 1.25 as const;\n', 'utf-8');
     await fs.writeFile(fileB, 'export const SPEED_MULTIPLIER = 1.5;\n', 'utf-8');
 
-    const auditor = new DuplicateConstantsAuditor({ projectRoot: tempDir });
+    const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
     const identical = result.findings.filter(f => f.ruleId === 'duplicate-constant-identical');

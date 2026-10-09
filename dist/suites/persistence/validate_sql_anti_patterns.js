@@ -35,8 +35,7 @@ export const SQL_ANTI_PATTERN_RULES = [
     'sql-no-positional-arrays',
     'sql-plpgsql-declared-variables',
     'sql-rls-policy-grant-integrity',
-    'db-payload-snake-case',
-    'storage-uncoordinated-save-bypass'
+    'db-payload-snake-case'
 ];
 export function getPositionalJsonMutationRegex() {
     const config = getAuditConfig();
@@ -75,16 +74,14 @@ function isIntegerRangeLoop(executionBody, matchIndex) {
 }
 export class SqlAntiPatternsAuditor extends BaseAuditor {
     configuredMigrationsDir;
-    authorizedSaveFiles;
-    saveKeyPrefixes;
-    constructor(customMigrationsDir, projectRoot = process.cwd(), customSaveKeyPrefixes) {
+    constructor(customMigrationsDir, projectRoot = process.cwd()) {
         const config = getAuditConfig(projectRoot);
         const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'migrations';
         const srcRoots = config.paths.srcRoots || ['src'];
         super({
             id: 'validate_sql_anti_patterns',
-            name: 'SQL & Persistence Anti-Patterns Validator',
-            description: 'Antipatrones SQL, variables sin declarar o camelCase',
+            name: 'SQL & Relational Schema Anti-Patterns Validator',
+            description: 'Antipatrones SQL, variables sin declarar o camelCase en BD',
             family: 'persistence',
             ruleIds: SQL_ANTI_PATTERN_RULES,
             packageName: 'SQL',
@@ -95,8 +92,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
                 'sql-no-positional-arrays': 'Mutación de array JSON en SQL',
                 'sql-plpgsql-declared-variables': 'Variable PL/pgSQL sin declarar',
                 'sql-rls-policy-grant-integrity': 'Permiso GRANT faltante en RLS',
-                'db-payload-snake-case': 'Propiedad sin snake_case en BD',
-                'storage-uncoordinated-save-bypass': 'Bypass de persistencia segura'
+                'db-payload-snake-case': 'Propiedad sin snake_case en BD'
             },
             coverage: {
                 include: [`${migrationsDirRel}/**/*.sql`, 'database/**/*.sql', 'migrations/**/*.sql', 'src/**/*.ts', 'src/**/*.vue']
@@ -106,8 +102,6 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
             projectRoot
         });
         this.configuredMigrationsDir = migrationsDirRel;
-        this.authorizedSaveFiles = new Set(config.persistence.authorizedSaveFiles ?? []);
-        this.saveKeyPrefixes = customSaveKeyPrefixes ?? config.persistence.saveKeyPrefixes ?? [];
     }
     runAudit() {
         const config = getAuditConfig(this.projectRoot);
@@ -198,14 +192,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         const srcFiles = this.context.collectFiles([...srcRoots], new Set(['.ts', '.vue']));
         if (srcFiles.length === 0) {
             this.markRuleNotApplicable('db-payload-snake-case', 'No se encontraron archivos de código fuente');
-            this.markRuleNotApplicable('storage-uncoordinated-save-bypass', 'No se encontraron archivos de código fuente');
             return;
         }
         for (const file of srcFiles) {
             const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
             this.recordScanned(relPath);
             this.markRuleEvaluated('db-payload-snake-case');
-            this.markRuleEvaluated('storage-uncoordinated-save-bypass');
             try {
                 const content = fs.readFileSync(file, 'utf-8');
                 this.scanTypeScriptFile(relPath, content);
@@ -337,14 +329,6 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
     }
     scanTypeScriptFile(relPath, content) {
         const lines = content.split('\n');
-        if (!this.authorizedSaveFiles.has(relPath) && this.saveKeyPrefixes.length > 0) {
-            scanUncoordinatedStorageWrites({
-                relPath,
-                lines,
-                saveKeyPrefixes: this.saveKeyPrefixes,
-                auditor: this
-            });
-        }
         scanDbPayloadKeys({
             relPath,
             content,
@@ -405,26 +389,6 @@ function extractTopLevelKeys(raw) {
         }
     }
     return results;
-}
-function scanUncoordinatedStorageWrites(params) {
-    for (let i = 0; i < params.lines.length; i++) {
-        const lineText = params.lines[i];
-        if (!lineText)
-            continue;
-        const hasUncoordinatedSave = params.saveKeyPrefixes.some(prefix => lineText.includes(`localStorage.setItem('${prefix}`) ||
-            lineText.includes(`localStorage.setItem("${prefix}`) ||
-            lineText.includes(`localStorage.setItem(\`${prefix}`));
-        if (hasUncoordinatedSave && !params.auditor.isLineIgnored(lineText, ['storage-ok'])) {
-            params.auditor.addViolation({
-                ruleId: 'storage-uncoordinated-save-bypass',
-                severity: 'error',
-                file: params.relPath,
-                line: i + 1,
-                message: `Direct localStorage write to state bypasses authorized persistence architecture.`,
-                context: lineText.trim()
-            });
-        }
-    }
 }
 function scanDbPayloadKeys(params) {
     const dbWriteRegex = /\.(?:insert|update|upsert)\s*\(\s*(\[[^\]]*\]|\{[^}]*\})/g;

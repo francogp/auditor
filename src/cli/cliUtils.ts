@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { getAuditConfig } from '../core/auditConfig.ts';
+import { getAuditConfig, sanitizePath } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 
 /**
@@ -40,6 +40,118 @@ export function isMainModule(metaUrl: string): boolean {
 
 export const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 export const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
+
+export interface CliBootstrapResult {
+  readonly projectRoot: string;
+  readonly isRemote: boolean;
+  readonly auditorHomeDir: string;
+}
+
+/**
+ * Early Pre-flight CLI Bootstrap:
+ * Parses --project=<path>, --project <path>, project=<path>, -p <path>, -p=<path>
+ * before any configuration load or sub-auditor discovery.
+ * If targeting a remote project, verifies the directory and package.json,
+ * records AUDITOR_HOME_DIR and AUDIT_PROJECT_ROOT, and switches process.cwd().
+ */
+export function bootstrapCliProject(argv: readonly string[] = process.argv): CliBootstrapResult {
+  let targetCandidate: string | null = null;
+  const rawHome = process.env.AUDITOR_HOME_DIR || process.cwd();
+  const auditorHomeDir = sanitizePath(rawHome);
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg) continue;
+
+    if (arg.startsWith('--project=')) {
+      targetCandidate = arg.slice('--project='.length);
+      break;
+    }
+    if (arg === '--project' && i + 1 < argv.length) {
+      targetCandidate = argv[i + 1] ?? null;
+      break;
+    }
+    if (arg.startsWith('project=')) {
+      targetCandidate = arg.slice('project='.length);
+      break;
+    }
+    if (arg === '-p' && i + 1 < argv.length) {
+      targetCandidate = argv[i + 1] ?? null;
+      break;
+    }
+    if (arg.startsWith('-p=')) {
+      targetCandidate = arg.slice('-p='.length);
+      break;
+    }
+  }
+
+  if (!targetCandidate && process.env.AUDIT_PROJECT_ROOT) {
+    targetCandidate = process.env.AUDIT_PROJECT_ROOT;
+  }
+
+  if (!targetCandidate) {
+    return {
+      projectRoot: auditorHomeDir,
+      isRemote: false,
+      auditorHomeDir
+    };
+  }
+
+  const cleanCandidate = sanitizePath(targetCandidate);
+  const resolved = path.resolve(auditorHomeDir, cleanCandidate);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`[Remote Execution Error] Target project directory does not exist: '${resolved}'`);
+  }
+  const stat = fs.statSync(resolved);
+  if (!stat.isDirectory()) {
+    throw new Error(`[Remote Execution Error] Target project path is not a directory: '${resolved}'`);
+  }
+  if (!fs.existsSync(path.join(resolved, 'package.json'))) {
+    throw new Error(`[Remote Execution Error] Target directory does not contain a package.json: '${resolved}'`);
+  }
+
+  process.env.AUDITOR_HOME_DIR = auditorHomeDir;
+  process.env.AUDIT_PROJECT_ROOT = resolved;
+
+  const currentResolved = path.resolve(process.cwd());
+  const targetResolved = path.resolve(resolved);
+  const isRemote = path.resolve(auditorHomeDir) !== targetResolved;
+
+  if (currentResolved !== targetResolved) {
+    process.chdir(targetResolved);
+  }
+
+  if (argv === process.argv && process.argv.length >= 2) {
+    const stripped = stripProjectCliArgs(process.argv.slice(2));
+    process.argv = [process.argv[0]!, process.argv[1]!, ...stripped];
+  }
+
+  return {
+    projectRoot: targetResolved,
+    isRemote,
+    auditorHomeDir
+  };
+}
+
+/**
+ * Strips project-targeting CLI flags (--project, project=, -p) from an argument list.
+ */
+export function stripProjectCliArgs(argv: readonly string[]): string[] {
+  const strippedArgs: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg) continue;
+    if (arg.startsWith('--project=') || arg.startsWith('project=') || arg.startsWith('-p=')) {
+      continue;
+    }
+    if ((arg === '--project' || arg === '-p') && i + 1 < argv.length) {
+      i++;
+      continue;
+    }
+    strippedArgs.push(arg);
+  }
+  return strippedArgs;
+}
 
 export interface ExecuteNodeCliOptions {
   cwd?: string;
@@ -88,6 +200,11 @@ export function resolveNodeModuleBin(projectRoot: string, relativeBinPath: strin
     if (parent === current) break;
     current = parent;
   }
+  if (process.env.AUDITOR_HOME_DIR) {
+    const cleanHome = sanitizePath(process.env.AUDITOR_HOME_DIR);
+    const homeCandidate = path.resolve(cleanHome, 'node_modules', relativeBinPath);
+    if (fs.existsSync(homeCandidate)) return homeCandidate;
+  }
   return path.resolve(projectRoot, 'node_modules', relativeBinPath);
 }
 
@@ -127,10 +244,16 @@ export function resolvePackageBin(
   }
 
   // Strategy B: try createRequire to resolve main entry then locate package.json
+  const lookupPaths = Array.from(new Set([
+    options?.projectRoot,
+    process.env.AUDITOR_HOME_DIR,
+    process.cwd()
+  ].filter((p): p is string => Boolean(p))));
+
   const req = createRequire(import.meta.url);
   try {
     const mainPath = req.resolve(packageName, {
-      paths: options?.projectRoot ? [options.projectRoot, process.cwd()] : undefined
+      paths: lookupPaths.length > 0 ? lookupPaths : undefined
     });
     let dir = path.dirname(mainPath);
     while (dir && !fs.existsSync(path.join(dir, 'package.json'))) {
@@ -144,10 +267,17 @@ export function resolvePackageBin(
     // catch-ok: Fallback when createRequire fails
   }
 
-  // Strategy C: fallbackRelativeBin in projectRoot node_modules
-  if (options?.fallbackRelativeBin && options?.projectRoot) {
-    const candidate = resolveNodeModuleBin(options.projectRoot, `${packageName}/${options.fallbackRelativeBin}`);
-    if (fs.existsSync(candidate)) return candidate;
+  // Strategy C: fallbackRelativeBin in projectRoot node_modules or AUDITOR_HOME_DIR
+  if (options?.fallbackRelativeBin) {
+    if (options.projectRoot) {
+      const candidate = resolveNodeModuleBin(options.projectRoot, `${packageName}/${options.fallbackRelativeBin}`);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+    if (process.env.AUDITOR_HOME_DIR) {
+      const cleanHome = sanitizePath(process.env.AUDITOR_HOME_DIR);
+      const homeCandidate = path.resolve(cleanHome, 'node_modules', `${packageName}/${options.fallbackRelativeBin}`);
+      if (fs.existsSync(homeCandidate)) return homeCandidate;
+    }
   }
 
   return null;

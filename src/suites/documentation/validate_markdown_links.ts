@@ -82,7 +82,6 @@ export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = [
   'coverage/**'
 ] as const;
 
-let gitIgnoredPathsCache: Set<string> | null = null;
 let gitIgnoreMatcherInstance: GitIgnoreMatcher | null = null;
 
 export function getGitIgnoreMatcher(rootDir: string): GitIgnoreMatcher {
@@ -90,23 +89,6 @@ export function getGitIgnoreMatcher(rootDir: string): GitIgnoreMatcher {
     gitIgnoreMatcherInstance = new GitIgnoreMatcher(rootDir);
   }
   return gitIgnoreMatcherInstance;
-}
-
-export function getGitIgnoredPaths(rootDir: string): Set<string> {
-  if (gitIgnoredPathsCache) return gitIgnoredPathsCache;
-  const paths = new Set<string>();
-  try {
-    const gitignoreRaw = fs.readFileSync(path.join(rootDir, '.gitignore'), 'utf-8');
-    for (const line of gitignoreRaw.split('\n')) {
-      const trimmed = line.trim().replace(/\/$/, '');
-      if (!trimmed || trimmed.startsWith('#') || trimmed.includes('*') || trimmed.includes('?')) continue;
-      paths.add(path.resolve(rootDir, trimmed));
-    }
-  } catch {
-    // catch-ok: no .gitignore found
-  }
-  gitIgnoredPathsCache = paths;
-  return paths;
 }
 
 let repoFileIndexCache: Map<string, string[]> | null = null;
@@ -118,7 +100,6 @@ export function clearRepoFileIndexCache(): void {
 }
 
 export function clearGitIgnoredPathsCache(): void {
-  gitIgnoredPathsCache = null;
   gitIgnoreMatcherInstance = null;
   clearRepoFileIndexCache();
 }

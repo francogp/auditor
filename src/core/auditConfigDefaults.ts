@@ -10,6 +10,7 @@ import {
   type DeepPartial,
   type AuditPersistenceConfig,
   type AuditDomainConfig,
+  type AuditEnvironmentConfig,
   type AuditTemplatesConfig,
   type AuditStylesConfig,
   type AuditStylelintConfig,
@@ -84,6 +85,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     includeTestsInCodeAudit: false,
     ignoreGlobs: [],
     ignoredDirs: [],
+    unignoreDirs: [],
     ignoredPatterns: []
   },
   persistence: {
@@ -208,6 +210,9 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     recommendedScripts: true,
     extraRequiredScripts: []
   },
+  environment: {
+    enabled: true
+  },
   accessibility: {
     enabled: true,
     rules: {}
@@ -270,6 +275,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
   const keys = [
     'persistence',
     'domain',
+    'environment',
     'styles',
     'stylelint',
     'eslint',
@@ -471,6 +477,7 @@ function buildDocumentationSubConfig(d?: DeepPartial<AuditDocumentationConfig>):
   return {
     knownValidAbstractPaths: d?.knownValidAbstractPaths ?? [],
     skillsRoots: d?.skillsRoots ?? [],
+    unignoreDirs: d?.unignoreDirs ?? [],
     allowedNpxBinaries: d?.allowedNpxBinaries ?? [],
     language: d?.language ?? 'en',
     chatLanguage: d?.chatLanguage ?? 'es',
@@ -560,6 +567,14 @@ export function buildPackageHygieneConfig(raw?: DeepPartial<AuditPackageHygieneC
     ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? []),
     entry: p.entry ? [...p.entry] : undefined,
     project: p.project ? [...p.project] : undefined
+  };
+}
+
+export function buildEnvironmentConfig(raw?: DeepPartial<AuditEnvironmentConfig>): AuditEnvironmentConfig {
+  const def = DEFAULT_AUDIT_CONFIG.environment;
+  const p = raw ?? {};
+  return {
+    enabled: p.enabled ?? def?.enabled ?? true
   };
 }
 
@@ -834,6 +849,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     packageHygiene: buildPackageHygieneConfig(config.packageHygiene),
     packageDistribution: buildPackageDistributionConfig(config.packageDistribution),
     packageScripts: buildPackageScriptsConfig(config.packageScripts),
+    environment: buildEnvironmentConfig(config.environment),
     accessibility: buildAccessibilityConfig(config.accessibility),
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
     testCoverage: buildTestCoverageConfig(config.testCoverage),

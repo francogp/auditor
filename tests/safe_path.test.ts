@@ -17,7 +17,11 @@ import {
   safeReadFile,
   safeFetch,
   safeDevUrl,
-  sanitizePath
+  sanitizePath,
+  toPosixPath,
+  toPosixRelative,
+  normalizePosixPath,
+  isPathContained
 } from '../src/core/safePath.ts';
 
 describe('safePath Core Security Utility', () => {
@@ -127,6 +131,43 @@ describe('safePath Core Security Utility', () => {
     it('normalizes path using platform standard normalization and trims whitespace', () => {
       expect(sanitizePath('  src/core/safePath.ts  ')).toBe(path.normalize('src/core/safePath.ts'));
       expect(sanitizePath('')).toBe('');
+    });
+  });
+
+  describe('toPosixPath, toPosixRelative, normalizePosixPath & isPathContained', () => {
+    it('converts relative paths with backslashes to POSIX format', () => {
+      expect(toPosixPath('src\\suites\\architecture\\validate.ts')).toBe('src/suites/architecture/validate.ts');
+      expect(toPosixPath('.\\src\\index.ts')).toBe('src/index.ts');
+    });
+
+    it('converts absolute path to relative POSIX path based on baseDir', () => {
+      const base = path.resolve('workspace', 'project');
+      const target = path.resolve(base, 'src', 'components', 'Button.vue');
+      expect(toPosixPath(target, base)).toBe('src/components/Button.vue');
+    });
+
+    it('handles empty string gracefully', () => {
+      expect(toPosixPath('')).toBe('');
+    });
+
+    it('toPosixRelative aliases toPosixPath with (projectRoot, filePath)', () => {
+      const root = path.resolve('my-root');
+      const file = path.resolve(root, 'docs', 'guide.md');
+      expect(toPosixRelative(root, file)).toBe('docs/guide.md');
+    });
+
+    it('normalizePosixPath aliases toPosixPath with (filePath, cwd)', () => {
+      const cwd = path.resolve('my-root');
+      const file = path.resolve(cwd, 'src', 'main.ts');
+      expect(normalizePosixPath(file, cwd)).toBe('src/main.ts');
+    });
+
+    it('isPathContained verifies safe directory containment and blocks traversal', () => {
+      const root = path.resolve('safe-root');
+      expect(isPathContained(root, 'sub/file.ts')).toBe(true);
+      expect(isPathContained(root, 'file.ts')).toBe(true);
+      expect(isPathContained(root, '../secret.key')).toBe(false);
+      expect(isPathContained(root, '../../etc/passwd')).toBe(false);
     });
   });
 });

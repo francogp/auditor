@@ -31,7 +31,6 @@ import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const MARKDOWN_CODE_REFERENCE_RULES = [
     'markdown-broken-source-ref',
-    'markdown-unregistered-npm-script',
     'markdown-hardcoded-runtime-version',
     'markdown-broken-skill-ref',
     'markdown-case-mismatch'
@@ -141,17 +140,6 @@ export function getKnownValidAbstractPaths(projectRoot) {
     return paths;
 }
 export const KNOWN_VALID_ABSTRACT_PATHS = new Set(DEFAULT_KNOWN_VALID_ABSTRACT_PATHS);
-/** English nouns or syntax descriptors following "npm run" in documentation prose to skip */
-const IGNORED_SCRIPT_WORDS = new Set([
-    'commands',
-    'command',
-    'scripts',
-    'script',
-    'options',
-    'flags',
-    'parameters',
-    'arguments'
-]);
 const KNOWN_PATH_ALIASES = new Set([
     'components', 'logic', 'stores', 'types', 'assets', 'data', 'views',
     'router', 'plugins', 'layouts', 'utils', 'services', 'styles', 'lib',
@@ -219,17 +207,6 @@ export function checkExactCase(startDir, relativePath) {
     }
     return { exists: true, exactMatch: true };
 }
-function loadRegisteredScripts(rootDir) {
-    const pkgPath = path.resolve(rootDir, 'package.json');
-    try {
-        const pkgContent = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-        return new Set(Object.keys(pkgContent.scripts || {}));
-    }
-    catch {
-        // catch-ok: missing or invalid package.json
-        return new Set();
-    }
-}
 function addSkillsFromDir(targetDir, skillsSet) {
     if (fs.existsSync(targetDir)) {
         try {
@@ -259,30 +236,6 @@ function discoverRegisteredSkills(rootDir) {
         }
     }
     return allSkills;
-}
-function checkNpmRunCommands(line, lineNum, relPath, registeredScripts, auditor) {
-    let checked = 0;
-    const npmRegex = /npm run ([\w:-]+)/g;
-    let npmMatch;
-    while ((npmMatch = npmRegex.exec(line)) !== null) {
-        const scriptName = npmMatch[1].trim();
-        checked++;
-        if (scriptName.endsWith(':'))
-            continue;
-        if (IGNORED_SCRIPT_WORDS.has(scriptName.toLowerCase()))
-            continue;
-        if (!registeredScripts.has(scriptName)) {
-            auditor.addViolation({
-                ruleId: 'markdown-unregistered-npm-script',
-                severity: 'error',
-                file: relPath,
-                line: lineNum,
-                message: `ERR! missing or relocated script: command "npm run ${scriptName}" is not registered in package.json.scripts`,
-                context: `npm run ${scriptName}`
-            });
-        }
-    }
-    return checked;
 }
 export const TARGET_NODE_MAJOR_VERSION = '26';
 export const TARGET_NPM_MAJOR_VERSION = '12';
@@ -480,7 +433,6 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
             icon: '💻',
             ruleDescriptions: {
                 'markdown-broken-source-ref': 'Ruta de código inexistente',
-                'markdown-unregistered-npm-script': 'Comando npm no registrado',
                 'markdown-hardcoded-runtime-version': 'Versión Node/npm hardcodeada',
                 'markdown-broken-skill-ref': 'Referencia a skill inexistente',
                 'markdown-case-mismatch': 'Casing incorrecto en ruta'
@@ -502,7 +454,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         this.scanRoots = effectiveScanRoots;
         this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
     }
-    scanMarkdownFile(filePath, registeredScripts, allSkills, knownValidAbstractPaths, seenViolations) {
+    scanMarkdownFile(filePath, allSkills, knownValidAbstractPaths, seenViolations) {
         const relPath = path.relative(this.rootDir, filePath).replace(/\\/g, '/');
         const rawContent = fs.readFileSync(filePath, 'utf8');
         const cleanContent = stripCodeBlocks(rawContent);
@@ -524,7 +476,6 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
             const line = lines[i];
             const lineNum = i + 1;
             if (!isSkillDoc) {
-                checked += checkNpmRunCommands(line, lineNum, relPath, registeredScripts, this);
                 checked += checkSourcePathReferences(line, lineNum, relPath, filePath, this.rootDir, this.gitIgnoreMatcher, knownValidAbstractPaths, this);
             }
             checked += checkHardcodedRuntimeVersions(line, lineNum, relPath, this);
@@ -537,7 +488,6 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         return checked;
     }
     async runAudit() {
-        const registeredScripts = loadRegisteredScripts(this.rootDir);
         const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
         const allSkills = discoverRegisteredSkills(this.rootDir);
         const mdFiles = this.collectMarkdownFiles();
@@ -554,7 +504,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
             for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
                 this.markRuleEvaluated(r);
             }
-            referencesChecked += this.scanMarkdownFile(filePath, registeredScripts, allSkills, knownValidAbstractPaths, seenViolations);
+            referencesChecked += this.scanMarkdownFile(filePath, allSkills, knownValidAbstractPaths, seenViolations);
         }
         this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);
         this.context.setMetric('Referencias de código analizadas', referencesChecked);

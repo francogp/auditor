@@ -11,7 +11,7 @@ import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { getAuditConfig } from "../core/auditConfig.js";
-import { isMainModule, DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "./cliUtils.js";
+import { isMainModule, DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject } from "./cliUtils.js";
 import { resolveFallowBinary, checkOrInitializeModel, DEFAULT_SIMILAR_CODE_THRESHOLD } from "../suites/architecture/validate_similar_code.js";
 const MAX_FUNCTION_NAME_COL_WIDTH = 16;
 const MAX_LOCATION_COL_WIDTH = 20;
@@ -107,6 +107,7 @@ export function runSimilarCodeReport(projectRoot = process.cwd()) {
     console.log(`\n💡 Total de pares semánticos detectados: ${candidates.length}\n`);
 }
 if (isMainModule(import.meta.url)) {
+    bootstrapCliProject();
     runSimilarCodeReport();
 }
 //# sourceMappingURL=report_similar_code.js.map

@@ -9,8 +9,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
-import { isMainModule } from "./cliUtils.js";
+import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { isSelfProviderProject } from "../core/auditConfig.js";
 import { initAgentSkill } from "./init_agent.js";
 export function findHostProjectRoot(startDir = process.cwd(), stopAt) {
     let current = path.resolve(startDir);
@@ -105,12 +106,45 @@ export function updateAuditorPackage(options = {}) {
     if (!options.silent && agentInitResult.created) {
         console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
     }
+    runAuditorFixAutoRemediation(projectRoot, options.silent);
     return {
         success: true,
         projectRoot,
         previousVersion,
         newVersion
     };
+}
+export function runAuditorFixAutoRemediation(projectRoot, silent) {
+    try {
+        const isSelf = isSelfProviderProject(projectRoot);
+        if (!silent) {
+            console.log(styleText('cyan', '🛠️ Ejecutando auditor fix automáticamente para sincronizar scripts y configuraciones...\n'));
+        }
+        const hostAuditorPkg = path.join(projectRoot, 'node_modules/@francogp/auditor/dist/cli/audit_full.js');
+        let cmd = 'npm';
+        let args = ['run', 'auditor:fix'];
+        if (!isSelf && fs.existsSync(hostAuditorPkg)) {
+            cmd = 'node';
+            args = [
+                '--permission',
+                '--allow-fs-read=*',
+                '--allow-fs-write=*',
+                '--allow-child-process',
+                '--allow-addons',
+                hostAuditorPkg,
+                'fix'
+            ];
+        }
+        const proc = childProcess.spawnSync(cmd, args, {
+            cwd: projectRoot,
+            stdio: silent ? 'pipe' : 'inherit',
+            encoding: 'utf-8'
+        });
+        return proc.status === 0;
+    }
+    catch {
+        return false;
+    }
 }
 export function runCli() {
     const result = updateAuditorPackage();
@@ -133,6 +167,7 @@ export function runCli() {
     process.exit(0);
 }
 if (isMainModule(import.meta.url)) {
+    bootstrapCliProject();
     runCli();
 }
 //# sourceMappingURL=update_package.js.map

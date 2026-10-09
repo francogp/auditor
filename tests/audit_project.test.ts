@@ -54,13 +54,12 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
     it('declares human-friendly descriptions for core architecture rules', () => {
       const auditor = new ProjectArchitectureAuditor();
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(auditor.ruleDescriptions?.['banned-ts-suppression']).toBeDefined();
-      expect(auditor.ruleDescriptions?.['domain-type-violation']).toBeDefined();
-      expect(auditor.ruleDescriptions?.['strict-null-violation']).toBeDefined();
-      expect(auditor.ruleDescriptions?.['no-tautological-integration-mocks']).toBeDefined();
-      expect(auditor.ruleDescriptions?.['playwright-id-locators-only']).toBeDefined();
-      expect(auditor.ruleDescriptions?.['no-playwright-force-click']).toBeDefined();
-      expect(auditor.ruleDescriptions?.['architecture-violation']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['zeroTimerLogic']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['viewport']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['nodePrefix']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['noInlineTypeImports']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['esmExtensions']).toBeDefined();
+      expect(auditor.ruleDescriptions?.['forbiddenFallbacks']).toBeDefined();
     });
   });
 

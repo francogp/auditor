@@ -21,8 +21,6 @@ export const BUILTIN_AUDIT_FAMILIES = [
   'documentation'
 ] as const;
 
-export const AUDIT_FAMILIES = BUILTIN_AUDIT_FAMILIES; // value-ok: Canonical constant value reference
-
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
 export type AuditFamily = BuiltinAuditFamily | (string & {}); // domain-ok: Open dynamic text or non-domain string payload
 
@@ -93,7 +91,7 @@ export function resolveFamilyMetadata(familyKey: string, customFamilies?: readon
 
 export function getActiveFamilies(customFamilies?: readonly CustomAuditFamilyConfig[]): readonly string[] {
   const customKeys = (customFamilies ?? []).map(f => f.key);
-  return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
+  return Array.from(new Set([...BUILTIN_AUDIT_FAMILIES, ...customKeys]));
 }
 
 export const FINDING_SEVERITIES = ['error', 'warning', 'info'] as const;
@@ -162,6 +160,8 @@ export interface StandardAuditResult {
 export interface AuditorCapabilities {
   /** Whether the sub-auditor implements automated repairs when invoked with --fix */
   readonly fix: boolean;
+  /** Whether the sub-auditor bootstraps environment or auditor configuration and must run FIRST in fix mode */
+  readonly fixPriority: boolean;
   /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
   readonly lint: boolean;
   /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */

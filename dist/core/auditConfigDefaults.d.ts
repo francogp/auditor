@@ -3,7 +3,7 @@
  *
  * Canonical default configuration, builders, and defineAuditConfig coordinator.
  */
-import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditSecretLeaksConfig, type AuditDependencyVulnerabilitiesConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig, type AuditValibotConfig } from './auditConfigTypes.ts';
+import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditEnvironmentConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditSecretLeaksConfig, type AuditDependencyVulnerabilitiesConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig, type AuditValibotConfig } from './auditConfigTypes.ts';
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export declare const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export declare const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
@@ -29,6 +29,7 @@ export declare function buildConstantsAndDocConfig(config: DeepPartial<AuditEngi
 export declare function buildFallowSimilarCodeConfig(raw?: DeepPartial<AuditFallowSimilarCodeConfig>): AuditFallowSimilarCodeConfig;
 export declare function buildFallowConfig(raw?: DeepPartial<AuditFallowConfig>, rootSecurity?: DeepPartial<AuditSecurityConfig>): AuditFallowConfig;
 export declare function buildPackageHygieneConfig(raw?: DeepPartial<AuditPackageHygieneConfig>): AuditPackageHygieneConfig;
+export declare function buildEnvironmentConfig(raw?: DeepPartial<AuditEnvironmentConfig>): AuditEnvironmentConfig;
 export declare function buildPackageDistributionConfig(raw?: DeepPartial<AuditPackageDistributionConfig>): AuditPackageDistributionConfig;
 export declare function buildPackageScriptsConfig(raw?: DeepPartial<AuditPackageScriptsConfig>): AuditPackageScriptsConfig;
 export declare function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Required<AuditRatchetConfig>;

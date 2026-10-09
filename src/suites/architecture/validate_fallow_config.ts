@@ -28,7 +28,7 @@ export type FallowConfigRuleId =
   | 'fallow-stale-export'
   | 'fallow-empty-export-list'
   | 'fallow-duplicate-entry'
-  | 'fallow-workspace-diagnostic';
+  | 'fallow-config-workspace-diagnostic';
 
 export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-config-missing',
@@ -38,7 +38,7 @@ export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-stale-export',
   'fallow-empty-export-list',
   'fallow-duplicate-entry',
-  'fallow-workspace-diagnostic'
+  'fallow-config-workspace-diagnostic'
 ] as const;
 
 export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
@@ -319,7 +319,7 @@ export function validateFallowWorkspaceDiagnostics(
       continue;
     }
     auditor.addViolation({
-      ruleId: 'fallow-workspace-diagnostic',
+      ruleId: 'fallow-config-workspace-diagnostic',
       severity: 'error',
       file: d.path && d.path !== '.' ? d.path : '.fallowrc.json',
       line: 1,
@@ -369,7 +369,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     };
 
     super({
-      capabilities: { fix: true },
+      capabilities: { fix: true, fixPriority: true },
       configFiles: [configRequirement],
       fix,
       id: 'validate_fallow_config',
@@ -389,7 +389,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-stale-export': 'Export inexistente en config',
         'fallow-empty-export-list': 'Entrada vacía en ignoreExports',
         'fallow-duplicate-entry': 'Entrada o export duplicado',
-        'fallow-workspace-diagnostic': 'Diagnóstico de workspace'
+        'fallow-config-workspace-diagnostic': 'Diagnóstico de workspace'
       },
       coverage: {
         include: ['.fallowrc.json']
@@ -413,7 +413,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     this.markRuleEvaluated('fallow-stale-export');
     this.markRuleEvaluated('fallow-empty-export-list');
     this.markRuleEvaluated('fallow-duplicate-entry');
-    this.markRuleEvaluated('fallow-workspace-diagnostic');
+    this.markRuleEvaluated('fallow-config-workspace-diagnostic');
 
     const bannedGlobs = getBannedEntryGlobs(this.projectRoot);
     validateFallowEntries(config.entry, bannedGlobs, this);

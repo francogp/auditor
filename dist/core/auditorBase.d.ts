@@ -22,6 +22,8 @@ export declare const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string>;
 export declare const CANONICAL_IGNORE_DIRS: ReadonlySet<string>;
 /** Returns the effective set of ignore directories combining canonical defaults with audit.config.ts paths.ignoredDirs */
 export declare function getEffectiveIgnoreDirs(): ReadonlySet<string>;
+/** Returns the effective set of unignore directories combining audit.config.ts paths.unignoreDirs, documentation.unignoreDirs, and derived skillsRoots */
+export declare function getEffectiveUnignoreDirs(projectRoot?: string): readonly string[];
 export declare const SCANNABLE_EXTENSIONS: ReadonlySet<string>;
 export declare const CANONICAL_SCANNABLE_ROOTS: readonly ["scripts", "src", "tests"];
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
@@ -126,8 +128,10 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly ruleDescription?: string;
     readonly severity: FindingSeverity;
     readonly file?: string;
+    readonly filePath?: string;
     readonly line?: number;
     readonly col?: number;
+    readonly column?: number;
     readonly message: string;
     readonly context?: string;
 }
@@ -275,6 +279,18 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
     protected abstract scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void | Promise<void>;
     constructor(options: AuditorOptions<TRuleId>);
+    /**
+     * Adds a violation calculating 1-indexed line and column numbers from a string offset.
+     */
+    protected addViolationAtMatch(params: {
+        ruleId: TRuleId;
+        filePath: string;
+        content: string;
+        matchIndex: number;
+        message: string;
+        severity?: FindingSeverity;
+        context?: string;
+    }): void;
     private resolveEffectiveAst;
     private scanSingleDiscoveredFile;
     runAudit(astContext?: SharedAstContext): Promise<void>;

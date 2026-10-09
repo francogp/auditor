@@ -80,7 +80,7 @@ function resolveTargetSuiteIds(
 function inferFamilyFromRelPath(relPath: string, activeFamilies: readonly AuditFamily[]): AuditFamily {
   const segments = relPath.split('/');
   const firstSegment = segments[0];
-  if (segments.length > 1 && firstSegment && (activeFamilies as readonly string[]).includes(firstSegment)) { // no-domain: Non-domain utility collection or data structure
+  if (segments.length > 1 && firstSegment && activeFamilies.some(f => f === firstSegment)) {
     return firstSegment as AuditFamily;
   }
   return 'architecture';

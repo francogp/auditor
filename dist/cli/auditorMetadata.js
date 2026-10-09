@@ -34,6 +34,8 @@ export function extractStaticMetadataFromFile(fullPath) {
             caps.ast = true;
         if (content.includes('fix: true'))
             caps.fix = true;
+        if (content.includes('fixPriority: true'))
+            caps.fixPriority = true;
         if (content.includes('lint: true'))
             caps.lint = true;
         if (content.includes('md: true'))

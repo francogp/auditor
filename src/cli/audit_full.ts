@@ -14,6 +14,7 @@ import { enableCompileCache } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 import {
   type StandardAuditResult,
@@ -32,7 +33,7 @@ import {
   groupFindingsByFileMap,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
-import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig, type AuditEngineConfig, type AuditListFilter, type AuditRatchetConfig } from '../core/auditConfig.ts';
+import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig, sanitizePath, type AuditEngineConfig, type AuditListFilter, type AuditRatchetConfig } from '../core/auditConfig.ts';
 import { runWarningRatchet, initWarningBaseline } from './auditRatchet.ts';
 import { migrateLegacyAuditConfig } from './migrateAuditConfig.ts';
 import {
@@ -59,7 +60,7 @@ import { SharedAstContext } from '../core/astContext.ts';
 import { BaseAuditor } from '../core/auditorBase.ts';
 import { evaluateSuiteStatus } from '../core/suiteGating.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import '../core/permissionGuard.ts';
 
 enableCompileCache();
@@ -72,6 +73,7 @@ const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0 as const;
 export interface AuditFullCliOptions {
   values: Record<string, unknown>;
   positionals: string[];
+  project?: string;
   targetFamily: string | undefined;
   formattedRules: string;
   targetPreset: AuditPresetName | undefined;
@@ -163,6 +165,7 @@ export function parseAuditFullCliArgs(
     args: normalized,
     options: {
       help: { type: 'boolean', short: 'h' },
+      project: { type: 'string', short: 'p' },
       list: { type: 'boolean', short: 'l' },
       info: { type: 'string' },
       json: { type: 'boolean' },
@@ -193,6 +196,7 @@ export function parseAuditFullCliArgs(
   return {
     values,
     positionals,
+    project: typeof values.project === 'string' ? values.project : undefined,
     targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
     formattedRules: resolveFormattedRules(values, positionals),
     targetPreset: resolveTargetPreset(values, positionals),
@@ -249,8 +253,12 @@ async function executeTaskInProcess(
 ): Promise<{ result: StandardAuditResult; durationMs: number } | null> {
   const taskStart = performance.now();
   try {
-    const fullScriptPath = path.resolve(process.cwd(), task.scriptPath);
-    const mod = await import(fullScriptPath);
+    const baseDir = process.env.AUDITOR_HOME_DIR ?? process.cwd();
+    const fullScriptPath = path.isAbsolute(task.scriptPath)
+      ? task.scriptPath
+      : path.resolve(baseDir, task.scriptPath);
+    const fileUrl = pathToFileURL(fullScriptPath).href;
+    const mod = await import(fileUrl);
     let AuditorClass: (new () => BaseAuditor) | undefined;
     for (const val of Object.values(mod)) {
       if (typeof val === 'function' && val.prototype instanceof BaseAuditor) {
@@ -915,6 +923,17 @@ export function createAuditBannerDetails(
     if (cliOptions.skipSimilar) subtitleDetails.push('Similar-Code: OMITIDO ⏭️');
     if (tasksCount !== allAvailableCount || omittedCount > 0) subtitleDetails.push('Modo: PARCIAL ⚠️');
   }
+
+  if (cliOptions.project) {
+    subtitleDetails.push(`🎯 Remoto: ${path.basename(path.resolve(cliOptions.project))}`);
+  } else if (process.env.AUDITOR_HOME_DIR && process.env.AUDIT_PROJECT_ROOT) {
+    const cleanHome = sanitizePath(process.env.AUDITOR_HOME_DIR);
+    const cleanProject = sanitizePath(process.env.AUDIT_PROJECT_ROOT);
+    if (path.resolve(cleanHome) !== path.resolve(cleanProject)) {
+      subtitleDetails.push(`🎯 Remoto: ${path.basename(cleanProject)}`);
+    }
+  }
+
   return subtitleDetails;
 }
 
@@ -1057,8 +1076,14 @@ function displayMasterBanner(
   console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
 }
 
-function sortTasksByOrder(tasks: AuditTaskDefinition[]): void {
+function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void {
   tasks.sort((a, b) => {
+    if (isFixMode) {
+      const aPriority = Boolean(a.capabilities?.fixPriority);
+      const bPriority = Boolean(b.capabilities?.fixPriority);
+      if (aPriority && !bPriority) return -1;
+      if (!aPriority && bPriority) return 1;
+    }
     const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
     const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
     if (orderA !== orderB) return orderA - orderB;
@@ -1087,6 +1112,7 @@ async function executeAllAuditTasks(
 }
 
 export async function runMasterAudit(): Promise<void> {
+  bootstrapCliProject();
   checkEarlyCliCommands();
   const startTime = performance.now();
   const config = await loadAuditConfig();
@@ -1125,7 +1151,7 @@ export async function runMasterAudit(): Promise<void> {
   const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
   const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
 
-  sortTasksByOrder(tasksToRun);
+  sortTasksByOrder(tasksToRun, isFixMode);
   const workerTasks = tasksToRun.filter(t => !t.capabilities?.postRun);
   const postRunTasks = tasksToRun.filter(t => t.capabilities?.postRun);
 

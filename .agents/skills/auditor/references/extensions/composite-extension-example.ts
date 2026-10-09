@@ -56,6 +56,10 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
       configKey: 'domain.enabled',
+      capabilities: {
+        fix: true,
+        fixPriority: true
+      },
       defaultConfig: {
         enabled: true
       },

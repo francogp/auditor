@@ -9,7 +9,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from './cliUtils.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from './cliUtils.ts';
 
 export const MAX_FUNCTION_NAME_CHARS = 18;
 export const MAX_RECOMMENDED_LOC = 60;
@@ -359,5 +359,6 @@ export function runComplexityReport(): void {
 }
 
 if (isMainModule(import.meta.url)) {
+  bootstrapCliProject();
   runComplexityReport();
 }

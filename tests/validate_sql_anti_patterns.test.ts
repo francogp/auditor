@@ -42,7 +42,7 @@ describe('SqlAntiPatternsAuditor', () => {
       expect(SQL_ANTI_PATTERN_RULES).toContain('sql-plpgsql-declared-variables');
       expect(SQL_ANTI_PATTERN_RULES).toContain('sql-rls-policy-grant-integrity');
       expect(SQL_ANTI_PATTERN_RULES).toContain('db-payload-snake-case');
-      expect(SQL_ANTI_PATTERN_RULES).toContain('storage-uncoordinated-save-bypass');
+      expect(SQL_ANTI_PATTERN_RULES).toHaveLength(4);
     });
 
     it('initializes with correct id and family', () => {
@@ -141,29 +141,6 @@ describe('SqlAntiPatternsAuditor', () => {
 
       auditor.testScanTypeScript('src/logic/userRepo.ts', code);
       expect(issues).toContain('db-payload-snake-case');
-    });
-
-    it('detects uncoordinated localStorage save bypasses (storage-uncoordinated-save-bypass)', () => {
-      class TestableAuditor extends SqlAntiPatternsAuditor {
-        constructor() {
-          super('supabase/migrations', scratchDir, ['app_local_save_']);
-        }
-        public testScanTypeScript(relPath: string, content: string): void {
-          this.scanTypeScriptFile(relPath, content);
-        }
-      }
-
-      const auditor = new TestableAuditor();
-      const code = `
-        localStorage.setItem('app_local_save_data', JSON.stringify({}));
-      `;
-      const issues: string[] = [];
-      auditor.addViolation = (v) => {
-        issues.push(v.ruleId);
-      };
-
-      auditor.testScanTypeScript('src/logic/badStorage.ts', code);
-      expect(issues).toContain('storage-uncoordinated-save-bypass');
     });
   });
 

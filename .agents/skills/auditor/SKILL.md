@@ -63,7 +63,7 @@ graph TD
    - Modifying or disabling configurations (e.g. setting `enabled: false`, deactivating subsystems, lowering thresholds, adding arbitrary whitelist entries, or reverting toggles) to make an audit "pass" without explicit programmer consultation is considered **critical architectural sabotage and gross misconduct**.
    - If an agent believes a configuration does not apply or genuinely requires adjustment, **THE AGENT MUST STOP IMMEDIATELY AND OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** via an explicit question (`ask_question`), presenting the exact defects and waiting for human authorization before modifying any configuration. When requesting authorization, the agent MUST first render a comprehensive technical explanation directly in the visible chat conversation detailing the exact configuration diff, the specific defects reported, why the modification is necessary, the trade-offs, pros, and cons, accompanied by clickable links to the relevant files, BEFORE or alongside calling `ask_question`. Calling `ask_question` blindly without presenting the complete technical explanation in the chat is strictly prohibited.
 0.2. **Absolute Prohibition on NPX & Mandate of Native Node.js 26+ (`node --experimental-strip-types`) / Canonical NPM Scripts**:
-   - Running, recommending, or executing `npx` (e.g., `npx tsx`, `npx auditor`, `npx vitest`) or third-party runtime wrappers across `@francogp/auditor` and consumer host projects is **STRICTLY AND CATEGORICALLY PROHIBITED**.
+   - Running, recommending, or executing npx runners (e.g., tsx, legacy auditor, or vitest via npx) or third-party runtime wrappers across `@francogp/auditor` and consumer host projects is **STRICTLY AND CATEGORICALLY PROHIBITED**.
    - Node.js 26+ runs TypeScript natively without third-party transpiladores. All internal tool executions, inspections, and scripts MUST use native Node.js (`node --experimental-strip-types <script.ts>`) or canonical npm package scripts (`npm run <script>`, `npm test`).
    - If a host project lacks an auditor script in `package.json`, agents MUST run `npm run auditor:fix` (or `node --experimental-strip-types ...`) to synchronize scripts, NEVER attempt ad-hoc `npx` commands.
 1. **Strict OOP Inheritance Mandate**:
@@ -245,10 +245,11 @@ graph TD
 40. **Host AGENTS.md Independence Mandate**:
     - `@francogp/auditor` distributes AI skills (`.agents/skills/*`), CLI binaries, and setup scripts, but MUST NEVER distribute, generate, or force a global `AGENTS.md` onto external consumer host projects. Consumer host projects maintain their own independent, domain-specific `AGENTS.md` hierarchy. The root `AGENTS.md` in `@francogp/auditor` governs exclusively the core auditor engine repository.
 41. **Capability-Driven Auto-Coordination Mandate (`AuditorCapabilities`) & Zero-Boilerplate Defaults**:
-    - Sub-auditors declare execution capabilities (`fix`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`) cleanly via `AuditorOptions.capabilities?: Partial<AuditorCapabilities>`.
+    - Sub-auditors declare execution capabilities (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`) cleanly via `AuditorOptions.capabilities?: Partial<AuditorCapabilities>`.
     - `BaseAuditor` guarantees immutable defaults (`DEFAULT_AUDITOR_CAPABILITIES` with all flags set to `false`). Sub-auditors ONLY declare active capabilities where they differ from defaults (e.g. `capabilities: { lint: true, fix: true }`). Repeating redundant `false` flags across constructors is strictly forbidden.
-    - When `auditor fix` or `auditor --fix` is invoked, the master orchestrator (`audit_full.ts`) and scanner (`auditScanner.ts`) dynamically isolate and run only auto-repair suites (`capabilities.fix === true`) under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface. Fast presets (`preset=lint`, `preset=md`) dynamically select suites declaring `capabilities.lint === true` or `capabilities.md === true`.
-    - Heavy suites (`capabilities.heavy === true`) are automatically bypassed in fast presets (`preset=lint`, `preset=md`). AST requirements are evaluated dynamically without hardcoded suite ID lists.
+    - When `auditor fix` or `auditor --fix` is invoked, the master orchestrator (`audit_full.ts`) and scanner (`auditScanner.ts`) dynamically isolate and run only auto-repair suites (`capabilities.fix === true`) under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface. Suites declaring `capabilities.fixPriority === true` (environment engines, tooling configs, and default generators) are dynamically executed **FIRST** to stabilize environment, `.auditor/audit.config.ts`, `.gitignore`, and `package.json` scripts before dependent code and style fixers run.
+    - **Absolute Prohibition on Hardcoded Execution Order or Suite Lists**: The orchestrator sorts and dispatches suites purely dynamically based on declared capabilities and reflection. Hardcoding static arrays or ordering lists in framework code is strictly prohibited.
+    - Fast presets (`preset=lint`, `preset=md`) dynamically select suites declaring `capabilities.lint === true` or `capabilities.md === true`. Heavy suites (`capabilities.heavy === true`) are automatically bypassed in fast presets (`preset=lint`, `preset=md`). AST requirements are evaluated dynamically without hardcoded suite ID lists.
 42. **Strict ESLint Flat Config & Zero-Tolerance Type Integrity (`eslint.config.js`)**:
     - All projects governed by `@francogp/auditor` MUST maintain a root `eslint.config.js` enforcing `@typescript-eslint/no-explicit-any: 'error'`, `@typescript-eslint/no-restricted-syntax` banning `TSUnknownKeyword` (`as unknown as`) and legacy `new Date()` / `Date.now()`. `forbiddenTypeCasts` in `audit_rules.ts` enforces static eradication of `as any`, `: any`, `<any>`, and `as unknown as` with zero tolerance under `/domain-type-first`.
     - `validate_eslint_config` automatically validates that consumer and engine ESLint flat configs do not disable these safety invariants.
@@ -310,7 +311,7 @@ graph TD
     - **Dual Triage Protocol (Declaration vs Documentation)**:
       When `validate_documented_commands` reports an unregistered npm script (`documented-cmd-unregistered-npm`), invalid syntax (`documented-cmd-invalid-npm-syntax`), or unregistered npx binary (`documented-cmd-unregistered-npx`), developers and AI agents **MUST NOT** blindly assume it is an error in documentation to be stripped, renamed, or suppressed.
       Instead, rigorously analyze the author's intent following this decision tree:
-      - **Case A: Missing Declaration (Legitimate Tooling Intent)**: If the command represents an intentional project workflow, hook, lifecycle script, test runner, or utility (e.g. `npm run dev`, `npm run test:node`, `npm run env:post-setup`, `npm run validate:documented-commands`), the correct resolution is to **DECLARE IT in `package.json.scripts` or dependencies** where it belongs, ensuring the project provides what is documented.
+      - **Case A: Missing Declaration (Legitimate Tooling Intent)**: If the command represents an intentional project workflow, hook, lifecycle script, test runner, or utility (e.g. `npm run dev`, `npm run test:node`, `npm run env:post-setup`, `npm run auditor:documented-commands`), the correct resolution is to **DECLARE IT in `package.json.scripts` or dependencies** where it belongs, ensuring the project provides what is documented.
       - **Case B: Documentation Defect (Legacy, Typo, or Misformatted)**: If the command is an obsolete legacy leftover, has invalid syntax (such as invoking a custom script directly without `run`), or references an external/project-specific tool without generic placeholder notation (`<script>`), the correct resolution is to **UPDATE the documentation** to reflect canonical, working commands or use generic placeholders.
 57. **Mandatory README Synchronization & Modernization Mandate**:
     - Whenever releasing framework features, updating generic suites, adjusting canonical package scripts, or performing auditor upgrades in host applications, developers and AI agents MUST review, update, and modernize the root `README.md`.
@@ -334,7 +335,7 @@ graph TD
     - **Optional `## Key Files` Placement**: When present for bidirectional code mapping, `## Key Files` must be canonically placed immediately after `## Local Contracts` or immediately before `## Child DOX Index`.
     - **Zero Empty or Garbage Content Mandate (`dox-empty-section`)**: Leaving mandatory sections empty, whitespace-only, comment-only (`<!-- ... -->`), or filled with placeholder/junk tokens (`TODO`, `TBD`, `N/A`, `None`, `< 10` chars) triggers a blocking `severity: 'error'`. Every section must provide genuine, operational guidance and runnable verification commands.
     - **Bidirectional Source File Indexing (`dox-unindexed-file`)**: All non-test source code files (`.ts`, `.vue`, `.js`, etc.) residing in a directory governed by `AGENTS.md` MUST be documented under `## Key Files`. Missing source files trigger `dox-unindexed-file` (`severity: 'error'`).
-    - **Link Integrity Diagnostics (`dox-broken-link`, `dox-absolute-link`, `dox-gitignore-target`)**: Markdown links must use relative POSIX paths pointing to valid disk assets. Absolute filesystem paths or unversioned gitignored resources trigger errors. If a target is missing from the specified path but located elsewhere, the diagnostic transparently reports: `"pero aparentemente fue localizado en: ..."` without applying unvetted automated file mutations.
+    - **Markdown Link Verification Separation**: General link diagnostics (`markdown-link-broken`, `markdown-link-absolute-path`, `markdown-link-gitignore-target`) across all markdown files including `AGENTS.md` are audited canonically by `validate_markdown_links`.
 61. **Mandatory Test Execution Coverage Enforcement (`validate_test_coverage`, `testCoverage.enforceInAudit`)**:
     - Test coverage enforcement is **active by default** (`testCoverage.enforceInAudit: true`) across `@francogp/auditor`.
     - If overall code coverage or category coverage (statements, branches, functions, lines) falls below the threshold (default: **80%**), `validate_test_coverage` fails with blocking `severity: 'error'`.
@@ -396,22 +397,29 @@ graph TD
     - Sub-auditors and extensions may declare custom script aliases or multi-argument CLI tools via `AuditorOptions.scripts`.
     - `PackageScriptRegistry` tracks all registered scripts and throws an immediate, explicit error (`[COLISIÓN DE COMANDOS]`) if two sub-auditors or extensions register the same command name with conflicting targets.
     - `validate_audit_config` in `--fix` mode (`auditor fix`) dynamically discovers all required scripts and injects missing ones into `package.json` non-destructively, preserving existing commands and custom aliases. Static hardcoded script templates are strictly prohibited.
+74. **Fast Mermaid Syntax & Quoted Character Governance (`validate_mermaid_syntax`)**:
+    - `validate_mermaid_syntax` is active in fast lint presets (`capabilities: { md: true, lint: true }`).
+    - Enforces valid diagram syntax and strict double quotes on edge labels and node shapes containing special punctuation (`%`, `&`, `<`, `>`, `≠`, `≥`, `≤`, `(`, `)`, `/`, `?`, `!`, `+`, `:`, `=`, `#`, `*`, `~`) to prevent IDE renderer crashes.
 
 ---
 
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
 ### 1. Generic Built-In Suites (`src/suites/`)
+
 Domain-agnostic suites discovered automatically across canonical architectural families:
+
 - `architecture/` (including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Package types verification (`validate_package_types`), Secret leaks detection (`validate_secret_leaks`), Dependency CVE vulnerability scanning (`validate_dependency_vulnerabilities`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), AGENTS config tampering mandate (`validate_agents_config_mandate`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
 - `domain_data/`: O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `.auditor/audit.config.ts`)
 - `persistence/`: SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
 - `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), documentation language verification (`validate_documentation_language.ts`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
 
 ### 2. Host Project Extensions (`scripts/auditors/`) & `.auditor/audit.config.ts`
+
 All domain-specific rules unique to host applications (e.g. specialized domain entities, state machines, business workflows, custom SQLite schemas) reside in `scripts/auditors/` (or designated project folders) and extend `BaseAuditor` imported from `@francogp/auditor`.
 
 Configured in `.auditor/audit.config.ts`:
+
 - `paths.migrationsDir`: `'database/migrations'`
 - `paths.testFilePatterns`: `['.spec.', '.test.', '.simulation.']` (Dynamic test file recognition)
 - `paths.testFragmentationWhitelist`: `['src/large-feature.ts']` (Files exempt from test fragmentation limits)
@@ -458,7 +466,8 @@ Configured in `.auditor/audit.config.ts`:
 - `fallow.similarCode.ignoreSameFile`: `boolean` (Excludes intra-file candidate pairs, default `true`)
 - `extensions`: [Host project custom plugins in `scripts/auditors/`]
 
-### File Naming Conventions:
+### File Naming Conventions
+
 - **Generic Suite**: `src/suites/<family>/validate_<topic>.ts`
 - **Host Extension**: `scripts/auditors/<family>/validate_<topic>.ts` (registered in `.auditor/audit.config.ts`).
 - **Private Helper**: `_<helper_name>.ts` (ignored by discovery).
@@ -469,7 +478,9 @@ Configured in `.auditor/audit.config.ts`:
 ## 🛠️ Step-by-Step Guide: How to Create a New Sub-Auditor
 
 ### 📦 Architecture & Templates (`assets/templates/`)
+
 Pre-formatted, production-ready templates conforming to all project standards are bundled directly within this skill for instant scaffolding:
+
 - **Line-by-Line Scanner (`FileScanAuditor`)**: [`assets/templates/file_scan_auditor_template.ts`](./assets/templates/file_scan_auditor_template.ts) — Best for regex patterns, forbidden tokens, or syntax rules across file lines.
 - **Composite / Database / Asset Auditor (`BaseAuditor`)**: [`assets/templates/base_auditor_template.ts`](./assets/templates/base_auditor_template.ts) — Best for multi-source comparisons, database schema validations, or dataset integrity checks.
 - **AST-Driven Sub-Auditor (`requiresAst: true` & `SharedAstContext`)**: [`assets/templates/ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts) — Best for TypeScript AST analysis without redundant compiler overhead.
@@ -491,6 +502,51 @@ Pre-formatted, production-ready templates conforming to all project standards ar
 
 📘 **Detailed Guide & Canonical Config**: See [host-package-governance.md](references/host-package-governance.md) for full instructions, CI setups, and `package.json` blueprint.
 📘 **Host Migration & Modernization**: See [v5-migration-guide.md](references/v5-migration-guide.md) for the complete v5+ upgrade procedure and mandatory README synchronization checklist.
+
+---
+
+## 🎯 Remote Project Execution & Cross-Repository Testing (`--project` / `-p`)
+
+During framework development or refactoring of `@francogp/auditor`, developers and AI agents need to test suites, fixes, and new analyzers against real consumer repositories (such as host games or client workspaces) on the same local computer **without committing, pushing, or publishing packages to GitHub**:
+
+```bash
+# Full audit against a target local host repository:
+npm run auditor -- project="../PokeBorrador"
+
+# Quick lint preset against target repository:
+npm run auditor:lint -- project="../PokeBorrador"
+
+# Auto-fix mode against target repository:
+npm run auditor:fix -- project="../PokeBorrador"
+
+# Interactive findings inspection on target repository:
+npm run auditor:findings -- project="../PokeBorrador"
+```
+
+### Supported CLI Flag Variants
+
+The framework resolves the target project via `bootstrapCliProject(argv)` supporting:
+
+- `--project=<path>` or `--project <path>`
+- `project=<path>`
+- `-p <path>` or `-p=<path>`
+
+### Architecture: Pre-flight Early Chdir Bootstrap
+
+1. **Bootstrap Phase (`src/cli/cliUtils.ts`)**:
+   - `bootstrapCliProject()` inspects CLI arguments before any configuration or suites are loaded.
+   - It validates that the target path exists and contains a valid `package.json` via native Node.js APIs (`node:path` and `node:fs`).
+   - It sets environment variables: `AUDITOR_HOME_DIR` (the auditor package root) and `AUDIT_PROJECT_ROOT` (the resolved host project root).
+   - It switches the process working directory via `process.chdir(targetDir)`.
+2. **Native Third-Party Tool Context**:
+   - External tools (ESLint, Fallow on Candle CPU, Stylelint, HTML-Validate, Git, and Warning Ratchet) operate transparently with `process.cwd()` set to the host directory, loading the host's `eslint.config.js`, `.stylelintrc.json`, `tsconfig.json`, and git baseline without path translation hazards.
+   - If an external tool binary is missing from the host's `node_modules/.bin/`, `resolvePackageBin` seamlessly falls back to `AUDITOR_HOME_DIR/node_modules/.bin/`.
+3. **Dynamic Host Configuration & Extension Discovery**:
+   - The master orchestrator loads the host's `.auditor/audit.config.ts`, discovering all host extensions (e.g. `scripts/auditors/*.ts`) alongside the official suites from `AUDITOR_HOME_DIR/src/suites/`.
+4. **Hermetic Satellite Tool Compatibility**:
+   - `stripProjectCliArgs(argv)` strips the project flags before satellite CLI option parsers run, ensuring tools like `report_findings.ts` or `report_fallow.ts` process positional arguments correctly.
+5. **Results & Cache Isolation**:
+   - All audit reports and ephemeral results are written strictly to the host's `scratch/audits/` directory.
 
 ---
 
@@ -524,6 +580,7 @@ Every sub-auditor (generic suites in `src/suites/` and host extension plugins in
 ## 🔍 Interactive Findings Reporter (`report_findings.ts`) & CLI Diagnostics
 
 The findings reporter (`src/cli/report_findings.ts`) is the official SSoT diagnostic tool for querying, grouping, and inspecting audit results without running arbitrary terminal scripts or raw grep commands:
+
 - **CLI Options & Filters**: Supports `severity=...`, `category=...`, `dir=...`, `scope=...`, `search=...`, and directory breakdowns (`breakdown`).
 - **Official NPM Scripts**: `npm run auditor:findings`, `npm run auditor:errors`, `npm run auditor:warnings`, `npm run auditor:summary`, `npm run auditor:similar`, `npm run auditor:review`.
 - **Proactive Tool Evolution Mandate**: Proactively add missing capabilities directly into official native tools (`report_findings.ts`) rather than using disposable terminal one-liners (`node -e`).
@@ -583,5 +640,3 @@ The following reference manuals and configuration blueprints are maintained in `
 - [`references/extensions/validate_render_performance.extension.ts`](./references/extensions/validate_render_performance.extension.ts): Reference extension blueprint for GPU render hygiene and atmospheric overlays.
 - [`references/extensions/composite-extension-example.ts`](./references/extensions/composite-extension-example.ts): Reference extension blueprint for composite host auditors with sub-auditors and atomic console reporting.
 - [`references/plugins/`](./references/plugins/): Sample setup plugins for Docker database containers and local SSL certificates with `mkcert` (Bash & PowerShell).
-
-

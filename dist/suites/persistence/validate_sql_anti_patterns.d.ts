@@ -26,15 +26,13 @@
  *   npm run validate:sql-anti-patterns
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-export type SqlAntiPatternRuleId = 'sql-no-positional-arrays' | 'sql-plpgsql-declared-variables' | 'sql-rls-policy-grant-integrity' | 'db-payload-snake-case' | 'storage-uncoordinated-save-bypass';
+export type SqlAntiPatternRuleId = 'sql-no-positional-arrays' | 'sql-plpgsql-declared-variables' | 'sql-rls-policy-grant-integrity' | 'db-payload-snake-case';
 export declare const SQL_ANTI_PATTERN_RULES: readonly SqlAntiPatternRuleId[];
 export declare function getPositionalJsonMutationRegex(): RegExp;
 export declare const POSITIONAL_JSON_MUTATION_REGEX: RegExp;
 export declare class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     private readonly configuredMigrationsDir;
-    private readonly authorizedSaveFiles;
-    private readonly saveKeyPrefixes;
-    constructor(customMigrationsDir?: string, projectRoot?: string, customSaveKeyPrefixes?: readonly string[]);
+    constructor(customMigrationsDir?: string, projectRoot?: string);
     runAudit(): void;
     private markSqlRulesNotApplicable;
     private resolveMigrationScanDirs;

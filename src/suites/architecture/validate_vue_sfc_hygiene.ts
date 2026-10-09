@@ -27,6 +27,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -174,11 +175,11 @@ constructor(roots?: readonly string[], projectRoot?: string) {
   }
 
   private extractTemplateBlock(content: string): { templateContent: string; templateStartIndex: number } | null {
-    const templateMatch = content.match(/<template[\s\S]*<\/template>/);
-    if (!templateMatch) return null;
+    const parsed = parseVueSfcBlocks(content);
+    if (!parsed.template) return null;
     return {
-      templateContent: templateMatch[0],
-      templateStartIndex: templateMatch.index ?? 0
+      templateContent: parsed.template.rawBlock,
+      templateStartIndex: parsed.template.startIndex
     };
   }
 
@@ -235,6 +236,24 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       content,
       templateStartIndex
     );
+
+    const prohibitedDb = config.persistence?.prohibitedTemplateIdentifiers?.length
+      ? config.persistence.prohibitedTemplateIdentifiers
+      : (config.persistence?.engine === 'none' ? [] : ['supabase', 'db']);
+    if (prohibitedDb.length > 0) {
+      const dbRegex = new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'gi');
+      this.scanRegexMatches(
+        templateContent,
+        dbRegex,
+        relPath,
+        'no-data-provider-in-template',
+        ['template-ok', 'sfc-ok'],
+        `Acceso directo a persistencia/base de datos detectado en template Vue. Cachea los datos con computed o acciones en <script>.`,
+        undefined,
+        content,
+        templateStartIndex
+      );
+    }
   }
 }
 

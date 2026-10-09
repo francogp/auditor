@@ -14,6 +14,7 @@ import '../core/permissionGuard.ts';
 export interface AuditFullCliOptions {
     values: Record<string, unknown>;
     positionals: string[];
+    project?: string;
     targetFamily: string | undefined;
     formattedRules: string;
     targetPreset: AuditPresetName | undefined;

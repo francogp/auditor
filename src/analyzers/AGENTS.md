@@ -29,7 +29,7 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run constant analyzer unit tests: `npm test -- tests/validate_duplicate_constants.test.ts`
+- Run constant analyzer unit tests: `npm test -- tests/validate_constant_hygiene.test.ts`
 - Run DOX analyzer unit tests: `npm test -- tests/validate_dox_integrity.test.ts`
 
 ## Child DOX Index

@@ -441,5 +441,13 @@ describe('audit_full CLI orchestration helpers', () => {
       expect(details.some(d => d.includes('Familia: ARCHITECTURE'))).toBe(true);
       expect(details.some(d => d.includes('Modo: PARCIAL ⚠️'))).toBe(true);
     });
+
+    it('renders remote banner detail when cli.project is specified', () => {
+      const remoteCli = parseAuditFullCliArgs(activeFamilies, ['--project=../PokeBorrador']);
+      expect(remoteCli.project).toBe('../PokeBorrador');
+
+      const details = createAuditBannerDetails(remoteCli, false, false, 50, 50, 0);
+      expect(details.some(d => d.includes('🎯 Remoto: PokeBorrador'))).toBe(true);
+    });
   });
 });

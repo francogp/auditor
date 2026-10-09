@@ -71,6 +71,7 @@ Architecture & Tooling Engineers.
 - **Auditor Contract Conformance Verification (`auditorContractConformance.ts`)**: All discovered core suites and host extensions must adhere to the 5-point conformance contract: (1) Instantiation & Metadata verification via `validateAuditorConstruction(auditor)`, (2) Clean Path testing (`errors === 0`, `status === 'passed'`, `findings.length === 0`), (3) Violation Detection (`errors > 0`, `status === 'failed'`, `severity === 'error'`), (4) Warning Path verification where warnings are generated (`warnings > 0`, `status === 'warned'`, `severity === 'warning'`), and (5) 100% of declared rule IDs tested. The framework exports `runAuditorContractConformanceTests()` providing dynamic whole-workspace test discovery in 2 lines for test runners.
 - **Immediate Completion-Order Output & Head-of-Line Elimination (`streamingRunner.ts`)**: `TaskStreamCoordinator` discards sequential task buffering. As worker processes finish, `onTaskComplete` prints immediately under an atomic async `printLock`, maintaining unbroken per-suite blocks without interleaving between workers.
 - **Dynamic Config Import Cache-Busting (`loadAuditConfig`)**: Dynamic ESM imports of `audit.config.ts` append a monotonic microsecond query parameter (`?t=${performance.now()}_${counter}`) to ensure programmatic reloads (e.g. after `auditor fix`) immediately reflect filesystem updates without Node.js module caching hazards.
+- **Remote Project Execution Environment (`AUDITOR_HOME_DIR`, `AUDIT_PROJECT_ROOT`)**: When the CLI triggers remote project execution via `bootstrapCliProject()` (`--project`, `project=`, `-p`), `AUDITOR_HOME_DIR` preserves the canonical absolute path of the `@francogp/auditor` installation, while `AUDIT_PROJECT_ROOT` identifies the host workspace target. Core modules and path containment checks (`safeResolve`) align with `process.cwd()` pointing to the host project root, while package binary lookups and worker scripts resolve against `AUDITOR_HOME_DIR`.
 
 ## Key Files
 
@@ -93,6 +94,7 @@ Architecture & Tooling Engineers.
 - [`gitIgnoreRegistry.ts`](./gitIgnoreRegistry.ts): Centralized registry for dynamic `.gitignore` requirements declared across sub-auditors and extensions.
 - [`gitignoreMatcher.ts`](./gitignoreMatcher.ts): Gitignore parsing and fast path matching utility.
 - [`markdownReport.ts`](./markdownReport.ts): Comprehensive Markdown audit report generator.
+- [`packageJson.ts`](./packageJson.ts): Canonical package.json caching, reading, and DTO provider.
 - [`packageScriptRegistry.ts`](./packageScriptRegistry.ts): Centralized registry for recommended package scripts, collision detection, and command requirements declared across sub-auditors and extensions.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
@@ -104,6 +106,7 @@ Architecture & Tooling Engineers.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
 - [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.
 - [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, CandidateVersions contract, and SemVer bump calculation engine (supporting major, minor, patch, and build).
+- [`vueSfcParser.ts`](./vueSfcParser.ts): Canonical Vue Single File Component (SFC) block extractor for template, script, and style blocks.
 
 ## Work Guidance
 

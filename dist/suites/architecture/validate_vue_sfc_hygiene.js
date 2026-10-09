@@ -26,6 +26,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 enableCompileCache();
 export const VUE_SFC_HYGIENE_RULES = [
     'script-setup-required',
@@ -148,12 +149,12 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
         }
     }
     extractTemplateBlock(content) {
-        const templateMatch = content.match(/<template[\s\S]*<\/template>/);
-        if (!templateMatch)
+        const parsed = parseVueSfcBlocks(content);
+        if (!parsed.template)
             return null;
         return {
-            templateContent: templateMatch[0],
-            templateStartIndex: templateMatch.index ?? 0
+            templateContent: parsed.template.rawBlock,
+            templateStartIndex: parsed.template.startIndex
         };
     }
     auditTemplateQuoteEscaping(relPath, content) {
@@ -193,6 +194,13 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
             ? new RegExp(`\\{\\{[^}]*\\b(?:${customPatterns.join('|')})`, 'g')
             : DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX;
         this.scanRegexMatches(templateContent, regex, relPath, 'no-data-provider-in-template', ['template-ok', 'sfc-ok'], `Direct call to heavy data provider inside template render loop. Move calls to computed properties or script helpers.`, undefined, content, templateStartIndex);
+        const prohibitedDb = config.persistence?.prohibitedTemplateIdentifiers?.length
+            ? config.persistence.prohibitedTemplateIdentifiers
+            : (config.persistence?.engine === 'none' ? [] : ['supabase', 'db']);
+        if (prohibitedDb.length > 0) {
+            const dbRegex = new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'gi');
+            this.scanRegexMatches(templateContent, dbRegex, relPath, 'no-data-provider-in-template', ['template-ok', 'sfc-ok'], `Acceso directo a persistencia/base de datos detectado en template Vue. Cachea los datos con computed o acciones en <script>.`, undefined, content, templateStartIndex);
+        }
     }
 }
 // Standalone execution support

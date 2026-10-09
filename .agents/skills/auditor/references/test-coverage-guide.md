@@ -10,11 +10,12 @@ This guide provides the official operational reference, CLI options, architectur
 
 | Script / Command | Purpose | Underlying Data Source |
 | :--- | :--- | :--- |
-| `npm run auditor:test-coverage`<br>`auditor-test-coverage` | **Real test execution code coverage** (statements, branches, functions, lines, uncovered line ranges, untracked files). | Vitest / Jest / V8 / Istanbul `coverage-final.json`. |
-| `npm run auditor:coverage-map`<br>`auditor-coverage-map` | **Auditor suite coverage** (which static analysis rules and architectural suites scan each versioned file). | Auditor runtime ledgers (`scratch/audits/coverage/`). |
-| `npm run auditor:coverage-gaps`<br>`auditor-fallow category=coverage-gaps` | **Fallow reachable exports without tests** (untested public API contracts). | Fallow graph analysis. |
+| `npm run auditor:test-coverage` / `auditor-test-coverage` | **Real test execution code coverage** (statements, branches, functions, lines, uncovered line ranges, untracked files). | Vitest / Jest / V8 / Istanbul `coverage-final.json`. |
+| `npm run auditor:coverage-map` / `auditor-coverage-map` | **Auditor suite coverage** (which static analysis rules and architectural suites scan each versioned file). | Auditor runtime ledgers (`scratch/audits/coverage/`). |
+| `npm run auditor:coverage-gaps` / `auditor-fallow category=coverage-gaps` | **Fallow reachable exports without tests** (untested public API contracts). | Fallow graph analysis. |
 
 ### Strict Prohibition on Ad-Hoc Scripts & Walkers
+
 AI agents and developers are **STRICTLY PROHIBITED** from writing custom `node -e` scripts, ad-hoc Python/shell one-liners, or manual filesystem walkers to parse `coverage-final.json` or inspect test coverage. All coverage investigation, drill-down, line range inspection, and CI gating MUST be performed strictly through `npm run auditor:test-coverage` (`auditor-test-coverage`).
 
 ---
@@ -24,11 +25,13 @@ AI agents and developers are **STRICTLY PROHIBITED** from writing custom `node -
 To generate standard coverage data compatible with `@francogp/auditor`, configure Vitest with `@vitest/coverage-v8` or `@vitest/coverage-istanbul`:
 
 ### 2.1. Install Provider
+
 ```bash
 npm install -D @vitest/coverage-v8
 ```
 
 ### 2.2. Configure `vitest.config.ts`
+
 ```ts
 import { defineConfig } from 'vitest/config';
 
@@ -45,6 +48,7 @@ export default defineConfig({
 ```
 
 ### 2.3. Configure `.auditor/audit.config.ts`
+
 ```ts
 import { defineAuditConfig } from '@francogp/auditor';
 
@@ -101,13 +105,17 @@ flowchart TD
 ```
 
 ### Step 1: Run & Refresh Coverage
+
 Never rely on stale coverage files. Always execute tests with fresh coverage data:
+
 ```bash
 npm run auditor:test-coverage -- --run
 ```
 
 ### Step 2: Inspect Global Metrics & File Buckets
+
 Examine the overall statements, branches, functions, and lines percentages along with file bucket distribution:
+
 - **🟢 Excellent ($\ge 80\%$)**: Target state for business logic, services, and core utilities.
 - **🟡 Acceptable ($50-79\%$)**: Secondary priority for progressive test expansion.
 - **🔴 Low ($< 50\%$)**: Needs immediate test coverage attention.
@@ -115,34 +123,47 @@ Examine the overall statements, branches, functions, and lines percentages along
 - **⚠️ Untracked**: Files on disk never imported or evaluated by any test suite.
 
 ### Step 3: Drill Down into Subsystems
+
 Identify which directory or architectural module pulls the average down:
+
 ```bash
 npm run auditor:test-coverage -- --dir=src/services
 ```
 
 ### Step 4: Eradicate Untracked Files
+
 Check if there are entire components, views, or utilities on disk that have zero tests:
+
 ```bash
 npm run auditor:test-coverage -- --untracked
 ```
+
 *Action*: Either create dedicated unit/integration tests for these files, or add legitimate non-testable files (e.g. constant dictionaries or static schemas) to `exemptGlobs` in `audit.config.ts`.
 
 ### Step 5: Prioritize via Complexity Hotspots
+
 Not all uncovered files represent equal risk. A 5-line simple helper with 0% coverage is trivial, while a 300-line complex state machine with 0% coverage is a critical defect hazard:
+
 ```bash
 npm run auditor:test-coverage -- --hotspots --top=10
 ```
+
 *Formula*: $\text{Risk Score} = \text{Cognitive Complexity} \times (1 - \frac{\text{Coverage \%}}{100})$. Files with high complexity and low coverage appear at the very top.
 
 ### Step 6: Surgically Inspect Uncovered Line Ranges
+
 Inspect the exact lines that were not hit by tests before authoring new test cases:
+
 ```bash
 npm run auditor:test-coverage -- --file=src/services/sessionService.ts
 ```
+
 The output displays exact uncovered line ranges (e.g. `14-22, 45, 88-102`), pinpointing error branches, edge cases, or exception handlers that need tests.
 
 ### Step 7: Enforce CI Quality Gate
+
 In pull request pipelines or pre-release checks, verify that overall coverage meets or exceeds the required threshold:
+
 ```bash
 npm run auditor:test-coverage -- --check --threshold=80
 ```
@@ -152,16 +173,19 @@ npm run auditor:test-coverage -- --check --threshold=80
 ## 5. Practical Agent Recipes
 
 ### Recipe A: Finding the Worst 10 Files in a Project
+
 ```bash
 npm run auditor:test-coverage -- --below --top=10
 ```
 
 ### Recipe B: Checking Coverage of a Specific Subsystem
+
 ```bash
 npm run auditor:test-coverage -- --dir=src/core
 ```
 
 ### Recipe C: Automated CI Step
+
 ```bash
 npm run auditor:test-coverage -- --run --check --threshold=80
 ```

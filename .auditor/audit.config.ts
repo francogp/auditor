@@ -8,8 +8,8 @@ export default defineAuditConfig({
     scriptsRoots: ['src/cli'],
     codeRoots: ['src'],
     cliRoots: ['src/cli', 'src/core', 'src/suites', 'src/analyzers'],
-    ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**', '.agents/**'],
-    ignoredDirs: ['skills', '.agents']
+    ignoreGlobs: ['node_modules/**', 'dist/**', 'scratch/**'],
+    ignoredDirs: []
   },
   coverage: {
     exemptGlobs: [
@@ -88,7 +88,7 @@ export default defineAuditConfig({
   },
   testCoverage: {
     enabled: true,
-    threshold: 70, // Current achievable ceiling ratcheting towards 80%
+    threshold: 80, // Elevated achievable threshold ratcheted to 80%
     enforceInAudit: true
   },
   agentPlugin: {
@@ -127,6 +127,12 @@ export default defineAuditConfig({
   valibot: {
     enabled: true,
     targets: []
+  },
+  environment: {
+    enabled: true
+  },
+  packageScripts: {
+    enabled: true
   },
   runner: {
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios

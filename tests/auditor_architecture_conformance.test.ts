@@ -196,8 +196,8 @@ describe('Auditor Architecture Conformance', () => {
 
   describe('False Positive Eradication & Precision Tests', () => {
     it('noImportantOnTransforms ignores text-transform and catches transform', async () => {
-      const { noImportantOnTransforms } = await import('../src/suites/architecture/audit_rules.ts');
-      const r = new RegExp(noImportantOnTransforms.regex.source, noImportantOnTransforms.regex.flags);
+      const { NO_IMPORTANT_ON_TRANSFORMS_REGEX } = await import('../src/suites/architecture/validate_gsap_animations.ts');
+      const r = new RegExp(NO_IMPORTANT_ON_TRANSFORMS_REGEX.source, NO_IMPORTANT_ON_TRANSFORMS_REGEX.flags);
       expect(r.test('text-transform: uppercase !important;')).toBe(false);
       r.lastIndex = 0;
       expect(r.test('transform: none !important;')).toBe(true);
@@ -206,8 +206,8 @@ describe('Auditor Architecture Conformance', () => {
     });
 
     it('noImportantOnFilters ignores backdrop-filter and catches element filter', async () => {
-      const { noImportantOnFilters } = await import('../src/suites/architecture/audit_rules.ts');
-      const r = new RegExp(noImportantOnFilters.regex.source, noImportantOnFilters.regex.flags);
+      const { NO_IMPORTANT_ON_FILTERS_REGEX } = await import('../src/suites/architecture/validate_gsap_animations.ts');
+      const r = new RegExp(NO_IMPORTANT_ON_FILTERS_REGEX.source, NO_IMPORTANT_ON_FILTERS_REGEX.flags);
       expect(r.test('-webkit-backdrop-filter: none !important;')).toBe(false);
       r.lastIndex = 0;
       expect(r.test('backdrop-filter: none !important;')).toBe(false);
@@ -245,12 +245,15 @@ describe('Auditor Architecture Conformance', () => {
         'validate_agents_config_mandate',
         'validate_audit_config',
         'validate_documentation_language',
+        'validate_environment_engines',
         'validate_eslint',
         'validate_eslint_config',
         'validate_fallow_config',
         'validate_html_validate',
         'validate_markdown_lint',
         'validate_package_hygiene',
+        'validate_package_scripts',
+        'validate_similar_code',
         'validate_stylelint',
         'validate_z_index'
       ].sort();

@@ -33,6 +33,7 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 23. `packageDistribution`: Package distribution hygiene, export map resolution, and dual ESM/CJS compatibility (defaults to `enabled: true`, requires post-build `npm run auditor:build`).
 24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run auditor:build`).
 25. `valibot`: Bidirectional schema and persistence parity verification between TypeScript interfaces, Valibot schemas, and serializers (defaults to `enabled: true`, `targets: []`).
+26. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
 
 When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.requiresBuild: true`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:build` / `preset=build`).
 

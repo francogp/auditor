@@ -17,6 +17,7 @@ Architecture & Tooling Engineers.
 ## Key Files
 
 - [`validate_domain_types.ts`](./validate_domain_types.ts): Domain-type-first validator parameterized via `audit.config.ts`.
+- [`validate_canonical_domains.ts`](./validate_canonical_domains.ts): Canonical domain catalog collision, repeated union duplication, and subset synchronization checker.
 - [`validate_o1_data_structures.ts`](./validate_o1_data_structures.ts): Algorithmic complexity and $O(1)$ data structure checker.
 
 ## Work Guidance

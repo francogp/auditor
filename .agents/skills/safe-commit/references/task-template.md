@@ -17,22 +17,20 @@
   - [ ] Code-Only Safety Backup (`mkdir -p scratch/backups && git diff HEAD -- '*.ts' '*.vue' '*.js' '*.scss' '*.css' '*.sql' ':!*.json' > scratch/backups/pre_audit_backup.patch`)
   - [ ] Version Bump Decision (Display analysis table in chat & `ask_question` with updated build stamps across all 3 SemVer options + build-only; run `version:bump` if approved)
   - [ ] Pre-draft commit message (The Elegant Protocol synthesis in `task.md`)
-- [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 5 Gates Passing)**
+- [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 3 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:
-    - [ ] `git fetch origin` + `npm run auditor` (Gate 2.1: 0 errors + warning ratchet with 0 new warnings vs `ratchet.productionRef`; commit any shrunk `.auditor/audit-baseline.json`)
-    - [ ] `npm run test` (Gate 2.2: 100% test suites passing)
-    - [ ] `npm run build` 🔒 **THE BUILD GATE** (Gate 2.3: STRICT Exit Code 0 — zero bypasses, single run)
-    - [ ] `npm run auditor:build` (Gate 2.4: Post-build compiled artifact audit, unless already chained by `build`)
-    - [ ] `npm run auditor:fallow` (Gate 2.5: Score ≥ 85 and ≥ BASELINE_HEALTH)
+    - [ ] `npm run test:coverage` (Gate 2.1: 100% test suites passing + freshly emitted `coverage/coverage-final.json` artifact; conditionally `[SKIPPED]` if `testCoverage.enabled === false` or `enforceInAudit === false`)
+    - [ ] `npm run build` 🔒 **THE MASTER BUILD GATE** (Gate 2.2: STRICT Exit Code 0 — atomic single run chaining pre-build `auditor`, compilation, and post-build `auditor:build`)
+    - [ ] `npm run auditor:fallow` (Gate 2.3: Score ≥ 85 and ≥ BASELINE_HEALTH)
   - [ ] **Loop Repair Action (Triggered on ANY failure above; repeat until all gates pass)**:
     - [ ] `npm run auditor:fix` / manual code fixes applied in workspace
-    - [ ] Re-run cycle checks until all 5 gates exit with code 0
+    - [ ] Re-run cycle checks until all 3 gates exit with code 0
 - [ ] **Phase 3: Lessons Extraction, Walkthrough & 🛑 Hard Stop**
   - [ ] Extract lessons learned via `learn-with-docs`
-  - [ ] Create `<appDataDir>/brain/<conversation-id>/learning_proposal.md`
+  - [ ] Create `<appDataDir>/brain/<conversation-id>/plan_learning_proposal.md`
   - [ ] Create/Update `<appDataDir>/brain/<conversation-id>/walkthrough.md`
   - [ ] Workspace cleanup (Clean temporary files from `scratch/`)
-  - [ ] Present artifact links (`learning_proposal.md` & `walkthrough.md`) in chat for user review and commit approval
+  - [ ] Present artifact links (`plan_learning_proposal.md` & `walkthrough.md`) in chat for user review and commit approval
   - [ ] 🛑 HARD STOP (Wait for approval before Phase 4)
 - [ ] **Phase 4: Single Atomic Certified Commit & Completion**
   - [ ] Apply approved lessons and modernizations to `AGENTS.md` and documentation
@@ -49,6 +47,7 @@
 ## Step Records & Execution Metrics
 
 ### Workspace Safety Backup
+
 - **Modified Files**:
   - `(none recorded yet)`
 - **Safety Patch File**: `scratch/backups/pre_audit_backup.patch`
@@ -57,11 +56,10 @@
   - `(drafted in Step 1.4)`
 
 ### Verification & Repair Loop Status
+
 - **Loop Iteration Count**: `0`
-- **auditor (Full Auditor + Warning Ratchet)**: `PENDING (0 ERRORS, 0 NEW WARNINGS REQUIRED)`
-- **test**: `PENDING`
-- **npm run build (THE GATE)**: `PENDING (MUST BE EXIT 0)`
-- **auditor:build**: `PENDING`
-- **final fallow health**: `PENDING`
+- **test:coverage (Tests & Dynamic Coverage)**: `PENDING (100% PASS OR SKIPPED)`
+- **npm run build (THE MASTER GATE: auditor + compile + auditor:build)**: `PENDING (MUST BE EXIT 0)`
+- **auditor:fallow (Final Fallow Health)**: `PENDING (SCORE ≥ 85)`
 - **Repairs Applied**:
   - `(none yet)`

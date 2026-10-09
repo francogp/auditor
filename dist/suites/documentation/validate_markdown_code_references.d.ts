@@ -23,7 +23,7 @@
  *   npm run validate:markdown-code-references
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
-export type MarkdownCodeReferenceRuleId = 'markdown-broken-source-ref' | 'markdown-unregistered-npm-script' | 'markdown-hardcoded-runtime-version' | 'markdown-broken-skill-ref' | 'markdown-case-mismatch';
+export type MarkdownCodeReferenceRuleId = 'markdown-broken-source-ref' | 'markdown-hardcoded-runtime-version' | 'markdown-broken-skill-ref' | 'markdown-case-mismatch';
 export declare const MARKDOWN_CODE_REFERENCE_RULES: readonly MarkdownCodeReferenceRuleId[];
 export interface MarkdownCodeViolation {
     readonly file: string;

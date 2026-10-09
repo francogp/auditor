@@ -4,9 +4,7 @@
  * Centralized audit rules and checkers for the unified audit engine.
  */
 
-import path from 'node:path';
-import { statSync, existsSync, readdirSync } from 'node:fs';
-import { getAuditConfig, isDataPath, isInCodeRoots, isExemptFile, isScriptPath, isTestPath, matchesAnyRoot } from '../../core/auditConfig.ts';
+import { getAuditConfig, isDataPath, isInCodeRoots, isExemptFile, isScriptPath, isTestPath } from '../../core/auditConfig.ts';
 
 export {
   AUDIT_SEVERITIES,
@@ -29,10 +27,6 @@ export {
   Z_SORTED_ENTRIES,
   type ZLayerResolution,
   resolveZLayer,
-  zIndexAudit,
-  zIndexConstantDeclaration
-} from '../../analyzers/zIndexRules.ts';
-import {
   zIndexAudit,
   zIndexConstantDeclaration
 } from '../../analyzers/zIndexRules.ts';
@@ -119,62 +113,6 @@ export const viewport: AuditRule = { // string-ok: Internal string formatting or
   regex: /\b\d+(?:\.\d+)?(vw|vh)\b/gi,
   message: (match: string) => `Unidad legacy detectada: '${match}'. Usa 'd${match.slice(-2)}' para soporte mobile dinámico.`,
   fix: (match: string) => `d${match.toLowerCase().slice(-2)}` // string-ok: Internal string formatting or DOM token identifier
-};
-
-const CONTEXT_WINDOW_SPAN_CHARS = 500;
-
-function isStyleContext(content: string, matchIndex: number, filePath?: string): boolean {
-  if (!filePath) return true;
-  const norm = normalizeFilePath(filePath);
-  const isCssFile = norm.endsWith('.scss') || norm.endsWith('.css');
-  const isVueFile = norm.endsWith('.vue');
-  if (!isCssFile && !isVueFile) return false;
-
-  if (isVueFile) {
-    const styleOpenIndex = content.lastIndexOf('<style', matchIndex);
-    const styleCloseIndex = content.lastIndexOf('</style>', matchIndex);
-    if (styleOpenIndex === -1 || styleOpenIndex < styleCloseIndex) return false;
-  }
-  return true;
-}
-
-function isHighDensityOrSuppressed(content: string, start: number, matchIndex: number, context: string, filePath?: string): boolean {
-  if (/audit-disable\s+gpu-gaps|will-change:\s*(?:skip|ignore|false)/i.test(context)) {
-    return true;
-  }
-  const beforeMatch = content.substring(start, matchIndex);
-  const lastSemi = Math.max(beforeMatch.lastIndexOf(';'), beforeMatch.lastIndexOf('}'), beforeMatch.lastIndexOf('{'));
-  const selectorText = beforeMatch.substring(lastSemi + 1).trim();
-
-  const highDensityKeywords = /card|item|avatar|badge|icon|grid|list|row|cell|overlay|background/i;
-  return highDensityKeywords.test(selectorText) || (filePath ? highDensityKeywords.test(filePath) : false);
-}
-
-export const gpuGaps: AuditRule = {
-  id: 'gpuGaps',
-  name: 'GPU Gaps Promotion',
-  category: 'Falta will-change (GPU)',
-  aliases: ['gpu', 'gpu-gaps', 'will-change', 'filter'],
-  regex: /(backdrop-filter|filter):/gi,
-  message: "Filtro detectado sin 'will-change'. Considera añadir promoción de capa.",
-  severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
-    if (!isStyleContext(content, match.index, filePath)) return false;
-
-    const start = Math.max(0, match.index - CONTEXT_WINDOW_SPAN_CHARS);
-    const end = Math.min(content.length, match.index + CONTEXT_WINDOW_SPAN_CHARS);
-    const context = content.substring(start, end);
-
-    if (isHighDensityOrSuppressed(content, start, match.index, context, filePath)) {
-      return false;
-    }
-
-    const isDynamic = /transition\s*:[^;]*(?:filter|backdrop-filter|all)|animation\s*:/i.test(context);
-    if (!isDynamic) return false;
-
-    return !/will-change|will-animate/i.test(context);
-  },
-  fixable: false 
 };
 
 export const legacyDates: AuditRule = {
@@ -335,11 +273,7 @@ export {
   badConstantNames
 } from '../../analyzers/constantRules.ts';
 import {
-  isAuditableCodeFile,
-  noAliasConstants,
-  noLiteralSuffixInConstantName,
-  magicNumbers,
-  badConstantNames
+  isAuditableCodeFile
 } from '../../analyzers/constantRules.ts';
 
 export const timersPromises: AuditRule = {
@@ -362,58 +296,6 @@ export const explicitResource: AuditRule = {
   }
 };
 
-export const manualAnimations: AuditRule = {
-  regex: /@keyframes\b|\btransition\s*:/g,
-  message: (match: string) => `Animación manual detectada: '${match}'. MIGRACIÓN OBLIGATORIA A GSAP: Está strictly PROHIBIDO borrar esta animación sin haberla migrado antes a GSAP para preservar la experiencia visual.`,
-  severity: 'error',
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    return norm.endsWith('.scss') || norm.endsWith('.css') || norm.endsWith('.vue');
-  },
-  fixable: false
-};
-
-export const emptyVueTransitions: AuditRule = {
-  regex: /\.[\w-]+-(?:enter|leave)-(?:active|from|to)(?:[\s,]+\.[\w-]+-(?:enter|leave)-(?:active|from|to))*\s*\{\s*(?:@include\s+[\w-]+;\s*)?\}/g,
-  message: (match: string) => `Transición de Vue vacía detectada: '${match.trim()}'. MIGRACIÓN OBLIGATORIA A GSAP: Prohibido vaciar las clases de transición de Vue para evadir el auditor. Migra la animación a hooks GSAP (<Transition :css="false" @enter="..." @leave="...">) o usa composables de animación.`,
-  severity: 'error',
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    return norm.endsWith('.scss') || norm.endsWith('.css') || norm.endsWith('.vue');
-  },
-  fixable: false
-};
-
-export const manualTimersFrontend: AuditRule = {
-  regex: /\b(set|clear)(Timeout|Interval)\b/g,
-  message: (match: string) => `Timer de ANIMACIÓN/UI detectado: '${match}'. MIGRACIÓN OBLIGATORIA A GSAP: Prohibido en componentes UI y lógicas para gestionar flujo visual o reintentos de carga. Usa gsap.delayedCall, timelines o promesas deterministas.`,
-  severity: 'error', 
-  check: (content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return false;
-    if (/audit-disable\s+timers/i.test(content)) return false;
-    if (!isInCodeRoots(filePath)) return false;
-    if (isExemptFile(filePath)) return false;
-
-    const norm = normalizeFilePath(filePath);
-    const config = getAuditConfig();
-    const uiRoots = [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
-    ];
-    const isUiFile = norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
-    if (!isUiFile) return false;
-
-    // Check for line-level timer-ok or delay-ok justification
-    const { line } = getLineAtMatch(content, _match.index ?? 0);
-    if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(line)) return false;
-
-    return true;
-  },
-  fixable: false
-};
-
 export const zeroTimerLogic: AuditRule = {
   id: 'zeroTimerLogic',
   name: 'Zero Timer Logic',
@@ -432,23 +314,6 @@ export const zeroTimerLogic: AuditRule = {
   fixable: false
 };
 
-export const noPlaywrightWaitForTimeout: AuditRule = {
-  regex: /\bpage\.waitForTimeout\s*\(/g,
-  message: "Uso de 'page.waitForTimeout()' detectado. Está ESTRICTAMENTE PROHIBIDO usar esperas de tiempo arbitrarias en pruebas E2E. La sincronización debe ser orientada a eventos o selectores deterministas.",
-  severity: 'error',
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return false;
-    const norm = normalizeFilePath(filePath);
-    if (norm.includes('node_modules')) return false;
-    const config = getAuditConfig();
-    const e2eRoots = config.paths?.e2eRoots ?? ['tests/e2e'];
-    return e2eRoots.some(r => {
-      const clean = r.replace(/^\/+|\/+$/g, '').toLowerCase();
-      return clean && (norm === clean || norm.startsWith(clean + '/') || norm.includes('/' + clean + '/'));
-    });
-  },
-  fixable: false
-};
 
 export const jsonStringifyInWatch: AuditRule = {
   regex: /\bwatch\s*\(\s*(?:\(\)\s*=>\s*)?JSON\.stringify/g,
@@ -464,35 +329,6 @@ export const intersectionObserverRoot: AuditRule = {
   fixable: false
 };
 
-export function getProhibitedTemplateDbRegex(): RegExp {
-  const config = getAuditConfig();
-  const prohibited = config?.persistence?.prohibitedTemplateIdentifiers && config.persistence.prohibitedTemplateIdentifiers.length > 0
-    ? config.persistence.prohibitedTemplateIdentifiers
-    : (config?.persistence?.engine === 'none' ? ['__none_match__'] : ['supabase', 'db']);
-  const pattern = prohibited.join('|');
-  return new RegExp(`\\b(?:${pattern})\\b`, 'gi');
-}
-
-export const dbInTemplates: AuditRule = {
-  get regex() {
-    return getProhibitedTemplateDbRegex();
-  },
-  message: "Acceso directo a base de datos / persistencia detectado dentro de un bloque <template>. Está PROHIBIDO consultar la base de datos en el render loop. Cachea los datos reactivamente con 'computed' o acciones de store en <script> y expón una estructura de datos lista para renderizar.",
-  severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
-    if (!filePath || !filePath.endsWith('.vue')) return false;
-    const config = getAuditConfig();
-    if (config.persistence?.engine === 'none' && (!config.persistence?.prohibitedTemplateIdentifiers || config.persistence.prohibitedTemplateIdentifiers.length === 0)) {
-      return false;
-    }
-    const templateOpenIndex = content.lastIndexOf('<template', match.index);
-    const templateCloseIndex = content.lastIndexOf('</template>', match.index);
-    if (templateOpenIndex === -1) return false;
-    if (templateCloseIndex !== -1 && templateOpenIndex < templateCloseIndex) return false;
-    return true;
-  },
-  fixable: false
-};
 
 export const functionCallsInTemplates: AuditRule = {
   regex: /(?::[a-z0-9-]+|v-bind:[a-z0-9-]+)="([\w$]+)\([^"]*\)"|\{\{\s*([\w$]+)\([^}]*\)\}/gi,
@@ -539,8 +375,8 @@ export const functionCallsInTemplates: AuditRule = {
 
 
 export const forbiddenFallbacks: AuditRule = {
-  regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b|\.catch\(\s*(?:(?:\([^)]*\)|[\w$]+)\s*)?=>\s*(?:true|false|null|undefined|\{\}|""|''|\[\])\s*\)/g,
-  message: (match: string) => `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio, usar descripciones como fallback de ID, o silenciar promesas con .catch(() => false/null/{}/void). Se debe fallar ruidosamente con throw new Error().`,
+  regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b/g,
+  message: (match: string) => `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio o usar descripciones como fallback de ID. Se debe fallar ruidosamente con throw new Error().`,
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -552,93 +388,6 @@ export const forbiddenFallbacks: AuditRule = {
   fixable: false
 };
 
-export const doxIndexIntegrity: AuditRule = {
-  id: 'doxIndexIntegrity',
-  name: 'DOX Tag & Section Integrity',
-  category: 'DOX / AGENTS.md',
-  aliases: ['dox', 'agents', 'agents.md', 'documentation', 'dox-integrity', 'doxindexintegrity'],
-  regex: /^# Purpose/gm,
-  message: 'Inconsistencia en jerarquía de documentación DOX Index (AGENTS.md)',
-  severity: 'error',
-  check: (content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath || !filePath.endsWith('AGENTS.md')) return false;
-    const mandatorySections = [
-      '## Ownership',
-      '## Local Contracts',
-      '## Work Guidance',
-      '## Verification',
-      '## Child DOX Index'
-    ];
-    for (const sec of mandatorySections) {
-      if (!content.includes(sec)) return true;
-    }
-
-    const dir = path.dirname(filePath);
-    const childIndexPos = content.indexOf('## Child DOX Index');
-    const childSectionContent = childIndexPos !== -1 ? content.slice(childIndexPos) : '';
-
-    const { hasViolation, indexedSubdirs } = validateChildDoxIndexLinks(childSectionContent, dir);
-    if (hasViolation) return true;
-
-    return checkUnindexedChildSubdirs(dir, indexedSubdirs);
-  },
-  fixable: false
-};
-
-function validateChildDoxIndexLinks(
-  childSectionContent: string,
-  dir: string
-): { hasViolation: boolean; indexedSubdirs: Set<string> } {
-  const linkRegex = /-\s*\[[^\]]+\]\(([^)]+)\)/g;
-  let linkMatch;
-  const indexedSubdirs = new Set<string>();
-
-  while ((linkMatch = linkRegex.exec(childSectionContent)) !== null) {
-    const linkPath = linkMatch[1];
-    if (!linkPath || linkPath.startsWith('http') || linkPath.startsWith('#') || linkPath.includes('(gitignored')) {
-      continue;
-    }
-
-    const cleanPath = linkPath.split('#')[0]!;
-    const resolved = path.resolve(dir, cleanPath);
-
-    try {
-      const stat = statSync(resolved);
-      if (stat.isDirectory()) {
-        const targetAgents = path.join(resolved, 'AGENTS.md');
-        if (!existsSync(targetAgents)) {
-          return { hasViolation: true, indexedSubdirs };
-        }
-        indexedSubdirs.add(path.basename(resolved));
-      } else if (cleanPath.endsWith('AGENTS.md')) {
-        indexedSubdirs.add(path.basename(path.dirname(resolved)));
-      } else {
-        return { hasViolation: true, indexedSubdirs };
-      }
-    } catch {
-      // catch-ok: broken link target in AGENTS.md points to non-existent file or directory
-      return { hasViolation: true, indexedSubdirs };
-    }
-  }
-
-  return { hasViolation: false, indexedSubdirs };
-}
-
-function checkUnindexedChildSubdirs(dir: string, indexedSubdirs: Set<string>): boolean {
-  try {
-    const dirEntries = readdirSync(dir, { withFileTypes: true });
-    for (const entry of dirEntries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
-      const childAgentsPath = path.join(dir, entry.name, 'AGENTS.md');
-      if (existsSync(childAgentsPath) && !indexedSubdirs.has(entry.name)) {
-        return true;
-      }
-    }
-  } catch {
-    // catch-ok: directory might not be readable in restricted filesystem environments
-  }
-  return false;
-}
 
 export const forbiddenTypeCasts: AuditRule = {
   regex: new RegExp([
@@ -726,55 +475,6 @@ export const noLeakedGlobalState: AuditRule = createTypeScriptRule({
   bypassAnnotations: ['// singleton-ok:']
 });
 
-export const missingInteractiveId: AuditRule = {
-  regex: /<([\w-]+)\b(?:[^>"']|"[^"]*"|'[^']*')*>/g,
-  message: (match: string) => `Elemento interactivo de UI sin atributo ID detectado: '${match.replace(/\s+/g, ' ').slice(0, 90)}...'. Todo elemento interactivo (button, input, select, textarea o elementos con eventos @click/@change/@submit) en templates Vue DEBE poseer un atributo 'id' o ':id' explícito para garantizar testabilidad y accesibilidad Playwright.`,
-  severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
-    const config = getAuditConfig();
-    if (!config.templates?.requireInputIds) return false;
-    if (!filePath || !filePath.endsWith('.vue')) return false;
-    const norm = normalizeFilePath(filePath);
-    if (norm.includes('node_modules')) return false;
-
-    // Check if inside <template> block
-    const templateOpenIndex = content.lastIndexOf('<template', match.index);
-    const templateCloseIndex = content.lastIndexOf('</template>', match.index);
-    if (templateOpenIndex === -1) return false;
-    if (templateCloseIndex !== -1 && templateOpenIndex < templateCloseIndex) return false;
-
-    const tagStr = match[0];
-    const tagName = (match[1] || '').toLowerCase();
-
-    // Is it an inherently interactive tag?
-    const isInteractiveTag = ['button', 'input', 'select', 'textarea'].includes(tagName); // no-domain: Non-domain utility collection or data structure
-
-    // Does it have interactive event bindings?
-    const hasInteractiveEvent = /@(?:click|change|submit|input|keydown\.enter)\b|v-on:(?:click|change|submit|input)/i.test(tagStr);
-
-    if (!isInteractiveTag && !hasInteractiveEvent) {
-      return false;
-    }
-
-    // Exempt hidden inputs
-    if (tagName === 'input' && /type\s*=\s*["']hidden["']/i.test(tagStr)) {
-      return false;
-    }
-
-    // Check for id or :id or v-bind:id
-    if (/\b(?:id|:id|v-bind:id)\s*=/i.test(tagStr)) {
-      return false;
-    }
-
-    // Check for escape hatch
-    if (/id-ok/i.test(tagStr)) {
-      return false;
-    }
-
-    return true;
-  },
-  fixable: false
-};
 
 const BASE_INFRA_AND_UUID_IDENTIFIERS: ReadonlySet<string> = new Set<string>([ // runtime-set: Fast O(1) membership lookup set
   'userId', 'user_id', 'clientId', 'client_id', 'profileId', 'profile_id', 'accountId', 'account_id',
@@ -895,36 +595,6 @@ export const noInlineLiteralUnions: AuditRule = {
   fixable: false
 };
 
-export const noImportantOnTransforms: AuditRule = {
-  id: 'noImportantOnTransforms',
-  name: 'No !important on CSS Transforms',
-  category: 'Animaciones GSAP',
-  regex: /(?<![\w-])transform\s*:[^;]*!important/gi,
-  message: (match: string) => `Uso de '!important' en 'transform' detectado: '${match}'. El uso de !important en transform congela e invalida las mutaciones de GSAP en tiempo de ejecución.`,
-  severity: 'error',
-  fixable: false,
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return true;
-    const norm = normalizeFilePath(filePath);
-    return norm.endsWith('.scss') || norm.endsWith('.css') || norm.endsWith('.vue');
-  }
-};
-
-export const noImportantOnFilters: AuditRule = {
-  id: 'noImportantOnFilters',
-  name: 'No !important on CSS Filters',
-  category: 'Animaciones GSAP',
-  regex: /(?<![\w-])filter\s*:[^;]*!important/gi,
-  message: (match: string) => `Uso de '!important' en 'filter' detectado: '${match}'. El uso de !important en filter congela e invalida las animaciones de efectos GSAP.`,
-  severity: 'error',
-  fixable: false,
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
-    if (!filePath) return true;
-    const norm = normalizeFilePath(filePath);
-    return norm.endsWith('.scss') || norm.endsWith('.css') || norm.endsWith('.vue');
-  }
-};
-
 export const noRawJsonImportsOutsideData: AuditRule = {
   id: 'noRawJsonImportsOutsideData',
   name: 'No Raw JSON Import Outside Data Layer',
@@ -955,87 +625,22 @@ export const noSassAtImport: AuditRule = {
   }
 };
 
-export const GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS = 400;
-
-export const noLayoutAnimationInGsap: AuditRule = {
-  id: 'noLayoutAnimationInGsap',
-  name: 'No Layout Animation In GSAP',
-  category: 'Rendimiento GPU (GSAP)',
-  aliases: ['gsap-layout', 'nolayoutanimationingsap', 'layout-animation', 'perf-gsap'],
-  regex: /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g,
-  message: (match: string) => `[TUTORIAL GPU OPTIMIZATION] Se detectó animación de propiedades CSS de layout/repintado CPU en llamada a GSAP: '${match}'.
-   📚 REGLA: (Directivas de Rendimiento GPU en GSAP) está PROHIBIDO animar propiedades de layout o backgroundPosition ('backgroundPosition', 'backgroundPositionX', 'backgroundPositionY') en GSAP porque colapsan el fill-rate forzando reflows y repintados continuos a 60 FPS.
-   💡 SOLUCIÓN: Usa propiedades aceleradas por GPU ('x', 'y', 'scale', 'scaleX', 'scaleY', 'rotation', 'opacity', 'transform'). Para fondos continuos, usa translate3d modular con 'gsap.utils.unitize'.`,
-  severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
-    if (!isAuditableCodeFile(filePath)) return false;
-
-    // Look ahead within the GSAP call for tween config object
-    const startIdx = match.index ?? 0;
-    const chunk = content.slice(startIdx, startIdx + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
-    const layoutPropRegex = /\b(?:backgroundPosition|backgroundPositionX|backgroundPositionY)\s*:/;
-    const found = layoutPropRegex.exec(chunk);
-    if (!found) return false;
-
-    // Verify it's within the GSAP call parentheses
-    const closeParen = chunk.indexOf(')');
-    if (closeParen !== -1 && found.index > closeParen) {
-      return false;
-    }
-
-    // Check for justified ignore comment on the current or preceding line
-    const beforeChunk = content.slice(Math.max(0, startIdx - 200), startIdx);
-    const lineEnd = content.indexOf('\n', startIdx);
-    const currentLine = content.slice(startIdx, lineEnd === -1 ? undefined : lineEnd);
-    const nearby = beforeChunk + '\n' + currentLine;
-    if (/\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(nearby)) {
-      return false;
-    }
-
-    return true;
-  },
-  fixable: false
-};
-
-export function getNamedTimerConstantsRegex(): RegExp {
-  const config = getAuditConfig();
-  const customFuncs = config.animation?.customTimerFunctions ?? [];
-  const defaultFuncs = ['gsapSleep'] as const;
-  const allFuncs = Array.from(new Set([...defaultFuncs, ...customFuncs])).map(f => RegExp.escape(f));
-  const funcsPart = allFuncs.length > 0 ? `|\\b(?:${allFuncs.join('|')})\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*\\)` : '';
-  return new RegExp(`\\b(?:gsap\\.)?delayedCall\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*,${funcsPart}`, 'g');
-}
-
-export const namedTimerConstants: AuditRule = {
-  id: 'namedTimerConstants',
-  name: 'Named GSAP Delay Constants',
-  category: 'Retardos GSAP sin constante nombrada',
-  aliases: ['timer-constants', 'named-timer-constants', 'timer_constants', 'delayedcall-magic', 'gsap-delay-constants'],
-  get regex() {
-    return getNamedTimerConstantsRegex();
-  },
-  message: (match: string) => `Número mágico detectado en retardo de animación GSAP: '${match.trim()}'. Define y usa una constante semántica con sufijo '_SEC' (segundos), ej. 'ANIMATION_DELAY_SEC'. Recuerda que en src/ los timers nativos (setTimeout/setInterval) están TERMINANTEMENTE PROHIBIDOS (regla manualTimersFrontend) y debe usarse ÚNICAMENTE GSAP.`,
-  severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
-    if (!isAuditableCodeFile(filePath)) return false;
-
-    // Permitir 0 (deferral / microtask idiomático)
-    const valStr = match.slice(1).find(Boolean);
-    if (!valStr || parseFloat(valStr) === 0) return false;
-
-    // Check for suppression on the line
-    const { line } = getLineAtMatch(content, match.index ?? 0);
-    if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(line)) return false;
-
-    return true;
-  },
-  fixable: false
-};
-
 export const auditRulesConfig = {
-  viewport, gpuGaps, legacyDates, hardcodedTimezone, nodePrefix, esmExtensions, tsIgnore, timersPromises, explicitResource, zIndexAudit, zIndexConstantDeclaration, manualAnimations, emptyVueTransitions, manualTimersFrontend, zeroTimerLogic, noPlaywrightWaitForTimeout, jsonStringifyInWatch, intersectionObserverRoot, dbInTemplates, functionCallsInTemplates, forbiddenFallbacks, forbiddenTypeCasts, doxIndexIntegrity, noDomainIdFallbacks, strictDomainParamTypes, noInlineTypeImports, noInlineLiteralUnions, magicNumbers, badConstantNames, noAliasConstants, noLiteralSuffixInConstantName, noLiteralBooleanType, noInlineAnonymousObjectType, noFloatingPromises, noLeakedGlobalState, missingInteractiveId,
-  noImportantOnTransforms, noImportantOnFilters, noRawJsonImportsOutsideData, noSassAtImport,
-  noLayoutAnimationInGsap, namedTimerConstants
+  viewport,
+  hardcodedTimezone,
+  nodePrefix,
+  esmExtensions,
+  timersPromises,
+  explicitResource,
+  zeroTimerLogic,
+  jsonStringifyInWatch,
+  intersectionObserverRoot,
+  functionCallsInTemplates,
+  forbiddenFallbacks,
+  noDomainIdFallbacks,
+  noInlineTypeImports,
+  noRawJsonImportsOutsideData,
+  noSassAtImport
 };
 
 // Ensure every rule in auditRulesConfig has its descriptor fields populated dynamically

@@ -8,7 +8,7 @@ import { styleText } from 'node:util';
 import { ONE_MINUTE_MS, sortFindingsByFileAndLine, groupFindingsByFileMap } from "../core/auditContract.js";
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from "../core/auditConfig.js";
 import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings, renderFindingsByFileTree } from "../core/unifiedTheme.js";
-import { isMainModule } from "./cliUtils.js";
+import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
@@ -571,6 +571,7 @@ export function runReport() {
     renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 }
 if (isMainModule(import.meta.url)) {
+    bootstrapCliProject();
     runReport();
 }
 //# sourceMappingURL=report_findings.js.map

@@ -15,6 +15,7 @@ npm install github:francogp/auditor
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
 - **Pre-Compiled Artifacts in Git**: The `dist/` directory is pre-compiled and tracked directly in the repository with executable permissions (`100755`), ensuring immediate availability in `node_modules/.bin/` without requiring local compilation or install hooks.
 - **Antigravity Skills & Plugin Registration**: Ensure `.agents/skills.json` and `.agents/plugins.json` in the host project root declare:
+
   ```json
   // .agents/skills.json
   {
@@ -25,6 +26,7 @@ npm install github:francogp/auditor
     ]
   }
   ```
+
   ```json
   // .agents/plugins.json
   {
@@ -35,7 +37,8 @@ npm install github:francogp/auditor
     ]
   }
   ```
-  This is committed once in the host repository (or generated automatically via `auditor-init-agent` / `npm run init-agent`). It allows Antigravity to dynamically discover all official skills (`.agents/skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree or using fragile symlinks.
+
+  This is committed once in the host repository (or generated automatically via `auditor-init-agent`). It allows Antigravity to dynamically discover all official skills (`.agents/skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree or using fragile symlinks.
 
 ---
 
@@ -45,7 +48,8 @@ npm install github:francogp/auditor
 > When a user or task requests to *"update the auditor"*, *"pull latest auditor changes"*, *"update skills"*, or sync the static analysis engine, developers and AI agents **MUST NEVER** execute `git clone`, create submodules, run ad-hoc `node -e` scripts, inspect `git log` inside `node_modules`, or copy files between repositories.
 > Updates MUST be performed 100% natively through the official updater or npm.
 
-### Canonical Update Command:
+### Canonical Update Command
+
 ```bash
 npm run auditor:update
 # or directly:
@@ -53,6 +57,7 @@ auditor-update
 ```
 
 Under the hood, `auditor-update`:
+
 1. Executes `npm update @francogp/auditor` to resolve the latest commit and update `package-lock.json`.
 2. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
 3. Renders a Box-Drawing verification table confirming successful synchronization.
@@ -78,6 +83,7 @@ npm ci
 
 Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in their `package.json`.
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
+
 - `auditor` (master orchestrator `audit_full.ts`)
 - `auditor-build` (post-build compiled artifact runner `audit_build.ts`)
 - `auditor-build-prod` (production build runner setting `AUDITOR_ENV=production`, `build_prod.ts`)
@@ -96,10 +102,12 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 - `auditor-setup-env` (environment setup runner `setup_env.ts`)
 - `auditor-check-env` (runtime environment validator `check_environment.ts`)
 
-### Dynamic Script Injection via `auditor fix`:
+### Dynamic Script Injection via `auditor fix`
+
 Hardcoding manual package script lists is strictly prohibited. `PackageScriptRegistry` dynamically collects canonical script requirements from all discovered sub-auditors and registered extensions.
 
 To inject all missing auditor and extension scripts into `package.json`:
+
 ```bash
 auditor fix
 # or
@@ -115,6 +123,7 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
 ## 5. Universal Standard `build` Script Contract
 
 The build execution is partitioned into a **2-part auditor lifecycle**:
+
 1. **Pre-build verification** (`npm run auditor`): enforces source code architecture, linting, and domain type constraints before compilation starts.
 2. **Compilation**: runs the bundler / TypeScript compiler (`vite build`, `tsc`, etc.).
 3. **Post-build verification** (`npm run auditor:build`): verifies compiled distribution artifacts in `dist/` (bundle budgets, export maps, type definitions).
@@ -167,6 +176,7 @@ When authoring or maintaining host extensions in `scripts/auditors/`:
 ## 7. Production Builds, Docker Containers & Remote Deployments (`AUDITOR_ENV=production`)
 
 In consumer host projects deploying to production, building Docker containers, running deployment scripts (`deploy-install.sh`, `deploy-update.sh`), or deploying to GitHub Pages:
+
 - The full auditor normally validates 100% of architectural and quality checks.
 - In production environments, coverage files (`coverage/coverage-final.json`) are git-ignored and not generated during build, and computing vector embeddings via Candle CPU is undesirable.
 - Setting `AUDITOR_ENV=production` (or invoking `npm run build:prod` / `auditor-build-prod`) cleanly skips `validate_similar_code` and `validate_test_coverage` with 0 violations.
@@ -194,8 +204,9 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 
 > [!CAUTION]
 > **Prohibition on Local Host Patches**: AI agents and developers **MUST NEVER** attempt to apply ad-hoc local patches, temporary regex replacements, or logic mutations directly inside a host project's `setup-linux.sh` or `setup-windows.ps1`.
-> 
+>
 > If an issue, defect, version synchronization gap (e.g. Node vs NPM in `--declared-versions`), or platform incompatibility is discovered:
+>
 > 1. The agent **MUST PROACTIVELY NOTIFY THE USER**, clearly explaining the root cause.
 > 2. The agent **MUST INSTRUCT THE USER** that the change must be requested and made upstream in the `@francogp/auditor` repository.
 > 3. Once resolved and released upstream, the host project updates via `npm run auditor:update` and synchronizes the official scripts.
@@ -219,7 +230,7 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 > [!CAUTION]
 > **Mandatory Consultation Gate**:
 > Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer.
-> 
+>
 > When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.
 
 ---
@@ -227,9 +238,28 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 ## 11. Upstream Build Sequencing & Consumer Safety Mandate
 
 When implementing core auditor features or script modernizations in `@francogp/auditor`:
+
 1. **Upstream First**: Complete all code changes, unit tests (`npm test`), distribution compilation (`npm run build`), and post-build audits (`auditor:build`) exclusively inside `@francogp/auditor`.
 2. **Zero Premature Host Updates**: NEVER edit or run auto-fix scripts on consumer applications (`package.json`) before the upstream package is committed and ready.
 3. **Consumer Upgrade via Canonical Workflow**: Once upstream is published or committed, upgrade consumer projects exclusively via `npm run auditor:update` (or `auditor-update`) followed by `auditor fix` to apply script updates cleanly.
 
+---
 
+## 12. Local Cross-Repository Testing via `--project` (`project=`, `-p`)
 
+During upstream `@francogp/auditor` development, you can test new suites, refactorings, and auto-fixers against existing local consumer repositories on the same machine **without committing, publishing, or linking (`npm link`)**:
+
+```bash
+# In @francogp/auditor repository:
+npm run auditor -- project="../PokeBorrador"
+npm run auditor:lint -- project="../PokeBorrador"
+npm run auditor:fix -- project="../PokeBorrador"
+npm run auditor:findings -- project="../PokeBorrador"
+```
+
+### Key Principles of Remote Execution
+
+- **Early Chdir**: Operates natively in the host's directory, using the host's `package.json`, `.auditor/audit.config.ts`, `eslint.config.js`, and git baseline.
+- **Dynamic Extension Discovery**: Discovers both upstream suites and the host's bespoke extensions in `scripts/auditors/`.
+- **Zero Pollution**: Output reports and cache are saved strictly in `host/scratch/audits/`.
+- **Zero Premature Modifications**: Allows verifying that upstream changes do not introduce false positives on consumer code before releasing upstream versions.

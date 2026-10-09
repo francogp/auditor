@@ -131,7 +131,9 @@ export function buildTaskCliArguments(
   options: DiscoveryOptions
 ): string[] {
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-  const scriptArg = relScriptPath.startsWith('..') ? path.resolve(fullPath).replace(/\\/g, '/') : relScriptPath;
+  const scriptArg = (relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath))
+    ? path.resolve(fullPath).replace(/\\/g, '/')
+    : relScriptPath;
   const taskPermissions = getPermissionsForTask(filename, fullPath);
   const taskArgs = [...taskPermissions, scriptArg, '--json'];
 
@@ -200,6 +202,9 @@ export async function createAuditTaskDefinition(
 
   const taskArgs = buildTaskCliArguments(filename, fullPath, id, isBuiltin, options);
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+  const effectiveScriptPath = (relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath))
+    ? path.resolve(fullPath).replace(/\\/g, '/')
+    : relScriptPath;
   const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
   const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : '🧩');
 
@@ -208,7 +213,7 @@ export async function createAuditTaskDefinition(
     name: formatTaskTitle(filename),
     description: resolveTaskDescription(metadata),
     family,
-    scriptPath: relScriptPath,
+    scriptPath: effectiveScriptPath,
     command: 'node',
     args: taskArgs,
     fast: isFast,

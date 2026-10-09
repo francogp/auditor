@@ -46,7 +46,7 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(FALLOW_CONFIG_RULES).toContain('fallow-stale-export');
       expect(FALLOW_CONFIG_RULES).toContain('fallow-empty-export-list');
       expect(FALLOW_CONFIG_RULES).toContain('fallow-duplicate-entry');
-      expect(FALLOW_CONFIG_RULES).toContain('fallow-workspace-diagnostic');
+      expect(FALLOW_CONFIG_RULES).toContain('fallow-config-workspace-diagnostic');
     });
 
     it('initializes with correct id and family', () => {
@@ -159,7 +159,7 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(violation).toBeDefined();
     });
 
-    it('flags fallow-workspace-diagnostic when actionable workspace diagnostic is reported', async () => {
+    it('flags fallow-config-workspace-diagnostic when actionable workspace diagnostic is reported', async () => {
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const diagnostics = [
         { path: 'packages/core', kind: 'undeclared-workspace', message: 'Workspace packages/core is not declared in package.json' },
@@ -168,7 +168,7 @@ describe('ValidateFallowConfigAuditor', () => {
       validateFallowWorkspaceDiagnostics(diagnostics, auditor);
       const result = await auditor.finishAudit();
       expect(result.findings.length).toBe(1);
-      expect(result.findings[0]?.ruleId).toBe('fallow-workspace-diagnostic');
+      expect(result.findings[0]?.ruleId).toBe('fallow-config-workspace-diagnostic');
       expect(result.findings[0]?.message).toContain('undeclared-workspace');
     });
   });

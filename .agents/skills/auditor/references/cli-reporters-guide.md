@@ -25,6 +25,7 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 ## 2. Official NPM Reporter Scripts
 
 All inspection routines MUST use the official NPM scripts declared in `package.json`:
+
 - `npm run auditor:update` / `auditor-update`: Dedicated CLI updater executing hermetic npm update, timestamp verification, and Box-Drawing summary table.
 - `npm run auditor:version` / `auditor-version -v`: Displays the active package version, build timestamp, and ISO date metadata.
 - `npm run auditor:findings`: Primary findings reporter with full filtering capabilities (`partial`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).
@@ -48,7 +49,7 @@ The auditor streaming runner (`streamingRunner.ts`) and summary tables display 4
 | `⏭️  SKIP` | Cyan | Suite was intentionally bypassed (via environment guard, configuration, or fast preset). Displays reason and suite thematic icon. |
 
 ### Vector Semantic Duplication Governance (`validate_similar_code`)
+
 - **No CLI Skip Flags**: There is no CLI flag (`--skip-similar` or `--skip-similar-code`) to bypass similar-code vector analysis.
 - **Fast Local Execution**: Executes on Candle CPU in ~2s leveraging persistent disk cache (`%LOCALAPPDATA%\fallow\similar-code` on Windows, `~/.cache/fallow/similar-code` on Linux).
 - **Production Environment Guard (`AUDITOR_ENV=production` / `npm run build:prod`)**: Bypassing vector analysis and test coverage is strictly and exclusively reserved for headless production builds, Docker containers, and remote CI/deploy workflows (e.g. GitHub Pages deploy). It is strictly forbidden in local development or interactive agent turns. When active in production, it transparently renders `⏭️  SKIP` with justification rather than masking as passed.
-

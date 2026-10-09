@@ -7,6 +7,7 @@ This reference provides exhaustive implementation examples and walkthroughs for 
 ## 1. Bundled Boilerplate Templates (`assets/templates/`)
 
 Pre-formatted, production-ready templates conforming to all project standards are bundled directly within this skill for instant scaffolding:
+
 - **Line-by-Line Scanner**: [`assets/templates/file_scan_auditor_template.ts`](../assets/templates/file_scan_auditor_template.ts)
 - **Composite / Database / Asset Auditor**: [`assets/templates/base_auditor_template.ts`](../assets/templates/base_auditor_template.ts)
 - **AST-Driven Auditor**: [`assets/templates/ast_auditor_template.ts`](../assets/templates/ast_auditor_template.ts)
@@ -264,6 +265,7 @@ await BaseAuditor.runCliIfMain(import.meta.url, new MyAstAuditor());
 All sub-auditors in `@francogp/auditor` adhere to the **Universal Sub-Auditor Progress Contract**, ensuring that every sub-rule, internal verification step, and returning result is disclosed live in the console of the main auditor (`audit_full.ts`) and recorded in `StandardAuditResult.subAuditors`.
 
 ### The Contract Types (`auditContract.ts`)
+
 ```typescript
 export interface SubAuditorStep {
   readonly id: string;
@@ -285,20 +287,26 @@ export interface ICompositeAuditor {
 ```
 
 ### In FileScanAuditor (Automatic Ingestion)
+
 When you inherit from `FileScanAuditor`, every rule declared in `this.ruleIds` is automatically mapped into `getSubAuditors()` using `this.formatRuleDescription(ruleId)`.
 Upon completing the file scan, `ensureSubAuditorsLogged()` automatically logs each sub-auditor step:
+
 ```text
 🔍 [1/2] MiModulo: Token prohibido en archivo fuente
 🔍 [2/2] MiModulo: Atributo obligatorio faltante (🐛 2)
 ```
+
 - **Zero Findings**: Silent and clean, with no badges or verbose text like `(0 encontradas)`.
 - **With Findings**: Displays `(🐛 <count>)` prominently.
 - **Description Length Cap**: The composed string `${packageName}: ${ruleDescription}` MUST remain `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) and contain zero newlines. If a rule description exceeds 50 characters, `BaseAuditor` throws an explicit runtime `Error` during instantiation.
 Zero manual logging code is required.
 
 ### In Composite / Multi-Phase BaseAuditor (Explicit Progress)
+
 If your auditor performs multiple distinct phases (such as database indexing followed by parity checks, or running multiple AST sub-analyzers):
+
 1. Override `getSubAuditors()`:
+
    ```typescript
    public override getSubAuditors(): readonly SubAuditorStep[] {
      return [
@@ -307,12 +315,15 @@ If your auditor performs multiple distinct phases (such as database indexing fol
      ];
    }
    ```
+
 2. Call `this.logSubAudit(...)` as each sub-phase completes:
+
    ```typescript
    this.logSubAudit(1, 2, 'Indexación de datos', indexViolationsCount);
    // ... run phase 2 ...
    this.logSubAudit(2, 2, 'Paridad cruzada', parityViolationsCount);
    ```
+
 Any unlogged steps will be backfilled automatically by `ensureSubAuditorsLogged()` when `finishAudit()` runs.
 
 ---
@@ -345,7 +356,8 @@ This pattern powers [`src/suites/architecture/validate_stylelint.ts`](../../../.
 In SCSS and Vue SFC `<style lang="scss">`, standard CSS functions that share names with Dart Sass built-in functions (`scale`, `scaleX`, `scaleY`, `scaleZ`, `scale3d`, `saturate`, `grayscale`, `invert`, `alpha`, `brightness`, `contrast`, `drop-shadow`, `hue-rotate`, `translateX`, `translateY`, `translateZ`, `translate3d`, `radial-gradient`, `linear-gradient`) must be written with PascalCase/CamelCase initial letters (e.g. `Scale(1.1)`, `Saturate(0.9)`, `Drop-Shadow(...)`, `hue-Rotate(...)`).
 
 Lowercase invocations collide with Dart Sass internal evaluation and cause fatal build crashes:
-```
+
+```text
 [sass] $color: 1.1 is not a color.
 [sass] Missing argument $amount.
 ```
@@ -358,26 +370,34 @@ The native Stylelint plugin [`src/suites/architecture/stylelintSassTrapsPlugin.t
 
 Every sub-auditor declares its execution capabilities dynamically. The orchestrator inspects these capabilities to coordinate specialized execution modes (such as `auditor fix`, fast presets, differential runs, or AST sharing) without maintaining hardcoded suite lists.
 
-### The 5 Standard Capabilities:
+### The Standard Capabilities
 
 ```typescript
 export interface AuditorCapabilities {
   /** Supports automatic fixing/repair of detected violations (--fix / auditor fix). */
   readonly fix: boolean;
+  /** High priority in auto-repair mode; executed FIRST to bootstrap environment, configs, and scripts. */
+  readonly fixPriority: boolean;
+  /** Included in fast lint preset (preset=lint). */
+  readonly lint: boolean;
+  /** Included in markdown documentation preset (preset=md). */
+  readonly md: boolean;
   /** Requires in-memory TypeScript AST parsing engine (SharedAstContext). */
   readonly ast: boolean;
   /** Supports differential file scanning (--changed-since / changed-since=origin/main). */
   readonly changedSince: boolean;
   /** Heavy computation / long-running suite, excluded by default from fast presets. */
   readonly heavy: boolean;
-  /** Requires compilation / distribution artifacts (dist/) to exist prior to audit. */
+  /** Requires compilation / distribution artifacts (dist/) to exist prior to audit (auditor:build). */
   readonly requiresBuild: boolean;
+  /** Lifecycle hook executed after primary scan. */
+  readonly postRun: boolean;
 }
 ```
 
-### Zero-Boilerplate Contract & Immutable Defaults:
+### Zero-Boilerplate Contract & Immutable Defaults
 
-`BaseAuditor` guarantees immutable defaults (`DEFAULT_AUDITOR_CAPABILITIES` with all 5 flags set to `false`). Sub-auditors **MUST NEVER** repeat redundant `false` flags across their constructor. Only active capabilities need to be declared:
+`BaseAuditor` guarantees immutable defaults (`DEFAULT_AUDITOR_CAPABILITIES` with all flags set to `false`). Sub-auditors **MUST NEVER** repeat redundant `false` flags across their constructor. Only active capabilities need to be declared:
 
 ```typescript
 // Case 1: Standard sub-auditor with NO special capabilities (inherits all false automatically)
@@ -402,7 +422,18 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
   }
 }
 
-// Case 3: AST-driven sub-auditor (only declare ast: true!)
+// Case 3: Priority environment/configuration fixer (declare fix: true, fixPriority: true!)
+export class MyConfigValidator extends BaseAuditor<MyRuleId> {
+  constructor() {
+    super({
+      id: 'validate_my_config',
+      capabilities: { fix: true, fixPriority: true },
+      ...
+    });
+  }
+}
+
+// Case 4: AST-driven sub-auditor (only declare ast: true!)
 export class MyAstValidator extends BaseAuditor<MyRuleId> {
   constructor() {
     super({
@@ -414,9 +445,11 @@ export class MyAstValidator extends BaseAuditor<MyRuleId> {
 }
 ```
 
-### Auto-Coordination in the Runner:
-- **`auditor fix` / `auditor --fix`**: Automatically discovers only suites with `capabilities.fix === true` and executes them under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal banner.
-- **Fast presets (`preset=lint`, `preset=md`)**: Automatically bypass suites with `capabilities.heavy === true`.
+### Dynamic Auto-Coordination in the Runner (Zero Hardcoding)
+
+- **`auditor fix` / `auditor --fix`**: Automatically discovers all suites declaring `capabilities.fix === true`. Suites declaring `capabilities.fixPriority === true` (environment, tooling, and configuration generators) execute **FIRST**, ensuring `.auditor/audit.config.ts`, `.gitignore`, `package.json` scripts, and linter configs are established before dependent code/style fixers run.
+- **Fast presets (`preset=lint`, `preset=md`)**: Automatically run suites with `capabilities.lint === true` or `capabilities.md === true`, while bypassing suites with `capabilities.heavy === true`.
+- **Post-Build verification (`auditor:build` / `preset=build`)**: Automatically runs suites with `capabilities.requiresBuild === true` against `dist/` post-compilation, excluding them from source audits.
 - **Pre-heat AST**: Automatically initializes `SharedAstContext` before executing any suite with `capabilities.ast === true`.
 
 ---
@@ -475,6 +508,7 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
 ```
 
 The orchestrator and `validate_audit_config` will:
+
 1. Dynamically discover this requirement from your extension or subauditor without hardcoding.
 2. Assert that `.gitignore` contains the pattern matching your entry (`severity: 'error'`).
 3. Automatically append missing entries to `.gitignore` when running with `--fix` (`npm run auditor:fix` or `auditor fix`).
@@ -565,10 +599,10 @@ export interface AuditorManifestDTO {
 }
 ```
 
-### Constraints:
+### Constraints
+
 1. **Concise Descriptions (Zero Text Walls)**: `description` must not exceed 60 characters and must contain zero newlines.
 2. **Dynamic Exposure**: The CLI inspects all suites dynamically via `node --experimental-strip-types src/cli/audit_full.ts --list --json` (or `auditor --list --json`) and `--info=<suiteId>` without hardcoding.
-
 
 - **Strict Specificity Guard**: Broad wildcards matching entire repositories or primary source trees (`**/*`, `*`, `src/**`, `src/*`) are strictly rejected with an explicit validation error, preventing evasion of the Named Constants Mandate.
 - **Safe Scope**: Use specific maintenance scripts, seed files, or test generator catalogs where inline numbers are strictly non-semantic tabular data.
@@ -593,7 +627,8 @@ graph TD
   style SE fill:#831843,stroke:#f472b6,stroke-width:2px,color:#f8fafc
 ```
 
-### Key Principles for Authors:
+### Key Principles for Authors
+
 1. **Symmetric Class Inheritance**:
    Both official suites in `@francogp/auditor` and host project extensions in `scripts/auditors/` inherit from `BaseAuditor<TRuleId>` (or `FileScanAuditor<TRuleId>`). They share identical options, capabilities, and lifecycle methods without duplicate code.
 2. **Sub-Auditors Share Resources**:
@@ -663,7 +698,8 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
 }
 ```
 
-### Core Architecture:
+### Core Architecture
+
 1. **Dynamic Registration**: `BaseAuditor` registers all declared `configFiles` into `ConfigFileRegistry` automatically during instantiation.
 2. **Auto-Repair Protocol (`--fix`)**: When executed with `auditor fix` (`this.isFixActive()`), `verifyAndFixConfigFiles()` writes the canonical default content atomically to disk and avoids logging violations.
 3. **Extension Support**: Extensions registered via `defineAuditorExtension({ configFiles: [...] })` also register requirements dynamically without modifying framework internals.
@@ -694,6 +730,7 @@ If any of these fields are missing or invalid, `BaseAuditor` throws an immediate
 ## 18. Dynamic Introspection, Auto-Registration & Dynamic Suite Gating
 
 The master orchestrator does not maintain hardcoded lists of enabled suites. Every auditor dropped into `src/suites/` or declared as a host extension is discovered automatically:
+
 1. **Dynamic Status Resolution**: `evaluateSuiteStatus(suiteId, config, declaredConfigKey)` evaluates the declared `configKey` against `.auditor/audit.config.ts`. If the value resolves to `false` or `'none'`, the suite is cleanly marked `⏭️  SKIP`.
 2. **Dynamic Config Scaffolding (`auditor fix`)**: When generating `.auditor/audit.config.ts`, `collectConfigSectionsFromTasks` iterates over all discovered tasks, dynamically assembling their declared `defaultConfig` with zero hardcoding.
 
@@ -709,9 +746,11 @@ capabilities: { requiresBuild: true }
 
 1. **Pre-Build Exclusion**: `npm run auditor` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.
 2. **Post-Build Chaining**: In `package.json`, the standard build script chains `auditor:build`:
+
    ```json
    "build": "npm run auditor && tsc -p tsconfig.build.json && npm run auditor:build"
    ```
+
    Executing `npm run auditor:build` isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
 
 ---
@@ -720,9 +759,11 @@ capabilities: { requiresBuild: true }
 
 Every official sub-auditor in `@francogp/auditor` and every extension created in host projects (`scripts/auditors/`) MUST have a dedicated Vitest unit test. The test runner dynamically discovers all declared tasks and verifies conformance via `auditorContractConformance.ts`.
 
-### The 5-Point Testing Contract:
+### The 5-Point Testing Contract
+
 1. **Construction & Metadata Integrity**:
    Verify that the sub-auditor instantiates cleanly and satisfies all mandatory metadata requirements:
+
    ```typescript
    import { validateAuditorConstruction } from '@francogp/auditor';
 
@@ -734,28 +775,35 @@ Every official sub-auditor in `@francogp/auditor` and every extension created in
      expect(manifest.configKey).toBe('paths.srcRoots');
    });
    ```
+
 2. **Clean Path Verification**:
    Assert that when code has zero violations, the auditor produces zero errors and passes:
+
    ```typescript
    expect(result.summary.errors).toBe(0);
    expect(result.summary.warnings).toBe(0);
    expect(result.status).toBe('passed');
    expect(result.findings.length).toBe(0);
    ```
+
 3. **Violation Path Verification**:
    Assert that non-compliant code produces errors, a failed status, and structured error findings:
+
    ```typescript
    expect(result.summary.errors).toBeGreaterThan(0);
    expect(result.status).toBe('failed');
    expect(result.findings.some(f => f.ruleId === 'my-rule-id' && f.severity === 'error')).toBe(true);
    ```
+
 4. **Warning Path Verification**:
    Assert that advisory issues produce warnings and warned status (`severity === 'warning'`, `status === 'warned'`).
 5. **100% of Declared Rule IDs Tested**:
    Every rule ID declared in `ruleIds` must be evaluated and covered in unit tests.
 
-### Whole-Workspace Dynamic Conformance in 2 Lines:
+### Whole-Workspace Dynamic Conformance in 2 Lines
+
 Host projects can verify all their custom extension sub-auditors dynamically by creating `tests/node/auditors/conformance.test.ts`:
+
 ```typescript
 import { describe } from 'vitest';
 import { runAuditorContractConformanceTests } from '@francogp/auditor';
@@ -772,14 +820,18 @@ describe('All Auditors Dynamic Conformance', () => {
 Every sub-auditor and host extension has a mandatory execution contract (`scripts`) defining how it is invoked via CLI and package scripts:
 
 ### 1. Automatic Derivation by Convention (`BaseAuditor`)
+
 Sub-auditors and extensions extending `BaseAuditor` do not need to write manual script definitions. The base class automatically derives canonical script requirements by convention:
+
 - **Script Name**: `audit:<short-id>` (e.g. `validate_my_feature` -> `audit:my-feature`).
 - **Command**: `auditor task=<id>` (e.g. `auditor task=validate_my_feature`).
 - **Description**: Derived directly from the auditor's `description`.
 - **Category**: Derived directly from the auditor's `family`.
 
 ### 2. Custom Aliases & Flags (`AuditorOptions.scripts`)
+
 If a sub-auditor or extension requires custom aliases or specialized multi-flag commands, they can be declared explicitly:
+
 ```typescript
 import { BaseAuditor, type AuditorPackageScriptRequirement } from '@francogp/auditor';
 
@@ -804,11 +856,13 @@ export class MyFeatureAuditor extends BaseAuditor<MyFeatureRuleId> {
 ```
 
 ### 3. Collision Prevention (`[COLISIÓN DE COMANDOS]`)
+
 All scripts are registered into `PackageScriptRegistry`. If two sub-auditors or extensions declare the same command name with conflicting commands, the registry throws an immediate, loud error:
-```
+
+```text
 [COLISIÓN DE COMANDOS] El comando de script 'auditor:my-feature' está duplicado entre 'validate_my_feature' ('auditor task=validate_my_feature') y 'otra_extension' ('auditor task=otra_extension'). Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. Cambia el nombre del comando para resolver la colisión.
 ```
 
 ### 4. Automated Non-Destructive Injection (`auditor fix`)
-When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` dynamically inspects the host's `package.json` against all registered scripts in `PackageScriptRegistry` and appends missing ones without modifying existing custom scripts.
 
+When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` dynamically inspects the host's `package.json` against all registered scripts in `PackageScriptRegistry` and appends missing ones without modifying existing custom scripts.

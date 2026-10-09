@@ -125,6 +125,18 @@ export function resolveZLayer(val: number): ZLayerResolution {
   return {};
 }
 
+export function fixZIndexLiteral(match: string): string {
+  const valMatch = match.match(/-?\d+/);
+  if (!valMatch || !valMatch[0]) return match;
+  const val = parseInt(valMatch[0], 10);
+  const { cssVarExpr } = resolveZLayer(val);
+  if (!cssVarExpr) return match;
+
+  const isJsProp = match.startsWith('zIndex');
+  const propName = isJsProp ? 'zIndex' : 'z-index';
+  return isJsProp ? `${propName}: '${cssVarExpr}'` : `${propName}: ${cssVarExpr}`;
+}
+
 export const zIndexAudit: AuditRule = {
   id: 'zIndexAudit',
   name: 'Z-Index Audit',
@@ -157,17 +169,7 @@ export const zIndexAudit: AuditRule = {
     if (filePath && isExemptFile(filePath)) return false;
     return true;
   },
-  fix: (match: string) => {
-    const valMatch = match.match(/-?\d+/);
-    if (!valMatch || !valMatch[0]) return match;
-    const val = parseInt(valMatch[0], 10);
-    const { cssVarExpr } = resolveZLayer(val);
-    if (!cssVarExpr) return match;
-
-    const isJsProp = match.startsWith('zIndex');
-    const propName = isJsProp ? 'zIndex' : 'z-index';
-    return isJsProp ? `${propName}: '${cssVarExpr}'` : `${propName}: ${cssVarExpr}`;
-  },
+  fix: fixZIndexLiteral,
   fixable: true
 };
 

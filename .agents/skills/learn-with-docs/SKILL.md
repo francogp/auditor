@@ -19,6 +19,7 @@ Specialized learning, behavior persistence, and documentation consistency skill 
 ## 1. Precise Placement Strategy
 
 When saving a new behavior, constraint, or success pattern:
+
 - **Do NOT default to the root `AGENTS.md` index** unless it is a universal, project-wide rule.
 - **Navigate and Find the Proper Boundary**: Analyze the target directory tree. Locate the specific child `AGENTS.md` (via [dox-navigator](../dox-navigator/SKILL.md)) matching the scope of the learning, or create a new child index if one is needed.
 - **Upstream Tooling Boundary Check (`@francogp/auditor`)**:
@@ -99,11 +100,13 @@ Whenever a new pattern, rule, or architectural shift is captured, the agent MUST
    - **Section 3: Documentation & README Modernization**: Exact diffs correcting legacy or contradictory text in `README.md`, reference guides, or manuals.
    - **Upstream Alert Protocol (When running in a host project targeting `@francogp/auditor`)**:
      - Prepend a prominent warning banner at the very top of `learning_proposal.md`:
+
        ```markdown
        > [!WARNING] LEARNING TARGET: UPSTREAM REPOSITORY (@francogp/auditor)
        > This learning belongs to the `@francogp/auditor` engine/package, NOT to the current host project (`<host-project-name>`).
        > These changes MUST NOT be applied locally or inside `node_modules/`. They must be transferred and applied to the `@francogp/auditor` repository.
        ```
+
 5. **Language Integrity Check**: Verify that `learning_proposal.md`, proposed rules, and documentation additions are written in the project's configured language (`config.documentation.language`), strictly defaulting to English (`'en'`) if unconfigured or when in doubt, ensuring zero language mixing.
 6. **Phase 3 Hard Stop & User Approval (Artifact Review via Regular Text & Feedback)**:
    - **Artifact Creation with Feedback Request**: Save `learning_proposal.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which equips the artifact with interactive review controls in the Antigravity UI.

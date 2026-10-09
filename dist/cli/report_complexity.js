@@ -9,7 +9,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { getAuditConfig } from "../core/auditConfig.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from "./cliUtils.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from "./cliUtils.js";
 export const MAX_FUNCTION_NAME_CHARS = 18;
 export const MAX_RECOMMENDED_LOC = 60;
 export const MAX_RECOMMENDED_COGNITIVE = 20;
@@ -277,6 +277,7 @@ export function runComplexityReport() {
     renderBoxReport(findings, targets, maintainability, top, layerFilter);
 }
 if (isMainModule(import.meta.url)) {
+    bootstrapCliProject();
     runComplexityReport();
 }
 //# sourceMappingURL=report_complexity.js.map

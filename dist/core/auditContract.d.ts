@@ -7,7 +7,6 @@
  */
 import { type CustomAuditFamilyConfig, type AuditEngineConfig } from './auditConfig.ts';
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "documentation"];
-export declare const AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
 export type AuditFamily = BuiltinAuditFamily | (string & {});
 export interface FamilyMetadata {
@@ -80,6 +79,8 @@ export interface StandardAuditResult {
 export interface AuditorCapabilities {
     /** Whether the sub-auditor implements automated repairs when invoked with --fix */
     readonly fix: boolean;
+    /** Whether the sub-auditor bootstraps environment or auditor configuration and must run FIRST in fix mode */
+    readonly fixPriority: boolean;
     /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
     readonly lint: boolean;
     /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */

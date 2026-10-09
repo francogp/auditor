@@ -13,6 +13,11 @@ export declare function matchesAnyRoot(normalizedPath: string, roots: readonly s
  */
 export declare function isTestPath(filePath: string): boolean;
 /**
+ * Determines whether a file path is a test file that should be skipped during source code audits,
+ * honoring config.paths.includeTestsInCodeAudit.
+ */
+export declare function isTestFileForCodeAudit(filePath: string, projectRoot?: string): boolean;
+/**
  * Determines whether a file path belongs to a data catalog directory (e.g. static game data,
  * catalogs, domain fixtures) configured in paths.dataRoots.
  */

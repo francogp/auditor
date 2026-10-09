@@ -33,6 +33,7 @@ To prevent infinite loops and token waste:
 2. **Cap Reached (Attempt 5 Failure)**:
    - If after 5 distinct repair attempts the reproduction test does not turn GREEN or new regressions persist, execution MUST IMMEDIATELY HALT.
 3. **Blocked Status Report**: Emit a clear structured report:
+
    ```markdown
    ### 🛑 Debugging Blocked: Max Iterations Reached (5/5)
 
@@ -57,36 +58,49 @@ To prevent infinite loops and token waste:
 Once Tier 1 turns GREEN, verify all layers sequentially:
 
 ### Step 1: Full Node Unit Regression Check
+
 Run the complete test suite to guarantee 0 regressions across the codebase:
+
 ```bash
 npm test
 ```
+
 If any unrelated test fails, it is an empirical regression caused by the edit in `src/`. Re-enter the repair loop immediately.
 
 **Database-Specific Step 1 Pass**:
 If the bug touched persistence, database migrations, or SQL schemas:
+
 1. Confirm the reproduction test runs and passes GREEN against the configured database engine.
 2. Validate SQL migration syntax and schema integrity:
+
    ```bash
    auditor family=persistence
    ```
 
 ### Step 2: UI & Component Interaction Verification
+
 If the bug affected UI, GSAP animations, or view interactions:
+
 1. Run component and view tests:
+
    ```bash
    npm test
    ```
 
 ### Step 3: Fast Quality Gate & DOX Pass
+
 1. **Fast Development Lint**:
+
    ```bash
    npm run lint
    ```
+
    Ensures domain types, vue-tsc type checking, ESLint, and markdownlint pass cleanly.
 2. **Documentation & DOX Audit**:
+
    ```bash
    npm run auditor:md
    ```
+
 3. **DOX Lesson Update (`dox-navigator`)**:
    Update the nearest owning `AGENTS.md` file with the lesson learned, contract clarification, or invariant established by this fix.

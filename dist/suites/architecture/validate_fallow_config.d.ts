@@ -11,7 +11,7 @@
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
-export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-workspace-diagnostic';
+export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-config-workspace-diagnostic';
 export declare const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[];
 export declare function getBannedEntryGlobs(projectRoot?: string): readonly string[];
 export declare const BANNED_ENTRY_GLOBS: readonly ["src/components/**/*.vue", "src/views/**/*.vue", "src/components/**", "src/views/**"];

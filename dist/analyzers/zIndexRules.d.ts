@@ -20,6 +20,7 @@ export interface ZLayerResolution {
     cssVarExpr?: string;
 }
 export declare function resolveZLayer(val: number): ZLayerResolution;
+export declare function fixZIndexLiteral(match: string): string;
 export declare const zIndexAudit: AuditRule;
 export declare const zIndexConstantDeclaration: AuditRule;
 //# sourceMappingURL=zIndexRules.d.ts.map

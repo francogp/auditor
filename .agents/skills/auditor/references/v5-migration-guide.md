@@ -38,7 +38,7 @@ auditor-version -v
 
 > [!IMPORTANT]
 > **Prohibition of NPX and Third-Party Runners**:
-> Executing `npx` (such as `npx tsx`, `npx auditor`, `npx vitest`) is strictly prohibited. All TypeScript files and auditor CLI tools MUST be executed directly with native Node.js 26+ (`node --experimental-strip-types <file.ts>`) or through canonical npm package scripts (`npm run <script>`, `npm test`).
+> Executing npx or third-party runners (such as tsx, legacy auditor, or vitest via npx) is strictly prohibited. All TypeScript files and auditor CLI tools MUST be executed directly with native Node.js 26+ (`node --experimental-strip-types <file.ts>`) or through canonical npm package scripts (`npm run <script>`, `npm test`).
 
 ---
 
@@ -226,6 +226,7 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
 ### Zero Rule Suppression Mandate
 
 AI agents and developers are **STRICTLY PROHIBITED** from suppressing, silencing, or disabling auditor rules (e.g. setting `"rule": null`, `"rule": "off"`, passing arbitrary skip flags, or mocking empty test passes). When findings emerge during an upgrade:
+
 1. They represent genuine architectural, typing, or hygiene defects.
 2. They must be resolved legitimately in the application source code.
 3. Clean passes must be earned through source code quality, never by castrating the auditor.
@@ -235,6 +236,7 @@ AI agents and developers are **STRICTLY PROHIBITED** from suppressing, silencing
 ## 6. Root README Modernization Pass
 
 When upgrading a host application to v5+:
+
 1. **Audit Script Table**: Update the scripts table in `README.md` to reflect canonical v5 runner commands.
 2. **Remove Deprecated Flags**: Eradicate obsolete CLI instructions or deprecated script references.
 3. **Environment & Node Prerequisites**: Align documentation with Node.js 26+ native requirements (`--permission` and `--experimental-strip-types`).

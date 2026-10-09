@@ -24,8 +24,10 @@ describe('Auditor Manifest & Introspection Registry', () => {
 
     expect(manifest.rules['audit-config-missing-path']).toBe('Ruta configurada no existe');
     expect(manifest.rules['audit-config-missing-section']).toBe('Falta sección en audit.config');
-    expect(manifest.rules['audit-config-obsolete-script']).toBe('Script legado u obsoleto en package.json');
-    expect(Object.keys(manifest.rules).length).toBe(11);
+    expect(manifest.rules['audit-config-missing-file']).toBe('Archivo configurado no existe');
+    expect(manifest.rules['audit-config-invalid-extension']).toBe('Extensión configurada no existe');
+    expect(manifest.rules['audit-config-missing-gitignore-entry']).toBe('Falta entrada en .gitignore');
+    expect(Object.keys(manifest.rules).length).toBe(5);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {

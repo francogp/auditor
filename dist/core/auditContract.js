@@ -13,7 +13,6 @@ export const BUILTIN_AUDIT_FAMILIES = [
     'persistence',
     'documentation'
 ];
-export const AUDIT_FAMILIES = BUILTIN_AUDIT_FAMILIES; // value-ok: Canonical constant value reference
 export const FAMILY_METADATA = {
     architecture: {
         key: 'architecture',
@@ -70,7 +69,7 @@ export function resolveFamilyMetadata(familyKey, customFamilies) {
 }
 export function getActiveFamilies(customFamilies) {
     const customKeys = (customFamilies ?? []).map(f => f.key);
-    return Array.from(new Set([...AUDIT_FAMILIES, ...customKeys]));
+    return Array.from(new Set([...BUILTIN_AUDIT_FAMILIES, ...customKeys]));
 }
 export const FINDING_SEVERITIES = ['error', 'warning', 'info'];
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];

@@ -42,7 +42,7 @@ function resolveTargetSuiteIds(options, combinedPresets) {
 function inferFamilyFromRelPath(relPath, activeFamilies) {
     const segments = relPath.split('/');
     const firstSegment = segments[0];
-    if (segments.length > 1 && firstSegment && activeFamilies.includes(firstSegment)) { // no-domain: Non-domain utility collection or data structure
+    if (segments.length > 1 && firstSegment && activeFamilies.some(f => f === firstSegment)) {
         return firstSegment;
     }
     return 'architecture';

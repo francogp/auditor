@@ -57,7 +57,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   constructor(options: MyCompositeAuditorOptions = {}) {
     super({
       // Optional capabilities: all default to false automatically.
-      // Example: capabilities: { lint: true, fix: true },
+      // Example: capabilities: { lint: true, fix: true, fixPriority: true }, // Use fixPriority: true for environment/config bootstrappers
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
       // Optional declarative configuration files verified and auto-created with --fix:

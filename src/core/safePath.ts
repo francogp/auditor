@@ -1,14 +1,17 @@
 /**
- * scripts/lib/safePath.ts
+ * src/core/safePath.ts
  * 
- * Centralized path resolution, sanitization, and URL security helper for maintenance & database scripts.
+ * Centralized path resolution, sanitization, POSIX conversion, and URL security helper.
  * Prevents directory traversal attacks (CWE-22) and SSRF (CWE-918).
  */
 
 import path from 'node:path';
 import fs from 'node:fs';
+import { enableCompileCache } from 'node:module';
 import { getAuditConfig, sanitizePath } from './auditConfig.ts';
 import { isLockedSkillPath } from './auditorBase.ts';
+
+enableCompileCache();
 
 const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
 
@@ -34,8 +37,6 @@ export function safeResolve(...pathSegments: string[]): string {
 export function safeJoin(...pathSegments: string[]): string {
   return safeResolve(...pathSegments);
 }
-
-
 
 function assertNotLockedSkill(filePath: string): string {
   const resolved = safeResolve(filePath);
@@ -88,7 +89,7 @@ export async function safeFetch(rawUrl: string, options?: RequestInit, allowedHo
   if (parsed.protocol !== 'https:') {
     throw new Error(`Security Violation CWE-SSRF: Non-HTTPS protocol '${parsed.protocol}' rejected`);
   }
-  const host = parsed.hostname.toLowerCase(); // string-ok: Internal string formatting or DOM token identifier
+  const host = parsed.hostname.toLowerCase();
   const isAllowed = hosts.some(h => host === h || host.endsWith(`.${h}`));
   if (!isAllowed) {
     throw new Error(`Security Violation CWE-SSRF: Host '${host}' is not in allowed hosts list`);
@@ -108,6 +109,29 @@ export function safeDevUrl(endpoint: string, params: Record<string, string> = {}
     url.searchParams.set(key, val);
   }
   return url.pathname + url.search;
+}
+
+import { toPosixRelative } from './auditCoverage.ts';
+export { toPosixRelative };
+export { normalizePosixPath } from './reportUtils.ts';
+
+/**
+ * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
+ * relative to baseDir. Strips redundant leading `./`.
+ */
+export function toPosixPath(filePath: string, baseDir: string = process.cwd()): string {
+  return toPosixRelative(baseDir, filePath);
+}
+
+/**
+ * Validates strict path containment (CWE-22) using native path resolution.
+ * Returns true if candidateChild resides inside parentDir without directory traversal.
+ */
+export function isPathContained(parentDir: string, candidateChild: string): boolean {
+  const resolvedParent = path.resolve(parentDir);
+  const resolvedChild = path.resolve(resolvedParent, candidateChild);
+  const rel = path.relative(resolvedParent, resolvedChild);
+  return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
 export {
@@ -173,4 +197,3 @@ export function buildRepositoryFileIndex(
   walk(rootDir);
   return index;
 }
-

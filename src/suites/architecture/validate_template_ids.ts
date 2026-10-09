@@ -43,8 +43,10 @@ export const TEMPLATE_ID_RULES: readonly TemplateIdRuleId[] = [
 
 // Match static HTML id attributes: id="some-id" or id='some-id' (strictly preceded by whitespace or tag open)
 const STATIC_ID_REGEX = /(?:^|[\s<])id\s*=\s*["']([^"'\s>]+)["']/g;
-// Match start of interactive form controls: <input, <select, <textarea
-const FORM_CONTROL_TAG_START_REGEX = /<(input|select|textarea)\b/gi;
+// Match start of interactive form controls and elements: <input, <select, <textarea, <button or any tag with interactive events
+const INTERACTIVE_TAG_REGEX = /<([\w-]+)\b/g;
+const INHERENT_INTERACTIVE_TAGS: ReadonlySet<string> = new Set(['input', 'select', 'textarea', 'button']);
+const INTERACTIVE_EVENT_REGEX = /@(?:click|change|submit|input|keydown\.enter)\b|v-on:(?:click|change|submit|input)/i;
 
 function extractFullTag(content: string, startIndex: number): { tag: string; endIndex: number } | null {
   let inQuote: string | null = null;
@@ -123,23 +125,30 @@ function scanTemplateStaticIds(ctx: TemplateScanContext): void {
 }
 
 function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
-  FORM_CONTROL_TAG_START_REGEX.lastIndex = 0;
+  INTERACTIVE_TAG_REGEX.lastIndex = 0;
   let formMatch: RegExpExecArray | null;
 
-  while ((formMatch = FORM_CONTROL_TAG_START_REGEX.exec(ctx.templateContent)) !== null) {
-    const tagType = (formMatch[1] ?? 'input').toLowerCase();
+  while ((formMatch = INTERACTIVE_TAG_REGEX.exec(ctx.templateContent)) !== null) {
+    const tagType = (formMatch[1] ?? '').toLowerCase();
     const tagInfo = extractFullTag(ctx.templateContent, formMatch.index);
     if (!tagInfo) continue;
 
     const tagFull = tagInfo.tag;
+    const isInteractive = INHERENT_INTERACTIVE_TAGS.has(tagType) || INTERACTIVE_EVENT_REGEX.test(tagFull);
+    if (!isInteractive) continue;
 
     // Non-interactive hidden inputs do not require interactive IDs or labels
     if (tagType === 'input' && /\btype\s*=\s*["']hidden["']/i.test(tagFull)) {
       continue;
     }
 
-    // Match static id, dynamic :id, or v-bind:id with quotes containing any valid expression/string
-    const hasId = /\b(?:v-bind:id|:id|id)\s*=\s*(?:"[^"]*"|'[^']*')/i.test(tagFull);
+    // Escape hatch check: id-ok
+    if (/id-ok/i.test(tagFull)) {
+      continue;
+    }
+
+    // Match static id, dynamic :id, or v-bind:id
+    const hasId = /\b(?:v-bind:id|:id|id)\s*=/i.test(tagFull);
 
     const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + formMatch.index);
     if (info.isIgnored) continue;
@@ -150,7 +159,7 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
         severity: 'error',
         file: ctx.relPath,
         line: info.lineNumber,
-        message: `Control de formulario <${tagType}> carece de atributo id para automatización con Playwright y accesibilidad.`,
+        message: `Elemento interactivo <${tagType}> carece de atributo id para automatización con Playwright y accesibilidad.`,
         context: info.lineContent.trim()
       });
     }

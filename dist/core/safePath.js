@@ -1,13 +1,15 @@
 /**
- * scripts/lib/safePath.ts
+ * src/core/safePath.ts
  *
- * Centralized path resolution, sanitization, and URL security helper for maintenance & database scripts.
+ * Centralized path resolution, sanitization, POSIX conversion, and URL security helper.
  * Prevents directory traversal attacks (CWE-22) and SSRF (CWE-918).
  */
 import path from 'node:path';
 import fs from 'node:fs';
+import { enableCompileCache } from 'node:module';
 import { getAuditConfig, sanitizePath } from "./auditConfig.js";
 import { isLockedSkillPath } from "./auditorBase.js";
+enableCompileCache();
 const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
 export { sanitizePath };
 /**
@@ -76,7 +78,7 @@ export async function safeFetch(rawUrl, options, allowedHosts) {
     if (parsed.protocol !== 'https:') {
         throw new Error(`Security Violation CWE-SSRF: Non-HTTPS protocol '${parsed.protocol}' rejected`);
     }
-    const host = parsed.hostname.toLowerCase(); // string-ok: Internal string formatting or DOM token identifier
+    const host = parsed.hostname.toLowerCase();
     const isAllowed = hosts.some(h => host === h || host.endsWith(`.${h}`));
     if (!isAllowed) {
         throw new Error(`Security Violation CWE-SSRF: Host '${host}' is not in allowed hosts list`);
@@ -95,6 +97,26 @@ export function safeDevUrl(endpoint, params = {}, baseOrigin = 'http://localhost
         url.searchParams.set(key, val);
     }
     return url.pathname + url.search;
+}
+import { toPosixRelative } from "./auditCoverage.js";
+export { toPosixRelative };
+export { normalizePosixPath } from "./reportUtils.js";
+/**
+ * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
+ * relative to baseDir. Strips redundant leading `./`.
+ */
+export function toPosixPath(filePath, baseDir = process.cwd()) {
+    return toPosixRelative(baseDir, filePath);
+}
+/**
+ * Validates strict path containment (CWE-22) using native path resolution.
+ * Returns true if candidateChild resides inside parentDir without directory traversal.
+ */
+export function isPathContained(parentDir, candidateChild) {
+    const resolvedParent = path.resolve(parentDir);
+    const resolvedChild = path.resolve(resolvedParent, candidateChild);
+    const rel = path.relative(resolvedParent, resolvedChild);
+    return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles, loadLockedSkills, isLockedSkillPath, clearLockedSkillsCache } from "./auditorBase.js";
 const SKIPPABLE_DIR_NAMES = new Set(['node_modules', 'dist', 'scratch']);

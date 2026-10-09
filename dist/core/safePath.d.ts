@@ -1,7 +1,7 @@
 /**
- * scripts/lib/safePath.ts
+ * src/core/safePath.ts
  *
- * Centralized path resolution, sanitization, and URL security helper for maintenance & database scripts.
+ * Centralized path resolution, sanitization, POSIX conversion, and URL security helper.
  * Prevents directory traversal attacks (CWE-22) and SSRF (CWE-918).
  */
 import { sanitizePath } from './auditConfig.ts';
@@ -36,6 +36,19 @@ export declare function safeFetch(rawUrl: string, options?: RequestInit, allowed
  * Uses WHATWG URL standard API without fragile homebrew regexes.
  */
 export declare function safeDevUrl(endpoint: string, params?: Record<string, string>, baseOrigin?: string): string;
+import { toPosixRelative } from './auditCoverage.ts';
+export { toPosixRelative };
+export { normalizePosixPath } from './reportUtils.ts';
+/**
+ * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
+ * relative to baseDir. Strips redundant leading `./`.
+ */
+export declare function toPosixPath(filePath: string, baseDir?: string): string;
+/**
+ * Validates strict path containment (CWE-22) using native path resolution.
+ * Returns true if candidateChild resides inside parentDir without directory traversal.
+ */
+export declare function isPathContained(parentDir: string, candidateChild: string): boolean;
 export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles, loadLockedSkills, isLockedSkillPath, clearLockedSkillsCache } from './auditorBase.ts';
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.

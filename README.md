@@ -54,8 +54,8 @@ When developing directly inside `@francogp/auditor`:
 ```
 
 > [!IMPORTANT]
-> **Hermetic Multi-Project Coexistence**:
-> Setup scripts preserve all other installed Node.js versions on the host, activate local versions via `.nvmrc` without overriding NVM's `default` alias, and scope npm configurations strictly to project `.npmrc` without mutating `~/.npmrc`.
+> **Hermetic Multi-Project Coexistence & Windows Security**:
+> Setup scripts preserve all other installed Node.js versions on the host, activate local versions via `.nvmrc` without overriding NVM's `default` alias, and scope npm configurations strictly to project `.npmrc` without mutating `~/.npmrc`. On Windows, `setup-windows.ps1` configures Windows Defender exclusions and removes Zone.Identifier marks for native Fallow binaries, requesting UAC elevation interactively if executed in a non-elevated terminal for NVM for Windows installation via winget and Defender whitelist configuration.
 
 ---
 
@@ -109,6 +109,53 @@ The engine will:
 2. Check for naming collisions across commands (`[COLISIÓN DE COMANDOS]`).
 3. Inject any missing scripts into your `package.json` without modifying or duplicating your existing custom scripts or aliases.
 4. Automatically chain `npm run auditor` and `npm run auditor:build` into your `build` script.
+
+### 3.1. AI Agent Installation & Onboarding Protocol (Environment & Config First)
+
+When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates, installs, or updates `@francogp/auditor` in any host repository, it **MUST strictly execute this sequence**:
+
+> [!IMPORTANT]
+> **Environment & Auditor Configuration Priority Mandate**:
+> When running fixes, the engine and agents **MUST ALWAYS PRIORITIZE ENVIRONMENT AND AUDITOR CONFIGURATION FIRST**. If the environment (`.npmrc`, `setup-windows.ps1`/`setup-linux.sh`), `.auditor/audit.config.ts`, and root linter configurations are not established before running code inspections, downstream fixers will fail or execute against malformed standards.
+
+#### Step 1: Declare the Dependency
+
+Add `@francogp/auditor` to `devDependencies` in `package.json` (`"github:francogp/auditor"` or local file link).
+
+#### Step 2: Bootstrap the Environment
+
+Run project setup scripts (`./setup-linux.sh` on Linux/macOS, `.\setup-windows.ps1` on Windows) or `npm install`. The canonical setup scripts automatically unlock native Windows binaries (`Unblock-File`), configure Windows Defender exclusions (requesting UAC elevation if required for `fallow-similar-code.exe`), initialize local AI vector embedding models, and execute initial synchronization.
+
+#### Step 3: IMMEDIATELY Run `auditor fix` (`npm run auditor:fix`)
+
+The very first action an AI agent MUST perform after installing or upgrading the package is executing auto-fix:
+
+```bash
+npm run auditor:fix
+# or directly:
+auditor fix
+```
+
+In fix mode, `@francogp/auditor` deterministically executes **Environment & Configuration suites FIRST**:
+
+1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing, injects required subsystem sections (`eslint`, `htmlValidate`, `valibot`, etc.), and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`) while chaining `npm run auditor` into `build`.
+2. `validate_eslint_config`: Enforces and repairs `eslint.config.js` with strict type safety.
+3. `validate_fallow_config`: Synchronizes `.fallowrc.json` configuration.
+4. `validate_agent_plugin`: Registers `.agents/plugins.json` and `.agents/skills.json` for immediate Antigravity agent discovery.
+5. **Code & Content Fixers**: Only after the environment and configurations are established do code fixers (`validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene`) execute.
+
+#### Step 4: Verify Clean Baseline
+
+Establish the clean baseline by running fast presets:
+
+```bash
+npm run auditor:lint
+npm run auditor:md
+```
+
+#### Step 5: Absolute Prohibition on Silencing Rules
+
+AI agents and developers are strictly forbidden from suppressing, disabling, or bypassing audit rules in panic (`"rule": "off"`, skip flags, etc.). All architectural findings must be legitimately resolved in the source code or repaired via canonical tools.
 
 ---
 
@@ -168,7 +215,7 @@ npm run auditor:md
 auditor preset=md
 ```
 
-Discovers documentation suites dynamically (including DOX hierarchy, Markdown syntax, link integrity, code references, and authentic documented commands).
+Discovers documentation suites dynamically (including DOX hierarchy, Markdown syntax, link integrity, Mermaid diagram syntax, code references, and authentic documented commands).
 
 ### 4.5. Auto-Fix Mode (`auditor fix`)
 
@@ -226,6 +273,57 @@ Under `AUDITOR_ENV=production`:
 - Automatically skips `validate_test_coverage` (coverage artifacts are git-ignored and not generated in production).
 - Executes all remaining 48+ static analysis suites and post-build verification (`auditor:build`) at 100% strictness.
 
+### 4.9. Remote Project Execution (`--project`, `-p`)
+
+During framework development or refactoring of `@francogp/auditor`, you can test changes, auto-fixers, and new sub-auditors against any local repository on the same machine **without publishing, linking (`npm link`), or committing to GitHub**:
+
+```bash
+# Run full audit against another project on the local disk:
+npm run auditor -- project="../PokeBorrador"
+
+# Run quick lint against remote project:
+npm run auditor:lint -- project="../PokeBorrador"
+
+# Run auto-fix on remote project:
+npm run auditor:fix -- project="../PokeBorrador"
+
+# Inspect findings report from remote project:
+npm run auditor:findings -- project="../PokeBorrador"
+```
+
+#### Supported Flag Formats
+
+- `--project=<path>` or `--project <path>`
+- `project=<path>`
+- `-p <path>` or `-p=<path>`
+
+#### Architecture & Subprocess Coordination
+
+```mermaid
+flowchart TD
+  CLI["CLI: npm run auditor -- project='../PokeBorrador'"] --> B["bootstrapCliProject() en cliUtils.ts"]
+  B --> C{"¿Bandera de proyecto detectada?"}
+  C -- No --> D["process.cwd() local sin cambios"]
+  C -- Sí --> E["Validar targetDir y package.json con node:path & node:fs"]
+  E --> F["AUDITOR_HOME_DIR = cwd() | AUDIT_PROJECT_ROOT = targetDir"]
+  F --> G["process.chdir(targetDir)"]
+  G --> H["loadAuditConfig() en el Host (PokeBorrador)"]
+  D --> H
+  H --> I["Descubrir Suites Oficiales + Extensiones del Host"]
+  I --> J["Ejecutar StreamingRunner & Workers (cwd = Host)"]
+  J --> K["Escribir Resultados en Host/scratch/audits/"]
+
+  style CLI fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
+  style B fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc
+  style G fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#f8fafc
+  style J fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#f8fafc
+  style K fill:#831843,stroke:#f472b6,stroke-width:2px,color:#f8fafc
+```
+
+- **Early Chdir**: Operates natively in the host's directory, ensuring ESLint, Stylelint, HTML-Validate, Fallow (Candle CPU), and Git inspect local host configs directly.
+- **Binary Fallback**: If an external linter binary is not installed in the host's `node_modules/.bin/`, the framework falls back to `AUDITOR_HOME_DIR/node_modules/.bin/`.
+- **Zero Host Pollution**: Runs directly from `@francogp/auditor` in memory and writes reports directly into `host/scratch/audits/`.
+
 ---
 
 ## 5. Strict Type Safety & ESLint Flat Config Governance
@@ -263,6 +361,7 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **`type-coverage`** | `validate_type_coverage` | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery. |
 | **`eslint-plugin-vuejs-accessibility`** | `validate_accessibility` | Static WCAG 2.2 accessibility rules for Vue SFC templates. |
 | **`markdownlint-cli`** | `validate_markdown_lint` | Markdown style, table formatting, and document hygiene with `--fix`. |
+| **Mermaid Linter** | `validate_mermaid_syntax` | Mermaid diagram syntax and special character quoting validator (`preset=lint`, `preset=md`). |
 | **`vue-tsc` / `tsc`** | `validate_type_check` | Strict compiler type checking without emitting files (`--noEmit`). |
 
 ---

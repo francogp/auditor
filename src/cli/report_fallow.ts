@@ -8,7 +8,7 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule } from './cliUtils.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import { runGuardReport } from './report_guard.ts';
 import { runFlagsReport } from './report_flags.ts';
 
@@ -844,5 +844,6 @@ export function runFallowReportCli(): void {
 }
 
 if (isMainModule(import.meta.url)) {
+  bootstrapCliProject();
   runFallowReportCli();
 }

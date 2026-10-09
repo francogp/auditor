@@ -283,7 +283,8 @@ describe('auditorBase infrastructure', () => {
         changedSince: false,
         heavy: false,
         requiresBuild: false,
-        postRun: false
+        postRun: false,
+        fixPriority: false
       });
       expect(auditor.requiresAst).toBe(false);
     });
@@ -301,7 +302,8 @@ describe('auditorBase infrastructure', () => {
         changedSince: false,
         heavy: false,
         requiresBuild: false,
-        postRun: false
+        postRun: false,
+        fixPriority: false
       });
     });
 
@@ -334,7 +336,8 @@ describe('auditorBase infrastructure', () => {
         changedSince: false,
         heavy: true,
         requiresBuild: false,
-        postRun: false
+        postRun: false,
+        fixPriority: false
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,

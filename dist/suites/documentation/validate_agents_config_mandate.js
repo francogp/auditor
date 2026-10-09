@@ -195,7 +195,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
     constructor(rootDir, options) {
         const projectRoot = rootDir || process.cwd();
         super({
-            capabilities: { md: true, fix: true },
+            capabilities: { md: true, fix: true, fixPriority: true },
             fix: options?.fix,
             id: 'validate_agents_config_mandate',
             name: 'Root AGENTS.md Config Mandate Validator',

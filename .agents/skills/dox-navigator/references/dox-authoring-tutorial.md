@@ -47,15 +47,18 @@ flowchart TD
 ## 3. Section Content Specifications
 
 ### 1. `# Purpose`
+
 - Must be a Level 1 heading (`# Purpose`).
 - Explains the domain purpose, architectural responsibilities, and boundary of the directory.
 - Avoid generic phrases like "Contains code files". Be precise about what subsystem or architectural family lives here.
 
 ### 2. `## Ownership`
+
 - Must be a Level 2 heading (`## Ownership`).
 - Identifies who owns and reviews changes (e.g. `Architecture & Tooling Engineers.` or `Core Platform Team.`).
 
 ### 3. `## Local Contracts`
+
 - Must be a Level 2 heading (`## Local Contracts`).
 - Contains bulleted, bolded rules that apply specifically to code in this directory.
 - Examples:
@@ -63,7 +66,9 @@ flowchart TD
   - `- **Node.js 26+ Native Execution**: All scripts must run directly via native standard library.`
 
 ### 4. `## Key Files` (Optional)
+
 - When present, lists each non-test code file (`.ts`, `.vue`, `.js`, etc.) with its relative link and role summary:
+
   ```markdown
   ## Key Files
 
@@ -72,37 +77,47 @@ flowchart TD
   ```
 
 ### 5. `## Work Guidance`
+
 - Must be a Level 2 heading (`## Work Guidance`).
 - Provides concrete, operational guidance for agents and engineers when editing or creating files in this directory.
 - **Strict Prohibition**: Leaving this section empty, whitespace-only, comment-only (`<!-- ... -->`), or writing placeholder text (`TODO`, `TBD`, `N/A`, `None`) triggers a blocking `dox-empty-section` violation.
 
 ### 6. `## Verification`
+
 - Must be a Level 2 heading (`## Verification`).
 - Provides exact commands that can be copied and executed in the terminal to verify the subsystem.
 - Examples:
+
   ```markdown
   ## Verification
 
   - Run unit tests: `npm test -- tests/parser.test.ts`
   - Run lint suite: `npm run auditor:lint`
   ```
+
 - **Strict Prohibition**: Stubs like `npm test` alone or `TODO: Add tests` trigger `dox-empty-section`.
 
 ### 7. `## Child DOX Index`
+
 - Must be a Level 2 heading (`## Child DOX Index`).
 - **If subdirectories with code exist**: Must link each direct child `AGENTS.md` using relative paths:
+
   ```markdown
   ## Child DOX Index
 
   - [`subsystem/AGENTS.md`](./subsystem/AGENTS.md): Subsystem parser and rules engine.
   ```
+
 - **If no subdirectories exist**: Must contain an explicit contextual statement:
+
   ```markdown
   ## Child DOX Index
 
   - _This directory contains specialized parser modules with no subdirectories._
   ```
+
 - **If child directories are gitignored**: Must append the suffix `_(gitignored — reason)_`:
+
   ```markdown
   - [`scratch/`](./scratch/) _(gitignored — ephemeral test artifacts)_
   ```
@@ -191,49 +206,42 @@ Architecture & Tooling Engineers.
 The DOX integrity auditor ([`validate_dox_integrity.ts`](../../../../src/suites/documentation/validate_dox_integrity.ts)) enforces 9 distinct static rules:
 
 ### 1. `dox-missing-section`
+
 - **Symptom**: `Falta la sección obligatoria '## Work Guidance' en 'src/module/AGENTS.md'.`
 - **Cause**: One of the 6 canonical sections is missing.
 - **Resolution**: Add the missing heading and populate it with substantive content.
 
 ### 2. `dox-section-order`
+
 - **Symptom**: `Orden incorrecto de secciones en 'src/module/AGENTS.md': '## Verification' no debe aparecer después de '## Child DOX Index'.`
 - **Cause**: Headings appear out of canonical order, are duplicated, or use non-standard H1/H2 titles.
 - **Resolution**: Reorder headings to match `# Purpose` ➔ `## Ownership` ➔ `## Local Contracts` ➔ `## Work Guidance` ➔ `## Verification` ➔ `## Child DOX Index`.
 
 ### 3. `dox-empty-section`
+
 - **Symptom**: `La sección obligatoria '## Work Guidance' está vacía o contiene texto de relleno/basura.`
 - **Cause**: The section body has 0 non-whitespace lines, contains only HTML comments, or has placeholder tokens (`TODO`, `TBD`, `N/A`, `None`, `< 10` chars).
 - **Resolution**: Replace the placeholder with genuine operational standards, constraints, or commands.
 
 ### 4. `dox-missing-agents-md`
+
 - **Symptom**: `Falta el archivo obligatorio de documentación 'AGENTS.md' en el directorio 'src/new-feature'.`
 - **Cause**: A directory containing source code files (`.ts`, `.vue`, `.js`, etc.) lacks an `AGENTS.md`.
 - **Resolution**: Create an `AGENTS.md` following Template A.
 
 ### 5. `dox-unregistered-child`
+
 - **Symptom**: `El archivo 'src/feature/AGENTS.md' no está registrado en el índice DOX de 'src/AGENTS.md'.`
 - **Cause**: A child `AGENTS.md` was created but not linked in its nearest parent's `## Child DOX Index`.
 - **Resolution**: Add a relative link to the child file in the parent's `## Child DOX Index`.
 
 ### 6. `dox-unindexed-file`
+
 - **Symptom**: `El archivo de código 'src/feature/helper.ts' no está indexado en el AGENTS.md local.`
 - **Cause**: A source code file is not listed under `## Key Files` in the directory's `AGENTS.md`.
 - **Resolution**: Document `helper.ts` under `## Key Files`.
 
-### 7. `dox-absolute-link`
-- **Symptom**: `Enlace absoluto o ruta completa prohibida '/home/user/...'.`
-- **Cause**: Markdown link uses an absolute filesystem or URL path.
-- **Resolution**: Change the link to a relative POSIX path (e.g. `./helper.ts` or `../other/AGENTS.md`).
-
-### 8. `dox-broken-link`
-- **Symptom**: `Enlace roto: './old.ts' no existe en el disco.`
-- **Cause**: Markdown link targets a non-existent file or directory.
-- **Resolution**: Update the link to the correct target or delete stale references.
-
-### 9. `dox-gitignore-target`
-- **Symptom**: `Enlace a ruta ignorada por Git (.gitignore): './dist/index.js'.`
-- **Cause**: Link targets unversioned build outputs or dependencies.
-- **Resolution**: Link only to versioned repository assets, or annotate with `_(gitignored — reason)_` in `## Child DOX Index`.
+*(Note on Link Verification)*: Markdown links inside `AGENTS.md` files (such as broken targets, forbidden absolute paths, missing anchors, and links to gitignored assets) are validated globally and canonically by the specialized suite `validate_markdown_links.ts` (rules: `markdown-link-broken`, `markdown-link-absolute-path`, `markdown-link-gitignore-target`).
 
 ---
 

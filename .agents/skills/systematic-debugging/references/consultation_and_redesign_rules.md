@@ -58,7 +58,6 @@ When halting for user consultation in Explicit Mode, the agent MUST render the f
 *Please select an option to proceed with the repair.*
 ```
 
-
 ---
 
 ## 4. Autonomous Resolution Protocol (Automatic Mode)

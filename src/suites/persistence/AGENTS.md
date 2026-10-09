@@ -16,7 +16,8 @@ Architecture & Tooling Engineers.
 
 ## Key Files
 
-- [`validate_sql_anti_patterns.ts`](./validate_sql_anti_patterns.ts): SQL anti-pattern, schema qualification, and persistence validator.
+- [`validate_sql_anti_patterns.ts`](./validate_sql_anti_patterns.ts): SQL anti-pattern, schema qualification, and relational migrations validator.
+- [`validate_persistence_client.ts`](./validate_persistence_client.ts): Client-side web storage (localStorage/sessionStorage), unhandled quota error, and untyped key governance auditor.
 - [`validate_valibot_parity.ts`](./validate_valibot_parity.ts): Valibot schema and persistence parity validator.
 
 ## Work Guidance

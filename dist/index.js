@@ -13,6 +13,7 @@ export * from "./core/unifiedTheme.js";
 export * from "./core/suiteGating.js";
 export * from "./core/reportUtils.js";
 export * from "./core/safePath.js";
+export * from "./core/auditPathPredicates.js";
 export * from "./core/gitignoreMatcher.js";
 export * from "./core/gitIgnoreRegistry.js";
 export * from "./core/configFileRegistry.js";

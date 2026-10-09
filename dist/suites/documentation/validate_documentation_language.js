@@ -161,7 +161,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
     constructor(rootDir, options) {
         const projectRoot = rootDir || process.cwd();
         super({
-            capabilities: { md: true, fix: true },
+            capabilities: { md: true, fix: true, fixPriority: true },
             fix: options?.fix,
             id: 'validate_documentation_language',
             name: 'Documentation Language Validator',

@@ -14,7 +14,7 @@
  *   npm run lint
  */
 import path from 'node:path';
-import { executeNodeCli } from "../../cli/cliUtils.js";
+import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
@@ -97,7 +97,10 @@ export class EslintAuditor extends BaseAuditor {
             source: 'runtime'
         });
         const isFixMode = this.isFixModeRequested();
-        const binPath = path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
+        const binPath = resolvePackageBin('eslint', {
+            projectRoot: this.projectRoot,
+            fallbackRelativeBin: 'bin/eslint.js'
+        }) ?? path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
         const args = ['--config', 'eslint.config.js', '.', '--cache', '-f', 'json']; // no-domain: Non-domain utility collection or data structure
         if (isFixMode) {
             args.push('--fix');

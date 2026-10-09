@@ -16,6 +16,7 @@ import { BaseAuditor } from '../../core/auditorBase.ts';
 export declare const SIMILAR_CODE_RULES: readonly ["fallow-similar-code", "fallow-similar-code-failed"];
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
+export declare const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;
 export interface SimilarCodeCandidateLocation {
     path: string;
     name: string;
@@ -44,7 +45,7 @@ export declare function isFastPresetActive(): boolean;
 export declare function isSimilarCodeSkipped(): boolean;
 export declare function resolveFallowUserCacheDir(): string;
 export declare function ensureSimilarCodeCacheDir(_projectRoot?: string): string;
-export declare function checkOrInitializeModel(fallowBin: string, projectRoot: string): boolean;
+export declare function checkOrInitializeModel(fallowBin: string, projectRoot: string, isFix?: boolean): boolean;
 export declare function evaluateSimilarCodeCandidates(candidates: readonly SimilarCodeCandidate[] | undefined, options: {
     ignoreSameFile?: boolean;
 }, auditor: ValidateSimilarCodeAuditor): number;

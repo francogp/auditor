@@ -38,32 +38,12 @@ export { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories } from "./vali
 export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = [
     'coverage/**'
 ];
-let gitIgnoredPathsCache = null;
 let gitIgnoreMatcherInstance = null;
 export function getGitIgnoreMatcher(rootDir) {
     if (!gitIgnoreMatcherInstance) {
         gitIgnoreMatcherInstance = new GitIgnoreMatcher(rootDir);
     }
     return gitIgnoreMatcherInstance;
-}
-export function getGitIgnoredPaths(rootDir) {
-    if (gitIgnoredPathsCache)
-        return gitIgnoredPathsCache;
-    const paths = new Set();
-    try {
-        const gitignoreRaw = fs.readFileSync(path.join(rootDir, '.gitignore'), 'utf-8');
-        for (const line of gitignoreRaw.split('\n')) {
-            const trimmed = line.trim().replace(/\/$/, '');
-            if (!trimmed || trimmed.startsWith('#') || trimmed.includes('*') || trimmed.includes('?'))
-                continue;
-            paths.add(path.resolve(rootDir, trimmed));
-        }
-    }
-    catch {
-        // catch-ok: no .gitignore found
-    }
-    gitIgnoredPathsCache = paths;
-    return paths;
 }
 let repoFileIndexCache = null;
 let repoFileIndexCacheRoot = null;
@@ -72,7 +52,6 @@ export function clearRepoFileIndexCache() {
     repoFileIndexCacheRoot = null;
 }
 export function clearGitIgnoredPathsCache() {
-    gitIgnoredPathsCache = null;
     gitIgnoreMatcherInstance = null;
     clearRepoFileIndexCache();
 }

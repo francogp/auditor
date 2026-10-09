@@ -17,7 +17,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, loadLockedSkills, getEffectiveUnignoreDirs } from '../../core/auditorBase.ts';
 import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -63,10 +63,14 @@ export function getMarkdownIgnoreGlobs(projectRoot?: string): readonly string[] 
   if (config.persistence?.supabaseDir) {
     globs.push(`${config.persistence.supabaseDir}/**`);
   }
+  const lockedSkills = loadLockedSkills(projectRoot);
+  for (const s of lockedSkills) {
+    globs.push(`.agents/skills/${s}/**`);
+    globs.push(`skills/${s}/**`);
+    globs.push(`.skills/${s}/**`);
+  }
   return Array.from(new Set(globs));
 }
-
-export const MARKDOWN_IGNORE_GLOBS = DEFAULT_MARKDOWN_IGNORE_GLOBS; // value-ok: Canonical constant value reference
 
 export interface RawMarkdownLintIssue {
   fileName?: string;
@@ -128,6 +132,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       ruleDescriptions: {
         'markdownlint-issue': 'Formato o estilo inválido'
       },
+      unignoreDirs: getEffectiveUnignoreDirs(projectRoot),
       coverage: {
         include: ['**/*.md', '.markdownlint.json'],
         exclude: getMarkdownIgnoreGlobs(projectRoot),
@@ -169,7 +174,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     const isFixMode = this.isFixModeRequested();
 
     const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
-    const args: string[] = ['**/*.md']; // no-domain: Non-domain utility collection or data structure
+    const args: string[] = ['**/*.md', '--dot']; // no-domain: Non-domain utility collection or data structure
 
     for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
       args.push('--ignore', pattern);

@@ -150,7 +150,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
             const varName = match[1];
             const blockBody = match[2];
             // Check if blockBody accesses varName.message or (varName as any).message
-            const hasMessageAccess = new RegExp(`\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+any\\s*\\)\\.message`).test(blockBody);
+            const hasMessageAccess = new RegExp(`\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+` + `any\\s*\\)\\.message`).test(blockBody);
             if (hasMessageAccess) {
                 // Check if there is an instanceof Error check
                 const hasInstanceCheck = new RegExp(`\\b${varName}\\s+instanceof\\s+Error\\b`).test(blockBody);

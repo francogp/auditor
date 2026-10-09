@@ -15,7 +15,9 @@ import childProcess from 'node:child_process';
 import {
   findHostProjectRoot,
   readInstalledAuditorVersion,
-  updateAuditorPackage
+  updateAuditorPackage,
+  runAuditorFixAutoRemediation,
+  runCli
 } from '../src/cli/update_package.ts';
 
 describe('update_package CLI', () => {
@@ -122,6 +124,129 @@ describe('update_package CLI', () => {
       expect(result.success).toBe(true);
       expect(result.previousVersion).toBe('1.2.0-build.20261002-152514');
       expect(result.newVersion).toBe('1.2.0-build.20261002-152514');
+    });
+
+    it('executes npm update successfully when declared in devDependencies', () => {
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({
+          name: 'host-dev-consumer',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor'
+          }
+        })
+      );
+
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+        return {
+          status: 0,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const result = updateAuditorPackage({ cwd: sandboxDir, silent: false });
+      spy.mockRestore();
+
+      expect(result.success).toBe(true);
+    });
+
+    it('handles npm update command failure cleanly', () => {
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({
+          name: 'host-failing-consumer',
+          dependencies: {
+            '@francogp/auditor': 'github:francogp/auditor'
+          }
+        })
+      );
+
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+        return {
+          status: 1,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from('Network error ETIMEDOUT'),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const result = updateAuditorPackage({ cwd: sandboxDir, silent: true });
+      spy.mockRestore();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Network error ETIMEDOUT');
+    });
+
+    it('handles malformed package.json cleanly', () => {
+      fs.writeFileSync(path.join(sandboxDir, 'package.json'), 'not valid json');
+
+      const result = updateAuditorPackage({ cwd: sandboxDir, silent: true });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Error al leer package.json');
+    });
+  });
+
+  describe('runAuditorFixAutoRemediation', () => {
+    it('executes auditor fix in host project successfully', () => {
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+        return {
+          status: 0,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const success = runAuditorFixAutoRemediation(sandboxDir, true);
+      spy.mockRestore();
+
+      expect(success).toBe(true);
+    });
+
+    it('executes via host node binary when host auditor package exists', () => {
+      const hostAuditorPkg = path.join(sandboxDir, 'node_modules/@francogp/auditor/dist/cli/audit_full.js');
+      fs.mkdirSync(path.dirname(hostAuditorPkg), { recursive: true });
+      fs.writeFileSync(hostAuditorPkg, '// runner stub');
+
+      let executedCmd = '';
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd) => {
+        executedCmd = cmd as string;
+        return {
+          status: 0,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const success = runAuditorFixAutoRemediation(sandboxDir, false);
+      spy.mockRestore();
+
+      expect(success).toBe(true);
+      expect(executedCmd).toBe('node');
+    });
+  });
+
+  describe('runCli', () => {
+    it('exits with code 1 when update fails', () => {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+        throw new Error('process.exit(1)');
+      }) as unknown as (code?: string | number | null | undefined) => never);
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => runCli()).toThrow('process.exit(1)');
+      exitSpy.mockRestore();
+      errSpy.mockRestore();
     });
   });
 });

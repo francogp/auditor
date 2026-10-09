@@ -65,6 +65,8 @@ describe('ValidateSimilarCodeAuditor', () => {
       const auditor = new ValidateSimilarCodeAuditor(scratchDir);
       expect(auditor.id).toBe('validate_similar_code');
       expect(auditor.family).toBe('architecture');
+      expect(auditor.capabilities.heavy).toBe(true);
+      expect(auditor.capabilities.fix).toBe(true);
     });
   });
 

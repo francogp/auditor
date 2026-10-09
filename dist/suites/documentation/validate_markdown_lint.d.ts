@@ -18,7 +18,6 @@ export type MarkdownLintRuleId = 'markdownlint-issue';
 export declare const MARKDOWN_LINT_RULES: readonly MarkdownLintRuleId[];
 export declare const DEFAULT_MARKDOWN_IGNORE_GLOBS: readonly ["node_modules/**", ".git/**", "dist/**", "dev-dist/**", "scratch/**", "test-results/**"];
 export declare function getMarkdownIgnoreGlobs(projectRoot?: string): readonly string[];
-export declare const MARKDOWN_IGNORE_GLOBS: readonly ["node_modules/**", ".git/**", "dist/**", "dev-dist/**", "scratch/**", "test-results/**"];
 export interface RawMarkdownLintIssue {
     fileName?: string;
     lineNumber?: number;

@@ -252,6 +252,7 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
 ### Zero Rule Suppression Mandate
 
 AI agents and developers are **STRICTLY PROHIBITED** from suppressing, silencing, or disabling auditor rules (e.g. setting `"rule": null`, `"rule": "off"`, passing arbitrary skip flags, or mocking empty test passes). When findings emerge during an upgrade:
+
 1. They represent genuine architectural, typing, or hygiene defects.
 2. They must be resolved legitimately in the application source code.
 3. Clean passes must be earned through source code quality, never by castrating the auditor.
@@ -259,6 +260,7 @@ AI agents and developers are **STRICTLY PROHIBITED** from suppressing, silencing
 ### DRY Code & Modular Architecture
 
 When refactoring code to eliminate semantic or duplicated code findings:
+
 - Extract shared functionality into clean, well-tested utility modules (e.g., `scripts/lib/envUtils.ts`).
 - Employ clean OOP inheritance (e.g., `BaseDefinitionParser`) to consolidate duplicated workflows.
 - Modularize repetitive CSS/SCSS with SCSS mixins (e.g., `@mixin modal-form-group`).
@@ -268,7 +270,7 @@ When refactoring code to eliminate semantic or duplicated code findings:
 ## 6. Root README Modernization Pass
 
 When upgrading a host application to v4+:
+
 1. **Audit Script Table**: Update the scripts table in `README.md` to reflect canonical v4 runner commands (`npm run auditor`, `npm run auditor:fix`, `npm run auditor:build`, `npm run auditor:similar`, `npm run auditor:update`).
 2. **Remove Deprecated Flags**: Eradicate obsolete CLI instructions or deprecated script references.
 3. **Environment & Node Prerequisites**: Align documentation with Node.js 26+ native requirements (`--permission`).
-

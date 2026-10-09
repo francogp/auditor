@@ -86,12 +86,14 @@ Create deterministic reproduction tests before touching `src/`:
 | **Tier 2: Integrity Test (Mandatory)** | Cross-boundary contracts, state engine parity, Supabase roundtrips, SQL migrations. | `tests/node/<domain>/` | [Integration Template](./templates/reproduction_integration_test.template.ts) |
 | **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `tests/unit/views/reproduce_<slug>.test.ts` | [Unit Template](./templates/reproduction_unit_test.template.ts) |
 
-#### Rules for Reproduction Tests:
+#### Rules for Reproduction Tests
+
 1. **Inline Static Data**: Inline all failing inputs, entity definitions, mock records, and formula ASTs.
 2. **Pure Supabase Testing for Database Bugs**:
    - If the bug involves database queries, migrations, schemas, or persistence roundtrips, verify against the dynamic client in `src/logic/db/supabase.ts`.
    - Assert deterministic constraint enforcement and error shapes.
 3. **Confirm Deterministic RED**: Execute the reproduction test and confirm that it fails with the exact reported error (always use official NPM scripts to guarantee Rolldown native bindings load correctly):
+
    ```bash
    npm run test:node -- tests/node/<domain>/reproduce_<slug>.test.ts
    ```
@@ -102,7 +104,8 @@ Create deterministic reproduction tests before touching `src/`:
 
 Diagnose the upstream root cause and apply a clean fix adhering to Senior Developer / Ponytail principles (minimum working code, standard library, zero over-engineering).
 
-#### 🚪 Dual Consultation Gate:
+#### 🚪 Dual Consultation Gate
+
 Before modifying `src/` or `database/`, evaluate the invocation context:
 
 1. **Explicit Mode (Invoked by User via `/systematic-debugging` or Direct Prompt)**:
@@ -124,23 +127,31 @@ Before modifying `src/` or `database/`, evaluate the invocation context:
 Verify all test tiers in strict sequential order. If any test fails, re-enter Phase 3 (capped at 5 attempts total):
 
 1. **Tier 1 Pass**: Re-run the reproduction unit test. Confirm that it turns **GREEN** (across both SQLite and PostgreSQL if database-related):
+
    ```bash
    npm run test:node -- tests/node/<domain>/reproduce_<slug>.test.ts
    ```
+
 2. **Tier 2 Pass**: Verify integrity/integration tests turn **GREEN** (across both database engines for persistence bugs).
 3. **Full Node Unit Regression**: Run the entire Node test suite to confirm 0 regressions:
+
    ```bash
    npm run test:node
    ```
+
 4. **Tier 3 Playwright Pass (If Applicable)**:
    - Re-run the affected simulation suite:
+
      ```bash
      npm run <sim_or_e2e_script> filter=<suite_name>
      ```
+
    - **Step 6B Dual Clean Zero Pass**: If the simulation suite reached the end via checkpoint resumption, execute a clean pass from case 1 in dual mode (`sqlite` + `postgres`):
+
      ```bash
      npm run <sim_or_e2e_script> filter=<suite_name> clean=true
      ```
+
 5. **Iteration Cap Escalation**:
    - If after 5 attempts the tests do not pass, HALT immediately and emit the structured blocker report detailing all failed hypotheses.
    - *Detailed verification loop protocol: [Verification & Repair Loop Protocol](./references/verification_and_repair_loop.md)*.
@@ -152,9 +163,11 @@ Verify all test tiers in strict sequential order. If any test fails, re-enter Ph
 Once all tests pass cleanly:
 
 1. **Fast Development Lint**:
+
    ```bash
    npm run lint
    ```
+
 2. **DOX Pass (`dox-navigator`)**:
    - Update the nearest owning `AGENTS.md` to persist the lesson learned, contract clarification, or invariant established by this fix.
    - Run `npm run auditor:md` to ensure zero broken links or unindexed paths.

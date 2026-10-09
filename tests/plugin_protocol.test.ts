@@ -147,5 +147,56 @@ describe('Auditor Plugin Protocol', () => {
     expect(result.subAuditors?.[0]?.name).toBe('ExtComp: Sub-auditor paso 1');
     expect(result.subAuditors?.[1]?.name).toBe('ExtComp: Sub-auditor paso 2');
   });
+
+  it('throws an error if auditor extension does not define an id', () => {
+    expect(() => {
+      defineAuditorExtension({
+        id: '',
+        name: 'No Id',
+        family: 'domain_data'
+      } as unknown as Parameters<typeof defineAuditorExtension>[0]);
+    }).toThrow('Auditor extension must define an id');
+  });
+
+  it('throws an error if auditor extension has neither auditorClass, factory nor scripts', () => {
+    expect(() => {
+      defineAuditorExtension({
+        id: 'no_execution_contract',
+        name: 'No Execution Contract',
+        family: 'domain_data'
+      });
+    }).toThrow(/must define a mandatory 'scripts' contract/);
+  });
+
+  it('registers package scripts when extension defines scripts contract', () => {
+    const extWithScripts = defineAuditorExtension({
+      id: 'ext_with_scripts',
+      name: 'Ext With Scripts',
+      family: 'architecture',
+      scripts: [
+        {
+          name: 'auditor:ext-custom',
+          command: 'node --experimental-strip-types scripts/custom.ts',
+          description: 'Custom extension runner',
+          category: 'other'
+        }
+      ]
+    });
+
+    expect(extWithScripts.scripts).toHaveLength(1);
+    expect(extWithScripts.scripts?.[0]?.name).toBe('auditor:ext-custom');
+  });
+
+  it('accepts extension with factory function without scripts', () => {
+    const extWithFactory = defineAuditorExtension({
+      id: 'ext_with_factory',
+      name: 'Ext With Factory',
+      family: 'persistence',
+      factory: () => ({} as unknown as BaseAuditor<string>)
+    });
+
+    expect(extWithFactory.id).toBe('ext_with_factory');
+    expect(typeof extWithFactory.factory).toBe('function');
+  });
 });
 

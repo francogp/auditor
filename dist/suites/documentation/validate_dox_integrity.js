@@ -23,9 +23,6 @@ enableCompileCache();
 export const DOX_RULES = [
     'dox-missing-agents-md',
     'dox-unregistered-child',
-    'dox-absolute-link',
-    'dox-broken-link',
-    'dox-gitignore-target',
     'dox-unindexed-file',
     'dox-missing-section',
     'dox-section-order',
@@ -39,7 +36,7 @@ export class DoxIntegrityAuditor extends BaseAuditor {
             capabilities: { md: true },
             id: 'validate_dox_integrity',
             name: 'DOX & AGENTS.md Integrity Validator',
-            description: 'Valida jerarquía, enlaces e integridad de AGENTS.md',
+            description: 'Valida jerarquía, estructura e integridad de AGENTS.md',
             family: 'documentation',
             packageName: 'DOX',
             configKey: 'documentation.enabled',
@@ -49,9 +46,6 @@ export class DoxIntegrityAuditor extends BaseAuditor {
             ruleDescriptions: {
                 'dox-missing-agents-md': 'Falta AGENTS.md en directorio',
                 'dox-unregistered-child': 'AGENTS.md hijo no registrado',
-                'dox-absolute-link': 'Enlace con ruta absoluta',
-                'dox-broken-link': 'Enlace roto a archivo inexistente',
-                'dox-gitignore-target': 'Enlace a ruta ignorada en git',
                 'dox-unindexed-file': 'Archivo de código no indexado en DOX',
                 'dox-missing-section': 'Sección obligatoria ausente en AGENTS.md',
                 'dox-section-order': 'Orden incorrecto de secciones en AGENTS.md',

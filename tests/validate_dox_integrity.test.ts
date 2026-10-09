@@ -4,9 +4,7 @@
  * Dedicated unit test suite for DoxIntegrityAuditor:
  * - Missing AGENTS.md in code directory (dox-missing-agents-md)
  * - Child AGENTS.md not listed in parent index (dox-unregistered-child)
- * - Prohibited absolute links (dox-absolute-link)
- * - Broken links to non-existent files (dox-broken-link)
- * - Linking to git-ignored targets (dox-gitignore-target)
+ * - Unindexed source code file in directory (dox-unindexed-file)
  * - Missing mandatory section (dox-missing-section)
  * - Canonical section ordering violation (dox-section-order)
  * - Empty or placeholder/garbage section content (dox-empty-section)
@@ -75,13 +73,11 @@ describe('DoxIntegrityAuditor', () => {
     it('declares all expected canonical rules', () => {
       expect(DOX_RULES).toContain('dox-missing-agents-md');
       expect(DOX_RULES).toContain('dox-unregistered-child');
-      expect(DOX_RULES).toContain('dox-absolute-link');
-      expect(DOX_RULES).toContain('dox-broken-link');
-      expect(DOX_RULES).toContain('dox-gitignore-target');
       expect(DOX_RULES).toContain('dox-unindexed-file');
       expect(DOX_RULES).toContain('dox-missing-section');
       expect(DOX_RULES).toContain('dox-section-order');
       expect(DOX_RULES).toContain('dox-empty-section');
+      expect(DOX_RULES).toHaveLength(6);
     });
 
     it('initializes with correct id and family', () => {
@@ -120,23 +116,6 @@ describe('DoxIntegrityAuditor', () => {
       expect(violation).toBeDefined();
     });
 
-    it('detects broken links and absolute paths in AGENTS.md', async () => {
-      fs.writeFileSync(path.join(scratchDir, '.gitignore'), 'node_modules\n', 'utf-8');
-      const rootAgents = `
-# Root
-
-[Broken](./non_existent.md)
-[Absolute](/home/user/project/file.md)
-[Gitignored](./node_modules/pkg/index.js)
-      `;
-      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), rootAgents, 'utf-8');
-
-      const auditor = new DoxIntegrityAuditor(scratchDir);
-      const result = await auditor.execute();
-      expect(result.findings.some(f => f.ruleId === 'dox-broken-link')).toBe(true);
-      expect(result.findings.some(f => f.ruleId === 'dox-absolute-link')).toBe(true);
-      expect(result.findings.some(f => f.ruleId === 'dox-gitignore-target')).toBe(true);
-    });
 
     it('detects unindexed code files in a documented directory (dox-unindexed-file)', async () => {
       const subDir = path.join(scratchDir, 'src/services');
@@ -154,29 +133,6 @@ describe('DoxIntegrityAuditor', () => {
       expect(unindexed?.context).toBe('paymentService.ts');
     });
 
-    it('suggests correct relative path when a broken link points to a relocated file', async () => {
-      const coreDir = path.join(scratchDir, 'src/core');
-      const cliDir = path.join(scratchDir, 'src/cli');
-      fs.mkdirSync(coreDir, { recursive: true });
-      fs.mkdirSync(cliDir, { recursive: true });
-
-      // File physically exists in coreDir
-      fs.writeFileSync(path.join(coreDir, 'logger.ts'), 'export const log = true;\n', 'utf-8');
-      fs.writeFileSync(path.join(coreDir, 'AGENTS.md'), '# Core\n- [logger.ts](./logger.ts)\n', 'utf-8');
-
-      // CLI AGENTS.md erroneously points to ./logger.ts inside cliDir
-      fs.writeFileSync(path.join(cliDir, 'runner.ts'), 'export const run = true;\n', 'utf-8');
-      fs.writeFileSync(path.join(cliDir, 'AGENTS.md'), '# CLI\n- [runner.ts](./runner.ts)\n- [logger.ts](./logger.ts)\n', 'utf-8');
-
-      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '# Root\n\n## Child DOX Index\n- [src/core/AGENTS.md](./src/core/AGENTS.md)\n- [src/cli/AGENTS.md](./src/cli/AGENTS.md)\n', 'utf-8');
-
-      const auditor = new DoxIntegrityAuditor(scratchDir);
-      const result = await auditor.execute();
-      const brokenLink = result.findings.find(f => f.ruleId === 'dox-broken-link');
-      expect(brokenLink).toBeDefined();
-      expect(brokenLink?.message).toContain('fue localizado en');
-      expect(brokenLink?.message).toContain('src/core/logger.ts');
-    });
 
     it('detects missing mandatory sections in AGENTS.md (dox-missing-section)', async () => {
       // Missing ## Work Guidance and ## Verification

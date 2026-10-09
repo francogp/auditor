@@ -194,7 +194,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
             }
             : ESLINT_CONFIG_REQUIREMENT;
         super({
-            capabilities: { lint: true, fix: true },
+            capabilities: { lint: true, fix: true, fixPriority: true },
             configFiles: [configRequirement],
             fix: options.fix,
             id: 'validate_eslint_config',

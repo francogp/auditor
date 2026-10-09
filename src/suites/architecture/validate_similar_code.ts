@@ -22,7 +22,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, isTestPath, type AuditFallowSimilarCodeConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS } from '../../cli/cliUtils.ts';
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, resolvePackageBin } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
@@ -34,6 +34,7 @@ export const SIMILAR_CODE_RULES = [
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
+export const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;
 
 export interface SimilarCodeCandidateLocation {
   path: string;
@@ -63,12 +64,7 @@ export interface SimilarCodeStatusOutput {
 }
 
 export function resolveFallowBinary(projectRoot: string = process.cwd()): string | null {
-  const candidates = [
-    path.resolve(projectRoot, 'node_modules/fallow/bin/fallow'),
-    path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow'),
-    path.resolve(import.meta.dirname, '../../../node_modules/fallow/bin/fallow')
-  ];
-  return candidates.find(c => fs.existsSync(c)) ?? null;
+  return resolvePackageBin('fallow', { projectRoot, fallbackRelativeBin: 'bin/fallow' });
 }
 
 export function isFastPresetActive(): boolean {
@@ -89,19 +85,17 @@ export function isSimilarCodeSkipped(): boolean {
   );
 }
 
-import { sanitizePath } from '../../core/safePath.ts';
-
 export function resolveFallowUserCacheDir(): string {
   if (process.platform === 'win32') {
     const rawLocal = process.env.LOCALAPPDATA;
-    const localAppData = rawLocal ? sanitizePath(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
+    const localAppData = rawLocal ? path.resolve(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
     return path.join(localAppData, 'fallow', 'similar-code');
   }
   if (process.platform === 'darwin') {
     return path.join(os.homedir(), 'Library', 'Caches', 'fallow', 'similar-code');
   }
   const rawXdg = process.env.XDG_CACHE_HOME;
-  const xdg = rawXdg ? sanitizePath(rawXdg) : path.join(os.homedir(), '.cache');
+  const xdg = rawXdg ? path.resolve(rawXdg) : path.join(os.homedir(), '.cache');
   return path.join(xdg, 'fallow', 'similar-code');
 }
 
@@ -121,8 +115,27 @@ export function ensureSimilarCodeCacheDir(_projectRoot?: string): string {
   return cacheDir;
 }
 
-export function checkOrInitializeModel(fallowBin: string, projectRoot: string): boolean {
+export function checkOrInitializeModel(fallowBin: string, projectRoot: string, isFix: boolean = false): boolean {
   ensureSimilarCodeCacheDir(projectRoot);
+
+  if (isFix && process.platform === 'win32') {
+    try {
+      const candidates = [
+        path.resolve(projectRoot, 'node_modules/@fallow-cli'),
+        path.resolve(process.cwd(), 'node_modules/@fallow-cli')
+      ];
+      for (const dir of candidates) {
+        if (fs.existsSync(dir)) {
+          childProcess.execSync(
+            `powershell.exe -NoProfile -Command "Get-ChildItem -Path '${dir}' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Unblock-File"`,
+            { stdio: 'ignore', timeout: WINDOWS_UNBLOCK_TIMEOUT_MS }
+          );
+        }
+      }
+    } catch {
+      // catch-ok: non-fatal unblock attempt on Windows binaries
+    }
+  }
 
   try {
     const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
@@ -233,7 +246,7 @@ constructor(targetPath?: string) {
     const projectRoot = targetPath || process.cwd();
 
     super({
-      capabilities: { heavy: true },
+      capabilities: { heavy: true, fix: true },
       id: 'validate_similar_code',
       name: 'Fallow Similar Code Semantics Validator',
       description: 'Detecta duplicados semánticos de funciones',
@@ -269,7 +282,7 @@ constructor(targetPath?: string) {
       return null;
     }
 
-    const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot);
+    const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot, this.isFixActive());
     if (!modelReady) {
       this.context.setMetric('Similar-Code', 'Instalación manual');
       this.addViolation({

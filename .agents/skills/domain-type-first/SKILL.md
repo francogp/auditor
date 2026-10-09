@@ -34,11 +34,11 @@ Before writing or modifying ANY TypeScript code in `src/` or `scripts/`, mentall
 
 | Gate | Question | Required Canonical Action |
 | :--- | :--- | :--- |
-| **1. Entity vs Instance** | Is this a finite catalog entity (`*Id`) or a live instance identifier (`*Uid`)? | **Catalog**: Use strict domain union (`EntityId`, `ItemId`). NEVER open `string`.<br>**Live Instance**: Use `string` (`crypto.randomUUID()`). Matches `GENUINE_UID_PATTERN`. |
+| **1. Entity vs Instance** | Is this a finite catalog entity (`*Id`) or a live instance identifier (`*Uid`)? | **Catalog**: Use strict domain union (`EntityId`, `ItemId`). NEVER open `string`. — **Live Instance**: Use `string` (`crypto.randomUUID()`). Matches `GENUINE_UID_PATTERN`. |
 | **2. Library Domain Reuse** | Does `@types/node`, `@francogp/auditor`, or `src/types/` already define this? | Import canonical contract directly (`BinaryEncoding`, `UserRole`, `StatusName`). NEVER redeclare `'read' \| 'write'` or inline property unions. |
-| **3. Boundary vs Core** | Is data entering from external I/O (API/JSON/Storage) or inside business logic? | **Boundary**: Parse with `requireDomainId(raw)` or guard with `isDomainId(raw)`. Throw loudly on invalid data.<br>**Core**: Demand pure `DomainId` parameter with call-site guarding. NEVER `DomainId \| string` or `DomainId \| undefined`. |
-| **4. O(1) Access & Memory** | Am I searching, storing, or returning a collection in an execution path? | **Search**: Pre-index in $O(1)$ (`Record<DomainId, T>`, `ReadonlySet<T>`, `Map`). NEVER `.find()`, `.filter()`, `.includes()` on arrays in hot paths.<br>**Return**: Return collection directly as `readonly T[]`. NEVER `return [...arr]`. |
-| **5. Object Duplication** | Do I need to duplicate an entity or state tree? | **Vue / Pinia Reactive**: Use `cloneReactive(obj)` from `@/logic/utils/cloneUtils`.<br>**Plain Object**: Use `structuredClone(obj)`.<br>NEVER `JSON.parse(JSON.stringify(obj))`. |
+| **3. Boundary vs Core** | Is data entering from external I/O (API/JSON/Storage) or inside business logic? | **Boundary**: Parse with `requireDomainId(raw)` or guard with `isDomainId(raw)`. Throw loudly on invalid data. — **Core**: Demand pure `DomainId` parameter with call-site guarding. NEVER `DomainId \| string` or `DomainId \| undefined`. |
+| **4. O(1) Access & Memory** | Am I searching, storing, or returning a collection in an execution path? | **Search**: Pre-index in $O(1)$ (`Record<DomainId, T>`, `ReadonlySet<T>`, `Map`). NEVER `.find()`, `.filter()`, `.includes()` on arrays in hot paths. — **Return**: Return collection directly as `readonly T[]`. NEVER `return [...arr]`. |
+| **5. Object Duplication** | Do I need to duplicate an entity or state tree? | **Vue / Pinia Reactive**: Use `cloneReactive(obj)` from `@/logic/utils/cloneUtils`. — **Plain Object**: Use `structuredClone(obj)`. NEVER `JSON.parse(JSON.stringify(obj))`. |
 | **6. Entity Persistence** | Am I serializing, snapshotting, or persisting a core domain entity (`UserRecord`, `TenantConfig`) to DB/storage? | **Canonical Persistence**: Reuse canonical domain serializers (`serializeUser` / `deserializeUser`) from the persistence layer. NEVER invent ad-hoc subset types (`*SnapshotEntry`, `*PartialData`) or strip properties. |
 
 ### Mental Anchors: The 10 Fatal Anti-Patterns vs Canonical Patterns
@@ -90,6 +90,7 @@ Before writing or modifying ANY TypeScript code in `src/` or `scripts/`, mentall
 ### Pre-Commit Mental Self-Audit (Run Before Finishing)
 
 Before declaring any coding task complete, mentally scan your diff for these 8 flags:
+
 1. Did I introduce any `[...spread]` return statements in getters or services?
 2. Did I use `.find()`, `.filter()`, or `.includes()` on an array inside a loop, calculation, or tick?
 3. Did I write `|| ''`, `?? ''`, or fallback to `.name` on any entity ID?
@@ -160,6 +161,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
   1. Exact duplicate collections ($A = D$) where an array literal reproduces an existing canonical domain array.
   2. Redundant subcollections ($A \subset D$ with length $\ge 3$) where an array literal defines a subset of a canonical domain instead of deriving it dynamically via `.filter()`.
 - **Canonical Derivation**: Subsets of canonical domains MUST be derived dynamically from the SSoT array:
+
   ```ts
   // ❌ FORBIDDEN: Redundant literal subcollection
   const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE'];
@@ -167,7 +169,6 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
   // ✅ CANONICAL: Derived dynamically from SSoT
   export const MUTATING_METHODS = HTTP_METHODS.filter((m): m is MutatingMethod => m !== 'GET');
   ```
-
 
 ## Absolute Prohibition on Translated String Unions & Display Names in Contracts (`noTranslatedStringUnions`)
 
@@ -213,6 +214,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 
 - **Strict Preconditions on Domain Logic**: Functions that execute domain calculations, business workflows, or entity handlers (e.g. `resolvePermissionModifier`, `calculateDiscount`) MUST demand pure `DomainId` parameters. It is STRICTLY FORBIDDEN to accept `DomainId | null` or `DomainId | undefined` in domain calculation handlers.
 - **Call-Site Guarding**: The caller is responsible for validating preconditions before calling domain logic:
+
   ```ts
   // ❌ FORBIDDEN: Domain function polluted with nullable parameter
   function resolvePermissionModifier(scope: AccessScope, roleId: RoleId | undefined, ...): number;
@@ -247,6 +249,7 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 - **Compiler-Enforced Exhaustiveness (TS2454)**: Declaring `let targetId: DomainId;` without an initial dummy value leverages TypeScript's native **Definite Assignment Analysis**. If any code branch or switch statement fails to assign the variable before it is consumed, TypeScript immediately rejects the code at compile time (`TS2454: Variable is used before being assigned`).
 - **ESLint v10 Alignment**: Dummy initializations trigger ESLint v10's `no-useless-assignment` because the initial value is immediately overwritten without ever being read. Uninitialized domain declarations satisfy both ESLint and TypeScript with zero runtime overhead and 100% compile-time exhaustiveness.
 - **Example**:
+
   ```typescript
   // ❌ ANTI-PATTERN: Dummy initial value hides unhandled branches & triggers ESLint 10
   let userRole = '' as UserRole;
@@ -270,6 +273,7 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 - **Preserve Error Causality Chains**: When catching exceptions across domain, network, worker, or persistence boundaries and translating them into typed domain errors (e.g. `DomainParseError`, `SerializationError`, `PersistenceError`), agents **MUST ALWAYS** pass the original caught error into the native `{ cause: error }` option of the `Error` constructor (ES2022+ / ES2025 native in Node.js >=26).
 - **Absolute Prohibition on Error Truncation**: Never swallow, stringify, or discard the original error object (e.g. `catch (err) { throw new Error('Failed: ' + String(err)); }` or `catch { throw new Error('Failed'); }`). Preserving `{ cause: error }` ensures V8 and modern debugging tools retain the full original stack trace, HTTP status codes, and inner exception metadata.
 - **Example**:
+
   ```typescript
   // ❌ ANTI-PATTERN: Stringifying or swallowing the cause breaks debugging & V8 stack traces
   try {
@@ -304,16 +308,17 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 - **Shared Contracts Extraction**: If any type, interface, or constant needs to be shared across multiple components or tests, it MUST be extracted to a companion `.ts` module (e.g. `src/components/.../*Types.ts` or `src/types/...`).
 - **Local Types Unexported**: Types, interfaces, and filter tuples that are only used within that specific SFC must remain unexported (without the `export` keyword) and use the `_` prefix for local filter arrays (`const _FILTER_MODES = ['all', ...DOMAINS] as const;`).
 - **Auditor Enforcement**: The auditor `validate_domain_types` (from `@francogp/auditor`) scans all `.vue` files and immediately flags any `export` inside `<script setup>` as a blocking `ERROR`.
+
 ## Nominal Branded Types for Domain IDs (`Brand<T, B>`)
 
 - **Nominal Safety Mandate**: Finite domain identifiers (`EntityId`, `ItemId`, `ActionId`) SHOULD be defined as Nominal Branded Types using `Brand<T, B>` from `@/types/system/branding` to prevent accidental assignability across distinct domains.
 - **Example**:
+
   ```ts
   import { type Brand, toBrand } from '@/types/system/branding';
   export type EntityId = Brand<string, 'EntityId'>;
   export const makeEntityId = (raw: string): EntityId => toBrand(requireEntityId(raw));
   ```
-
 
 ## Floating Promise & Architecture Rules (`noFloatingPromises`, `noLeakedGlobalState`, `noDynamicImportInHotPath`)
 
@@ -321,6 +326,7 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 - **Module Global State Guard (`noLeakedGlobalState`)**: Mutable `let`/`var` variables at top-level module scope are prohibited unless encapsulated in Pinia stores, classes, or marked `// singleton-ok`.
 - **Hot-Path Import Guard (`noDynamicImportInHotPath`)**: Dynamic `import()` inside loops, Vue computed properties, or GSAP timelines is prohibited to avoid UI animation stutter.
 - **Auto-Fixer Command**: Mechanical rules can be auto-repaired across the codebase by running:
+
   ```bash
   npm run lint:fix
   ```
@@ -383,27 +389,32 @@ If code seems to need an inline cast (e.g., `(DATABASE as Record<string, T>)[key
 2. Implement the index check safely inside the data module (using `in`, `isDomainId()`, or `requireDomainId()`).
 3. Call the clean helper from business logic without any inline `as` type assertions.
 
-
 ## AST Audit Rules & Anti-Patterns Reference
 
 ### A. Prohibited Inline Literal Unions (`noInlineLiteralUnions`)
+
 - ❌ **Anti-pattern**: `role?: 'admin' | 'editor' | 'viewer'` or `theme?: 'default' | 'error' | 'warning'`
 - ✅ **Canonical**: Centralize in `src/types/` as an `as const` array and derive the union:
+
   ```typescript
   export const USER_ROLES = ['admin', 'editor', 'viewer', 'guest'] as const;
   export type UserRole = (typeof USER_ROLES)[number];
   ```
 
 ### B. Prohibited Inline Type Imports (`noInlineTypeImports`)
+
 - ❌ **Anti-pattern**: `function format(date: import('temporal-polyfill').Temporal.ZonedDateTime)`
 - ✅ **Canonical**: Explicitly import in the file header:
+
   ```typescript
   import type { Temporal } from 'temporal-polyfill';
   ```
 
 ### C. Prohibited Anonymous Object Types in Parameters (`noInlineAnonymousObjectType`)
+
 - ❌ **Anti-pattern**: `send: (payload: { type: ChannelType, event: string, payload: unknown }) => void`
 - ✅ **Canonical**: Declare a named interface:
+
   ```typescript
   export interface ChannelPayload {
     type: ChannelType;
@@ -416,6 +427,7 @@ If code seems to need an inline cast (e.g., `(DATABASE as Record<string, T>)[key
   ```
 
 ### D. Shared Multi-Tier System Constants
+
 - Multi-tier systems (access tiers, execution levels, difficulty modes) must consume shared domain constants (e.g. `TierLevel` / `SYSTEM_TIERS` from `@/types/system/tiers`) rather than declaring ad-hoc literal unions like `'easy' | 'medium' | 'hard' | 'expert'`.
 
 ## Generated Data Workflow

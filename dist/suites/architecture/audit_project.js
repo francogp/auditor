@@ -41,7 +41,7 @@ function auditVueScriptBlocks(params) {
     let { content } = params;
     let modified = false;
     const scriptBlocks = extractAllBlocks(content, 'script');
-    const rules = params.candidateRules.filter(r => !params.allStyleRules.includes(r) && r !== config.dbInTemplates && r !== config.functionCallsInTemplates);
+    const rules = params.candidateRules.filter(r => !params.allStyleRules.includes(r) && r !== config.functionCallsInTemplates);
     if (rules.length === 0)
         return { content, modified };
     for (let i = scriptBlocks.length - 1; i >= 0; i--) {
@@ -59,16 +59,11 @@ function auditVueTemplateBlocks(content, filePath, activeConfigRules, violations
     const templateBlocks = extractAllBlocks(content, 'template');
     for (const block of templateBlocks) {
         const candidateTemplateRules = [
-            config.dbInTemplates,
-            config.functionCallsInTemplates,
-            config.missingInteractiveId
+            config.functionCallsInTemplates
         ];
         const templateRules = activeConfigRules
             ? candidateTemplateRules.filter(r => activeConfigRules.has(r))
             : candidateTemplateRules;
-        if (!activeConfigRules || activeConfigRules.has(config.legacyDates)) {
-            templateRules.push(config.legacyDates);
-        }
         if (templateRules.length > 0) {
             runRules(filePath, block.content, templateRules, violations, false, block.startLine);
         }
@@ -77,7 +72,7 @@ function auditVueTemplateBlocks(content, filePath, activeConfigRules, violations
 function auditLogicFile(params) {
     let { content } = params;
     let modified = false;
-    const rules = params.candidateRules.filter(r => !params.allStyleRules.includes(r) && r !== config.dbInTemplates && r !== config.functionCallsInTemplates);
+    const rules = params.candidateRules.filter(r => !params.allStyleRules.includes(r) && r !== config.functionCallsInTemplates);
     if (rules.length > 0) {
         const newBlock = runRules(params.filePath, content, rules, params.violations, params.fix, 0);
         if (params.fix && newBlock !== content) {
@@ -185,12 +180,6 @@ async function auditFile(filePath, fix, activeConfigRules) {
     const isStyle = filePath.endsWith('.scss') || filePath.endsWith('.css');
     const ALL_STYLE_RULES = [
         config.viewport,
-        config.gpuGaps,
-        config.zIndexAudit,
-        config.manualAnimations,
-        config.emptyVueTransitions,
-        config.noImportantOnTransforms,
-        config.noImportantOnFilters,
         config.noSassAtImport
     ];
     const STYLE_RULES = activeConfigRules
@@ -495,7 +484,8 @@ export function filterAndGroupViolations(rawViolations, ctx) {
     const fileGroups = {};
     const typeGroups = {};
     for (const v of all) {
-        const rel = path.relative(process.cwd(), v.file);
+        const rawRel = path.isAbsolute(v.file) ? path.relative(process.cwd(), v.file) : v.file;
+        const rel = rawRel.replace(/\\/g, '/');
         if (!fileGroups[rel])
             fileGroups[rel] = [];
         fileGroups[rel].push(v);
@@ -707,15 +697,7 @@ export async function main(cliArgs) {
     return all;
 }
 export function getProjectArchitectureRuleDescriptions() {
-    const descriptions = {
-        'banned-ts-suppression': 'Directivas @ts-ignore o casts a any',
-        'domain-type-violation': 'Violación de tipo de dominio',
-        'strict-null-violation': 'Violación de chequeo de null',
-        'no-tautological-integration-mocks': 'Mocks tautológicos en integración',
-        'playwright-id-locators-only': 'Locators Playwright sin atributo ID',
-        'no-playwright-force-click': 'Clicks forzados prohibidos',
-        'architecture-violation': 'Violación de regla de arquitectura'
-    };
+    const descriptions = {};
     for (const [key, rule] of Object.entries(config)) {
         const r = rule;
         const id = r.id ? r.id : key;

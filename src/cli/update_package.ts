@@ -10,8 +10,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { isSelfProviderProject } from '../core/auditConfig.ts';
 import { initAgentSkill } from './init_agent.ts';
 
 export interface UpdateAuditorOptions {
@@ -132,12 +133,51 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
   }
 
+  runAuditorFixAutoRemediation(projectRoot, options.silent);
+
   return {
     success: true,
     projectRoot,
     previousVersion,
     newVersion
   };
+}
+
+export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean {
+  try {
+    const isSelf = isSelfProviderProject(projectRoot);
+    if (!silent) {
+      console.log(styleText('cyan', '🛠️ Ejecutando auditor fix automáticamente para sincronizar scripts y configuraciones...\n'));
+    }
+
+    const hostAuditorPkg = path.join(projectRoot, 'node_modules/@francogp/auditor/dist/cli/audit_full.js');
+
+    let cmd = 'npm';
+    let args = ['run', 'auditor:fix'];
+
+    if (!isSelf && fs.existsSync(hostAuditorPkg)) {
+      cmd = 'node';
+      args = [
+        '--permission',
+        '--allow-fs-read=*',
+        '--allow-fs-write=*',
+        '--allow-child-process',
+        '--allow-addons',
+        hostAuditorPkg,
+        'fix'
+      ];
+    }
+
+    const proc = childProcess.spawnSync(cmd, args, {
+      cwd: projectRoot,
+      stdio: silent ? 'pipe' : 'inherit',
+      encoding: 'utf-8'
+    });
+
+    return proc.status === 0;
+  } catch {
+    return false;
+  }
 }
 
 export function runCli(): void {
@@ -171,5 +211,6 @@ export function runCli(): void {
 }
 
 if (isMainModule(import.meta.url)) {
+  bootstrapCliProject();
   runCli();
 }

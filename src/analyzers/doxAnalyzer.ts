@@ -9,48 +9,27 @@ import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 import { isTestPath } from '../core/auditConfig.ts';
-import { buildRepositoryFileIndex } from '../core/safePath.ts';
+import { GitIgnoreMatcher } from '../core/gitignoreMatcher.ts';
 
 export const DOX_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'dox',
   name: 'DOX / AGENTS.md Integrity',
   category: 'DOX / AGENTS.md',
-  aliases: ['dox', 'agents', 'agents.md', 'documentation', 'dox-integrity', 'doxindexintegrity']
+  aliases: ['dox', 'agents', 'agents.md', 'documentation', 'dox-integrity']
 };
 
 const CODE_EXTENSIONS = new Set(['.ts', '.vue', '.js', '.scss', '.css']);
 
-async function loadGitIgnoredPaths(rootDir: string): Promise<Set<string>> {
-  const gitIgnoredPaths = new Set<string>();
-  try {
-    const gitignoreRaw = await fs.readFile(path.join(rootDir, '.gitignore'), 'utf-8');
-    for (const line of gitignoreRaw.split('\n')) {
-      const trimmed = line.trim().replace(/\/$/, '');
-      if (!trimmed || trimmed.startsWith('#') || trimmed.includes('*') || trimmed.includes('?')) continue;
-      gitIgnoredPaths.add(path.resolve(rootDir, trimmed));
-    }
-  } catch {
-    // catch-ok: no .gitignore found — skip silently
-  }
-  return gitIgnoredPaths;
-}
-
 function isPathIgnored(
   dir: string,
   ignoreDirs: ReadonlySet<string>,
-  gitIgnoredPaths: ReadonlySet<string>
+  gitIgnoreMatcher: GitIgnoreMatcher
 ): boolean {
   const dirName = path.basename(dir);
   if (ignoreDirs.has(dirName) || (dirName.startsWith('.') && dirName !== '.')) {
     return true;
   }
-  const absDir = path.resolve(dir);
-  for (const ignored of gitIgnoredPaths) {
-    if (absDir === ignored || absDir.startsWith(ignored + path.sep)) {
-      return true;
-    }
-  }
-  return false;
+  return gitIgnoreMatcher.isIgnored(dir);
 }
 
 interface DoxHierarchyScan {
@@ -83,13 +62,13 @@ async function tryReadAgentsMd(dir: string): Promise<string | null> {
 async function scanDoxHierarchy(
   rootDir: string,
   ignoreDirs: ReadonlySet<string>,
-  gitIgnoredPaths: ReadonlySet<string>
+  gitIgnoreMatcher: GitIgnoreMatcher
 ): Promise<DoxHierarchyScan> {
   const doxDirs: string[] = [];
   const doxFilesMap = new Map<string, string>();
 
   async function traverse(dir: string): Promise<void> {
-    if (isPathIgnored(dir, ignoreDirs, gitIgnoredPaths)) return;
+    if (isPathIgnored(dir, ignoreDirs, gitIgnoreMatcher)) return;
 
     let entries: Dirent[];
     try {
@@ -229,171 +208,12 @@ function validateChildRegistration(
   return violations;
 }
 
-function checkLinkSyntax(
-  targetUrl: string,
-  label: string,
-  line: number,
-  agentsPath: string
-): Violation | null {
-  const isFullPath =
-    targetUrl.startsWith('file://') ||
-    targetUrl.startsWith('/') ||
-    targetUrl.startsWith('\\') ||
-    /^[a-z]:/i.test(targetUrl) ||
-    path.isAbsolute(targetUrl);
-
-  if (isFullPath) {
-    return {
-      file: agentsPath,
-      line,
-      message: `Enlace absoluto o ruta completa prohibida '${targetUrl}' detectada en '${label}'. Se exige el uso exclusivo de rutas relativas (RULE 10).`,
-      context: targetUrl,
-      severity: 'error',
-      fixable: false,
-      packageName: 'DOX',
-      ruleId: 'dox-absolute-link',
-      ruleDescription: 'Enlace con ruta absoluta'
-    };
-  }
-  return null;
-}
-
-async function checkLinkTarget(
-  targetUrl: string,
-  line: number,
-  agentsPath: string,
-  dirPath: string,
-  rootDir: string,
-  gitIgnoredPaths: ReadonlySet<string>,
-  repoFileIndex: ReadonlyMap<string, readonly string[]>
-): Promise<Violation | null> {
-  const rawTarget = targetUrl.split('#')[0] ?? '';
-  let cleanTarget: string;
-  try {
-    cleanTarget = decodeURIComponent(rawTarget);
-  } catch {
-    // catch-ok: malformed URI component fallback
-    cleanTarget = rawTarget;
-  }
-  if (!cleanTarget) return null;
-
-  const absoluteTarget = path.resolve(dirPath, cleanTarget);
-  const isGitIgnored =
-    gitIgnoredPaths.has(absoluteTarget) ||
-    [...gitIgnoredPaths].some(p => absoluteTarget.startsWith(p + path.sep));
-
-  if (isGitIgnored) {
-    return {
-      file: agentsPath,
-      line,
-      message: `Enlace a ruta ignorada por Git (.gitignore): '${targetUrl}' apunta a una ruta no versionada que no existirá en clones o CI.`,
-      context: targetUrl,
-      severity: 'error',
-      fixable: false,
-      packageName: 'DOX',
-      ruleId: 'dox-gitignore-target',
-      ruleDescription: 'Enlace a ruta ignorada en git'
-    };
-  }
-
-  try {
-    await fs.stat(absoluteTarget);
-  } catch {
-    // catch-ok: non-existent file target check
-    const basename = path.basename(cleanTarget);
-    const candidateMatches = (repoFileIndex.get(basename) ?? []).filter(
-      cand => !gitIgnoredPaths.has(cand) && ![...gitIgnoredPaths].some(p => cand.startsWith(p + path.sep))
-    );
-
-    let message = `Enlace roto: '${targetUrl}' apuntando a '${cleanTarget}' no existe en el disco.`;
-    if (candidateMatches.length > 0) {
-      const suggestions = candidateMatches.map(cand => {
-        let rel = path.relative(dirPath, cand).split(path.sep).join(path.posix.sep);
-        if (!rel.startsWith('.')) rel = './' + rel;
-        return rel;
-      });
-      const foundIn = candidateMatches.map(cand => path.relative(rootDir, cand).split(path.sep).join(path.posix.sep)).join(', ');
-      message = `Enlace roto: '${targetUrl}' no existe en esa ruta, pero aparentemente fue localizado en '${foundIn}'. Verifica si corresponde corregir el enlace a: '${suggestions.join("' o '")}'.`;
-    }
-
-    return {
-      file: agentsPath,
-      line,
-      message,
-      context: targetUrl,
-      severity: 'error',
-      fixable: false,
-      packageName: 'DOX',
-      ruleId: 'dox-broken-link',
-      ruleDescription: 'Enlace roto a archivo inexistente'
-    };
-  }
-
-  return null;
-}
-
-async function validateSingleLink(
-  targetUrl: string,
-  label: string,
-  line: number,
-  agentsPath: string,
-  dirPath: string,
-  rootDir: string,
-  gitIgnoredPaths: ReadonlySet<string>,
-  repoFileIndex: ReadonlyMap<string, readonly string[]>
-): Promise<Violation | null> {
-  if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://') || targetUrl.startsWith('#')) {
-    return null;
-  }
-  const syntaxViolation = checkLinkSyntax(targetUrl, label, line, agentsPath);
-  if (syntaxViolation) return syntaxViolation;
-  return checkLinkTarget(targetUrl, line, agentsPath, dirPath, rootDir, gitIgnoredPaths, repoFileIndex);
-}
-
-async function validateFileLinks(
-  agentsPath: string,
-  dirPath: string,
-  rootDir: string,
-  content: string,
-  gitIgnoredPaths: ReadonlySet<string>,
-  repoFileIndex: ReadonlyMap<string, readonly string[]>
-): Promise<Violation[]> {
-  const violations: Violation[] = [];
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const lines = content.split('\n');
-
-  for (let i = 0; i < lines.length; i++) {
-    const lineText = lines[i];
-    if (lineText === undefined) continue;
-    let match: RegExpExecArray | null;
-    while ((match = linkRegex.exec(lineText)) !== null) {
-      const label = match[1] ?? '';
-      const targetUrl = (match[2] ?? '').trim();
-      const violation = await validateSingleLink(
-        targetUrl,
-        label,
-        i + 1,
-        agentsPath,
-        dirPath,
-        rootDir,
-        gitIgnoredPaths,
-        repoFileIndex
-      );
-      if (violation) {
-        violations.push(violation);
-      }
-    }
-  }
-
-  return violations;
-}
-
 const ALLOWED_CODE_EXTS = new Set(['.ts', '.vue', '.js', '.cjs', '.mjs', '.jsx', '.tsx', '.scss', '.css']);
 
 function isIndexableCodeFile(
   fileName: string,
   fullPath: string,
-  gitIgnoredPaths: ReadonlySet<string>
+  gitIgnoreMatcher: GitIgnoreMatcher
 ): boolean {
   if (fileName === 'AGENTS.md') return false;
   if (fileName.endsWith('.d.ts') || fileName.endsWith('.map')) return false;
@@ -402,17 +222,14 @@ function isIndexableCodeFile(
   if (!ALLOWED_CODE_EXTS.has(ext)) return false;
   if (isTestPath(fullPath)) return false;
 
-  const isIgnored =
-    gitIgnoredPaths.has(fullPath) ||
-    [...gitIgnoredPaths].some(p => fullPath.startsWith(p + path.sep));
-  return !isIgnored;
+  return !gitIgnoreMatcher.isIgnored(fullPath);
 }
 
 async function checkDirUnindexedCodeFiles(
   dirPath: string,
   content: string,
   rootDir: string,
-  gitIgnoredPaths: ReadonlySet<string>
+  gitIgnoreMatcher: GitIgnoreMatcher
 ): Promise<Violation[]> {
   const violations: Violation[] = [];
   let entries: Dirent[];
@@ -426,7 +243,7 @@ async function checkDirUnindexedCodeFiles(
   for (const entry of entries) {
     if (!entry.isFile()) continue;
     const fullPath = path.join(dirPath, entry.name);
-    if (!isIndexableCodeFile(entry.name, fullPath, gitIgnoredPaths)) continue;
+    if (!isIndexableCodeFile(entry.name, fullPath, gitIgnoreMatcher)) continue;
 
     if (!content.includes(entry.name)) {
       const agentsPath = path.join(dirPath, 'AGENTS.md');
@@ -450,12 +267,12 @@ async function checkDirUnindexedCodeFiles(
 async function validateUnindexedCodeFiles(
   rootDir: string,
   doxFilesMap: ReadonlyMap<string, string>,
-  gitIgnoredPaths: ReadonlySet<string>
+  gitIgnoreMatcher: GitIgnoreMatcher
 ): Promise<Violation[]> {
   const violations: Violation[] = [];
   for (const [dirPath, content] of doxFilesMap.entries()) {
     if (dirPath === rootDir) continue;
-    violations.push(...(await checkDirUnindexedCodeFiles(dirPath, content, rootDir, gitIgnoredPaths)));
+    violations.push(...(await checkDirUnindexedCodeFiles(dirPath, content, rootDir, gitIgnoreMatcher)));
   }
   return violations;
 }
@@ -746,21 +563,18 @@ export async function checkDoxIntegrity(
   rootDir: string,
   ignoreDirs: ReadonlySet<string>
 ): Promise<Violation[]> {
-  const gitIgnoredPaths = await loadGitIgnoredPaths(rootDir);
-  const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoredPaths);
-  const repoFileIndex = buildRepositoryFileIndex(rootDir, p => isPathIgnored(p, ignoreDirs, gitIgnoredPaths));
+  const gitIgnoreMatcher = new GitIgnoreMatcher(rootDir);
+  const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher);
 
   const violations: Violation[] = [
     ...validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap),
     ...validateChildRegistration(rootDir, doxFilesMap),
-    ...(await validateUnindexedCodeFiles(rootDir, doxFilesMap, gitIgnoredPaths))
+    ...(await validateUnindexedCodeFiles(rootDir, doxFilesMap, gitIgnoreMatcher))
   ];
 
   for (const [dirPath, content] of doxFilesMap.entries()) {
     const agentsPath = path.join(dirPath, 'AGENTS.md');
     violations.push(...validateDoxSectionStructure(agentsPath, rootDir, content));
-    const linkViolations = await validateFileLinks(agentsPath, dirPath, rootDir, content, gitIgnoredPaths, repoFileIndex);
-    violations.push(...linkViolations);
   }
 
   return violations;

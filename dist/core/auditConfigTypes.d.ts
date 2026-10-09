@@ -31,6 +31,7 @@ export interface AuditPathsConfig {
     readonly minTestFileLines?: number;
     readonly ignoreGlobs?: readonly string[];
     readonly ignoredDirs?: readonly string[];
+    readonly unignoreDirs?: readonly string[];
     readonly ignoredPatterns?: readonly string[];
     readonly testFilePatterns?: readonly string[];
     readonly testFragmentationWhitelist?: readonly string[];
@@ -172,6 +173,7 @@ export type DocumentationLanguage = 'en' | 'es';
 export interface AuditDocumentationConfig {
     readonly knownValidAbstractPaths?: readonly string[];
     readonly skillsRoots?: readonly string[];
+    readonly unignoreDirs?: readonly string[];
     readonly allowedNpxBinaries?: readonly string[];
     readonly language?: DocumentationLanguage;
     readonly chatLanguage?: DocumentationLanguage;
@@ -341,6 +343,9 @@ export interface AuditValibotConfig {
     readonly enabled?: boolean;
     readonly targets?: readonly ValibotParityTarget[];
 }
+export interface AuditEnvironmentConfig {
+    readonly enabled?: boolean;
+}
 export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
@@ -352,6 +357,7 @@ export interface AuditEngineConfig {
     readonly paths: AuditPathsConfig;
     readonly persistence: AuditPersistenceConfig;
     readonly domain: AuditDomainConfig;
+    readonly environment?: AuditEnvironmentConfig;
     readonly gitIgnore?: AuditGitIgnoreConfig;
     readonly templates?: AuditTemplatesConfig;
     readonly styles?: AuditStylesConfig;

@@ -233,17 +233,21 @@ In accordance with the **Absolute Prohibition on Tautological Mocking & Falsifie
 Every sub-auditor (`BaseAuditor`, `FileScanAuditor`, or host extension plugin) is an automated gatekeeper. An untested or partially tested auditor is a critical blindspot that causes silent failures in production.
 
 ### 13.1 Universal Coverage Mandate for All Rules & Warnings
+
 - **100% RuleId Coverage**: Every declared rule ID in `ruleIds`, and every warning or error reported by the suite (including Fallow categories, AST rules, regex tokens, CSS checks, SQL checks, markdown checks) **MUST have a dedicated test case**.
 - **Explicit Severity Assertion**: The test MUST explicitly assert that the finding has the expected severity (`expect(finding.severity).toBe('error')` or `expect(finding.severity).toBe('warning')`).
 - **Context & Location Assertion**: The test MUST verify that line numbers, relative file paths, and context snippets are accurately captured.
 
 ### 13.2 Hermetic Sandbox Testing Pattern
+
 - Sub-auditors should accept a sandbox directory (`tempDir` / `projectRoot`) so test fixtures never mutate or depend on the host repository files.
 - Setup a temporary directory with `fs.mkdtemp(path.join(os.tmpdir(), 'auditor-test-'))` in `beforeEach`, and clean it up with `fs.rm(tempDir, { recursive: true, force: true })` in `afterEach`.
 - Set `process.env.AUDIT_SUBPROCESS = 'true'` in tests to suppress unwanted terminal stdout prints during test runs.
 
 ### 13.3 Triple Assertion Pattern for Every Auditor
+
 Every sub-auditor test suite must follow the triple assertion pattern:
+
 1. **Positive Trigger**: For each rule/warning, write invalid code in the sandbox, run the auditor, and assert that the exact `ruleId` is present in `result.findings` with the expected `severity`.
 2. **Negative Pass**: Write valid/compliant code in the sandbox, run the auditor, and assert that `result.summary.errors === 0`, `result.summary.warnings === 0`, and `result.status === 'passed'`.
 3. **Escape Hatch Verification**: Write the violating code accompanied by an escape hatch (e.g. `// <rule>-ok:`, `// domain-ok:`, `// script-ok:`), run the auditor, and assert that zero violations are produced for that line.
@@ -255,6 +259,7 @@ Every sub-auditor test suite must follow the triple assertion pattern:
 All repositories governed by `@francogp/auditor` enforce test execution coverage through standard Istanbul/C8 coverage artifacts (`coverage/coverage-final.json`).
 
 ### 14.1 Metric Thresholds & Single Source of Truth
+
 - Thresholds are defined in `.auditor/audit.config.ts` under `config.testCoverage.thresholds`:
   - **Statements**: Minimum percentage of executable statements reached.
   - **Branches**: Minimum percentage of conditional branches tested.
@@ -263,11 +268,11 @@ All repositories governed by `@francogp/auditor` enforce test execution coverage
 - When full 100% coverage is mathematically constrained by environment branches or third-party wrappers, the threshold must be configured to the achievable ceiling (e.g., 80%) rather than artificially lowered.
 
 ### 14.2 Zero-Tolerance for Shadow Modules (`uncoveredFiles`)
+
 - Files present in the source tree but completely absent from the test coverage report (0% coverage) are flagged as `test-coverage-uncovered-file`.
 - Every source module must have companion unit or integration tests, eliminating un-tested shadow modules.
 
 ### 14.3 Reporting & Inspection Tools
+
 - Run coverage verification suite: `npm run auditor` or `preset=audit`.
 - Inspect detailed table reports: `npm run auditor:coverage` or `auditor-coverage`.
-
-
