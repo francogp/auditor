@@ -70,6 +70,8 @@ export interface StandardAuditResult {
         errors: number;
         warnings: number;
         info: number;
+        fixableErrors?: number;
+        fixableWarnings?: number;
         totalFilesScanned?: number;
     };
     subAuditors?: readonly SubAuditorReport[];
@@ -373,4 +375,25 @@ export interface AssertAuditorOptions {
  */
 export declare function assertAuditorExecuted(report: Partial<ConsolidatedAuditReport> | null | undefined, requiredSuiteId: string, consumerName: string, options?: AssertAuditorOptions): void;
 export declare function groupResultsByFamily(results: readonly StandardAuditResult[], initialFamilies?: readonly AuditFamily[]): Map<AuditFamily, StandardAuditResult[]>;
+export interface FixableFindingCounts {
+    readonly fixableErrors: number;
+    readonly fixableWarnings: number;
+    readonly totalFixable: number;
+}
+/**
+ * Single Source of Truth for counting fixable findings.
+ * Conforms to the Zero False-Fix Mandate: only findings explicitly marked `fixable === true`
+ * are counted as mechanically fixable.
+ */
+export declare function countFixableFindings(findings: readonly AuditFinding[]): FixableFindingCounts;
+export interface FixableViolationsSummary {
+    readonly fixableErrors: number;
+    readonly fixableWarnings: number;
+    readonly autoFixRecommended: boolean;
+}
+/**
+ * Universal coordinator helper to evaluate fixable violations across all suite results.
+ * Respects the Post-Fix Invariant: when isFixMode is true, fixableErrors is strictly 0.
+ */
+export declare function computeResultsFixableViolations(results: readonly StandardAuditResult[], isFixMode?: boolean): FixableViolationsSummary;
 //# sourceMappingURL=auditContract.d.ts.map

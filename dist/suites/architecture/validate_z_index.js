@@ -150,7 +150,8 @@ export class ZIndexAuditor extends FileScanAuditor {
                 content,
                 matchIndex: m.index,
                 message: msg,
-                context: m[0]
+                context: m[0],
+                fixable: false
             });
         }
         // 2. Detección de declaraciones de constantes Z_INDEX aisladas fuera de Z_LAYERS
@@ -172,7 +173,8 @@ export class ZIndexAuditor extends FileScanAuditor {
                         line,
                         column,
                         message: `Declaración de constante de Z-Index aislada detectada: '${cMatch[0]}'. Está PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`,
-                        context: cMatch[0]
+                        context: cMatch[0],
+                        fixable: false
                     });
                 }
             }
@@ -234,7 +236,8 @@ export class ZIndexAuditor extends FileScanAuditor {
                 file: this.scssPath,
                 line: 1,
                 message: v.message,
-                context: v.context
+                context: v.context,
+                fixable: true
             });
         }
         if (isFixMode && result.modified) {

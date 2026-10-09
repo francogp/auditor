@@ -83,6 +83,8 @@ export const DEFAULT_NON_AUDITABLE_GLOBS: readonly string[] = Object.freeze([
   // Environment bootstrap scripts & setup plugins
   'setup-linux.sh',
   'setup-windows.ps1',
+  'update-linux.sh',
+  'update-windows.ps1',
   'scripts/setup/plugins/**',
   '.env.example',
   '**/*.sample',

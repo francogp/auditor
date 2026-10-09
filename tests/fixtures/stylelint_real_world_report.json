@@ -1,0 +1,50 @@
+[
+  {
+    "source": "test_aventura/components/studio/StudioAdventureGraphInspector.styles.scss",
+    "errored": true,
+    "warnings": [
+      {
+        "line": 45,
+        "column": 3,
+        "endLine": 45,
+        "endColumn": 15,
+        "rule": "no-duplicate-selectors",
+        "severity": "error",
+        "text": "Unexpected duplicate selector \".inspector-card\", first used at line 20 (no-duplicate-selectors)"
+      },
+      {
+        "line": 80,
+        "column": 5,
+        "endLine": 80,
+        "endColumn": 25,
+        "rule": "order/order",
+        "severity": "warning",
+        "text": "Expected custom-properties to come before declarations (order/order)"
+      }
+    ]
+  },
+  {
+    "source": "test_aventura/styles/animations.css",
+    "errored": true,
+    "warnings": [
+      {
+        "line": 110,
+        "column": 5,
+        "endLine": 110,
+        "endColumn": 20,
+        "rule": "keyframes-name-pattern",
+        "severity": "error",
+        "text": "Expected keyframe name \"fade_in\" to be kebab-case (keyframes-name-pattern)"
+      },
+      {
+        "line": 140,
+        "column": 12,
+        "endLine": 140,
+        "endColumn": 19,
+        "rule": "color-hex-length",
+        "severity": "error",
+        "text": "Expected \"#ffffff\" to be \"#fff\" (color-hex-length)"
+      }
+    ]
+  }
+]

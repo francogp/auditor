@@ -200,7 +200,8 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           file: relFile,
           line: msg.line,
           context: msg.ruleId,
-          message: msg.message
+          message: msg.message,
+          fixable: Boolean(msg.fix)
         });
       }
     }
@@ -233,7 +234,8 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         file: INDEX_HTML_FILE,
         line: lineNum,
         context: tag.trim(),
-        message: 'Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.'
+        message: 'Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.',
+        fixable: false
       });
     }
   }

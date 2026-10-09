@@ -97,7 +97,10 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
         ruleId: 'host-missing-config',
         severity: 'error',
         file: missing.file,
-        message: missing.message
+        message: missing.message,
+        // Zero False-Fix Mandate: Mark fixable: true only because verifyAndFixConfigFiles()
+        // automatically scaffolds the missing file in --fix mode:
+        fixable: true
       });
     }
 

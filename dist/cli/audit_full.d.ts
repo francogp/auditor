@@ -46,6 +46,18 @@ export declare function computeAuditCategoryCounts(results: readonly StandardAud
 }]>;
 /** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
 export declare function isRatchetScope(cliOptions: AuditFullCliOptions, isFullAudit: boolean): boolean;
+export interface FixableCountsResult {
+    fixableErrors: number;
+    fixableWarnings: number;
+    autoFixRecommended: boolean;
+}
+/**
+ * Computes strictly fixable errors and warnings according to the Zero False-Fix Mandate.
+ * A finding is fixable IF AND ONLY IF finding.fixable === true.
+ * In fix mode (isFixMode === true), any remaining error could not be resolved,
+ * so fixableErrors and autoFixRecommended are always 0/false.
+ */
+export declare function computeFixableViolations(results: readonly StandardAuditResult[], isFixMode: boolean): FixableCountsResult;
 export declare function createAuditBannerDetails(cliOptions: AuditFullCliOptions, isFixMode: boolean, isBuildMode: boolean, tasksCount: number, allAvailableCount: number, omittedCount: number): string[];
 export declare const MAX_BANNER_SUBTITLE_WIDTH = 72;
 export declare function formatSubtitleDetails(details: readonly string[], maxLineWidth?: number): string;

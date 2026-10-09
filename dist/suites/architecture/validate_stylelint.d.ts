@@ -32,7 +32,13 @@ interface StylelintViolationPayload {
     line: number;
     message: string;
     context: string;
+    fixable?: boolean;
 }
+export declare const STYLELINT_BUILTIN_FIXABLE_RULES: readonly ["alpha-value-notation", "at-rule-empty-line-before", "at-rule-no-deprecated", "at-rule-no-vendor-prefix", "color-function-alias-notation", "color-function-notation", "color-hex-length", "comment-empty-line-before", "comment-whitespace-inside", "custom-property-empty-line-before", "declaration-block-no-duplicate-properties", "declaration-block-no-redundant-longhand-properties", "declaration-empty-line-before", "declaration-property-value-keyword-no-deprecated", "display-notation", "font-family-name-quotes", "font-weight-notation", "function-calc-no-unspaced-operator", "function-name-case", "function-url-quotes", "hue-degree-notation", "import-notation", "keyframe-selector-notation", "length-zero-no-unit", "lightness-notation", "media-feature-name-no-vendor-prefix", "media-feature-range-notation", "property-layout-mappings", "property-no-deprecated", "property-no-vendor-prefix", "relative-selector-nesting-notation", "rule-empty-line-before", "selector-attribute-quotes", "selector-no-deprecated", "selector-no-vendor-prefix", "selector-not-notation", "selector-pseudo-element-colon-notation", "selector-type-case", "shorthand-property-no-redundant-values", "unit-layout-mappings", "value-keyword-case", "value-keyword-layout-mappings", "value-no-vendor-prefix"];
+export type StylelintBuiltinFixableRule = (typeof STYLELINT_BUILTIN_FIXABLE_RULES)[number];
+export declare const STYLELINT_ORDER_FIXABLE_RULES: readonly ["order/order", "order/properties-order", "order/properties-alphabetical-order", "order/custom-properties-alphabetical-order"];
+export type StylelintOrderFixableRule = (typeof STYLELINT_ORDER_FIXABLE_RULES)[number];
+export declare function isStylelintRuleFixable(ruleName: string | undefined): boolean;
 export declare function processStylelintResults(results: readonly LintResult[], projectRoot: string): {
     violations: StylelintViolationPayload[];
     totalErrors: number;

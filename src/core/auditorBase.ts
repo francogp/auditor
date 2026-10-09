@@ -30,7 +30,11 @@ import {
   type AuditorPackageScriptRequirement,
   type AuditorConfigFixContext,
   type AuditorManifestDTO,
-  deriveCanonicalAuditorScript
+  type FixableFindingCounts,
+  type FixableViolationsSummary,
+  deriveCanonicalAuditorScript,
+  countFixableFindings,
+  computeResultsFixableViolations
 } from './auditContract.ts';
 import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
 import { ConfigFileRegistry } from './configFileRegistry.ts';
@@ -491,6 +495,7 @@ export interface AuditorContext {
   getAst: (relPath: string, content?: string) => ts.SourceFile;
   checkFiles: () => Promise<void>;
   finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
+  getFindings: () => readonly AuditFinding[];
   setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
   setProgressLogger?: (logger: (msg: string) => void) => void;
 }
@@ -681,6 +686,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       const errorsCount = findings.filter(f => f.severity === 'error').length;
       const warningsCount = findings.filter(f => f.severity === 'warning').length;
       const infoCount = findings.filter(f => f.severity === 'info').length;
+      const { fixableErrors, fixableWarnings } = countFixableFindings(findings);
 
       const result: StandardAuditResult = {
         id: config.id,
@@ -694,7 +700,9 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         summary: {
           errors: errorsCount,
           warnings: warningsCount,
-          info: infoCount
+          info: infoCount,
+          fixableErrors,
+          fixableWarnings
         }
       };
 
@@ -708,8 +716,8 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       }
 
       return result;
-    }
-
+    },
+    getFindings: () => [...findings]
   };
 }
 
@@ -930,6 +938,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
   protected readonly errorsByRule: Map<TRuleId, number> = new Map();
   protected readonly warningsByRule: Map<TRuleId, number> = new Map();
+  protected readonly fixableErrorsByRule: Map<TRuleId, number> = new Map();
+  protected readonly fixableWarningsByRule: Map<TRuleId, number> = new Map();
   protected readonly subAuditorReports: SubAuditorReport[] = [];
   protected readonly coverageRecorder: CoverageRecorder;
   protected readonly fixMode: boolean;
@@ -1049,6 +1059,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       this.countsByRule.set(ruleId, 0);
       this.errorsByRule.set(ruleId, 0);
       this.warningsByRule.set(ruleId, 0);
+      this.fixableErrorsByRule.set(ruleId, 0);
+      this.fixableWarningsByRule.set(ruleId, 0);
     }
 
     this.context = this.initExecutionContext(this.coverageRecorder.declaration);
@@ -1252,6 +1264,41 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     return this.warningsByRule;
   }
 
+  public getFixableErrorsByRule(): ReadonlyMap<TRuleId, number> {
+    return this.fixableErrorsByRule;
+  }
+
+  public getFixableWarningsByRule(): ReadonlyMap<TRuleId, number> {
+    return this.fixableWarningsByRule;
+  }
+
+  public getFindings(): readonly AuditFinding[] {
+    return this.context.getFindings();
+  }
+
+  public getFixableFindings(): readonly AuditFinding[] {
+    return this.context.getFindings().filter(f => f.fixable === true);
+  }
+
+  public getFixableErrors(): number {
+    return this.context.getFindings().filter(f => f.severity === 'error' && f.fixable === true).length;
+  }
+
+  public getFixableWarnings(): number {
+    return this.context.getFindings().filter(f => f.severity === 'warning' && f.fixable === true).length;
+  }
+
+  public static countFixableFindings(findings: readonly AuditFinding[]): FixableFindingCounts {
+    return countFixableFindings(findings);
+  }
+
+  public static computeFixableViolations(
+    results: readonly StandardAuditResult[],
+    isFixMode = false
+  ): FixableViolationsSummary {
+    return computeResultsFixableViolations(results, isFixMode);
+  }
+
   public formatRuleDescription(ruleId: TRuleId, rawDescription?: string): string {
     const raw = rawDescription || this.ruleDescriptions?.[ruleId] || ruleId;
     if (this.packageName && !raw.toLowerCase().startsWith(this.packageName.toLowerCase() + ':')) {
@@ -1285,9 +1332,17 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     if (v.severity === 'error') {
       const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
       this.errorsByRule.set(v.ruleId, errCurrent + 1);
+      if (v.fixable === true) {
+        const fixErrCurrent = this.fixableErrorsByRule.get(v.ruleId) ?? 0;
+        this.fixableErrorsByRule.set(v.ruleId, fixErrCurrent + 1);
+      }
     } else {
       const warnCurrent = this.warningsByRule.get(v.ruleId) ?? 0;
       this.warningsByRule.set(v.ruleId, warnCurrent + 1);
+      if (v.fixable === true) {
+        const fixWarnCurrent = this.fixableWarningsByRule.get(v.ruleId) ?? 0;
+        this.fixableWarningsByRule.set(v.ruleId, fixWarnCurrent + 1);
+      }
     }
 
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
@@ -1711,6 +1766,7 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
     severity?: FindingSeverity;
     context?: string;
     doc?: AuditedDocument;
+    fixable?: boolean;
   }): void {
     const pos = params.doc
       ? params.doc.getLineAndColumn(params.matchIndex)
@@ -1728,7 +1784,8 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
       line: pos.line,
       column: pos.column,
       message: params.message,
-      context: params.context ?? pos.lineText.trim()
+      context: params.context ?? pos.lineText.trim(),
+      fixable: params.fixable
     });
   }
 
@@ -1745,6 +1802,7 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
       severity?: FindingSeverity;
       skipComments?: boolean;
       skipStrings?: boolean;
+      fixable?: boolean;
     },
     onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void
   ): void {
@@ -1781,7 +1839,8 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
         column: pos.column,
         message: msg,
         severity: options.severity ?? 'error',
-        context: pos.lineText.trim()
+        context: pos.lineText.trim(),
+        fixable: options.fixable
       });
     }
   }

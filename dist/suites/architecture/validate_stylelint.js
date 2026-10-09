@@ -137,6 +137,70 @@ export function buildStylelintIgnoreGlobs(configIgnoreGlobs, stylelintIgnoreGlob
         ...(stylelintIgnoreGlobs ?? [])
     ];
 }
+export const STYLELINT_BUILTIN_FIXABLE_RULES = [
+    'alpha-value-notation',
+    'at-rule-empty-line-before',
+    'at-rule-no-deprecated',
+    'at-rule-no-vendor-prefix',
+    'color-function-alias-notation',
+    'color-function-notation',
+    'color-hex-length',
+    'comment-empty-line-before',
+    'comment-whitespace-inside',
+    'custom-property-empty-line-before',
+    'declaration-block-no-duplicate-properties',
+    'declaration-block-no-redundant-longhand-properties',
+    'declaration-empty-line-before',
+    'declaration-property-value-keyword-no-deprecated',
+    'display-notation',
+    'font-family-name-quotes',
+    'font-weight-notation',
+    'function-calc-no-unspaced-operator',
+    'function-name-case',
+    'function-url-quotes',
+    'hue-degree-notation',
+    'import-notation',
+    'keyframe-selector-notation',
+    'length-zero-no-unit',
+    'lightness-notation',
+    'media-feature-name-no-vendor-prefix',
+    'media-feature-range-notation',
+    'property-layout-mappings',
+    'property-no-deprecated',
+    'property-no-vendor-prefix',
+    'relative-selector-nesting-notation',
+    'rule-empty-line-before',
+    'selector-attribute-quotes',
+    'selector-no-deprecated',
+    'selector-no-vendor-prefix',
+    'selector-not-notation',
+    'selector-pseudo-element-colon-notation',
+    'selector-type-case',
+    'shorthand-property-no-redundant-values',
+    'unit-layout-mappings',
+    'value-keyword-case',
+    'value-keyword-layout-mappings',
+    'value-no-vendor-prefix'
+];
+const STYLELINT_BUILTIN_FIXABLE_SET = new Set(STYLELINT_BUILTIN_FIXABLE_RULES); // no-domain: O(1) fast lookup Set derived from canonical as const array
+export const STYLELINT_ORDER_FIXABLE_RULES = [
+    'order/order',
+    'order/properties-order',
+    'order/properties-alphabetical-order',
+    'order/custom-properties-alphabetical-order'
+];
+const STYLELINT_ORDER_FIXABLE_SET = new Set(STYLELINT_ORDER_FIXABLE_RULES); // no-domain: O(1) fast lookup Set derived from canonical as const array
+export function isStylelintRuleFixable(ruleName) {
+    if (!ruleName)
+        return false;
+    if (ruleName === SASS_TRAPS_RULE_NAME)
+        return true;
+    if (STYLELINT_ORDER_FIXABLE_SET.has(ruleName))
+        return true;
+    if (STYLELINT_BUILTIN_FIXABLE_SET.has(ruleName))
+        return true;
+    return false;
+}
 export function processStylelintResults(results, projectRoot) {
     let totalWarnings = 0;
     let totalErrors = 0;
@@ -158,7 +222,8 @@ export function processStylelintResults(results, projectRoot) {
                 file: relFile,
                 line: warning.line || 1,
                 message: warning.text,
-                context: warning.rule || 'stylelint'
+                context: warning.rule || 'stylelint',
+                fixable: Boolean(warning.fix) || isStylelintRuleFixable(warning.rule)
             });
         }
     }

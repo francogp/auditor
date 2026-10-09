@@ -151,6 +151,7 @@ export interface RawLintMessage {
   message?: string;
   line?: number;
   column?: number;
+  fix?: unknown;
 }
 
 export interface RawLintFileReport {
@@ -201,7 +202,8 @@ export function parseLintResultsToFindings(
         file: cleanFile,
         line: msg.line || 1,
         context: rule,
-        message: `[${rule}] ${text}`
+        message: `[${rule}] ${text}`,
+        fixable: Boolean(msg.fix)
       });
     }
   }

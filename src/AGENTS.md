@@ -10,6 +10,7 @@ Architecture & Tooling Engineers.
 
 - **Agnostic & Zero Host Coupling**: No host-domain-specific terms, types, or business data are permitted inside `src/`.
 - **Primordial Mandate on Configuration Integrity**: Disabling or tampering with configurations (`.auditor/audit.config.ts`, linters, rules) to bypass errors or warnings without explicit human consultation is strictly prohibited.
+- **Zero False-Fix Mandate**: All findings emitted by sub-auditors and linters must report `fixable: true` ONLY when genuine automated fixers exist. Master orchestrator must never treat unfixable findings as auto-repairable.
 - **Node.js 26+ Native Execution**: All modules execute under `--permission` model and `--experimental-strip-types`.
 - **Canonical Imports**: Internal modules import from sibling source files using relative `.ts` extensions.
 - **Export Discipline**: Public APIs are re-exported cleanly via [`src/index.ts`](./index.ts).

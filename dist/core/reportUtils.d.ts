@@ -34,6 +34,7 @@ export interface RawLintMessage {
     message?: string;
     line?: number;
     column?: number;
+    fix?: unknown;
 }
 export interface RawLintFileReport {
     filePath?: string;

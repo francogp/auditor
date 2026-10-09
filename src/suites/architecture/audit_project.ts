@@ -938,7 +938,8 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         file: relFile,
         line: v.line,
         message: v.message,
-        context: v.context
+        context: v.context,
+        fixable: v.fixable
       });
     }
   }

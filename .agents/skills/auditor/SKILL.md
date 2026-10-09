@@ -413,6 +413,20 @@ graph TD
     - Sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly governed by `validate_auditor_hygiene` (`severity: 'error'`).
     - Enforces 10 rules eradicating handcrafted utilities in favor of canonical framework helpers (`toPosixRelative`, `normalizePosixPath`, `parseVueSfc`, `SharedAstContext`, `stripComments`, `scanBalancedDelimiter`, `isPathInside`, `getPackageJson`, `isTestPath`).
     - Zero tolerance for direct `console.log()` inside sub-auditors; all telemetry routes through `BaseAuditor` and `UnifiedTheme`.
+77. **Zero False-Fix Mandate & Grounded Fixability Contract (`fixable: boolean`)**:
+    - **Reality-Grounded Reporting**: Sub-auditors, external linter parsers (ESLint, Stylelint, HTML-Validate), and the master orchestrator (`audit_full.ts`) MUST adhere to strict, reality-grounded fixability reporting.
+    - **Capability vs Finding Disambiguation**: A sub-auditor or extension declaring `capabilities: { fix: true }` signals that the suite *possesses auto-repair capabilities* for specific rules, NOT that every finding emitted by the suite is mechanically fixable.
+    - **Explicit Finding Fixability**: Each finding MUST report `fixable: true` ONLY when a dedicated, automated programmatic fixer exists for that exact violation (e.g. `Boolean(msg.fix)` from ESLint or Stylelint, or concrete AST replacements). Findings without automated remediation MUST report `fixable: false`.
+    - **OOP Inheritance & Polymorphic Tracking in `BaseAuditor`**:
+      - `BaseAuditor` tracks `fixableErrorsByRule` and `fixableWarningsByRule` maps dynamically in `addViolation()`.
+      - Provides polymorphic instance getters: `auditor.getFixableErrors()`, `auditor.getFixableWarnings()`, `auditor.getFixableFindings()`, `auditor.getFixableErrorsByRule()`, and `auditor.getFixableWarningsByRule()`.
+      - Sub-auditors can polymorphically override these methods if they coordinate complex composite engines.
+    - **Universal Coordination Helpers & Zero Code Duplication**:
+      - The framework provides `BaseAuditor.countFixableFindings(findings)` and `BaseAuditor.computeFixableViolations(results, isFixMode)` as the single sources of truth.
+      - The master orchestrator (`audit_full.ts`), CLI reporters, and tests MUST consume these centralized helpers instead of re-implementing ad-hoc loops or filtering logic.
+      - `StandardAuditResult.summary` natively includes `fixableErrors` and `fixableWarnings` populated automatically upon audit completion (`finish()`).
+    - **Zero Speculative Inference in Master Orchestrator**: The master orchestrator (`audit_full.ts`) MUST NEVER assume that a finding is fixable simply because its parent suite declared `capabilities.fix === true`. `isFindingFixable` requires explicit `f.fixable === true`.
+    - **Post-Fix Invariant**: When running under auto-fix mode (`auditor fix` / `npm run auditor:fix`), post-repair audit passes MUST guarantee `fixableErrors === 0`, completely eliminating false-positive auto-repair banners or prompts on subsequent runs.
 
 ---
 

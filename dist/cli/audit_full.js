@@ -495,6 +495,15 @@ function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
     printRatchetVerdict(verdict, newWarnings, ratchet.baselineFile);
     return verdict;
 }
+/**
+ * Computes strictly fixable errors and warnings according to the Zero False-Fix Mandate.
+ * A finding is fixable IF AND ONLY IF finding.fixable === true.
+ * In fix mode (isFixMode === true), any remaining error could not be resolved,
+ * so fixableErrors and autoFixRecommended are always 0/false.
+ */
+export function computeFixableViolations(results, isFixMode) {
+    return BaseAuditor.computeFixableViolations(results, isFixMode);
+}
 async function renderAndPersistMasterReport(ctx) {
     const { results, tasksToRun, allAvailableTasks, omittedSuiteIds, totalDuration, activeFamilies, cliOptions, scratchAuditsDir } = ctx;
     const totalErrors = results.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
@@ -514,23 +523,7 @@ async function renderAndPersistMasterReport(ctx) {
     }
     const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
     const anyFailed = totalErrors > 0 || (suitesPassed + suitesSkipped) < results.length || ratchet?.status === 'failed';
-    const fixableSuiteIds = new Set(tasksToRun.filter(t => t.capabilities?.fix).map(t => t.id));
-    const isFindingFixable = (f, isFixSuite) => {
-        if (f.fixable !== undefined)
-            return f.fixable;
-        return isFixSuite;
-    };
-    const fixableErrors = results.reduce((acc, r) => {
-        const isFixSuite = fixableSuiteIds.has(r.id);
-        const errCount = r.findings?.filter(f => f.severity === 'error' && isFindingFixable(f, isFixSuite)).length ?? 0;
-        return acc + errCount;
-    }, 0);
-    const fixableWarnings = results.reduce((acc, r) => {
-        const isFixSuite = fixableSuiteIds.has(r.id);
-        const warnCount = r.findings?.filter(f => f.severity === 'warning' && isFindingFixable(f, isFixSuite)).length ?? 0;
-        return acc + warnCount;
-    }, 0);
-    const autoFixRecommended = !isFixMode && (fixableErrors > 0 || fixableWarnings > 0);
+    const { fixableErrors, fixableWarnings, autoFixRecommended } = computeFixableViolations(results, isFixMode);
     if (autoFixRecommended) {
         console.log('\n' + renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) + '\n');
     }

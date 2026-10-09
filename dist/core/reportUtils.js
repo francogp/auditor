@@ -159,7 +159,8 @@ export function parseLintResultsToFindings(input, options) {
                 file: cleanFile,
                 line: msg.line || 1,
                 context: rule,
-                message: `[${rule}] ${text}`
+                message: `[${rule}] ${text}`,
+                fixable: Boolean(msg.fix)
             });
         }
     }

@@ -1,0 +1,65 @@
+[
+  {
+    "filePath": "test_aventura/components/studio/StudioGeographicViewport.vue",
+    "messages": [
+      {
+        "ruleId": "no-restricted-syntax",
+        "severity": 2,
+        "message": "El uso de Date.now() está ESTRICTAMENTE PROHIBIDO. Usa Temporal.Now.instant().epochMilliseconds o performance.now().",
+        "line": 534,
+        "column": 12,
+        "nodeType": "CallExpression"
+      }
+    ],
+    "errorCount": 1,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0
+  },
+  {
+    "filePath": "test_aventura/logic/map/canvasTileRenderer.ts",
+    "messages": [
+      {
+        "ruleId": "no-useless-assignment",
+        "severity": 2,
+        "message": "The value assigned to 'drawPx' is not used in subsequent statements.",
+        "line": 847,
+        "column": 7,
+        "nodeType": "Identifier"
+      },
+      {
+        "ruleId": "semi",
+        "severity": 2,
+        "message": "Missing semicolon.",
+        "line": 848,
+        "column": 20,
+        "nodeType": "Punctuator",
+        "fix": {
+          "range": [25400, 25400],
+          "text": ";"
+        }
+      }
+    ],
+    "errorCount": 2,
+    "warningCount": 0,
+    "fixableErrorCount": 1,
+    "fixableWarningCount": 0
+  },
+  {
+    "filePath": "test_aventura/logic/map/continentalWorldGenerator.ts",
+    "messages": [
+      {
+        "ruleId": "no-restricted-syntax",
+        "severity": 2,
+        "message": "El uso de new Date() está ESTRICTAMENTE PROHIBIDO. Usa la API moderna Temporal (Temporal.Now.instant() / Temporal.Instant).",
+        "line": 913,
+        "column": 15,
+        "nodeType": "NewExpression"
+      }
+    ],
+    "errorCount": 1,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0
+  }
+]

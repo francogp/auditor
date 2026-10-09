@@ -220,4 +220,55 @@ export function groupResultsByFamily(results, initialFamilies) {
     }
     return byFamily;
 }
+/**
+ * Single Source of Truth for counting fixable findings.
+ * Conforms to the Zero False-Fix Mandate: only findings explicitly marked `fixable === true`
+ * are counted as mechanically fixable.
+ */
+export function countFixableFindings(findings) {
+    let fixableErrors = 0;
+    let fixableWarnings = 0;
+    for (const f of findings) {
+        if (f.fixable === true) {
+            if (f.severity === 'error') {
+                fixableErrors++;
+            }
+            else if (f.severity === 'warning') {
+                fixableWarnings++;
+            }
+        }
+    }
+    return {
+        fixableErrors,
+        fixableWarnings,
+        totalFixable: fixableErrors + fixableWarnings
+    };
+}
+/**
+ * Universal coordinator helper to evaluate fixable violations across all suite results.
+ * Respects the Post-Fix Invariant: when isFixMode is true, fixableErrors is strictly 0.
+ */
+export function computeResultsFixableViolations(results, isFixMode = false) {
+    if (isFixMode) {
+        return { fixableErrors: 0, fixableWarnings: 0, autoFixRecommended: false };
+    }
+    let fixableErrors = 0;
+    let fixableWarnings = 0;
+    for (const res of results) {
+        if (res.summary.fixableErrors !== undefined && res.summary.fixableWarnings !== undefined) {
+            fixableErrors += res.summary.fixableErrors;
+            fixableWarnings += res.summary.fixableWarnings;
+        }
+        else {
+            const counts = countFixableFindings(res.findings);
+            fixableErrors += counts.fixableErrors;
+            fixableWarnings += counts.fixableWarnings;
+        }
+    }
+    return {
+        fixableErrors,
+        fixableWarnings,
+        autoFixRecommended: fixableErrors > 0 || fixableWarnings > 0
+    };
+}
 //# sourceMappingURL=auditContract.js.map

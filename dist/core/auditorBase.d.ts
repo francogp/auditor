@@ -8,7 +8,7 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, deriveCanonicalAuditorScript } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type FixableFindingCounts, type FixableViolationsSummary, deriveCanonicalAuditorScript } from './auditContract.ts';
 export { deriveCanonicalAuditorScript };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
@@ -87,6 +87,7 @@ export interface AuditorContext {
     getAst: (relPath: string, content?: string) => ts.SourceFile;
     checkFiles: () => Promise<void>;
     finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
+    getFindings: () => readonly AuditFinding[];
     setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
     setProgressLogger?: (logger: (msg: string) => void) => void;
 }
@@ -166,6 +167,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly errorsByRule: Map<TRuleId, number>;
     protected readonly warningsByRule: Map<TRuleId, number>;
+    protected readonly fixableErrorsByRule: Map<TRuleId, number>;
+    protected readonly fixableWarningsByRule: Map<TRuleId, number>;
     protected readonly subAuditorReports: SubAuditorReport[];
     protected readonly coverageRecorder: CoverageRecorder;
     protected readonly fixMode: boolean;
@@ -232,6 +235,14 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     getCountsByRule(): ReadonlyMap<TRuleId, number>;
     getErrorsByRule(): ReadonlyMap<TRuleId, number>;
     getWarningsByRule(): ReadonlyMap<TRuleId, number>;
+    getFixableErrorsByRule(): ReadonlyMap<TRuleId, number>;
+    getFixableWarningsByRule(): ReadonlyMap<TRuleId, number>;
+    getFindings(): readonly AuditFinding[];
+    getFixableFindings(): readonly AuditFinding[];
+    getFixableErrors(): number;
+    getFixableWarnings(): number;
+    static countFixableFindings(findings: readonly AuditFinding[]): FixableFindingCounts;
+    static computeFixableViolations(results: readonly StandardAuditResult[], isFixMode?: boolean): FixableViolationsSummary;
     formatRuleDescription(ruleId: TRuleId, rawDescription?: string): string;
     getRuleLabel(ruleId: string): string;
     getFilesScanned(): number;
@@ -303,6 +314,7 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
         severity?: FindingSeverity;
         context?: string;
         doc?: AuditedDocument;
+        fixable?: boolean;
     }): void;
     /**
      * High-level pattern scanner that skips comments and strings automatically
@@ -315,6 +327,7 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
         severity?: FindingSeverity;
         skipComments?: boolean;
         skipStrings?: boolean;
+        fixable?: boolean;
     }, onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void): void;
     private resolveEffectiveAst;
     private scanSingleDiscoveredFile;

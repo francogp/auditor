@@ -13,7 +13,7 @@ import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import "./permissionGuard.js";
-import { deriveCanonicalAuditorScript } from "./auditContract.js";
+import { deriveCanonicalAuditorScript, countFixableFindings, computeResultsFixableViolations } from "./auditContract.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
@@ -519,6 +519,7 @@ export function setupAuditor(config) {
             const errorsCount = findings.filter(f => f.severity === 'error').length;
             const warningsCount = findings.filter(f => f.severity === 'warning').length;
             const infoCount = findings.filter(f => f.severity === 'info').length;
+            const { fixableErrors, fixableWarnings } = countFixableFindings(findings);
             const result = {
                 id: config.id,
                 name: config.name,
@@ -531,7 +532,9 @@ export function setupAuditor(config) {
                 summary: {
                     errors: errorsCount,
                     warnings: warningsCount,
-                    info: infoCount
+                    info: infoCount,
+                    fixableErrors,
+                    fixableWarnings
                 }
             };
             const targetJsonPath = await persistAuditJsonReport(result, config, values.output);
@@ -542,7 +545,8 @@ export function setupAuditor(config) {
                 }
             }
             return result;
-        }
+        },
+        getFindings: () => [...findings]
     };
 }
 export const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
@@ -690,6 +694,8 @@ export class BaseAuditor {
     countsByRule = new Map();
     errorsByRule = new Map();
     warningsByRule = new Map();
+    fixableErrorsByRule = new Map();
+    fixableWarningsByRule = new Map();
     subAuditorReports = [];
     coverageRecorder;
     fixMode;
@@ -796,6 +802,8 @@ export class BaseAuditor {
             this.countsByRule.set(ruleId, 0);
             this.errorsByRule.set(ruleId, 0);
             this.warningsByRule.set(ruleId, 0);
+            this.fixableErrorsByRule.set(ruleId, 0);
+            this.fixableWarningsByRule.set(ruleId, 0);
         }
         this.context = this.initExecutionContext(this.coverageRecorder.declaration);
     }
@@ -956,6 +964,30 @@ export class BaseAuditor {
     getWarningsByRule() {
         return this.warningsByRule;
     }
+    getFixableErrorsByRule() {
+        return this.fixableErrorsByRule;
+    }
+    getFixableWarningsByRule() {
+        return this.fixableWarningsByRule;
+    }
+    getFindings() {
+        return this.context.getFindings();
+    }
+    getFixableFindings() {
+        return this.context.getFindings().filter(f => f.fixable === true);
+    }
+    getFixableErrors() {
+        return this.context.getFindings().filter(f => f.severity === 'error' && f.fixable === true).length;
+    }
+    getFixableWarnings() {
+        return this.context.getFindings().filter(f => f.severity === 'warning' && f.fixable === true).length;
+    }
+    static countFixableFindings(findings) {
+        return countFixableFindings(findings);
+    }
+    static computeFixableViolations(results, isFixMode = false) {
+        return computeResultsFixableViolations(results, isFixMode);
+    }
     formatRuleDescription(ruleId, rawDescription) {
         const raw = rawDescription || this.ruleDescriptions?.[ruleId] || ruleId;
         if (this.packageName && !raw.toLowerCase().startsWith(this.packageName.toLowerCase() + ':')) {
@@ -982,10 +1014,18 @@ export class BaseAuditor {
         if (v.severity === 'error') {
             const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
             this.errorsByRule.set(v.ruleId, errCurrent + 1);
+            if (v.fixable === true) {
+                const fixErrCurrent = this.fixableErrorsByRule.get(v.ruleId) ?? 0;
+                this.fixableErrorsByRule.set(v.ruleId, fixErrCurrent + 1);
+            }
         }
         else {
             const warnCurrent = this.warningsByRule.get(v.ruleId) ?? 0;
             this.warningsByRule.set(v.ruleId, warnCurrent + 1);
+            if (v.fixable === true) {
+                const fixWarnCurrent = this.fixableWarningsByRule.get(v.ruleId) ?? 0;
+                this.fixableWarningsByRule.set(v.ruleId, fixWarnCurrent + 1);
+            }
         }
         const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
         const normalizedFile = targetFile
@@ -1358,7 +1398,8 @@ export class FileScanAuditor extends BaseAuditor {
             line: pos.line,
             column: pos.column,
             message: params.message,
-            context: params.context ?? pos.lineText.trim()
+            context: params.context ?? pos.lineText.trim(),
+            fixable: params.fixable
         });
     }
     /**
@@ -1395,7 +1436,8 @@ export class FileScanAuditor extends BaseAuditor {
                 column: pos.column,
                 message: msg,
                 severity: options.severity ?? 'error',
-                context: pos.lineText.trim()
+                context: pos.lineText.trim(),
+                fixable: options.fixable
             });
         }
     }
