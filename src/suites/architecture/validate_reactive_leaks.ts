@@ -16,7 +16,6 @@
  *   npm run validate:reactive-leaks
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
@@ -137,7 +136,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       return;
     }
 
-    const sf = sourceFile ?? this.createStandaloneSourceFile(relPath, content);
+    const sf = sourceFile ?? this.context.getAst(relPath, content);
     if (!sf.text.trim()) return;
 
     const fullLines = content.split('\n');
@@ -159,25 +158,6 @@ constructor(roots?: readonly string[], projectRoot?: string) {
     };
 
     visit(sf);
-  }
-
-  private createStandaloneSourceFile(relPath: string, content: string): ts.SourceFile {
-    let scriptContent = content;
-    if (relPath.endsWith('.vue')) {
-      const match = content.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
-      const openTagMatch = content.match(/<script\b[^>]*>/i);
-      const openTagEnd = openTagMatch && openTagMatch.index !== undefined ? openTagMatch.index + openTagMatch[0].length : 0;
-      const linesBefore = (content.substring(0, openTagEnd).match(/\n/g) ?? []).length;
-      scriptContent = '\n'.repeat(linesBefore) + (match ? match[1] ?? '' : '');
-    }
-
-    return ts.createSourceFile(
-      path.basename(relPath),
-      scriptContent,
-      ts.ScriptTarget.Latest,
-      true,
-      relPath.endsWith('.vue') ? ts.ScriptKind.TS : undefined
-    );
   }
 }
 

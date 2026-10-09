@@ -21,6 +21,7 @@ import {
 } from '../../core/auditConfig.ts';
 import { collectAllPackageScriptRequirements } from '../../cli/auditScanner.ts';
 import { resolveGitCommit, describeBaselineDefect } from '../../cli/auditRatchet.ts';
+import { getPackageJson } from '../../core/packageJson.ts';
 
 enableCompileCache();
 
@@ -130,7 +131,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     }
 
     try {
-      return JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      return getPackageJson(this.projectRoot) as Record<string, unknown>;
     } catch (_err) {
       this.addViolation({
         ruleId: 'package-scripts-missing-file',

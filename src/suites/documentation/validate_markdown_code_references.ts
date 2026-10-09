@@ -29,6 +29,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -83,7 +84,7 @@ function getRootMarkdownFiles(root: string): string[] {
 }
 
 function extractTopLevelRoots(dirs: readonly string[]): string[] {
-  return dirs.map(d => d.replace(/\\/g, '/').split('/')[0]!).filter(Boolean);
+  return dirs.map(d => normalizePosixPath(d).split('/')[0]!).filter(Boolean);
 }
 
 function resolveConfiguredPathCandidates(paths?: AuditEngineConfig['paths']): string[] {
@@ -566,7 +567,7 @@ private readonly rootDir: string;
     knownValidAbstractPaths: ReadonlySet<string>,
     seenViolations: Set<string>
   ): number {
-    const relPath = path.relative(this.rootDir, filePath).replace(/\\/g, '/');
+    const relPath = toPosixRelative(this.rootDir, filePath);
     const rawContent = fs.readFileSync(filePath, 'utf8');
     const cleanContent = stripCodeBlocks(rawContent);
     const lines = cleanContent.split('\n');

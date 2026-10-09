@@ -3,6 +3,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 enableCompileCache();
 export const DEFAULT_MIN_TYPE_COVERAGE_PERCENT = 95;
@@ -34,9 +35,7 @@ export function parseTypeCoverageReport(report, threshold, projectRoot = process
         });
         // When threshold fails, surface the untyped symbols as diagnostics
         for (const item of report.anys ?? []) {
-            const relFile = path.isAbsolute(item.filePath)
-                ? path.relative(projectRoot, item.filePath).replace(/\\/g, '/')
-                : item.filePath.replace(/\\/g, '/');
+            const relFile = toPosixRelative(projectRoot, item.filePath);
             findings.push({
                 suiteId: 'validate_type_coverage',
                 suiteName: 'TypeScript Quantitative Type Coverage Auditor',

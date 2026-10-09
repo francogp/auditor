@@ -15,7 +15,6 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_reactive_leaks.ts
  *   npm run validate:reactive-leaks
  */
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
@@ -112,7 +111,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
         if (!content.includes('addEventListener') && !content.includes('setInterval')) {
             return;
         }
-        const sf = sourceFile ?? this.createStandaloneSourceFile(relPath, content);
+        const sf = sourceFile ?? this.context.getAst(relPath, content);
         if (!sf.text.trim())
             return;
         const fullLines = content.split('\n');
@@ -131,17 +130,6 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
             ts.forEachChild(node, visit);
         };
         visit(sf);
-    }
-    createStandaloneSourceFile(relPath, content) {
-        let scriptContent = content;
-        if (relPath.endsWith('.vue')) {
-            const match = content.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
-            const openTagMatch = content.match(/<script\b[^>]*>/i);
-            const openTagEnd = openTagMatch && openTagMatch.index !== undefined ? openTagMatch.index + openTagMatch[0].length : 0;
-            const linesBefore = (content.substring(0, openTagEnd).match(/\n/g) ?? []).length;
-            scriptContent = '\n'.repeat(linesBefore) + (match ? match[1] ?? '' : '');
-        }
-        return ts.createSourceFile(path.basename(relPath), scriptContent, ts.ScriptTarget.Latest, true, relPath.endsWith('.vue') ? ts.ScriptKind.TS : undefined);
     }
 }
 // Canonical CLI Entrypoint

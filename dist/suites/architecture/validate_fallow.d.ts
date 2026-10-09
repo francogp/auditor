@@ -11,13 +11,18 @@
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
-import type { FallowTargetPriority } from '../../core/auditConfigTypes.ts';
+import type { FallowTargetPriority, FallowTargetPriorityNamed } from '../../core/auditConfigTypes.ts';
 export declare const FALLOW_RULES: readonly ["fallow-refactoring-targets", "fallow-duplicate-code", "fallow-triplicate-code", "fallow-unused-exports", "fallow-unused-files", "fallow-unused-dependencies", "fallow-circular-dependencies", "fallow-boundary-violations", "fallow-stale-suppressions", "fallow-workspace-diagnostic", "fallow-security-cwe"];
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 export declare const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string>;
-export declare const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
 export declare const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
-export declare const FALLOW_PRIORITY_MIN_THRESHOLDS: Record<FallowTargetPriority, number>;
+export declare const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
+export declare const FALLOW_MEDIUM_PRIORITY_THRESHOLD = 10;
+export declare const FALLOW_MODERATE_PRIORITY_THRESHOLD = 10;
+export declare const FALLOW_LOW_PRIORITY_THRESHOLD = 5;
+export declare const FALLOW_ALL_PRIORITY_THRESHOLD = 1;
+export declare const FALLOW_PRIORITY_MIN_THRESHOLDS: Record<FallowTargetPriorityNamed, number>;
+export declare function resolveFallowTargetMinThreshold(priority: FallowTargetPriority | undefined): number;
 export interface FallowCloneGroup {
     readonly instances: Array<{
         file: string;
@@ -40,6 +45,7 @@ export interface FallowComplexityFinding {
 export interface FallowTarget {
     readonly path: string;
     readonly priority?: number;
+    readonly efficiency?: number;
     readonly recommendation?: string;
     readonly category?: string;
 }

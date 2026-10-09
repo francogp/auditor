@@ -15,6 +15,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
 // ─── Pattern Definitions ──────────────────────────────────────────────────────
 export const DEFAULT_O1_CATALOG_PATTERNS = [];
@@ -115,7 +116,7 @@ function checkLinePatterns(params) {
 export function scanFileForO1Issues(filePath, content, catalogPatterns = getResolvedO1CatalogPatterns()) {
     const issues = [];
     const lines = content.split('\n');
-    const normalizedPath = filePath.replace(/\\/g, '/');
+    const normalizedPath = normalizePosixPath(filePath);
     for (let index = 0; index < lines.length; index++) {
         const lineText = lines[index];
         const lineNumber = index + 1;

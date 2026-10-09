@@ -23,6 +23,9 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
+import { parseVueSfc, type VueSfcBlock } from '../../core/vueSfcParser.ts';
+import { stripComments } from '../../core/scannerUtils.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -196,22 +199,24 @@ function auditStyleLinkage(
     }
   }
 
-  const styleSrcMatch = content.match(/<style[^>]*src=["']([^"']+)["']/i);
-  if (styleSrcMatch) {
-    const srcPath = styleSrcMatch[1]!;
-    const resolved = resolveSassPath(srcPath, file, srcDir);
-    if (!resolved) {
-      auditor.recordViolation(
-        {
-          file: relPath,
-          type: 'broken_style_link',
-          message: `Style src points to non-existent file: ${srcPath}`
-        },
-        'broken-style-link',
-        styleSrcMatch[0]
-      );
-    } else {
-      trackScssFile(resolved);
+  const parsed = parseVueSfc(content);
+  for (const style of parsed.styles) {
+    const srcPath = typeof style.attributes['src'] === 'string' ? style.attributes['src'] : undefined;
+    if (srcPath) {
+      const resolved = resolveSassPath(srcPath, file, srcDir);
+      if (!resolved) {
+        auditor.recordViolation(
+          {
+            file: relPath,
+            type: 'broken_style_link',
+            message: `Style src points to non-existent file: ${srcPath}`
+          },
+          'broken-style-link',
+          style.rawBlock
+        );
+      } else {
+        trackScssFile(resolved);
+      }
     }
   }
 
@@ -230,11 +235,11 @@ function auditStyleLinkage(
 
 function checkButtonStyleOverrides(
   relPath: string,
-  styleMatches: readonly RegExpExecArray[],
+  styles: readonly VueSfcBlock[],
   auditor: ComponentStylesAuditor
 ): void {
-  for (const sm of styleMatches) {
-    const styleBody = sm[2] ?? '';
+  for (const style of styles) {
+    const styleBody = style.content;
     const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[\w-]+))/i);
     if (btnSelectorMatch) {
       auditor.recordViolation(
@@ -280,14 +285,14 @@ function checkCanonicalButtonClasses(
 function auditButtonGovernance(
   relPath: string,
   content: string,
-  styleMatches: readonly RegExpExecArray[],
+  styles: readonly VueSfcBlock[],
   config: AuditEngineConfig,
   auditor: ComponentStylesAuditor
 ): void {
   const isButtonGovActive = config.styles?.buttonGovernance?.enabled === true || Boolean(config.styles?.canonicalButtonVariants?.length);
   if (!isButtonGovActive) return;
 
-  checkButtonStyleOverrides(relPath, styleMatches, auditor);
+  checkButtonStyleOverrides(relPath, styles, auditor);
 
   const canonicalButtonVariants = getEffectiveCanonicalButtonVariants();
   if (canonicalButtonVariants.size > 0) {
@@ -295,14 +300,11 @@ function auditButtonGovernance(
   }
 }
 
-function checkHasValidStyle(styleMatches: readonly RegExpExecArray[]): boolean {
-  return styleMatches.some(sm => {
-    const attrs = sm[1] ?? '';
-    const body = (sm[2] ?? '')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/[^\n]*/g, '')
-      .trim();
-    return /\bsrc=["']/.test(attrs) || body.length > 0;
+function checkHasValidStyle(styles: readonly VueSfcBlock[]): boolean {
+  return styles.some(style => {
+    const hasSrc = Boolean(style.attributes['src']);
+    const body = stripComments(style.content).trim();
+    return hasSrc || body.length > 0;
   });
 }
 
@@ -365,14 +367,14 @@ function auditVueComponent(
   auditor: ComponentStylesAuditor
 ): void {
   const content = fs.readFileSync(file, 'utf-8');
-  const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
+  const relPath = toPosixRelative(projectRoot, file);
 
   auditStyleLinkage(file, relPath, content, srcDir, trackScssFile, auditor);
 
-  const styleMatches = Array.from(content.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi));
-  auditButtonGovernance(relPath, content, styleMatches, config, auditor);
+  const sfc = parseVueSfc(content);
+  auditButtonGovernance(relPath, content, sfc.styles, config, auditor);
 
-  const hasValidStyle = checkHasValidStyle(styleMatches);
+  const hasValidStyle = checkHasValidStyle(sfc.styles);
   auditMissingStyleTag(relPath, content, hasValidStyle, auditor);
 }
 
@@ -389,7 +391,7 @@ function auditOrphanedScss(
   for (const file of componentScssFiles) {
     const normalized = path.normalize(file);
     if (!importedScssFiles.has(normalized)) {
-      const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
+      const relPath = toPosixRelative(projectRoot, file);
       auditor.recordViolation(
         {
           file: relPath,

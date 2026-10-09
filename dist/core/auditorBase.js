@@ -23,6 +23,7 @@ import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCo
 import { isMainModule } from "../cli/cliUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfig.js";
 import { evaluateSuiteStatus } from "./suiteGating.js";
+import ts from 'typescript';
 import { AuditedDocument } from "./auditedDocument.js";
 export { AuditedDocument };
 enableCompileCache();
@@ -484,6 +485,15 @@ export function setupAuditor(config) {
         },
         setMetric: (key, value) => {
             metrics[key] = value;
+        },
+        getAst: (relPath, content) => {
+            const fullPath = path.isAbsolute(relPath) ? relPath : path.resolve(projectRoot, relPath);
+            const raw = content !== undefined ? content : (nodeFs.existsSync(fullPath) ? nodeFs.readFileSync(fullPath, 'utf-8') : '');
+            const doc = new AuditedDocument(fullPath, raw, relPath);
+            const sf = doc.getAst();
+            if (sf)
+                return sf;
+            return ts.createSourceFile(path.basename(fullPath), raw, ts.ScriptTarget.Latest, true);
         },
         checkFiles: async () => {
             if (!config.requiredFiles || config.requiredFiles.length === 0)
@@ -1241,7 +1251,8 @@ export class BaseAuditor {
                 file: f.file || '',
                 line: f.line || 1,
                 context: f.context || fallbackContext,
-                message: f.message
+                message: f.message,
+                fixable: f.fixable
             });
         }
     }

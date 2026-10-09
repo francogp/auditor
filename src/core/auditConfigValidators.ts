@@ -85,8 +85,13 @@ export function checkUiSubsystems(
   if (typeof config.agentPlugin?.enabled !== 'boolean') {
     missing.push("  - 'agentPlugin': El campo 'enabled' debe ser booleano (true o false).");
   }
-  if (config.fallow?.maxTargetPriority && !FALLOW_TARGET_PRIORITIES.some(p => p === config.fallow?.maxTargetPriority)) {
-    missing.push(`  - 'fallow': Prioridad de objetivo no válida ('${config.fallow.maxTargetPriority}'). Debe ser una de: ${FALLOW_TARGET_PRIORITIES.join(' | ')}.`);
+  if (config.fallow?.maxTargetPriority !== undefined) {
+    const val = config.fallow.maxTargetPriority;
+    const isValidString = typeof val === 'string' && FALLOW_TARGET_PRIORITIES.some(p => p === val);
+    const isValidNumber = typeof val === 'number' && Number.isFinite(val) && val >= 0 && val <= 100;
+    if (!isValidString && !isValidNumber) {
+      missing.push(`  - 'fallow': Prioridad de objetivo no válida ('${val}'). Debe ser un número (0-100) o una de: ${FALLOW_TARGET_PRIORITIES.join(' | ')}.`);
+    }
   }
   if (config.runner?.maxStalenessMinutes !== undefined && config.runner.maxStalenessMinutes <= 0) {
     missing.push("  - 'runner': 'maxStalenessMinutes' debe ser un número positivo mayor a 0.");

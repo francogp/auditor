@@ -15,6 +15,7 @@ import { loadAuditConfig, AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FIL
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { discoverAuditors, collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
+import { getPackageJson } from "../../core/packageJson.js";
 import ts from 'typescript';
 enableCompileCache();
 export function formatSectionObjectLiteral(value) {
@@ -85,7 +86,7 @@ function appendMissingSectionsFallback(configFilePath, code, sectionsToInsert //
 function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
 ) {
     const code = fs.readFileSync(configFilePath, 'utf8');
-    const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS); // homebrew-ok: in-place AST configuration rewrite
     const configObj = findConfigObjectLiteral(source);
     if (!configObj) {
         appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
@@ -247,9 +248,8 @@ export const AUDIT_CONFIG_REQUIREMENT = {
         }
         let pkgName = ctx.packageName || 'Project';
         try {
-            const pkgRaw = fs.readFileSync(path.resolve(ctx.projectRoot, 'package.json'), 'utf8');
-            const pkg = JSON.parse(pkgRaw);
-            if (pkg.name)
+            const pkg = getPackageJson(ctx.projectRoot);
+            if (pkg?.name)
                 pkgName = pkg.name;
         }
         catch {

@@ -19,7 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, getAuditConfig } from '@francogp/auditor';
+import { BaseAuditor, getAuditConfig, toPosixRelative, parseVueSfc } from '@francogp/auditor';
 
 export type ButtonGovernanceRuleId =
   | 'ad-hoc-button-styles'
@@ -65,7 +65,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
     // 1. Verify _buttons.scss integrity
     if (fs.existsSync(buttonsScssPath)) {
       const btnContent = fs.readFileSync(buttonsScssPath, 'utf-8');
-      const relButtons = path.relative(this.projectRoot, buttonsScssPath).replace(/\\/g, '/');
+      const relButtons = toPosixRelative(buttonsScssPath, this.projectRoot);
       this.recordScanned(relButtons);
 
       this.assertRule('button-border-clipping', !btnContent.includes('border-bottom-color'), {
@@ -102,20 +102,20 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
     ]);
 
     for (const file of compFiles) {
-      const relPath = path.relative(this.projectRoot, file).replace(/\\/g, '/');
+      const relPath = toPosixRelative(file, this.projectRoot);
       const content = fs.readFileSync(file, 'utf-8');
+      const parsedSfc = parseVueSfc(content);
 
       // Check ad-hoc button in <style>
-      const styleMatches = Array.from(content.matchAll(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi));
-      for (const sm of styleMatches) {
-        const styleBody = sm[2] ?? '';
+      for (const styleBlock of parsedSfc.styles) {
+        const styleBody = styleBlock.content;
         const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
         if (btnSelectorMatch) {
           this.addViolation({
             ruleId: 'ad-hoc-button-styles',
             severity: 'error',
             file: relPath,
-            line: 1,
+            line: styleBlock.startLine,
             message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Gobernanza exclusiva en src/styles/_buttons.scss (Mandato 23).`,
             context: btnSelectorMatch[1]!
           });
@@ -123,7 +123,8 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       }
 
       // Check non-canonical button variant classes in templates
-      const allClassMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
+      const templateContent = parsedSfc.template?.content ?? '';
+      const allClassMatches = templateContent.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
       for (const cm of allClassMatches) {
         const clsList = cm[1]!.split(/\s+/).filter(Boolean);
         if (clsList.includes('btn')) {
@@ -133,7 +134,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
                 ruleId: 'ad-hoc-button-styles',
                 severity: 'error',
                 file: relPath,
-                line: 1,
+                line: parsedSfc.template?.startLine ?? 1,
                 message: `Clase de botón no canónica "${c}" detectada según Mandato 23.`,
                 context: c
               });

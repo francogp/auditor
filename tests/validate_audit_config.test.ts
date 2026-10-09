@@ -36,6 +36,7 @@ const BASE_TEST_CONFIG_SECTIONS = `
   agentPlugin: { enabled: false },
   environment: { enabled: false },
   coverage: { enabled: false },
+  auditorHygiene: { enabled: false },
   packageScripts: { enabled: true }
 `;
 

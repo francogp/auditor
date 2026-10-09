@@ -5,6 +5,7 @@
  */
 
 import { getAuditConfig, isDataPath, isInCodeRoots, isExemptFile, isScriptPath, isTestPath } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 export {
   AUDIT_SEVERITIES,
@@ -191,7 +192,7 @@ export function isAllowedDatabaseFile(filePath: string, config = getAuditConfig(
     'db.types.ts',
     ...(config.persistence?.allowedDatabaseFiles ?? [])
   ];
-  return allowedFiles.some(f => norm.endsWith(f.replace(/\\/g, '/')));
+  return allowedFiles.some(f => norm.endsWith(normalizePosixPath(f)));
 }
 
 export const noDomainIdFallbacks: AuditRule = {

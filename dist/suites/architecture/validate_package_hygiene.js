@@ -5,6 +5,7 @@ import { BaseAuditor, getEffectiveScannableRoots } from "../../core/auditorBase.
 import { getAuditConfig, AUDIT_CONFIG_FILE } from "../../core/auditConfig.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { getPackageJson } from "../../core/packageJson.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const PACKAGE_HYGIENE_RULES = [
     'package-unused-dependency',
@@ -124,9 +125,7 @@ export function parseKnipIssues(report, projectRoot = process.cwd(), isPathIgnor
     const ownBinaries = extractOwnPackageBinaries(projectRoot);
     for (const fileIssue of issues) {
         const rawFile = fileIssue.file || 'package.json';
-        const relFile = path.isAbsolute(rawFile)
-            ? path.relative(projectRoot, rawFile).replace(/\\/g, '/')
-            : rawFile.replace(/\\/g, '/');
+        const relFile = toPosixRelative(projectRoot, rawFile);
         if (relFile !== 'package.json' && isPathIgnored?.(relFile)) {
             continue;
         }

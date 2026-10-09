@@ -3,6 +3,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 
@@ -62,9 +63,7 @@ export function parseTypeCoverageReport(
 
     // When threshold fails, surface the untyped symbols as diagnostics
     for (const item of report.anys ?? []) {
-      const relFile = path.isAbsolute(item.filePath)
-        ? path.relative(projectRoot, item.filePath).replace(/\\/g, '/')
-        : item.filePath.replace(/\\/g, '/');
+      const relFile = toPosixRelative(projectRoot, item.filePath);
 
       findings.push({
         suiteId: 'validate_type_coverage',

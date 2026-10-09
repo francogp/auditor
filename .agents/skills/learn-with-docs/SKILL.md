@@ -8,6 +8,11 @@ description: >-
   Enforces precise DOX boundary targeting, DOX index traversal for inconsistencies and legacy code,
   auditor-configured language governance (defaulting to English when in doubt), legacy/contradictory README and documentation sweeps,
   learning_proposal.md artifact creation, and prevents polluting host DOX indices with upstream @francogp/auditor tooling rules.
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Learn With Docs

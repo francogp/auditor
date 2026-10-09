@@ -14,7 +14,6 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_reactive_purity.ts
  *   npm run validate:reactive-purity
  */
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
@@ -78,7 +77,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             projectRoot
         });
     }
-    checkComputedCall(node, sf, relPath, content, offsetLine) {
+    checkComputedCall(node, sf, relPath, content) {
         if (!ts.isCallExpression(node))
             return;
         if (node.expression.getText(sf) !== 'computed' || node.arguments.length === 0)
@@ -88,25 +87,24 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             return;
         const getterBody = extractComputedGetterBody(firstArg, sf);
         if (getterBody) {
-            this.inspectGetterBody(getterBody, sf, relPath, content, offsetLine);
+            this.inspectGetterBody(getterBody, sf, relPath, content);
         }
     }
-    scanFile(relPath, content) {
+    scanFile(relPath, content, sourceFile) {
         if (!content.includes('computed'))
             return;
-        const { scriptContent, offsetLine } = this.extractScript(content, relPath);
-        if (!scriptContent)
+        const sf = sourceFile ?? this.context.getAst(relPath, content);
+        if (!sf.text.trim())
             return;
-        const sf = ts.createSourceFile(path.basename(relPath), scriptContent, ts.ScriptTarget.Latest, true);
         const visit = (node) => {
-            this.checkComputedCall(node, sf, relPath, content, offsetLine);
+            this.checkComputedCall(node, sf, relPath, content);
             ts.forEachChild(node, visit);
         };
         visit(sf);
     }
-    reportComputedViolation(node, sourceFile, relPath, fullContent, lineOffset, ruleId, message) {
+    reportComputedViolation(node, sourceFile, relPath, fullContent, ruleId, message) {
         const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-        const realLine = line + lineOffset + 1;
+        const realLine = line + 1;
         if (!this.hasPuritySuppression(fullContent, realLine - 1)) {
             this.addViolation({
                 ruleId,
@@ -118,7 +116,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             });
         }
     }
-    inspectGetterBody(bodyNode, sourceFile, relPath, fullContent, lineOffset) {
+    inspectGetterBody(bodyNode, sourceFile, relPath, fullContent) {
         const walk = (child) => {
             // Check for state mutations (=, +=, -=, etc.)
             if (ts.isBinaryExpression(child)) {
@@ -131,7 +129,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
                         leftText.startsWith('this.') ||
                         leftText.includes('Store.');
                     if (isReactiveMutation) {
-                        this.reportComputedViolation(child, sourceFile, relPath, fullContent, lineOffset, 'computed-state-mutation', `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`);
+                        this.reportComputedViolation(child, sourceFile, relPath, fullContent, 'computed-state-mutation', `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`);
                     }
                 }
             }
@@ -140,7 +138,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
                 const callText = child.expression.getText(sourceFile);
                 const isImpureCall = IMPURE_CALL_PATTERNS.some(pat => callText.includes(pat));
                 if (isImpureCall) {
-                    this.reportComputedViolation(child, sourceFile, relPath, fullContent, lineOffset, 'computed-side-effect', `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`);
+                    this.reportComputedViolation(child, sourceFile, relPath, fullContent, 'computed-side-effect', `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`);
                 }
             }
             ts.forEachChild(child, walk);
@@ -153,18 +151,6 @@ export class ReactivePurityAuditor extends FileScanAuditor {
         const prevLine = lineIndex > 0 ? (lines[lineIndex - 1] || '') : '';
         const suppressionRegex = /\/\/\s*purity-ok:\s*\S+/i;
         return suppressionRegex.test(targetLine) || suppressionRegex.test(prevLine);
-    }
-    extractScript(content, filePath) {
-        if (!filePath.endsWith('.vue')) {
-            return { scriptContent: content, offsetLine: 0 };
-        }
-        const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/i;
-        const match = scriptRegex.exec(content);
-        if (!match) {
-            return { scriptContent: '', offsetLine: 0 };
-        }
-        const linesBefore = content.substring(0, match.index).split('\n').length - 1;
-        return { scriptContent: match[1] || '', offsetLine: linesBefore };
     }
 }
 // Canonical CLI Entrypoint

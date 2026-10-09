@@ -210,8 +210,8 @@ export default defineAuditConfig({
     security: {
       enabled: true // Static vulnerability analysis via Fallow CWE (security sinks, SSRF, command injection)
     },
-    enforceTargets: false, // Does NOT disable Fallow; decides whether structural refactoring targets block CI or act as advisory
-    maxTargetPriority: 'critical', // Priority threshold when enforceTargets is true ('critical' >= 30, 'high' >= 20, 'all')
+    enforceTargets: true, // Promotes structural refactoring targets to blocking errors
+    maxTargetPriority: 'high', // Priority threshold: 'critical' (>= 30), 'high' (>= 20), 'medium'/'moderate' (>= 10), 'low' (>= 5), 'all' (>= 1), or custom numeric 0-100
     similarCode: {
       enabled: true, // Semantic duplicate discovery using AI vector embeddings
       threshold: 0.95, // Surgical sensitivity (prevents false positives between similar functions)

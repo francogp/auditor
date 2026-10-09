@@ -24,6 +24,5 @@ export declare class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRu
     private checkEventListenerLeak;
     private checkIntervalLeak;
     protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void;
-    private createStandaloneSourceFile;
 }
 //# sourceMappingURL=validate_reactive_leaks.d.ts.map

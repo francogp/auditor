@@ -26,6 +26,8 @@ export const GSAP_FRAMEWORK_HYGIENE_RULES = [
     'gsap-missing-plugin-registration',
     'gsap-banned-devtools-production'
 ];
+export const DEVTOOLS_GUARD_WINDOW_PRE_CHARS = 150;
+export const DEVTOOLS_GUARD_WINDOW_POST_CHARS = 200;
 export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {
         const config = getAuditConfig(projectRoot);
@@ -135,7 +137,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
         let devtoolsMatch;
         while ((devtoolsMatch = devtoolsRegex.exec(content)) !== null) {
             const toolName = devtoolsMatch[1];
-            const windowAround = content.slice(Math.max(0, devtoolsMatch.index - 150), Math.min(content.length, devtoolsMatch.index + 200));
+            const windowAround = content.slice(Math.max(0, devtoolsMatch.index - DEVTOOLS_GUARD_WINDOW_PRE_CHARS), Math.min(content.length, devtoolsMatch.index + DEVTOOLS_GUARD_WINDOW_POST_CHARS));
             const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(windowAround);
             const hasDevtoolsOk = /\/\/\s*devtools-ok:\s*\S+/i.test(windowAround);
             if (!hasDevGuard && !hasDevtoolsOk) {

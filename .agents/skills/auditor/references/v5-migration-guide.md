@@ -123,8 +123,8 @@ Vector code duplication runs on Candle CPU via Jina code embeddings in ~2s lever
     security: {
       enabled: true
     },
-    enforceTargets: false,
-    maxTargetPriority: 'critical',
+    enforceTargets: true,
+    maxTargetPriority: 'high', // 'critical' | 'high' | 'medium' | 'moderate' | 'low' | 'all' | 0-100
     similarCode: {
       enabled: true,
       threshold: 0.95, // High precision threshold

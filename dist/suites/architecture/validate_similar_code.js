@@ -21,6 +21,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, resolvePackageBin } from "../../cli/cliUtils.js";
 enableCompileCache();
 export const SIMILAR_CODE_RULES = [
@@ -121,11 +122,9 @@ export function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
     }
 }
 function normalizeRelativeCandidatePath(rawPath, projectRoot) {
-    const normalized = (rawPath || '').replace(/\\/g, '/');
-    if (path.isAbsolute(normalized)) {
-        return path.relative(projectRoot, normalized).replace(/\\/g, '/');
-    }
-    return normalized;
+    if (!rawPath)
+        return '';
+    return toPosixRelative(projectRoot, rawPath);
 }
 function isCandidatePairIgnored(leftPath, rightPath, ignoreSameFile, auditor, includeTests) {
     if (ignoreSameFile && leftPath === rightPath)

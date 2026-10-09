@@ -14,8 +14,12 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
-import type { FallowTargetPriority } from '../../core/auditConfigTypes.ts';
+import type {
+  FallowTargetPriority,
+  FallowTargetPriorityNamed
+} from '../../core/auditConfigTypes.ts';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 import { resolveFallowBinary } from './validate_similar_code.ts';
 
@@ -49,14 +53,31 @@ export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {
   'fallow-security-cwe': 'Vulnerabilidad CWE detectada'
 };
 
-export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
 export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
+export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
+export const FALLOW_MEDIUM_PRIORITY_THRESHOLD = 10;
+export const FALLOW_MODERATE_PRIORITY_THRESHOLD = 10;
+export const FALLOW_LOW_PRIORITY_THRESHOLD = 5;
+export const FALLOW_ALL_PRIORITY_THRESHOLD = 1;
 
-export const FALLOW_PRIORITY_MIN_THRESHOLDS: Record<FallowTargetPriority, number> = {
-  all: 1,
+export const FALLOW_PRIORITY_MIN_THRESHOLDS: Record<FallowTargetPriorityNamed, number> = {
+  critical: FALLOW_CRITICAL_PRIORITY_THRESHOLD,
   high: FALLOW_HIGH_PRIORITY_THRESHOLD,
-  critical: FALLOW_CRITICAL_PRIORITY_THRESHOLD
+  medium: FALLOW_MEDIUM_PRIORITY_THRESHOLD,
+  moderate: FALLOW_MODERATE_PRIORITY_THRESHOLD,
+  low: FALLOW_LOW_PRIORITY_THRESHOLD,
+  all: FALLOW_ALL_PRIORITY_THRESHOLD
 };
+
+export function resolveFallowTargetMinThreshold(priority: FallowTargetPriority | undefined): number {
+  if (typeof priority === 'number') {
+    return Number.isFinite(priority) ? Math.max(0, priority) : FALLOW_HIGH_PRIORITY_THRESHOLD;
+  }
+  if (typeof priority === 'string' && priority in FALLOW_PRIORITY_MIN_THRESHOLDS) {
+    return FALLOW_PRIORITY_MIN_THRESHOLDS[priority as FallowTargetPriorityNamed];
+  }
+  return FALLOW_HIGH_PRIORITY_THRESHOLD;
+}
 
 const FALLOW_DUPES_CONFIG = ['--min-occurrences', '2'] as const;
 const FALLOW_TRIPLETS_CONFIG = ['--min-occurrences', '3', '--min-lines', '10', '--min-tokens', '60'] as const;
@@ -82,6 +103,7 @@ export interface FallowComplexityFinding {
 export interface FallowTarget {
   readonly path: string;
   readonly priority?: number;
+  readonly efficiency?: number;
   readonly recommendation?: string;
   readonly category?: string;
 }
@@ -290,20 +312,20 @@ function mapHealthFindings(data: FallowAuditData, projectRoot: string): FallowFi
   const findings: FallowFindingItem[] = [];
   const cfg = getAuditConfig(projectRoot);
   if (cfg.fallow?.enforceTargets) {
-    const maxPriority = cfg.fallow.maxTargetPriority ?? 'high';
-    const minThreshold = FALLOW_PRIORITY_MIN_THRESHOLDS[maxPriority] ?? FALLOW_HIGH_PRIORITY_THRESHOLD;
+    const minThreshold = resolveFallowTargetMinThreshold(cfg.fallow.maxTargetPriority);
+
     for (const t of data.targets || []) {
       const priority = t.priority ?? 0;
-      if (priority >= minThreshold) {
-        findings.push({
-          file: path.resolve(projectRoot, t.path),
-          line: 1,
-          message: `Objetivo de refactorización crítico (Fallow [prioridad: ${priority}]): ${t.recommendation || t.category || 'Mantenimiento crítico'}`,
-          context: t.category || 'refactoring-target',
-          ruleId: 'fallow-refactoring-targets',
-          severity: 'error'
-        });
-      }
+      if (priority < minThreshold) continue;
+
+      findings.push({
+        file: path.resolve(projectRoot, t.path),
+        line: 1,
+        message: `Objetivo de refactorización crítico (Fallow [prioridad: ${priority}]): ${t.recommendation || t.category || 'Mantenimiento crítico'}`,
+        context: t.category || 'refactoring-target',
+        ruleId: 'fallow-refactoring-targets',
+        severity: 'error'
+      });
     }
   }
 
@@ -436,9 +458,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     allFindings.push(...health);
 
     for (const f of allFindings) {
-      const relPath = path.isAbsolute(f.file)
-        ? path.relative(this.projectRoot, f.file).replace(/\\/g, '/')
-        : f.file.replace(/\\/g, '/');
+      const relPath = toPosixRelative(this.projectRoot, f.file);
 
       this.recordScanned(relPath);
       this.addViolation({

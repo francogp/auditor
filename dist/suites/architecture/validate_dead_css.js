@@ -18,6 +18,9 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { parseVueSfc } from "../../core/vueSfcParser.js";
+import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const DEAD_CSS_RULES = [
     'dead-scoped-css'
@@ -87,7 +90,7 @@ export function extractScopedRulesFromVueContent(rawContent) {
 function collectGlobalCodeTokens(projectRoot, srcFiles) {
     const globalTokens = new Set();
     for (const relPath of srcFiles) {
-        if (relPath.includes('.spec.') || relPath.includes('.test.'))
+        if (isTestPath(relPath))
             continue;
         const fullPath = path.resolve(projectRoot, relPath);
         const content = fs.readFileSync(fullPath, 'utf-8');
@@ -101,14 +104,9 @@ function collectGlobalCodeTokens(projectRoot, srcFiles) {
     return globalTokens;
 }
 function extractComponentLogic(rawContent) {
-    const templateMatch = /<template\b[^>]*>([\s\S]*?)<\/template>/i.exec(rawContent);
-    const templateContent = templateMatch?.[1] ?? '';
-    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-    let scriptsContent = '';
-    let scriptMatch;
-    while ((scriptMatch = scriptRegex.exec(rawContent)) !== null) {
-        scriptsContent += `\n${scriptMatch[1]}`;
-    }
+    const sfc = parseVueSfc(rawContent);
+    const templateContent = sfc.template?.content ?? '';
+    const scriptsContent = sfc.scripts.map(s => s.content).join('\n');
     const componentLogic = `${templateContent}\n${scriptsContent}`;
     const dynamicPrefixes = new Set();
     const dynamicClassRegex = /`([\w-]+-)\$\{/g;
@@ -211,10 +209,10 @@ export class DeadCssAuditor extends BaseAuditor {
         }
         let scopedClassesChecked = 0;
         for (const relPath of componentFiles) {
-            if (relPath.includes('.spec.') || relPath.includes('.test.'))
+            if (isTestPath(relPath))
                 continue;
             const fullPath = path.resolve(this.projectRoot, relPath);
-            const relFile = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+            const relFile = toPosixRelative(this.projectRoot, fullPath);
             this.recordScanned(relFile);
             this.markRuleEvaluated('dead-scoped-css');
             const rawContent = fs.readFileSync(fullPath, 'utf-8');

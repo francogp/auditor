@@ -11,6 +11,7 @@ import {
   type AuditPersistenceConfig,
   type AuditDomainConfig,
   type AuditEnvironmentConfig,
+  type AuditAuditorHygieneConfig,
   type AuditTemplatesConfig,
   type AuditStylesConfig,
   type AuditStylelintConfig,
@@ -213,6 +214,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   environment: {
     enabled: true
   },
+  auditorHygiene: {
+    enabled: true,
+    exemptFiles: [],
+    disabledDetectors: []
+  },
   accessibility: {
     enabled: true,
     rules: {}
@@ -276,6 +282,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'persistence',
     'domain',
     'environment',
+    'auditorHygiene',
     'styles',
     'stylelint',
     'eslint',
@@ -578,6 +585,16 @@ export function buildEnvironmentConfig(raw?: DeepPartial<AuditEnvironmentConfig>
   };
 }
 
+export function buildAuditorHygieneConfig(raw?: DeepPartial<AuditAuditorHygieneConfig>): AuditAuditorHygieneConfig {
+  const def = DEFAULT_AUDIT_CONFIG.auditorHygiene;
+  const p = raw ?? {};
+  return {
+    enabled: p.enabled ?? def?.enabled ?? true,
+    exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? []),
+    disabledDetectors: p.disabledDetectors ? [...p.disabledDetectors] : (def?.disabledDetectors ?? [])
+  };
+}
+
 export function buildPackageDistributionConfig(raw?: DeepPartial<AuditPackageDistributionConfig>): AuditPackageDistributionConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
   const p = raw ?? {};
@@ -850,6 +867,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     packageDistribution: buildPackageDistributionConfig(config.packageDistribution),
     packageScripts: buildPackageScriptsConfig(config.packageScripts),
     environment: buildEnvironmentConfig(config.environment),
+    auditorHygiene: buildAuditorHygieneConfig(config.auditorHygiene),
     accessibility: buildAccessibilityConfig(config.accessibility),
     typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
     testCoverage: buildTestCoverageConfig(config.testCoverage),

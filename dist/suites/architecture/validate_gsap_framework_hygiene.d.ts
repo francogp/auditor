@@ -18,6 +18,8 @@
 import { FileScanAuditor } from '../../core/auditorBase.ts';
 export type GsapFrameworkHygieneRuleId = 'gsap-unscoped-component-selectors' | 'gsap-missing-context-revert' | 'gsap-missing-plugin-registration' | 'gsap-banned-devtools-production';
 export declare const GSAP_FRAMEWORK_HYGIENE_RULES: readonly GsapFrameworkHygieneRuleId[];
+export declare const DEVTOOLS_GUARD_WINDOW_PRE_CHARS = 150;
+export declare const DEVTOOLS_GUARD_WINDOW_POST_CHARS = 200;
 export declare class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
     protected scanFile(relPath: string, content: string): void;

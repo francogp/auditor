@@ -21,6 +21,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -71,7 +72,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    const normalizedPath = relPath.replace(/\\/g, '/');
+    const normalizedPath = normalizePosixPath(relPath);
 
     // 1. Audit debugger statements (all files)
     this.auditDebugger(normalizedPath, content);

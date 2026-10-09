@@ -21,6 +21,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
 enableCompileCache();
@@ -83,7 +84,7 @@ function auditFileImports(relPath, fullPath, projectRoot, effectiveUiDirs, forbi
     const content = fs.readFileSync(fullPath, 'utf8');
     if (!content.includes('import '))
         return;
-    const norm = path.relative(projectRoot, fullPath).replace(/\\/g, '/');
+    const norm = toPosixRelative(projectRoot, fullPath);
     const sourceFile = astEngine.getSourceFile(fullPath, content);
     if (!sourceFile.text.trim())
         return;
@@ -163,7 +164,7 @@ function auditCompiledChunks(distAssetsDir, bundleConfig, projectRoot, auditor) 
             continue;
         const assetPath = path.join(distAssetsDir, asset);
         const stats = fs.statSync(assetPath);
-        const relAssetPath = path.relative(projectRoot, assetPath).replace(/\\/g, '/');
+        const relAssetPath = toPosixRelative(projectRoot, assetPath);
         auditor['recordScanned'](relAssetPath);
         auditor['markRuleEvaluated']('bundle-chunk-size');
         auditSingleChunkBudget(asset, stats.size, relAssetPath, bundleConfig, auditor);

@@ -10,6 +10,11 @@ description: >
   "sqlite y postgres", or when any Vitest or Playwright test fails).
   Governs the full 4-Phase Reactive Protocol: (1) Trace Ingestion & DOX Triage, (2) Mandatory 3-Tier Reproduction Tests in RED,
   (3) Root Cause Repair with Dual Consultation Gate (Explicit vs Automatic), and (4) Closed-Loop Verification with a 5-iteration cap.
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Systematic Debugging

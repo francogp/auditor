@@ -4,6 +4,8 @@
  * Core rule descriptors, violation schemas, and matching primitives
  * for architectural audits.
  */
+import { normalizePosixPath } from "../core/safePath.js";
+import { isTestPath } from "../core/auditTestPredicates.js";
 export const AUDIT_SEVERITIES = ['error', 'warning'];
 function collectRuleTokens(descriptor) {
     const tokens = [];
@@ -35,7 +37,7 @@ export function matchesRule(descriptor, selectedRules) {
     return false;
 }
 export function normalizeFilePath(filePath) {
-    return filePath.replace(/^[a-z]:[/\\]/i, '').replace(/\\/g, '/').toLowerCase();
+    return normalizePosixPath(filePath).toLowerCase();
 }
 export function getLineAtMatch(content, matchIndex) {
     const lineStartPos = content.lastIndexOf('\n', matchIndex - 1) + 1;
@@ -49,7 +51,6 @@ export function isCommentLine(trimmed) {
 export function isTestOrNodeModules(filePath) {
     if (!filePath)
         return true;
-    const norm = normalizeFilePath(filePath);
-    return norm.includes('node_modules') || norm.includes('.spec.') || norm.includes('.test.');
+    return filePath.includes('node_modules') || isTestPath(filePath);
 }
 //# sourceMappingURL=auditRuleTypes.js.map

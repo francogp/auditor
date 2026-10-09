@@ -8,6 +8,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { SharedAstContext } from "../core/astContext.js";
 import { isPathIgnored } from "../core/auditorBase.js";
+import { isPathContained, toPosixRelative } from "../core/safePath.js";
 import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath, isDemoPath } from "../core/auditConfig.js";
 export const CONSTANT_ANALYZER_DESCRIPTOR = {
     id: 'duplicate-constants',
@@ -93,8 +94,8 @@ export function extractConstantsFromSource(sourceFile, filePath, ignoredNames) {
     return decls;
 }
 function isConstantAuditCandidate(filePath, projectRoot, config) {
-    const isUnderRoot = !path.isAbsolute(filePath) || !path.relative(projectRoot, filePath).startsWith('..');
-    const rel = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
+    const isUnderRoot = isPathContained(projectRoot, filePath);
+    const rel = toPosixRelative(projectRoot, filePath);
     if (isUnderRoot && isPathIgnored(rel))
         return false;
     if (isDataPath(rel) || isDemoPath(rel))

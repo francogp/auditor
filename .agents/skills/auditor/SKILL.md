@@ -1,6 +1,11 @@
 ---
 name: auditor
 description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, or whenever the user asks to UPDATE OR UPGRADE the auditor package (e.g. 'actualizar auditor', 'actualizame el auditor', 'update auditor', 'actualizar paquete auditor', 'actualizar dependencias de auditor', 'update @francogp/auditor', 'auditor:update', 'auditor-update', 'auditor-version', 'version de auditor'), or mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `.auditor/`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run auditor', 'npm run auditor:findings', 'npm run auditor:complexity', 'npm run auditor:fallow:*', 'npm run auditor:lint'). When updating the auditor in host projects, agents MUST use 'auditor-update' or 'npm run auditor:update' and 'auditor-version -v'. STRICTLY FORBIDDEN to use ad-hoc node -e scripts, git clone into /tmp, or git log inside node_modules; ALWAYS use the framework's native CLI tools. Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, and zero ad-hoc console loggers.
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Auditor: Architecture, Verification & Governance Engine
@@ -196,8 +201,7 @@ graph TD
     - If `report_findings` warns that `latest_audit.json` is stale (>5 min), the agent MUST immediately execute `npm run auditor` to produce a fresh, valid report before inspecting findings. Bypassing the anti-staleness check with homebrew scripts is strictly forbidden.
     - **Missing Tool Mandate (Solicitud y Creación de Nuevas Herramientas)**: If a specific inspection, filtering, or reporting capability is missing or not provided by existing native tools, AI agents and developers MUST NOT create ad-hoc scripts or one-off terminal hacks. Instead, they MUST explicitly propose and create a new official native CLI tool in `src/cli/` (or extend an existing reporter), registering its canonical script in `package.json` with full Box-Drawing theme support (`unifiedTheme.ts`), 80-column limits, and permission flags.
 27. **Fallow Refactoring Targets & Workspace Diagnostics Governance (`config.fallow`)**:
-    - Fallow provides hotspot refactoring targets and project workspace diagnostics.
-    - `config.fallow.enforceTargets`: When set to `true` (default), hotspot refactoring targets meeting `maxTargetPriority` (`'critical'` by default, `'high'`, `'all'`) are promoted to blocking `severity: 'error'` findings under rule `fallow-refactoring-targets`. Host projects may explicitly opt out with `false` if they prefer targets to remain purely advisory.
+    - `config.fallow.enforceTargets`: When set to `true` (default), hotspot refactoring targets meeting `maxTargetPriority` (`'high'` by default, `'critical'`, `'medium'`, `'moderate'`, `'low'`, `'all'`, or a numeric score 0-100) are promoted to blocking `severity: 'error'` findings under rule `fallow-refactoring-targets`. Host projects may explicitly opt out with `false` if they prefer targets to remain purely advisory.
     - Workspace-level diagnostics (e.g. invalid configurations or structural issues) are validated under `validate_fallow_config` as `fallow-workspace-diagnostic`.
 28. **Semantic Vector Code Duplication Governance & Fast-Preset Bypass (`validate_similar_code`)**:
     - Vector embeddings similarity detection (`fallow similar-code`) identifies semantic duplicates across files even with different syntax or function signatures.
@@ -247,7 +251,7 @@ graph TD
 41. **Capability-Driven Auto-Coordination Mandate (`AuditorCapabilities`) & Zero-Boilerplate Defaults**:
     - Sub-auditors declare execution capabilities (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`) cleanly via `AuditorOptions.capabilities?: Partial<AuditorCapabilities>`.
     - `BaseAuditor` guarantees immutable defaults (`DEFAULT_AUDITOR_CAPABILITIES` with all flags set to `false`). Sub-auditors ONLY declare active capabilities where they differ from defaults (e.g. `capabilities: { lint: true, fix: true }`). Repeating redundant `false` flags across constructors is strictly forbidden.
-    - When `auditor fix` or `auditor --fix` is invoked, the master orchestrator (`audit_full.ts`) and scanner (`auditScanner.ts`) dynamically isolate and run only auto-repair suites (`capabilities.fix === true`) under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface. Suites declaring `capabilities.fixPriority === true` (environment engines, tooling configs, and default generators) are dynamically executed **FIRST** to stabilize environment, `.auditor/audit.config.ts`, `.gitignore`, and `package.json` scripts before dependent code and style fixers run.
+    - When `auditor fix` or `auditor --fix` is invoked, the master orchestrator (`audit_full.ts`) and scanner (`auditScanner.ts`) dynamically isolate and run only auto-repair suites (`capabilities.fix === true`) under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface. Suites declaring `capabilities.fixPriority === true` (`validate_environment_engines`, `validate_git_config`, tooling configs, and default generators) are dynamically executed **FIRST** to stabilize environment, local Git configuration (`.git/config`), `.auditor/audit.config.ts`, `.gitignore`, and `package.json` scripts before dependent code and style fixers run.
     - **Absolute Prohibition on Hardcoded Execution Order or Suite Lists**: The orchestrator sorts and dispatches suites purely dynamically based on declared capabilities and reflection. Hardcoding static arrays or ordering lists in framework code is strictly prohibited.
     - Fast presets (`preset=lint`, `preset=md`) dynamically select suites declaring `capabilities.lint === true` or `capabilities.md === true`. Heavy suites (`capabilities.heavy === true`) are automatically bypassed in fast presets (`preset=lint`, `preset=md`). AST requirements are evaluated dynamically without hardcoded suite ID lists.
 42. **Strict ESLint Flat Config & Zero-Tolerance Type Integrity (`eslint.config.js`)**:
@@ -400,6 +404,14 @@ graph TD
 74. **Fast Mermaid Syntax & Quoted Character Governance (`validate_mermaid_syntax`)**:
     - `validate_mermaid_syntax` is active in fast lint presets (`capabilities: { md: true, lint: true }`).
     - Enforces valid diagram syntax and strict double quotes on edge labels and node shapes containing special punctuation (`%`, `&`, `<`, `>`, `≠`, `≥`, `≤`, `(`, `)`, `/`, `?`, `!`, `+`, `:`, `=`, `#`, `*`, `~`) to prevent IDE renderer crashes.
+75. **Local Git Repository Configuration Governance (`validate_git_config`, `setup-linux.sh`, `setup-windows.ps1`)**:
+    - Governs `.git/config` local options with `capabilities: { fix: true, fixPriority: true }`.
+    - Enforces `core.filemode = false`, `core.autocrlf = input`, and `core.eol = lf` locally across all workspaces, preventing cross-platform line ending corruption and phantom executable bit changes.
+    - Executed with bootstrap priority during `auditor fix`.
+76. **Homebrew Anti-Patterns & Extension Hygiene Governance Mandate (`validate_auditor_hygiene`)**:
+    - Sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly governed by `validate_auditor_hygiene` (`severity: 'error'`).
+    - Enforces 10 rules eradicating handcrafted utilities in favor of canonical framework helpers (`toPosixRelative`, `normalizePosixPath`, `parseVueSfc`, `SharedAstContext`, `stripComments`, `scanBalancedDelimiter`, `isPathInside`, `getPackageJson`, `isTestPath`).
+    - Zero tolerance for direct `console.log()` inside sub-auditors; all telemetry routes through `BaseAuditor` and `UnifiedTheme`.
 
 ---
 
@@ -409,7 +421,7 @@ graph TD
 
 Domain-agnostic suites discovered automatically across canonical architectural families:
 
-- `architecture/` (including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Package types verification (`validate_package_types`), Secret leaks detection (`validate_secret_leaks`), Dependency CVE vulnerability scanning (`validate_dependency_vulnerabilities`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), AGENTS config tampering mandate (`validate_agents_config_mandate`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
+- `architecture/` (including `audit_project.ts`, with shared rule module `audit_rules.ts`): AST rules, Fallow intelligence, Z-Index, CSS orphans, emoji typography, HTML5 standards validation (`validate_html_validate`), Stylelint & SCSS hygiene (`validate_stylelint`), ESLint Domain-Type-First governance (`validate_eslint_config`), Git configuration governance (`validate_git_config`), Sub-auditor & extension hygiene (`validate_auditor_hygiene`), Knip dependency hygiene (`validate_package_hygiene`), Publint distribution verification (`validate_package_distribution`), Package types verification (`validate_package_types`), Secret leaks detection (`validate_secret_leaks`), Dependency CVE vulnerability scanning (`validate_dependency_vulnerabilities`), Type coverage (`validate_type_coverage`), WCAG 2.2 accessibility (`validate_accessibility`), vector semantic similarity (`validate_similar_code`), test coverage (`validate_test_coverage`), AGENTS config tampering mandate (`validate_agents_config_mandate`), Vue SFC hygiene, Pinia reactivity, reactive leaks and purity
 - `domain_data/`: O(1) data structures, Domain-type-first validation (`validate_domain_types.ts`, parameterized via `.auditor/audit.config.ts`)
 - `persistence/`: SQL anti-patterns (`validate_sql_anti_patterns.ts`, with hybrid persistence support)
 - `documentation/`: Markdown relative links, DOX hierarchy (AGENTS.md) with bidirectional source file indexing (`dox-unindexed-file`), documentation language verification (`validate_documentation_language.ts`), syntax standards, markdown lint, code references, and documented commands verification (`validate_documented_commands.ts`)
@@ -460,10 +472,12 @@ Configured in `.auditor/audit.config.ts`:
 - `domain.fallbackIdPatterns`: `['userId', 'invoiceId', 'roleId', 'customerId', ...]`
 - `fallow.enabled`: `boolean` (Enables Fallow static intelligence and deep analysis)
 - `fallow.enforceTargets`: `boolean` (Default: `true`. Promotes refactoring targets to blocking errors)
-- `fallow.maxTargetPriority`: `'critical' | 'high' | 'all'` (Priority filter threshold for refactoring targets)
+- `fallow.maxTargetPriority`: `'critical' | 'high' | 'medium' | 'moderate' | 'low' | 'all' | number` (Priority filter threshold for refactoring targets)
 - `fallow.similarCode.enabled`: `boolean` (Enables vector semantic duplication detection in full audit)
 - `fallow.similarCode.threshold`: `number` (Similarity threshold, default `0.95`)
 - `fallow.similarCode.ignoreSameFile`: `boolean` (Excludes intra-file candidate pairs, default `true`)
+- `gitConfig.enabled`: `boolean` (Default: `true`. Governs `.git/config` options with auto-fix)
+- `auditorHygiene.enabled`: `boolean` (Default: `true`. Governs anti-patterns and homebrew helper detection across core and extensions)
 - `extensions`: [Host project custom plugins in `scripts/auditors/`]
 
 ### File Naming Conventions
@@ -620,6 +634,9 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
      - The agent **MUST PROACTIVELY NOTIFY THE USER**, clearly explaining the root cause.
      - The agent **MUST INSTRUCT THE USER** that the change must be requested and made upstream in the `@francogp/auditor` repository.
      - Once resolved and released upstream, the host project updates via `npm run auditor:update` and synchronizes the official scripts.
+3. **Local Git Repository Standards SSoT**:
+   - Master setup scripts (`setup-linux.sh` and `setup-windows.ps1`) and `validate_git_config` automatically enforce local project Git options (`core.filemode false`, `core.autocrlf input`, `core.eol lf`).
+   - AI agents and developers must never depend on machine-global `git config --global` flags; project-level standards are maintained directly within `.git/config` and verified deterministically during audit runs.
 
 ---
 

@@ -22,6 +22,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, isTestPath, type AuditFallowSimilarCodeConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, resolvePackageBin } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
@@ -173,11 +174,8 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string, i
 }
 
 function normalizeRelativeCandidatePath(rawPath: string | undefined, projectRoot: string): string {
-  const normalized = (rawPath || '').replace(/\\/g, '/');
-  if (path.isAbsolute(normalized)) {
-    return path.relative(projectRoot, normalized).replace(/\\/g, '/');
-  }
-  return normalized;
+  if (!rawPath) return '';
+  return toPosixRelative(projectRoot, rawPath);
 }
 
 function isCandidatePairIgnored(

@@ -18,11 +18,11 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_pinia_reactivity.ts
  */
 
-import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -171,7 +171,7 @@ private readonly storesRoots: readonly string[];
   }
 
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
-    const normalizedPath = relPath.replace(/\\/g, '/');
+    const normalizedPath = normalizePosixPath(relPath);
 
     // Fast O(1) string pre-filter to eliminate files without store keywords
     if (!content.includes('Store') && !content.includes('$state')) {
@@ -179,18 +179,12 @@ private readonly storesRoots: readonly string[];
     }
 
     const isStoreFile = this.storesRoots.some(root => {
-      const normalizedRoot = root.replace(/\\/g, '/').replace(/\/+$/, '') + '/';
+      const normalizedRoot = normalizePosixPath(root).replace(/\/+$/, '') + '/';
       return normalizedPath.startsWith(normalizedRoot);
     });
     const isAuthorized = this.authorizedStateMutationFiles.has(normalizedPath) || AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);
 
-    const sf = sourceFile ?? ts.createSourceFile(
-      path.basename(relPath),
-      content,
-      ts.ScriptTarget.Latest,
-      true,
-      relPath.endsWith('.vue') ? ts.ScriptKind.TS : undefined
-    );
+    const sf = sourceFile ?? this.context.getAst(relPath, content);
 
     const storeVariables = new Set<string>();
 

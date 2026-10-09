@@ -224,8 +224,9 @@ export interface AuditFallowCoverageConfig {
   readonly root?: string;
 }
 
-export const FALLOW_TARGET_PRIORITIES = ['critical', 'high', 'all'] as const;
-export type FallowTargetPriority = (typeof FALLOW_TARGET_PRIORITIES)[number];
+export const FALLOW_TARGET_PRIORITIES = ['critical', 'high', 'medium', 'moderate', 'low', 'all'] as const;
+export type FallowTargetPriorityNamed = (typeof FALLOW_TARGET_PRIORITIES)[number];
+export type FallowTargetPriority = FallowTargetPriorityNamed | number;
 
 export interface AuditFallowConfig {
   readonly enabled?: boolean;
@@ -399,6 +400,12 @@ export interface AuditEnvironmentConfig {
   readonly enabled?: boolean;
 }
 
+export interface AuditAuditorHygieneConfig {
+  readonly enabled?: boolean;
+  readonly exemptFiles?: readonly string[];
+  readonly disabledDetectors?: readonly string[];
+}
+
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends readonly (infer U)[]
     ? readonly U[]
@@ -416,6 +423,7 @@ export interface AuditEngineConfig {
   readonly persistence: AuditPersistenceConfig;
   readonly domain: AuditDomainConfig;
   readonly environment?: AuditEnvironmentConfig;
+  readonly auditorHygiene?: AuditAuditorHygieneConfig;
   readonly gitIgnore?: AuditGitIgnoreConfig;
   readonly templates?: AuditTemplatesConfig;
   readonly styles?: AuditStylesConfig;

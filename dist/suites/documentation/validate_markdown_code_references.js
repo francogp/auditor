@@ -28,6 +28,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { normalizePosixPath, toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const MARKDOWN_CODE_REFERENCE_RULES = [
     'markdown-broken-source-ref',
@@ -66,7 +67,7 @@ function getRootMarkdownFiles(root) {
     }
 }
 function extractTopLevelRoots(dirs) {
-    return dirs.map(d => d.replace(/\\/g, '/').split('/')[0]).filter(Boolean);
+    return dirs.map(d => normalizePosixPath(d).split('/')[0]).filter(Boolean);
 }
 function resolveConfiguredPathCandidates(paths) {
     if (!paths)
@@ -455,7 +456,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
     }
     scanMarkdownFile(filePath, allSkills, knownValidAbstractPaths, seenViolations) {
-        const relPath = path.relative(this.rootDir, filePath).replace(/\\/g, '/');
+        const relPath = toPosixRelative(this.rootDir, filePath);
         const rawContent = fs.readFileSync(filePath, 'utf8');
         const cleanContent = stripCodeBlocks(rawContent);
         const lines = cleanContent.split('\n');

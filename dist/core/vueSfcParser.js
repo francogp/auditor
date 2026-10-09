@@ -83,6 +83,7 @@ export function parseVueSfcBlocks(sfcContent) {
     }
     return { template, scripts, styles };
 }
+export { parseVueSfcBlocks as parseVueSfc };
 /**
  * Extracts concatenated inner script content from all script blocks in a Vue SFC.
  * Returns null if the SFC contains no script blocks.

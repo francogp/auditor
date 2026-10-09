@@ -4,6 +4,11 @@ description: Pragmatic coding standards - concise, direct, no over-engineering, 
 allowed-tools: Read, Write, Edit
 version: 2.0
 priority: CRITICAL
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Clean Code - Pragmatic AI Coding Standards

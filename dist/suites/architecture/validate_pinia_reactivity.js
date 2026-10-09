@@ -17,11 +17,11 @@
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_pinia_reactivity.ts
  */
-import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
 export const PINIA_REACTIVITY_RULES = [
     'no-store-destructuring-without-storetorefs',
@@ -114,17 +114,17 @@ export class PiniaReactivityAuditor extends FileScanAuditor {
         }
     }
     scanFile(relPath, content, sourceFile) {
-        const normalizedPath = relPath.replace(/\\/g, '/');
+        const normalizedPath = normalizePosixPath(relPath);
         // Fast O(1) string pre-filter to eliminate files without store keywords
         if (!content.includes('Store') && !content.includes('$state')) {
             return;
         }
         const isStoreFile = this.storesRoots.some(root => {
-            const normalizedRoot = root.replace(/\\/g, '/').replace(/\/+$/, '') + '/';
+            const normalizedRoot = normalizePosixPath(root).replace(/\/+$/, '') + '/';
             return normalizedPath.startsWith(normalizedRoot);
         });
         const isAuthorized = this.authorizedStateMutationFiles.has(normalizedPath) || AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);
-        const sf = sourceFile ?? ts.createSourceFile(path.basename(relPath), content, ts.ScriptTarget.Latest, true, relPath.endsWith('.vue') ? ts.ScriptKind.TS : undefined);
+        const sf = sourceFile ?? this.context.getAst(relPath, content);
         const storeVariables = new Set();
         const visit = (node) => {
             if (ts.isVariableDeclaration(node)) {

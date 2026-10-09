@@ -14,6 +14,7 @@ import { enableCompileCache } from 'node:module';
 import { checkPackage, Package, type Problem } from '@arethetypeswrong/core';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
 
 enableCompileCache();
@@ -46,7 +47,7 @@ export function createPackageFromDirectory(pkgDir: string): Package {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(baseDir, fullPath);
 
       if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'scratch') {
         continue;

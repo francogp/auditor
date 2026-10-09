@@ -23,7 +23,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, collectRepositoryFiles } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { buildRepositoryFileIndex } from '../../core/safePath.ts';
+import { buildRepositoryFileIndex, toPosixRelative } from '../../core/safePath.ts';
 import { resolveMarkdownScanDirectories, stripCodeBlocks } from './validate_markdown_code_references.ts';
 
 export { stripCodeBlocks };
@@ -170,7 +170,7 @@ function checkTargetExistence(params: {
   }
 
   const resolvedTarget = urlPath.length > 0 ? path.resolve(path.dirname(params.filePath), urlPath) : params.filePath;
-  const resolvedRelPath = path.relative(params.rootDir, resolvedTarget).replace(/\\/g, '/');
+  const resolvedRelPath = toPosixRelative(params.rootDir, resolvedTarget);
 
   const matcher = getGitIgnoreMatcher(params.rootDir);
   if (matcher.isIgnored(resolvedTarget)) {
@@ -195,11 +195,11 @@ function checkTargetExistence(params: {
     if (candidateMatches.length > 0) {
       const sourceDir = path.dirname(params.filePath);
       const suggestions = candidateMatches.map(cand => {
-        let rel = path.relative(sourceDir, cand).replace(/\\/g, '/');
+        let rel = toPosixRelative(sourceDir, cand);
         if (!rel.startsWith('.')) rel = './' + rel;
         return rel;
       });
-      const foundIn = candidateMatches.map(cand => path.relative(params.rootDir, cand).replace(/\\/g, '/')).join(', ');
+      const foundIn = candidateMatches.map(cand => toPosixRelative(params.rootDir, cand)).join(', ');
       error = `Target path does not exist on disk: "${resolvedRelPath}", pero aparentemente fue localizado en: "${foundIn}". Verifica si corresponde corregir el enlace a: "${suggestions.join('" o "')}"`;
     }
 
@@ -388,7 +388,7 @@ export function checkMarkdownLinksInContent(
   const brokenLinks: BrokenMarkdownLink[] = [];
   let linksChecked = 0;
   let match: RegExpExecArray | null;
-  const relSourceFile = path.relative(rootDir, filePath).replace(/\\/g, '/');
+  const relSourceFile = toPosixRelative(rootDir, filePath);
 
   while ((match = linkRegex.exec(contentWithoutInlineCode)) !== null) {
     const linkText = match[1]!.trim();

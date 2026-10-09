@@ -866,3 +866,49 @@ All scripts are registered into `PackageScriptRegistry`. If two sub-auditors or 
 ### 4. Automated Non-Destructive Injection (`auditor fix`)
 
 When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` dynamically inspects the host's `package.json` against all registered scripts in `PackageScriptRegistry` and appends missing ones without modifying existing custom scripts.
+
+---
+
+## 22. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
+
+All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly evaluated by `validate_auditor_hygiene`. To guarantee performance, cross-platform stability, and architectural cleanliness, all sub-auditors and extensions MUST follow these 10 invariants:
+
+1. **Zero Manual `package.json` Reading (`auditor-manual-package-json`)**:
+   - ❌ **Prohibited**: `fs.readFileSync(path.join(root, 'package.json'))` + `JSON.parse`.
+   - ✅ **Canonical**: `getPackageJson(projectRoot)`.
+
+2. **Zero Handcrafted Vue SFC Block Regexes (`auditor-manual-vue-sfc-regex`)**:
+   - ❌ **Prohibited**: `/<template[\s\S]*<\/template>/` or manual tag slicing.
+   - ✅ **Canonical**: `parseVueSfc(content)` from `@francogp/auditor`.
+
+3. **Zero Isolated AST Creation (`auditor-manual-ts-ast`)**:
+   - ❌ **Prohibited**: Direct calls to `ts.createSourceFile()` in scan loops.
+   - ✅ **Canonical**: `this.context.getAst()`, `SharedAstContext`, or `AuditedDocument`.
+
+4. **Zero Manual Path Normalization (`auditor-manual-path-normalize`)**:
+   - ❌ **Prohibited**: `path.split('\\').join('/')` or `.replace(/\\/g, '/')`.
+   - ✅ **Canonical**: `normalizePosixPath(filePath)` or `toPosixRelative(filePath, root)` from `@francogp/auditor`.
+
+5. **Zero Direct Console Logging (`auditor-raw-console`)**:
+   - ❌ **Prohibited**: `console.log()` or `console.warn()` inside sub-auditors.
+   - ✅ **Canonical**: `this.addViolation()`, `this.context.setMetric()`, or `UnifiedTheme`.
+
+6. **Zero Handcrafted Comment Stripping (`auditor-manual-comment-stripping`)**:
+   - ❌ **Prohibited**: Fragile regexes like `code.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')`.
+   - ✅ **Canonical**: `stripComments()` and `stripCommentsAndStrings()` from `@francogp/auditor`.
+
+7. **Zero Manual Delimiter/Brace Counting (`auditor-manual-brace-counting`)**:
+   - ❌ **Prohibited**: Handcrafted loops counting `braceDepth` or `parenDepth`.
+   - ✅ **Canonical**: `scanBalancedDelimiter()` or `isPositionInsideFunctionParams()` from `@francogp/auditor`.
+
+8. **Zero Manual CWE-22 Path Containment (`auditor-manual-path-containment`)**:
+   - ❌ **Prohibited**: Ad-hoc checks using `.startsWith('..')`.
+   - ✅ **Canonical**: `isPathInside(candidatePath, parentPath)` or `isInsideRoot()`.
+
+9. **Zero Handcrafted Recursive File Walkers (`auditor-manual-file-walker`)**:
+   - ❌ **Prohibited**: Manual recursive `readdirSync` or custom traversing helpers.
+   - ✅ **Canonical**: `this.context.collectFiles()` or `FileScanAuditor` automated file discovery.
+
+10. **Zero Ad-Hoc Test File Predicates (`auditor-homebrew-predicates`)**:
+    - ❌ **Prohibited**: Ad-hoc regexes like `/\.(test|spec)\.ts$/`.
+    - ✅ **Canonical**: `isTestPath(filePath)` or `isTestFileForCodeAudit(filePath)`.

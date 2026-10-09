@@ -290,7 +290,59 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       }));
       const allViolations = mapFallowJson('health', sampleData, tempDir);
       expect(allViolations).toHaveLength(2);
+
+      // 3. Medium & Moderate threshold (>= 10)
+      const tieredData = {
+        targets: [
+          { path: 'src/critical.ts', priority: 35, recommendation: 'Critical file' },
+          { path: 'src/high.ts', priority: 25, recommendation: 'High file' },
+          { path: 'src/medium.ts', priority: 15, recommendation: 'Medium file' },
+          { path: 'src/low.ts', priority: 7, recommendation: 'Low file' }
+        ]
+      };
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          enforceTargets: true,
+          maxTargetPriority: 'medium'
+        }
+      }));
+      const mediumViolations = mapFallowJson('health', tieredData, tempDir);
+      expect(mediumViolations).toHaveLength(3);
+
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          enforceTargets: true,
+          maxTargetPriority: 'moderate'
+        }
+      }));
+      const moderateViolations = mapFallowJson('health', tieredData, tempDir);
+      expect(moderateViolations).toHaveLength(3);
+
+      // 4. Low threshold (>= 5)
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          enforceTargets: true,
+          maxTargetPriority: 'low'
+        }
+      }));
+      const lowViolations = mapFallowJson('health', tieredData, tempDir);
+      expect(lowViolations).toHaveLength(4);
+
+      // 5. Custom numeric threshold (e.g. 20)
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          enforceTargets: true,
+          maxTargetPriority: 20
+        }
+      }));
+      const numericViolations = mapFallowJson('health', tieredData, tempDir);
+      expect(numericViolations).toHaveLength(2);
     });
+
 
     it('bypasses refactoring targets when config.fallow.enforceTargets is false', () => {
       setAuditConfig(defineAuditConfig({

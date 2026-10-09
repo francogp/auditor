@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 enableCompileCache();
 export const AUDITOR_TEST_RULES = [
     'missing-auditor-test',
@@ -172,7 +173,7 @@ export class AuditorTestsAuditor extends BaseAuditor {
             this.markRuleEvaluated(r);
         }
         const hasCoreSuites = fs.existsSync(path.join(this.projectRoot, 'src/suites'));
-        const isSelfRepo = this.projectRoot.toLowerCase().replace(/\\/g, '/').endsWith('/auditor');
+        const isSelfRepo = isSelfProviderProject(this.projectRoot);
         const include = isSelfRepo && hasCoreSuites
             ? ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts']
             : ['scripts/auditors/**/*.ts', 'tests/**/validate_*.test.ts', 'tests/**/audit_*.test.ts'];

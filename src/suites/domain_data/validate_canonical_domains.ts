@@ -16,8 +16,9 @@ import path from 'node:path';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { isTestFileForCodeAudit } from '../../core/auditPathPredicates.ts';
+import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
 import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -162,14 +163,59 @@ export function detectRepeatedStringUnions(
   return repeatedMap;
 }
 
+const P_EXPORT_TYPE_UNION = /export\s+type\s+(\w+)\s*=\s*\(?((?:['"][\w-]+['"]\s*\|\s*)+['"][\w-]+['"])\)?/g;
+
+function parseDtsDomainTypes(
+  content: string,
+  dep: string,
+  targetMap: Map<string, LibraryDomainTypeInfo>
+): void {
+  P_EXPORT_TYPE_UNION.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = P_EXPORT_TYPE_UNION.exec(content)) !== null) {
+    const typeName = match[1]!;
+    const rawUnion = match[2]!;
+    const rawLiterals = rawUnion.match(/['"][\w-]+['"]/g);
+    if (!rawLiterals) continue;
+    const literals = Array.from(new Set(rawLiterals.map(l => l.replace(/['"]/g, '')))).sort();
+    if (literals.length < 2) continue;
+    const sigKey = literals.join('|');
+    if (!UNIVERSAL_SIGNATURE_BLACKLIST.has(sigKey) && !targetMap.has(sigKey)) {
+      targetMap.set(sigKey, { typeName, pkgName: dep, signature: sigKey });
+    }
+  }
+}
+
+async function scanDepEntries(
+  depDir: string,
+  dep: string,
+  targetMap: Map<string, LibraryDomainTypeInfo>
+): Promise<void> {
+  let entries: Array<{ name: string; isDirectory(): boolean; parentPath?: string }>;
+  try {
+    entries = await fs.readdir(depDir, { recursive: true, withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const ent of entries) {
+    if (ent.isDirectory() || !ent.name.endsWith('.d.ts')) continue;
+    const full = path.join(ent.parentPath ?? depDir, ent.name);
+    try {
+      const content = await fs.readFile(full, 'utf8');
+      parseDtsDomainTypes(content, dep, targetMap);
+    } catch {
+      // catch-ok: unreadable file
+    }
+  }
+}
+
 export async function extractLibraryDomainTypes(
   root: string
 ): Promise<Map<string, LibraryDomainTypeInfo>> {
   const libraryTypes = new Map<string, LibraryDomainTypeInfo>();
   const nodeModulesDir = path.join(root, 'node_modules');
   const pkgJsonPath = path.join(root, 'package.json');
-
-  const P_EXPORT_TYPE_UNION = /export\s+type\s+(\w+)\s*=\s*\(?((?:['"][\w-]+['"]\s*\|\s*)+['"][\w-]+['"])\)?/g;
 
   let pkgJson: { dependencies?: Record<string, string> };
   try {
@@ -189,45 +235,7 @@ export async function extractLibraryDomainTypes(
       continue;
     }
 
-    async function walk(dir: string): Promise<void> {
-      let entries: Array<{ name: string; isDirectory(): boolean }>;
-      try {
-        entries = await fs.readdir(dir, { withFileTypes: true });
-      } catch {
-        // catch-ok: unreadable dir
-        return;
-      }
-      for (const ent of entries) {
-        if (ent.name === 'node_modules' || ent.name === '.git') continue;
-        const full = path.join(dir, ent.name);
-        if (ent.isDirectory()) {
-          await walk(full);
-        } else if (ent.name.endsWith('.d.ts')) {
-          try {
-            const content = await fs.readFile(full, 'utf8');
-            P_EXPORT_TYPE_UNION.lastIndex = 0;
-            let match: RegExpExecArray | null;
-            while ((match = P_EXPORT_TYPE_UNION.exec(content)) !== null) {
-              const typeName = match[1]!;
-              const rawUnion = match[2]!;
-              const rawLiterals = rawUnion.match(/['"][\w-]+['"]/g);
-              if (!rawLiterals) continue;
-              const literals = Array.from(new Set(rawLiterals.map(l => l.replace(/['"]/g, '')))).sort();
-              if (literals.length >= 2) {
-                const sigKey = literals.join('|');
-                if (!UNIVERSAL_SIGNATURE_BLACKLIST.has(sigKey) && !libraryTypes.has(sigKey)) {
-                  libraryTypes.set(sigKey, { typeName, pkgName: dep, signature: sigKey });
-                }
-              }
-            }
-          } catch {
-            // catch-ok: unreadable file
-          }
-        }
-      }
-    }
-
-    await walk(depDir);
+    await scanDepEntries(depDir, dep, libraryTypes);
   }
 
   return libraryTypes;
@@ -403,6 +411,126 @@ export function extractProjectCanonicalDomains(
   return { bySignature, list, collisions };
 }
 
+const P_ANY_LITERAL_ARRAY = /\b(?:(?:export\s+)?const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
+
+interface DomainCandidate {
+  lineNum: number;
+  col: number;
+  name: string;
+  literals: string[];
+  signature: string;
+  canonicalExact?: CanonicalDomainInfo;
+}
+
+function parseDomainCandidate(
+  m: RegExpExecArray,
+  rawContent: string,
+  fileLines: string[],
+  targetFile: string,
+  bySignature: Map<string, CanonicalDomainInfo>
+): DomainCandidate | null {
+  const { lineNum, col, line } = getMatchCoordinates(rawContent, m.index, fileLines);
+  if (isCommentLine(line.trim()) || hasEscapeHatch(line)) return null;
+
+  const name = m[1]!;
+  const literals = extractSortedLiterals(m[0]);
+  if (!literals || literals.length < 2) return null;
+
+  const signature = literals.join('|');
+  const canonicalExact = bySignature.get(signature);
+  if (canonicalExact && canonicalExact.file === targetFile && canonicalExact.name === name) {
+    return null;
+  }
+
+  return { lineNum, col, name, literals, signature, canonicalExact };
+}
+
+function findBestParentDomain(literals: string[], domainsList: CanonicalDomainInfo[], currentFile: string): CanonicalDomainInfo | null {
+  let bestParent: CanonicalDomainInfo | null = null;
+  for (const parent of domainsList) {
+    if (parent.file === currentFile || parent.literals.length <= literals.length) continue;
+    const isSubset = literals.every(l => parent.elements.has(l));
+    if (!isSubset) continue;
+
+    const ratio = literals.length / parent.literals.length;
+    const diff = parent.literals.length - literals.length;
+    const isSignificant = parent.literals.length <= MAX_COMPACT_DOMAIN_LITERALS_THRESHOLD
+      ? (literals.length >= 3 && (ratio >= 0.5 || diff <= 3))
+      : (ratio >= 0.5);
+
+    if (isSignificant && (!bestParent || parent.literals.length < bestParent.literals.length)) {
+      bestParent = parent;
+    }
+  }
+  return bestParent;
+}
+
+function scanFileArrayDuplicates(
+  file: string,
+  content: string,
+  lines: string[],
+  domains: { bySignature: Map<string, CanonicalDomainInfo>; list: CanonicalDomainInfo[] },
+  findings: CanonicalFinding[]
+): void {
+  P_ANY_LITERAL_ARRAY.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = P_ANY_LITERAL_ARRAY.exec(content)) !== null) {
+    const cand = parseDomainCandidate(match, content, lines, file, domains.bySignature);
+    if (!cand) continue;
+
+    const { lineNum, col, name, literals, canonicalExact } = cand;
+    if (canonicalExact) {
+      findings.push({
+        file,
+        line: lineNum,
+        col,
+        ruleId: 'canonical-domain-subset-mismatch',
+        message: `Duplicate domain collection: '${name}' duplicates canonical domain '${canonicalExact.name}' from '${canonicalExact.file}:${canonicalExact.line}' — import and use '${canonicalExact.name}' directly instead of re-declaring domain literals`,
+        snippet: match[0].slice(0, 100).replace(/\n/g, '↵')
+      });
+      continue;
+    }
+
+    const bestParent = findBestParentDomain(literals, domains.list, file);
+    if (bestParent) {
+      findings.push({
+        file,
+        line: lineNum,
+        col,
+        ruleId: 'canonical-domain-subset-mismatch',
+        message: `Sub-collection of canonical domain: '${name}' (${literals.length} elements) is a sub-collection of canonical domain '${bestParent.name}' (${bestParent.literals.length} elements) from '${bestParent.file}:${bestParent.line}' — derive from '${bestParent.name}'`,
+        snippet: match[0].slice(0, 100).replace(/\n/g, '↵')
+      });
+    }
+  }
+}
+
+function scanFileTypeUnionDuplicates(
+  file: string,
+  content: string,
+  lines: string[],
+  domains: { bySignature: Map<string, CanonicalDomainInfo>; list: CanonicalDomainInfo[] },
+  findings: CanonicalFinding[]
+): void {
+  P_ANY_TYPE_UNION.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = P_ANY_TYPE_UNION.exec(content)) !== null) {
+    const cand = parseDomainCandidate(match, content, lines, file, domains.bySignature);
+    if (!cand || !cand.canonicalExact) continue;
+
+    const { lineNum, col, name, canonicalExact } = cand;
+    findings.push({
+      file,
+      line: lineNum,
+      col,
+      ruleId: 'canonical-domain-subset-mismatch',
+      message: `Duplicate domain type union: type '${name}' duplicates canonical domain '${canonicalExact.name}' from '${canonicalExact.file}:${canonicalExact.line}' — import and alias '${canonicalExact.name}' directly`,
+      snippet: match[0].slice(0, 100).replace(/\n/g, '↵')
+    });
+  }
+}
+
 export function detectProjectDomainDuplicatesAndSubsets(
   files: Array<{ file: string; content: string }>,
   domains: { bySignature: Map<string, CanonicalDomainInfo>; list: CanonicalDomainInfo[] }
@@ -410,96 +538,11 @@ export function detectProjectDomainDuplicatesAndSubsets(
   const findings: CanonicalFinding[] = [];
   if (domains.list.length === 0) return findings;
 
-  const P_ANY_LITERAL_ARRAY = /\b(?:(?:export\s+)?const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-  const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
-
-  function parseDomainCandidate(
-    m: RegExpExecArray,
-    rawContent: string,
-    fileLines: string[],
-    targetFile: string
-  ): { lineNum: number; col: number; name: string; literals: string[]; signature: string; canonicalExact?: CanonicalDomainInfo } | null {
-    const { lineNum, col, line } = getMatchCoordinates(rawContent, m.index, fileLines);
-    if (isCommentLine(line.trim()) || hasEscapeHatch(line)) return null;
-
-    const name = m[1]!;
-    const literals = extractSortedLiterals(m[0]);
-    if (!literals || literals.length < 2) return null;
-
-    const signature = literals.join('|');
-    const canonicalExact = domains.bySignature.get(signature);
-    if (canonicalExact && canonicalExact.file === targetFile && canonicalExact.name === name) {
-      return null;
-    }
-
-    return { lineNum, col, name, literals, signature, canonicalExact };
-  }
-
   for (const { file, content } of files) {
     if (file.endsWith('.d.ts')) continue;
     const lines = content.split('\n');
-
-    P_ANY_LITERAL_ARRAY.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = P_ANY_LITERAL_ARRAY.exec(content)) !== null) {
-      const cand = parseDomainCandidate(match, content, lines, file);
-      if (!cand) continue;
-
-      const { lineNum, col, name, literals, canonicalExact } = cand;
-      if (canonicalExact) {
-        findings.push({
-          file,
-          line: lineNum,
-          col,
-          ruleId: 'canonical-domain-subset-mismatch',
-          message: `Duplicate domain collection: '${name}' duplicates canonical domain '${canonicalExact.name}' from '${canonicalExact.file}:${canonicalExact.line}' — import and use '${canonicalExact.name}' directly instead of re-declaring domain literals`,
-          snippet: match[0].slice(0, 100).replace(/\n/g, '↵')
-        });
-        continue;
-      }
-
-      let bestParent: CanonicalDomainInfo | null = null;
-      for (const parent of domains.list) {
-        if (parent.file === file || parent.literals.length <= literals.length) continue;
-        const isSubset = literals.every(l => parent.elements.has(l));
-        if (!isSubset) continue;
-
-        const ratio = literals.length / parent.literals.length;
-        const diff = parent.literals.length - literals.length;
-        const isSignificant = parent.literals.length <= MAX_COMPACT_DOMAIN_LITERALS_THRESHOLD ? (literals.length >= 3 && (ratio >= 0.5 || diff <= 3)) : (ratio >= 0.5);
-
-        if (isSignificant && (!bestParent || parent.literals.length < bestParent.literals.length)) {
-          bestParent = parent;
-        }
-      }
-
-      if (bestParent) {
-        findings.push({
-          file,
-          line: lineNum,
-          col,
-          ruleId: 'canonical-domain-subset-mismatch',
-          message: `Sub-collection of canonical domain: '${name}' (${literals.length} elements) is a sub-collection of canonical domain '${bestParent.name}' (${bestParent.literals.length} elements) from '${bestParent.file}:${bestParent.line}' — derive from '${bestParent.name}'`,
-          snippet: match[0].slice(0, 100).replace(/\n/g, '↵')
-        });
-      }
-    }
-
-    P_ANY_TYPE_UNION.lastIndex = 0;
-    while ((match = P_ANY_TYPE_UNION.exec(content)) !== null) {
-      const cand = parseDomainCandidate(match, content, lines, file);
-      if (!cand || !cand.canonicalExact) continue;
-
-      const { lineNum, col, name, canonicalExact } = cand;
-      findings.push({
-        file,
-        line: lineNum,
-        col,
-        ruleId: 'canonical-domain-subset-mismatch',
-        message: `Duplicate domain type union: type '${name}' duplicates canonical domain '${canonicalExact.name}' from '${canonicalExact.file}:${canonicalExact.line}' — import and alias '${canonicalExact.name}' directly`,
-        snippet: match[0].slice(0, 100).replace(/\n/g, '↵')
-      });
-    }
+    scanFileArrayDuplicates(file, content, lines, domains, findings);
+    scanFileTypeUnionDuplicates(file, content, lines, domains, findings);
   }
 
   return findings;
@@ -567,7 +610,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
 
     const scannedFiles: Array<{ file: string; content: string }> = [];
     for (const fp of filePaths) {
-      const rel = path.relative(this.projectRoot, fp).replace(/\\/g, '/');
+      const rel = toPosixRelative(this.projectRoot, fp);
       if (isTestFileForCodeAudit(rel, this.projectRoot)) continue;
       this.recordScanned(rel);
       try {

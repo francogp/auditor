@@ -16,6 +16,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isTestPath } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -171,7 +172,7 @@ export function scanFileForO1Issues(
 ): O1Issue[] {
   const issues: O1Issue[] = [];
   const lines = content.split('\n');
-  const normalizedPath = filePath.replace(/\\/g, '/');
+  const normalizedPath = normalizePosixPath(filePath);
 
   for (let index = 0; index < lines.length; index++) {
     const lineText = lines[index]!;

@@ -4,6 +4,7 @@
  * Centralized audit rules and checkers for the unified audit engine.
  */
 import { getAuditConfig, isDataPath, isInCodeRoots, isExemptFile, isScriptPath, isTestPath } from "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 export { AUDIT_SEVERITIES, matchesRule } from "../../analyzers/auditRuleTypes.js";
 export { Z_INDEX_CONSISTENCY_DESCRIPTOR, CANONICAL_DEFAULT_Z_LAYERS, Z_LAYERS, Z_VALUE_MAP, Z_SORTED_ENTRIES, resolveZLayer, zIndexAudit, zIndexConstantDeclaration } from "../../analyzers/zIndexRules.js";
 export const FALLOW_SUITE_DESCRIPTORS = {
@@ -151,7 +152,7 @@ export function isAllowedDatabaseFile(filePath, config = getAuditConfig()) {
         'db.types.ts',
         ...(config.persistence?.allowedDatabaseFiles ?? [])
     ];
-    return allowedFiles.some(f => norm.endsWith(f.replace(/\\/g, '/')));
+    return allowedFiles.some(f => norm.endsWith(normalizePosixPath(f)));
 }
 export const noDomainIdFallbacks = {
     get regex() {

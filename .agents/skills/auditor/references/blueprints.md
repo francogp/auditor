@@ -20,7 +20,7 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 10. `paths`: Directory structure, CLI roots (`cliRoots?: string[]`), and test fragmentation whitelist (`testFragmentationWhitelist?: string[]`).
 11. `domain`: Finite domain types (`finiteDomainTypes`), infra ID whitelists (`infraIdWhitelist`), normalization-exempt tokens (`caseNormalizationExemptTokens`), allowed store setter prefixes (`allowedStoreSetterPrefixes`), and allowed numeric constant prefixes (`allowedNumericConstantPrefixes`).
 12. `agentPlugin`: AI agent plugin integration (defaults to `enabled: true`).
-13. `fallow`: Deep static intelligence, refactoring targets, security, and semantic code similarity (defaults to `enabled: true`, `enforceTargets: true`, `maxTargetPriority: 'critical'`, `security: { enabled: true }`, `similarCode: { enabled: true, threshold: 0.95, ignoreSameFile: true }`).
+13. `fallow`: Deep static intelligence, refactoring targets, security, and semantic code similarity (defaults to `enabled: true`, `enforceTargets: true`, `maxTargetPriority: 'high'`, `security: { enabled: true }`, `similarCode: { enabled: true, threshold: 0.95, ignoreSameFile: true }`). Supports `maxTargetPriority` (`'critical'`, `'high'`, `'medium'`, `'moderate'`, `'low'`, `'all'`, or numeric 0-100).
 14. `packageScripts`: Build script chaining and recommended scripts governance (defaults to `enabled: true`, `enforceBuildAudit: true`, `recommendedScripts: true`).
 15. `gitIgnore`: Dynamic gitignore entry verification (defaults to `enabled: true`, `extraRequiredEntries: []`).
 16. `packageHygiene`: Knip-powered dependency and binary script hygiene (defaults to `enabled: true`).

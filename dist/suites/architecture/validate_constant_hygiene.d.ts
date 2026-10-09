@@ -23,6 +23,8 @@ export declare class ValidateConstantHygieneAuditor extends FileScanAuditor<Cons
         projectRoot?: string;
         roots?: readonly string[];
     }, maybeProjectRoot?: string);
+    private scanRegexConstantRules;
+    private scanRedundantExportAliases;
     protected scanFile(relPath: string, content: string): void;
     runAudit(astContext?: SharedAstContext): Promise<void>;
 }

@@ -14,7 +14,12 @@ import { execSync } from 'node:child_process';
 import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored } from "../../core/auditorBase.js";
 import { matchesRule, auditRulesConfig as config } from "./audit_rules.js";
 import { loadAuditConfig, AUDITOR_DIR } from "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
+function printTerminal(msg) {
+    // console-ok: CLI standalone human terminal printer
+    console.log(msg);
+}
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
 async function getFilesToAudit(dir) {
     const files = []; // no-domain: Non-domain utility collection or data structure
@@ -485,7 +490,7 @@ export function filterAndGroupViolations(rawViolations, ctx) {
     const typeGroups = {};
     for (const v of all) {
         const rawRel = path.isAbsolute(v.file) ? path.relative(process.cwd(), v.file) : v.file;
-        const rel = rawRel.replace(/\\/g, '/');
+        const rel = normalizePosixPath(rawRel);
         if (!fileGroups[rel])
             fileGroups[rel] = [];
         fileGroups[rel].push(v);
@@ -495,44 +500,44 @@ export function filterAndGroupViolations(rawViolations, ctx) {
     return { all, fileGroups, typeGroups };
 }
 function renderHumanSummaryView(typeGroups, topFiles, topLimit) {
-    console.log(styleText('bold', '\n--- 📊 RESUMEN DE AUDITORÍA DE CÓDIGO ---'));
-    console.log('\nPor tipo de regla:');
+    printTerminal(styleText('bold', '\n--- 📊 RESUMEN DE AUDITORÍA DE CÓDIGO ---'));
+    printTerminal('\nPor tipo de regla:');
     Object.entries(typeGroups)
         .sort((a, b) => b[1] - a[1])
         .forEach(([cat, count]) => {
-        console.log(`  - ${cat}: ${count}`);
+        printTerminal(`  - ${cat}: ${count}`);
     });
-    console.log(`\nTop ${topLimit} archivos con más problemas:`);
+    printTerminal(`\nTop ${topLimit} archivos con más problemas:`);
     topFiles.forEach(f => {
-        console.log(`  - ${f.file}: ${f.total} violaciones (${f.errors} ❌, ${f.warnings} ⚠️)`);
+        printTerminal(`  - ${f.file}: ${f.total} violaciones (${f.errors} ❌, ${f.warnings} ⚠️)`);
     });
 }
 function renderHumanFileViolations(file, violations) {
     const fileErrors = violations.filter(v => v.severity === 'error').length;
     const fileWarns = violations.filter(v => v.severity === 'warning').length;
-    console.log(`\n📁 ${styleText('bold', file)} (${violations.length} avisos: ${fileErrors} ❌, ${fileWarns} ⚠️)`);
+    printTerminal(`\n📁 ${styleText('bold', file)} (${violations.length} avisos: ${fileErrors} ❌, ${fileWarns} ⚠️)`);
     for (const v of violations.slice(0, MAX_VIOLATIONS_PER_FILE_IN_TERMINAL)) {
         const icon = v.severity === 'error' ? '❌ ERROR' : '⚠️ WARN ';
         const color = v.severity === 'error' ? 'red' : 'yellow';
         const lineStr = `L${v.line}`.padEnd(5);
         const snippet = sanitizeContext(v.context);
         const snippetStr = snippet ? ` ("${snippet}")` : '';
-        console.log(`  ${lineStr} ${styleText(color, icon)} [${getViolationCategory(v)}] ${v.message}${snippetStr}`);
+        printTerminal(`  ${lineStr} ${styleText(color, icon)} [${getViolationCategory(v)}] ${v.message}${snippetStr}`);
     }
     if (violations.length > MAX_VIOLATIONS_PER_FILE_IN_TERMINAL) {
-        console.log(styleText('cyan', `  ... y ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} aviso(s) más en este archivo.`));
+        printTerminal(styleText('cyan', `  ... y ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} aviso(s) más en este archivo.`));
     }
 }
 function renderHumanDetailView(fileGroups) {
-    console.log(styleText('bold', '\n--- 🔎 DETALLE DE VIOLACIONES POR ARCHIVO ---'));
+    printTerminal(styleText('bold', '\n--- 🔎 DETALLE DE VIOLACIONES POR ARCHIVO ---'));
     const entries = Object.entries(fileGroups);
     const filesToShow = entries.slice(0, MAX_FILES_TO_SHOW_IN_TERMINAL);
     for (const [file, violations] of filesToShow) {
         renderHumanFileViolations(file, violations);
     }
     if (entries.length > MAX_FILES_TO_SHOW_IN_TERMINAL) {
-        console.log(styleText('cyan', `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`));
-        console.log(styleText('cyan', `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`));
+        printTerminal(styleText('cyan', `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`));
+        printTerminal(styleText('cyan', `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`));
     }
 }
 function renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount, warningsCount, topLimit, values, archJsonPath) {
@@ -542,10 +547,10 @@ function renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount
     else {
         renderHumanDetailView(fileGroups);
     }
-    console.log(styleText('bold', '\n======================================================'));
-    console.log(`📊 TOTAL: ${errorsCount === 0 ? styleText('green', '0 Errores') : styleText('red', `${errorsCount} Errores`)} | ${styleText('yellow', `${warningsCount} Advertencias`)} | ${Object.keys(fileGroups).length} Archivos`);
-    console.log('======================================================');
-    console.log(styleText('dim', `💾 Reporte detallado guardado en: ${path.relative(process.cwd(), archJsonPath)}\n`));
+    printTerminal(styleText('bold', '\n======================================================'));
+    printTerminal(`📊 TOTAL: ${errorsCount === 0 ? styleText('green', '0 Errores') : styleText('red', `${errorsCount} Errores`)} | ${styleText('yellow', `${warningsCount} Advertencias`)} | ${Object.keys(fileGroups).length} Archivos`);
+    printTerminal('======================================================');
+    printTerminal(styleText('dim', `💾 Reporte detallado guardado en: ${path.relative(process.cwd(), archJsonPath)}\n`));
 }
 async function exportProjectReportOutput(values, jsonReport, all, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, logProgress) {
     if (!values.output)
@@ -656,7 +661,7 @@ export async function main(cliArgs) {
             return;
         }
         if (ctx.isHumanMode) {
-            console.log(msg);
+            printTerminal(msg);
         }
         else {
             process.stderr.write(msg + '\n');
@@ -688,7 +693,7 @@ export async function main(cliArgs) {
             renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount, warningsCount, topLimit, ctx.values, archJsonPath);
         }
         else {
-            console.log(jsonReportStr);
+            printTerminal(jsonReportStr);
         }
     }
     await exportProjectReportOutput(ctx.values, jsonReport, all, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, logProgress);
@@ -736,7 +741,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
         const violations = await main();
         for (const v of violations) {
             const relFile = v.file
-                ? (path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file).replace(/\\/g, '/') : v.file.replace(/\\/g, '/'))
+                ? normalizePosixPath(path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file)
                 : '';
             this.addViolation({
                 ruleId: v.ruleId || getViolationCategory(v),

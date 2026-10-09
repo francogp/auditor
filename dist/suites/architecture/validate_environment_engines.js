@@ -61,12 +61,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
             ...options
         });
     }
-    async runAudit() {
-        const pkgPath = path.resolve(this.projectRoot, 'package.json');
-        this.recordScanned('package.json');
-        const auditorEngines = getAuditorEngines();
-        const minNodeReq = parseSemver(auditorEngines.node);
-        const minNpmReq = parseSemver(auditorEngines.npm);
+    validatePackageJson(pkgPath) {
         if (!fs.existsSync(pkgPath)) {
             this.addViolation({
                 ruleId: 'environment-engines-missing',
@@ -74,10 +69,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
                 message: `package.json no encontrado en ${this.projectRoot}.`,
                 severity: 'error'
             });
-            this.markRuleEvaluated('environment-engines-missing');
-            this.markRuleEvaluated('environment-engines-below-floor');
-            this.markRuleEvaluated('environment-runtime-mismatch');
-            return;
+            return null;
         }
         const pkg = getPackageJson(this.projectRoot, true);
         if (!pkg) {
@@ -87,40 +79,30 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
                 message: 'package.json no contiene un JSON válido.',
                 severity: 'error'
             });
-            this.markRuleEvaluated('environment-engines-missing');
-            this.markRuleEvaluated('environment-engines-below-floor');
-            this.markRuleEvaluated('environment-runtime-mismatch');
-            return;
+            return null;
         }
-        const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
-        const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
-        let activeEngines = { ...(pkg.engines ?? {}) };
-        let modifiedPkg = false;
-        // 1. Missing engines check
+        return pkg;
+    }
+    auditMissingEngines(hasNodeEngine, hasNpmEngine, activeEngines, auditorEngines) {
         if (!hasNodeEngine || !hasNpmEngine) {
             if (this.isFixActive()) {
-                activeEngines = {
-                    ...activeEngines,
-                    node: hasNodeEngine ? activeEngines.node : auditorEngines.node,
-                    npm: hasNpmEngine ? activeEngines.npm : auditorEngines.npm
-                };
-                modifiedPkg = true;
+                activeEngines.node = hasNodeEngine ? activeEngines.node : auditorEngines.node;
+                activeEngines.npm = hasNpmEngine ? activeEngines.npm : auditorEngines.npm;
+                return true;
             }
-            else {
-                this.addViolation({
-                    ruleId: 'environment-engines-missing',
-                    file: 'package.json',
-                    message: 'package.json debe declarar explícitamente "engines.node" y "engines.npm".',
-                    severity: 'error'
-                });
-            }
+            this.addViolation({
+                ruleId: 'environment-engines-missing',
+                file: 'package.json',
+                message: 'package.json debe declarar explícitamente "engines.node" y "engines.npm".',
+                severity: 'error'
+            });
         }
-        this.markRuleEvaluated('environment-engines-missing');
-        // 2. Below floor check
-        const currentNodeEngine = pkg.engines?.node ?? '';
-        const currentNpmEngine = pkg.engines?.npm ?? '';
+        return false;
+    }
+    auditEnginesBelowFloor(currentNodeEngine, currentNpmEngine, activeEngines, auditorEngines, minNodeReq, minNpmReq) {
         let nodeEngineReq = { major: 0, minor: 0, patch: 0 };
         let npmEngineReq = { major: 0, minor: 0, patch: 0 };
+        let modified = false;
         if (currentNodeEngine && currentNpmEngine) {
             nodeEngineReq = parseSemver(currentNodeEngine);
             npmEngineReq = parseSemver(currentNpmEngine);
@@ -128,12 +110,9 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
             const isNpmAdequate = compareVersions(npmEngineReq, minNpmReq);
             if (!isNodeAdequate || !isNpmAdequate) {
                 if (this.isFixActive()) {
-                    activeEngines = {
-                        ...activeEngines,
-                        node: isNodeAdequate ? currentNodeEngine : auditorEngines.node,
-                        npm: isNpmAdequate ? currentNpmEngine : auditorEngines.npm
-                    };
-                    modifiedPkg = true;
+                    activeEngines.node = isNodeAdequate ? currentNodeEngine : auditorEngines.node;
+                    activeEngines.npm = isNpmAdequate ? currentNpmEngine : auditorEngines.npm;
+                    modified = true;
                     nodeEngineReq = parseSemver(activeEngines.node);
                     npmEngineReq = parseSemver(activeEngines.npm);
                 }
@@ -148,12 +127,9 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
                 }
             }
         }
-        this.markRuleEvaluated('environment-engines-below-floor');
-        // Save package.json modifications if any
-        if (modifiedPkg) {
-            writePackageJson(this.projectRoot, { ...pkg, engines: activeEngines });
-        }
-        // 3. Runtime mismatch check
+        return { modified, nodeReq: nodeEngineReq, npmReq: npmEngineReq };
+    }
+    auditRuntimeMismatch(pkg, auditorEngines, nodeEngineReq, npmEngineReq, minNodeReq, minNpmReq) {
         const runtimeNode = parseSemver(process.versions.node);
         const rawNpmVer = detectNpmVersion();
         const runtimeNpm = parseSemver(rawNpmVer);
@@ -179,6 +155,34 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
                 severity: 'error'
             });
         }
+    }
+    async runAudit() {
+        const pkgPath = path.resolve(this.projectRoot, 'package.json');
+        this.recordScanned('package.json');
+        const auditorEngines = getAuditorEngines();
+        const minNodeReq = parseSemver(auditorEngines.node);
+        const minNpmReq = parseSemver(auditorEngines.npm);
+        const pkg = this.validatePackageJson(pkgPath);
+        if (!pkg) {
+            this.markRuleEvaluated('environment-engines-missing');
+            this.markRuleEvaluated('environment-engines-below-floor');
+            this.markRuleEvaluated('environment-runtime-mismatch');
+            return;
+        }
+        const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
+        const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
+        const activeEngines = { ...(pkg.engines ?? {}) };
+        let modifiedPkg = this.auditMissingEngines(hasNodeEngine, hasNpmEngine, activeEngines, auditorEngines);
+        this.markRuleEvaluated('environment-engines-missing');
+        const belowFloorResult = this.auditEnginesBelowFloor(pkg.engines?.node ?? '', pkg.engines?.npm ?? '', activeEngines, auditorEngines, minNodeReq, minNpmReq);
+        if (belowFloorResult.modified) {
+            modifiedPkg = true;
+        }
+        this.markRuleEvaluated('environment-engines-below-floor');
+        if (modifiedPkg) {
+            writePackageJson(this.projectRoot, { ...pkg, engines: activeEngines });
+        }
+        this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
         this.markRuleEvaluated('environment-runtime-mismatch');
     }
 }

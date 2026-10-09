@@ -20,6 +20,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
 export const CONSOLE_CLEANLINESS_RULES = [
     'no-debugger-statement',
@@ -60,7 +61,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
         });
     }
     scanFile(relPath, content) {
-        const normalizedPath = relPath.replace(/\\/g, '/');
+        const normalizedPath = normalizePosixPath(relPath);
         // 1. Audit debugger statements (all files)
         this.auditDebugger(normalizedPath, content);
         // 2. Audit raw console.log (exempt files, CLI tools, and terminal/auditor engine modules excluded)

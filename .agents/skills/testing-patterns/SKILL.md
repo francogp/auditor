@@ -2,6 +2,11 @@
 name: testing-patterns
 description: Master testing patterns and principles. YOU MUST apply these unit, integration, and mocking strategies to ensure rock-solid code quality. No excuses for untested behavior.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Testing Patterns

@@ -18,8 +18,10 @@ import { enableCompileCache } from 'node:module';
 import { FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { isTestFileForCodeAudit } from "../../core/auditPathPredicates.js";
+import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
+import { scanBalancedBraces } from "../../core/scannerUtils.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
 export const PERSISTENCE_CLIENT_RULES = [
     'persistence-client-uncoordinated-save',
@@ -131,7 +133,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
         }
     }
     isAuthorizedSaveFile(file) {
-        const normalized = file.split('\\').join('/');
+        const normalized = normalizePosixPath(file);
         return Array.from(this.authorizedSaveFiles).some(auth => normalized.endsWith(auth) || normalized.includes(auth));
     }
     hasStorageEscapeHatch(line) {
@@ -143,52 +145,8 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
         let match;
         while ((match = tryRegex.exec(preceding)) !== null) {
             const openBraceIdx = match.index + match[0].indexOf('{');
-            let braceDepth = 1;
-            let i = openBraceIdx + 1;
-            const limit = position;
-            while (i < limit && braceDepth > 0) {
-                const ch = content[i];
-                if (ch === "'" || ch === '"' || ch === '`') {
-                    const quote = ch;
-                    i++;
-                    while (i < limit) {
-                        if (content[i] === '\\') {
-                            i += 2;
-                        }
-                        else if (content[i] === quote) {
-                            i++;
-                            break;
-                        }
-                        else {
-                            i++;
-                        }
-                    }
-                    continue;
-                }
-                if (ch === '/' && content[i + 1] === '/') {
-                    i += 2;
-                    while (i < limit && content[i] !== '\n') {
-                        i++;
-                    }
-                    continue;
-                }
-                if (ch === '/' && content[i + 1] === '*') {
-                    i += 2;
-                    while (i < limit && !(content[i] === '*' && content[i + 1] === '/')) {
-                        i++;
-                    }
-                    i = Math.min(limit, i + 2);
-                    continue;
-                }
-                if (ch === '{') {
-                    braceDepth++;
-                }
-                else if (ch === '}') {
-                    braceDepth--;
-                }
-                i++;
-            }
-            if (braceDepth > 0) {
+            const result = scanBalancedBraces(content, openBraceIdx + 1, position, 1);
+            if (result.depth > 0) {
                 return true;
             }
         }

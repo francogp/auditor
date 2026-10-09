@@ -34,7 +34,7 @@ Host extensions allow individual projects to enforce bespoke architectural invar
    - Point 4: Warning path testing where warnings exist (`warnings > 0`).
    - Point 5: 100% of declared rule IDs tested.
 3. **Description Length Ceiling**: The composite description (`${packageName}: ${ruleDescription}`) MUST NOT exceed 50 characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) and contain zero newlines.
-4. **Use Official Helpers Exclusively**: Re-inventing path sanitizers, regex splitters, or ad-hoc AST parsers is strictly prohibited. Host extensions must import official helpers from `@francogp/auditor`.
+4. **Zero Homebrew Helpers & Extension Hygiene (`validate_auditor_hygiene`)**: Re-inventing path sanitizers (`.replace(/\\/g, '/')`), handcrafted Vue SFC regexes (`/<template[\s\S]*<\/template>/`), isolated `ts.createSourceFile()` calls, ad-hoc comment strippers, or reading `package.json` with `fs.readFileSync` is strictly forbidden and actively blocked by `validate_auditor_hygiene`. Host extensions must import official helpers from `@francogp/auditor`.
 
 ---
 
@@ -98,6 +98,7 @@ import {
   normalizePosixPath,
   toPosixRelative,
   isInsideRoot,
+  isPathInside,
   matchesAnyRoot,
   isTestPath,
   isTestFileForCodeAudit,
@@ -109,7 +110,7 @@ import {
 |:---|:---|:---|
 | `normalizePosixPath` | `(filePath: string) => string` | Normalizes backslashes to forward slashes and resolves relative segments deterministically (Node.js 26+). |
 | `toPosixRelative` | `(target: string, from?: string) => string` | Produces relative paths with forward slashes without leading `./`. |
-| `isInsideRoot` | `(target: string, root: string) => boolean` | Hardened CWE-22 path containment check preventing path traversal. |
+| `isInsideRoot` / `isPathInside` | `(target: string, root: string) => boolean` | Hardened CWE-22 path containment check preventing path traversal. |
 | `matchesAnyRoot` | `(path: string, roots: readonly string[]) => boolean` | Checks if a path starts with or is contained inside any declared root directory. |
 | `isTestPath` | `(filePath: string) => boolean` | Detects whether a path belongs to test, spec, mock, or integration folders. |
 | `isTestFileForCodeAudit` | `(filePath: string, projectRoot?: string) => boolean` | Centralized test file checker respecting both filename conventions and configured test roots. |
@@ -117,7 +118,31 @@ import {
 
 ---
 
-### 2.3 AST Context Helpers (`@francogp/auditor`)
+### 2.3 Vue SFC Parsing & Scanner Utilities (`@francogp/auditor`)
+
+```typescript
+import {
+  parseVueSfc,
+  stripComments,
+  stripCommentsAndStrings,
+  scanBalancedDelimiter,
+  isPositionInsideFunctionParams,
+  getPackageJson
+} from '@francogp/auditor';
+```
+
+| Helper | Signature | Description |
+|:---|:---|:---|
+| `parseVueSfc` | `(content: string) => VueSfcBlocks` | Deterministically parses Vue SFC into structured `<template>`, `<script>`, and `<style>` blocks with precise line and index coordinates. |
+| `stripComments` | `(code: string) => string` | Safely removes line (`//`) and block (`/* ... */`) comments while preserving string literals and line count. |
+| `stripCommentsAndStrings` | `(code: string) => string` | Strips comments and string literals, replacing non-whitespace with spaces to preserve line and character offsets. |
+| `scanBalancedDelimiter` | `(text: string, open: string, close: string, startIndex: number) => number` | Scans forward from an opening delimiter to locate its matching closing delimiter, handling nested pairs and string escapes. |
+| `isPositionInsideFunctionParams` | `(sourceText: string, targetPos: number) => boolean` | Determines if a source position lies inside function parameters vs the function body. |
+| `getPackageJson` | `(projectRoot?: string) => Record<string, any>` | Safely reads and caches the project's root `package.json` without manual `fs.readFileSync` or `JSON.parse`. |
+
+---
+
+### 2.4 AST Context Helpers (`@francogp/auditor`)
 
 #### `SharedAstContext`
 
@@ -134,7 +159,7 @@ When authoring a `FileScanAuditor`, set `requiresAst: true` in options: the fram
 
 ---
 
-### 2.4 Extension Registration Helper (`@francogp/auditor/plugin`)
+### 2.5 Extension Registration Helper (`@francogp/auditor/plugin`)
 
 #### `defineAuditorExtension(definition)`
 

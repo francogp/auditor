@@ -7,6 +7,7 @@ import vueA11y from 'eslint-plugin-vuejs-accessibility';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 const INDEX_HTML_FILE = 'index.html';
 const VUE_EXTENSIONS = new Set(['.vue']);
@@ -166,7 +167,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
             }
         }
         for (const res of results) {
-            const relFile = path.relative(this.projectRoot, res.filePath).replace(/\\/g, '/');
+            const relFile = toPosixRelative(this.projectRoot, res.filePath);
             this.recordScanned(relFile);
             for (const ruleId of activeRules)
                 this.markRuleEvaluated(ruleId);

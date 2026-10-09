@@ -2,6 +2,11 @@
 name: architecture
 description: Architectural governance framework. Coordinates /domain-type-first, /clean-code, /dox-navigator, and /ponytail as mandatory pillars before designing, restructuring, or implementing systems.
 allowed-tools: Read, Glob, Grep
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Architecture Governance Framework

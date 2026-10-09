@@ -159,6 +159,39 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
     expect(() => assertAuditConfigComplete(config)).toThrowError(/agentPlugin/i);
   });
 
+  it('validates fallow.maxTargetPriority supporting all official levels and numeric thresholds', () => {
+    // Valid priorities: string and number
+    for (const prio of ['critical', 'high', 'medium', 'moderate', 'low', 'all', 0, 15, 25.5, 100] as const) {
+      const validConfig = defineAuditConfig({
+        name: 'Valid Fallow Priority Project',
+        fallow: { maxTargetPriority: prio as any }
+      });
+      expect(() => assertAuditConfigComplete(validConfig)).not.toThrow();
+    }
+
+    // Invalid string priority
+    const invalidStrConfig = defineAuditConfig({
+      name: 'Invalid Fallow Priority Project',
+      fallow: { maxTargetPriority: 'ultra' as any }
+    });
+    expect(() => assertAuditConfigComplete(invalidStrConfig)).toThrowError(/fallow.*Prioridad de objetivo no válida/i);
+
+    // Invalid negative number
+    const invalidNegConfig = defineAuditConfig({
+      name: 'Invalid Fallow Priority Project',
+      fallow: { maxTargetPriority: -5 as any }
+    });
+    expect(() => assertAuditConfigComplete(invalidNegConfig)).toThrowError(/fallow.*Prioridad de objetivo no válida/i);
+
+    // Invalid number > 100
+    const invalidOverConfig = defineAuditConfig({
+      name: 'Invalid Fallow Priority Project',
+      fallow: { maxTargetPriority: 150 as any }
+    });
+    expect(() => assertAuditConfigComplete(invalidOverConfig)).toThrowError(/fallow.*Prioridad de objetivo no válida/i);
+  });
+
+
   it('aggregates multiple invalid subsystem configurations into a single diagnostic message', () => {
     const config = defineAuditConfig({
       name: 'Multiple Invalid Project',

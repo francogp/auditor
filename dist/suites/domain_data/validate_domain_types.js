@@ -18,8 +18,9 @@ import path from 'node:path';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { isTestPath } from "../../core/auditPathPredicates.js";
+import { isTestPath } from "../../core/auditTestPredicates.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
+import { isPositionInsideFunctionParams } from "../../core/scannerUtils.js";
 enableCompileCache();
 // ─── Config ──────────────────────────────────────────────────────────────────
 const ROOT = process.cwd();
@@ -51,33 +52,8 @@ function isExemptDomainCastTarget(castTarget) {
     const lowerTarget = castTarget.toLowerCase().replace(/_/g, '');
     return infraList.some(infra => lowerTarget.includes(infra));
 }
-const MAX_FUNCTION_PARAM_SCAN_DISTANCE = 600;
 function isFunctionParameterContext(content, matchIndex) {
-    let i = matchIndex - 1;
-    let parenDepth = 0;
-    let braceDepth = 0;
-    const limit = Math.max(0, matchIndex - MAX_FUNCTION_PARAM_SCAN_DISTANCE);
-    while (i >= limit) {
-        const ch = content[i];
-        if (ch === ')')
-            parenDepth++;
-        else if (ch === '(') {
-            if (parenDepth > 0)
-                parenDepth--;
-            else
-                return braceDepth === 0;
-        }
-        else if (ch === '}')
-            braceDepth++;
-        else if (ch === '{') {
-            if (braceDepth > 0)
-                braceDepth--;
-            else
-                return false;
-        }
-        i--;
-    }
-    return false;
+    return isPositionInsideFunctionParams(content, matchIndex);
 }
 export const DOMAIN_TYPES_RULES = [
     'domain-naked-string-primitive',

@@ -13,6 +13,7 @@ Architecture & Tooling Engineers.
 - **Agnostic Storage Coordination & Hybrid Persistence Support**: Enforces coordinated persistence flows based on `config.persistence.engine` (including `'hybrid'` persistence combining SQLite and Supabase) without assuming specific host entity models or class names (`SafeStorage`), resolving migrations directories dynamically from `config.paths.migrationsDir` and engine type.
 - **Naming Conventions**: Database payloads and column mappings must follow `snake_case`.
 - **Valibot Schema & Persistence Parity Governance (`validate_valibot_parity.ts`)**: Enforces 100% bidirectional parity between TypeScript state interfaces, Valibot validation schemas, persistence serializers, and initial state factories via `config.valibot.targets`. Detects missing fields, unknown() type pollution, and redundant optional(nullable(...)) patterns without host hardcoding.
+- **Database Migration System Standards**: Persistent suites and migration verifications adhere to canonical [database-migrations](../../../.agents/skills/database-migrations/SKILL.md) governance, prohibiting SQL error suppression and enforcing fast in-memory fixture validation and dual-engine compatibility.
 
 ## Key Files
 

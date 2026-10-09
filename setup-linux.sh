@@ -254,6 +254,15 @@ else
     echo "  [OK] .gitignore creado con scratch/"
 fi
 
+# Configuración de estándares locales de Git en el proyecto
+if [ -d "$SCRIPT_DIR/.git" ]; then
+    echo -e "\n  [+] Asegurando estándares locales de Git (core.filemode, core.autocrlf, core.eol)..."
+    git -C "$SCRIPT_DIR" config core.filemode false
+    git -C "$SCRIPT_DIR" config core.autocrlf input
+    git -C "$SCRIPT_DIR" config core.eol lf
+    echo "  [OK] Estándares de Git configurados localmente en el proyecto"
+fi
+
 # 9. Ejecutar Plugins Específicos del Proyecto (scripts/setup/plugins/*.sh)
 PLUGINS_DIR="$SCRIPT_DIR/scripts/setup/plugins"
 if [ -d "$PLUGINS_DIR" ]; then

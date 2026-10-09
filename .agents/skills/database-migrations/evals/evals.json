@@ -1,0 +1,49 @@
+{
+  "skill_name": "database-migrations",
+  "evals": [
+    {
+      "id": "incremental-migration-generator",
+      "prompt": "We have an updated list of valid payment methods in TypeScript (PAYMENT_METHODS_WHITELIST). How do we incrementally generate a database migration for both PostgreSQL and SQLite that updates constraints, syncs system_config.db_version, and avoids manual SQL drift?",
+      "expected_output_elements": [
+        "Dynamic migration generator script",
+        "TypeScript Single Source of Truth import",
+        "Timestamped monotonic naming (YYYYMMDDHHmmss)",
+        "PostgreSQL and SQLite companion output",
+        "system_config.db_version synchronization"
+      ]
+    },
+    {
+      "id": "in-memory-fixture-testing",
+      "prompt": "How do we write an automated Vitest test that rehydrates a historical production JSON backup fixture into an in-memory SQLite database and applies all subsequent migrations step-by-step to prove there are zero runtime errors or corrupted data?",
+      "expected_output_elements": [
+        "node:sqlite DatabaseSync(':memory:')",
+        "Reading _migrations to determine baseline version",
+        "Step-by-step loop over pending migrations",
+        "Isolated transactions (BEGIN/COMMIT/ROLLBACK)",
+        "Post-migration assertions (no [object Object], schema parity)"
+      ]
+    },
+    {
+      "id": "fail-loud-exception-debugging",
+      "prompt": "A developer wrote a PostgreSQL migration with `EXCEPTION WHEN OTHERS THEN NULL;` to ignore errors if a column already exists. Why is this considered an architectural defect, and how should it be rewritten according to the Fail-Loud Mandate?",
+      "expected_output_elements": [
+        "Zero Error Suppression Mandate",
+        "Prohibition of empty EXCEPTION handlers",
+        "Use of declarative IF NOT EXISTS",
+        "Loud failure with stderr and exit code 1",
+        "psql -v ON_ERROR_STOP=1 requirement"
+      ]
+    },
+    {
+      "id": "dual-engine-and-common-version",
+      "prompt": "Our web application operates dual-persistence: SQLite in WebAssembly offline and Supabase PostgreSQL online. How should we architect migration files, SQL translation, and the common version tracking table to prevent desync?",
+      "expected_output_elements": [
+        "Two-tier versioning architecture",
+        "system_config table with db_version and app_version",
+        "_migrations tracking table",
+        "Companion .sqlite.sql files for PL/pgSQL or RLS",
+        "sqlTranslator with $$ dollar-quote awareness and SQL_SKIP_PATTERNS"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,6 @@
  *   npm run validate:reactive-purity
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
@@ -94,8 +93,7 @@ id: 'validate_reactive_purity',
     node: ts.Node,
     sf: ts.SourceFile,
     relPath: string,
-    content: string,
-    offsetLine: number
+    content: string
   ): void {
     if (!ts.isCallExpression(node)) return;
     if (node.expression.getText(sf) !== 'computed' || node.arguments.length === 0) return;
@@ -105,20 +103,18 @@ id: 'validate_reactive_purity',
 
     const getterBody = extractComputedGetterBody(firstArg, sf);
     if (getterBody) {
-      this.inspectGetterBody(getterBody, sf, relPath, content, offsetLine);
+      this.inspectGetterBody(getterBody, sf, relPath, content);
     }
   }
 
-  protected override scanFile(relPath: string, content: string): void {
+  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     if (!content.includes('computed')) return;
 
-    const { scriptContent, offsetLine } = this.extractScript(content, relPath);
-    if (!scriptContent) return;
-
-    const sf = ts.createSourceFile(path.basename(relPath), scriptContent, ts.ScriptTarget.Latest, true);
+    const sf = sourceFile ?? this.context.getAst(relPath, content);
+    if (!sf.text.trim()) return;
 
     const visit = (node: ts.Node) => {
-      this.checkComputedCall(node, sf, relPath, content, offsetLine);
+      this.checkComputedCall(node, sf, relPath, content);
       ts.forEachChild(node, visit);
     };
 
@@ -130,12 +126,11 @@ id: 'validate_reactive_purity',
     sourceFile: ts.SourceFile,
     relPath: string,
     fullContent: string,
-    lineOffset: number,
     ruleId: ReactivePurityRuleId,
     message: string
   ): void {
     const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-    const realLine = line + lineOffset + 1;
+    const realLine = line + 1;
     if (!this.hasPuritySuppression(fullContent, realLine - 1)) {
       this.addViolation({
         ruleId,
@@ -152,8 +147,7 @@ id: 'validate_reactive_purity',
     bodyNode: ts.Node,
     sourceFile: ts.SourceFile,
     relPath: string,
-    fullContent: string,
-    lineOffset: number
+    fullContent: string
   ): void {
     const walk = (child: ts.Node) => {
       // Check for state mutations (=, +=, -=, etc.)
@@ -174,7 +168,6 @@ id: 'validate_reactive_purity',
               sourceFile,
               relPath,
               fullContent,
-              lineOffset,
               'computed-state-mutation',
               `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`
             );
@@ -192,7 +185,6 @@ id: 'validate_reactive_purity',
             sourceFile,
             relPath,
             fullContent,
-            lineOffset,
             'computed-side-effect',
             `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`
           );
@@ -211,19 +203,6 @@ id: 'validate_reactive_purity',
     const prevLine = lineIndex > 0 ? (lines[lineIndex - 1] || '') : '';
     const suppressionRegex = /\/\/\s*purity-ok:\s*\S+/i;
     return suppressionRegex.test(targetLine) || suppressionRegex.test(prevLine);
-  }
-
-  private extractScript(content: string, filePath: string): { scriptContent: string; offsetLine: number } {
-    if (!filePath.endsWith('.vue')) {
-      return { scriptContent: content, offsetLine: 0 };
-    }
-    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/i;
-    const match = scriptRegex.exec(content);
-    if (!match) {
-      return { scriptContent: '', offsetLine: 0 };
-    }
-    const linesBefore = content.substring(0, match.index).split('\n').length - 1;
-    return { scriptContent: match[1] || '', offsetLine: linesBefore };
   }
 }
 

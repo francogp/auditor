@@ -23,6 +23,7 @@ import type { GitIgnoreRequirement, AuditorConfigFileRequirement, AuditTaskDefin
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
+import { getPackageJson } from '../../core/packageJson.ts';
 import ts from 'typescript';
 
 enableCompileCache();
@@ -103,7 +104,7 @@ function appendMissingSectionsToTsFile(
   sectionsToInsert: Record<string, Record<string, unknown>> // open-record: Dictionary of configuration sections
 ): void {
   const code = fs.readFileSync(configFilePath, 'utf8');
-  const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS); // homebrew-ok: in-place AST configuration rewrite
   const configObj = findConfigObjectLiteral(source);
 
   if (!configObj) {
@@ -312,9 +313,8 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
     }
     let pkgName = ctx.packageName || 'Project';
     try {
-      const pkgRaw = fs.readFileSync(path.resolve(ctx.projectRoot, 'package.json'), 'utf8');
-      const pkg = JSON.parse(pkgRaw) as { name?: string };
-      if (pkg.name) pkgName = pkg.name;
+      const pkg = getPackageJson(ctx.projectRoot);
+      if (pkg?.name) pkgName = pkg.name;
     } catch {
       // catch-ok: fallback to 'Project'
     }

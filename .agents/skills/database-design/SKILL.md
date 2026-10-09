@@ -2,6 +2,11 @@
 name: database-design
 description: Database design principles and decision-making. Schema design, indexing strategy, SQL migrations, Supabase architecture.
 allowed-tools: Read, Write, Edit, Glob, Grep
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # Database Design

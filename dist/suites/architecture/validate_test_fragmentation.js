@@ -24,6 +24,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor, } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { renderBoxTable } from "../../core/unifiedTheme.js";
 enableCompileCache();
 export const TEST_FRAGMENTATION_RULES = [
     'no-fragmented-tests',
@@ -172,20 +173,22 @@ export class TestFragmentationAuditor extends FileScanAuditor {
     }
     printDistributionSummary() {
         const d = this.distribution;
-        console.log('');
-        console.log('┌─────────────────────────────────────────────────────────────┐');
-        console.log('│        DISTRIBUCIÓN DE TAMAÑOS DE SUITES DE TEST            │');
-        console.log('├─────────────────────────────────────────────────────────────┤');
-        console.log(`│ Micro-archivos (<60 líns):       ${String(d.micro).padStart(6)}                     │`);
-        console.log(`│ Suites Pequeñas (60-299 líns):   ${String(d.small).padStart(6)}                     │`);
-        console.log(`│ Suites Objetivo (300-800 líns):  ${String(d.target).padStart(6)} (Ideal)             │`);
-        console.log(`│ Suites Medias (801-1200 líns):   ${String(d.other).padStart(6)}                     │`);
-        console.log(`│ Sobredimensionadas (>1200 líns): ${String(d.oversized).padStart(6)}                     │`);
-        console.log('├─────────────────────────────────────────────────────────────┤');
-        console.log(`│ Total Archivos de Test:          ${String(d.totalTestFiles).padStart(6)}                     │`);
-        console.log(`│ Total Líneas de Código Test:     ${String(d.totalTestLines).padStart(6)}                     │`);
-        console.log('└─────────────────────────────────────────────────────────────┘');
-        console.log('');
+        const tableStr = renderBoxTable([
+            { header: 'DISTRIBUCIÓN DE SUITES', width: 35, key: 'category' },
+            { header: 'CANTIDAD', width: 15, align: 'right', key: 'count' }
+        ], [
+            { category: 'Micro-archivos (<60 líns)', count: String(d.micro) },
+            { category: 'Suites Pequeñas (60-299 líns)', count: String(d.small) },
+            { category: 'Suites Objetivo (300-800 líns)', count: `${d.target} (Ideal)` },
+            { category: 'Suites Medias (801-1200 líns)', count: String(d.other) },
+            { category: 'Sobredimensionadas (>1200 líns)', count: String(d.oversized) }
+        ], {
+            footerRows: [
+                { category: 'Total Archivos de Test', count: String(d.totalTestFiles) },
+                { category: 'Total Líneas de Código Test', count: String(d.totalTestLines) }
+            ]
+        });
+        process.stdout.write(`\n${tableStr}\n\n`); // console-ok: diagnostic distribution summary table
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

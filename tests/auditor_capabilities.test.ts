@@ -90,6 +90,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_eslint',
       'validate_eslint_config',
       'validate_fallow_config',
+      'validate_git_config',
       'validate_html_validate',
       'validate_markdown_lint',
       'validate_mermaid_syntax',

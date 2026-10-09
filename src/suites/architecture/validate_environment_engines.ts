@@ -21,7 +21,7 @@ import {
   type SemverVersion
 } from '../../cli/check_environment.ts';
 import { runSetup } from '../../cli/setup_env.ts';
-import { getPackageJson, writePackageJson } from '../../core/packageJson.ts';
+import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
 enableCompileCache();
 
@@ -77,14 +77,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     });
   }
 
-  public override async runAudit(): Promise<void> {
-    const pkgPath = path.resolve(this.projectRoot, 'package.json');
-    this.recordScanned('package.json');
-
-    const auditorEngines = getAuditorEngines();
-    const minNodeReq = parseSemver(auditorEngines.node);
-    const minNpmReq = parseSemver(auditorEngines.npm);
-
+  private validatePackageJson(pkgPath: string): PackageJsonDTO | null {
     if (!fs.existsSync(pkgPath)) {
       this.addViolation({
         ruleId: 'environment-engines-missing',
@@ -92,10 +85,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         message: `package.json no encontrado en ${this.projectRoot}.`,
         severity: 'error'
       });
-      this.markRuleEvaluated('environment-engines-missing');
-      this.markRuleEvaluated('environment-engines-below-floor');
-      this.markRuleEvaluated('environment-runtime-mismatch');
-      return;
+      return null;
     }
 
     const pkg = getPackageJson(this.projectRoot, true);
@@ -106,43 +96,44 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         message: 'package.json no contiene un JSON válido.',
         severity: 'error'
       });
-      this.markRuleEvaluated('environment-engines-missing');
-      this.markRuleEvaluated('environment-engines-below-floor');
-      this.markRuleEvaluated('environment-runtime-mismatch');
-      return;
+      return null;
     }
+    return pkg;
+  }
 
-    const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
-    const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
-
-    let activeEngines: Record<string, string> = { ...(pkg.engines ?? {}) };
-    let modifiedPkg = false;
-
-    // 1. Missing engines check
+  private auditMissingEngines(
+    hasNodeEngine: boolean,
+    hasNpmEngine: boolean,
+    activeEngines: Record<string, string>,
+    auditorEngines: { node: string; npm: string }
+  ): boolean {
     if (!hasNodeEngine || !hasNpmEngine) {
       if (this.isFixActive()) {
-        activeEngines = {
-          ...activeEngines,
-          node: hasNodeEngine ? activeEngines.node! : auditorEngines.node,
-          npm: hasNpmEngine ? activeEngines.npm! : auditorEngines.npm
-        };
-        modifiedPkg = true;
-      } else {
-        this.addViolation({
-          ruleId: 'environment-engines-missing',
-          file: 'package.json',
-          message: 'package.json debe declarar explícitamente "engines.node" y "engines.npm".',
-          severity: 'error'
-        });
+        activeEngines.node = hasNodeEngine ? activeEngines.node! : auditorEngines.node;
+        activeEngines.npm = hasNpmEngine ? activeEngines.npm! : auditorEngines.npm;
+        return true;
       }
+      this.addViolation({
+        ruleId: 'environment-engines-missing',
+        file: 'package.json',
+        message: 'package.json debe declarar explícitamente "engines.node" y "engines.npm".',
+        severity: 'error'
+      });
     }
-    this.markRuleEvaluated('environment-engines-missing');
+    return false;
+  }
 
-    // 2. Below floor check
-    const currentNodeEngine = pkg.engines?.node ?? '';
-    const currentNpmEngine = pkg.engines?.npm ?? '';
+  private auditEnginesBelowFloor(
+    currentNodeEngine: string,
+    currentNpmEngine: string,
+    activeEngines: Record<string, string>,
+    auditorEngines: { node: string; npm: string },
+    minNodeReq: SemverVersion,
+    minNpmReq: SemverVersion
+  ): { modified: boolean; nodeReq: SemverVersion; npmReq: SemverVersion } {
     let nodeEngineReq: SemverVersion = { major: 0, minor: 0, patch: 0 };
     let npmEngineReq: SemverVersion = { major: 0, minor: 0, patch: 0 };
+    let modified = false;
 
     if (currentNodeEngine && currentNpmEngine) {
       nodeEngineReq = parseSemver(currentNodeEngine);
@@ -153,14 +144,11 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
 
       if (!isNodeAdequate || !isNpmAdequate) {
         if (this.isFixActive()) {
-          activeEngines = {
-            ...activeEngines,
-            node: isNodeAdequate ? currentNodeEngine : auditorEngines.node,
-            npm: isNpmAdequate ? currentNpmEngine : auditorEngines.npm
-          };
-          modifiedPkg = true;
-          nodeEngineReq = parseSemver(activeEngines.node!);
-          npmEngineReq = parseSemver(activeEngines.npm!);
+          activeEngines.node = isNodeAdequate ? currentNodeEngine : auditorEngines.node;
+          activeEngines.npm = isNpmAdequate ? currentNpmEngine : auditorEngines.npm;
+          modified = true;
+          nodeEngineReq = parseSemver(activeEngines.node);
+          npmEngineReq = parseSemver(activeEngines.npm);
         } else {
           this.addViolation({
             ruleId: 'environment-engines-below-floor',
@@ -173,14 +161,18 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         }
       }
     }
-    this.markRuleEvaluated('environment-engines-below-floor');
 
-    // Save package.json modifications if any
-    if (modifiedPkg) {
-      writePackageJson(this.projectRoot, { ...pkg, engines: activeEngines });
-    }
+    return { modified, nodeReq: nodeEngineReq, npmReq: npmEngineReq };
+  }
 
-    // 3. Runtime mismatch check
+  private auditRuntimeMismatch(
+    pkg: PackageJsonDTO,
+    auditorEngines: { node: string; npm: string },
+    nodeEngineReq: SemverVersion,
+    npmEngineReq: SemverVersion,
+    minNodeReq: SemverVersion,
+    minNpmReq: SemverVersion
+  ): void {
     const runtimeNode = parseSemver(process.versions.node);
     const rawNpmVer = detectNpmVersion();
     const runtimeNpm = parseSemver(rawNpmVer);
@@ -211,6 +203,49 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         severity: 'error'
       });
     }
+  }
+
+  public override async runAudit(): Promise<void> {
+    const pkgPath = path.resolve(this.projectRoot, 'package.json');
+    this.recordScanned('package.json');
+
+    const auditorEngines = getAuditorEngines();
+    const minNodeReq = parseSemver(auditorEngines.node);
+    const minNpmReq = parseSemver(auditorEngines.npm);
+
+    const pkg = this.validatePackageJson(pkgPath);
+    if (!pkg) {
+      this.markRuleEvaluated('environment-engines-missing');
+      this.markRuleEvaluated('environment-engines-below-floor');
+      this.markRuleEvaluated('environment-runtime-mismatch');
+      return;
+    }
+
+    const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
+    const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
+    const activeEngines: Record<string, string> = { ...(pkg.engines ?? {}) };
+
+    let modifiedPkg = this.auditMissingEngines(hasNodeEngine, hasNpmEngine, activeEngines, auditorEngines);
+    this.markRuleEvaluated('environment-engines-missing');
+
+    const belowFloorResult = this.auditEnginesBelowFloor(
+      pkg.engines?.node ?? '',
+      pkg.engines?.npm ?? '',
+      activeEngines,
+      auditorEngines,
+      minNodeReq,
+      minNpmReq
+    );
+    if (belowFloorResult.modified) {
+      modifiedPkg = true;
+    }
+    this.markRuleEvaluated('environment-engines-below-floor');
+
+    if (modifiedPkg) {
+      writePackageJson(this.projectRoot, { ...pkg, engines: activeEngines });
+    }
+
+    this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
     this.markRuleEvaluated('environment-runtime-mismatch');
   }
 }

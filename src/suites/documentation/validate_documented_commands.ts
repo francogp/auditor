@@ -15,6 +15,8 @@ import { BaseAuditor, ALWAYS_IGNORE_DIRS, matchesSinglePattern } from '../../cor
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
+import { getPackageJson } from '../../core/packageJson.ts';
+import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
 
 export type DocumentedCommandsRuleId =
   | 'documented-cmd-unregistered-npm'
@@ -75,30 +77,21 @@ function addPackageDependenciesToBins(deps: Record<string, string> | undefined, 
   }
 }
 
-function populateBinsFromPackageJson(pkgPath: string, scripts: Set<string>, declaredBins: Set<string>): void {
-  try {
-    if (!fsSync.existsSync(pkgPath)) return;
-    const pkg = JSON.parse(fsSync.readFileSync(pkgPath, 'utf8')) as {
-      scripts?: Record<string, string>;
-      bin?: string | Record<string, string>;
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-      name?: string;
-    };
-    if (pkg.scripts) {
-      for (const k of Object.keys(pkg.scripts)) scripts.add(k);
-    }
-    if (typeof pkg.bin === 'string' && pkg.name) {
-      const binName = pkg.name.startsWith('@') ? pkg.name.split('/')[1] : pkg.name;
-      if (binName) declaredBins.add(binName);
-    } else if (pkg.bin && typeof pkg.bin === 'object') {
-      for (const k of Object.keys(pkg.bin)) declaredBins.add(k);
-    }
-    addPackageDependenciesToBins(pkg.dependencies, declaredBins);
-    addPackageDependenciesToBins(pkg.devDependencies, declaredBins);
-  } catch {
-    // catch-ok: Unreadable package.json
+function populateBinsFromPackageJson(rootDir: string, scripts: Set<string>, declaredBins: Set<string>): void {
+  const pkg = getPackageJson(rootDir);
+  if (!pkg) return;
+
+  if (pkg.scripts) {
+    for (const k of Object.keys(pkg.scripts)) scripts.add(k);
   }
+  if (typeof pkg.bin === 'string' && pkg.name) {
+    const binName = pkg.name.startsWith('@') ? pkg.name.split('/')[1] : pkg.name;
+    if (binName) declaredBins.add(binName);
+  } else if (pkg.bin && typeof pkg.bin === 'object') {
+    for (const k of Object.keys(pkg.bin)) declaredBins.add(k);
+  }
+  addPackageDependenciesToBins(pkg.dependencies, declaredBins);
+  addPackageDependenciesToBins(pkg.devDependencies, declaredBins);
 }
 
 function populateInstalledBins(binDir: string, installedBins: Set<string>): void {
@@ -127,7 +120,7 @@ export function loadPackageScriptsAndBins(rootDir: string): {
   const declaredBins = new Set<string>();
   const installedBins = new Set<string>();
 
-  populateBinsFromPackageJson(path.resolve(rootDir, 'package.json'), scripts, declaredBins);
+  populateBinsFromPackageJson(rootDir, scripts, declaredBins);
   populateInstalledBins(path.resolve(rootDir, 'node_modules/.bin'), installedBins);
 
   return { scripts, declaredBins, installedBins };
@@ -447,7 +440,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
   private collectAllMarkdownFiles(dir: string): string[] {
     const results: string[] = [];
     const config = getAuditConfig(this.rootDir);
-    const configIgnoredDirs = (config.paths?.ignoredDirs ?? []).map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
+    const configIgnoredDirs = (config.paths?.ignoredDirs ?? []).map(d => normalizePosixPath(d).toLowerCase().replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
     const configGlobs = config.paths?.ignoreGlobs ?? [];
 
     try {
@@ -458,7 +451,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         if (ALWAYS_IGNORE_DIRS.has(nameLower)) {
           continue;
         }
-        const relPosix = path.relative(this.projectRoot, full).replaceAll('\\', '/');
+        const relPosix = toPosixRelative(this.projectRoot, full);
         const relLower = relPosix.toLowerCase(); // no-domain: Non-domain utility collection or data structure
         const segments = relLower.split('/');
         if (segments.some(seg => ALWAYS_IGNORE_DIRS.has(seg) || configIgnoredDirs.includes(seg))) {

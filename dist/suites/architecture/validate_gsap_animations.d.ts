@@ -36,6 +36,14 @@ export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 export declare class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
     private getNamedTimerConstantsRegex;
+    private scanCssAnimations;
+    private scanUiTimers;
+    private scanGsapTweenConfig;
+    private scanGsapTweens;
+    private scanNamedTimerConstants;
+    private scanStyleConventions;
+    private scanTimelineAndEases;
     protected scanFile(relPath: string, content: string): void;
+    private scanHighFrequencyTweens;
 }
 //# sourceMappingURL=validate_gsap_animations.d.ts.map

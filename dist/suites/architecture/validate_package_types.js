@@ -13,6 +13,7 @@ import { enableCompileCache } from 'node:module';
 import { checkPackage, Package } from '@arethetypeswrong/core';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const PACKAGE_TYPES_RULES = [
     'pkg-types-resolution',
@@ -38,7 +39,7 @@ export function createPackageFromDirectory(pkgDir) {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
-            const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+            const relPath = toPosixRelative(baseDir, fullPath);
             if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'scratch') {
                 continue;
             }

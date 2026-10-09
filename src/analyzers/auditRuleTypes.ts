@@ -5,6 +5,9 @@
  * for architectural audits.
  */
 
+import { normalizePosixPath } from '../core/safePath.ts';
+import { isTestPath } from '../core/auditTestPredicates.ts';
+
 export const AUDIT_SEVERITIES = ['error', 'warning'] as const;
 export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
 
@@ -69,7 +72,7 @@ export function matchesRule(descriptor: RuleDescriptor | AuditRule, selectedRule
 }
 
 export function normalizeFilePath(filePath: string): string {
-  return filePath.replace(/^[a-z]:[/\\]/i, '').replace(/\\/g, '/').toLowerCase();
+  return normalizePosixPath(filePath).toLowerCase();
 }
 
 export function getLineAtMatch(content: string, matchIndex: number): { line: string; lineStartPos: number; lineEndPos: number; trimmed: string } {
@@ -85,6 +88,5 @@ export function isCommentLine(trimmed: string): boolean {
 
 export function isTestOrNodeModules(filePath?: string): boolean {
   if (!filePath) return true;
-  const norm = normalizeFilePath(filePath);
-  return norm.includes('node_modules') || norm.includes('.spec.') || norm.includes('.test.');
+  return filePath.includes('node_modules') || isTestPath(filePath);
 }

@@ -23,6 +23,7 @@ import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig, isTestPath, type AuditEngineConfig } from '../../core/auditConfig.ts';
 
@@ -109,7 +110,7 @@ function auditFileImports(
   const content = fs.readFileSync(fullPath, 'utf8');
   if (!content.includes('import ')) return;
 
-  const norm = path.relative(projectRoot, fullPath).replace(/\\/g, '/');
+  const norm = toPosixRelative(projectRoot, fullPath);
   const sourceFile = astEngine.getSourceFile(fullPath, content);
   if (!sourceFile.text.trim()) return;
 
@@ -210,7 +211,7 @@ function auditCompiledChunks(
 
     const assetPath = path.join(distAssetsDir, asset);
     const stats = fs.statSync(assetPath);
-    const relAssetPath = path.relative(projectRoot, assetPath).replace(/\\/g, '/');
+    const relAssetPath = toPosixRelative(projectRoot, assetPath);
 
     auditor['recordScanned'](relAssetPath);
     auditor['markRuleEvaluated']('bundle-chunk-size');

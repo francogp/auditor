@@ -14,6 +14,8 @@ import { BaseAuditor, ALWAYS_IGNORE_DIRS, matchesSinglePattern } from "../../cor
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { isAuditableCodebaseFile } from "../../core/auditCoverage.js";
+import { getPackageJson } from "../../core/packageJson.js";
+import { normalizePosixPath, toPosixRelative } from "../../core/safePath.js";
 export const DOCUMENTED_COMMANDS_RULES = [
     'documented-cmd-unregistered-npm',
     'documented-cmd-invalid-npm-syntax',
@@ -64,30 +66,25 @@ function addPackageDependenciesToBins(deps, declaredBins) {
         }
     }
 }
-function populateBinsFromPackageJson(pkgPath, scripts, declaredBins) {
-    try {
-        if (!fsSync.existsSync(pkgPath))
-            return;
-        const pkg = JSON.parse(fsSync.readFileSync(pkgPath, 'utf8'));
-        if (pkg.scripts) {
-            for (const k of Object.keys(pkg.scripts))
-                scripts.add(k);
-        }
-        if (typeof pkg.bin === 'string' && pkg.name) {
-            const binName = pkg.name.startsWith('@') ? pkg.name.split('/')[1] : pkg.name;
-            if (binName)
-                declaredBins.add(binName);
-        }
-        else if (pkg.bin && typeof pkg.bin === 'object') {
-            for (const k of Object.keys(pkg.bin))
-                declaredBins.add(k);
-        }
-        addPackageDependenciesToBins(pkg.dependencies, declaredBins);
-        addPackageDependenciesToBins(pkg.devDependencies, declaredBins);
+function populateBinsFromPackageJson(rootDir, scripts, declaredBins) {
+    const pkg = getPackageJson(rootDir);
+    if (!pkg)
+        return;
+    if (pkg.scripts) {
+        for (const k of Object.keys(pkg.scripts))
+            scripts.add(k);
     }
-    catch {
-        // catch-ok: Unreadable package.json
+    if (typeof pkg.bin === 'string' && pkg.name) {
+        const binName = pkg.name.startsWith('@') ? pkg.name.split('/')[1] : pkg.name;
+        if (binName)
+            declaredBins.add(binName);
     }
+    else if (pkg.bin && typeof pkg.bin === 'object') {
+        for (const k of Object.keys(pkg.bin))
+            declaredBins.add(k);
+    }
+    addPackageDependenciesToBins(pkg.dependencies, declaredBins);
+    addPackageDependenciesToBins(pkg.devDependencies, declaredBins);
 }
 function populateInstalledBins(binDir, installedBins) {
     try {
@@ -110,7 +107,7 @@ export function loadPackageScriptsAndBins(rootDir) {
     const scripts = new Set();
     const declaredBins = new Set();
     const installedBins = new Set();
-    populateBinsFromPackageJson(path.resolve(rootDir, 'package.json'), scripts, declaredBins);
+    populateBinsFromPackageJson(rootDir, scripts, declaredBins);
     populateInstalledBins(path.resolve(rootDir, 'node_modules/.bin'), installedBins);
     return { scripts, declaredBins, installedBins };
 }
@@ -349,7 +346,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor {
     collectAllMarkdownFiles(dir) {
         const results = [];
         const config = getAuditConfig(this.rootDir);
-        const configIgnoredDirs = (config.paths?.ignoredDirs ?? []).map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
+        const configIgnoredDirs = (config.paths?.ignoredDirs ?? []).map(d => normalizePosixPath(d).toLowerCase().replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
         const configGlobs = config.paths?.ignoreGlobs ?? [];
         try {
             const entries = fsSync.readdirSync(dir, { withFileTypes: true });
@@ -359,7 +356,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor {
                 if (ALWAYS_IGNORE_DIRS.has(nameLower)) {
                     continue;
                 }
-                const relPosix = path.relative(this.projectRoot, full).replaceAll('\\', '/');
+                const relPosix = toPosixRelative(this.projectRoot, full);
                 const relLower = relPosix.toLowerCase(); // no-domain: Non-domain utility collection or data structure
                 const segments = relLower.split('/');
                 if (segments.some(seg => ALWAYS_IGNORE_DIRS.has(seg) || configIgnoredDirs.includes(seg))) {

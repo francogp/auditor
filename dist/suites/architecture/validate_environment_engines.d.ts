@@ -17,6 +17,10 @@ export interface EnvironmentEnginesConfig {
 export declare function detectNpmVersion(): string;
 export declare class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
     constructor(options?: Partial<AuditorOptions<EnvironmentEnginesRuleId>>);
+    private validatePackageJson;
+    private auditMissingEngines;
+    private auditEnginesBelowFloor;
+    private auditRuntimeMismatch;
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_environment_engines.d.ts.map

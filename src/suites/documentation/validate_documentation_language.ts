@@ -19,6 +19,7 @@ import {
 } from '../../analyzers/agentsMandateAnalyzer.ts';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
 
 export type DocumentationLanguageRuleId =
@@ -153,9 +154,9 @@ export function extractProseParagraphs(content: string): ProseParagraph[] {
  * Checks if a relative path matches any exemption pattern or prefix.
  */
 export function isLanguageExemptPath(relPath: string, exemptions: readonly string[]): boolean {
-  const normalized = relPath.replace(/\\/g, '/').toLowerCase();
+  const normalized = normalizePosixPath(relPath).toLowerCase();
   for (const ex of exemptions) {
-    const normEx = ex.replace(/\\/g, '/').toLowerCase();
+    const normEx = normalizePosixPath(ex).toLowerCase();
     if (normEx.endsWith('/**')) {
       const prefix = normEx.slice(0, -3);
       if (normalized.startsWith(prefix) || normalized.startsWith(prefix.replace(/^\//, ''))) {

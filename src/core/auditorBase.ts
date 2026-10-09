@@ -57,7 +57,7 @@ import { isMainModule } from '../cli/cliUtils.ts';
 import { type AuditEngineConfig, getAuditConfig, loadAuditConfig } from './auditConfig.ts';
 import { evaluateSuiteStatus } from './suiteGating.ts';
 import type { SharedAstContext } from './astContext.ts';
-import type ts from 'typescript';
+import ts from 'typescript';
 import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
 
 export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
@@ -488,6 +488,7 @@ export interface AuditorContext {
   addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
   addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
   setMetric: (key: string, value: number | string) => void;
+  getAst: (relPath: string, content?: string) => ts.SourceFile;
   checkFiles: () => Promise<void>;
   finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
   setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
@@ -648,6 +649,14 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     },
     setMetric: (key: string, value: number | string) => {
       metrics[key] = value;
+    },
+    getAst: (relPath: string, content?: string): ts.SourceFile => {
+      const fullPath = path.isAbsolute(relPath) ? relPath : path.resolve(projectRoot, relPath);
+      const raw = content !== undefined ? content : (nodeFs.existsSync(fullPath) ? nodeFs.readFileSync(fullPath, 'utf-8') : '');
+      const doc = new AuditedDocument(fullPath, raw, relPath);
+      const sf = doc.getAst();
+      if (sf) return sf;
+      return ts.createSourceFile(path.basename(fullPath), raw, ts.ScriptTarget.Latest, true);
     },
     checkFiles: async () => {
       if (!config.requiredFiles || config.requiredFiles.length === 0) return;
@@ -1593,7 +1602,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         file: f.file || '',
         line: f.line || 1,
         context: f.context || fallbackContext,
-        message: f.message
+        message: f.message,
+        fixable: f.fixable
       });
     }
   }

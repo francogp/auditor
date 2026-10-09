@@ -104,8 +104,8 @@ export default defineAuditConfig({
     security: {
       enabled: false // Herramienta CLI sin servidores ni endpoints de red
     },
-    enforceTargets: false,
-    maxTargetPriority: 'critical',
+    enforceTargets: true,
+    maxTargetPriority: 'medium',
     similarCode: {
       enabled: true,
       threshold: 0.95,
@@ -129,6 +129,9 @@ export default defineAuditConfig({
     targets: []
   },
   environment: {
+    enabled: true
+  },
+  auditorHygiene: {
     enabled: true
   },
   packageScripts: {

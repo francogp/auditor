@@ -16,6 +16,7 @@ import { execSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
@@ -361,7 +362,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, '.fallowrc.json');
     }
 
-    const relConfig = path.relative(projectRoot, configPath).replace(/\\/g, '/') || '.fallowrc.json';
+    const relConfig = toPosixRelative(projectRoot, configPath) || '.fallowrc.json';
     const configRequirement: AuditorConfigFileRequirement<FallowConfigRuleId> = {
       ...FALLOW_CONFIG_REQUIREMENT,
       file: relConfig,

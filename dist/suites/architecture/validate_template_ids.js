@@ -23,6 +23,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { parseVueSfc } from "../../core/vueSfcParser.js";
 enableCompileCache();
 export const TEMPLATE_ID_RULES = [
     'template-duplicate-static-id',
@@ -168,14 +169,14 @@ export class TemplateIdAuditor extends FileScanAuditor {
         return { lineNumber, lineContent, isIgnored };
     }
     scanFile(relPath, content) {
-        const templateMatch = content.match(/<template\b[^>]*>([\s\S]*?)<\/template>/i);
-        if (!templateMatch || !templateMatch[1])
+        const sfc = parseVueSfc(content);
+        if (!sfc.template || !sfc.template.content)
             return;
         const ctx = {
             content,
             lines: content.split('\n'),
-            templateContent: templateMatch[1],
-            templateStartOffset: templateMatch.index ?? 0,
+            templateContent: sfc.template.content,
+            templateStartOffset: sfc.template.contentStartIndex,
             relPath,
             auditor: this,
             globalIdMap: this.globalIdMap

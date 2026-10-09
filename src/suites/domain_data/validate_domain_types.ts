@@ -19,8 +19,9 @@ import path from 'node:path';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { isTestPath } from '../../core/auditPathPredicates.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
+import { isPositionInsideFunctionParams } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -56,28 +57,8 @@ function isExemptDomainCastTarget(castTarget: string): boolean {
   return infraList.some(infra => lowerTarget.includes(infra));
 }
 
-const MAX_FUNCTION_PARAM_SCAN_DISTANCE = 600;
-
 function isFunctionParameterContext(content: string, matchIndex: number): boolean {
-  let i = matchIndex - 1;
-  let parenDepth = 0;
-  let braceDepth = 0;
-  const limit = Math.max(0, matchIndex - MAX_FUNCTION_PARAM_SCAN_DISTANCE);
-
-  while (i >= limit) {
-    const ch = content[i];
-    if (ch === ')') parenDepth++;
-    else if (ch === '(') {
-      if (parenDepth > 0) parenDepth--;
-      else return braceDepth === 0;
-    } else if (ch === '}') braceDepth++;
-    else if (ch === '{') {
-      if (braceDepth > 0) braceDepth--;
-      else return false;
-    }
-    i--;
-  }
-  return false;
+  return isPositionInsideFunctionParams(content, matchIndex);
 }
 
 export const DOMAIN_TYPES_RULES = [

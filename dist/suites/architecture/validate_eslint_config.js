@@ -1,8 +1,8 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const ESLINT_CONFIG_RULES = [
     'eslint-config-missing',
@@ -234,7 +234,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
             return;
         }
         const resolvedPath = ensured.resolvedPath;
-        const relFileName = path.relative(this.projectRoot, resolvedPath).replace(/\\/g, '/');
+        const relFileName = toPosixRelative(this.projectRoot, resolvedPath);
         this.recordScanned(relFileName);
         for (const r of ESLINT_CONFIG_RULES) {
             this.markRuleEvaluated(r);

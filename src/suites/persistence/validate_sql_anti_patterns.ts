@@ -49,6 +49,8 @@ export const SQL_ANTI_PATTERN_RULES: readonly SqlAntiPatternRuleId[] = [
   'db-payload-snake-case'
 ] as const;
 
+export const SQL_LOOP_HEADER_MAX_CHARS = 120;
+
 export function getPositionalJsonMutationRegex(): RegExp {
   const config = getAuditConfig();
   const cols = config.persistence?.positionalArrayColumns;
@@ -83,7 +85,7 @@ function isIntegerRangeLoop(executionBody: string, matchIndex: number): boolean 
   const nextLoopIdx = executionBody.indexOf('LOOP', matchIndex);
   const loopSlice = nextLoopIdx !== -1
     ? executionBody.slice(matchIndex, nextLoopIdx)
-    : executionBody.slice(matchIndex, matchIndex + 120);
+    : executionBody.slice(matchIndex, matchIndex + SQL_LOOP_HEADER_MAX_CHARS);
   return /\.\./.test(loopSlice);
 }
 

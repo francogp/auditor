@@ -26,6 +26,10 @@ export declare class ValidateVueReactivityAuditor extends FileScanAuditor<VueRea
     constructor(roots?: readonly string[], projectRoot?: string);
     protected scanFile(relPath: string, content: string): void;
     private reportComputedViolation;
+    private auditDirectMutations;
+    private evalLocalIdentifierMutation;
+    private auditLocalIdentifierMutations;
+    private auditRefAssignments;
     private auditComputedSideEffects;
     private extractBalancedBlock;
 }

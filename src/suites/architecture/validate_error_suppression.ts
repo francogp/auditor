@@ -26,6 +26,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { stripComments } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -115,7 +116,7 @@ id: 'validate_error_suppression',
   private auditEmptyCatch(relPath: string, content: string): void {
     this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, lineContent) => {
       const innerContent = match[1] ?? '';
-      const strippedComments = innerContent.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+      const strippedComments = stripComments(innerContent).trim();
 
       if (strippedComments.length === 0) {
         if (

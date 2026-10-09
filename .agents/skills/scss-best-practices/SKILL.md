@@ -1,6 +1,11 @@
 ---
 name: scss-best-practices
 description: MANDATORY governance and best practices for SCSS, SASS, stylesheets, CSS architecture, and styling across Vue SFC and modern web applications. Governs modern Dart Sass 2.0+ architecture (@use, @forward, sass:math, elimination of @import), nesting limits (<= 3), modern CSS standards (logical properties, oklch, color-mix, clamp fluid tokens, container queries), GSAP animation coordination (zero CSS transitions or transform: !important on GSAP nodes), GPU acceleration (will-change, layer promotion, mobile dvh/dvw), responsive mixins, and BEM/scoped hygiene. Use whenever writing, refactoring, reviewing, or debugging SCSS files (.scss, .sass) or Vue <style lang="scss"> blocks, or when the user mentions styles, SCSS, Sass, CSS architecture, or styling rules.
+license: MIT
+metadata:
+  author: Franco Gastón Pellegrini
+  organization: FrancoGP Core Architecture
+  date: October 2026
 ---
 
 # SCSS Best Practices & CSS Architecture

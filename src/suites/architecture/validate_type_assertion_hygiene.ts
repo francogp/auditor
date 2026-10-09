@@ -12,12 +12,12 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import path from 'node:path';
 import { FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { isTestFileForCodeAudit } from '../../core/auditPathPredicates.ts';
+import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
 import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -82,7 +82,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
   }
 
   public override async scanFile(filePath: string, content: string): Promise<void> {
-    const rel = path.relative(this.projectRoot, filePath).replace(/\\/g, '/');
+    const rel = toPosixRelative(this.projectRoot, filePath);
     if (isTestFileForCodeAudit(rel, this.projectRoot) || rel.includes('validate_type_assertion_hygiene.ts') || rel.includes('validate_domain_types.ts')) {
       return;
     }

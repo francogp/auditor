@@ -13,7 +13,7 @@ export { deriveCanonicalAuditorScript };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
 import type { SharedAstContext } from './astContext.ts';
-import type ts from 'typescript';
+import ts from 'typescript';
 import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
 export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
@@ -84,6 +84,7 @@ export interface AuditorContext {
     addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
     addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
     setMetric: (key: string, value: number | string) => void;
+    getAst: (relPath: string, content?: string) => ts.SourceFile;
     checkFiles: () => Promise<void>;
     finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
     setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;

@@ -13,6 +13,7 @@ import { franc } from 'franc-min';
 import { extractContractSections, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage, findLocalContractsHeaderLine } from "../../analyzers/agentsMandateAnalyzer.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { normalizePosixPath } from "../../core/safePath.js";
 export const DOCUMENTATION_LANGUAGE_RULES = [
     'docs-unauthorized-language',
     'docs-missing-language-mandate'
@@ -112,9 +113,9 @@ export function extractProseParagraphs(content) {
  * Checks if a relative path matches any exemption pattern or prefix.
  */
 export function isLanguageExemptPath(relPath, exemptions) {
-    const normalized = relPath.replace(/\\/g, '/').toLowerCase();
+    const normalized = normalizePosixPath(relPath).toLowerCase();
     for (const ex of exemptions) {
-        const normEx = ex.replace(/\\/g, '/').toLowerCase();
+        const normEx = normalizePosixPath(ex).toLowerCase();
         if (normEx.endsWith('/**')) {
             const prefix = normEx.slice(0, -3);
             if (normalized.startsWith(prefix) || normalized.startsWith(prefix.replace(/^\//, ''))) {

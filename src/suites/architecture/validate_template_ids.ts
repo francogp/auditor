@@ -27,6 +27,7 @@ import {
   BaseAuditor
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -206,14 +207,14 @@ id: 'validate_template_ids',
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    const templateMatch = content.match(/<template\b[^>]*>([\s\S]*?)<\/template>/i);
-    if (!templateMatch || !templateMatch[1]) return;
+    const sfc = parseVueSfc(content);
+    if (!sfc.template || !sfc.template.content) return;
 
     const ctx: TemplateScanContext = {
       content,
       lines: content.split('\n'),
-      templateContent: templateMatch[1],
-      templateStartOffset: templateMatch.index ?? 0,
+      templateContent: sfc.template.content,
+      templateStartOffset: sfc.template.contentStartIndex,
       relPath,
       auditor: this,
       globalIdMap: this.globalIdMap

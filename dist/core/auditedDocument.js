@@ -79,6 +79,81 @@ function extractRawTagMatches(content, tagName, doc) {
     }
     return matches;
 }
+function scanLineComment(content, start, limit) {
+    let i = start + 2;
+    while (i < limit && content[i] !== '\n') {
+        i++;
+    }
+    return { start, end: i, kind: 'comment_line' };
+}
+function scanBlockComment(content, start, limit) {
+    let i = start + 2;
+    while (i < limit && !(content[i] === '*' && content[i + 1] === '/')) {
+        i++;
+    }
+    return { start, end: Math.min(limit, i + 2), kind: 'comment_block' };
+}
+function scanHtmlComment(content, start, limit) {
+    let i = start + 4;
+    while (i < limit && !content.startsWith('-->', i)) {
+        i++;
+    }
+    return { start, end: Math.min(limit, i + 3), kind: 'comment_html' };
+}
+function scanQuotedString(content, start, limit, quote) {
+    let i = start + 1;
+    while (i < limit) {
+        if (content[i] === '\\') {
+            i += 2;
+        }
+        else if (content[i] === quote) {
+            i++;
+            break;
+        }
+        else if (content[i] === '\n') {
+            break;
+        }
+        else {
+            i++;
+        }
+    }
+    return { start, end: i, kind: quote === "'" ? 'string_single' : 'string_double' };
+}
+function scanTemplateString(content, start, limit) {
+    let i = start + 1;
+    while (i < limit) {
+        if (content[i] === '\\') {
+            i += 2;
+        }
+        else if (content[i] === '`') {
+            i++;
+            break;
+        }
+        else {
+            i++;
+        }
+    }
+    return { start, end: i, kind: 'string_template' };
+}
+function scanNextLexicalRange(content, i, limit) {
+    const ch = content[i];
+    if (ch === '/') {
+        if (content[i + 1] === '/')
+            return scanLineComment(content, i, limit);
+        if (content[i + 1] === '*')
+            return scanBlockComment(content, i, limit);
+    }
+    if (ch === '<' && content.startsWith('<!--', i)) {
+        return scanHtmlComment(content, i, limit);
+    }
+    if (ch === "'" || ch === '"') {
+        return scanQuotedString(content, i, limit, ch);
+    }
+    if (ch === '`') {
+        return scanTemplateString(content, i, limit);
+    }
+    return null;
+}
 export class AuditedDocument {
     filePath;
     relPath;
@@ -140,103 +215,14 @@ export class AuditedDocument {
         const limit = content.length;
         let i = 0;
         while (i < limit) {
-            const ch = content[i];
-            // Single-line comment //
-            if (ch === '/' && content[i + 1] === '/') {
-                const start = i;
-                i += 2;
-                while (i < limit && content[i] !== '\n') {
-                    i++;
-                }
-                ranges.push({ start, end: i, kind: 'comment_line' });
-                continue;
+            const match = scanNextLexicalRange(content, i, limit);
+            if (match) {
+                ranges.push(match);
+                i = match.end;
             }
-            // Multi-line comment /* ... */
-            if (ch === '/' && content[i + 1] === '*') {
-                const start = i;
-                i += 2;
-                while (i < limit && !(content[i] === '*' && content[i + 1] === '/')) {
-                    i++;
-                }
-                i = Math.min(limit, i + 2);
-                ranges.push({ start, end: i, kind: 'comment_block' });
-                continue;
-            }
-            // HTML comment <!-- ... -->
-            if (ch === '<' && content.startsWith('<!--', i)) {
-                const start = i;
-                i += 4;
-                while (i < limit && !content.startsWith('-->', i)) {
-                    i++;
-                }
-                i = Math.min(limit, i + 3);
-                ranges.push({ start, end: i, kind: 'comment_html' });
-                continue;
-            }
-            // Single-quote string
-            if (ch === "'") {
-                const start = i;
+            else {
                 i++;
-                while (i < limit) {
-                    if (content[i] === '\\') {
-                        i += 2;
-                    }
-                    else if (content[i] === "'") {
-                        i++;
-                        break;
-                    }
-                    else if (content[i] === '\n') {
-                        break; // Unterminated single-line string
-                    }
-                    else {
-                        i++;
-                    }
-                }
-                ranges.push({ start, end: i, kind: 'string_single' });
-                continue;
             }
-            // Double-quote string
-            if (ch === '"') {
-                const start = i;
-                i++;
-                while (i < limit) {
-                    if (content[i] === '\\') {
-                        i += 2;
-                    }
-                    else if (content[i] === '"') {
-                        i++;
-                        break;
-                    }
-                    else if (content[i] === '\n') {
-                        break; // Unterminated single-line string
-                    }
-                    else {
-                        i++;
-                    }
-                }
-                ranges.push({ start, end: i, kind: 'string_double' });
-                continue;
-            }
-            // Template string `...`
-            if (ch === '`') {
-                const start = i;
-                i++;
-                while (i < limit) {
-                    if (content[i] === '\\') {
-                        i += 2;
-                    }
-                    else if (content[i] === '`') {
-                        i++;
-                        break;
-                    }
-                    else {
-                        i++;
-                    }
-                }
-                ranges.push({ start, end: i, kind: 'string_template' });
-                continue;
-            }
-            i++;
         }
         this.cachedLexicalRanges = ranges;
         return ranges;

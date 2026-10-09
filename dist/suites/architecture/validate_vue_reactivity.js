@@ -90,6 +90,60 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
             context: lineContent.trim()
         });
     }
+    auditDirectMutations(body, relPath, fullContent, startIdx) {
+        const dirRegex = new RegExp(DIRECT_REACTIVE_MUTATION_REGEX.source, DIRECT_REACTIVE_MUTATION_REGEX.flags);
+        let dirMatch;
+        while ((dirMatch = dirRegex.exec(body)) !== null) {
+            this.reportComputedViolation(relPath, fullContent, startIdx, dirMatch[0], `In-place mutation '${dirMatch[0].trim()}' detected inside computed(). Mutating reactive state, props, or stores creates side effects.`);
+        }
+    }
+    evalLocalIdentifierMutation(targetVar, method, fullMatched, body) {
+        const declRegex = new RegExp(`\\b(?:const|let|var)\\s+${targetVar}\\b([^;\\n]*)`);
+        const declMatch = declRegex.exec(body);
+        if (!declMatch) {
+            return `In-place mutation '${fullMatched.trim()}' on external variable '${targetVar}' detected inside computed(). Create a shallow copy first.`;
+        }
+        const initExpr = declMatch[1] ?? '';
+        const hasCloning = initExpr.includes('[...') || initExpr.includes('.slice(') || initExpr.includes('.filter(') ||
+            initExpr.includes('.map(') || initExpr.includes('Array.from(') || initExpr.includes('new Array') ||
+            initExpr.includes('[]') || body.includes(`${targetVar} = [...`) || body.includes(`${targetVar} = ${targetVar}.filter`);
+        if (hasCloning || (!initExpr.includes('props.') && !initExpr.includes('.value') && !initExpr.includes('store.'))) {
+            return null;
+        }
+        if (method === 'sort' || method === 'reverse') {
+            return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first (e.g. [...${targetVar}].${method}()).`;
+        }
+        if (method === 'push' || method === 'pop' || method === 'shift' || method === 'unshift' || method === 'splice') {
+            return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first.`;
+        }
+        return null;
+    }
+    auditLocalIdentifierMutations(body, relPath, fullContent, startIdx) {
+        const locRegex = new RegExp(LOCAL_IDENTIFIER_MUTATION_REGEX.source, LOCAL_IDENTIFIER_MUTATION_REGEX.flags);
+        let locMatch;
+        while ((locMatch = locRegex.exec(body)) !== null) {
+            const fullMatched = locMatch[0];
+            const targetVar = locMatch[1];
+            const method = locMatch[2];
+            if (!targetVar || !method)
+                continue;
+            if (locMatch.index > 0 && body[locMatch.index - 1] === '.')
+                continue;
+            if (targetVar === 'props' || targetVar === 'store' || targetVar === 'value')
+                continue;
+            const violationMessage = this.evalLocalIdentifierMutation(targetVar, method, fullMatched, body);
+            if (violationMessage) {
+                this.reportComputedViolation(relPath, fullContent, startIdx, fullMatched, violationMessage);
+            }
+        }
+    }
+    auditRefAssignments(body, relPath, fullContent, startIdx) {
+        const refAssignRegex = /\b[\w$]+\.value\s*=(?!=)/g;
+        let refMatch;
+        while ((refMatch = refAssignRegex.exec(body)) !== null) {
+            this.reportComputedViolation(relPath, fullContent, startIdx, refMatch[0], `Mutation '${refMatch[0]}' detected inside computed(). Computed properties must be pure derivations without side effects.`);
+        }
+    }
     auditComputedSideEffects(relPath, fullContent, script) {
         const computedCallRegex = /\bcomputed\s*\(\s*(?:<[^>]+>\s*)?(?:\([^)]*\)|[\w$]+)\s*=>\s*\{/g;
         let compMatch;
@@ -98,56 +152,9 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
             const body = this.extractBalancedBlock(script, startIdx);
             if (!body)
                 continue;
-            let dirMatch;
-            const dirRegex = new RegExp(DIRECT_REACTIVE_MUTATION_REGEX.source, DIRECT_REACTIVE_MUTATION_REGEX.flags);
-            while ((dirMatch = dirRegex.exec(body)) !== null) {
-                this.reportComputedViolation(relPath, fullContent, startIdx, dirMatch[0], `In-place mutation '${dirMatch[0].trim()}' detected inside computed(). Mutating reactive state, props, or stores creates side effects.`);
-            }
-            let locMatch;
-            const locRegex = new RegExp(LOCAL_IDENTIFIER_MUTATION_REGEX.source, LOCAL_IDENTIFIER_MUTATION_REGEX.flags);
-            while ((locMatch = locRegex.exec(body)) !== null) {
-                const fullMatched = locMatch[0];
-                const targetVar = locMatch[1];
-                const method = locMatch[2];
-                if (locMatch.index > 0 && body[locMatch.index - 1] === '.')
-                    continue;
-                if (targetVar === 'props' || targetVar === 'store' || targetVar === 'value')
-                    continue;
-                const declRegex = new RegExp(`\\b(?:const|let|var)\\s+${targetVar}\\b([^;\\n]*)`);
-                const declMatch = declRegex.exec(body);
-                let isViolation = false;
-                let violationMessage = '';
-                if (!declMatch) {
-                    isViolation = true;
-                    violationMessage = `In-place mutation '${fullMatched.trim()}' on external variable '${targetVar}' detected inside computed(). Create a shallow copy first.`;
-                }
-                else {
-                    const initExpr = declMatch[1] ?? '';
-                    const hasCloning = initExpr.includes('[...') || initExpr.includes('.slice(') || initExpr.includes('.filter(') ||
-                        initExpr.includes('.map(') || initExpr.includes('Array.from(') || initExpr.includes('new Array') ||
-                        initExpr.includes('[]') || body.includes(`${targetVar} = [...`) || body.includes(`${targetVar} = ${targetVar}.filter`);
-                    if (method === 'sort' || method === 'reverse') {
-                        if (!hasCloning && (initExpr.includes('props.') || initExpr.includes('.value') || initExpr.includes('store.'))) {
-                            isViolation = true;
-                            violationMessage = `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first (e.g. [...${targetVar}].${method}()).`;
-                        }
-                    }
-                    else if (method === 'push' || method === 'pop' || method === 'shift' || method === 'unshift' || method === 'splice') {
-                        if (!hasCloning && (initExpr.includes('props.') || initExpr.includes('.value') || initExpr.includes('store.'))) {
-                            isViolation = true;
-                            violationMessage = `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first.`;
-                        }
-                    }
-                }
-                if (isViolation) {
-                    this.reportComputedViolation(relPath, fullContent, startIdx, fullMatched, violationMessage);
-                }
-            }
-            const refAssignRegex = /\b[\w$]+\.value\s*=(?!=)/g;
-            let refMatch;
-            while ((refMatch = refAssignRegex.exec(body)) !== null) {
-                this.reportComputedViolation(relPath, fullContent, startIdx, refMatch[0], `Mutation '${refMatch[0]}' detected inside computed(). Computed properties must be pure derivations without side effects.`);
-            }
+            this.auditDirectMutations(body, relPath, fullContent, startIdx);
+            this.auditLocalIdentifierMutations(body, relPath, fullContent, startIdx);
+            this.auditRefAssignments(body, relPath, fullContent, startIdx);
         }
     }
     extractBalancedBlock(text, startIndex) {

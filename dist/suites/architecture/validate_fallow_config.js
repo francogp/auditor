@@ -15,6 +15,7 @@ import { execSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const FALLOW_CONFIG_RULES = [
     'fallow-config-missing',
@@ -270,7 +271,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
             projectRoot = isJsonFile ? path.dirname(targetPathOrOptions) : (targetPathOrOptions || process.cwd());
             configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, '.fallowrc.json');
         }
-        const relConfig = path.relative(projectRoot, configPath).replace(/\\/g, '/') || '.fallowrc.json';
+        const relConfig = toPosixRelative(projectRoot, configPath) || '.fallowrc.json';
         const configRequirement = {
             ...FALLOW_CONFIG_REQUIREMENT,
             file: relConfig,

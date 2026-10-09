@@ -572,6 +572,16 @@ if (Test-Path $projectGitignore) {
     Write-Host "  [OK] .gitignore creado con scratch/" -ForegroundColor Green
 }
 
+# Configuración de estándares locales de Git en el proyecto
+$gitDir = Join-Path $PSScriptRoot ".git"
+if (Test-Path $gitDir) {
+    Write-Host "  [+] Asegurando estandares locales de Git (core.filemode, core.autocrlf, core.eol)..." -ForegroundColor Cyan
+    git -C $PSScriptRoot config core.filemode false
+    git -C $PSScriptRoot config core.autocrlf input
+    git -C $PSScriptRoot config core.eol lf
+    Write-Host "  [OK] Estandares de Git configurados localmente en el proyecto" -ForegroundColor Green
+}
+
 # 12. Ejecutar Plugins Específicos del Proyecto (scripts\setup\plugins\*.ps1)
 $pluginsDir = Join-Path $PSScriptRoot "scripts\setup\plugins"
 if (Test-Path $pluginsDir) {

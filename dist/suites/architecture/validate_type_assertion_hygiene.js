@@ -11,12 +11,12 @@
  * 5. Zero broad array casts ('as string[]', 'as readonly string[]').
  */
 import { enableCompileCache } from 'node:module';
-import path from 'node:path';
 import { FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { isTestFileForCodeAudit } from "../../core/auditPathPredicates.js";
+import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const TYPE_ASSERTION_RULES = [
     'type-assertion-zero-any',
@@ -67,7 +67,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor {
         });
     }
     async scanFile(filePath, content) {
-        const rel = path.relative(this.projectRoot, filePath).replace(/\\/g, '/');
+        const rel = toPosixRelative(this.projectRoot, filePath);
         if (isTestFileForCodeAudit(rel, this.projectRoot) || rel.includes('validate_type_assertion_hygiene.ts') || rel.includes('validate_domain_types.ts')) {
             return;
         }

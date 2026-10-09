@@ -16,6 +16,7 @@ import { BaseAuditor } from "../../core/auditorBase.js";
 import { loadAuditConfig, buildRatchetConfig } from "../../core/auditConfig.js";
 import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
 import { resolveGitCommit, describeBaselineDefect } from "../../cli/auditRatchet.js";
+import { getPackageJson } from "../../core/packageJson.js";
 enableCompileCache();
 export const PACKAGE_SCRIPTS_RULES = [
     'package-scripts-missing-file',
@@ -110,7 +111,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
             return null;
         }
         try {
-            return JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            return getPackageJson(this.projectRoot);
         }
         catch (_err) {
             this.addViolation({

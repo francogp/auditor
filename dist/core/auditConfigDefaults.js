@@ -162,6 +162,11 @@ export const DEFAULT_AUDIT_CONFIG = {
     environment: {
         enabled: true
     },
+    auditorHygiene: {
+        enabled: true,
+        exemptFiles: [],
+        disabledDetectors: []
+    },
     accessibility: {
         enabled: true,
         rules: {}
@@ -224,6 +229,7 @@ export function collectDeclaredSubsystems(config) {
         'persistence',
         'domain',
         'environment',
+        'auditorHygiene',
         'styles',
         'stylelint',
         'eslint',
@@ -472,6 +478,15 @@ export function buildEnvironmentConfig(raw) {
         enabled: p.enabled ?? def?.enabled ?? true
     };
 }
+export function buildAuditorHygieneConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.auditorHygiene;
+    const p = raw ?? {};
+    return {
+        enabled: p.enabled ?? def?.enabled ?? true,
+        exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? []),
+        disabledDetectors: p.disabledDetectors ? [...p.disabledDetectors] : (def?.disabledDetectors ?? [])
+    };
+}
 export function buildPackageDistributionConfig(raw) {
     const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
     const p = raw ?? {};
@@ -706,6 +721,7 @@ export function defineAuditConfig(config) {
         packageDistribution: buildPackageDistributionConfig(config.packageDistribution),
         packageScripts: buildPackageScriptsConfig(config.packageScripts),
         environment: buildEnvironmentConfig(config.environment),
+        auditorHygiene: buildAuditorHygieneConfig(config.auditorHygiene),
         accessibility: buildAccessibilityConfig(config.accessibility),
         typeCoverage: buildTypeCoverageConfig(config.typeCoverage),
         testCoverage: buildTestCoverageConfig(config.testCoverage),

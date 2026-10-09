@@ -34,6 +34,7 @@ export const VUE_SFC_HYGIENE_RULES = [
     'vue-template-quote-escaping',
     'no-data-provider-in-template'
 ];
+export const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
 const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
@@ -114,7 +115,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
                         file: relPath,
                         line: 1,
                         message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
-                        context: scriptMatches[0][0].slice(0, 80)
+                        context: scriptMatches[0][0].slice(0, SCRIPT_TAG_CONTEXT_MAX_CHARS)
                     });
                 }
             }

@@ -19,6 +19,9 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { parseVueSfc } from '../../core/vueSfcParser.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -108,7 +111,7 @@ export function extractScopedRulesFromVueContent(rawContent: string): ParsedScop
 function collectGlobalCodeTokens(projectRoot: string, srcFiles: readonly string[]): Set<string> {
   const globalTokens = new Set<string>();
   for (const relPath of srcFiles) {
-    if (relPath.includes('.spec.') || relPath.includes('.test.')) continue;
+    if (isTestPath(relPath)) continue;
     const fullPath = path.resolve(projectRoot, relPath);
     const content = fs.readFileSync(fullPath, 'utf-8');
     const contentWithoutStyles = content.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
@@ -121,16 +124,9 @@ function collectGlobalCodeTokens(projectRoot: string, srcFiles: readonly string[
 }
 
 function extractComponentLogic(rawContent: string): { componentLogic: string; dynamicPrefixes: Set<string> } {
-  const templateMatch = /<template\b[^>]*>([\s\S]*?)<\/template>/i.exec(rawContent);
-  const templateContent = templateMatch?.[1] ?? '';
-
-  const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-  let scriptsContent = '';
-  let scriptMatch: RegExpExecArray | null;
-  while ((scriptMatch = scriptRegex.exec(rawContent)) !== null) {
-    scriptsContent += `\n${scriptMatch[1]}`;
-  }
-
+  const sfc = parseVueSfc(rawContent);
+  const templateContent = sfc.template?.content ?? '';
+  const scriptsContent = sfc.scripts.map(s => s.content).join('\n');
   const componentLogic = `${templateContent}\n${scriptsContent}`;
   const dynamicPrefixes = new Set<string>();
 
@@ -262,9 +258,9 @@ id: 'validate_dead_css',
     let scopedClassesChecked = 0;
 
     for (const relPath of componentFiles) {
-      if (relPath.includes('.spec.') || relPath.includes('.test.')) continue;
+      if (isTestPath(relPath)) continue;
       const fullPath = path.resolve(this.projectRoot, relPath);
-      const relFile = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+      const relFile = toPosixRelative(this.projectRoot, fullPath);
       this.recordScanned(relFile);
       this.markRuleEvaluated('dead-scoped-css');
       const rawContent = fs.readFileSync(fullPath, 'utf-8');

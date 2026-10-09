@@ -38,6 +38,7 @@ export interface VueSfcBlocks {
  * Parses a Vue SFC source string and extracts all top-level constituent blocks.
  */
 export declare function parseVueSfcBlocks(sfcContent: string): VueSfcBlocks;
+export { parseVueSfcBlocks as parseVueSfc };
 /**
  * Extracts concatenated inner script content from all script blocks in a Vue SFC.
  * Returns null if the SFC contains no script blocks.

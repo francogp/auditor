@@ -25,6 +25,7 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { stripComments } from "../../core/scannerUtils.js";
 enableCompileCache();
 export const ERROR_SUPPRESSION_RULES = [
     'no-empty-catch',
@@ -91,7 +92,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
     auditEmptyCatch(relPath, content) {
         this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, lineContent) => {
             const innerContent = match[1] ?? '';
-            const strippedComments = innerContent.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+            const strippedComments = stripComments(innerContent).trim();
             if (strippedComments.length === 0) {
                 if (this.hasEscapeHatch(lineContent, ['catch-ok', 'error-ok']) ||
                     this.hasEscapeHatch(match[0], ['catch-ok', 'error-ok']) ||

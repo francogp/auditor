@@ -19,6 +19,7 @@ Architecture & Tooling Engineers.
 - [`constantAnalyzer.ts`](./constantAnalyzer.ts): TypeScript AST visitor detecting duplicate or divergent numeric/string constants.
 - [`constantRules.ts`](./constantRules.ts): Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
 - [`doxAnalyzer.ts`](./doxAnalyzer.ts): AGENTS.md documentation tree walker and link integrity verifier.
+- [`homebrew/`](./homebrew/AGENTS.md): Modular analyzer engine and registry detecting homebrew anti-patterns in auditors and extensions.
 - [`zIndexRules.ts`](./zIndexRules.ts): Z-Index Design System Parity and isolated constant rules.
 
 ## Work Guidance
@@ -34,4 +35,4 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
-- _This directory contains specialized analyzer modules with no subdirectories._
+- [`homebrew/`](./homebrew/AGENTS.md): Homebrew anti-pattern analyzer and detector registry.

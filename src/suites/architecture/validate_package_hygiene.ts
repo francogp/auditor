@@ -7,6 +7,7 @@ import type { AuditConfig } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -167,9 +168,7 @@ export function parseKnipIssues(
 
   for (const fileIssue of issues) {
     const rawFile = fileIssue.file || 'package.json';
-    const relFile = path.isAbsolute(rawFile)
-      ? path.relative(projectRoot, rawFile).replace(/\\/g, '/')
-      : rawFile.replace(/\\/g, '/');
+    const relFile = toPosixRelative(projectRoot, rawFile);
 
     if (relFile !== 'package.json' && isPathIgnored?.(relFile)) {
       continue;

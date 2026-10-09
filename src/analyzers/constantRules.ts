@@ -14,6 +14,8 @@ import {
   isExemptFile
 } from '../core/auditConfig.ts';
 import { isPathIgnored, matchesSinglePattern } from '../core/auditorBase.ts';
+import { toPosixRelative } from '../core/safePath.ts';
+import { stripComments } from '../core/scannerUtils.ts';
 import {
   type AuditRule,
   getLineAtMatch,
@@ -76,7 +78,7 @@ export function isMagicNumberExemptFile(filePath?: string, projectRoot = process
   if (!isAuditableCodeFile(filePath)) return true;
   const norm = normalizeFilePath(filePath!);
   const relPath = path.isAbsolute(filePath!)
-    ? path.relative(projectRoot, filePath!).replace(/\\/g, '/')
+    ? toPosixRelative(projectRoot, filePath!)
     : norm;
   const config = getAuditConfig(projectRoot);
   const exemptGlobs = config.constants?.exemptGlobs ?? [];
@@ -108,7 +110,7 @@ function isInsideStringOrComment(content: string, matchIndex: number, lineStartP
   if (singleQuotes % 2 === 1 || doubleQuotes % 2 === 1 || lineBackticks % 2 === 1) return true;
 
   const contentBefore = content.substring(0, matchIndex);
-  const contentWithoutComments = contentBefore.replace(/\/\/[^\n]*/g, '');
+  const contentWithoutComments = stripComments(contentBefore);
   const totalBackticks = (contentWithoutComments.match(/(?<!\\)\x60/g) || []).length;
   if (totalBackticks % 2 === 1) {
     const lastBacktickPos = contentWithoutComments.lastIndexOf('\x60');

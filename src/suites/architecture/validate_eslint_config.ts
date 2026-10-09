@@ -1,8 +1,8 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
@@ -278,7 +278,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
 
     const resolvedPath = ensured.resolvedPath;
 
-    const relFileName = path.relative(this.projectRoot, resolvedPath).replace(/\\/g, '/');
+    const relFileName = toPosixRelative(this.projectRoot, resolvedPath);
     this.recordScanned(relFileName);
     for (const r of ESLINT_CONFIG_RULES) {
       this.markRuleEvaluated(r);

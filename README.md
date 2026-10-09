@@ -55,7 +55,7 @@ When developing directly inside `@francogp/auditor`:
 
 > [!IMPORTANT]
 > **Hermetic Multi-Project Coexistence & Windows Security**:
-> Setup scripts preserve all other installed Node.js versions on the host, activate local versions via `.nvmrc` without overriding NVM's `default` alias, and scope npm configurations strictly to project `.npmrc` without mutating `~/.npmrc`. On Windows, `setup-windows.ps1` configures Windows Defender exclusions and removes Zone.Identifier marks for native Fallow binaries, requesting UAC elevation interactively if executed in a non-elevated terminal for NVM for Windows installation via winget and Defender whitelist configuration.
+> Setup scripts preserve all other installed Node.js versions on the host, activate local versions via `.nvmrc` without overriding NVM's `default` alias, scope npm configurations strictly to project `.npmrc` without mutating `~/.npmrc`, and automatically enforce local Git repository settings (`core.filemode false`, `core.autocrlf input`, `core.eol lf`). On Windows, `setup-windows.ps1` configures Windows Defender exclusions and removes Zone.Identifier marks for native Fallow binaries, requesting UAC elevation interactively if executed in a non-elevated terminal for NVM for Windows installation via winget and Defender whitelist configuration.
 
 ---
 
@@ -139,10 +139,11 @@ auditor fix
 In fix mode, `@francogp/auditor` deterministically executes **Environment & Configuration suites FIRST**:
 
 1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing, injects required subsystem sections (`eslint`, `htmlValidate`, `valibot`, etc.), and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`) while chaining `npm run auditor` into `build`.
-2. `validate_eslint_config`: Enforces and repairs `eslint.config.js` with strict type safety.
-3. `validate_fallow_config`: Synchronizes `.fallowrc.json` configuration.
-4. `validate_agent_plugin`: Registers `.agents/plugins.json` and `.agents/skills.json` for immediate Antigravity agent discovery.
-5. **Code & Content Fixers**: Only after the environment and configurations are established do code fixers (`validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene`) execute.
+2. `validate_git_config`: Enforces and auto-repairs local Git repository configuration (`core.filemode false`, `core.autocrlf input`, `core.eol lf`).
+3. `validate_eslint_config`: Enforces and repairs `eslint.config.js` with strict type safety.
+4. `validate_fallow_config`: Synchronizes `.fallowrc.json` configuration.
+5. `validate_agent_plugin`: Registers `.agents/plugins.json` and `.agents/skills.json` for immediate Antigravity agent discovery.
+6. **Code & Content Fixers**: Only after the environment, git, and configurations are established do code fixers (`validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene`) execute.
 
 #### Step 4: Verify Clean Baseline
 
@@ -350,6 +351,8 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | Tool | Integrated Suite | Capability |
 | :--- | :--- | :--- |
 | **`fallow`** | `validate_fallow`, `report_fallow`, `validate_similar_code` | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security. |
+| **Git** | `validate_git_config` | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix. |
+| **Auditor Hygiene** | `validate_auditor_hygiene` | Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
 | **`valibot`** | `validate_valibot_parity` | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers. |
 | **`stylelint`** | `validate_stylelint` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
@@ -575,8 +578,8 @@ export default defineAuditConfig({
     security: {
       enabled: true
     },
-    enforceTargets: false,
-    maxTargetPriority: 'critical',
+    enforceTargets: true,
+    maxTargetPriority: 'high',
     similarCode: {
       enabled: true,
       threshold: 0.95,

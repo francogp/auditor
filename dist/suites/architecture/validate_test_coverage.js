@@ -4,12 +4,12 @@
  * meets configured thresholds and has no untracked blind spots when enforceInAudit is enabled.
  */
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { getAuditConfig, buildTestCoverageConfig } from "../../core/auditConfig.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
+import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const TEST_COVERAGE_RULES = [
     'test-coverage-below-threshold',
@@ -78,7 +78,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
                 this.addViolation({
                     ruleId: 'test-coverage-below-threshold',
                     severity: 'error',
-                    file: path.relative(projectRoot, coverageFile).replace(/\\/g, '/'),
+                    file: toPosixRelative(projectRoot, coverageFile),
                     line: 1,
                     context: `${report.overall.statements.pct}% < ${threshold}%`,
                     message: `Cobertura global de statements (${report.overall.statements.pct}%) inferior al umbral configurado de ${threshold}% (${report.overall.statements.covered}/${report.overall.statements.total} sentencias cubiertas).`
@@ -99,7 +99,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
             this.addViolation({
                 ruleId: 'test-coverage-missing-report',
                 severity: 'error',
-                file: path.relative(projectRoot, coverageFile).replace(/\\/g, '/'),
+                file: toPosixRelative(projectRoot, coverageFile),
                 line: 1,
                 context: 'parse error',
                 message: `Error analizando reporte de cobertura: ${err instanceof Error ? err.message : String(err)}`

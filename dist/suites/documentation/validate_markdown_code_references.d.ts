@@ -36,7 +36,7 @@ export declare const DEFAULT_SCAN_DIRECTORIES: readonly [".agents/skills", "AGEN
 export declare function resolveMarkdownScanDirectories(projectRoot?: string, explicitRoots?: readonly string[]): readonly string[];
 export declare const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS: readonly ["scripts/tests", "scripts/.cache/", "scripts/setup/plugins/", "scripts/setup/plugins/01_deploy_env.sh", "scripts/setup/plugins/01_deploy_env.ps1", "scripts/auditors/"];
 export declare function getKnownValidAbstractPaths(projectRoot?: string): ReadonlySet<string>;
-export declare const KNOWN_VALID_ABSTRACT_PATHS: Set<"scripts/tests" | "scripts/.cache/" | "scripts/setup/plugins/" | "scripts/setup/plugins/01_deploy_env.sh" | "scripts/setup/plugins/01_deploy_env.ps1" | "scripts/auditors/">;
+export declare const KNOWN_VALID_ABSTRACT_PATHS: Set<"scripts/auditors/" | "scripts/tests" | "scripts/.cache/" | "scripts/setup/plugins/" | "scripts/setup/plugins/01_deploy_env.sh" | "scripts/setup/plugins/01_deploy_env.ps1">;
 export declare function stripCodeBlocks(markdown: string): string;
 export declare function checkExactCase(startDir: string, relativePath: string): {
     exists: boolean;

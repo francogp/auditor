@@ -3,22 +3,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {
-  matchesAnyRoot,
-  isTestPath,
-  isTestFileForCodeAudit,
   isDataPath,
   isDemoPath,
   isConstantsPath,
   isExemptFile,
   isInCodeRoots,
-  isSelfProviderProject,
   isScriptPath,
   isSrcPath,
-  isCliPath,
+  isCliPath
+} from '../src/core/auditPathPredicates.ts';
+import { matchesAnyRoot } from '../src/core/auditRootMatcher.ts';
+import { isTestPath, isTestFileForCodeAudit } from '../src/core/auditTestPredicates.ts';
+import { isSelfProviderProject } from '../src/core/auditProjectIdentity.ts';
+import {
   resolveZLayersScssPath,
   getEffectiveZLayers,
   Z_LAYERS
-} from '../src/core/auditPathPredicates.ts';
+} from '../src/core/auditZLayers.ts';
+import { advancePastStringOrComment, scanBalancedBraces } from '../src/core/scannerUtils.ts';
 import { defineAuditConfig } from '../src/core/auditConfig.ts';
 import { loadAuditConfig } from '../src/core/auditConfigLoader.ts';
 
@@ -209,6 +211,61 @@ describe('auditPathPredicates', () => {
       expect(layers.BACKGROUND).toBe(-1);
       expect(layers.CANVAS).toBe(10);
       expect(layers.PANEL).toBe(500);
+    });
+  });
+
+  describe('scannerUtils', () => {
+    it('returns same index when not at string or comment', () => {
+      const text = 'const x = 10;';
+      expect(advancePastStringOrComment(text, 0, text.length)).toBe(0);
+      expect(advancePastStringOrComment(text, 6, text.length)).toBe(6);
+    });
+
+    it('advances past single-quoted strings with escaped characters', () => {
+      const text = "'hello \\'world\\'' after";
+      const next = advancePastStringOrComment(text, 0, text.length);
+      expect(text.slice(next)).toBe(' after');
+    });
+
+    it('advances past double-quoted strings with escaped characters', () => {
+      const text = '"hello \\"world\\"" after';
+      const next = advancePastStringOrComment(text, 0, text.length);
+      expect(text.slice(next)).toBe(' after');
+    });
+
+    it('advances past template strings', () => {
+      const text = '`template ${val}` after';
+      const next = advancePastStringOrComment(text, 0, text.length);
+      expect(text.slice(next)).toBe(' after');
+    });
+
+    it('advances past single-line comments', () => {
+      const text = '// single-line comment\nconst a = 1;';
+      const next = advancePastStringOrComment(text, 0, text.length);
+      expect(text.slice(next)).toBe('\nconst a = 1;');
+    });
+
+    it('advances past multi-line block comments', () => {
+      const text = '/* block comment */ after';
+      const next = advancePastStringOrComment(text, 0, text.length);
+      expect(text.slice(next)).toBe(' after');
+    });
+
+    it('handles unclosed string safely', () => {
+      const text = "'unclosed string";
+      const next = advancePastStringOrComment(text, 0, text.length);
+      expect(next).toBe(text.length);
+    });
+
+    it('scans balanced braces and respects strings and stopPrefix', () => {
+      const text = ' { a: "}", b: { c: 1 } } </script>';
+      const res = scanBalancedBraces(text, 2, text.length, 1, '</script>');
+      expect(res.depth).toBe(0);
+      expect(text.slice(1, res.end)).toBe('{ a: "}", b: { c: 1 } }');
+
+      const truncated = '{ a: 1 </script>';
+      const stopRes = scanBalancedBraces(truncated, 1, truncated.length, 1, '</script>');
+      expect(stopRes.depth).toBe(1);
     });
   });
 });

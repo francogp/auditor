@@ -6,6 +6,8 @@
 import path from 'node:path';
 import { getAuditConfig, isDataPath, isDemoPath, isConstantsPath, isInCodeRoots, isExemptFile } from "../core/auditConfig.js";
 import { isPathIgnored, matchesSinglePattern } from "../core/auditorBase.js";
+import { toPosixRelative } from "../core/safePath.js";
+import { stripComments } from "../core/scannerUtils.js";
 import { getLineAtMatch, isCommentLine, isTestOrNodeModules, normalizeFilePath } from "./auditRuleTypes.js";
 export function isAuditableCodeFile(filePath, config = getAuditConfig()) {
     if (!filePath)
@@ -65,7 +67,7 @@ export function isMagicNumberExemptFile(filePath, projectRoot = process.cwd()) {
         return true;
     const norm = normalizeFilePath(filePath);
     const relPath = path.isAbsolute(filePath)
-        ? path.relative(projectRoot, filePath).replace(/\\/g, '/')
+        ? toPosixRelative(projectRoot, filePath)
         : norm;
     const config = getAuditConfig(projectRoot);
     const exemptGlobs = config.constants?.exemptGlobs ?? [];
@@ -95,7 +97,7 @@ function isInsideStringOrComment(content, matchIndex, lineStartPos, line, trimme
     if (singleQuotes % 2 === 1 || doubleQuotes % 2 === 1 || lineBackticks % 2 === 1)
         return true;
     const contentBefore = content.substring(0, matchIndex);
-    const contentWithoutComments = contentBefore.replace(/\/\/[^\n]*/g, '');
+    const contentWithoutComments = stripComments(contentBefore);
     const totalBackticks = (contentWithoutComments.match(/(?<!\\)\x60/g) || []).length;
     if (totalBackticks % 2 === 1) {
         const lastBacktickPos = contentWithoutComments.lastIndexOf('\x60');
