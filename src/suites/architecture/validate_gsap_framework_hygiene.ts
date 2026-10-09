@@ -20,6 +20,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from '../../core/auditConfig.ts';
 import { normalizePosixPath as normalizeFilePath } from '../../core/safePath.ts';
+import { scanBalancedParens } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -38,6 +39,29 @@ export const GSAP_FRAMEWORK_HYGIENE_RULES: readonly GsapFrameworkHygieneRuleId[]
 
 export const DEVTOOLS_GUARD_WINDOW_PRE_CHARS = 150;
 export const DEVTOOLS_GUARD_WINDOW_POST_CHARS = 200;
+
+interface GsapScopeRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+export function findGsapScopeRanges(content: string): readonly GsapScopeRange[] {
+  const ranges: GsapScopeRange[] = [];
+  const scopeRegex = /\b(?:gsap\.context|useGSAP|\w*ctx\.add)\s*\(/g;
+  let match: RegExpExecArray | null;
+  while ((match = scopeRegex.exec(content)) !== null) {
+    const openParenIndex = match.index + match[0].length - 1;
+    const result = scanBalancedParens(content, openParenIndex + 1);
+    if (result.depth === 0) {
+      ranges.push({ start: match.index, end: result.end });
+    }
+  }
+  return ranges;
+}
+
+function isInsideAnyScopeRange(index: number, ranges: readonly GsapScopeRange[]): boolean {
+  return ranges.some(r => index >= r.start && index < r.end);
+}
 
 export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
@@ -84,54 +108,61 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
     ];
     const isUiComponent = norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
 
-    // 1. gsap-unscoped-component-selectors
     if (isUiComponent && isInCodeRoots(relPath)) {
-      const unscopedRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(\s*['"]([.#][\w\s>+~.:#-]+)['"]/g;
-      let m: RegExpExecArray | null;
-      while ((m = unscopedRegex.exec(content)) !== null) {
-        const selector = m[1];
-        const preceding = content.slice(Math.max(0, m.index - 200), m.index);
-        const lineEnd = content.indexOf('\n', m.index);
-        const currentLine = content.slice(m.index, lineEnd === -1 ? undefined : lineEnd);
-        const nearby = preceding + '\n' + currentLine;
-        if (/\/\/\s*(?:scope-ok|selector-ok):\s*\S+/i.test(nearby)) continue;
-
-        // Check if inside gsap.context or useGSAP
-        const hasScopeContext = /gsap\.context\s*\(|useGSAP\s*\(/.test(content);
-        if (!hasScopeContext) {
-          this.addViolationAtMatch({
-            ruleId: 'gsap-unscoped-component-selectors',
-            filePath: relPath,
-            content,
-            matchIndex: m.index,
-            message: `Selector global '${selector}' en componente UI sin scope acotado. Usa 'gsap.context(..., rootRef.value)' o 'useGSAP()' para evitar fugas.`,
-            severity: 'error'
-          });
-        }
-      }
+      this.scanUnscopedSelectors(relPath, content);
+      this.scanContextRevert(relPath, content);
     }
 
-    // 2. gsap-missing-context-revert
-    if (isUiComponent && isInCodeRoots(relPath)) {
-      if (/gsap\.context\s*\(/.test(content)) {
-        const hasRevert = /\.revert\s*\(|\.kill\s*\(/.test(content);
-        const hasUnmountLifecycle = /onUnmounted|onScopeDispose|useEffect/.test(content);
-        const hasRevertOk = /\/\/\s*revert-ok:\s*\S+/i.test(content);
+    this.scanPluginRegistration(relPath, content);
+    this.scanDevtoolsProduction(relPath, content);
+  }
 
-        if ((!hasRevert || !hasUnmountLifecycle) && !hasRevertOk) {
-          this.addViolationAtMatch({
-            ruleId: 'gsap-missing-context-revert',
-            filePath: relPath,
-            content,
-            matchIndex: content.indexOf('gsap.context'),
-            message: "Uso de 'gsap.context()' en componente UI sin llamar a 'revert()' en 'onUnmounted' / 'onScopeDispose'.",
-            severity: 'error'
-          });
-        }
+  private scanUnscopedSelectors(relPath: string, content: string): void {
+    const scopeRanges = findGsapScopeRanges(content);
+    const unscopedRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(\s*['"]([.#][\w\s>+~.:#-]+)['"]/g;
+    let m: RegExpExecArray | null;
+    while ((m = unscopedRegex.exec(content)) !== null) {
+      const selector = m[1];
+      const preceding = content.slice(Math.max(0, m.index - 200), m.index);
+      const lineEnd = content.indexOf('\n', m.index);
+      const currentLine = content.slice(m.index, lineEnd === -1 ? undefined : lineEnd);
+      const nearby = preceding + '\n' + currentLine;
+      if (/\/\/\s*(?:scope-ok|selector-ok):\s*\S+/i.test(nearby)) continue;
+
+      const isScoped = isInsideAnyScopeRange(m.index, scopeRanges);
+      if (!isScoped) {
+        this.addViolationAtMatch({
+          ruleId: 'gsap-unscoped-component-selectors',
+          filePath: relPath,
+          content,
+          matchIndex: m.index,
+          message: `Selector global '${selector}' en componente UI sin scope acotado. Usa 'gsap.context(..., rootRef.value)' o 'useGSAP()' para evitar fugas.`,
+          severity: 'error'
+        });
       }
     }
+  }
 
-    // 3. gsap-missing-plugin-registration
+  private scanContextRevert(relPath: string, content: string): void {
+    if (!/gsap\.context\s*\(/.test(content)) return;
+
+    const hasRevert = /\.revert\s*\(|\.kill\s*\(/.test(content);
+    const hasUnmountLifecycle = /onUnmounted|onScopeDispose|useEffect/.test(content);
+    const hasRevertOk = /\/\/\s*revert-ok:\s*\S+/i.test(content);
+
+    if ((!hasRevert || !hasUnmountLifecycle) && !hasRevertOk) {
+      this.addViolationAtMatch({
+        ruleId: 'gsap-missing-context-revert',
+        filePath: relPath,
+        content,
+        matchIndex: content.indexOf('gsap.context'),
+        message: "Uso de 'gsap.context()' en componente UI sin llamar a 'revert()' en 'onUnmounted' / 'onScopeDispose'.",
+        severity: 'error'
+      });
+    }
+  }
+
+  private scanPluginRegistration(relPath: string, content: string): void {
     const pluginImportRegex = /import\s*\{[^}]*\b(ScrollTrigger|Flip|Draggable|SplitText|Observer|ScrollSmoother|InertiaPlugin|MotionPathPlugin)\b[^}]*\}\s*from\s*['"]gsap\/[a-zA-Z0-9]+['"]/g;
     let pluginMatch: RegExpExecArray | null;
     while ((pluginMatch = pluginImportRegex.exec(content)) !== null) {
@@ -150,8 +181,9 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         });
       }
     }
+  }
 
-    // 4. gsap-banned-devtools-production
+  private scanDevtoolsProduction(relPath: string, content: string): void {
     const devtoolsRegex = /\b(GSDevTools|MotionPathHelper)\.create\s*\(/g;
     let devtoolsMatch: RegExpExecArray | null;
     while ((devtoolsMatch = devtoolsRegex.exec(content)) !== null) {

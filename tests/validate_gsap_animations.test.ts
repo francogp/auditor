@@ -421,5 +421,29 @@ const inlineComment = true; // No need for clearInterval here
       const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
       expect(layoutViolations).toHaveLength(0);
     });
+
+    it('honors statement-level layout-ok authorization across huge multi-kilobyte fromTo tween configs', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      // Generate large dummy padding properties (> 1200 chars) to exceed legacy window limit
+      const dummyProps = Array.from({ length: 40 }, (_, idx) => `// comment padding line ${idx}\n          rotation: ${idx},`).join('\n');
+      const code = `
+        // layout-ok: extensive accordion animation with multiline justification
+        gsap.fromTo(accordionRef.value, {
+          opacity: 0,
+          scale: 0.95,
+          ${dummyProps}
+          margin: 0
+        }, {
+          opacity: 1,
+          scale: 1,
+          height: 'auto',
+          duration: 0.5
+        });
+      `;
+      auditor.testScanFile('src/components/HugeAccordion.vue', code);
+      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      expect(layoutViolations).toHaveLength(0);
+    });
   });
 });
+

@@ -20,8 +20,18 @@ export type GsapFrameworkHygieneRuleId = 'gsap-unscoped-component-selectors' | '
 export declare const GSAP_FRAMEWORK_HYGIENE_RULES: readonly GsapFrameworkHygieneRuleId[];
 export declare const DEVTOOLS_GUARD_WINDOW_PRE_CHARS = 150;
 export declare const DEVTOOLS_GUARD_WINDOW_POST_CHARS = 200;
+interface GsapScopeRange {
+    readonly start: number;
+    readonly end: number;
+}
+export declare function findGsapScopeRanges(content: string): readonly GsapScopeRange[];
 export declare class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
     protected scanFile(relPath: string, content: string): void;
+    private scanUnscopedSelectors;
+    private scanContextRevert;
+    private scanPluginRegistration;
+    private scanDevtoolsProduction;
 }
+export {};
 //# sourceMappingURL=validate_gsap_framework_hygiene.d.ts.map

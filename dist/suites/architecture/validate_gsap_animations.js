@@ -25,7 +25,7 @@ import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from "../
 import { normalizePosixPath as normalizeFilePath } from "../../core/safePath.js";
 import { parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
-import { advancePastStringOrComment, scanBalancedBraces } from "../../core/scannerUtils.js";
+import { advancePastStringOrComment, scanBalancedBraces, scanBalancedParens } from "../../core/scannerUtils.js";
 enableCompileCache();
 export const GSAP_ANIMATION_RULES = [
     'gsap-banned-css-animations',
@@ -328,10 +328,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             }
         }
     }
-    scanGsapTweenConfig(cfg, mIndex, relPath, content) {
+    scanGsapTweenConfig(cfg, mIndex, relPath, content, isTweenAuthorized = false) {
         // 3a. gsap-no-layout-properties
         const foundLayout = findTopLevelLayoutProperty(cfg.text);
-        if (foundLayout) {
+        if (foundLayout && !isTweenAuthorized) {
             const matchIdx = cfg.startOffset + foundLayout.index;
             const tweenCallStart = mIndex;
             const windowStart = Math.max(0, Math.min(tweenCallStart - TWEEN_CALL_ESCAPE_WINDOW_OFFSET, matchIdx - MATCH_ESCAPE_WINDOW_OFFSET));
@@ -401,9 +401,16 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
                 if (m.index >= range.end)
                     break;
                 const openParenIdx = m.index + m[0].length - 1;
+                const parenResult = scanBalancedParens(content, openParenIdx + 1, range.end);
+                const tweenEnd = parenResult.depth === 0 ? parenResult.end : range.end;
+                // Check if the tween statement or its preceding line has a layout authorization
+                const precedingLineStart = content.lastIndexOf('\n', m.index);
+                const prevLineStart = precedingLineStart > 0 ? content.lastIndexOf('\n', precedingLineStart - 1) + 1 : 0;
+                const tweenSpanText = content.slice(prevLineStart, tweenEnd);
+                const isTweenAuthorized = /\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(tweenSpanText);
                 const configObjects = extractTweenConfigObjects(content, openParenIdx, range.end);
                 for (const cfg of configObjects) {
-                    this.scanGsapTweenConfig(cfg, m.index, relPath, content);
+                    this.scanGsapTweenConfig(cfg, m.index, relPath, content, isTweenAuthorized);
                 }
             }
         }

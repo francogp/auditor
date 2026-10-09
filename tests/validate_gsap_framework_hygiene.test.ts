@@ -112,6 +112,40 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       expect(violations[0]?.severity).toBe('error');
     });
 
+    it('detects unscoped selector outside gsap.context even when another gsap.context exists in the same component', () => {
+      const auditor = new TestableGsapFrameworkHygieneAuditor();
+      auditor.testScanFile(
+        'src/components/MixedContext.vue',
+        `<script setup lang="ts">
+        import { ref, onMounted, onUnmounted } from 'vue';
+        import gsap from 'gsap';
+
+        const root = ref(null);
+        let ctx: gsap.Context | undefined;
+
+        onMounted(() => {
+          ctx = gsap.context(() => {
+            gsap.to('.scoped-card', { opacity: 1 });
+          }, root.value);
+        });
+
+        onUnmounted(() => {
+          ctx?.revert();
+        });
+
+        function handleOrphanClick() {
+          // This tween is outside gsap.context, unscoped!
+          gsap.to('.unscoped-banner', { x: 50 });
+        }
+        </script>`
+      );
+
+      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      expect(violations.length).toBe(1);
+      expect(violations[0]?.severity).toBe('error');
+      expect(violations[0]?.message).toContain('.unscoped-banner');
+    });
+
     it('detects missing context.revert() on component unmount', () => {
       const auditor = new TestableGsapFrameworkHygieneAuditor();
       auditor.testScanFile(

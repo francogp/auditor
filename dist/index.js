@@ -32,6 +32,7 @@ export * from "./cli/cliUtils.js";
 export * from "./core/version.js";
 export * from "./core/auditorContractConformance.js";
 export * from "./plugin/defineAuditorExtension.js";
+export { VUE_SFC_BLOCK_TAGS, parseVueSfc, parseVueSfcBlocks } from "./core/vueSfcParser.js";
 export * from "./analyzers/homebrew/index.js";
 export * from "./suites/architecture/validate_auditor_hygiene.js";
 export * from "./suites/persistence/validate_valibot_parity.js";

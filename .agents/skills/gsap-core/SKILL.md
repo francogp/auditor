@@ -236,6 +236,57 @@ Respecting **prefers-reduced-motion** is important for users with vestibular dis
 
 Full docs: [gsap.matchMedia()](https://gsap.com/docs/v3/GSAP/gsap.matchMedia/). For immediate re-run of all matching handlers (e.g. after toggling a reduced-motion control), use **gsap.matchMediaRefresh()**.
 
+## Architectural Governance: Layout Properties, Accordions & Progress Bars
+
+Animating layout-heavy CSS properties (`width`, `height`, `top`, `bottom`, `left`, `right`, `margin`, `padding`) is strictly governed as `severity: 'error'` across all architecture audits (`gsap-no-layout-properties`). Animating these properties forces the browser engine to perform full DOM **Reflow (Layout)** and **Repaint** on every single animation frame (16.6ms at 60fps), introducing severe frame drops (jank) and battery drain.
+
+### 1. Progress Bars and Flexbox Indicators (`scaleX` Pattern)
+Never animate `width` on progress bars, health indicators, or flexbox containers. Instead, fix the element width at `100%` and animate `scaleX`:
+```typescript
+// 100% GPU accelerated, zero reflow, zero relayout
+gsap.to(progressBarRef.value, {
+  scaleX: currentProgress / totalProgress,
+  transformOrigin: 'left center',
+  duration: 0.4,
+  ease: 'power2.out'
+});
+```
+To clip overflow cleanly inside rounded containers, use `overflow: hidden` on the parent wrapper.
+
+### 2. Accordions and Collapsible Panels
+For dynamic panels, choose between two canonical approaches:
+
+#### Approach A: GSAP Flip Plugin (Recommended GPU-Accelerated)
+Record initial state, toggle DOM classes or state, and animate using `Flip.from`:
+```typescript
+import { Flip } from 'gsap/Flip';
+gsap.registerPlugin(Flip);
+
+const state = Flip.getState(accordionContentRef.value);
+isOpen.value = !isOpen.value;
+await nextTick();
+Flip.from(state, {
+  duration: 0.35,
+  ease: 'power2.out'
+});
+```
+
+#### Approach B: Explicit Statement-Level Justification (`// layout-ok:`)
+When dynamic text content or variable heights cannot use `scaleY` (which visually stretches inner fonts) and `Flip` is impractical, document the legitimate layout exception directly above the tween statement:
+```typescript
+// layout-ok: dynamic accordion with variable multiline text content
+gsap.fromTo(accordionRef.value, {
+  height: 0,
+  opacity: 0
+}, {
+  height: 'auto',
+  opacity: 1,
+  duration: 0.35,
+  ease: 'power2.out'
+});
+```
+A single `// layout-ok: <reason>` comment immediately preceding `gsap.to`, `gsap.from`, or `gsap.fromTo` automatically authorizes all layout properties across the entire tween statement.
+
 ## Official GSAP best practices
 
 - ✅ Use **property names in camelCase** in vars (e.g. `backgroundColor`, `rotationX`).
@@ -252,3 +303,4 @@ Full docs: [gsap.matchMedia()](https://gsap.com/docs/v3/GSAP/gsap.matchMedia/). 
 - ❌ Rely on the default **immediateRender: true** when stacking multiple **from()** or **fromTo()** tweens on the same property of the same target; set **immediateRender: false** on the later tweens so they animate correctly.
 - ❌ Use invalid or non-existent ease names; stick to documented eases.
 - ❌ Forget that **gsap.from()** uses the element’s current state as the end state; the initial values in the tween will be applied immediately unless `immediateRender: false` is in the `vars`.
+
