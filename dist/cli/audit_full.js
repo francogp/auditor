@@ -27,7 +27,7 @@ import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig, sanitiz
 import { runWarningRatchet, initWarningBaseline } from "./auditRatchet.js";
 import { migrateLegacyAuditConfig } from "./migrateAuditConfig.js";
 import { COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV } from "../core/auditCoverage.js";
-import { renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner, renderAutoFixNoticeBanner, renderAuditorsRegistryTable, renderAuditorDetailCard, renderCliHelp } from "../core/unifiedTheme.js";
+import { getVisualWidth, renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner, renderAutoFixNoticeBanner, renderAuditorsRegistryTable, renderAuditorDetailCard, renderCliHelp } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
@@ -727,6 +727,29 @@ export function createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tas
     }
     return subtitleDetails;
 }
+export const MAX_BANNER_SUBTITLE_WIDTH = 72;
+export function formatSubtitleDetails(details, maxLineWidth = MAX_BANNER_SUBTITLE_WIDTH) {
+    if (details.length === 0)
+        return '';
+    const lines = [];
+    let currentLine = '';
+    for (const item of details) {
+        const candidate = currentLine ? `${currentLine}  |  ${item}` : item;
+        if (getVisualWidth(candidate) <= maxLineWidth) {
+            currentLine = candidate;
+        }
+        else {
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+            currentLine = item;
+        }
+    }
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+    return lines.join('\n');
+}
 async function runTaskExecution(task, ctx, subLines) {
     const taskArgs = buildTaskArgs(task, ctx.cliOptions.values, ctx.cliOptions.formattedRules);
     if (task.requiresAst && ctx.sharedAstContext) {
@@ -822,7 +845,11 @@ function displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksTo
     else if (isBuildMode) {
         bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
     }
-    console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
+    else if (config.name && getVisualWidth(bannerTitle) > MAX_BANNER_SUBTITLE_WIDTH) {
+        bannerTitle = `${config.name.toUpperCase()}\nSUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN`;
+    }
+    const formattedSubtitle = formatSubtitleDetails(subtitleDetails);
+    console.log(renderBanner(bannerTitle, formattedSubtitle));
 }
 function sortTasksByOrder(tasks, isFixMode) {
     tasks.sort((a, b) => {

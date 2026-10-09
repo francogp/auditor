@@ -31,10 +31,22 @@ describe('sync_env_scripts CLI Utility', () => {
     expect(result.success).toBe(true);
     expect(result.filesUpdated).toContain('setup-linux.sh');
     expect(result.filesUpdated).toContain('setup-windows.ps1');
+    expect(result.filesUpdated).toContain('update-linux.sh');
+    expect(result.filesUpdated).toContain('update-windows.ps1');
 
     // Verify scripts exist in targetDir
     expect(fs.existsSync(path.join(tempDir, 'setup-linux.sh'))).toBe(true);
     expect(fs.existsSync(path.join(tempDir, 'setup-windows.ps1'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'update-linux.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'update-windows.ps1'))).toBe(true);
+
+    // Verify executable permissions on POSIX
+    if (process.platform !== 'win32') {
+      const linuxSetupStat = fs.statSync(path.join(tempDir, 'setup-linux.sh'));
+      const linuxUpdateStat = fs.statSync(path.join(tempDir, 'update-linux.sh'));
+      expect(linuxSetupStat.mode & 0o111).toBeGreaterThan(0);
+      expect(linuxUpdateStat.mode & 0o111).toBeGreaterThan(0);
+    }
 
     // Verify plugins directory initialized
     const pluginsDir = path.join(tempDir, 'scripts/setup/plugins');
@@ -60,5 +72,7 @@ describe('sync_env_scripts CLI Utility', () => {
     expect(secondRun.success).toBe(true);
     expect(fs.existsSync(path.join(tempDir, 'setup-linux.sh'))).toBe(true);
     expect(fs.existsSync(path.join(tempDir, 'setup-windows.ps1'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'update-linux.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'update-windows.ps1'))).toBe(true);
   });
 });

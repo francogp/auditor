@@ -47,5 +47,7 @@ export declare function computeAuditCategoryCounts(results: readonly StandardAud
 /** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
 export declare function isRatchetScope(cliOptions: AuditFullCliOptions, isFullAudit: boolean): boolean;
 export declare function createAuditBannerDetails(cliOptions: AuditFullCliOptions, isFixMode: boolean, isBuildMode: boolean, tasksCount: number, allAvailableCount: number, omittedCount: number): string[];
+export declare const MAX_BANNER_SUBTITLE_WIDTH = 72;
+export declare function formatSubtitleDetails(details: readonly string[], maxLineWidth?: number): string;
 export declare function runMasterAudit(): Promise<void>;
 //# sourceMappingURL=audit_full.d.ts.map

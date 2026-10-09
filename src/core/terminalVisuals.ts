@@ -7,6 +7,7 @@
 
 import stringWidth from 'string-width';
 
+
 /**
  * Calculates the visual monospace terminal display width of a string,
  * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).

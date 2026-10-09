@@ -14,8 +14,7 @@ import { enableCompileCache } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { parseSemver, compareVersions, getAuditorEngines } from "../../cli/check_environment.js";
-import { syncEnvScripts } from "../../cli/sync_env_scripts.js";
-import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
+import { getPackageJson } from "../../core/packageJson.js";
 enableCompileCache();
 export const ENVIRONMENT_ENGINES_RULES = [
     'environment-engines-missing',
@@ -39,10 +38,28 @@ export function detectNpmVersion() {
     }
     return '0.0.0';
 }
+export function extractBaseNodeVersion(engineStr) {
+    const v = parseSemver(engineStr);
+    if (v.major === 0 && v.minor === 0 && v.patch === 0)
+        return '';
+    return `${v.major}.${v.minor}.${v.patch}`;
+}
+export function syncNvmrc(projectRoot, targetNodeEngine) {
+    const baseVersion = extractBaseNodeVersion(targetNodeEngine);
+    if (!baseVersion)
+        return false;
+    const nvmrcPath = path.resolve(projectRoot, '.nvmrc');
+    const currentContent = fs.existsSync(nvmrcPath) ? fs.readFileSync(nvmrcPath, 'utf8').trim() : '';
+    if (currentContent !== baseVersion) {
+        fs.writeFileSync(nvmrcPath, `${baseVersion}\n`, 'utf8');
+        return true;
+    }
+    return false;
+}
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
-            capabilities: { lint: true, fix: true, fixPriority: true },
+            capabilities: { lint: true, fix: false, fixPriority: false },
             id: 'validate_environment_engines',
             name: 'Environment Engines & Runtime Validator',
             description: 'Valida versiones de Node.js y npm en package.json',
@@ -83,51 +100,40 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
         }
         return pkg;
     }
-    auditMissingEngines(hasNodeEngine, hasNpmEngine, activeEngines, auditorEngines) {
+    auditMissingEngines(hasNodeEngine, hasNpmEngine) {
         if (!hasNodeEngine || !hasNpmEngine) {
-            if (this.isFixActive()) {
-                activeEngines.node = hasNodeEngine ? activeEngines.node : auditorEngines.node;
-                activeEngines.npm = hasNpmEngine ? activeEngines.npm : auditorEngines.npm;
-                return true;
-            }
+            const isWin = process.platform === 'win32';
+            const setupScript = isWin ? '.\\setup-windows.ps1' : './setup-linux.sh';
             this.addViolation({
                 ruleId: 'environment-engines-missing',
                 file: 'package.json',
-                message: 'package.json debe declarar explícitamente "engines.node" y "engines.npm".',
+                message: `package.json debe declarar explícitamente "engines.node" y "engines.npm". Ejecuta ${setupScript} para sincronizar el entorno.`,
                 severity: 'error'
             });
         }
-        return false;
     }
-    auditEnginesBelowFloor(currentNodeEngine, currentNpmEngine, activeEngines, auditorEngines, minNodeReq, minNpmReq) {
+    auditEnginesBelowFloor(currentNodeEngine, currentNpmEngine, auditorEngines, minNodeReq, minNpmReq) {
         let nodeEngineReq = { major: 0, minor: 0, patch: 0 };
         let npmEngineReq = { major: 0, minor: 0, patch: 0 };
-        let modified = false;
         if (currentNodeEngine && currentNpmEngine) {
             nodeEngineReq = parseSemver(currentNodeEngine);
             npmEngineReq = parseSemver(currentNpmEngine);
             const isNodeAdequate = compareVersions(nodeEngineReq, minNodeReq);
             const isNpmAdequate = compareVersions(npmEngineReq, minNpmReq);
             if (!isNodeAdequate || !isNpmAdequate) {
-                if (this.isFixActive()) {
-                    activeEngines.node = isNodeAdequate ? currentNodeEngine : auditorEngines.node;
-                    activeEngines.npm = isNpmAdequate ? currentNpmEngine : auditorEngines.npm;
-                    modified = true;
-                    nodeEngineReq = parseSemver(activeEngines.node);
-                    npmEngineReq = parseSemver(activeEngines.npm);
-                }
-                else {
-                    this.addViolation({
-                        ruleId: 'environment-engines-below-floor',
-                        file: 'package.json',
-                        message: `Versiones de motores en package.json inferiores al piso del auditor ` +
-                            `(Node: ${auditorEngines.node}, npm: ${auditorEngines.npm}).`,
-                        severity: 'error'
-                    });
-                }
+                const isWin = process.platform === 'win32';
+                const updateScript = isWin ? '.\\update-windows.ps1' : './update-linux.sh';
+                this.addViolation({
+                    ruleId: 'environment-engines-below-floor',
+                    file: 'package.json',
+                    message: `Versiones de motores en package.json inferiores al piso del auditor ` +
+                        `(Node: ${auditorEngines.node}, npm: ${auditorEngines.npm}). ` +
+                        `Ejecuta ${updateScript} para actualizar el entorno a la última versión.`,
+                    severity: 'error'
+                });
             }
         }
-        return { modified, nodeReq: nodeEngineReq, npmReq: npmEngineReq };
+        return { nodeReq: nodeEngineReq, npmReq: npmEngineReq };
     }
     auditRuntimeMismatch(pkg, auditorEngines, nodeEngineReq, npmEngineReq, minNodeReq, minNpmReq) {
         const runtimeNode = parseSemver(process.versions.node);
@@ -138,17 +144,16 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
         const isNodeMatch = compareVersions(runtimeNode, targetNodeReq);
         const isNpmMatch = runtimeNpm.major === 0 || compareVersions(runtimeNpm, targetNpmReq);
         if (!isNodeMatch || !isNpmMatch) {
-            if (this.isFixActive()) {
-                syncEnvScripts({ targetDir: this.projectRoot });
-            }
-            const scriptName = process.platform === 'win32' ? 'setup-windows.ps1' : 'setup-linux.sh';
+            const isWin = process.platform === 'win32';
+            const setupScript = isWin ? '.\\setup-windows.ps1' : './setup-linux.sh';
+            const updateScript = isWin ? '.\\update-windows.ps1' : './update-linux.sh';
             this.addViolation({
                 ruleId: 'environment-runtime-mismatch',
                 file: 'package.json',
                 message: `Entorno de ejecución desalineado. ` +
                     `Detectado Node v${process.versions.node} / npm ${rawNpmVer}, ` +
                     `requerido Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}. ` +
-                    `Ejecuta ./${scriptName} en tu terminal para alinear el entorno.`,
+                    `Ejecuta ${setupScript} (o nvm use) para alinear tu terminal, o ${updateScript} para actualizar a la última versión.`,
                 severity: 'error'
             });
         }
@@ -168,17 +173,10 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
         }
         const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
         const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
-        const activeEngines = { ...(pkg.engines ?? {}) };
-        let modifiedPkg = this.auditMissingEngines(hasNodeEngine, hasNpmEngine, activeEngines, auditorEngines);
+        this.auditMissingEngines(hasNodeEngine, hasNpmEngine);
         this.markRuleEvaluated('environment-engines-missing');
-        const belowFloorResult = this.auditEnginesBelowFloor(pkg.engines?.node ?? '', pkg.engines?.npm ?? '', activeEngines, auditorEngines, minNodeReq, minNpmReq);
-        if (belowFloorResult.modified) {
-            modifiedPkg = true;
-        }
+        const belowFloorResult = this.auditEnginesBelowFloor(pkg.engines?.node ?? '', pkg.engines?.npm ?? '', auditorEngines, minNodeReq, minNpmReq);
         this.markRuleEvaluated('environment-engines-below-floor');
-        if (modifiedPkg) {
-            writePackageJson(this.projectRoot, { ...pkg, engines: activeEngines });
-        }
         this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
         this.markRuleEvaluated('environment-runtime-mismatch');
     }

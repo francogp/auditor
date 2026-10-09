@@ -52,7 +52,9 @@ export function syncEnvScripts(options = {}) {
     const packageRootDir = path.resolve(currentDir, '../../');
     const filesToSync = [
         'setup-linux.sh',
-        'setup-windows.ps1'
+        'setup-windows.ps1',
+        'update-linux.sh',
+        'update-windows.ps1'
     ];
     const filesUpdated = []; // no-domain: Non-domain utility collection or data structure
     for (const file of filesToSync) {

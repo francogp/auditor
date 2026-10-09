@@ -52,12 +52,12 @@ Specialized skill for persisting newly acquired knowledge, explicit user correct
    - `learn-with-docs` is **NOT** a version control or release tool.
    - It is **STRICTLY FORBIDDEN** for this skill to run `git commit`, `git push`, create git tags, or modify `package.json` versions.
    - The skill's scope ends when the approved learning and harmonization diffs are written to disk in the working tree. Versioning, staging, committing, and pushing belong exclusively to `/safe-commit` or manual user command.
-   - A `learning_proposal.md` MUST NEVER propose or mention `git commit`, `git push`, tags, or release operations. Those belong solely to `/safe-commit` and its dedicated `plan_safe_commit.md`.
+   - A `learning_proposal.md` MUST NEVER propose or mention `git commit`, `git push`, tags, or release operations. Versioning, staging, committing, and release tags belong solely to `/safe-commit` (Phase 4) or manual user commands.
 
 6. **Dynamic Auditor Configuration Language Governance (Zero Hardcoding)**:
    - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
      - **Documentation & File Writing Language (`config.documentation.language`)**: Governs repository documentation, markdown files committed to git, DOX indices (`AGENTS.md`), commit messages, git tags, and the code diffs/contracts presented inside `learning_proposal.md`.
-     - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, and `ask_question` dialogs.
+     - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, `ask_question` dialogs, AND the narrative explanations and context in brain artifacts (`learning_proposal.md`, `walkthrough.md`).
    - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
    - **Zero Language Mixing**: Within each section, code block, or file, the chosen language must be strictly maintained without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 

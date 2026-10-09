@@ -68,7 +68,9 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean
 
   const filesToSync = [
     'setup-linux.sh',
-    'setup-windows.ps1'
+    'setup-windows.ps1',
+    'update-linux.sh',
+    'update-windows.ps1'
   ] as const;
 
   const filesUpdated: string[] = []; // no-domain: Non-domain utility collection or data structure

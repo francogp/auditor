@@ -39,18 +39,38 @@ export function compareVersions(current: SemverVersion, required: SemverVersion)
 
 export function getAuditorEngines(): { node: string; npm: string } {
   const currentFilePath = fileURLToPath(import.meta.url);
-  const auditorPackageJsonPath = path.resolve(path.dirname(currentFilePath), '../../package.json');
+  let dir = path.dirname(currentFilePath);
+  const auditorPackageJsonPath = path.resolve(dir, '../../package.json');
+
   if (fs.existsSync(auditorPackageJsonPath)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as { engines?: { node?: string; npm?: string } };
-      if (data.engines?.node && data.engines?.npm) {
-        return { node: data.engines.node, npm: data.engines.npm };
-      }
-    } catch {
-      // catch-ok: Fallback below
+    const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as { engines?: { node?: string; npm?: string } };
+    if (data.engines?.node && data.engines?.npm) {
+      return { node: data.engines.node, npm: data.engines.npm };
     }
   }
-  return { node: '>=26.10.0', npm: '>=12.0.0' };
+
+  // Walk up in case of alternative directory structures or packaging
+  while (dir !== path.dirname(dir)) {
+    const candidate = path.join(dir, 'package.json');
+    if (fs.existsSync(candidate)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(candidate, 'utf8')) as {
+          name?: string;
+          engines?: { node?: string; npm?: string };
+        };
+        if (data.name === '@francogp/auditor' && data.engines?.node && data.engines?.npm) {
+          return { node: data.engines.node, npm: data.engines.npm };
+        }
+      } catch {
+        // catch-ok: continue search
+      }
+    }
+    dir = path.dirname(dir);
+  }
+
+  throw new Error(
+    `[getAuditorEngines] Could not determine @francogp/auditor engine requirements from package.json (${auditorPackageJsonPath}). Hardcoded fallbacks are strictly prohibited.`
+  );
 }
 
 interface HostPackageJson {
@@ -157,8 +177,9 @@ export function checkEnvironment(targetDir: string = process.cwd(), autoRemediat
   const isWindows = process.platform === 'win32';
   const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
   const setupScriptPath = path.resolve(targetDir, setupScriptName);
+  const isPreinstallHook = process.env.npm_lifecycle_event === 'preinstall' || process.argv.includes('preinstall');
 
-  if (autoRemediate && fs.existsSync(setupScriptPath)) {
+  if (autoRemediate && !isPreinstallHook && fs.existsSync(setupScriptPath)) {
     console.log(`\n\x1b[36m\x1b[1m🔄 Desalineación de entorno detectada en ${projectName}. Ejecutando automáticamente ${setupScriptName} para sincronizar el entorno...\x1b[0m\n`);
     const setupStatus = runSetup([], targetDir);
     if (setupStatus === 0) {

@@ -27,6 +27,7 @@ import {
   formatStatusBadge,
   type TableColumn
 } from '../src/core/unifiedTheme.ts';
+import { formatSubtitleDetails } from '../src/cli/audit_full.ts';
 import type { StandardAuditResult, AuditFinding, AuditTaskDefinition } from '../src/core/auditContract.ts';
 
 describe('unifiedTheme Terminal & Reporting Engine', () => {
@@ -388,6 +389,123 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       expect(help).toContain('FILTROS Y SELECCIÓN:');
       expect(help).toContain('architecture');
       expect(help).toContain('documentation');
+    });
+  });
+
+  describe('Box-Drawing Monospace Alignment & Dynamic Width', () => {
+    it('renderAutoFixNoticeBanner has 100% identical line widths across all box lines', () => {
+      const banner = renderAutoFixNoticeBanner(3, 2);
+      const lines = banner.split('\n');
+      expect(lines.length).toBeGreaterThan(0);
+      const expectedWidth = getVisualWidth(lines[0]!);
+      expect(expectedWidth).toBeLessThanOrEqual(80);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBe(expectedWidth);
+      }
+    });
+
+    it('renderSimilarCodeWarningBanner has 100% identical line widths without border shift', () => {
+      const banner = renderSimilarCodeWarningBanner();
+      const lines = banner.split('\n');
+      expect(lines.length).toBeGreaterThan(0);
+      const expectedWidth = getVisualWidth(lines[0]!);
+      expect(expectedWidth).toBeLessThanOrEqual(80);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBe(expectedWidth);
+      }
+    });
+
+    it('renderBanner aligns borders consistently with and without emojis', () => {
+      const bannerWithEmojis = renderBanner('🛠️ REPARACIÓN GLOBAL', '⚠️  Incidencias detectadas  |  👉 Ejecutar fix');
+      const lines = bannerWithEmojis.split('\n');
+      const expectedWidth = getVisualWidth(lines[0]!);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBe(expectedWidth);
+      }
+    });
+
+    it('renders boxes cleanly across all emoji variants (🛠️, ⚠️, 🎉, 🏛️, 🚨, ❌, ✅, 👉) with zero border shift', () => {
+      const emojiTestCases = [
+        { title: '🎉 ÉXITO TOTAL ✅', subtitle: '✨ Todas las suites pasaron sin errores' },
+        { title: '🚨 ALERTA CRÍTICA ❌', subtitle: '⚠️ Se detectaron violaciones en arquitectura' },
+        { title: '🏛️ GOBERNANZA DE DOMINIO 👉', subtitle: '⚡ Ejecutando auditorías canónicas' },
+        { title: '🛠️ REPARACIÓN AUTOMÁTICA', subtitle: '👉 Ejecuta npm run auditor:fix para reparar' },
+        { title: 'ℹ️ INFORMACIÓN DEL SISTEMA', subtitle: '🔒 Modo de permisos estricto activo' }
+      ];
+
+      for (const testCase of emojiTestCases) {
+        const banner = renderBanner(testCase.title, testCase.subtitle);
+        const lines = banner.split('\n');
+        expect(lines.length).toBeGreaterThanOrEqual(3);
+        const topBorderWidth = getVisualWidth(lines[0]!);
+        for (let i = 0; i < lines.length; i++) {
+          const lineWidth = getVisualWidth(lines[i]!);
+          expect(lineWidth).toBe(topBorderWidth);
+        }
+      }
+    });
+
+    it('calculates box width dynamically based on content rather than fixed width', () => {
+      const shortBanner = renderBanner('CORTO', 'Sub');
+      const longBanner = renderBanner('TITULO MUY LARGO PARA PROBAR LA DINAMICA DEL RECUADRO', 'Subtitulo extendido con informacion relevante');
+
+      const shortWidth = getVisualWidth(shortBanner.split('\n')[0]!);
+      const longWidth = getVisualWidth(longBanner.split('\n')[0]!);
+
+      expect(shortWidth).toBeLessThan(longWidth);
+      expect(longWidth).toBeLessThanOrEqual(80);
+    });
+
+    it('renderConsolidatedFooter lines are all identical in visual width', () => {
+      const footer = renderConsolidatedFooter(10, 10, 0, 0, 1500, undefined, 0);
+      const lines = footer.trim().split('\n');
+      const expectedWidth = getVisualWidth(lines[0]!);
+      expect(expectedWidth).toBeLessThanOrEqual(80);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBe(expectedWidth);
+      }
+    });
+
+    it('renderAuditorDetailCard has identical line widths and stays within 80 columns', () => {
+      const task: AuditTaskDefinition = {
+        id: 'validate_eslint',
+        name: 'ESLint Hygiene',
+        family: 'architecture',
+        icon: '📜',
+        scriptPath: 'src/suites/architecture/validate_eslint.ts',
+        command: 'node',
+        args: [],
+        description: 'Audits code hygiene with ESLint flat config',
+        capabilities: { fix: true, lint: true, md: false, heavy: true, ast: true, changedSince: true, requiresBuild: false, postRun: false },
+        ruleDescriptions: { 'eslint-violation': 'Sintaxis o regla de lint violada' },
+        configKey: 'eslint'
+      };
+      const card = renderAuditorDetailCard(task);
+      const lines = card.trim().split('\n');
+      const expectedWidth = getVisualWidth(lines[0]!);
+      expect(expectedWidth).toBeLessThanOrEqual(80);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBe(expectedWidth);
+      }
+    });
+
+    it('formatSubtitleDetails cleanly partitions long details across lines without mid-delimiter breaks', () => {
+      const details = [
+        'v1.0.0',
+        'Auto-descubiertas: 24/24 suites',
+        'Preset: LINT',
+        'Familia: ARCHITECTURE',
+        'Similar-Code: OMITIDO ⏭️',
+        '🎯 Remoto: auditor'
+      ];
+      const formatted = formatSubtitleDetails(details, 72);
+      const lines = formatted.split('\n');
+      expect(lines.length).toBeGreaterThan(1);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBeLessThanOrEqual(72);
+      }
+      expect(formatted).toContain('v1.0.0');
+      expect(formatted).toContain('Similar-Code: OMITIDO ⏭️');
     });
   });
 });

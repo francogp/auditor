@@ -28,15 +28,13 @@ const TERMINAL_WIDTH = 80;
 const REGISTRY_DESC_COL_WIDTH = 24;
 const REGISTRY_DESC_TRUNCATE_LIMIT = 23;
 
+import type { TextAlignment } from './terminalVisuals.ts';
+
 export {
   getVisualWidth,
   padVisual,
   truncateVisual,
   TEXT_ALIGNMENTS,
-  type TextAlignment
-} from './terminalVisuals.ts';
-import {
-  padVisual,
   type TextAlignment
 } from './terminalVisuals.ts';
 
@@ -191,12 +189,14 @@ export function renderBanner(title: string, subtitle?: string, borderColor?: Not
     }
   }
 
-  const content = subtitle ? `${styleText(['bold', 'white'], title)}\n${styleText('dim', subtitle)}` : styleText(['bold', 'white'], title);
+  const content = subtitle
+    ? `${styleText(['bold', 'white'], title)}\n${styleText('dim', subtitle)}`
+    : styleText(['bold', 'white'], title);
+
   return boxen(content, {
     borderColor: resolvedColor,
     borderStyle: 'double',
-    padding: { top: 0, bottom: 0, left: 1, right: 1 },
-    width: TERMINAL_WIDTH
+    padding: { top: 0, bottom: 0, left: 1, right: 1 }
   });
 }
 
@@ -209,13 +209,12 @@ interface NoticeBoxOptions {
 function buildNoticeBox(options: NoticeBoxOptions): string {
   const color = options.borderColor || 'yellow';
   const header = styleText(['bold', color], options.title);
-  const divider = styleText('dim', '─'.repeat(TERMINAL_WIDTH - 6));
-  const content = [header, divider, ...options.lines].join('\n');
+  const content = [header, ...options.lines].join('\n');
+
   return boxen(content, {
     borderColor: color,
     borderStyle: 'double',
-    padding: { top: 0, bottom: 0, left: 1, right: 1 },
-    width: TERMINAL_WIDTH
+    padding: { top: 0, bottom: 0, left: 1, right: 1 }
   });
 }
 
@@ -449,71 +448,64 @@ function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): strin
   return capList;
 }
 
-function appendCardCapabilities(lines: string[], caps: AuditTaskDefinition['capabilities'], innerWidth: number, cyan: (s: string) => string, dim: (s: string) => string, divider: string): void {
-  lines.push(cyan('║  ') + padVisual(styleText(['bold', 'yellow'], '⚙️ CAPACIDADES / FLAGS SOPORTADOS:'), innerWidth) + cyan('  ║'));
-  const capList = formatCapabilityList(caps);
-  if (capList.length === 0) {
-    lines.push(cyan('║  ') + padVisual(dim('  (Ejecución estándar general)'), innerWidth) + cyan('  ║'));
-  } else {
-    for (const c of capList) {
-      lines.push(cyan('║  ') + padVisual(`  ${c}`, innerWidth) + cyan('  ║'));
-    }
-  }
-  lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
-}
-
-function appendCardRules(lines: string[], task: AuditTaskDefinition, innerWidth: number, cyan: (s: string) => string, dim: (s: string) => string, divider: string): void {
-  const rules = task.ruleDescriptions ?? task.manifest?.rules;
-  if (!rules || Object.keys(rules).length === 0) return;
-  const count = Object.keys(rules).length;
-  lines.push(cyan('║  ') + padVisual(styleText(['bold', 'yellow'], `🔍 REGLAS EVALUADAS (${count}):`), innerWidth) + cyan('  ║'));
-  for (const [rId, rDesc] of Object.entries(rules).slice(0, 8)) {
-    lines.push(cyan('║  ') + padVisual(`  • ${styleText(['bold', 'white'], rId)}: ${dim(rDesc)}`, innerWidth) + cyan('  ║'));
-  }
-  if (count > 8) {
-    lines.push(cyan('║  ') + padVisual(dim(`  ... y ${count - 8} reglas más.`), innerWidth) + cyan('  ║'));
-  }
-  lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
-}
-
 /**
  * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
  */
 export function renderAuditorDetailCard(task: AuditTaskDefinition): string {
-  const line = '═'.repeat(TERMINAL_WIDTH - 4);
-  const divider = '─'.repeat(TERMINAL_WIDTH - 6);
-  const innerWidth = TERMINAL_WIDTH - 6;
-  const lines: string[] = [];
-
-  const cyan = (s: string) => styleText('cyan', s);
   const boldWhite = (s: string) => styleText(['bold', 'white'], s);
   const boldYellow = (s: string) => styleText(['bold', 'yellow'], s);
   const dim = (s: string) => styleText('dim', s);
   const white = (s: string) => styleText('white', s);
 
-  lines.push(cyan(`╔═${line}═╗`));
-  const title = `${task.icon ?? '🏛️'} ${task.name} [${task.id}]`;
-  lines.push(cyan('║  ') + padVisual(boldWhite(title), innerWidth) + cyan('  ║'));
-  lines.push(cyan('║  ') + padVisual(dim(`Familia: ${task.family} | Script: ${task.scriptPath}`), innerWidth) + cyan('  ║'));
-  lines.push(cyan(`╠═${line}═╣`));
+  const sections: string[][] = [];
 
-  lines.push(cyan('║  ') + padVisual(boldYellow('📋 PROPÓSITO:'), innerWidth) + cyan('  ║'));
+  const icon = task.icon ?? '🏛️';
+  const title = `${icon} ${task.name} [${task.id}]`;
+  const subtitle = `Familia: ${task.family} | Script: ${task.scriptPath}`;
+  sections.push([boldWhite(title), dim(subtitle)]);
+
   const desc = task.description ?? task.manifest?.description ?? 'Sin descripción declarada.';
-  lines.push(cyan('║  ') + padVisual(white(`  ${desc}`), innerWidth) + cyan('  ║'));
-  lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
+  sections.push([boldYellow('📋 PROPÓSITO:'), white(`  ${desc}`)]);
 
-  appendCardCapabilities(lines, task.capabilities, innerWidth, cyan, dim, divider);
-  appendCardRules(lines, task, innerWidth, cyan, dim, divider);
+  const capList = formatCapabilityList(task.capabilities);
+  const capLines = [boldYellow('⚙️ CAPACIDADES / FLAGS SOPORTADOS:')];
+  if (capList.length === 0) {
+    capLines.push(dim('  (Ejecución estándar general)'));
+  } else {
+    for (const c of capList) {
+      capLines.push(`  ${c}`);
+    }
+  }
+  sections.push(capLines);
 
-  lines.push(cyan('║  ') + padVisual(boldYellow('🛠️ CONFIGURACIÓN (.auditor/audit.config.ts):'), innerWidth) + cyan('  ║'));
+  const rules = task.ruleDescriptions ?? task.manifest?.rules;
+  if (rules && Object.keys(rules).length > 0) {
+    const count = Object.keys(rules).length;
+    const ruleLines = [boldYellow(`🔍 REGLAS EVALUADAS (${count}):`)];
+    for (const [rId, rDesc] of Object.entries(rules).slice(0, 8)) {
+      ruleLines.push(`  • ${boldWhite(rId)}: ${dim(rDesc)}`);
+    }
+    if (count > 8) {
+      ruleLines.push(dim(`  ... y ${count - 8} reglas más.`));
+    }
+    sections.push(ruleLines);
+  }
+
   const configKey = task.configKey ?? task.manifest?.configKey;
   const configText = configKey
     ? `  Clave configurable: ${boldWhite(configKey)}`
     : dim('  Sin configuración requerida (opera con estándares canónicos).');
-  lines.push(cyan('║  ') + padVisual(configText, innerWidth) + cyan('  ║'));
+  sections.push([boldYellow('🛠️ CONFIGURACIÓN (.auditor/audit.config.ts):'), configText]);
 
-  lines.push(cyan(`╚═${line}═╝\n`));
-  return lines.join('\n');
+  const content = sections.map(sec => sec.join('\n')).join('\n\n');
+
+  const box = boxen(content, {
+    borderColor: 'cyan',
+    borderStyle: 'double',
+    padding: { top: 0, bottom: 0, left: 1, right: 1 }
+  });
+
+  return `${box}\n`;
 }
 
 /**
@@ -666,18 +658,17 @@ export function renderConsolidatedFooter(
   const durationText = styleText('dim', `Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`);
   const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`;
 
-  const bodyLines = [statusText, durationText, countsText];
+  const rawLines = [statusText, durationText, countsText];
   if (errorFindings && errorFindings.length > 0) {
-    bodyLines.push(...renderSampleErrors(errorFindings));
+    rawLines.push(...renderSampleErrors(errorFindings));
   }
 
   const borderColor: NoticeBoxColor = totalErrors > 0 ? 'red' : (totalWarnings > 0 ? 'yellow' : 'green');
 
-  const box = boxen(bodyLines.join('\n'), {
+  const box = boxen(rawLines.join('\n'), {
     borderColor,
     borderStyle: 'double',
-    padding: { top: 0, bottom: 0, left: 1, right: 1 },
-    width: TERMINAL_WIDTH
+    padding: { top: 0, bottom: 0, left: 1, right: 1 }
   });
 
   return `\n${box}\n`;

@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "6.4.4-build.20261009-135316",
+  "version": "6.5.0-build.20261009-153549",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,6 +23,8 @@
     "plugin.json",
     "setup-linux.sh",
     "setup-windows.ps1",
+    "update-linux.sh",
+    "update-windows.ps1",
     "scripts/setup",
     ".auditor/audit.config.ts",
     ".htmlvalidate.json",

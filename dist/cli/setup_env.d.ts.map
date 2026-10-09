@@ -1,1 +1,1 @@
-{"version":3,"file":"setup_env.d.ts","sourceRoot":"","sources":["../../src/cli/setup_env.ts"],"names":[],"mappings":";AACA;;;;;GAKG;AAOH,wBAAgB,QAAQ,CAAC,IAAI,GAAE,MAAM,EAA0B,EAAE,SAAS,GAAE,MAAsB,GAAG,MAAM,CA2B1G"}
+{"version":3,"file":"setup_env.d.ts","sourceRoot":"","sources":["../../src/cli/setup_env.ts"],"names":[],"mappings":";AACA;;;;;GAKG;AAOH,wBAAgB,QAAQ,CAAC,IAAI,GAAE,MAAM,EAA0B,EAAE,SAAS,GAAE,MAAsB,GAAG,MAAM,CA2C1G"}

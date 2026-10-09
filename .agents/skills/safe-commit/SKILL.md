@@ -42,7 +42,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.2). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.2 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
 | **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
-| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), and the completion template; `config.documentation.language` dynamically governs repository files, code, comments, documentation, markdown files, brain artifacts (`plan_safe_commit.md`, `walkthrough.md`, `task.md`), commit messages, `scratch/release_notes.txt`, and git tags. Zero hardcoded languages. |
+| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), the completion template, AND the narrative explanations in brain artifacts (`learning_proposal.md`, `walkthrough.md`); `config.documentation.language` dynamically governs repository files, code, comments, documentation, markdown files, commit messages, `scratch/release_notes.txt`, and git tags, as well as code contracts and diffs embedded within artifacts. Zero hardcoded languages. |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -58,19 +58,20 @@ graph TD
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        T["2.1 Tests & Cobertura\n(npm run test:coverage / test / Skip)"] -->|"Pass o Cobertura Skip"| B["2.2 The Master Build Gate\nnpm run build\n(auditor fuente + tsc + auditor:build)"]
+        T["2.1 Tests & Coverage\n(npm run test:coverage / test / Skip)"] -->|"Pass or Coverage Skip"| B["2.2 The Master Build Gate\nnpm run build\n(source auditor + tsc + auditor:build)"]
         B -->|"Exit 0 ✅"| F["2.3 Fallow Health Gate\nnpm run auditor:fallow"]
         
-        T -->|"Tests Fallan / Cobertura Baja"| REPAIR["🛠️ Reparación:\n1. npm run auditor:fix\n2. Edición de código y tests"]
+        T -->|"Tests Fail / Low Coverage"| REPAIR["🛠️ Repair:\n1. npm run auditor:fix\n2. Code & test edits"]
         B -->|"Exit Code != 0 / Error"| REPAIR
-        F -->|"Score < 85 / Nuevos Defectos"| REPAIR
-        REPAIR -->|"Re-verificar ciclo completo"| T
+        F -->|"Score < 85 / New Defects"| REPAIR
+        REPAIR -->|"Re-verify full cycle"| T
     end
 
-    F -->|"Exit 0 y Score >= 85"| EXIT_GATE["✅ Loop Exit"]
-    EXIT_GATE --> A3["Phase 3\nLessons + Walkthrough"]
-    A3 --> STOP1{"🛑 USER APPROVES\nplan_safe_commit.md?"}
+    F -->|"Exit 0 & Score >= 85"| EXIT_GATE["✅ Loop Exit"]
+    EXIT_GATE --> A3["Phase 3\nLessons Extraction\n(learn-with-docs)"]
+    A3 -->|"Lessons Identified"| STOP1{"🛑 USER APPROVES\nlearning_proposal.md?"}
     STOP1 -->|Approved| A4["Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push"]
+    A3 -->|"Zero Lessons (Skip Stop)"| A4
 
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style T fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
@@ -197,36 +198,31 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 
 ## Phase 3: Lessons Extraction & User Approval Gate (🛑 HARD STOP)
 
-**Step 3.1** — Extract Lessons Learned (`learn-with-docs`)
+**Step 3.1** — Workspace Scratch Cleanup
 
-- Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern lessons extraction and target DOX placement.
-- Analyze debugging discoveries, architectural insights, or edge cases resolved during the task.
-- Execute a **Targeted Contradiction Sweep**: search the DOX hierarchy (`AGENTS.md`) and documentation EXCLUSIVELY for statements, contracts, or examples that directly contradict the newly acquired learning.
-- Strictly bar unrelated sweeps, repository-wide audits, or reporting out-of-scope defects during lesson extraction.
+- Remove transient debug files, leaving only `scratch/backups/`. Ensure cleanup runs before writing final artifacts.
 
-**Step 3.2** — Workspace Scratch Cleanup
-
-- Remove transient debug files, leaving only `scratch/backups/`. Ensure workspace cleanup runs before final artifact generation so no further shell commands are executed after creating the executable plan.
-
-**Step 3.3** — Create Informative Walkthrough
+**Step 3.2** — Create Informative Walkthrough
 
 - Document changes and verification evidence in `<appDataDir>/brain/<conversation-id>/walkthrough.md`.
 - Save `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: false`, and a detailed `Summary`).
 - `walkthrough.md` is an informative verification record of past actions and MUST NOT request execution feedback (`RequestFeedback: false`).
 
-**Step 3.4** — Create Actionable Implementation Plan & Final Commit Approval Gate (🛑 HARD STOP)
+**Step 3.3** — Lessons Extraction & Conditional Approval Gate (`learn-with-docs`)
 
-- **Artifact Sequencing & `RequestFeedback` Governance**:
-  - The actionable plan governing Phase 4 (applying lessons to DOX/docs and executing the certified atomic commit) MUST be saved as `<appDataDir>/brain/<conversation-id>/plan_safe_commit.md` (or `implementation_plan.md`) following canonical Implementation Plan formatting (`# Implementation Plan: Safe Commit & Certified Release`). It represents the release and commit approval, strictly distinct from a standalone `learning_proposal.md`.
-  - Pass `ArtifactMetadata` with `UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`.
-  - **CRITICAL SEQUENCING RULE**: The actionable plan with `RequestFeedback: true` MUST be the **FINAL tool call** executed in the turn. Calling any subsequent tool (such as writing another artifact or executing shell commands) displaces the active artifact review card and suppresses the native `[ Proceed ]` button in the Antigravity UI.
-  - *(Exception: If a commit involves zero architectural lessons and the proposal plan is completely omitted, `walkthrough.md` may set `RequestFeedback: true` as the sole commit authorization artifact).*
-- **Artifact Reference & Direct Linking in Regular Chat Text**:
-  - Present direct clickable Markdown links to both artifacts (`👉 [plan_safe_commit.md](file://...)` and `[walkthrough.md](file://...)`) and highlight ONLY critical decisions or open questions requiring human input.
-  - Remind the user that they can review the plan in the interactive artifact card and click **`[ Proceed ]`**, or confirm directly in the chat.
-  - The agent MUST stop calling tools immediately after writing the plan artifact so the user can review the proposal in the Antigravity UI and decide via `[ Proceed ]` or chat.
+- Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern lessons extraction and target DOX placement.
+- Analyze debugging discoveries, architectural insights, or user corrections resolved during the task.
+- Execute a **Targeted Contradiction Sweep**: search the DOX hierarchy (`AGENTS.md`) and documentation EXCLUSIVELY for statements, contracts, or examples that directly contradict the newly acquired learning.
+- **Conditional Approval Gate**:
+  - **When New Lessons or Contradictions Exist**:
+    - The `learn-with-docs` skill generates `<appDataDir>/brain/<conversation-id>/learning_proposal.md` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and concise summary).
+    - **CRITICAL SEQUENCING RULE**: `learning_proposal.md` MUST be the **FINAL tool call** executed in the turn so the native feedback card remains active in the UI.
+    - Present direct clickable Markdown links (`👉 [learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and stop the turn to wait for user confirmation on the learning proposal before proceeding to Phase 4.
+  - **When Zero Lessons and Zero Contradictions Exist**:
+    - If `learn-with-docs` determines there are no new lessons or contradictory contracts, **DO NOT invent artifacts or trigger an artificial hard stop**.
+    - Advance directly to **Phase 4** (commit and release). Since the user already commanded `/safe-commit`, prompting for confirmation when nothing changed in DOX creates cognitive friction and wastes time.
 
-**✓ Completion gate**: Wait for user response. Do NOT proceed to Phase 4 until approved.
+**✓ Completion gate**: If lessons were proposed via `learning_proposal.md`, wait for user approval; if no lessons exist, proceed directly to Phase 4.
 
 ---
 

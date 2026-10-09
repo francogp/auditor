@@ -14,7 +14,9 @@ import path from 'node:path';
 import os from 'node:os';
 import {
   ValidateEnvironmentEnginesAuditor,
-  ENVIRONMENT_ENGINES_RULES
+  ENVIRONMENT_ENGINES_RULES,
+  extractBaseNodeVersion,
+  syncNvmrc
 } from '../src/suites/architecture/validate_environment_engines.ts';
 import { getAuditorEngines } from '../src/cli/check_environment.ts';
 
@@ -50,8 +52,8 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Entorno');
       expect(auditor.icon).toBe('⚡');
-      expect(auditor.capabilities.fixPriority).toBe(true);
-      expect(auditor.capabilities.fix).toBe(true);
+      expect(auditor.capabilities.fixPriority).toBe(false);
+      expect(auditor.capabilities.fix).toBe(false);
       expect(auditor.capabilities.lint).toBe(true);
       expect(auditor.description.length).toBeLessThanOrEqual(60);
 
@@ -174,38 +176,81 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
     });
   });
 
-  describe('Auto-Fix Execution', () => {
-    it('repairs missing engines by injecting canonical auditor engines into package.json', async () => {
+  describe('Helper Functions & SSoT Synchronization', () => {
+    it('extractBaseNodeVersion parses semver cleanly', () => {
+      expect(extractBaseNodeVersion('>=26.11.1')).toBe('26.11.1');
+      expect(extractBaseNodeVersion('^26.10.0')).toBe('26.10.0');
+      expect(extractBaseNodeVersion('24.5.1')).toBe('24.5.1');
+      expect(extractBaseNodeVersion('')).toBe('');
+    });
+
+    it('syncNvmrc synchronizes exact base node version into .nvmrc', async () => {
+      const updated = syncNvmrc(tempDir, '>=26.11.1');
+      expect(updated).toBe(true);
+
+      const content = await fs.readFile(path.join(tempDir, '.nvmrc'), 'utf8');
+      expect(content.trim()).toBe('26.11.1');
+
+      // Idempotent run
+      const secondRun = syncNvmrc(tempDir, '>=26.11.1');
+      expect(secondRun).toBe(false);
+    });
+  });
+
+  describe('Pure Lint Execution & Zero Fake Fix Guarantee', () => {
+    it('does not mutate package.json or inject fake numbers when engines are missing', async () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      await fs.writeFile(
-        pkgPath,
-        JSON.stringify({ name: 'fixable-pkg', version: '1.0.0' }, null, 2),
-        'utf8'
-      );
+      const originalPkg = { name: 'fixable-pkg', version: '1.0.0' };
+      await fs.writeFile(pkgPath, JSON.stringify(originalPkg, null, 2), 'utf8');
 
       const auditor = new ValidateEnvironmentEnginesAuditor({
         projectRoot: tempDir,
         fix: true
       });
-      await auditor.execute();
+      const result = await auditor.execute();
 
-      const repaired = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
-      expect(repaired.engines).toBeDefined();
-      expect(repaired.engines.node).toMatch(/^>=26\./);
-      expect(repaired.engines.npm).toMatch(/^>=12\./);
+      expect(result.status).toBe('failed');
+      const unmutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+      expect(unmutated.engines).toBeUndefined();
     });
 
-    it('upgrades engines below floor in package.json to auditor minimums', async () => {
+    it('does not mutate package.json when engines are below floor', async () => {
       const pkgPath = path.join(tempDir, 'package.json');
+      const originalPkg = {
+        name: 'fixable-below-floor',
+        version: '1.0.0',
+        engines: {
+          node: '>=20.0.0',
+          npm: '>=9.0.0'
+        }
+      };
+      await fs.writeFile(pkgPath, JSON.stringify(originalPkg, null, 2), 'utf8');
+
+      const auditor = new ValidateEnvironmentEnginesAuditor({
+        projectRoot: tempDir,
+        fix: true
+      });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const unmutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+      expect(unmutated.engines.node).toBe('>=20.0.0');
+    });
+
+    it('reports actionable terminal remediation instructions pointing to setup and update scripts without spawning shell', async () => {
+      const isWin = process.platform === 'win32';
+      const expectedSetup = isWin ? '.\\setup-windows.ps1' : './setup-linux.sh';
+      const expectedUpdate = isWin ? '.\\update-windows.ps1' : './update-linux.sh';
+
       await fs.writeFile(
-        pkgPath,
+        path.join(tempDir, 'package.json'),
         JSON.stringify(
           {
-            name: 'fixable-below-floor',
+            name: 'test-mismatch-remediation',
             version: '1.0.0',
             engines: {
-              node: '>=20.0.0',
-              npm: '>=9.0.0'
+              node: '>=999.0.0',
+              npm: '>=999.0.0'
             }
           },
           null,
@@ -218,11 +263,12 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
         projectRoot: tempDir,
         fix: true
       });
-      await auditor.execute();
+      const result = await auditor.execute();
 
-      const repaired = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
-      expect(repaired.engines.node).toMatch(/^>=26\./);
-      expect(repaired.engines.npm).toMatch(/^>=12\./);
+      const finding = result.findings.find(f => f.ruleId === 'environment-runtime-mismatch');
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain(expectedSetup);
+      expect(finding?.message).toContain(expectedUpdate);
     });
   });
 });

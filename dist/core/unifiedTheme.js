@@ -17,7 +17,6 @@ const TERMINAL_WIDTH = 80;
 const REGISTRY_DESC_COL_WIDTH = 24;
 const REGISTRY_DESC_TRUNCATE_LIMIT = 23;
 export { getVisualWidth, padVisual, truncateVisual, TEXT_ALIGNMENTS } from "./terminalVisuals.js";
-import { padVisual } from "./terminalVisuals.js";
 export function renderBoxTable(columns, rows, options) {
     const head = columns.map(c => styleText('bold', c.header));
     const colAligns = columns.map(c => (c.align === 'center' ? 'center' : c.align === 'right' ? 'right' : 'left'));
@@ -128,24 +127,23 @@ export function renderBanner(title, subtitle, borderColor) {
             resolvedColor = 'green';
         }
     }
-    const content = subtitle ? `${styleText(['bold', 'white'], title)}\n${styleText('dim', subtitle)}` : styleText(['bold', 'white'], title);
+    const content = subtitle
+        ? `${styleText(['bold', 'white'], title)}\n${styleText('dim', subtitle)}`
+        : styleText(['bold', 'white'], title);
     return boxen(content, {
         borderColor: resolvedColor,
         borderStyle: 'double',
-        padding: { top: 0, bottom: 0, left: 1, right: 1 },
-        width: TERMINAL_WIDTH
+        padding: { top: 0, bottom: 0, left: 1, right: 1 }
     });
 }
 function buildNoticeBox(options) {
     const color = options.borderColor || 'yellow';
     const header = styleText(['bold', color], options.title);
-    const divider = styleText('dim', '─'.repeat(TERMINAL_WIDTH - 6));
-    const content = [header, divider, ...options.lines].join('\n');
+    const content = [header, ...options.lines].join('\n');
     return boxen(content, {
         borderColor: color,
         borderStyle: 'double',
-        padding: { top: 0, bottom: 0, left: 1, right: 1 },
-        width: TERMINAL_WIDTH
+        padding: { top: 0, bottom: 0, left: 1, right: 1 }
     });
 }
 /**
@@ -307,65 +305,56 @@ function formatCapabilityList(caps) {
         capList.push(styleText('white', '✔ AST TypeScript in-memory (ast)'));
     return capList;
 }
-function appendCardCapabilities(lines, caps, innerWidth, cyan, dim, divider) {
-    lines.push(cyan('║  ') + padVisual(styleText(['bold', 'yellow'], '⚙️ CAPACIDADES / FLAGS SOPORTADOS:'), innerWidth) + cyan('  ║'));
-    const capList = formatCapabilityList(caps);
-    if (capList.length === 0) {
-        lines.push(cyan('║  ') + padVisual(dim('  (Ejecución estándar general)'), innerWidth) + cyan('  ║'));
-    }
-    else {
-        for (const c of capList) {
-            lines.push(cyan('║  ') + padVisual(`  ${c}`, innerWidth) + cyan('  ║'));
-        }
-    }
-    lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
-}
-function appendCardRules(lines, task, innerWidth, cyan, dim, divider) {
-    const rules = task.ruleDescriptions ?? task.manifest?.rules;
-    if (!rules || Object.keys(rules).length === 0)
-        return;
-    const count = Object.keys(rules).length;
-    lines.push(cyan('║  ') + padVisual(styleText(['bold', 'yellow'], `🔍 REGLAS EVALUADAS (${count}):`), innerWidth) + cyan('  ║'));
-    for (const [rId, rDesc] of Object.entries(rules).slice(0, 8)) {
-        lines.push(cyan('║  ') + padVisual(`  • ${styleText(['bold', 'white'], rId)}: ${dim(rDesc)}`, innerWidth) + cyan('  ║'));
-    }
-    if (count > 8) {
-        lines.push(cyan('║  ') + padVisual(dim(`  ... y ${count - 8} reglas más.`), innerWidth) + cyan('  ║'));
-    }
-    lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
-}
 /**
  * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
  */
 export function renderAuditorDetailCard(task) {
-    const line = '═'.repeat(TERMINAL_WIDTH - 4);
-    const divider = '─'.repeat(TERMINAL_WIDTH - 6);
-    const innerWidth = TERMINAL_WIDTH - 6;
-    const lines = [];
-    const cyan = (s) => styleText('cyan', s);
     const boldWhite = (s) => styleText(['bold', 'white'], s);
     const boldYellow = (s) => styleText(['bold', 'yellow'], s);
     const dim = (s) => styleText('dim', s);
     const white = (s) => styleText('white', s);
-    lines.push(cyan(`╔═${line}═╗`));
-    const title = `${task.icon ?? '🏛️'} ${task.name} [${task.id}]`;
-    lines.push(cyan('║  ') + padVisual(boldWhite(title), innerWidth) + cyan('  ║'));
-    lines.push(cyan('║  ') + padVisual(dim(`Familia: ${task.family} | Script: ${task.scriptPath}`), innerWidth) + cyan('  ║'));
-    lines.push(cyan(`╠═${line}═╣`));
-    lines.push(cyan('║  ') + padVisual(boldYellow('📋 PROPÓSITO:'), innerWidth) + cyan('  ║'));
+    const sections = [];
+    const icon = task.icon ?? '🏛️';
+    const title = `${icon} ${task.name} [${task.id}]`;
+    const subtitle = `Familia: ${task.family} | Script: ${task.scriptPath}`;
+    sections.push([boldWhite(title), dim(subtitle)]);
     const desc = task.description ?? task.manifest?.description ?? 'Sin descripción declarada.';
-    lines.push(cyan('║  ') + padVisual(white(`  ${desc}`), innerWidth) + cyan('  ║'));
-    lines.push(cyan('║  ') + padVisual(dim(`  ${divider}`), innerWidth) + cyan('  ║'));
-    appendCardCapabilities(lines, task.capabilities, innerWidth, cyan, dim, divider);
-    appendCardRules(lines, task, innerWidth, cyan, dim, divider);
-    lines.push(cyan('║  ') + padVisual(boldYellow('🛠️ CONFIGURACIÓN (.auditor/audit.config.ts):'), innerWidth) + cyan('  ║'));
+    sections.push([boldYellow('📋 PROPÓSITO:'), white(`  ${desc}`)]);
+    const capList = formatCapabilityList(task.capabilities);
+    const capLines = [boldYellow('⚙️ CAPACIDADES / FLAGS SOPORTADOS:')];
+    if (capList.length === 0) {
+        capLines.push(dim('  (Ejecución estándar general)'));
+    }
+    else {
+        for (const c of capList) {
+            capLines.push(`  ${c}`);
+        }
+    }
+    sections.push(capLines);
+    const rules = task.ruleDescriptions ?? task.manifest?.rules;
+    if (rules && Object.keys(rules).length > 0) {
+        const count = Object.keys(rules).length;
+        const ruleLines = [boldYellow(`🔍 REGLAS EVALUADAS (${count}):`)];
+        for (const [rId, rDesc] of Object.entries(rules).slice(0, 8)) {
+            ruleLines.push(`  • ${boldWhite(rId)}: ${dim(rDesc)}`);
+        }
+        if (count > 8) {
+            ruleLines.push(dim(`  ... y ${count - 8} reglas más.`));
+        }
+        sections.push(ruleLines);
+    }
     const configKey = task.configKey ?? task.manifest?.configKey;
     const configText = configKey
         ? `  Clave configurable: ${boldWhite(configKey)}`
         : dim('  Sin configuración requerida (opera con estándares canónicos).');
-    lines.push(cyan('║  ') + padVisual(configText, innerWidth) + cyan('  ║'));
-    lines.push(cyan(`╚═${line}═╝\n`));
-    return lines.join('\n');
+    sections.push([boldYellow('🛠️ CONFIGURACIÓN (.auditor/audit.config.ts):'), configText]);
+    const content = sections.map(sec => sec.join('\n')).join('\n\n');
+    const box = boxen(content, {
+        borderColor: 'cyan',
+        borderStyle: 'double',
+        padding: { top: 0, bottom: 0, left: 1, right: 1 }
+    });
+    return `${box}\n`;
 }
 /**
  * Renders the CLI general interactive help (≤ 80 cols).
@@ -473,16 +462,15 @@ export function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors,
     const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas)` : '';
     const durationText = styleText('dim', `Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`);
     const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`;
-    const bodyLines = [statusText, durationText, countsText];
+    const rawLines = [statusText, durationText, countsText];
     if (errorFindings && errorFindings.length > 0) {
-        bodyLines.push(...renderSampleErrors(errorFindings));
+        rawLines.push(...renderSampleErrors(errorFindings));
     }
     const borderColor = totalErrors > 0 ? 'red' : (totalWarnings > 0 ? 'yellow' : 'green');
-    const box = boxen(bodyLines.join('\n'), {
+    const box = boxen(rawLines.join('\n'), {
         borderColor,
         borderStyle: 'double',
-        padding: { top: 0, bottom: 0, left: 1, right: 1 },
-        width: TERMINAL_WIDTH
+        padding: { top: 0, bottom: 0, left: 1, right: 1 }
     });
     return `\n${box}\n`;
 }

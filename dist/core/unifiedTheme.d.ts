@@ -6,8 +6,8 @@
  * fixed-width column alignment, status badges, and Markdown generation.
  */
 import { type StandardAuditResult, type AuditFinding, type FamilyMetadata, type AuditTaskDefinition } from './auditContract.ts';
+import type { TextAlignment } from './terminalVisuals.ts';
 export { getVisualWidth, padVisual, truncateVisual, TEXT_ALIGNMENTS, type TextAlignment } from './terminalVisuals.ts';
-import { type TextAlignment } from './terminalVisuals.ts';
 export interface TableColumn<T = Record<string, unknown>> {
     header: string;
     width: number;

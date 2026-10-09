@@ -626,17 +626,18 @@ Fallow is integrated into `@francogp/auditor` (`validate_fallow.ts` and `report_
 
 ---
 
-## 🛠️ Master Environment Setup Scripts Governance (`setup-linux.sh`, `setup-windows.ps1`)
+## 🛠️ Master Environment Setup & Update Scripts Governance
 
-The root environment initialization scripts `setup-linux.sh` and `setup-windows.ps1` belong canonically to `@francogp/auditor`.
+The root environment scripts belong canonically to `@francogp/auditor`:
+
+- **`setup-linux.sh` & `setup-windows.ps1`**: The common engine. Locked by default (`UPDATE_TO_LATEST=false`) to declared repository versions (`.nvmrc` and `package.json`). Zero parameters needed to install the committed environment.
+- **`update-linux.sh` & `update-windows.ps1`**: Parameterless delegation wrappers invoking the common engine with `--update-version` / `-UpdateVersion` to upgrade Node.js, npm, dependencies, and companion models. Zero duplicated logic.
 
 1. **Strict Prohibition on Local Host Patches**:
-   - AI agents and developers **MUST NEVER** attempt to apply ad-hoc local patches, temporary regex replacements, or logic mutations directly inside a host project's `setup-linux.sh` or `setup-windows.ps1`.
-2. **Upstream Reporting Protocol**:
-   - If an issue, defect, version synchronization gap (e.g. Node vs NPM in `--declared-versions`), or platform incompatibility is discovered:
-     - The agent **MUST PROACTIVELY NOTIFY THE USER**, clearly explaining the root cause.
-     - The agent **MUST INSTRUCT THE USER** that the change must be requested and made upstream in the `@francogp/auditor` repository.
-     - Once resolved and released upstream, the host project updates via `npm run auditor:update` and synchronizes the official scripts.
+   - AI agents and developers **MUST NEVER** attempt to apply ad-hoc local patches, temporary regex replacements, or logic mutations directly inside a host project's `setup-linux.sh`, `setup-windows.ps1`, `update-linux.sh`, or `update-windows.ps1`.
+2. **Upstream Reporting & SSoT Synchronization Protocol**:
+   - All 4 scripts are maintained canonically in `@francogp/auditor` and synchronized across host projects via `syncEnvScripts` (`auditor fix` or `node src/cli/sync_env_scripts.ts`).
+   - `.nvmrc` and `package.json` (`engines.node`) MUST maintain exact base version parity. During `--fix`, `validate_environment_engines` dynamically synchronizes `.nvmrc` without spawning child shell processes.
 3. **Local Git Repository Standards SSoT**:
    - Master setup scripts (`setup-linux.sh` and `setup-windows.ps1`) and `validate_git_config` automatically enforce local project Git options (`core.filemode false`, `core.autocrlf input`, `core.eol lf`).
    - AI agents and developers must never depend on machine-global `git config --global` flags; project-level standards are maintained directly within `.git/config` and verified deterministically during audit runs.

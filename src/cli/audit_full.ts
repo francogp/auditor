@@ -43,6 +43,7 @@ import {
   COVERAGE_EXPECTED_SUITES_ENV
 } from '../core/auditCoverage.ts';
 import {
+  getVisualWidth,
   renderBanner,
   renderConsolidatedFooter,
   renderMarkdownReport,
@@ -946,6 +947,30 @@ export function createAuditBannerDetails(
   return subtitleDetails;
 }
 
+export const MAX_BANNER_SUBTITLE_WIDTH = 72;
+
+export function formatSubtitleDetails(details: readonly string[], maxLineWidth: number = MAX_BANNER_SUBTITLE_WIDTH): string {
+  if (details.length === 0) return '';
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const item of details) {
+    const candidate = currentLine ? `${currentLine}  |  ${item}` : item;
+    if (getVisualWidth(candidate) <= maxLineWidth) {
+      currentLine = candidate;
+    } else {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      currentLine = item;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  return lines.join('\n');
+}
+
 interface TaskExecutionContext {
   readonly cliOptions: ReturnType<typeof parseAuditFullCliArgs>;
   readonly sharedAstContext?: SharedAstContext;
@@ -1081,8 +1106,11 @@ function displayMasterBanner(
     bannerTitle = '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]';
   } else if (isBuildMode) {
     bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
+  } else if (config.name && getVisualWidth(bannerTitle) > MAX_BANNER_SUBTITLE_WIDTH) {
+    bannerTitle = `${config.name.toUpperCase()}\nSUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN`;
   }
-  console.log(renderBanner(bannerTitle, subtitleDetails.join('  |  ')));
+  const formattedSubtitle = formatSubtitleDetails(subtitleDetails);
+  console.log(renderBanner(bannerTitle, formattedSubtitle));
 }
 
 function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void {

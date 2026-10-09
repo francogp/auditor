@@ -245,7 +245,6 @@ describe('Auditor Architecture Conformance', () => {
         'validate_agents_config_mandate',
         'validate_audit_config',
         'validate_documentation_language',
-        'validate_environment_engines',
         'validate_eslint',
         'validate_eslint_config',
         'validate_fallow_config',

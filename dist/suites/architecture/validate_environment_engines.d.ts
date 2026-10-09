@@ -15,6 +15,8 @@ export interface EnvironmentEnginesConfig {
     readonly enabled?: boolean;
 }
 export declare function detectNpmVersion(): string;
+export declare function extractBaseNodeVersion(engineStr: string): string;
+export declare function syncNvmrc(projectRoot: string, targetNodeEngine: string): boolean;
 export declare class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
     constructor(options?: Partial<AuditorOptions<EnvironmentEnginesRuleId>>);
     private validatePackageJson;

@@ -16,9 +16,9 @@ fi
 # Detectar nombre del proyecto dinámicamente desde package.json
 PROJECT_NAME=$(grep -o '"name": *"[^"]*"' "$PKG_PATH" | head -n 1 | cut -d'"' -f4 || basename "$SCRIPT_DIR")
 
-# Por defecto: actualiza automáticamente a la última versión estable (Node.js Current + npm@latest)
-# --declared-versions / --locked / --pinned: restringe la instalación estrictamente a lo declarado en el commit (.nvmrc / package.json)
-UPDATE_TO_LATEST=true
+# Por defecto: instalación fija y reproducible según lo declarado en el commit (.nvmrc / package.json)
+# --update-version / -u / update / update-linux.sh: actualiza a la última versión estable (Node.js Current + npm@latest)
+UPDATE_TO_LATEST=false
 PRUNE_VERSIONS=false
 SET_DEFAULT=false
 
@@ -27,7 +27,7 @@ for arg in "$@"; do
         --declared-versions|--locked|--pinned)
             UPDATE_TO_LATEST=false
             ;;
-        --update-version|-u)
+        --update-version|-u|--latest|update)
             UPDATE_TO_LATEST=true
             ;;
         --prune-other-versions)
@@ -280,24 +280,6 @@ if grep -q '"env:post-setup"' "$PKG_PATH"; then
     echo -e "\n🪝 Ejecutando gancho post-setup (npm run env:post-setup)..."
     npm run env:post-setup
 fi
-
-# 11. Ejecución Automática de Auditor Fix (Reparación y Sincronización Inicial)
-AUDITOR_DIST_ENTRY="$SCRIPT_DIR/node_modules/@francogp/auditor/dist/cli/audit_full.js"
-AUDITOR_SELF_ENTRY="$SCRIPT_DIR/src/cli/audit_full.ts"
-IS_AUDITOR_SELF=false
-if [ -f "$AUDITOR_SELF_ENTRY" ] && [ "$PROJECT_NAME" = "@francogp/auditor" ]; then
-    IS_AUDITOR_SELF=true
-fi
-
-if [ "$IS_AUDITOR_SELF" = true ]; then
-    echo -e "\n🛠️  [AUDITOR] Ejecutando reparación automática inicial (npm run auditor:fix)..."
-    npm run auditor:fix || echo "  [WARN] Fallo no fatal en auditor fix inicial."
-elif [ -f "$AUDITOR_DIST_ENTRY" ]; then
-    echo -e "\n🛠️  [AUDITOR] Ejecutando sincronización automática de auditor (auditor fix)..."
-    node --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons "$AUDITOR_DIST_ENTRY" fix || echo "  [WARN] Fallo no fatal al ejecutar auditor fix."
-fi
-
-
 
 echo "======================================================"
 echo " 🎉 ¡ENTORNO Y DEPENDENCIAS PREPARADOS CON ÉXITO!"

@@ -13,26 +13,42 @@ import { isMainModule } from './cliUtils.ts';
 
 export function runSetup(args: string[] = process.argv.slice(2), targetDir: string = process.cwd()): number {
   const isWindows = process.platform === 'win32';
+  const isUpdate = args.some(a => a === 'update' || a === '--update' || a === '-u' || a === '--update-version');
+  const forwardedArgs = args.filter(a => a !== 'update' && a !== '--update');
 
   if (isWindows) {
-    const scriptPath = path.resolve(targetDir, 'setup-windows.ps1');
+    const targetScript = isUpdate ? 'update-windows.ps1' : 'setup-windows.ps1';
+    let scriptPath = path.resolve(targetDir, targetScript);
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.resolve(targetDir, 'setup-windows.ps1');
+      if (isUpdate && !forwardedArgs.includes('-UpdateVersion')) {
+        forwardedArgs.unshift('-UpdateVersion');
+      }
+    }
     if (!fs.existsSync(scriptPath)) {
       console.error(`[auditor-setup-env] Script no encontrado: ${scriptPath}`);
       return 1;
     }
-    const psArgs = ['-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...args];
+    const psArgs = ['-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...forwardedArgs];
     const proc = spawnSync('powershell.exe', psArgs, {
       stdio: 'inherit',
       cwd: targetDir
     });
     return proc.status ?? 0;
   } else {
-    const scriptPath = path.resolve(targetDir, 'setup-linux.sh');
+    const targetScript = isUpdate ? 'update-linux.sh' : 'setup-linux.sh';
+    let scriptPath = path.resolve(targetDir, targetScript);
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.resolve(targetDir, 'setup-linux.sh');
+      if (isUpdate && !forwardedArgs.includes('--update-version')) {
+        forwardedArgs.unshift('--update-version');
+      }
+    }
     if (!fs.existsSync(scriptPath)) {
       console.error(`[auditor-setup-env] Script no encontrado: ${scriptPath}`);
       return 1;
     }
-    const proc = spawnSync('bash', [scriptPath, ...args], {
+    const proc = spawnSync('bash', [scriptPath, ...forwardedArgs], {
       stdio: 'inherit',
       cwd: targetDir
     });

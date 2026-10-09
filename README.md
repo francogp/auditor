@@ -41,16 +41,28 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 
 When developing directly inside `@francogp/auditor`:
 
-### On Linux / macOS
+### Initial Setup (Locked to Declared Versions)
+
+Installs dependencies and locks Node.js to the exact version declared in `.nvmrc` without passing any flags:
 
 ```bash
+# On Linux / macOS
 ./setup-linux.sh
+
+# On Windows (PowerShell)
+.\setup-windows.ps1
 ```
 
-### On Windows (PowerShell)
+### Environment Update (Upgrade to Latest Engine & Dependencies)
 
-```powershell
-.\setup-windows.ps1
+Upgrades Node.js, npm, project dependencies, and companion models to the latest versions:
+
+```bash
+# On Linux / macOS
+./update-linux.sh
+
+# On Windows (PowerShell)
+.\update-windows.ps1
 ```
 
 > [!IMPORTANT]

@@ -13,12 +13,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Por defecto: actualiza automáticamente a la última versión estable (Node.js Current + npm@latest)
-# -DeclaredVersions / -Locked / -Pinned: restringe la instalación estrictamente a lo declarado en el commit (.nvmrc / package.json)
-$updateToLatest = -not ($DeclaredVersions -or $Locked -or $Pinned)
-if ($UpdateVersion) {
-    $updateToLatest = $true
-}
+# Por defecto: instalación fija y reproducible según lo declarado en el commit (.nvmrc / package.json)
+# -UpdateVersion / update-windows.ps1: actualiza a la última versión estable (Node.js Current + npm@latest)
+$updateToLatest = [bool]$UpdateVersion
 
 # Forzar codificación UTF-8 en consola de Windows
 try {
@@ -597,29 +594,6 @@ if ($pkgContent.scripts -and $pkgContent.scripts.'env:post-setup') {
     Write-Host ""
     Write-Host "[HOOK] Ejecutando gancho post-setup (npm run env:post-setup)..." -ForegroundColor Cyan
     npm run env:post-setup
-}
-
-# 14. Ejecución Automática de Auditor Fix (Reparación y Sincronización Inicial)
-$auditorDistEntry = Join-Path $PSScriptRoot "node_modules\@francogp\auditor\dist\cli\audit_full.js"
-$auditorSelfEntry = Join-Path $PSScriptRoot "src\cli\audit_full.ts"
-$isAuditorSelf = (Test-Path $auditorSelfEntry) -and ($projectName -eq "@francogp/auditor")
-
-if ($isAuditorSelf) {
-    Write-Host ""
-    Write-Host "[AUDITOR] Ejecutando reparación automática inicial (npm run auditor:fix)..." -ForegroundColor Cyan
-    try {
-        npm run auditor:fix
-    } catch {
-        Write-Host "  [WARN] Fallo no fatal en auditor fix inicial: $_" -ForegroundColor Yellow
-    }
-} elseif (Test-Path $auditorDistEntry) {
-    Write-Host ""
-    Write-Host "[AUDITOR] Ejecutando sincronización automática de auditor (auditor fix)..." -ForegroundColor Cyan
-    try {
-        node --permission --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons "$auditorDistEntry" fix
-    } catch {
-        Write-Host "  [WARN] Fallo no fatal al ejecutar auditor fix: $_" -ForegroundColor Yellow
-    }
 }
 
 Write-Host ""
