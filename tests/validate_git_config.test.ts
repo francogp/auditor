@@ -36,6 +36,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
 
   afterEach(async () => {
     delete process.env.AUDIT_SUBPROCESS;
+    delete process.env.AUDITOR_ENV;
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
     } catch {
@@ -147,6 +148,22 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       expect(getLocalGitConfig('core.filemode', tempDir)).toBe('false');
       expect(getLocalGitConfig('core.autocrlf', tempDir)).toBe('input');
       expect(getLocalGitConfig('core.eol', tempDir)).toBe('lf');
+    });
+  });
+
+  describe('Production Environment (AUDITOR_ENV=production)', () => {
+    it('skips cleanly with zero errors when AUDITOR_ENV=production even if Git config is misconfigured', async () => {
+      process.env.AUDITOR_ENV = 'production';
+      spawnSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
+      setLocalGitConfig('core.filemode', 'true', tempDir);
+
+      const auditor = new ValidateGitConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBe(0);
+      expect(result.status).toBe('skipped');
+      expect(result.findings).toHaveLength(0);
     });
   });
 });

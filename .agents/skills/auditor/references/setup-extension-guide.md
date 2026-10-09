@@ -84,7 +84,7 @@ In `package.json`, host projects can declare an `env:post-setup` script:
     "setup": "bash scripts/setup/setup-linux.sh",
     "setup:win": "powershell -ExecutionPolicy Bypass -File scripts/setup/setup-windows.ps1",
     "env:post-setup": "node --experimental-strip-types scripts/setup/init-project-state.ts",
-    "validate:tools": "node --experimental-strip-types scripts/setup/validate-tools.ts"
+    "tools:validate": "node --experimental-strip-types scripts/setup/validate-tools.ts"
   }
 }
 ```

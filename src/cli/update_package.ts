@@ -14,6 +14,7 @@ import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { isSelfProviderProject } from '../core/auditConfig.ts';
 import { initAgentSkill } from './init_agent.ts';
+import { syncEnvScripts } from './sync_env_scripts.ts';
 
 export interface UpdateAuditorOptions {
   cwd?: string;
@@ -131,6 +132,11 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   const agentInitResult = initAgentSkill({ targetDir: projectRoot });
   if (!options.silent && agentInitResult.created) {
     console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
+  }
+
+  const envSyncResult = syncEnvScripts({ targetDir: projectRoot });
+  if (!options.silent && envSyncResult.filesUpdated.length > 0) {
+    console.log(styleText('green', `📜 ${envSyncResult.message}\n`));
   }
 
   runAuditorFixAutoRemediation(projectRoot, options.silent);

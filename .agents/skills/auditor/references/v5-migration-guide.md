@@ -192,10 +192,10 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
     });
   }
 
-  public async run(): Promise<AuditFinding[]> {
+  public override async runAudit(): Promise<void> {
     this.markRuleEvaluated('rule-one');
     this.markRuleEvaluated('rule-two');
-    return this.getFindings();
+    // Perform verification logic and register violations via this.addViolation(...)
   }
 }
 ```

@@ -1,6 +1,6 @@
 # Purpose
 
-Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 47 domain-agnostic suites organized across 4 canonical families: `architecture/`, `documentation/`, `domain_data/`, and `persistence/`.
+Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 61 domain-agnostic suites organized across 4 canonical families: `architecture/` (46 suites), `domain_data/` (3 suites), `persistence/` (3 suites), and `documentation/` (9 suites).
 
 ## Ownership
 

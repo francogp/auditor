@@ -1,5 +1,5 @@
 /**
- * TEMPLATE: Sub-Auditor Unit Test (Auditor v5.2+ Conformance Standard)
+ * TEMPLATE: Sub-Auditor Unit Test (Auditor v6+ Conformance Standard)
  * Location: tests/node/auditors/validate_<name>.test.ts (or tests/validate_<name>.test.ts)
  * 
  * Tests your sub-auditor in hermetic isolation adhering to the 5-Point Conformance Contract:
@@ -9,7 +9,7 @@
  *   4. Warning Path Verification: Warnings trigger in YELLOW (warnings > 0, status = 'warned', severity = 'warning')
  *   5. 100% Rule Coverage: Every declared ruleId is asserted in tests
  * 
- * StandardAuditResult v5.2+ Contract:
+ * StandardAuditResult v6+ Contract:
  *   - result.status === 'passed' | 'failed' | 'warned' | 'skipped'
  *   - result.summary.errors === 0
  *   - result.summary.warnings === 0

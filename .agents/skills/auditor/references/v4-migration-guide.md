@@ -217,19 +217,22 @@ export class ValidateMyExtension extends BaseAuditor<MyExtensionRuleId> {
       family: 'domain_data',
       ruleIds: MY_EXTENSION_RULES,
       packageName: 'MyExt',
+      configKey: 'domain.enabled',
+      defaultConfig: {
+        enabled: true
+      },
       ruleDescriptions: MY_RULE_DESCRIPTIONS,
       projectRoot: options.projectRoot,
       capabilities: { lint: true, fix: false }
     });
   }
 
-  public async run(): Promise<AuditFinding[]> {
+  public override async runAudit(): Promise<void> {
     // 1. Mark every evaluated rule in the coverage ledger:
     this.markRuleEvaluated('rule-one');
     this.markRuleEvaluated('rule-two');
 
-    // 2. Perform verification logic...
-    return this.getFindings();
+    // 2. Perform verification logic and add violations via this.addViolation(...)
   }
 }
 ```

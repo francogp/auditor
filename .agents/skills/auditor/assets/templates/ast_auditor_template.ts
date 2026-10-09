@@ -61,12 +61,12 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     // Guarantee AST engine availability (injected by orchestrator or fallback)
     const astEngine = astContext ?? new SharedAstContext();
 
-    const relFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
+    const relFiles = this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
     const targetFiles = relFiles.filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'));
 
     for (const relFile of targetFiles) {
       const absPath = path.resolve(this.projectRoot, relFile);
-      this.recordScanned(absPath);
+      this.recordScanned(relFile);
       this.markRuleEvaluated('my-ast-forbidden-pattern');
 
       // Cached O(1) AST retrieval with Vue script extraction & line offset support

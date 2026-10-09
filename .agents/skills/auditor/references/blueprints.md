@@ -8,7 +8,7 @@ This document contains complete, validated, and domain-agnostic configuration bl
 
 All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFAULT** (`enabled: true`, `persistence.engine: 'supabase'`, `zLayersEnabled: true`, `requireInputIds: true`, `similarCode.enabled: true`, `packageScripts.enabled: true`, etc.). If a host project omits any subsystem in `.auditor/audit.config.ts`, that subsystem automatically defaults to active with complete standard defaults. Host projects only need to declare configurations to customize settings or explicitly deactivate non-applicable subsystems (`enabled: false`, `engine: 'none'`). Sub-auditors never silently bypass checks due to missing files or missing configuration:
 
-1. `persistence`: Database engine (defaults to `'supabase'`; or `'sqlite'`, `'postgres'`, `'hybrid'`, `'none'`). Configures `prohibitedTemplateIdentifiers`, `authorizedSaveFiles`, and `allowedHosts` according to host infrastructure.
+1. `persistence`: Database engine (defaults to `'supabase'`; or `'sqlite'`, `'postgres'`, `'hybrid'`, `'none'`). Configures `prohibitedTemplateIdentifiers`, `authorizedSaveFiles`, `saveKeyPrefixes`, and `allowedHosts` according to host infrastructure.
 2. `bundle`: Bundle chunk budgets and size thresholds (defaults to `enabled: true` with `maxClientChunkWarnBytes`, `maxClientChunkErrorBytes`, `budgets`, or `enabled: false`). Heavy Web Worker chunks or simulation data modules are declared in `exemptChunkPrefixes`. Forbidden UI value imports are extended in `forbiddenUiImports`.
 3. `fallow.security` (or `security`): Fallow CWE static vulnerability gating (defaults to `enabled: true`). Disables alerts for pure CLI tools and runners (`enabled: false`).
 4. `styles`: Z-layers (defaults to `zLayersEnabled: true`, direct scale in `zLayers`, SCSS file in `zLayersScssFile`, TS file in `zLayersTsFile`), base SCSS file (`baseScssFile`), line-height overlap check (`lineHeightOverlapCheck: true`), and utility classes.
@@ -34,6 +34,11 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run auditor:build`).
 25. `valibot`: Bidirectional schema and persistence parity verification between TypeScript interfaces, Valibot schemas, and serializers (defaults to `enabled: true`, `targets: []`).
 26. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
+27. `testCoverage`: Istanbul/C8 coverage analysis, thresholds, and untracked file detection (defaults to `enabled: true`, `threshold: 80`, `enforceInAudit: true`).
+28. `auditorHygiene`: Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (defaults to `enabled: true`).
+29. `eslint`: ESLint flat configuration integrity and Domain-Type-First type safety governance (defaults to `enabled: true`).
+30. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
+31. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
 
 When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.requiresBuild: true`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:build` / `preset=build`).
 

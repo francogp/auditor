@@ -37,6 +37,15 @@ function checkSimilarCodeGating(config) {
     return { enabled: true };
 }
 function checkSpecialGating(suiteId, config) {
+    if (suiteId === 'validate_git_config') {
+        if (isProductionEnvironment()) {
+            return {
+                enabled: false,
+                reason: 'Omitido en entorno de producción (AUDITOR_ENV=production)',
+                configKey: 'env:AUDITOR_ENV'
+            };
+        }
+    }
     if (suiteId === 'validate_similar_code') {
         return checkSimilarCodeGating(config);
     }

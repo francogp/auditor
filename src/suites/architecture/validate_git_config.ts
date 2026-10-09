@@ -13,6 +13,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
+import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 
 enableCompileCache();
 
@@ -91,6 +92,11 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
+    if (isProductionEnvironment()) {
+      this.markSkipped('Git config omitido en entorno de producción (AUDITOR_ENV=production)');
+      return;
+    }
+
     this.recordScanned('package.json');
 
     const gitPath = path.resolve(this.projectRoot, '.git');

@@ -34,8 +34,8 @@ Consult this skill whenever you need to:
 
 - **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)**:
   - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
-    - **Documentation & File Writing Language (`config.documentation.language`)**: All DOX indices, `AGENTS.md` files, and `.agents/` configuration files MUST be written in the configured language (strictly defaulting to English `'en'` if unconfigured).
-    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Interactive chat searches, context explanations, and developer dialogues in the chat interface MUST strictly use the resolved chat language (strictly defaulting to Spanish `'es'` if unconfigured).
+    - **Documentation & File Writing Language (`config.documentation.language`)**: All DOX indices, `AGENTS.md` files, and `.agents/` configuration files MUST be written in the configured language resolved from `config.documentation.language`.
+    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Interactive chat searches, context explanations, and developer dialogues in the chat interface MUST strictly use the resolved chat language from `config.documentation.chatLanguage`.
   - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
 - **Zero Language Mixing**: It is strictly forbidden to mix languages within a single file. Within each DOX index or documentation file, the chosen language must be maintained consistently without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 - **Relative Paths Mandate**: All links to other files and indices in all `AGENTS.md` files MUST use relative paths (e.g. `./database/AGENTS.md` or `../database/AGENTS.md`). Absolute paths (e.g., `file:///C:/...` or `/home/...`) are strictly forbidden to ensure portability across different development environments.
@@ -156,7 +156,7 @@ Whenever persisting new knowledge, rules, lessons, or constraints:
 
 - **NO Arbitrary Placements**: Do NOT dump local lessons, subsystem rules, or module guidelines into the root `AGENTS.md` file unless they represent project-wide behavioral preferences.
 - **Target Child `AGENTS.md`**: You MUST target the most specific child `AGENTS.md` file that matches the folder tree of the modified code files, mapping each rule to its proper domain boundary.
-- **Governed by `learn-with-docs`**: During safe-commit (Phase 3, Step 3.1), lessons extraction, DOX index traversal for inconsistencies, and proposal drafting are governed strictly by [learn-with-docs](../learn-with-docs/SKILL.md).
+- **Governed by `learn-with-docs`**: During safe-commit (Phase 3, Step 3.1), lessons extraction, Targeted Contradiction Sweeps for direct contradictions, and proposal drafting are governed strictly by [learn-with-docs](../learn-with-docs/SKILL.md).
 
 ### Strict Verification Contract for Documentation
 

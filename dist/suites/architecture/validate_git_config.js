@@ -12,6 +12,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 enableCompileCache();
 export const GIT_CONFIG_RULES = [
     'git-config-filemode',
@@ -77,6 +78,10 @@ export class ValidateGitConfigAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
+        if (isProductionEnvironment()) {
+            this.markSkipped('Git config omitido en entorno de producción (AUDITOR_ENV=production)');
+            return;
+        }
         this.recordScanned('package.json');
         const gitPath = path.resolve(this.projectRoot, '.git');
         if (!fs.existsSync(gitPath)) {

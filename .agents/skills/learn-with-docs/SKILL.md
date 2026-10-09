@@ -1,13 +1,14 @@
 ---
 name: learn-with-docs
 description: >-
-  Specialized learning, behavior persistence, and documentation consistency skill within the DOX (AGENTS.md) framework.
-  Trigger ONLY during the `/safe-commit` workflow (Phase 3: Lessons Extraction, Step 3.1) or when explicitly
-  directed during safe commit.
-  DO NOT trigger for standard `/learn` slash commands, general design interviews, or general learning sessions outside of safe commit.
-  Enforces precise DOX boundary targeting, DOX index traversal for inconsistencies and legacy code,
-  auditor-configured language governance (defaulting to English when in doubt), legacy/contradictory README and documentation sweeps,
-  learning_proposal.md artifact creation, and prevents polluting host DOX indices with upstream @francogp/auditor tooling rules.
+  Specialized skill for capturing and persisting newly acquired lessons, user corrections,
+  and architectural decisions into the hierarchical DOX (AGENTS.md) framework, while harmonizing
+  existing documentation by eliminating direct contradictions to the new learning.
+  Use when the user invokes /learn-with-docs, asks to persist learnings from the current session,
+  or during the lessons extraction phase of /safe-commit.
+  STRICTLY LIMITED to persisting what was actually learned in the current interaction and eliminating
+  direct contradictions to it.
+  Does NOT perform repository-wide audits, does NOT report unrelated issues, and NEVER executes git commits or pushes.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini
@@ -17,109 +18,123 @@ metadata:
 
 # Learn With Docs
 
-Specialized learning, behavior persistence, and documentation consistency skill executed strictly during the `/safe-commit` workflow (Phase 3, Step 3.1). Ensures newly acquired patterns, corrections, and architectural rules are persisted correctly in the hierarchical DOX (`AGENTS.md`) framework, systematically audits the entire DOX index hierarchy (`AGENTS.md` files) to eliminate legacy code and inconsistencies compared to the new learning, and audits `README.md` files and documentation to eliminate stale or contradictory content.
+Specialized skill for persisting newly acquired knowledge, explicit user corrections, bug resolutions, and architectural decisions into the hierarchical DOX (`AGENTS.md`) tree, while harmonizing existing documentation across the workspace by strictly eliminating direct contradictions to the new learning.
 
 ---
 
-## 1. Precise Placement Strategy
+## 🎯 Core Principles
 
-When saving a new behavior, constraint, or success pattern:
+1. **Strictly Lesson-Anchored Scope**:
+   - A "learning" is ONLY:
+     - An explicit correction or directive given by the user during the current session.
+     - A non-obvious bug, edge case, or root cause diagnosed and resolved in the current session.
+     - A new architectural standard or contract agreed upon in the current session.
 
-- **Do NOT default to the root `AGENTS.md` index** unless it is a universal, project-wide rule.
-- **Navigate and Find the Proper Boundary**: Analyze the target directory tree. Locate the specific child `AGENTS.md` (via [dox-navigator](../dox-navigator/SKILL.md)) matching the scope of the learning, or create a new child index if one is needed.
-- **Upstream Tooling Boundary Check (`@francogp/auditor`)**:
-  - Explicitly evaluate repository ownership: Does this learning belong to the **current host project** (e.g. host business logic, views, stores, database models, host `.auditor/audit.config.ts`, or bespoke local extensions in `scripts/auditors/`), or does it belong to the **upstream auditor engine** (`@francogp/auditor`, such as core base classes, built-in generic sub-auditors, core CLI orchestrators, or exported skills like `auditor`)?
-  - **Host Repository Isolation**: If executing inside a consumer host workspace (e.g. any consumer application importing `@francogp/auditor`), NEVER mutate `node_modules/@francogp/auditor/` and NEVER pollute the host project's local `AGENTS.md` with upstream engine rules.
-- **Domain Rules Cross-Check**: Any new domain calculations, business logic rules, or system constraints MUST be recorded in the nearest applicable child `AGENTS.md` file governing that domain logic.
-- **DOX Hierarchy Integrity**: The hierarchical `AGENTS.md` tree is the sole architectural Single Source of Truth (SSoT). Ensure child DOX files accurately document exported contracts, rules, and child indices.
+2. **Targeted Contradiction Sweep (Zero Unrelated Sweeps)**:
+   - When a new learning $L$ is established, the agent MUST search `AGENTS.md` files and relevant documentation **EXCLUSIVELY for statements, contracts, or examples that directly contradict $L$**.
+   - **What Constitutes a Direct Contradiction**:
+     - An existing contract prescribing pattern $P$ when $L$ explicitly bans or replaces $P$.
+     - A code snippet, example, or guide instructing callers to invoke deprecated API $A$ when $L$ establishes that $A$ must not be used.
+     - A directive mandating behavior $B$ when $L$ explicitly mandates $\neg B$.
+   - **STRICTLY PROHIBITED**: Reporting, proposing, or correcting general defects, typos, outdated suite counts, or unrelated legacy code that do NOT directly contradict $L$. Unrelated maintenance belongs to standalone tasks, never to a learning proposal.
 
----
+3. **Deduplication Check (Zero Re-Learning)**:
+   - Before proposing any addition, inspect the target `AGENTS.md` files:
+     - If the pattern or rule is **already documented** and no contradictory contracts exist in the workspace, state clearly: `"No se identificaron nuevos aprendizajes ni contradicciones en esta sesión para persistir."` and stop immediately. DO NOT invent proposals.
 
-## 2. DOX Index Traversal for Inconsistencies & Legacy Code
+4. **Precise DOX Placement (Target Boundary)**:
+   - Follow the hierarchical DOX structure:
+     - Place the primary rule in the **most specific child `AGENTS.md`** governing that module or domain.
+     - **NEVER default to root `AGENTS.md`** unless the learning is truly universal and affects the entire repository.
+     - Never pollute host project DOX files with upstream framework (`@francogp/auditor`) internals.
 
-Whenever a new pattern, rule, or architectural shift is captured, the agent MUST traverse the DOX index hierarchy (`AGENTS.md` files) across the repository starting from the root index down through relevant child indices:
+5. **Absolute Prohibition of Git Commit and Push**:
+   - `learn-with-docs` is **NOT** a version control or release tool.
+   - It is **STRICTLY FORBIDDEN** for this skill to run `git commit`, `git push`, create git tags, or modify `package.json` versions.
+   - The skill's scope ends when the approved learning and harmonization diffs are written to disk in the working tree. Versioning, staging, committing, and pushing belong exclusively to `/safe-commit` or manual user command.
+   - A `learning_proposal.md` MUST NEVER propose or mention `git commit`, `git push`, tags, or release operations. Those belong solely to `/safe-commit` and its dedicated `plan_safe_commit.md`.
 
-1. **Target DOX Files**:
-   - Root `AGENTS.md` and all child `AGENTS.md` indices across the workspace.
-2. **Defect Patterns to Detect in the DOX Hierarchy**:
-   - **Contradictory Local Contracts**: Existing contracts, mandates, or guidelines in parent, child, or sibling `AGENTS.md` files that contradict the new learning (e.g. an older index mandating a deprecated pattern, abolished workflow, or superseded rule).
-   - **Legacy Code Snippets & Signatures**: Code blocks, function signatures, DTOs, or examples inside `AGENTS.md` files that demonstrate superseded patterns, obsolete options, or deprecated APIs.
-   - **Stale References & Deprecated Rules**: Outdated links, superseded section titles, or duplicate rules that survived earlier refactorings.
-   - **Inconsistent Standards**: Deviations across subtrees where an older index still prescribes patterns that the new learning explicitly replaces or modernizes.
-3. **DOX Harmonization in Proposal**:
-   - Every detected DOX inconsistency, legacy contract, or obsolete code snippet MUST be captured in `learning_proposal.md`.
-   - Propose exact diffs modernizing or removing the conflicting directives across all affected `AGENTS.md` files so the DOX hierarchy remains 100% harmonious with the newly learned behavior.
-
----
-
-## 3. Legacy & Contradictory Documentation Consistency Pass
-
-Whenever a new pattern, rule, or architectural shift is captured, the agent MUST perform a cross-repository documentation sweep to identify and eliminate stale, conflicting, or outdated text:
-
-1. **Target Documentation Files**:
-   - Root `README.md` and any submodule or package READMEs.
-   - Reference manuals and blueprints in `.agents/skills/*/references/`.
-   - Guides, architectural specs, and documentation markdown files in `docs/` or `references/`.
-2. **Defect Patterns to Detect**:
-   - **Contradictory Guidelines**: Text or directives advocating obsolete patterns directly contradicted by the newly acquired learning (e.g. recommending manual helpers instead of stdlib, obsolete configurations, or repealed conventions).
-   - **Stale Command Scripts**: Outdated CLI invocations, deprecated runner flags, or removed script gates (e.g. `audit:for-commit`).
-   - **Obsolete Code Snippets**: Fenced code examples or JSON/TypeScript configurations that demonstrate superseded APIs or invalid options.
-   - **Version Inconsistencies**: Descriptions referring to previous major/minor versions that conflict with current architecture.
-3. **Harmonization in Proposal**:
-   - Every detected contradictory or legacy statement MUST be reported and scheduled for correction directly inside `learning_proposal.md`.
-   - Propose exact diffs fixing the contradictory text in the respective documentation files alongside the DOX changes.
+6. **Dynamic Auditor Configuration Language Governance (Zero Hardcoding)**:
+   - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
+     - **Documentation & File Writing Language (`config.documentation.language`)**: Governs repository documentation, markdown files committed to git, DOX indices (`AGENTS.md`), commit messages, git tags, and the code diffs/contracts presented inside `learning_proposal.md`.
+     - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, `ask_question` dialogs, AND the narrative explanations, analysis, and context in user-facing proposal artifacts (`learning_proposal.md`, `walkthrough.md`, `plan_safe_commit.md`).
+   - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
+   - **Zero Language Mixing**: Within each section, code block, or file, the chosen language must be strictly maintained without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 
 ---
 
-## 4. Language & Integrity Constraints
+## 📋 The 3-Step Execution Protocol
 
-- **Dynamic Auditor Configuration Language Governance (Zero Hardcoding)**:
-  - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
-    - **Documentation & File Writing Language (`config.documentation.language`)**: Governs repository documentation, markdown files committed to git, DOX indices (`AGENTS.md`), and the code diffs/contracts presented inside `learning_proposal.md`. If omitted or unconfigured, it defaults strictly to English (`'en'`).
-    - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, `ask_question` dialogs, AND the narrative explanations/analysis in user-facing proposal artifacts (`learning_proposal.md`, `walkthrough.md`). If omitted or unconfigured, it defaults strictly to Spanish (`'es'`).
-  - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
-  - **Zero Language Mixing**: Within each file, DOX index, or proposed section, the chosen file language must be strictly maintained without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
-- **Relative Paths**: Always use relative paths when linking files and DOX indices (e.g., `[dox-navigator](../dox-navigator/SKILL.md)`). Refer to [dox-navigator](../dox-navigator/SKILL.md) for examples of linking within the DOX framework.
+### Step 1: Lesson Identification & Contradiction Sweep
 
----
+1. **Extract the Core Learning**:
+   - What went wrong? What was the user's correction? What invariant must be preserved from now on?
+   - Formulate a single, concise, actionable contract statement (1-3 sentences) representing the new learning $L$.
+2. **Locate Target DOX Boundary**:
+   - Use `dox-navigator` to identify the specific child directory containing the relevant `AGENTS.md`.
+   - Verify if the rule already exists in that boundary.
+3. **Execute Targeted Contradiction Sweep**:
+   - Search other `AGENTS.md` files, references, and guides strictly for statements that affirm the opposite of $L$.
+   - Collect exact file paths, line ranges, and conflicting text blocks.
+   - If no learning exists and no contradictions are found, notify the user and terminate immediately.
 
-## 5. Safe-Commit Integration Workflow (Phase 3, Step 3.1)
+### Step 2: Proposal Artifact (`learning_proposal.md`)
 
-1. **Identify Learnings & Audit Scope**: Analyze the session's debugging discoveries, user corrections, or architectural changes.
-2. **Repository Boundary Determination**:
-   - Determine whether the learning targets the **current workspace** or the **upstream `@francogp/auditor` package**:
-     - **Local Host Learning**: Changes apply to current project files or host DOX indices. Proceed to local proposal flow.
-     - **Upstream Engine Learning**: Changes apply to `@francogp/auditor` (core framework, built-in suites, or auditor skills). If currently in a host repository without write access to `@francogp/auditor`, proceed to Upstream Proposal Flow.
-3. **DOX Hierarchy & Documentation Sweep**:
-   - **DOX Hierarchy Traversal**: Traverse `AGENTS.md` files across the DOX tree. Search for any existing rules, contracts, code snippets, or instructions that conflict with, or are made obsolete by, the new learning.
-   - **Legacy Documentation Sweep**: Scan relevant `README.md` files, references, and guides for text that conflicts with or is made obsolete by the new learning.
-   - Prepare concrete replacement/deletion diffs for each occurrence.
-4. **Mandatory Proposal Workflow**: Do NOT modify files immediately. You MUST create/update the `learning_proposal.md` artifact outlining the classification, rationale, and precise text additions/diffs:
-   - Save the artifact strictly to the Artifact Directory `<appDataDir>/brain/<conversation-id>/learning_proposal.md`. NEVER save it inside `scratch/` or the project repository workspace.
-   - Pass complete `ArtifactMetadata` containing `UserFacing: true`, `RequestFeedback: true`, and a detailed multi-line `Summary` describing the proposed rules/lessons and documentation corrections.
-   - Write the proposal's conversational narrative, summary, analysis, and section explanations in the user's chat language (`config.documentation.chatLanguage`, default `'es'`), while writing the proposed code blocks, contracts, and diffs targeting repository files (`AGENTS.md`, `README.md`) in the repository documentation language (`config.documentation.language`, default `'en'`).
-   - **Mandatory Artifact Reference & Direct Linking**:
-     When presenting the proposal for review, you MUST present a direct clickable Markdown link to the artifact (`[learning_proposal.md](file://...)` or `[plan_learning_proposal.md](file://...)`) accompanied by a concise high-level summary of the proposed learning and target files in the regular chat conversation. Do NOT dump the full raw file contents into the chat; point the user clearly to the artifact so they can open, inspect, and review it in the Antigravity UI.
-   - **Section 1: DOX Additions**: Exact diffs for placing the new learning at the proper `AGENTS.md` boundary.
-   - **Section 2: DOX Modernization & Consistency Diffs**: Exact diffs correcting, modernizing, or removing conflicting contracts and legacy code across existing `AGENTS.md` files.
-   - **Section 3: Documentation & README Modernization**: Exact diffs correcting legacy or contradictory text in `README.md`, reference guides, or manuals.
-   - **Upstream Alert Protocol (When running in a host project targeting `@francogp/auditor`)**:
-     - Prepend a prominent warning banner at the very top of `learning_proposal.md`:
+Create `<appDataDir>/brain/<conversation-id>/learning_proposal.md` using `write_to_file` with:
 
-       ```markdown
-       > [!WARNING] LEARNING TARGET: UPSTREAM REPOSITORY (@francogp/auditor)
-       > This learning belongs to the `@francogp/auditor` engine/package, NOT to the current host project (`<host-project-name>`).
-       > These changes MUST NOT be applied locally or inside `node_modules/`. They must be transferred and applied to the `@francogp/auditor` repository.
-       ```
+- `ArtifactMetadata`:
+  - `UserFacing: true`
+  - `RequestFeedback: true`
+  - `Summary`: Brief multi-line summary of the lesson learned, the target file, and any contradictory statements to harmonize.
 
-5. **Language Integrity Check**: Verify that `learning_proposal.md`, proposed rules, and documentation additions are written in the project's configured language (`config.documentation.language`), strictly defaulting to English (`'en'`) if unconfigured or when in doubt, ensuring zero language mixing.
-6. **Phase 3 Hard Stop & User Approval (Artifact Review & Feedback)**:
-   - **Artifact Creation with Feedback Request**: Save `learning_proposal.md` (or `plan_learning_proposal.md`) using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and a detailed `Summary`), which equips the artifact with interactive review controls and the native `[ Proceed ]` button in the Antigravity UI.
-   - **Terminal Tool Call Rule**: The proposal artifact with `RequestFeedback: true` MUST be the final tool call before ending the turn. Do NOT execute subsequent tool calls in the same turn, which would displace the active review card and suppress the `[ Proceed ]` button.
-   - **Link & Summarize in Regular Chat Text**: Present the clickable artifact link accompanied by a concise executive summary of the target DOX path and proposed rule in regular chat text. Remind the user that they can review the proposal directly in the Antigravity UI and approve via the `[ Proceed ]` button or chat.
-   - Wait for explicit user confirmation before proceeding to Phase 4.
-7. **Phase 4 Application & Verification**:
-   - Apply approved lessons and modernizations across all targeted `AGENTS.md` files in the DOX hierarchy.
-   - Apply approved corrections to the affected `README.md` and documentation files.
-   - Run pre-commit sanity check: `npm run auditor:md`.
-   - **STRICT PROHIBITION ON RUNNING TESTS FOR DOCS**: You are STRICTLY FORBIDDEN from running `npm run test`, Vitest, Node test runners, or E2E simulations when updating documentation, DOX indices, or `.md` files. Test suites are exclusively for code logic changes in `src/` or `database/`.
+#### Proposal Structure (Keep it minimal and laser-focused)
+
+````markdown
+# Learning Proposal: <Concise Title of the Lesson>
+
+## 1. Context & Lesson Learned
+- **What happened**: <Brief description of the issue or user correction in this session>
+- **The Invariant**: <The concrete rule or behavioral constraint to establish>
+
+## 2. Primary Target File
+- `path/to/target/AGENTS.md` (under section `## Local Contracts`)
+
+### Proposed Contract (Diff)
+
+```markdown
+- **<Contract Name>**: <Concise, enforceable English rule text>
+```
+
+## 3. Direct Contradictions to Harmonize (if any)
+<!-- If none found, write: "No direct contradictions detected across the DOX hierarchy or documentation." -->
+- **Conflicting File**: `path/to/conflicting/file.md`
+- **Contradiction**: <Explain exactly why this text contradicts the new learning>
+- **Harmonization Diff**:
+```markdown
+<<<<
+<Old conflicting text>
+====
+<New harmonized text conforming to the lesson>
+>>>>
+```
+````
+
+> [!IMPORTANT]
+> **No Unrelated Content**: The proposal MUST NOT contain audits of other files, refactoring suggestions, template changes, or unrelated documentation updates. ONLY the exact lesson learned and direct contradictions to it.
+
+After writing the artifact with `RequestFeedback: true`, present a clickable link to it in chat and stop your turn to wait for user confirmation.
+
+### Step 3: Application to Working Tree
+
+Once the user approves (via `[ Proceed ]` or chat confirmation):
+
+1. **Apply the Primary Learning**:
+   - Insert the proposed rule into the target `AGENTS.md` under `## Local Contracts` using `replace_file_content`.
+2. **Apply Direct Contradiction Harmonizations**:
+   - Update any files identified in Section 3 of the proposal that directly contradicted the lesson.
+3. **Format Sanity Check**:
+   - Run `npm run auditor:md` to verify that Markdown syntax, links, and table formatting remain valid.
+   - Do NOT run Vitest or code test suites (`npm test`) — this is purely a documentation text update.
+4. **Stop & Report**:
+   - Report the updated files to the user.
+   - **DO NOT COMMIT. DO NOT PUSH.** Leave the working tree modified and ready for the user's next action (such as `/safe-commit` when they decide to commit).

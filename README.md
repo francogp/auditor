@@ -272,7 +272,7 @@ Under `AUDITOR_ENV=production`:
 
 - Automatically skips `validate_similar_code` (Candle CPU vector embeddings).
 - Automatically skips `validate_test_coverage` (coverage artifacts are git-ignored and not generated in production).
-- Executes all remaining 48+ static analysis suites and post-build verification (`auditor:build`) at 100% strictness.
+- Executes all remaining 57+ static analysis suites and post-build verification (`auditor:build`) at 100% strictness.
 
 ### 4.9. Remote Project Execution (`--project`, `-p`)
 
@@ -354,6 +354,10 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **Git** | `validate_git_config` | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix. |
 | **Auditor Hygiene** | `validate_auditor_hygiene` | Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
 | **`valibot`** | `validate_valibot_parity` | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers. |
+| **Web Storage & Persistence** | `validate_persistence_client` | Client-side `localStorage`/`sessionStorage` governance, bracket notation, untyped keys, and quota error guards. |
+| **Vue 3 SFC & Reactivity** | `validate_vue_sfc_hygiene`, `validate_vue_reactivity`, `validate_vue_router` | `<script setup lang="ts">` standards, pure computed derivations, getter-wrapped watchers, and SPA routing hygiene. |
+| **Domain Data & O(1)** | `validate_o1_data_structures`, `validate_canonical_domains` | $O(1)$ complexity governance, catalog collision prevention, and domain union deduplication. |
+| **Type Assertion Hygiene** | `validate_type_assertion_hygiene` | Ban on `as any`, double casting (`as unknown as`), boolean literal annotations, and unhandled floating promises. |
 | **`stylelint`** | `validate_stylelint` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |

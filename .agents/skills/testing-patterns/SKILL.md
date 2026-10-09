@@ -281,3 +281,12 @@ All repositories governed by `@francogp/auditor` enforce test execution coverage
 
 - Run coverage verification suite: `npm run auditor` or `preset=audit`.
 - Inspect detailed table reports: `npm run auditor:coverage` or `auditor-coverage`.
+
+---
+
+## 🌐 Dynamic Language Governance (Zero Hardcoding)
+
+- The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
+  - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs, AND narrative explanations in user-facing proposal artifacts. The agent converses strictly in the language resolved from `config.documentation.chatLanguage`.
+  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, and DOX indices (`AGENTS.md`). The agent writes files strictly in the language resolved from `config.documentation.language`.
+- **Zero Language Mixing & Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages. The AI agent must dynamically resolve these settings from configuration and never confuse or conflate the chat communication language with the repository file writing language.

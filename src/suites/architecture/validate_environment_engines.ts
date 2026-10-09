@@ -20,7 +20,7 @@ import {
   getAuditorEngines,
   type SemverVersion
 } from '../../cli/check_environment.ts';
-import { runSetup } from '../../cli/setup_env.ts';
+import { syncEnvScripts } from '../../cli/sync_env_scripts.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
 enableCompileCache();
@@ -185,21 +185,18 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
 
     if (!isNodeMatch || !isNpmMatch) {
       if (this.isFixActive()) {
-        const isWindows = process.platform === 'win32';
-        const setupScript = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
-        const setupPath = path.resolve(this.projectRoot, setupScript);
-        if (fs.existsSync(setupPath)) {
-          runSetup([], this.projectRoot);
-        }
+        syncEnvScripts({ targetDir: this.projectRoot });
       }
 
+      const scriptName = process.platform === 'win32' ? 'setup-windows.ps1' : 'setup-linux.sh';
       this.addViolation({
         ruleId: 'environment-runtime-mismatch',
         file: 'package.json',
         message:
           `Entorno de ejecución desalineado. ` +
           `Detectado Node v${process.versions.node} / npm ${rawNpmVer}, ` +
-          `requerido Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}.`,
+          `requerido Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}. ` +
+          `Ejecuta ./${scriptName} en tu terminal para alinear el entorno.`,
         severity: 'error'
       });
     }

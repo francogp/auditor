@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, type GitIgnoreRequirement } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, hasLineSuppression, type GitIgnoreRequirement } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -66,8 +66,8 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       const line = lines[i]!;
       const lineNum = i + 1;
 
-      // 1. Support localized suppression comments: // my-feature-ok, // domain-ok
-      if (this.isLineIgnored(line, ['my-feature-ok'])) continue;
+      // 1. Support localized suppression comments: // my-feature-ok, // auditor-disable-next-line
+      if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-pattern', lines, i)) continue;
 
       // 2. Mark rule evaluated for this file
       this.markRuleEvaluated('my-feature-forbidden-pattern');

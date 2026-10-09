@@ -29,9 +29,15 @@ All inspection routines MUST use the official NPM scripts declared in `package.j
 - `npm run auditor:update` / `auditor-update`: Dedicated CLI updater executing hermetic npm update, timestamp verification, and Box-Drawing summary table.
 - `npm run auditor:version` / `auditor-version -v`: Displays the active package version, build timestamp, and ISO date metadata.
 - `npm run auditor:findings`: Primary findings reporter with full filtering capabilities (`partial`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).
+- `npm run auditor:by-file`: Hierarchical tree findings reporter grouped by file and line.
 - `npm run auditor:errors`: Preset filtering strictly to errors (`severity=error`).
 - `npm run auditor:warnings`: Preset filtering strictly to warnings (`severity=warning`).
 - `npm run auditor:summary`: Compact summary overview of latest audit results.
+- `npm run auditor:coverage` / `auditor:test-coverage`: Istanbul/C8 test coverage report with threshold verification.
+- `npm run auditor:coverage-map`: Full test coverage heatmap and uncovered file tracer.
+- `npm run auditor:css`: Stylelint CSS/SCSS duplication and orphan token reporter.
+- `npm run auditor:flags`: Feature flags status and dead code analyzer.
+- `npm run auditor:guard`: Architectural boundary and dependency graph gating.
 - `npm run auditor:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `--threshold <N>`).
 - `npm run auditor:review`: Graph-grounded architectural review brief for changed files against base branch via Fallow code-review graphs.
 

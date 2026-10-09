@@ -229,10 +229,33 @@ export default defineAuditConfig({
   },
 
   packageHygiene: {
-    enabled: true, // Orphan and ghost dependency detection via Knip and lockfile audit
-    allowedLicenses: ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'ISC', 'CC0-1.0'], // Whitelist of legally compliant software licenses
-    allowedHosts: ['registry.npmjs.org'], // Authorized package manager host registries
-    requireLockfile: true // Requires lockfile presence and strict integrity validation
+    enabled: true, // Orphan and ghost dependency detection via Knip
+    ignoreDependencies: [], // Dependencies intentionally exempt from unused alerts
+    ignoreBinaries: [] // Binary script commands intentionally exempt
+  },
+
+  environment: {
+    enabled: true // Validates Node.js and npm engine compliance with package.json engines declaration
+  },
+
+  auditorHygiene: {
+    enabled: true, // Enforces zero homebrew helpers and strict framework utilities across sub-auditors
+    exemptFiles: [], // Specific sub-auditors or test fixtures exempt from anti-pattern scanning
+    disabledDetectors: [] // Detectors intentionally deactivated
+  },
+
+  testCoverage: {
+    enabled: true, // Evaluates Istanbul/C8 coverage artifacts (coverage/coverage-final.json)
+    threshold: 80, // Minimum statements/lines/branches/functions threshold percentage
+    enforceInAudit: true // Promotes coverage threshold drops to blocking errors during full audit
+  },
+
+  eslint: {
+    enabled: true // Flat config governance and Domain-Type-First compliance verification
+  },
+
+  htmlValidate: {
+    enabled: true // Living Standard W3C/WHATWG HTML5 template markup validation
   },
 
   secretLeaks: {
@@ -252,17 +275,17 @@ export default defineAuditConfig({
     enabled: true, // Bidirectional parity between domain TypeScript interfaces, Valibot schemas, and persistence serializers
     targets: [
       {
-        name: 'saveData',
+        id: 'saveData',
+        typesFile: 'src/types/gameState.ts',
+        interfaceName: 'GameState',
         schemaFile: 'src/schemas/saveDataSchema.ts',
         schemaVarName: 'saveDataSchema',
-        interfaceFile: 'src/types/gameState.ts',
-        interfaceName: 'GameState',
         serializerFile: 'src/persistence/saveSerializer.ts',
-        serializerFnName: 'serializeGameState',
+        serializerFunctionName: 'serializeGameState',
         initialStateFile: 'src/factories/gameStateFactory.ts',
-        initialStateFnName: 'createInitialGameState',
-        ephemeralProperties: ['runtimeDebugFlags'],
-        allowedDomainNullable: ['currentBattle']
+        initialStateFunctionName: 'createInitialGameState',
+        ephemeralKeys: ['runtimeDebugFlags'],
+        allowedNullableFields: ['currentBattle']
       }
     ]
   },

@@ -28,7 +28,7 @@ Use `FileScanAuditor` when the audit inspects files line-by-line across specific
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, hasLineSuppression } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -76,8 +76,8 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       const line = lines[i]!;
       const lineNum = i + 1;
 
-      // Check escape hatches: // domain-ok, // my-feature-ok
-      if (this.isLineIgnored(line, ['my-feature-ok'])) continue;
+      // Check escape hatches: // domain-ok, // my-feature-ok, or multiline comments
+      if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-token', lines, i)) continue;
 
       if (line.includes('bannedToken')) {
         this.addViolation({

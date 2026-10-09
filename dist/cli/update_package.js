@@ -13,6 +13,7 @@ import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isSelfProviderProject } from "../core/auditConfig.js";
 import { initAgentSkill } from "./init_agent.js";
+import { syncEnvScripts } from "./sync_env_scripts.js";
 export function findHostProjectRoot(startDir = process.cwd(), stopAt) {
     let current = path.resolve(startDir);
     const boundary = stopAt ? path.resolve(stopAt) : undefined;
@@ -105,6 +106,10 @@ export function updateAuditorPackage(options = {}) {
     const agentInitResult = initAgentSkill({ targetDir: projectRoot });
     if (!options.silent && agentInitResult.created) {
         console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
+    }
+    const envSyncResult = syncEnvScripts({ targetDir: projectRoot });
+    if (!options.silent && envSyncResult.filesUpdated.length > 0) {
+        console.log(styleText('green', `📜 ${envSyncResult.message}\n`));
     }
     runAuditorFixAutoRemediation(projectRoot, options.silent);
     return {
