@@ -57,7 +57,7 @@ Specialized skill for persisting newly acquired knowledge, explicit user correct
 6. **Dynamic Auditor Configuration Language Governance (Zero Hardcoding)**:
    - The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
      - **Documentation & File Writing Language (`config.documentation.language`)**: Governs repository documentation, markdown files committed to git, DOX indices (`AGENTS.md`), commit messages, git tags, and the code diffs/contracts presented inside `learning_proposal.md`.
-     - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, `ask_question` dialogs, AND the narrative explanations, analysis, and context in user-facing proposal artifacts (`learning_proposal.md`, `walkthrough.md`, `plan_safe_commit.md`).
+     - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all direct interactive chat communication, user interviews, options matrices, and `ask_question` dialogs.
    - **Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages without consulting `.auditor/audit.config.ts`.
    - **Zero Language Mixing**: Within each section, code block, or file, the chosen language must be strictly maintained without mixed-language paragraphs. The AI agent must never confuse or conflate the chat communication language with the repository file writing language.
 
