@@ -85,6 +85,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_agent_plugin',
       'validate_agents_config_mandate',
       'validate_audit_config',
+      'validate_component_styles',
       'validate_documentation_language',
       'validate_eslint',
       'validate_eslint_config',

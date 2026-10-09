@@ -134,7 +134,9 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
       enabled: true,
       rules: {},
       ignoreGlobs: []
-    }
+    },
+    enforceScss: false,
+    exemptCssFiles: []
   },
   stylelint: {
     enabled: true,
@@ -428,7 +430,9 @@ export function buildStylesConfig(
     lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? def?.lineHeightOverlapCheck ?? true,
     heavyEffectPaths: s.heavyEffectPaths ?? [],
     buttonGovernance: s.buttonGovernance,
-    stylelint
+    stylelint,
+    enforceScss: s.enforceScss ?? def?.enforceScss ?? false,
+    exemptCssFiles: s.exemptCssFiles ?? []
   };
 }
 

@@ -82,7 +82,9 @@ export const DEFAULT_AUDIT_CONFIG = {
             enabled: true,
             rules: {},
             ignoreGlobs: []
-        }
+        },
+        enforceScss: false,
+        exemptCssFiles: []
     },
     stylelint: {
         enabled: true,
@@ -353,7 +355,9 @@ export function buildStylesConfig(raw, rawStylelintTop) {
         lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? def?.lineHeightOverlapCheck ?? true,
         heavyEffectPaths: s.heavyEffectPaths ?? [],
         buttonGovernance: s.buttonGovernance,
-        stylelint
+        stylelint,
+        enforceScss: s.enforceScss ?? def?.enforceScss ?? false,
+        exemptCssFiles: s.exemptCssFiles ?? []
     };
 }
 export function buildBundleConfig(raw) {

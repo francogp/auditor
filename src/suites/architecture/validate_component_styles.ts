@@ -25,7 +25,7 @@ import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.t
 import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
 import { parseVueSfc, type VueSfcBlock } from '../../core/vueSfcParser.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
+import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -34,7 +34,9 @@ export const COMPONENT_STYLE_RULES = [
   'missing-style-tag',
   'banned-style-inherited',
   'orphaned-scss',
-  'ad-hoc-button-styles'
+  'ad-hoc-button-styles',
+  'banned-plain-css-style',
+  'banned-raw-css-file'
 ] as const;
 export type ComponentStyleRuleId = (typeof COMPONENT_STYLE_RULES)[number];
 
@@ -43,7 +45,9 @@ export const COMPONENT_STYLE_VIOLATION_TYPES = [
   'missing_style_tag',
   'banned_style_inherited',
   'orphaned_scss',
-  'ad_hoc_button_styles'
+  'ad_hoc_button_styles',
+  'banned_plain_css_style',
+  'banned_raw_css_file'
 ] as const;
 export type ComponentStyleViolationType = (typeof COMPONENT_STYLE_VIOLATION_TYPES)[number];
 
@@ -56,6 +60,7 @@ export interface ComponentStyleViolation {
 export interface ComponentStyleAuditResult {
   readonly vueComponentsScanned: number;
   readonly scssFilesScanned: number;
+  readonly cssFilesScanned?: number;
   readonly violations: readonly ComponentStyleViolation[];
   readonly passed: boolean;
 }
@@ -358,13 +363,107 @@ function auditMissingStyleTag(
   }
 }
 
+function addOrReplaceLangScss(openingTag: string): string {
+  const langRegex = /\blang=(?:"[^"]*"|'[^']*'|[^\s>]+)/i;
+  if (langRegex.test(openingTag)) {
+    return openingTag.replace(langRegex, 'lang="scss"');
+  }
+  return openingTag.replace(/\s*(\/?>)$/, ' lang="scss"$1');
+}
+
+function auditScssEnforcement(
+  file: string,
+  relPath: string,
+  content: string,
+  styles: readonly VueSfcBlock[],
+  auditor: ComponentStylesAuditor
+): void {
+  const violatingStyles: VueSfcBlock[] = [];
+
+  for (const style of styles) {
+    if (!style.lang || style.lang.toLowerCase() !== 'scss') {
+      violatingStyles.push(style);
+    }
+  }
+
+  if (violatingStyles.length === 0) return;
+
+  if (auditor.isFixActive()) {
+    const sorted = [...violatingStyles].sort((a, b) => b.startIndex - a.startIndex);
+    let updatedContent = content;
+
+    for (const style of sorted) {
+      const openingTag = updatedContent.slice(style.startIndex, style.contentStartIndex);
+      const fixedOpeningTag = addOrReplaceLangScss(openingTag);
+      updatedContent =
+        updatedContent.slice(0, style.startIndex) +
+        fixedOpeningTag +
+        updatedContent.slice(style.contentStartIndex);
+    }
+
+    fs.writeFileSync(file, updatedContent, 'utf-8');
+    return;
+  }
+
+  for (const style of violatingStyles) {
+    const openingTag = content.slice(style.startIndex, style.contentStartIndex).trim();
+    auditor.recordViolation(
+      {
+        file: relPath,
+        type: 'banned_plain_css_style',
+        message: `Bloque <style> en "${relPath}" no declara lang="scss". Todo componente Vue debe utilizar SCSS.`
+      },
+      'banned-plain-css-style',
+      openingTag,
+      style.startLine,
+      true
+    );
+  }
+}
+
+function isExemptCssFile(relPath: string, exemptList: readonly string[]): boolean {
+  if (!exemptList || exemptList.length === 0) return false;
+  const normRel = normalizePosixPath(relPath).toLowerCase();
+  const baseName = path.basename(normRel);
+  return exemptList.some(item => {
+    const normItem = normalizePosixPath(item).toLowerCase();
+    return normRel === normItem || normRel.endsWith(`/${normItem}`) || baseName === normItem;
+  });
+}
+
+function auditRawCssFiles(
+  cssFiles: readonly string[],
+  projectRoot: string,
+  exemptCssFiles: readonly string[],
+  auditor: ComponentStylesAuditor
+): void {
+  for (const file of cssFiles) {
+    const relPath = toPosixRelative(projectRoot, file);
+    if (isExemptCssFile(relPath, exemptCssFiles)) {
+      continue;
+    }
+    auditor.recordViolation(
+      {
+        file: relPath,
+        type: 'banned_raw_css_file',
+        message: `Archivo CSS plano "${relPath}" detectado. Todo archivo de estilos debe utilizar preprocesador SCSS (.scss).`
+      },
+      'banned-raw-css-file',
+      relPath,
+      1,
+      false
+    );
+  }
+}
+
 function auditVueComponent(
   file: string,
   projectRoot: string,
   srcDir: string,
   trackScssFile: (p: string) => void,
   config: AuditEngineConfig,
-  auditor: ComponentStylesAuditor
+  auditor: ComponentStylesAuditor,
+  enforceScss = false
 ): void {
   const content = fs.readFileSync(file, 'utf-8');
   const relPath = toPosixRelative(projectRoot, file);
@@ -376,6 +475,10 @@ function auditVueComponent(
 
   const hasValidStyle = checkHasValidStyle(sfc.styles);
   auditMissingStyleTag(relPath, content, hasValidStyle, auditor);
+
+  if (enforceScss) {
+    auditScssEnforcement(file, relPath, content, sfc.styles, auditor);
+  }
 }
 
 function auditOrphanedScss(
@@ -406,11 +509,12 @@ function auditOrphanedScss(
 }
 
 export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
-private readonly collectedViolations: ComponentStyleViolation[] = [];
+  private readonly collectedViolations: ComponentStyleViolation[] = [];
   private vueCount = 0;
   private scssCount = 0;
+  private cssCount = 0;
 
-  constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
+  constructor(options: { projectRoot?: string; roots?: readonly string[]; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const effectiveRoots = options.roots ?? [
@@ -420,8 +524,9 @@ private readonly collectedViolations: ComponentStyleViolation[] = [];
     ];
 
     super({
-      capabilities: { lint: true },
-id: 'validate_component_styles',
+      capabilities: { lint: true, fix: true },
+      fix: options.fix,
+      id: 'validate_component_styles',
       name: 'Vue Component Style Linkage & SCSS Auditor',
       description: 'Valida enlaces de estilos de componentes y huérfanos SCSS',
       family: 'architecture',
@@ -435,14 +540,16 @@ id: 'validate_component_styles',
         'missing-style-tag': 'Componente sin bloque de estilos',
         'banned-style-inherited': 'Marcador style-inherited prohibido',
         'orphaned-scss': 'Archivo SCSS huérfano sin uso',
-        'ad-hoc-button-styles': 'Clase de botón fuera de estándar'
+        'ad-hoc-button-styles': 'Clase de botón fuera de estándar',
+        'banned-plain-css-style': 'Bloque <style> sin lang="scss"',
+        'banned-raw-css-file': 'Archivo CSS plano sin SCSS'
       },
       coverage: {
         include: [
           'src/components/**/*.vue',
           'src/views/**/*.vue',
-          'src/styles/**/*.scss',
-          'src/**/*.scss'
+          'src/styles/**/*.{scss,css}',
+          'src/**/*.{scss,css}'
         ]
       },
       roots: effectiveRoots,
@@ -450,7 +557,13 @@ id: 'validate_component_styles',
     });
   }
 
-  public recordViolation(v: ComponentStyleViolation, ruleId: ComponentStyleRuleId, context: string, line = 1): void {
+  public recordViolation(
+    v: ComponentStyleViolation,
+    ruleId: ComponentStyleRuleId,
+    context: string,
+    line = 1,
+    fixable = false
+  ): void {
     this.collectedViolations.push(v);
     this.addViolation({
       ruleId,
@@ -458,7 +571,8 @@ id: 'validate_component_styles',
       file: v.file,
       line,
       message: v.message,
-      context
+      context,
+      fixable
     });
   }
 
@@ -474,25 +588,50 @@ id: 'validate_component_styles',
     return this.scssCount;
   }
 
+  public getCssCount(): number {
+    return this.cssCount;
+  }
+
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
     const srcRoots = config.paths.srcRoots ?? ['src'];
     const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
     const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));
     const scssFiles = this.context.collectFiles(this.roots, new Set(['.scss']));
+    const cssFiles = this.context.collectFiles(this.roots, new Set(['.css']));
 
     this.vueCount = vueFiles.length;
     this.scssCount = scssFiles.length;
+    this.cssCount = cssFiles.length;
+
+    const enforceScss = Boolean(config.styles?.enforceScss);
+    const exemptCssFiles = config.styles?.exemptCssFiles ?? [];
+
+    if (!enforceScss) {
+      this.markRuleNotApplicable('banned-plain-css-style', 'SCSS no está forzado en configuración (styles.enforceScss: false)');
+      this.markRuleNotApplicable('banned-raw-css-file', 'SCSS no está forzado en configuración (styles.enforceScss: false)');
+    }
 
     if (vueFiles.length === 0) {
       this.markRuleNotApplicable('broken-style-link', 'No se encontraron componentes .vue');
       this.markRuleNotApplicable('missing-style-tag', 'No se encontraron componentes .vue');
       this.markRuleNotApplicable('banned-style-inherited', 'No se encontraron componentes .vue');
       this.markRuleNotApplicable('ad-hoc-button-styles', 'No se encontraron componentes .vue');
+      if (enforceScss) {
+        this.markRuleNotApplicable('banned-plain-css-style', 'No se encontraron componentes .vue');
+      }
     }
 
     if (scssFiles.length === 0) {
       this.markRuleNotApplicable('orphaned-scss', 'No se encontraron archivos .scss');
+    }
+
+    if (enforceScss) {
+      this.markRuleEvaluated('banned-raw-css-file');
+      for (const file of cssFiles) {
+        this.recordScanned(file);
+      }
+      auditRawCssFiles(cssFiles, this.projectRoot, exemptCssFiles, this);
     }
 
     const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
@@ -505,7 +644,10 @@ id: 'validate_component_styles',
       this.markRuleEvaluated('missing-style-tag');
       this.markRuleEvaluated('banned-style-inherited');
       this.markRuleEvaluated('ad-hoc-button-styles');
-      auditVueComponent(file, this.projectRoot, srcDir, trackScssFile, config, this);
+      if (enforceScss) {
+        this.markRuleEvaluated('banned-plain-css-style');
+      }
+      auditVueComponent(file, this.projectRoot, srcDir, trackScssFile, config, this, enforceScss);
     }
 
     for (const file of scssFiles) {
@@ -531,6 +673,7 @@ export function auditComponentStyles(rootDir?: string): ComponentStyleAuditResul
   return {
     vueComponentsScanned: auditor.getVueCount(),
     scssFilesScanned: auditor.getScssCount(),
+    cssFilesScanned: auditor.getCssCount(),
     violations: auditor.getViolations(),
     passed: auditor.getViolations().length === 0
   };

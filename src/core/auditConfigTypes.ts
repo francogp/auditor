@@ -143,6 +143,8 @@ export interface AuditStylesConfig {
   };
   readonly duplicates?: AuditCssDuplicatesConfig;
   readonly stylelint?: AuditStylelintConfig;
+  readonly enforceScss?: boolean;
+  readonly exemptCssFiles?: readonly string[];
 }
 
 export interface AuditE2eConfig {
