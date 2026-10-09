@@ -396,7 +396,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         const { line, column } = getLineAndColumnAt(content, matchIdx);
         this.addViolation({
           ruleId: 'gsap-no-layout-properties',
-          message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout.propName}:'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity) o Flip Plugin. Si el reflow es legítimo (acordeón dinámico), justifica con '// layout-ok: <razón>'.`,
+          message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout.propName}:'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity) o Flip Plugin (o documenta con '// layout-ok: <justificación>' si es un colapso/acordeón estructural que requiere reflow).`,
           filePath: relPath,
           line,
           column,

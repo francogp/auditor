@@ -30,6 +30,7 @@ export const PERSISTENCE_CLIENT_RULES = [
 ];
 const EXTENSIONS = new Set(['.ts', '.vue']);
 const P_STORAGE_METHOD = /\b(?:localStorage|sessionStorage)\.(setItem|getItem|removeItem)\s*\(\s*([^,)\s][^,)]*)/g;
+const P_STORAGE_INDEXED = /\b(?:localStorage|sessionStorage)\s*\[([^\]]+)\]/g;
 export class ValidatePersistenceClientAuditor extends FileScanAuditor {
     authorizedSaveFiles;
     saveKeyPrefixes;
@@ -76,61 +77,98 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
             return;
         const lines = content.split('\n');
         const isAuthorizedFile = this.isAuthorizedSaveFile(file);
+        this.scanMethodCalls(content, lines, file, isAuthorizedFile);
+        this.scanIndexedAccesses(content, lines, file, isAuthorizedFile);
+    }
+    scanMethodCalls(content, lines, file, isAuthorizedFile) {
         P_STORAGE_METHOD.lastIndex = 0;
         let match;
         while ((match = P_STORAGE_METHOD.exec(content)) !== null) {
-            const matchIndex = match.index;
-            const lineNum = content.slice(0, matchIndex).split('\n').length;
-            const line = lines[lineNum - 1] ?? '';
-            const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
-            const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
-            if (isCommentLine(line.trim()) ||
-                this.hasStorageEscapeHatch(line) ||
-                this.hasStorageEscapeHatch(prevLine) ||
-                this.hasStorageEscapeHatch(prevPrevLine)) {
-                continue;
-            }
             const method = match[1];
-            const rawKeyArg = match[2]?.trim() ?? '';
-            // Check 1: Uncoordinated save bypass (mutations only)
-            if (method === 'setItem' && !isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
-                const matchesSavePrefix = this.saveKeyPrefixes.some(prefix => rawKeyArg.includes(`'${prefix}`) ||
-                    rawKeyArg.includes(`"${prefix}`) ||
-                    rawKeyArg.includes(`\`${prefix}`));
-                if (matchesSavePrefix) {
-                    this.addViolationAtMatch({
-                        ruleId: 'persistence-client-uncoordinated-save',
-                        filePath: file,
-                        content,
-                        matchIndex,
-                        message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
-                        context: line.trim()
-                    });
-                }
-            }
-            // Check 2: Untyped string key literal (for setItem, getItem, and removeItem)
-            const isLiteralStringKey = /^['"`][\w$-]+['"`]$/.test(rawKeyArg);
-            if (isLiteralStringKey) {
+            this.validateStorageAccess({
+                file,
+                content,
+                lines,
+                matchIndex: match.index,
+                rawKeyArg: match[2]?.trim() ?? '',
+                isWrite: method === 'setItem',
+                isAuthorizedFile,
+                mutationLabel: "'.setItem()'"
+            });
+        }
+    }
+    scanIndexedAccesses(content, lines, file, isAuthorizedFile) {
+        P_STORAGE_INDEXED.lastIndex = 0;
+        let match;
+        while ((match = P_STORAGE_INDEXED.exec(content)) !== null) {
+            const matchIndex = match.index;
+            const rawKeyArg = match[1]?.trim() ?? '';
+            const afterMatch = content.slice(matchIndex + match[0].length).trimStart();
+            const isWrite = afterMatch.startsWith('=') && !afterMatch.startsWith('==') && !afterMatch.startsWith('=>');
+            this.validateStorageAccess({
+                file,
+                content,
+                lines,
+                matchIndex,
+                rawKeyArg,
+                isWrite,
+                isAuthorizedFile,
+                mutationLabel: "by indexed assignment ('[key] = ...')"
+            });
+        }
+    }
+    isIgnoredLine(lines, lineNum) {
+        const line = lines[lineNum - 1] ?? '';
+        const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
+        const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
+        return (isCommentLine(line.trim()) ||
+            this.hasStorageEscapeHatch(line) ||
+            this.hasStorageEscapeHatch(prevLine) ||
+            this.hasStorageEscapeHatch(prevPrevLine));
+    }
+    validateStorageAccess(params) {
+        const { file, content, lines, matchIndex, rawKeyArg, isWrite, isAuthorizedFile, mutationLabel } = params;
+        const lineNum = content.slice(0, matchIndex).split('\n').length;
+        if (this.isIgnoredLine(lines, lineNum))
+            return;
+        const line = lines[lineNum - 1] ?? '';
+        // Check 1: Uncoordinated save bypass (mutations only)
+        if (isWrite && !isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
+            const matchesSavePrefix = this.saveKeyPrefixes.some(prefix => rawKeyArg.includes(`'${prefix}`) ||
+                rawKeyArg.includes(`"${prefix}`) ||
+                rawKeyArg.includes(`\`${prefix}`));
+            if (matchesSavePrefix) {
                 this.addViolationAtMatch({
-                    ruleId: 'persistence-client-untyped-key',
+                    ruleId: 'persistence-client-uncoordinated-save',
                     filePath: file,
                     content,
                     matchIndex,
-                    message: `Storage key ${rawKeyArg} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
+                    message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
                     context: line.trim()
                 });
             }
-            // Check 3: SetItem without try/catch handling for QuotaExceededError
-            if (method === 'setItem' && !this.isInsideTryCatch(content, matchIndex)) {
-                this.addViolationAtMatch({
-                    ruleId: 'persistence-client-unhandled-quota-error',
-                    filePath: file,
-                    content,
-                    matchIndex,
-                    message: `Web storage mutation '.setItem()' must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
-                    context: line.trim()
-                });
-            }
+        }
+        // Check 2: Untyped string key literal
+        if (/^['"`][\w$-]+['"`]$/.test(rawKeyArg)) {
+            this.addViolationAtMatch({
+                ruleId: 'persistence-client-untyped-key',
+                filePath: file,
+                content,
+                matchIndex,
+                message: `Storage key ${rawKeyArg} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
+                context: line.trim()
+            });
+        }
+        // Check 3: Storage mutation without try/catch handling for QuotaExceededError
+        if (isWrite && !this.isInsideTryCatch(content, matchIndex)) {
+            this.addViolationAtMatch({
+                ruleId: 'persistence-client-unhandled-quota-error',
+                filePath: file,
+                content,
+                matchIndex,
+                message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
+                context: line.trim()
+            });
         }
     }
     isAuthorizedSaveFile(file) {

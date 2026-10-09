@@ -104,7 +104,7 @@ Architecture & Tooling Engineers.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
-- [`scannerUtils.ts`](./scannerUtils.ts): Lexical scanning utilities for advancing past string literals and comments.
+- [`scannerUtils.ts`](./scannerUtils.ts): Lexical scanning utilities for advancing past string literals, comments, and multiline Vue SFC suppressions.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
 - [`suiteGating.ts`](./suiteGating.ts): Single Source of Truth for suite enablement evaluation and CLI list filter options.
 - [`terminalVisuals.ts`](./terminalVisuals.ts): Visual width calculation, text alignment, and ANSI color formatting helpers.

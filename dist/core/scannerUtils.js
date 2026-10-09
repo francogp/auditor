@@ -246,4 +246,17 @@ export function hasPrecedingComment(lines, lineIndex, directiveRegex, options) {
     }
     return false;
 }
+/**
+ * Convenience wrapper for inspecting preceding line comments or inline directives.
+ * Typically used in Vue SFC templates and multiline TypeScript expressions where
+ * directives or escape hatches are placed on preceding lines.
+ *
+ * @param lines Array of code lines.
+ * @param targetLine 0-indexed line number of the target statement or tag.
+ * @param suppressionRegex Regular expression to match against comment lines.
+ * @param lookbackLines Maximum number of non-empty lines to inspect backwards (default: 3).
+ */
+export function hasLineSuppression(lines, targetLine, suppressionRegex, lookbackLines = 3) {
+    return hasPrecedingComment(lines, targetLine, suppressionRegex, { maxLookbackLines: lookbackLines });
+}
 //# sourceMappingURL=scannerUtils.js.map

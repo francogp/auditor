@@ -60,4 +60,15 @@ export declare const DEFAULT_COMMENT_LOOKBACK_LINES = 10;
  * @param options Lookback configuration (default: 10 lines, ignoring empty lines).
  */
 export declare function hasPrecedingComment(lines: readonly string[], lineIndex: number, directiveRegex: RegExp, options?: HasPrecedingCommentOptions): boolean;
+/**
+ * Convenience wrapper for inspecting preceding line comments or inline directives.
+ * Typically used in Vue SFC templates and multiline TypeScript expressions where
+ * directives or escape hatches are placed on preceding lines.
+ *
+ * @param lines Array of code lines.
+ * @param targetLine 0-indexed line number of the target statement or tag.
+ * @param suppressionRegex Regular expression to match against comment lines.
+ * @param lookbackLines Maximum number of non-empty lines to inspect backwards (default: 3).
+ */
+export declare function hasLineSuppression(lines: readonly string[], targetLine: number, suppressionRegex: RegExp, lookbackLines?: number): boolean;
 //# sourceMappingURL=scannerUtils.d.ts.map

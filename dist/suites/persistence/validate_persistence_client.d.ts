@@ -28,6 +28,10 @@ export declare class ValidatePersistenceClientAuditor extends FileScanAuditor<Pe
     private readonly saveKeyPrefixes;
     constructor(options?: string | ValidatePersistenceClientOptions);
     protected scanFile(file: string, content: string): void;
+    private scanMethodCalls;
+    private scanIndexedAccesses;
+    private isIgnoredLine;
+    private validateStorageAccess;
     private isAuthorizedSaveFile;
     private hasStorageEscapeHatch;
     private isInsideTryCatch;

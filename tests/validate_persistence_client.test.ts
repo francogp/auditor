@@ -147,6 +147,84 @@ describe('ValidatePersistenceClientAuditor', () => {
     expect(result.summary.errors).toBeGreaterThan(0);
   });
 
+  it('detects bracket-notation storage access with untyped keys and unhandled quota on assignments', async () => {
+    class TestableAuditor extends ValidatePersistenceClientAuditor {
+      public async testScan(file: string, content: string): Promise<void> {
+        this.scanFile(file, content);
+      }
+    }
+    const auditor = new TestableAuditor();
+
+    const violatingCode = `
+      const token = localStorage['bracket_read_key'];
+      delete sessionStorage['bracket_del_key'];
+      localStorage['bracket_assign_key'] = 'dark';
+    `;
+
+    await auditor.testScan('src/features/bracketStorage.ts', violatingCode);
+    const result = await auditor.finishAudit();
+
+    const untypedViolations = result.findings.filter(f => f.ruleId === 'persistence-client-untyped-key');
+    expect(untypedViolations).toHaveLength(3);
+
+    const quotaViolations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    expect(quotaViolations).toHaveLength(1);
+    expect(quotaViolations[0]?.message).toContain('indexed assignment');
+  });
+
+  it('passes cleanly for bracket-notation storage access when using typed keys and try/catch', async () => {
+    class TestableAuditor extends ValidatePersistenceClientAuditor {
+      public async testScan(file: string, content: string): Promise<void> {
+        this.scanFile(file, content);
+      }
+    }
+    const auditor = new TestableAuditor();
+
+    const cleanCode = `
+      const KEY = 'app_key';
+      const readVal = localStorage[KEY];
+      try {
+        localStorage[KEY] = 'dark';
+      } catch (err) {
+        console.error(err);
+      }
+    `;
+
+    await auditor.testScan('src/features/cleanBracket.ts', cleanCode);
+    const result = await auditor.finishAudit();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it('detects uncoordinated save on indexed bracket assignment', async () => {
+    class TestableAuditor extends ValidatePersistenceClientAuditor {
+      constructor() {
+        super({
+          authorizedSaveFiles: ['src/stores/auth.ts'],
+          saveKeyPrefixes: ['app_save_']
+        });
+      }
+      public async testScan(file: string, content: string): Promise<void> {
+        this.scanFile(file, content);
+      }
+    }
+    const auditor = new TestableAuditor();
+
+    const code = `
+      try {
+        localStorage['app_save_bracket'] = JSON.stringify({ a: 1 });
+      } catch {}
+    `;
+
+    await auditor.testScan('src/views/UnauthorizedView.vue', code);
+    const result = await auditor.finishAudit();
+
+    const saveViolations = result.findings.filter(f => f.ruleId === 'persistence-client-uncoordinated-save');
+    expect(saveViolations.length).toBe(1);
+    expect(saveViolations[0]?.severity).toBe('error');
+  });
+
   it('fulfills point 4: honors storage-ok escape hatch comment', async () => {
     class TestableAuditor extends ValidatePersistenceClientAuditor {
       public async testScan(file: string, content: string): Promise<void> {
