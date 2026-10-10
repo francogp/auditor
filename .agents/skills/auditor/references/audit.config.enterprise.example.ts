@@ -84,6 +84,14 @@ export default defineAuditConfig({
     stylelint: {
       enabled: true, // Enables Stylelint & SCSS hygiene verification
       configFile: undefined, // Optional custom config path (e.g. '.stylelintrc.json'); auto-discovers local or defaults to canonical
+      strictValues: {
+        properties: ['border-width', 'letter-spacing'], // Additional properties subject to strict tokens beyond 13 canonical
+        ignoreValues: {
+          'z-index': ['999', '1000'], // Project-specific z-index values exempt from strict tokens
+          'border-radius': ['4px', '8px']
+        },
+        ignoreAtRules: ['@keyframes'] // Additional at-rules exempt from strict token checks beyond @font-face
+      },
       rules: {
         // Optional rule overrides passed directly to Stylelint (e.g. 'alpha-value-notation': 'number').
         // Note: 'sass-traps/collision-casing' is automatically enforced and auto-repaired by default.
@@ -120,7 +128,7 @@ export default defineAuditConfig({
   constants: {
     ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constants ignored by duplicate detector
     allowedNumericPrefixes: ['BASE_', 'TAX_'], // Permitted prefixes for numeric constants
-    exemptMagicNumbers: [21, 10.5, 27] // Fiscal tax rate numbers exempt from magic number alerts (0, 1, 100, 200, 404, 500, 9999 are built-in defaults)
+    exemptMagicNumbers: [21, 10.5, 27] // Fiscal tax rate numbers exempt from magic number alerts (-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024 are universal defaults)
   },
 
   ratchet: {

@@ -372,8 +372,8 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **Type Assertion Hygiene** | `validate_type_assertion_hygiene` | Ban on `as any`, double casting (`as unknown as`), boolean literal annotations, and unhandled floating promises. |
 | **`stylelint`** | `validate_stylelint` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
-| **Magic Numbers (AST)** | `validate_magic_numbers` | Native TypeScript Compiler AST magic numbers governance with shared context and zero directory ignores. |
-| **Stylelint Config** | `validate_stylelint_config` | Stylelint configuration file integrity and strict design tokens auto-repair (`--fix`). |
+| **Magic Numbers (AST)** | `validate_magic_numbers` | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores. |
+| **Stylelint Config** | `validate_stylelint_config` | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`). |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |
 | **`publint`** | `validate_package_distribution` | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation. |
 | **`@arethetypeswrong/core`** | `validate_package_types` | Multi-resolution `.d.ts` typing validation and dual-package hazard checks. |

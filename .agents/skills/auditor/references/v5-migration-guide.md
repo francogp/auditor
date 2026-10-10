@@ -145,6 +145,42 @@ The differential warning ratchet prevents baseline degradation. `npm run auditor
   },
 ```
 
+### 3.5 SCSS Design Tokens & Stylelint Strict Values (`stylelint.strictValues`)
+
+Design tokens in CSS, SCSS, and Vue SFC styles (`<style lang="scss">`) are governed across **13 canonical properties** of Medium priority and above (`/color$/`, `font-size`, `z-index`, `box-shadow`, `border-radius`, `font-family`, `transition-duration`, `animation-duration`, `gap`, `row-gap`, `column-gap`, `font-weight`, `transition-timing-function`). Literal values require Sass variables (`$var`), CSS custom properties (`var(--var)`), or property-specific exceptions declared in `.auditor/audit.config.ts`:
+
+```typescript
+  styles: {
+    stylelint: {
+      enabled: true,
+      strictValues: {
+        properties: ['border-width', 'letter-spacing'], // Extend strict properties
+        ignoreValues: {
+          'z-index': ['999', '1000'],
+          'border-radius': ['4px', '8px']
+        },
+        ignoreAtRules: ['@keyframes']
+      }
+    }
+  },
+```
+
+Configurations extending `@francogp/auditor` (`"extends": ["./node_modules/@francogp/auditor/.stylelintrc.json"]`) are recognized without requiring duplicate plugin or rule declarations. Run `npm run auditor:fix` to auto-repair missing plugins or strict-value rules.
+
+### 3.6 Native TypeScript AST Magic Numbers & Universal Sentinels (`constants.exemptMagicNumbers`)
+
+Magic numbers are governed strictly by native TypeScript Compiler AST (`validate_magic_numbers`) utilizing `SharedAstContext`. Built-in universal sentinels are permitted in math and initializations without false positives:
+
+- Sentinels: `-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024` and next-tick delay `0`.
+- Timer delays (`setTimeout`, `setInterval`, `delayedCall`, `gsapSleep`) strictly require named semantic constants for any positive duration.
+- Domain-specific constants can be declared globally in `config.constants.exemptMagicNumbers` or locally via statement-level `// const-ok: <justification>`. Legacy directory ignores (`constantsRoots`, `exemptGlobs`) are completely eradicated.
+
+```typescript
+  constants: {
+    exemptMagicNumbers: [42, 999] // Project-specific numeric sentinels
+  },
+```
+
 ---
 
 ## 4. Modernizing Local Extension Sub-Auditors in v5+
