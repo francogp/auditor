@@ -92,6 +92,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         icon: '🔧',
         configKey: 'paths',
         defaultConfig: {},
+        criticalConfig: {},
         capabilities: {
           fix: isFix,
           fixPriority: false,
@@ -196,6 +197,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           icon: '⚙️',
           configKey: 'paths',
           defaultConfig: {},
+          criticalConfig: {},
           capabilities: {
             fix: false,
             fixPriority: false,

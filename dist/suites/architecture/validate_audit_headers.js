@@ -187,6 +187,7 @@ export class AuditHeadersAuditor extends FileScanAuditor {
             packageName: 'Header',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '📰',
             ruleDescriptions: {
                 'file-level-fallow-ignore': 'fallow-ignore-file prohibido',

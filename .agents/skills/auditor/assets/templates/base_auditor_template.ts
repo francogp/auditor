@@ -75,6 +75,9 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       defaultConfig: {
         dataRoots: ['src/data']
       },
+      // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
+      // Pass empty object {} when no immutable minimums are enforced.
+      criticalConfig: {},
       ruleDescriptions: {
         'composite-missing-entry': 'Entrada faltante en registro canónico',
         'composite-parity-mismatch': 'Desincronización entre datasets',

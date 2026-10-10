@@ -65,6 +65,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
             packageName: 'Error',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '🚫',
             ruleDescriptions: {
                 'no-empty-catch': 'Bloque catch vacío o silencioso',

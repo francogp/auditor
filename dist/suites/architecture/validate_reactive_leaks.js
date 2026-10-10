@@ -72,6 +72,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
             packageName: 'Fuga',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '💧',
             ruleDescriptions: {
                 'dom-event-leak': 'addEventListener sin limpiar',

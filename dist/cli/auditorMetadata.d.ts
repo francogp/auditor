@@ -3,7 +3,7 @@
  *
  * Dedicated metadata extractor for auditor suites and tasks.
  */
-import { type AuditorCapabilities, type GitIgnoreRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO } from '../core/auditContract.ts';
+import { type AuditorCapabilities, type GitIgnoreRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig } from '../core/auditContract.ts';
 export interface ExtractedAuditorMetadata {
     readonly capabilities: AuditorCapabilities;
     readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
@@ -14,6 +14,7 @@ export interface ExtractedAuditorMetadata {
     readonly ruleDescriptions?: Readonly<Record<string, string>>;
     readonly configKey?: string;
     readonly defaultConfig?: Readonly<Record<string, unknown>>;
+    readonly criticalConfig?: AuditorCriticalConfig;
 }
 export declare function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata;
 export declare function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata>;

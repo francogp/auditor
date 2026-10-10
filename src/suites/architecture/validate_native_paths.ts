@@ -536,6 +536,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
       packageName: 'Path',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '🛤️',
       ruleDescriptions: {
         'unsafe-path-concat': 'Concatenación insegura de rutas',

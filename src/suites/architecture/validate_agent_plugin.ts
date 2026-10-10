@@ -76,6 +76,7 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
       packageName: 'Agente',
       configKey: 'agentPlugin.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🤖',
       ruleDescriptions: {
         'missing-agent-plugin-registration': 'Plugin/skills no registrados en .agents'

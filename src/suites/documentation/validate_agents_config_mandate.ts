@@ -309,6 +309,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       packageName: 'AGENTS',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🛡️',
       ruleIds: AGENTS_CONFIG_MANDATE_RULES,
       ruleDescriptions: {

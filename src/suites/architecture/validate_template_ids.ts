@@ -197,6 +197,7 @@ id: 'validate_template_ids',
       packageName: 'Template',
       configKey: 'templates.requireInputIds',
       defaultConfig: { enabled: true, requireInputIds: true },
+      criticalConfig: {},
       icon: '🆔',
       ruleDescriptions: {
         'template-duplicate-static-id': 'ID estático duplicado',

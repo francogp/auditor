@@ -78,6 +78,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       icon: '🗄️',
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       ruleDescriptions: {
         'persistence-client-uncoordinated-save': 'Escritura no coordinada en storage',
         'persistence-client-untyped-key': 'Clave de storage no tipada',

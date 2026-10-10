@@ -241,6 +241,7 @@ private readonly collectedViolations: HeaderViolation[] = [];
       packageName: 'Header',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '📰',
       ruleDescriptions: {
         'file-level-fallow-ignore': 'fallow-ignore-file prohibido',

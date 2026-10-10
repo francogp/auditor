@@ -137,6 +137,7 @@ id: 'validate_ephemeral_storage_isolation',
       packageName: 'Aislamiento',
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '📁',
       ruleDescriptions: {
         'ephemeral-no-source-temp-dirs': 'Carpeta temporal en código',

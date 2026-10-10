@@ -102,6 +102,7 @@ id: 'validate_test_fragmentation',
       packageName: 'Tests',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '🧪',
       ruleDescriptions: {
         'no-fragmented-tests': 'Archivo fragmentado (<60 líneas)',

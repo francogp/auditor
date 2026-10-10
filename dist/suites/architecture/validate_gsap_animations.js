@@ -239,6 +239,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             icon: '🎬',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             capabilities: {
                 fix: false,
                 fixPriority: false,

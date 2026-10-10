@@ -58,6 +58,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
             icon: '🎭',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             capabilities: {
                 fix: false,
                 fixPriority: false,

@@ -246,6 +246,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
                 enabled: true,
                 targets: []
             },
+            criticalConfig: {},
             ruleDescriptions: {
                 'valibot-schema-missing-field': 'Campo faltante en schema',
                 'valibot-serializer-missing-field': 'Campo faltante en serializer',

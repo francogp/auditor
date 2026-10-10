@@ -68,10 +68,10 @@ graph TD
     end
 
     F -->|"Exit 0 & Score >= 85"| EXIT_GATE["✅ Loop Exit"]
-    EXIT_GATE --> A3["Phase 3\nLessons Extraction\n(learn-with-docs)"]
-    A3 -->|"Lessons Identified"| STOP1{"🛑 USER APPROVES\nlearning_proposal.md?"}
+    EXIT_GATE --> A3["Phase 3\nDocumentation Alignment\n+ Lessons (learn-with-docs)"]
+    A3 -->|"Updates / Lessons Identified"| STOP1{"🛑 USER APPROVES\nlearning_proposal.md?"}
     STOP1 -->|Approved| A4["Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push"]
-    A3 -->|"Zero Lessons (Skip Stop)"| A4
+    A3 -->|"Zero Lessons & Zero Updates (Skip Stop)"| A4
 
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style T fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
@@ -196,7 +196,7 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 
 ---
 
-## Phase 3: Lessons Extraction & User Approval Gate (🛑 HARD STOP)
+## Phase 3: Documentation Alignment, Lessons Extraction & User Approval Gate (🛑 HARD STOP)
 
 **Step 3.1** — Workspace Scratch Cleanup
 
@@ -208,21 +208,44 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 - Save `walkthrough.md` using `write_to_file` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: false`, and a detailed `Summary`).
 - `walkthrough.md` is an informative verification record of past actions and MUST NOT request execution feedback (`RequestFeedback: false`).
 
-**Step 3.3** — Lessons Extraction & Conditional Approval Gate (`learn-with-docs`)
+**Step 3.3** — Documentation Alignment, Lessons Extraction & Conditional Approval Gate (`learn-with-docs`)
 
-- Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern lessons extraction and target DOX placement.
-- Analyze debugging discoveries, architectural insights, or user corrections resolved during the task.
-- Execute a **Targeted Contradiction Sweep**: search the DOX hierarchy (`AGENTS.md`) and documentation EXCLUSIVELY for statements, contracts, or examples that directly contradict the newly acquired learning.
+- Activate [learn-with-docs](../learn-with-docs/SKILL.md) to govern documentation synchronization, lessons extraction, and DOX placement.
+- **Mandatory 3-Pillar Documentation, Skills & DOX Alignment Sweep**:
+  Analyze the full scope of changes, newly introduced features, interfaces, architectural decisions, or user corrections made during the session, and thoroughly inspect all documentation surfaces across the repository:
+  1. **Host Program & Repository Documentation (`README.md`, `docs/**`, architecture guides, manuals)**:
+     Thoroughly inspect the documentation of the program/application where the auditor is installed and running:
+     - Root and nested `README.md` files (usage instructions, script tables, setup prerequisites, architectural overview).
+     - Dedicated project documentation folders (`docs/**`, `manual/**`, `guides/**`, `specs/**`).
+     - Actively search for and resolve:
+       - **Outdated / Legacy Documentation**: Eradicate obsolete instructions, deprecated commands, removed flags/options, or legacy code signatures that no longer reflect the codebase.
+       - **Contradictions with New Code**: Correct any statement, workflow, or architectural description that contradicts the newly implemented behavior or contracts.
+       - **Missing New Content**: Document newly added commands, configurations, parameters, architectural standards, or public features introduced in the session so program documentation stays 100% synchronized with reality.
+  2. **Hierarchical DOX Indices (`AGENTS.md`)**:
+     Inspect the relevant `AGENTS.md` boundaries across the project tree:
+     - Update local contracts, directory summaries, and documentation tables.
+     - Eliminate obsolete statements, legacy patterns, or rules contradicting the new code.
+     - Document new architectural invariants and module responsibilities.
+  3. **Agent Skills & Bundled Resources (`.agents/skills/**`)**:
+     Inspect affected agent skills and their internal assets:
+     - Skill instructions (`SKILL.md`)
+     - Internal references, tutorials, and guides (`references/**`)
+     - Code examples and sample implementations (`examples/**`)
+     - Bundled templates or asset files (`templates/**`, `assets/**`)
+     Ensure skill guidance reflects newly introduced patterns, removes deprecated legacy syntax, resolves contradictions, and incorporates missing new content so agents always consult up-to-date guidance.
+- **Differentiating Scope**:
+  - **MANDATORY**: Synchronizing host program documentation (`README.md`, `docs/**`), DOX indices, and affected skills directly related to or impacted by the session's changes.
+  - **STRICTLY PROHIBITED**: Unrelated repository-wide sweeps (fixing random typos in unrelated files or auditing unimpacted modules).
 - **Conditional Approval Gate**:
-  - **When New Lessons or Contradictions Exist**:
-    - The `learn-with-docs` skill generates `<appDataDir>/brain/<conversation-id>/learning_proposal.md` with `ArtifactMetadata` (`UserFacing: true`, `RequestFeedback: true`, and concise summary).
+  - **When Pending Documentation Updates, New Lessons or Unresolved Contradictions Exist**:
+    - If there are new contracts or harmonizations that have **not yet been applied to disk**, `learn-with-docs` generates `<appDataDir>/brain/<conversation-id>/learning_proposal.md` detailing the primary DOX contract updates AND the collateral skill/documentation modernizations.
     - **CRITICAL SEQUENCING RULE**: `learning_proposal.md` MUST be the **FINAL tool call** executed in the turn so the native feedback card remains active in the UI.
     - Present direct clickable Markdown links (`👉 [learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and stop the turn to wait for user confirmation on the learning proposal before proceeding to Phase 4.
-  - **When Zero Lessons and Zero Contradictions Exist**:
-    - If `learn-with-docs` determines there are no new lessons or contradictory contracts, **DO NOT invent artifacts or trigger an artificial hard stop**.
-    - Advance directly to **Phase 4** (commit and release). Since the user already commanded `/safe-commit`, prompting for confirmation when nothing changed in DOX creates cognitive friction and wastes time.
+  - **When Zero Updates Exist or All Changes Are Already Applied on Disk**:
+    - If no contracts changed, no documentation was affected, or all updates/harmonizations are ALREADY written to disk in the working tree, **DO NOT invent artifacts or trigger an artificial hard stop**.
+    - Advance directly to **Phase 4** (commit and release). Since the user already commanded `/safe-commit` and all changes are already on disk, prompting for confirmation creates cognitive friction and wastes time.
 
-**✓ Completion gate**: If lessons were proposed via `learning_proposal.md`, wait for user approval; if no lessons exist, proceed directly to Phase 4.
+**✓ Completion gate**: If pending documentation updates or lessons were proposed via `learning_proposal.md`, wait for user approval; if no unapplied updates exist, proceed directly to Phase 4.
 
 ---
 

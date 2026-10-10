@@ -13,7 +13,7 @@ import type { AuditorConfigFileRequirement, AuditTaskDefinition } from '../../co
 export declare function formatSectionObjectLiteral(value: unknown): string;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
-export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field';
+export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
 export interface ValidateAuditConfigOptions {
@@ -31,6 +31,14 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
     private verifyRequiredSections;
     private applyMissingSectionsFix;
     private reportMissingSectionViolations;
+    private resolveTaskSectionContext;
+    private repairCriticalMinimum;
+    private verifyTaskMinimumProperty;
+    private verifyTaskCriticalMinimums;
+    private verifyTaskForbiddenOverrides;
+    private verifyTaskCustomValidation;
+    private verifyTaskCriticalConfig;
+    protected verifyCriticalConfigurations(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void>;
     private handleMissingGitIgnoreFile;
     private appendMissingGitIgnoreEntries;
     private verifyGitIgnore;

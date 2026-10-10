@@ -52,6 +52,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       icon: '📜',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       capabilities: {
         fix: false,
         fixPriority: false,

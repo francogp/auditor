@@ -78,6 +78,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
             packageName: 'Entorno',
             configKey: 'environment.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '⚡',
             ruleDescriptions: {
                 'environment-engines-missing': 'Falta engines en package.json',

@@ -320,6 +320,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       packageName: 'Dependencias',
       configKey: 'packageHygiene.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '📦',
       ruleIds: PACKAGE_HYGIENE_RULES,
       ruleDescriptions: {

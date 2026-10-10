@@ -43,6 +43,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       defaultConfig: {
         enabled: true
       },
+      criticalConfig: {},
       capabilities: {
         fix: false,
         fixPriority: false,

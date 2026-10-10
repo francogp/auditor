@@ -43,6 +43,7 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
   icon: '🛡️',
   configKey: 'contractProbe.enabled',
   defaultConfig: { enabled: true, mode: 'strict' },
+  criticalConfig: {},
   ruleIds: ['sample-rule-a', 'sample-rule-b'],
   ruleDescriptions: {
     'sample-rule-a': 'Primera regla obligatoria',
@@ -110,6 +111,22 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
           defaultConfig: 'invalid' as unknown as Record<string, unknown>
         });
       }).toThrow(/must define a mandatory 'defaultConfig'/);
+    });
+
+    it('THROWS if criticalConfig is omitted or undefined', () => {
+      expect(() => {
+        new TestSubAuditor({
+          ...CANONICAL_VALID_OPTIONS,
+          criticalConfig: undefined as unknown as Record<string, unknown>
+        });
+      }).toThrow(/must define mandatory 'criticalConfig' in its constructor/);
+
+      expect(() => {
+        new TestSubAuditor({
+          ...CANONICAL_VALID_OPTIONS,
+          criticalConfig: null as unknown as Record<string, unknown>
+        });
+      }).toThrow(/'criticalConfig' must be an object/);
     });
 
     it('THROWS if a subsystem suite does NOT explicitly define defaultConfig.enabled as a boolean', () => {

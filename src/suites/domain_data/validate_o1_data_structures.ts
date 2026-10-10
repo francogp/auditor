@@ -215,6 +215,7 @@ id: 'validate_o1_data_structures',
       packageName: 'O(1)',
       configKey: 'constants.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '⚡',
       ruleDescriptions: {
         'o1-catalog-lookup': 'Búsqueda lineal en catálogo',

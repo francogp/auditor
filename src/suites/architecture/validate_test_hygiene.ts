@@ -94,6 +94,7 @@ id: 'validate_test_hygiene',
       packageName: 'Tests',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '🧪',
       ruleDescriptions: {
         'no-tautological-integration-mocks': 'Mock tautológico en integración',

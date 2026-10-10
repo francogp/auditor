@@ -741,6 +741,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
             packageName: 'Arquitectura',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '🏛️',
             coverage: {
                 include: ['**/*.{vue,scss,css,ts,js,md}'],

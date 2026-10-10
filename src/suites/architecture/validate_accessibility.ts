@@ -81,6 +81,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       packageName: 'A11y',
       configKey: 'accessibility.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '♿',
       ruleIds: ACCESSIBILITY_RULES,
       ruleDescriptions: {

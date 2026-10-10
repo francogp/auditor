@@ -96,6 +96,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: DUMMY_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'dummy-rule': 'Desc' },
               capabilities: {
@@ -157,6 +158,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: DUMMY_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'covered-rule': 'Desc', 'untested-rule': 'Desc' },
               capabilities: {
@@ -225,6 +227,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: DUMMY_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
               capabilities: {
@@ -288,6 +291,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: CUSTOM_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'custom-rule': 'Desc' },
               capabilities: {
@@ -346,6 +350,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: DUMMY_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
               capabilities: {
@@ -424,6 +429,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: DUMMY_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
               capabilities: {
@@ -501,6 +507,7 @@ describe('AuditorTestsAuditor', () => {
               ruleIds: DUMMY_RULES,
               configKey: 'paths',
               defaultConfig: {},
+              criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
               capabilities: {

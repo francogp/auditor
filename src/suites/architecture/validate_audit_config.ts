@@ -20,7 +20,7 @@ import {
   DEFAULT_AUDIT_CONFIG,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
-import type { GitIgnoreRequirement, AuditorConfigFileRequirement, AuditTaskDefinition } from '../../core/auditContract.ts';
+import type { GitIgnoreRequirement, AuditorConfigFileRequirement, AuditTaskDefinition, AuditorCriticalConfig } from '../../core/auditContract.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
@@ -39,6 +39,30 @@ export function formatSectionObjectLiteral(value: unknown): string {
       return `  ${unquoted}`;
     })
     .join('\n');
+}
+
+function resolveConfigPath(obj: unknown, pathStr: string): unknown {
+  if (typeof obj !== 'object' || obj === null) return undefined;
+  const parts = pathStr.split('.');
+  let curr: unknown = obj;
+  for (const p of parts) {
+    if (typeof curr !== 'object' || curr === null) return undefined;
+    curr = Reflect.get(curr, p);
+  }
+  return curr;
+}
+
+function setDeepProperty(obj: Record<string, unknown>, pathStr: string, value: unknown): void {
+  const parts = pathStr.split('.');
+  let curr: Record<string, unknown> = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const p = parts[i]!;
+    if (typeof curr[p] !== 'object' || curr[p] === null) {
+      curr[p] = {};
+    }
+    curr = curr[p] as Record<string, unknown>;
+  }
+  curr[parts[parts.length - 1]!] = value;
 }
 
 function appendMissingSectionsToJsonFile(
@@ -264,7 +288,8 @@ export type AuditConfigRuleId =
   | 'audit-config-invalid-extension'
   | 'audit-config-missing-gitignore-entry'
   | 'audit-config-missing-section'
-  | 'audit-config-unknown-field';
+  | 'audit-config-unknown-field'
+  | 'audit-config-critical-violation';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
@@ -272,7 +297,8 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-invalid-extension',
   'audit-config-missing-gitignore-entry',
   'audit-config-missing-section',
-  'audit-config-unknown-field'
+  'audit-config-unknown-field',
+  'audit-config-critical-violation'
 ] as const;
 
 export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
@@ -364,7 +390,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       fixableRuleIds: [
         'audit-config-missing-section',
         'audit-config-missing-file',
-        'audit-config-missing-gitignore-entry'
+        'audit-config-missing-gitignore-entry',
+        'audit-config-critical-violation'
       ],
       configFiles: [AUDIT_CONFIG_REQUIREMENT],
       fix: options.fix,
@@ -377,13 +404,15 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       icon: '⚙️',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       ruleDescriptions: {
         'audit-config-missing-path': 'Ruta configurada no existe',
         'audit-config-missing-file': 'Archivo configurado no existe',
         'audit-config-invalid-extension': 'Extensión configurada no existe',
         'audit-config-missing-gitignore-entry': 'Falta entrada en .gitignore',
         'audit-config-missing-section': 'Falta sección en audit.config',
-        'audit-config-unknown-field': 'Campo no reconocido en config'
+        'audit-config-unknown-field': 'Campo no reconocido en config',
+        'audit-config-critical-violation': 'Violación a configuración crítica'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']
@@ -418,6 +447,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
 
     await this.verifyRequiredSections(config, tasks);
+    await this.verifyCriticalConfigurations(config, tasks);
     this.verifyUnknownFields(config, tasks);
     this.verifyPathRoots(config);
     this.verifyPersistencePaths(config);
@@ -537,6 +567,161 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         message: `Configuration error in ${AUDIT_CONFIG_FILE}: Missing required section "${rootKey}" declared by ${suiteNames}. Run "auditor fix" to add automatically.`,
         context: rootKey
       });
+    }
+  }
+
+  private resolveTaskSectionContext(
+    task: AuditTaskDefinition,
+    rawConfig: Record<string, unknown>
+  ): { rootKey?: string; sectionConfig?: unknown } {
+    const rootKey =
+      task.configKey && task.configKey !== 'paths' && task.configKey !== 'core' && task.configKey !== 'none'
+        ? task.configKey.split('.')[0]
+        : undefined;
+    const sectionConfig = rootKey ? rawConfig[rootKey] : undefined;
+    return { rootKey, sectionConfig };
+  }
+
+  private async repairCriticalMinimum(
+    sectionConfig: unknown,
+    rawConfig: Record<string, unknown>,
+    rootKey: string | undefined,
+    propPath: string,
+    configuredList: unknown[],
+    missing: readonly unknown[],
+    repair?: AuditorCriticalConfig['repair']
+  ): Promise<void> {
+    if (repair) {
+      await repair(sectionConfig ?? rawConfig, this.projectRoot);
+      return;
+    }
+    if (rootKey && typeof sectionConfig === 'object' && sectionConfig !== null) {
+      const merged = Array.from(new Set([...configuredList, ...missing]));
+      setDeepProperty(sectionConfig as Record<string, unknown>, propPath, merged);
+      const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+      if (fs.existsSync(configFilePath)) {
+        appendMissingSectionsToConfigFile(configFilePath, { [rootKey]: sectionConfig as Record<string, unknown> });
+      }
+    }
+  }
+
+  private async verifyTaskMinimumProperty(
+    task: AuditTaskDefinition,
+    propPath: string,
+    minList: readonly unknown[],
+    sectionConfig: unknown,
+    rawConfig: Record<string, unknown>,
+    rootKey: string | undefined,
+    rationale: string | undefined,
+    repair?: AuditorCriticalConfig['repair']
+  ): Promise<void> {
+    const configuredVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
+    if (configuredVal === undefined) return;
+
+    const configuredList = Array.isArray(configuredVal) ? configuredVal : [];
+    const missing = minList.filter(item => !configuredList.includes(item));
+    if (missing.length === 0) return;
+
+    if (this.isFixActive()) {
+      await this.repairCriticalMinimum(sectionConfig, rawConfig, rootKey, propPath, configuredList, missing, repair);
+    } else {
+      this.addViolation({
+        ruleId: 'audit-config-critical-violation',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: 1,
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] missing required minimum values for "${propPath}": [${missing.join(', ')}]. Rationale: ${rationale}`,
+        context: `${task.id}:${propPath}`
+      });
+    }
+  }
+
+  private async verifyTaskCriticalMinimums(
+    task: AuditTaskDefinition,
+    requiredMinimums: Record<string, readonly unknown[]>,
+    sectionConfig: unknown,
+    rawConfig: Record<string, unknown>,
+    rootKey: string | undefined,
+    rationale: string | undefined,
+    repair?: AuditorCriticalConfig['repair']
+  ): Promise<void> {
+    for (const [propPath, minList] of Object.entries(requiredMinimums)) {
+      await this.verifyTaskMinimumProperty(task, propPath, minList, sectionConfig, rawConfig, rootKey, rationale, repair);
+    }
+  }
+
+  private async verifyTaskForbiddenOverrides(
+    task: AuditTaskDefinition,
+    forbiddenOverrides: Record<string, readonly unknown[]>,
+    sectionConfig: unknown,
+    rawConfig: Record<string, unknown>,
+    rationale: string | undefined,
+    repair?: AuditorCriticalConfig['repair']
+  ): Promise<void> {
+    for (const [propPath, disallowedList] of Object.entries(forbiddenOverrides)) {
+      const actualVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
+      if (actualVal !== undefined && disallowedList.includes(actualVal)) {
+        if (this.isFixActive() && repair) {
+          await repair(sectionConfig ?? rawConfig, this.projectRoot);
+        } else {
+          this.addViolation({
+            ruleId: 'audit-config-critical-violation',
+            severity: 'error',
+            file: AUDIT_CONFIG_FILE,
+            line: 1,
+            message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] field "${propPath}" is set to disallowed value "${String(actualVal)}". Rationale: ${rationale}`,
+            context: `${task.id}:${propPath}`
+          });
+        }
+      }
+    }
+  }
+
+  private async verifyTaskCustomValidation(
+    task: AuditTaskDefinition,
+    validate: NonNullable<AuditorCriticalConfig['validate']>,
+    sectionConfig: unknown,
+    rawConfig: Record<string, unknown>,
+    rationale: string | undefined,
+    repair?: AuditorCriticalConfig['repair']
+  ): Promise<void> {
+    const errorMsg = validate(sectionConfig ?? rawConfig, this.projectRoot);
+    if (typeof errorMsg === 'string' && errorMsg.trim().length > 0) {
+      if (this.isFixActive() && repair) {
+        await repair(sectionConfig ?? rawConfig, this.projectRoot);
+      } else {
+        this.addViolation({
+          ruleId: 'audit-config-critical-violation',
+          severity: 'error',
+          file: AUDIT_CONFIG_FILE,
+          line: 1,
+          message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] ${errorMsg}. Rationale: ${rationale}`,
+          context: task.id
+        });
+      }
+    }
+  }
+
+  private async verifyTaskCriticalConfig(task: AuditTaskDefinition, rawConfig: Record<string, unknown>): Promise<void> {
+    if (!task.criticalConfig) return;
+    const { rationale, requiredMinimums, forbiddenOverrides, validate, repair } = task.criticalConfig;
+    const { rootKey, sectionConfig } = this.resolveTaskSectionContext(task, rawConfig);
+
+    if (requiredMinimums) {
+      await this.verifyTaskCriticalMinimums(task, requiredMinimums, sectionConfig, rawConfig, rootKey, rationale, repair);
+    }
+    if (forbiddenOverrides) {
+      await this.verifyTaskForbiddenOverrides(task, forbiddenOverrides, sectionConfig, rawConfig, rationale, repair);
+    }
+    if (validate) {
+      await this.verifyTaskCustomValidation(task, validate, sectionConfig, rawConfig, rationale, repair);
+    }
+  }
+
+  protected async verifyCriticalConfigurations(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void> {
+    const rawConfig = (config._rawConfig ?? {}) as Record<string, unknown>;
+    for (const task of tasks) {
+      await this.verifyTaskCriticalConfig(task as AuditTaskDefinition, rawConfig);
     }
   }
 

@@ -66,6 +66,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor {
             },
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             roots: effectiveRoots,
             allowedExtensions: VUE_ROUTER_EXTENSIONS,
             projectRoot

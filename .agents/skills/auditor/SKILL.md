@@ -42,7 +42,7 @@ graph TD
 4. **Atomic Console Mandate**:
    - By framework contract, an auditor executing multiple sub-auditors **MUST wait for all its sub-auditors to complete** before emitting its step progress reports (`│  🔍 [X/Y] ...`). This prevents terminal race conditions, mixed line output, and cognitive friction during multi-worker execution.
 5. **Mandatory Construction & Runtime Registration Contract (Zero Bypass / Zero Optional Defaults)**:
-   - `AuditorOptions` strictly requires all metadata: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `configKey`, and `defaultConfig`. Omitting any field or passing empty strings throws an immediate, blocking runtime `Error`.
+   - `AuditorOptions` strictly requires all metadata: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `configKey`, `defaultConfig`, and `criticalConfig` (can be empty object `{}`, but never undefined). Omitting any field or passing empty strings throws an immediate, blocking runtime `Error`.
    - For all subsystem suites (`configKey !== 'paths' && configKey !== 'core'`), `defaultConfig.enabled` MUST be explicitly defined as a boolean (`true` or `false`). Ambiguous or optional activation states are strictly prohibited.
    - If an auditor or extension attempts to emit a violation for any rule that was not declared at construction time in `ruleDescriptions`, `BaseAuditor.addViolation` immediately throws a loud, blocking runtime `Error`.
    - `createDefaultAuditConfigContent` and `AUDIT_CONFIG_REQUIREMENT` dynamically collect `task.defaultConfig` from all discovered tasks across the workspace, guaranteeing that new suites and extensions are automatically scaffolded into `.auditor/audit.config.ts` with zero hardcoding in generator engines.
@@ -385,9 +385,10 @@ graph TD
       - `this.resolveConfigFile(file)`: Resolves absolute paths safely within `this.projectRoot`.
     - Missing configuration files trigger `severity: 'error'` findings that are dynamically repairable via `auditor fix` (`npm run auditor:fix`).
 66. **Mandatory Auditor Constructor Contract & Zero-Bypass Architecture**:
-    - Every `BaseAuditor` and `FileScanAuditor` subclass MUST pass explicit, non-empty metadata in `AuditorOptions`: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `configKey`, and `defaultConfig`.
+    - Every `BaseAuditor` and `FileScanAuditor` subclass MUST pass explicit, non-empty metadata in `AuditorOptions`: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `configKey`, `defaultConfig`, and `criticalConfig` (can be empty object `{}`, but never undefined).
     - Omitting any metadata field throws an immediate, blocking runtime `Error`.
     - For all subsystem suites (`configKey !== 'paths' && configKey !== 'core'`), `defaultConfig.enabled` MUST be explicitly defined as a boolean (`true` or `false`). Ambiguous or optional activation states are strictly prohibited.
+    - Critical configurations define non-negotiable architectural baselines (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`): host projects are permitted to ADD further restrictions, but are STRICTLY PROHIBITED from removing, omitting, or degrading any canonical minimum. Omissions trigger blocking `audit-config-critical-violation` errors or automatic re-injection in `auditor fix`.
 67. **Universal Dynamic Suite Gating & Zero Hardcoded Registry (`evaluateSuiteStatus`)**:
     - Suite enablement is evaluated dynamically by querying `task.configKey` / `auditor.configKey` against `audit.config.ts`.
     - Dotted configuration keys (e.g. `'secretLeaks.enabled'`, `'packageDistribution.enabled'`, `'typeCoverage.enabled'`) resolve dynamically with zero manual registry dictionaries in runner engines.
@@ -558,7 +559,6 @@ Pre-formatted, production-ready templates conforming to all project standards ar
 - **Production Builds & Remote Deploy Pipelines ONLY (`AUDITOR_ENV=production` / `npm run build:prod`)**: In production deployment workflows, Docker containers, deployment scripts, or GitHub Pages builds, set `AUDITOR_ENV=production` (or invoke `npm run build:prod` / `auditor-build-prod`) to cleanly omit vector duplication and test coverage checks without failing builds on uncommitted coverage files or heavy AI embeddings. In local development and routine agent turns, bypassing similar code or coverage is strictly prohibited.
 
 📘 **Detailed Guide & Canonical Config**: See [host-package-governance.md](references/host-package-governance.md) for full instructions, CI setups, and `package.json` blueprint.
-📘 **Host Migration & Modernization**: See [v5-migration-guide.md](references/v5-migration-guide.md) for the complete v5+ upgrade procedure and mandatory README synchronization checklist.
 
 ---
 
@@ -688,7 +688,6 @@ The root environment scripts belong canonically to `@francogp/auditor`:
 
 The following reference manuals and configuration blueprints are maintained in `references/`:
 
-- [`references/v5-migration-guide.md`](./references/v5-migration-guide.md): Complete guide for modernizing legacy host projects to v5 standards, covering configurations, sub-auditor refactoring, coverage ledgers, and zero-suppression directives.
 - [`references/host-package-governance.md`](./references/host-package-governance.md): Host installation, updates via GitHub npm, CI reproducibility, and script inheritance.
 - [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md): Complete authoring guide with boilerplate implementations for FileScan, Base, and AST sub-auditors.
 - [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md): Complete reference manual for interactive findings reporting and CLI diagnostic options.

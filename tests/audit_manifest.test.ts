@@ -28,7 +28,8 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.rules['audit-config-invalid-extension']).toBe('Extensión configurada no existe');
     expect(manifest.rules['audit-config-missing-gitignore-entry']).toBe('Falta entrada en .gitignore');
     expect(manifest.rules['audit-config-unknown-field']).toBe('Campo no reconocido en config');
-    expect(Object.keys(manifest.rules).length).toBe(6);
+    expect(manifest.rules['audit-config-critical-violation']).toBe('Violación a configuración crítica');
+    expect(Object.keys(manifest.rules).length).toBe(7);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {
@@ -55,6 +56,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
           },
           configKey: 'paths',
           defaultConfig: {},
+          criticalConfig: {},
           ruleDescriptions: {
             'test-rule': 'Regla de prueba'
           }

@@ -28,6 +28,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
             packageName: 'Cobertura',
             configKey: 'testCoverage.enforceInAudit',
             defaultConfig: { enabled: true, enforceInAudit: true, threshold: DEFAULT_COVERAGE_THRESHOLD },
+            criticalConfig: {},
             icon: '🧪',
             ruleIds: TEST_COVERAGE_RULES,
             ruleDescriptions: {

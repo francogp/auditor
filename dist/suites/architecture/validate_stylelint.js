@@ -295,6 +295,7 @@ export class StylelintAuditor extends BaseAuditor {
             packageName: 'Stylelint',
             configKey: 'stylelint.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🎨',
             ruleIds: STYLELINT_RULES,
             ruleDescriptions: {

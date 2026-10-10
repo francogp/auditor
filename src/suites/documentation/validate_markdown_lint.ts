@@ -156,6 +156,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       packageName: 'Markdownlint',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '📘',
       ruleIds: MARKDOWN_LINT_RULES,
       ruleDescriptions: {

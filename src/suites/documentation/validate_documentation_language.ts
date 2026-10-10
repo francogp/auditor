@@ -237,6 +237,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       packageName: 'DOCS',
       configKey: 'documentation.language',
       defaultConfig: { enabled: true, language: 'en' },
+      criticalConfig: {},
       icon: '🌐',
       ruleIds: DOCUMENTATION_LANGUAGE_RULES,
       ruleDescriptions: {

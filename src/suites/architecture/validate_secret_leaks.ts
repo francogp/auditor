@@ -113,6 +113,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
       projectRoot: effectiveRoot,
       configKey: 'secretLeaks.enabled',
       defaultConfig: { enabled: true, maskSecrets: true },
+      criticalConfig: {},
     });
 
     this.secretLintConfig = buildSecretLintConfig();

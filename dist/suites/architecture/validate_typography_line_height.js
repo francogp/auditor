@@ -111,6 +111,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
             packageName: 'Tipografía',
             configKey: 'styles.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🔤',
             ruleDescriptions: {
                 'line-height-overlap': 'Colisión de line-height'

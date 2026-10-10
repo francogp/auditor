@@ -601,6 +601,59 @@ function validateAuditorDefaultConfig(options) {
         }
     }
 }
+function validateCriticalRationale(auditorId, criticalConfig) {
+    const { rationale, requiredMinimums, forbiddenOverrides, validate } = criticalConfig;
+    const hasConstraints = (requiredMinimums !== undefined && Object.keys(requiredMinimums).length > 0) ||
+        (forbiddenOverrides !== undefined && Object.keys(forbiddenOverrides).length > 0) ||
+        typeof validate === 'function';
+    if (hasConstraints && (typeof rationale !== 'string' || rationale.trim() === '')) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] must define a non-empty 'rationale' in 'criticalConfig' when critical constraints are declared.`);
+    }
+}
+function validateCriticalMinimums(auditorId, requiredMinimums) {
+    if (requiredMinimums === undefined)
+        return;
+    if (typeof requiredMinimums !== 'object' || requiredMinimums === null) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.requiredMinimums' must be an object.`);
+    }
+    for (const [key, list] of Object.entries(requiredMinimums)) {
+        if (!Array.isArray(list) || list.length === 0) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.requiredMinimums.${key}' must be a non-empty array.`);
+        }
+    }
+}
+function validateCriticalOverrides(auditorId, forbiddenOverrides) {
+    if (forbiddenOverrides === undefined)
+        return;
+    if (typeof forbiddenOverrides !== 'object' || forbiddenOverrides === null) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.forbiddenOverrides' must be an object.`);
+    }
+    for (const [key, list] of Object.entries(forbiddenOverrides)) {
+        if (!Array.isArray(list) || list.length === 0) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.forbiddenOverrides.${key}' must be a non-empty array of disallowed values.`);
+        }
+    }
+}
+function validateCriticalCallbacks(auditorId, validate, repair) {
+    if (validate !== undefined && typeof validate !== 'function') {
+        throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.validate' must be a function.`);
+    }
+    if (repair !== undefined && typeof repair !== 'function') {
+        throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.repair' must be a function.`);
+    }
+}
+function validateAuditorCriticalConfig(options) {
+    if (options.criticalConfig === undefined) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'criticalConfig' in its constructor (can be empty object {}, but cannot be undefined).`);
+    }
+    if (typeof options.criticalConfig !== 'object' || options.criticalConfig === null) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] 'criticalConfig' must be an object.`);
+    }
+    validateCriticalRationale(options.id, options.criticalConfig);
+    validateCriticalMinimums(options.id, options.criticalConfig.requiredMinimums);
+    validateCriticalOverrides(options.id, options.criticalConfig.forbiddenOverrides);
+    validateCriticalCallbacks(options.id, options.criticalConfig.validate, options.criticalConfig.repair);
+}
 export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
     'fix',
     'fixPriority',
@@ -688,6 +741,7 @@ function validateAuditorOptions(options) {
     validateAuditorIdentity(options);
     validateAuditorConfigKey(options);
     validateAuditorDefaultConfig(options);
+    validateAuditorCriticalConfig(options);
     validateAuditorCapabilities(options);
     validateAuditorFixContract(options);
     validateAuditorRules(options);
@@ -736,6 +790,7 @@ export class BaseAuditor {
     projectRoot;
     configKey;
     defaultConfig;
+    criticalConfig;
     fixableRuleIds;
     context;
     countsByRule = new Map();
@@ -831,6 +886,7 @@ export class BaseAuditor {
         this.family = options.family;
         this.configKey = options.configKey;
         this.defaultConfig = options.defaultConfig;
+        this.criticalConfig = options.criticalConfig;
         this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
         this.configFiles = options.configFiles ?? [];
         this.scripts = effectiveScripts;
@@ -1392,6 +1448,11 @@ export class BaseAuditor {
             fixableRules: this.getFixableRuleIds().map(r => String(r)),
             configKey: this.configKey,
             defaultConfig: { ...this.defaultConfig },
+            criticalConfig: {
+                ...(this.criticalConfig.rationale ? { rationale: this.criticalConfig.rationale } : {}),
+                ...(this.criticalConfig.requiredMinimums ? { requiredMinimums: this.criticalConfig.requiredMinimums } : {}),
+                ...(this.criticalConfig.forbiddenOverrides ? { forbiddenOverrides: this.criticalConfig.forbiddenOverrides } : {})
+            },
             scripts: [...this.scripts]
         };
     }

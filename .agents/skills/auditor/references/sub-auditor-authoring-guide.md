@@ -60,6 +60,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       defaultConfig: {
         srcRoots: ['src']
       },
+      criticalConfig: {},
       ruleDescriptions: {
         'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
@@ -142,6 +143,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       defaultConfig: {
         dataRoots: ['src/data']
       },
+      criticalConfig: {},
       ruleDescriptions: {
         'my-data-key-missing': 'Clave faltante en registro de datos',
         'my-data-value-invalid': 'Valor no válido en propiedad requerida'
@@ -222,6 +224,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       defaultConfig: {
         srcRoots: ['src']
       },
+      criticalConfig: {},
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
       },
@@ -674,6 +677,7 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
       defaultConfig: {
         enabled: true
       },
+      criticalConfig: {},
       configFiles: MyToolAuditor.configFiles,
       ruleDescriptions: MY_TOOL_DESCRIPTIONS
     });
@@ -721,6 +725,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
 | `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
+| `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
 
 If any of these fields are missing or invalid, `BaseAuditor` throws an immediate runtime `Error` during instantiation.
 

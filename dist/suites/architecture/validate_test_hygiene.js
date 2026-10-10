@@ -76,6 +76,7 @@ export class TestHygieneAuditor extends FileScanAuditor {
             packageName: 'Tests',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '🧪',
             ruleDescriptions: {
                 'no-tautological-integration-mocks': 'Mock tautológico en integración',

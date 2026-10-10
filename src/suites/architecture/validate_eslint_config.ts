@@ -259,6 +259,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       packageName: 'ESLint',
       configKey: 'eslint.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '📜',
       ruleIds: ESLINT_CONFIG_RULES,
       ruleDescriptions: {

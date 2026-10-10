@@ -165,6 +165,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       },
       configKey: 'dependencyVulnerabilities.enabled',
       defaultConfig: { enabled: true, failOn: 'critical' },
+      criticalConfig: {},
     });
   }
 

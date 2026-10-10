@@ -75,6 +75,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       packageName: 'Consola',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '🧹',
       ruleDescriptions: {
         'no-debugger-statement': 'Instrucciones debugger en src/',

@@ -100,6 +100,9 @@ function extractMetadataFromAuditorInstance(val, result) {
             result.configKey = instance.configKey;
             result.defaultConfig = instance.defaultConfig;
         }
+        if (instance?.criticalConfig) {
+            result.criticalConfig = instance.criticalConfig;
+        }
     }
     catch {
         // catch-ok: Sub-auditor constructor may require specific options

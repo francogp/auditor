@@ -134,6 +134,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
             },
             configKey: 'dependencyVulnerabilities.enabled',
             defaultConfig: { enabled: true, failOn: 'critical' },
+            criticalConfig: {},
         });
     }
     async runAudit() {

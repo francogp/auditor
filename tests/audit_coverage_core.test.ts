@@ -34,6 +34,7 @@ const BASE_OPTIONS = {
   icon: '🧪',
   configKey: 'core',
   defaultConfig: {},
+  criticalConfig: {},
   capabilities: {
     fix: false,
     fixPriority: false,

@@ -79,6 +79,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       packageName: 'Vue',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '⚡',
       ruleDescriptions: {
         'no-side-effects-in-computed': 'Mutación o efecto secundario en computed',

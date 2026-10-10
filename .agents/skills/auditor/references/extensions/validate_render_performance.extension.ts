@@ -69,6 +69,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       defaultConfig: {
         heavyEffectPaths: []
       },
+      criticalConfig: {},
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
       roots: effectiveRoots,
       allowedExtensions: new Set(['.scss', '.css', '.vue', '.ts']),

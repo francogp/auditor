@@ -46,6 +46,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       defaultConfig: {
         enabled: true
       },
+      criticalConfig: {},
       ruleDescriptions: {
         'ad-hoc-button-styles': 'Sobreescritura ad-hoc de botón',
         'button-border-clipping': 'Borde inferior recortado en botón',

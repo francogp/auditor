@@ -52,7 +52,8 @@ function registerExtensionAuditor(fullPath, entryName, projectRoot, tasks) {
         isBuiltin: false,
         isExtension: true,
         configKey: 'paths',
-        defaultConfig: {}
+        defaultConfig: {},
+        criticalConfig: {}
     });
 }
 function processExtensionDir(currentDir, projectRoot, queue, tasks) {
@@ -184,9 +185,27 @@ export function validateAuditorConstruction(auditor, taskId = auditor.id) {
     validateRuleDescriptions(auditor, taskId, errors);
     validateAuditorManifest(auditor, taskId, errors);
     validateAuditorConfigContract(auditor, taskId, errors);
+    validateAuditorCriticalConfigContract(auditor, taskId, errors);
     validateAuditorCapabilitiesContract(auditor, taskId, errors);
     validateAuditorScriptsContract(auditor, taskId, errors);
     return errors;
+}
+function validateAuditorCriticalConfigContract(auditor, taskId, errors) {
+    if (auditor.criticalConfig === undefined) {
+        errors.push(`Auditor [${taskId}] no define 'criticalConfig' obligatorio en su constructor.`);
+        return;
+    }
+    if (typeof auditor.criticalConfig !== 'object' || auditor.criticalConfig === null) {
+        errors.push(`Auditor [${taskId}] define 'criticalConfig' inválido (debe ser un objeto).`);
+        return;
+    }
+    const { rationale, requiredMinimums, forbiddenOverrides, validate } = auditor.criticalConfig;
+    const hasConstraints = (requiredMinimums !== undefined && Object.keys(requiredMinimums).length > 0) ||
+        (forbiddenOverrides !== undefined && Object.keys(forbiddenOverrides).length > 0) ||
+        typeof validate === 'function';
+    if (hasConstraints && (!rationale || typeof rationale !== 'string' || rationale.trim() === '')) {
+        errors.push(`Auditor [${taskId}] criticalConfig debe definir un 'rationale' no vacío cuando declara restricciones críticas.`);
+    }
 }
 function validateAuditorConfigContract(auditor, taskId, errors) {
     if (!auditor.configKey || typeof auditor.configKey !== 'string') {

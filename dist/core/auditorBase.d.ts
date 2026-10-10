@@ -8,7 +8,7 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type FixableFindingCounts, type FixableViolationsSummary, deriveCanonicalAuditorScript } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, deriveCanonicalAuditorScript } from './auditContract.ts';
 export { deriveCanonicalAuditorScript };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
@@ -123,6 +123,11 @@ export interface AuditorOptions<TRuleId extends string = string> {
     /** Mandatory default configuration object for this suite to be injected into .auditor/audit.config.ts by auditor fix */
     readonly defaultConfig: Readonly<Record<string, unknown>>;
     /**
+     * Mandatory minimum baseline or immutable aspects that host projects CANNOT alter, omit, or degrade.
+     * Mandatory by contract for all sub-auditors and host extensions (can be empty object {} if no critical constraints).
+     */
+    readonly criticalConfig: AuditorCriticalConfig;
+    /**
      * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
      * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
      */
@@ -165,6 +170,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly projectRoot: string;
     readonly configKey: string;
     readonly defaultConfig: Readonly<Record<string, unknown>>;
+    readonly criticalConfig: AuditorCriticalConfig;
     protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;

@@ -107,6 +107,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
                 allowJsScripts: false,
                 exemptFiles: []
             },
+            criticalConfig: {},
             ruleDescriptions: {
                 'banned-mjs-extension': 'Archivo .mjs prohibido en TS',
                 'banned-cjs-extension': 'Archivo .cjs prohibido en ESM',

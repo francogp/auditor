@@ -152,6 +152,7 @@ describe('auditorBase infrastructure', () => {
             icon: '🧪',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             ruleIds: ['test-rule'],
             capabilities: {
               fix: false,
@@ -211,6 +212,7 @@ describe('auditorBase infrastructure', () => {
       icon: '🧪',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
       coverage: { include: ['src/**/*.ts'] },
@@ -361,6 +363,7 @@ describe('auditorBase infrastructure', () => {
           icon: '✅',
           configKey: 'paths',
           defaultConfig: {},
+          criticalConfig: {},
           capabilities: {
             fix: false,
             fixPriority: false,

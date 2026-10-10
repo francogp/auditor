@@ -104,7 +104,8 @@ describe('ValidateAuditConfigAuditor', () => {
       'audit-config-invalid-extension',
       'audit-config-missing-gitignore-entry',
       'audit-config-missing-section',
-      'audit-config-unknown-field'
+      'audit-config-unknown-field',
+      'audit-config-critical-violation'
     ]);
   });
 
@@ -241,6 +242,7 @@ export class CustomExtAuditor extends BaseAuditor {
       icon: '🔧',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       ruleDescriptions: {
         'custom-tool-rule': 'Regla de herramienta custom'
       },
@@ -442,6 +444,7 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       icon: '🔧',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       capabilities: {
         fix: false,
         fixPriority: false,
@@ -584,6 +587,7 @@ export class CustomExtAuditor extends BaseAuditor {
       coverage: { include: ['scripts/**'] },
       configKey: 'customExt.enabled',
       defaultConfig: { enabled: true, customOption: 'default_val' },
+      criticalConfig: {},
       capabilities: {
         fix: false,
         fixPriority: false,

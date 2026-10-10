@@ -91,6 +91,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
       packageName: 'Git',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '🌿',
       ruleDescriptions: {
         'git-config-filemode': 'core.filemode debe ser false en repo',

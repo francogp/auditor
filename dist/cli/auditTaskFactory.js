@@ -172,6 +172,7 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
         manifest: metadata.manifest,
         configKey: resolveTaskConfigKey(metadata, id),
         defaultConfig: resolveTaskDefaultConfig(metadata, id),
+        criticalConfig: metadata.criticalConfig,
         ruleDescriptions: resolveTaskRuleDescriptions(metadata)
     };
 }

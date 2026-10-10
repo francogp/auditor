@@ -44,6 +44,9 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       defaultConfig: {
         srcRoots: ['src']
       },
+      // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
+      // Pass empty object {} when no immutable minimums are enforced.
+      criticalConfig: {},
       ruleDescriptions: {
         'my-ast-forbidden-pattern': 'Patrón sintáctico prohibido en AST',
         'my-ast-missing-contract': 'Declaración requerida faltante'

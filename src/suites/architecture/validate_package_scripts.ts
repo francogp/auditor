@@ -85,6 +85,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       icon: '📦',
       configKey: 'packageScripts',
       defaultConfig: { enabled: true, enforceBuildAudit: true, recommendedScripts: true },
+      criticalConfig: {},
       ruleDescriptions: {
         'package-scripts-missing-file': 'package.json ausente o inválido',
         'package-scripts-build-missing-audit': 'Falta auditor en script build',

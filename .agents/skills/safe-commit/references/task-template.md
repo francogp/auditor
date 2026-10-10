@@ -25,12 +25,13 @@
   - [ ] **Loop Repair Action (Triggered on ANY failure above; repeat until all gates pass)**:
     - [ ] `npm run auditor:fix` / manual code fixes applied in workspace
     - [ ] Re-run cycle checks until all 3 gates exit with code 0
-- [ ] **Phase 3: Lessons Extraction, Walkthrough & 🛑 Hard Stop**
+- [ ] **Phase 3: Documentation Alignment, Lessons Extraction & 🛑 Hard Stop**
+  - [ ] Documentation Alignment sweep (Program docs `README.md` & `docs/**`, DOX `AGENTS.md`, and skills `.agents/skills/**`)
   - [ ] Extract lessons learned and create `learning_proposal.md` via `learn-with-docs` (Conditional `RequestFeedback: true`)
   - [ ] Workspace cleanup (Clean temporary files from `scratch/`)
   - [ ] Create/Update `<appDataDir>/brain/<conversation-id>/walkthrough.md` (Informative record, `RequestFeedback: false`)
-  - [ ] Present artifact links (`learning_proposal.md` & `walkthrough.md`) in chat (Skip if zero lessons)
-  - [ ] 🛑 HARD STOP (Wait for approval ONLY if lessons were proposed; otherwise proceed directly to Phase 4)
+  - [ ] Present artifact links (`learning_proposal.md` & `walkthrough.md`) in chat (Skip if zero lessons/updates)
+  - [ ] 🛑 HARD STOP (Wait for approval ONLY if updates were proposed; otherwise proceed directly to Phase 4)
 - [ ] **Phase 4: Single Atomic Certified Commit & Completion**
   - [ ] Apply approved lessons and modernizations to `AGENTS.md` and documentation
   - [ ] Pre-commit Sanity Check (`npm run auditor:md`)

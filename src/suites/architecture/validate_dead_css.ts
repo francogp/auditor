@@ -245,6 +245,7 @@ constructor(projectRoot: string = process.cwd()) {
       packageName: 'CSS',
       configKey: 'styles.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '💀',
       ruleDescriptions: {
         'dead-scoped-css': 'Clase scoped huérfana sin uso'

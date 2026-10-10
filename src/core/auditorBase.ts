@@ -30,6 +30,7 @@ import {
   type AuditorPackageScriptRequirement,
   type AuditorConfigFixContext,
   type AuditorManifestDTO,
+  type AuditorCriticalConfig,
   type FixableFindingCounts,
   type FixableViolationsSummary,
   deriveCanonicalAuditorScript,
@@ -764,6 +765,11 @@ export interface AuditorOptions<TRuleId extends string = string> {
   /** Mandatory default configuration object for this suite to be injected into .auditor/audit.config.ts by auditor fix */
   readonly defaultConfig: Readonly<Record<string, unknown>>;
   /**
+   * Mandatory minimum baseline or immutable aspects that host projects CANNOT alter, omit, or degrade.
+   * Mandatory by contract for all sub-auditors and host extensions (can be empty object {} if no critical constraints).
+   */
+  readonly criticalConfig: AuditorCriticalConfig;
+  /**
    * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
    * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
    */
@@ -832,6 +838,72 @@ function validateAuditorDefaultConfig<TRuleId extends string>(options: AuditorOp
       );
     }
   }
+}
+
+function validateCriticalRationale(auditorId: string, criticalConfig: AuditorCriticalConfig): void {
+  const { rationale, requiredMinimums, forbiddenOverrides, validate } = criticalConfig;
+  const hasConstraints =
+    (requiredMinimums !== undefined && Object.keys(requiredMinimums).length > 0) ||
+    (forbiddenOverrides !== undefined && Object.keys(forbiddenOverrides).length > 0) ||
+    typeof validate === 'function';
+
+  if (hasConstraints && (typeof rationale !== 'string' || rationale.trim() === '')) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${auditorId}] must define a non-empty 'rationale' in 'criticalConfig' when critical constraints are declared.`
+    );
+  }
+}
+
+function validateCriticalMinimums(auditorId: string, requiredMinimums?: Record<string, readonly unknown[]>): void {
+  if (requiredMinimums === undefined) return;
+  if (typeof requiredMinimums !== 'object' || requiredMinimums === null) {
+    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.requiredMinimums' must be an object.`);
+  }
+  for (const [key, list] of Object.entries(requiredMinimums)) {
+    if (!Array.isArray(list) || list.length === 0) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.requiredMinimums.${key}' must be a non-empty array.`
+      );
+    }
+  }
+}
+
+function validateCriticalOverrides(auditorId: string, forbiddenOverrides?: Record<string, readonly unknown[]>): void {
+  if (forbiddenOverrides === undefined) return;
+  if (typeof forbiddenOverrides !== 'object' || forbiddenOverrides === null) {
+    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.forbiddenOverrides' must be an object.`);
+  }
+  for (const [key, list] of Object.entries(forbiddenOverrides)) {
+    if (!Array.isArray(list) || list.length === 0) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.forbiddenOverrides.${key}' must be a non-empty array of disallowed values.`
+      );
+    }
+  }
+}
+
+function validateCriticalCallbacks(auditorId: string, validate?: unknown, repair?: unknown): void {
+  if (validate !== undefined && typeof validate !== 'function') {
+    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.validate' must be a function.`);
+  }
+  if (repair !== undefined && typeof repair !== 'function') {
+    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.repair' must be a function.`);
+  }
+}
+
+function validateAuditorCriticalConfig<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (options.criticalConfig === undefined) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'criticalConfig' in its constructor (can be empty object {}, but cannot be undefined).`
+    );
+  }
+  if (typeof options.criticalConfig !== 'object' || options.criticalConfig === null) {
+    throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] 'criticalConfig' must be an object.`);
+  }
+  validateCriticalRationale(options.id, options.criticalConfig);
+  validateCriticalMinimums(options.id, options.criticalConfig.requiredMinimums);
+  validateCriticalOverrides(options.id, options.criticalConfig.forbiddenOverrides);
+  validateCriticalCallbacks(options.id, options.criticalConfig.validate, options.criticalConfig.repair);
 }
 
 export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
@@ -938,6 +1010,7 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
   validateAuditorIdentity(options);
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
+  validateAuditorCriticalConfig(options);
   validateAuditorCapabilities(options);
   validateAuditorFixContract(options);
   validateAuditorRules(options);
@@ -993,6 +1066,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly projectRoot: string;
   public readonly configKey: string;
   public readonly defaultConfig: Readonly<Record<string, unknown>>;
+  public readonly criticalConfig: AuditorCriticalConfig;
   protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
 
   protected readonly context: AuditorContext;
@@ -1101,6 +1175,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.family = options.family;
     this.configKey = options.configKey;
     this.defaultConfig = options.defaultConfig;
+    this.criticalConfig = options.criticalConfig;
     this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
     this.configFiles = options.configFiles ?? [];
     this.scripts = effectiveScripts;
@@ -1779,6 +1854,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       fixableRules: this.getFixableRuleIds().map(r => String(r)),
       configKey: this.configKey,
       defaultConfig: { ...this.defaultConfig },
+      criticalConfig: {
+        ...(this.criticalConfig.rationale ? { rationale: this.criticalConfig.rationale } : {}),
+        ...(this.criticalConfig.requiredMinimums ? { requiredMinimums: this.criticalConfig.requiredMinimums } : {}),
+        ...(this.criticalConfig.forbiddenOverrides ? { forbiddenOverrides: this.criticalConfig.forbiddenOverrides } : {})
+      },
       scripts: [...this.scripts]
     };
   }

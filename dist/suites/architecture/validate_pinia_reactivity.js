@@ -77,6 +77,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor {
             packageName: 'Pinia',
             configKey: 'pinia.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🍍',
             ruleDescriptions: {
                 'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',

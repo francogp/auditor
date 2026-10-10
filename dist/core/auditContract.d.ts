@@ -231,9 +231,48 @@ export interface AuditorManifestDTO {
      */
     readonly defaultConfig: Readonly<Record<string, unknown>>;
     /**
+     * Configuración crítica e invariantes inmutables declaradas por el auditor (obligatorio por contrato, puede ser objeto vacío {}).
+     */
+    readonly criticalConfig: {
+        readonly rationale?: string;
+        readonly requiredMinimums?: Readonly<Record<string, readonly (string | number)[]>>;
+        readonly forbiddenOverrides?: Readonly<Record<string, readonly unknown[]>>;
+    };
+    /**
      * Contrato obligatorio de comandos de ejecución y scripts en package.json expuestos por este auditor.
      */
     readonly scripts: readonly AuditorPackageScriptRequirement[];
+}
+/**
+ * Contrato de configuración crítica e invariantes inmutables de un auditor.
+ */
+export interface AuditorCriticalConfig<TConfig = unknown> {
+    /**
+     * Justificación técnica y arquitectónica que explica por qué este piso mínimo es obligatorio y no negociable.
+     * Obligatorio cuando se definen restricciones críticas.
+     */
+    readonly rationale?: string;
+    /**
+     * Diccionario de propiedades o listas que actúan como piso mínimo obligatorio.
+     * El proyecto anfitrión puede agregar más elementos (aditivo), pero si omite alguno de estos, falla.
+     * Ejemplo: { 'strictProperties': ['/color$/', 'font-size', 'z-index'] }
+     */
+    readonly requiredMinimums?: Readonly<Record<string, readonly (string | number)[]>>;
+    /**
+     * Valores o anulaciones estrictamente prohibidas.
+     * Mapea rutas de propiedades a los valores desautorizados (e.g. false, 'off', 0, null).
+     * Ejemplo: { 'enabled': [false], 'rules.@typescript-eslint/no-explicit-any': ['off', 0] }
+     */
+    readonly forbiddenOverrides?: Readonly<Record<string, readonly unknown[]>>;
+    /**
+     * Validador semántico personalizado para invariantes complejas o multidimensionales.
+     * Retorna un string con el motivo de violación si no cumple, o null/undefined si es válido.
+     */
+    readonly validate?: (config: TConfig, projectRoot: string) => string | null | undefined;
+    /**
+     * Generador opcional de reparación mecánica para re-inyectar los mínimos en el archivo correspondiente.
+     */
+    readonly repair?: (currentConfig: TConfig, projectRoot: string) => TConfig | Promise<TConfig>;
 }
 /**
  * Derives the canonical package.json script requirement for any auditor by convention.
@@ -261,6 +300,7 @@ export interface AuditTaskDefinition {
     manifest?: AuditorManifestDTO;
     configKey?: string;
     defaultConfig?: Readonly<Record<string, unknown>>;
+    criticalConfig?: AuditorCriticalConfig;
     ruleDescriptions?: Readonly<Record<string, string>>;
 }
 export interface AuditTaskDescriptor {

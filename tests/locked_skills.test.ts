@@ -236,6 +236,7 @@ describe('Official Locked Skills Isolation', () => {
         icon: '🧪',
         configKey: 'core',
         defaultConfig: {},
+        criticalConfig: {},
         capabilities: {
           fix: false,
           fixPriority: false,
@@ -295,6 +296,7 @@ describe('Official Locked Skills Isolation', () => {
         icon: '🧪',
         configKey: 'core',
         defaultConfig: {},
+        criticalConfig: {},
         capabilities: {
           fix: false,
           fixPriority: false,

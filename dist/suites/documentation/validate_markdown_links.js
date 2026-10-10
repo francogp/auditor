@@ -345,6 +345,7 @@ export class MarkdownLinkAuditor extends BaseAuditor {
             packageName: 'Doc',
             configKey: 'documentation.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🔗',
             ruleDescriptions: {
                 'markdown-broken-relative-link': 'Enlace relativo roto',

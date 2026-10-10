@@ -153,6 +153,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
             packageName: 'O(1)',
             configKey: 'constants.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '⚡',
             ruleDescriptions: {
                 'o1-catalog-lookup': 'Búsqueda lineal en catálogo',

@@ -51,6 +51,7 @@ export class DoxIntegrityAuditor extends BaseAuditor {
             packageName: 'DOX',
             configKey: 'documentation.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '📚',
             ruleIds: DOX_RULES,
             ruleDescriptions: {

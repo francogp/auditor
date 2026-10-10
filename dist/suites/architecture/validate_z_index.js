@@ -114,6 +114,7 @@ export class ZIndexAuditor extends FileScanAuditor {
             packageName: 'Z-Index',
             configKey: 'styles.zLayersEnabled',
             defaultConfig: { enabled: true, zLayersEnabled: true },
+            criticalConfig: {},
             icon: '🥞',
             roots: effectiveRoots,
             allowedExtensions: new Set(['.vue', '.scss', '.css', '.ts', '.tsx']),

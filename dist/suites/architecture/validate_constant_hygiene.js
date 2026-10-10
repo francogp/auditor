@@ -60,6 +60,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
             packageName: 'Constantes',
             configKey: 'constants',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🔢',
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.vue']),

@@ -147,6 +147,7 @@ id: 'validate_typography_line_height',
       packageName: 'Tipografía',
       configKey: 'styles.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🔤',
       ruleDescriptions: {
         'line-height-overlap': 'Colisión de line-height'

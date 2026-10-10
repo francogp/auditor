@@ -372,6 +372,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
       packageName: 'Comandos',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '⌨️',
       ruleIds: DOCUMENTED_COMMANDS_RULES,
       ruleDescriptions: {

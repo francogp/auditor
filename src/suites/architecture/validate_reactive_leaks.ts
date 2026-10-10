@@ -80,6 +80,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       packageName: 'Fuga',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '💧',
       ruleDescriptions: {
         'dom-event-leak': 'addEventListener sin limpiar',

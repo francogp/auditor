@@ -245,6 +245,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       packageName: 'MagicNumbers',
       configKey: 'constants',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🔢',
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue']),

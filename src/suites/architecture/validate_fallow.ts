@@ -385,6 +385,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       packageName: 'Fallow',
       configKey: 'fallow.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🌾',
       ruleIds: FALLOW_RULES,
       ruleDescriptions: FALLOW_RULE_DESCRIPTIONS,

@@ -43,6 +43,7 @@ describe('Auditor Plugin Protocol', () => {
           icon: '🧩',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          criticalConfig: {},
           capabilities: {
             fix: false,
             fixPriority: false,
@@ -92,6 +93,7 @@ describe('Auditor Plugin Protocol', () => {
           icon: '🛡️',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          criticalConfig: {},
           capabilities: {
             fix: false,
             fixPriority: false,
@@ -138,6 +140,7 @@ describe('Auditor Plugin Protocol', () => {
           icon: '📦',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          criticalConfig: {},
           capabilities: {
             fix: false,
             fixPriority: false,

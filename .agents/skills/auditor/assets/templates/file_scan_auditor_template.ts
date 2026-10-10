@@ -49,6 +49,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       defaultConfig: {
         srcRoots: ['src']
       },
+      // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
+      // Pass empty object {} when no immutable minimums are enforced.
+      criticalConfig: {},
       ruleDescriptions: {
         'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'

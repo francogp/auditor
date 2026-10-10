@@ -190,6 +190,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
             packageName: 'Fallow',
             configKey: 'fallow.similarCode.enabled',
             defaultConfig: { enabled: true, threshold: DEFAULT_SIMILAR_CODE_THRESHOLD, ignoreSameFile: true },
+            criticalConfig: {},
             icon: '🔍',
             ruleDescriptions: {
                 'fallow-similar-code': 'Duplicado semántico',

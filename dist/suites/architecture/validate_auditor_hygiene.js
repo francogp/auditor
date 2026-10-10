@@ -34,6 +34,7 @@ export class AuditorHygieneAuditor extends BaseAuditor {
             defaultConfig: {
                 enabled: true
             },
+            criticalConfig: {},
             capabilities: {
                 fix: false,
                 fixPriority: false,

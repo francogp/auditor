@@ -21,6 +21,7 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       icon: '🧩',
       configKey: 'core',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       capabilities: {
         fix: false,
         fixPriority: false,
@@ -57,6 +58,7 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       icon: '⚙️',
       configKey: 'core',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       capabilities: {
         fix: false,
         fixPriority: false,
@@ -191,6 +193,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             icon: '💥',
             configKey: 'core',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             capabilities: {
               fix: false,
               fixPriority: false,

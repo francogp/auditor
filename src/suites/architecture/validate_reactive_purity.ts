@@ -89,6 +89,7 @@ id: 'validate_reactive_purity',
       packageName: 'Computed',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       icon: '🧼',
       ruleDescriptions: {
         'computed-state-mutation': 'Mutación de estado prohibida',

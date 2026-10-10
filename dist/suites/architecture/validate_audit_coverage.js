@@ -215,6 +215,7 @@ export class AuditCoverageAuditor extends BaseAuditor {
             packageName: 'Cobertura',
             configKey: 'coverage.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🗺️',
             ruleIds: AUDIT_COVERAGE_RULES,
             ruleDescriptions: {

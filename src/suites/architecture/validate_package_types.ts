@@ -230,6 +230,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
       projectRoot: effectiveRoot,
       configKey: 'packageDistribution.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
     });
   }
 

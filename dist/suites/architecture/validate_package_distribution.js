@@ -90,6 +90,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
             },
             configKey: 'packageDistribution.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
         });
     }
     async runAudit() {

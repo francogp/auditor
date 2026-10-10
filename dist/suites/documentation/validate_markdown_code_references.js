@@ -441,6 +441,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
             packageName: 'Doc',
             configKey: 'documentation.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '💻',
             ruleDescriptions: {
                 'markdown-broken-source-ref': 'Ruta de código inexistente',

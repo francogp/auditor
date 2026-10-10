@@ -126,6 +126,7 @@ export class TypeCheckAuditor extends BaseAuditor {
             packageName: 'TypeScript',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '🏷️',
             ruleIds: TYPE_CHECK_RULES,
             ruleDescriptions: {

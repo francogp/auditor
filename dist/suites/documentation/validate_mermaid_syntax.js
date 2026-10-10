@@ -90,6 +90,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor {
             packageName: 'Doc',
             configKey: 'documentation.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '📊',
             ruleIds: MERMAID_SYNTAX_RULES,
             ruleDescriptions: {

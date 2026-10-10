@@ -128,6 +128,7 @@ export class MarkdownLintAuditor extends BaseAuditor {
             packageName: 'Markdownlint',
             configKey: 'documentation.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '📘',
             ruleIds: MARKDOWN_LINT_RULES,
             ruleDescriptions: {

@@ -488,6 +488,7 @@ private readonly scanRoots: readonly string[];
       packageName: 'Doc',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🔗',
       ruleDescriptions: {
         'markdown-broken-relative-link': 'Enlace relativo roto',

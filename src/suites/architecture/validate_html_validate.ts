@@ -160,6 +160,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       packageName: 'HTML',
       configKey: 'htmlValidate.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🌐',
       ruleIds: HTML_VALIDATE_RULES,
       ruleDescriptions: {

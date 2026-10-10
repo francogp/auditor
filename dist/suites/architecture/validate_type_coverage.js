@@ -75,6 +75,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
             packageName: 'Tipos',
             configKey: 'typeCoverage.enabled',
             defaultConfig: { enabled: true, atLeast: DEFAULT_TYPE_COVERAGE_THRESHOLD },
+            criticalConfig: {},
             icon: '📊',
             ruleIds: TYPE_COVERAGE_RULES,
             ruleDescriptions: {

@@ -392,6 +392,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       packageName: 'Fallow',
       configKey: 'fallow.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '🌾',
       ruleDescriptions: {
         'fallow-config-missing': 'Falta archivo .fallowrc.json',

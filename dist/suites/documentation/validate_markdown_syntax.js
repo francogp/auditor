@@ -58,6 +58,7 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor {
             packageName: 'Doc',
             configKey: 'documentation.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '📝',
             ruleDescriptions: {
                 'npm-script-exclusivity-in-docs': 'Comando directo en vez de npm run',

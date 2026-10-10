@@ -11,7 +11,7 @@ Architecture & Tooling Engineers.
 - **Hermetic Isolation**: Tests must never scan the live repository root. They must use `testScanFile(...)` or isolated temporary sandboxes via `projectRoot: tempDir`.
 - **Negative Verification Mandate**: Every test file must include a test asserting that compliant code yields exactly 0 errors and `status: 'passed'` (`missing-clean-auditor-test`).
 - **Complete RuleId Coverage & Rule Description Verification**: Every declared rule ID in `ruleDescriptions` of every sub-auditor has dedicated dirty fixture assertions for both error and warning severities. `validate_auditor_tests.ts` statically enforces that 100% of declared rules are exercised by corresponding test files.
-- **Mandatory Constructor Metadata Enforcement Tests**: `tests/auditor_contract_enforcement.test.ts` rigorously proves the impossibility of instantiating `BaseAuditor` or registering extensions without mandatory `configKey` and `defaultConfig` (with explicit boolean `enabled`).
+- **Mandatory Constructor Metadata Enforcement Tests**: `tests/auditor_contract_enforcement.test.ts` and `tests/validate_critical_config.test.ts` rigorously prove the impossibility of instantiating `BaseAuditor` or registering extensions without mandatory `configKey`, `defaultConfig` (with explicit boolean `enabled`), and `criticalConfig`.
 - **Idempotent Injection & Anti-Duplication Pruning Tests**: `tests/validate_agents_config_mandate.test.ts` and `tests/validate_documentation_language.test.ts` rigorously test and prove that auto-repair operations in `AGENTS.md` never duplicate mandates or whitespace across repeated fix runs.
 
 ## Key Files
@@ -37,6 +37,7 @@ Architecture & Tooling Engineers.
 - [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture, anti-tampering configuration, and AI chat language clauses in root `AGENTS.md`.
 - [`validate_documentation_language.test.ts`](./validate_documentation_language.test.ts): Tests for documentation language verification, root AGENTS mandate auto-fix and modernization, and exemption matching.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for `.auditor/` configuration integrity (paths, scripts, ratchet ref and baseline) and the AST-based migration of root-level configs.
+- [`validate_critical_config.test.ts`](./validate_critical_config.test.ts): Exhaustive tests for the mandatory AuditorCriticalConfig contract across BaseAuditor, manifests, constructor validation, and ValidateAuditConfigAuditor enforcement.
 - [`validate_dox_integrity.test.ts`](./validate_dox_integrity.test.ts): Tests for DOX hierarchy completeness, mandatory sections order, and empty section rejection.
 - [`validate_eslint_config.test.ts`](./validate_eslint_config.test.ts): Tests for ESLint Domain-Type-First configuration enforcement.
 - [`validate_dependency_vulnerabilities.test.ts`](./validate_dependency_vulnerabilities.test.ts): Tests for dependency CVE vulnerability scanning via npm audit.

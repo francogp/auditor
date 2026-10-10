@@ -230,6 +230,12 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       packageName: 'Stylelint',
       configKey: 'stylelint.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {
+        rationale: 'Exigir variables SCSS ($var) o CSS (var(--var)) en color, font-size y z-index es un estándar inmutable para erradicar números mágicos en estilos.',
+        requiredMinimums: {
+          'strictValues.properties': [...REQUIRED_STRICT_PROPERTIES]
+        }
+      },
       icon: '🎨',
       ruleIds: STYLELINT_CONFIG_RULES,
       ruleDescriptions: {

@@ -207,6 +207,7 @@ export class BundleBudgetAuditor extends BaseAuditor {
             packageName: 'Bundle',
             configKey: 'bundle.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '📦',
             coverage: {
                 include: [

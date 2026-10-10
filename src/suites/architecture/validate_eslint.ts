@@ -87,6 +87,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       packageName: 'ESLint',
       configKey: 'eslint.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '📜',
       ruleIds: ESLINT_RULES,
       ruleDescriptions: {

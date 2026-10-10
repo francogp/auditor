@@ -2,13 +2,12 @@
 name: learn-with-docs
 description: >-
   Specialized skill for capturing and persisting newly acquired lessons, user corrections,
-  and architectural decisions into the hierarchical DOX (AGENTS.md) framework, while harmonizing
-  existing documentation by eliminating direct contradictions to the new learning.
-  Use when the user invokes /learn-with-docs, asks to persist learnings from the current session,
-  or during the lessons extraction phase of /safe-commit.
-  STRICTLY LIMITED to persisting what was actually learned in the current interaction and eliminating
-  direct contradictions to it.
-  Does NOT perform repository-wide audits, does NOT report unrelated issues, and NEVER executes git commits or pushes.
+  and architectural decisions into the hierarchical DOX (AGENTS.md) framework, updating host
+  program documentation (README.md, docs/**), and affected skill references, examples, and templates,
+  while eliminating direct contradictions to the new learning. Use when the user invokes /learn-with-docs,
+  asks to persist learnings from the current session, or during the documentation alignment & lessons
+  phase of /safe-commit. Does NOT perform unrelated repository-wide audits, does NOT report unrelated
+  issues, and NEVER executes git commits or pushes.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini
@@ -30,17 +29,25 @@ Specialized skill for persisting newly acquired knowledge, explicit user correct
      - A non-obvious bug, edge case, or root cause diagnosed and resolved in the current session.
      - A new architectural standard or contract agreed upon in the current session.
 
-2. **Targeted Contradiction Sweep (Zero Unrelated Sweeps)**:
-   - When a new learning $L$ is established, the agent MUST search `AGENTS.md` files and relevant documentation **EXCLUSIVELY for statements, contracts, or examples that directly contradict $L$**.
-   - **What Constitutes a Direct Contradiction**:
-     - An existing contract prescribing pattern $P$ when $L$ explicitly bans or replaces $P$.
-     - A code snippet, example, or guide instructing callers to invoke deprecated API $A$ when $L$ establishes that $A$ must not be used.
+2. **Targeted Contradiction Sweep & Collateral Documentation Harmonization**:
+   - When a new learning, architectural standard, or interface contract $L$ is established, the agent MUST search across three primary surfaces directly affected by $L$:
+     1. **Host Program & Repository Documentation**: Root and nested `README.md`, `docs/**`, architecture guides, manuals, and script tables of the program where the auditor is running.
+     2. **Hierarchical DOX Indices (`AGENTS.md`)**: Local contracts, directory descriptions, index tables, and boundary invariants.
+     3. **Agent Skills & Bundled Resources (`.agents/skills/**` or `skills/**`)**: Internal `SKILL.md` files, `references/**`, `examples/**`, and `templates/**`.
+   - **What Constitutes a Direct Contradiction, Stale Reference, or Missing Content**:
+     - Instructions, script tables, prerequisites, or code samples in `README.md` or `docs/**` describing obsolete behavior, removed flags, or legacy code that contradicts new changes.
+     - Missing documentation for newly added commands, parameters, configuration options, or architectural invariants in the host program.
+     - An existing DOX contract or skill instruction prescribing pattern $P$ when $L$ explicitly bans or replaces $P$.
+     - A code snippet, template, tutorial, or example inside a skill or guide instructing callers to invoke deprecated API $A$ when $L$ establishes that $A$ must not be used or requires newly added options.
+     - A boilerplate template or reference implementation lacking newly mandatory properties, arguments, or contracts introduced by $L$.
      - A directive mandating behavior $B$ when $L$ explicitly mandates $\neg B$.
-   - **STRICTLY PROHIBITED**: Reporting, proposing, or correcting general defects, typos, outdated suite counts, or unrelated legacy code that do NOT directly contradict $L$. Unrelated maintenance belongs to standalone tasks, never to a learning proposal.
+   - **STRICTLY PROHIBITED**: Reporting, proposing, or correcting general defects, typos, or unrelated legacy code in files that do NOT directly touch or contradict $L$. Unrelated maintenance belongs to standalone tasks, never to a learning proposal.
 
-3. **Deduplication Check (Zero Re-Learning)**:
-   - Before proposing any addition, inspect the target `AGENTS.md` files:
-     - If the pattern or rule is **already documented** and no contradictory contracts exist in the workspace, state clearly: `"No se identificaron nuevos aprendizajes ni contradicciones en esta sesión para persistir."` and stop immediately. DO NOT invent proposals.
+3. **Deduplication Check & Zero Redundant Proposals (Zero Re-Learning)**:
+   - The proposal artifact (`learning_proposal.md`) MUST ONLY contain actions, contracts, or harmonizations that have **NOT YET BEEN PERFORMED** on disk.
+   - If a file, skill, or document was already modified, harmonized, or deleted earlier in the session, it is already part of the working tree and MUST NOT be re-proposed or asked for approval again.
+   - Inspect target `AGENTS.md` files, program docs, and skills:
+     - If all lessons are already documented and all contradictions are already resolved on disk, state clearly: `"No se identificaron nuevos aprendizajes ni contradicciones pendientes de persistir en esta sesión."` and stop immediately without creating a proposal artifact or approval gate. DO NOT invent proposals or re-ask for work that is already done.
 
 4. **Precise DOX Placement (Target Boundary)**:
    - Follow the hierarchical DOX structure:
@@ -120,7 +127,8 @@ Create `<appDataDir>/brain/<conversation-id>/learning_proposal.md` using `write_
 ````
 
 > [!IMPORTANT]
-> **No Unrelated Content**: The proposal MUST NOT contain audits of other files, refactoring suggestions, template changes, or unrelated documentation updates. ONLY the exact lesson learned and direct contradictions to it.
+> **No Unrelated Sweeps & Strictly Pending Changes**: The proposal MUST NOT contain audits of unimpacted modules, speculative refactoring suggestions, or unrelated documentation edits. It MUST focus strictly on: (1) the primary lesson/contract in target `AGENTS.md` DOX files, (2) host program documentation (`README.md`, `docs/**`), and (3) collateral references, guides, examples, and templates inside affected skills (`.agents/skills/**`) directly affected by or demonstrating the new contract, resolving any direct contradictions to $L$.
+> **Zero Re-Asking**: The proposal MUST NEVER list or re-ask approval for changes, file modifications, or deletions that have already been executed in the working tree during the session. Only list genuinely pending contracts or diffs waiting for disk application. If all lessons and harmonizations are already applied to disk, DO NOT generate `learning_proposal.md`.
 
 After writing the artifact with `RequestFeedback: true`, present a clickable link to it in chat and stop your turn to wait for user confirmation.
 

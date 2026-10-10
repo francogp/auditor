@@ -583,6 +583,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
       icon: '📚',
       configKey: 'domain.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       ruleDescriptions: {
         'canonical-domain-collision': 'Colisión de catálogo canónico',
         'canonical-domain-repeated-union': 'Unión repetida sin alias canónico',

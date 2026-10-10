@@ -11,7 +11,8 @@ import {
   type AuditorCapabilities,
   type GitIgnoreRequirement,
   type AuditorPackageScriptRequirement,
-  type AuditorManifestDTO
+  type AuditorManifestDTO,
+  type AuditorCriticalConfig
 } from '../core/auditContract.ts';
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.ts';
 
@@ -27,6 +28,7 @@ export interface ExtractedAuditorMetadata {
   readonly ruleDescriptions?: Readonly<Record<string, string>>;
   readonly configKey?: string;
   readonly defaultConfig?: Readonly<Record<string, unknown>>;
+  readonly criticalConfig?: AuditorCriticalConfig;
 }
 
 type MutableExtractedAuditorMetadata = {
@@ -39,6 +41,7 @@ type MutableExtractedAuditorMetadata = {
   ruleDescriptions?: Readonly<Record<string, string>>;
   configKey?: string;
   defaultConfig?: Readonly<Record<string, unknown>>;
+  criticalConfig?: AuditorCriticalConfig;
 };
 
 export function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
@@ -123,6 +126,9 @@ function extractMetadataFromAuditorInstance(
       result.ruleDescriptions = instance.ruleDescriptions;
       result.configKey = instance.configKey;
       result.defaultConfig = instance.defaultConfig;
+    }
+    if (instance?.criticalConfig) {
+      result.criticalConfig = instance.criticalConfig;
     }
   } catch {
     // catch-ok: Sub-auditor constructor may require specific options

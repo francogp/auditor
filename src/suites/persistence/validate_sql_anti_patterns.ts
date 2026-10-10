@@ -121,6 +121,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       packageName: 'SQL',
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
       icon: '💾',
       ruleDescriptions: {
         'sql-no-positional-arrays': 'Mutación de array JSON en SQL',

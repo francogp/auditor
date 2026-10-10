@@ -78,6 +78,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             packageName: 'Computed',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '🧼',
             ruleDescriptions: {
                 'computed-state-mutation': 'Mutación de estado prohibida',

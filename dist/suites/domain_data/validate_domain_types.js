@@ -263,6 +263,7 @@ export class DomainTypesAuditor extends BaseAuditor {
             packageName: 'Dominio',
             configKey: 'domain.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🔒',
             ruleDescriptions: {
                 'domain-naked-string-primitive': 'String crudo en contratos de dominio',

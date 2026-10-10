@@ -385,6 +385,7 @@ export class ComponentStylesAuditor extends BaseAuditor {
             packageName: 'Estilos',
             configKey: 'styles.enabled',
             defaultConfig: { enabled: true },
+            criticalConfig: {},
             icon: '🎨',
             ruleIds: COMPONENT_STYLE_RULES,
             ruleDescriptions: {

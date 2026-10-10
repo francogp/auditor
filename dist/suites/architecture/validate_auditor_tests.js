@@ -167,6 +167,7 @@ export class AuditorTestsAuditor extends BaseAuditor {
             packageName: 'Auditor',
             configKey: 'paths',
             defaultConfig: {},
+            criticalConfig: {},
             icon: '🧪',
             ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
             coverage: {

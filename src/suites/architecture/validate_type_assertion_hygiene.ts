@@ -73,6 +73,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       icon: '🛡️',
       configKey: 'paths',
       defaultConfig: {},
+      criticalConfig: {},
       ruleDescriptions: {
         'type-assertion-zero-any': 'Prohibición de as any o any[]',
         'type-assertion-double-cast': 'Prohibición de doble casteo as unknown as',
