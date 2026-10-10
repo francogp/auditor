@@ -433,9 +433,9 @@ export const COMPONENT_ID = 42;
         f => f.ruleId === 'magic-number-naked' && f.message.includes('Retardo de temporizador numérico desnudo')
       );
       expect(timerFindings).toHaveLength(3);
-      expect(timerFindings[0].message).toContain('1000');
-      expect(timerFindings[1].message).toContain('500');
-      expect(timerFindings[2].message).toContain('2');
+      expect(timerFindings[0]?.message).toContain('1000');
+      expect(timerFindings[1]?.message).toContain('500');
+      expect(timerFindings[2]?.message).toContain('2');
     });
 
     it('detects naked number in mutable variable assignment (let)', async () => {

@@ -64,6 +64,23 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('passes cleanly when .stylelintrc.json extends an auditor config without duplicating plugins or rules', async () => {
+      const config = {
+        extends: ['./node_modules/@francogp/auditor/.stylelintrc.json'],
+        rules: {
+          'declaration-block-single-line-max-declarations': null
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.summary.warnings).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 
   describe('Violation Path: 100% Rule ID Verification', () => {

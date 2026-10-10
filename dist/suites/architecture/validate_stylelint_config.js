@@ -154,6 +154,11 @@ export const STYLELINT_CONFIG_REQUIREMENT = {
     generateDefaultContent: () => CANONICAL_STYLELINT_CONFIG_CONTENT,
     customMissingMessage: (_ctx, file) => `No se encontró el archivo de configuración de Stylelint '${file}'. Ejecuta "auditor fix" para crearlo automáticamente.`
 };
+export function extendsAuditorConfig(parsedConfig) {
+    const rawExtends = parsedConfig.extends;
+    const list = Array.isArray(rawExtends) ? rawExtends : (rawExtends ? [rawExtends] : []);
+    return list.some(item => typeof item === 'string' && item.includes('auditor'));
+}
 export class ValidateStylelintConfigAuditor extends BaseAuditor {
     constructor(rootsOrOptions, maybeProjectRoot) {
         const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions)
@@ -197,7 +202,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
     }
     auditPlugin(parsedConfig, targetFile) {
         const plugins = Array.isArray(parsedConfig.plugins) ? [...parsedConfig.plugins] : [];
-        if (plugins.includes(REQUIRED_STYLELINT_PLUGIN)) {
+        if (plugins.includes(REQUIRED_STYLELINT_PLUGIN) || extendsAuditorConfig(parsedConfig)) {
             return false;
         }
         if (this.isFixActive()) {
@@ -220,6 +225,9 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
             ? { ...parsedConfig.rules }
             : {};
         const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
+        if (strictRule === undefined && extendsAuditorConfig(parsedConfig)) {
+            return false;
+        }
         const isStrictRuleConfigured = Array.isArray(strictRule) && strictRule.length >= 1;
         const requiredProps = getMergedStrictProperties(config);
         let missingProperties = []; // no-domain: Non-domain Stylelint property names

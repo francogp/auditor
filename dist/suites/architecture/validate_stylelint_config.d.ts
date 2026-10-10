@@ -28,6 +28,7 @@ export declare function buildProjectStrictValueConfig(config?: ReturnType<typeof
 export declare const CANONICAL_STRICT_VALUE_CONFIG: unknown[];
 export declare const CANONICAL_STYLELINT_CONFIG_CONTENT: string;
 export declare const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<StylelintConfigRuleId>;
+export declare function extendsAuditorConfig(parsedConfig: Record<string, unknown>): boolean;
 export declare class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigRuleId> {
     constructor(rootsOrOptions?: readonly string[] | {
         projectRoot?: string;
