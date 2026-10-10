@@ -127,6 +127,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
 
+- **Clean Base Version Invariant**: Prior to executing `version:analyze`, the agent MUST verify that `package.json` and `src/core/version.ts` do not contain uncommitted, unapproved version alterations from failed or aborted earlier turns. The base SemVer version evaluated MUST strictly reflect the current repository state at HEAD. If intermediate unapproved version modifications are present in the working tree, restore them to HEAD before running `version:analyze` to prevent distorted candidates.
 - Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, commit intent, and fresh candidate version stamps.
 - **Mandatory Analysis Presentation in Chat Before Prompting**:
   Before calling `ask_question`, the agent MUST display the complete Version Analysis breakdown table directly in the visible chat message (detected Git diff metrics, affected subsystems, candidate version options with their freshly updated build identifiers and timestamps `-build.YYYYMMDD-HHmmss`, and SemVer rationale), along with a clickable link to `task.md`. Calling `ask_question` blindly without displaying the version candidates table in chat is STRICTLY FORBIDDEN, as the modal blocks the UI and conceals the analysis.
