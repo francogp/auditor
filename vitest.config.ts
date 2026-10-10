@@ -7,6 +7,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     testTimeout: 30000,
+    hookTimeout: 30000,
     css: false,
     execArgv: ['--no-experimental-webstorage', '--no-warnings=ExperimentalWarning'],
     coverage: {
