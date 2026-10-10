@@ -29,7 +29,9 @@ export const REQUIRED_STRICT_VALUE_RULE = 'scale-unlimited/declaration-strict-va
 export const REQUIRED_STRICT_PROPERTIES = [
     '/color$/',
     'font-size',
-    'z-index',
+    'z-index'
+];
+export const RECOMMENDED_EXPANDED_PROPERTIES = [
     'box-shadow',
     'border-radius',
     'font-family',
@@ -83,9 +85,11 @@ export const CANONICAL_IGNORE_VALUES = {
     ]
 };
 export function getMergedStrictProperties(config) {
-    const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties ?? [];
-    const merged = new Set([...REQUIRED_STRICT_PROPERTIES, ...custom]);
-    return Array.from(merged);
+    const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties;
+    if (custom && Array.isArray(custom)) {
+        return custom;
+    }
+    return REQUIRED_STRICT_PROPERTIES;
 }
 export function getMergedIgnoreValues(config) {
     const custom = config?.stylelint?.strictValues?.ignoreValues ?? config?.styles?.stylelint?.strictValues?.ignoreValues ?? {};

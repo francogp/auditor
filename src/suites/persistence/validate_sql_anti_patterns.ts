@@ -33,6 +33,7 @@ import {
   BaseAuditor
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 
 enableCompileCache();
 
@@ -128,7 +129,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         'db-payload-snake-case': 'Propiedad sin snake_case en BD'
       },
       coverage: {
-        include: [`${migrationsDirRel}/**/*.sql`, 'database/**/*.sql', 'migrations/**/*.sql', 'src/**/*.ts', 'src/**/*.vue']
+        include: [
+          `${migrationsDirRel}/**/*.sql`,
+          'database/**/*.sql',
+          'migrations/**/*.sql',
+          ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue']), projectRoot).include
+        ]
       },
       roots: [migrationsDirRel, 'database', ...srcRoots],
       allowedExtensions: new Set(['.sql', '.ts', '.vue']),
@@ -148,6 +154,16 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       this.context.setMetric('Engine', 'none (omitted)');
       return;
     }
+
+    const currentSrcRoots = config.paths.srcRoots || ['src'];
+    this.redeclareCoverage({
+      include: [
+        `${this.configuredMigrationsDir}/**/*.sql`,
+        'database/**/*.sql',
+        'migrations/**/*.sql',
+        ...deriveCoverageFromRoots(currentSrcRoots, new Set(['.ts', '.vue']), this.projectRoot).include
+      ]
+    });
 
     const migrationsDir = path.resolve(this.projectRoot, this.configuredMigrationsDir);
     const sqlMigrations = this.collectAndScanMigrations(migrationsDir, config);

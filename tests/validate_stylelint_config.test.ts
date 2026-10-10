@@ -151,7 +151,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
-      expect(finding?.message).toContain('box-shadow');
+      expect(finding?.message).toContain('z-index');
     });
   });
 

@@ -24,6 +24,7 @@ import { BaseAuditor } from "../../core/auditorBase.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 enableCompileCache();
 export const BUNDLE_BUDGET_RULES = [
     'bundle-runtime-leak',
@@ -182,6 +183,9 @@ export class BundleBudgetAuditor extends BaseAuditor {
         }
     ];
     constructor(projectRoot = process.cwd()) {
+        const config = getAuditConfig(projectRoot);
+        const srcRoots = config.paths.srcRoots ?? ['src'];
+        const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : 'dist';
         super({
             capabilities: {
                 fix: false,
@@ -205,7 +209,10 @@ export class BundleBudgetAuditor extends BaseAuditor {
             defaultConfig: { enabled: true },
             icon: '📦',
             coverage: {
-                include: ['src/**/*.ts', 'src/**/*.vue', 'src/**/*.js', 'dist/**']
+                include: [
+                    ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue', '.js']), projectRoot).include,
+                    `${distDirRel}/**`
+                ]
             },
             ruleDescriptions: {
                 'bundle-runtime-leak': 'Fuga de test/script en producción',
@@ -222,6 +229,14 @@ export class BundleBudgetAuditor extends BaseAuditor {
             return;
         }
         const config = getAuditConfig(this.projectRoot);
+        const srcRoots = config.paths.srcRoots ?? ['src'];
+        const distDirRel = config.bundle?.distDir ? toPosixRelative(this.projectRoot, config.bundle.distDir) : 'dist';
+        this.redeclareCoverage({
+            include: [
+                ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue', '.js']), this.projectRoot).include,
+                `${distDirRel}/**`
+            ]
+        });
         const effectiveUiDirs = [
             ...(config.paths.componentsRoots ?? ['src/components']),
             ...(config.paths.viewsRoots ?? ['src/views']),
@@ -232,7 +247,6 @@ export class BundleBudgetAuditor extends BaseAuditor {
             ...(config.paths.scriptsRoots?.map(r => `/${r}/`) ?? ['/scripts/'])
         ];
         const effectiveForbiddenUiImports = getForbiddenValueImportsUI(this.projectRoot);
-        const srcRoots = config.paths.srcRoots ?? ['src'];
         const allFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));
         const candidateFiles = allFiles.filter(f => !isTestPath(f) && !path.basename(f).endsWith('.d.ts'));
         const astEngine = astContext ?? new SharedAstContext();

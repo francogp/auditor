@@ -24,6 +24,7 @@ import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 import { BaseAuditor, CANONICAL_IGNORE_DIRS } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from './stylelintSassTrapsPlugin.ts';
 
@@ -324,7 +325,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
   constructor(options?: StylelintAuditorOptions) {
     const projectRoot = options?.projectRoot;
     const config = getAuditConfig(projectRoot);
-    const roots = config.paths.srcRoots ?? ['src'];
+    const roots = Array.from(new Set([
+      ...(config.paths.srcRoots ?? ['src']),
+      ...(config.paths.stylesRoots ?? ['src/styles'])
+    ]));
 
     super({
       capabilities: {
@@ -360,7 +364,11 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         'scss-strict-values': 'Valores no estrictos en SCSS'
       },
       coverage: {
-        include: ['src/**/*.{css,scss,sass,vue}', '.stylelintrc*', 'stylelint.config.*'],
+        include: [
+          ...deriveCoverageFromRoots(roots, new Set(['.css', '.scss', '.sass', '.vue']), projectRoot).include,
+          '.stylelintrc*',
+          'stylelint.config.*'
+        ],
         exclude: ['node_modules/**', 'dist/**', 'scratch/**', 'tests/**', '**/*.spec.*', '**/*.test.*'],
         source: 'runtime'
       },
@@ -380,6 +388,17 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
 
+    const roots = this.roots.length > 0 ? this.roots : ['src'];
+    this.redeclareCoverage({
+      include: [
+        ...deriveCoverageFromRoots(roots, new Set(['.css', '.scss', '.sass', '.vue']), this.projectRoot).include,
+        '.stylelintrc*',
+        'stylelint.config.*'
+      ],
+      exclude: ['node_modules/**', 'dist/**', 'scratch/**', 'tests/**', '**/*.spec.*', '**/*.test.*'],
+      source: 'runtime'
+    });
+
     const configFile = resolveStylelintConfigFile(this.projectRoot, stylelintConfig?.configFile);
     if (fs.existsSync(configFile)) {
       const relConfig = normalizePosixPath(configFile, this.projectRoot);
@@ -393,7 +412,6 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const cacheLocation = path.resolve(cacheDir, 'stylelint_cache.json');
     fs.mkdirSync(cacheDir, { recursive: true });
 
-    const roots = this.roots.length > 0 ? this.roots : ['src'];
     const filesGlobs = roots.map(r => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`);
     const ignoreGlobs = buildStylelintIgnoreGlobs(config.paths.ignoreGlobs, stylelintConfig?.ignoreGlobs);
     const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);

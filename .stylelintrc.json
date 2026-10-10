@@ -25,17 +25,7 @@
       [
         "/color$/",
         "font-size",
-        "z-index",
-        "box-shadow",
-        "border-radius",
-        "font-family",
-        "transition-duration",
-        "animation-duration",
-        "gap",
-        "row-gap",
-        "column-gap",
-        "font-weight",
-        "transition-timing-function"
+        "z-index"
       ],
       {
         "ignoreAtRules": ["@font-face"],

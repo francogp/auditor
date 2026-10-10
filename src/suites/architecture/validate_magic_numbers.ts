@@ -31,7 +31,7 @@
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, type AuditedDocument } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, isInCodeRoots, isDataPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -42,6 +42,7 @@ export type MagicNumbersRuleId = (typeof MAGIC_NUMBERS_RULES)[number];
 const UNIVERSAL_SENTINELS = new Set<number>([
   -1,
   0,
+  0.5,
   1,
   2,
   3,
@@ -181,6 +182,35 @@ function isExplicitBaseLiteral(node: ts.Node, sourceFile: ts.SourceFile): boolea
          rawText.startsWith('0b') || rawText.startsWith('0B');
 }
 
+const ANIMATION_PROPERTIES = new Set([
+  'duration',
+  'delay',
+  'opacity',
+  'autoAlpha',
+  'scale',
+  'scaleX',
+  'scaleY',
+  'rotation',
+  'rotate',
+  'skewX',
+  'skewY',
+  'stagger',
+  'repeat',
+  'repeatDelay',
+  'feetX',
+  'feetY'
+]);
+
+function isAnimationPropertyArg(node: ts.Node): boolean {
+  const p = node.parent;
+  if (!p || !ts.isPropertyAssignment(p)) return false;
+  if (p.initializer !== node) return false;
+  if (ts.isIdentifier(p.name) && ANIMATION_PROPERTIES.has(p.name.text)) {
+    return true;
+  }
+  return false;
+}
+
 export interface ValidateMagicNumbersOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
@@ -264,6 +294,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           !isDefaultParameterValue(reportedNode) &&
           !isPrecisionOrSliceArg(reportedNode) &&
           !isObjectPropertyKey(reportedNode) &&
+          !isAnimationPropertyArg(reportedNode) &&
           !isDeclaredConstant(reportedNode)
         ) {
           const { line, character } = sourceFile.getLineAndCharacterOfPosition(reportedNode.getStart(sourceFile));
@@ -304,10 +335,14 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       return;
     }
 
+    const config = getAuditConfig(this.projectRoot);
+    if (!isInCodeRoots(relPath, config) || isDataPath(relPath)) {
+      return;
+    }
+
     const sf = sourceFile ?? doc?.getAst();
     if (!sf) return;
 
-    const config = getAuditConfig(this.projectRoot);
     const customExempt = new Set(config.constants?.exemptMagicNumbers ?? []);
 
     this.inspectAst(sf, relPath, content, customExempt);

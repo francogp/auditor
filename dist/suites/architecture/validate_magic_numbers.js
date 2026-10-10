@@ -30,13 +30,14 @@
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor } from "../../core/auditorBase.js";
-import { getAuditConfig } from "../../core/auditConfig.js";
+import { getAuditConfig, isInCodeRoots, isDataPath } from "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const MAGIC_NUMBERS_RULES = ['magic-number-naked'];
 const UNIVERSAL_SENTINELS = new Set([
     -1,
     0,
+    0.5,
     1,
     2,
     3,
@@ -175,6 +176,35 @@ function isExplicitBaseLiteral(node, sourceFile) {
         rawText.startsWith('0x') || rawText.startsWith('0X') ||
         rawText.startsWith('0b') || rawText.startsWith('0B');
 }
+const ANIMATION_PROPERTIES = new Set([
+    'duration',
+    'delay',
+    'opacity',
+    'autoAlpha',
+    'scale',
+    'scaleX',
+    'scaleY',
+    'rotation',
+    'rotate',
+    'skewX',
+    'skewY',
+    'stagger',
+    'repeat',
+    'repeatDelay',
+    'feetX',
+    'feetY'
+]);
+function isAnimationPropertyArg(node) {
+    const p = node.parent;
+    if (!p || !ts.isPropertyAssignment(p))
+        return false;
+    if (p.initializer !== node)
+        return false;
+    if (ts.isIdentifier(p.name) && ANIMATION_PROPERTIES.has(p.name.text)) {
+        return true;
+    }
+    return false;
+}
 export class ValidateMagicNumbersAuditor extends FileScanAuditor {
     constructor(options, maybeProjectRoot) {
         const optionsObj = options && !Array.isArray(options)
@@ -239,6 +269,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
                     !isDefaultParameterValue(reportedNode) &&
                     !isPrecisionOrSliceArg(reportedNode) &&
                     !isObjectPropertyKey(reportedNode) &&
+                    !isAnimationPropertyArg(reportedNode) &&
                     !isDeclaredConstant(reportedNode)) {
                     const { line, character } = sourceFile.getLineAndCharacterOfPosition(reportedNode.getStart(sourceFile));
                     const actualLine = line + 1;
@@ -268,10 +299,13 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
         if (relPath.endsWith('.d.ts')) {
             return;
         }
+        const config = getAuditConfig(this.projectRoot);
+        if (!isInCodeRoots(relPath, config) || isDataPath(relPath)) {
+            return;
+        }
         const sf = sourceFile ?? doc?.getAst();
         if (!sf)
             return;
-        const config = getAuditConfig(this.projectRoot);
         const customExempt = new Set(config.constants?.exemptMagicNumbers ?? []);
         this.inspectAst(sf, relPath, content, customExempt);
     }

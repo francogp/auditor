@@ -22,6 +22,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
 import { parseVueSfc, type VueSfcBlock } from '../../core/vueSfcParser.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
@@ -556,12 +557,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         'banned-raw-css-file': 'Archivo CSS plano sin SCSS'
       },
       coverage: {
-        include: [
-          'src/components/**/*.vue',
-          'src/views/**/*.vue',
-          'src/styles/**/*.{scss,css}',
-          'src/**/*.{scss,css}'
-        ]
+        include: deriveCoverageFromRoots(effectiveRoots, new Set(['.vue', '.scss', '.css']), effectiveRoot).include
       },
       roots: effectiveRoots,
       projectRoot: effectiveRoot
@@ -605,6 +601,9 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
 
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
+    this.redeclareCoverage({
+      include: deriveCoverageFromRoots(this.roots, new Set(['.vue', '.scss', '.css']), this.projectRoot).include
+    });
     const srcRoots = config.paths.srcRoots ?? ['src'];
     const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
     const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));

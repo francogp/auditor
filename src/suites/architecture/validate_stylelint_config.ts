@@ -40,7 +40,10 @@ export const REQUIRED_STRICT_VALUE_RULE = 'scale-unlimited/declaration-strict-va
 export const REQUIRED_STRICT_PROPERTIES = [
   '/color$/',
   'font-size',
-  'z-index',
+  'z-index'
+] as const;
+
+export const RECOMMENDED_EXPANDED_PROPERTIES = [
   'box-shadow',
   'border-radius',
   'font-family',
@@ -97,9 +100,11 @@ export const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>
 } as const;
 
 export function getMergedStrictProperties(config?: ReturnType<typeof getAuditConfig>): readonly string[] {
-  const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties ?? [];
-  const merged = new Set<string>([...REQUIRED_STRICT_PROPERTIES, ...custom]);
-  return Array.from(merged);
+  const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties;
+  if (custom && Array.isArray(custom)) {
+    return custom;
+  }
+  return REQUIRED_STRICT_PROPERTIES;
 }
 
 export function getMergedIgnoreValues(config?: ReturnType<typeof getAuditConfig>): Record<string, readonly string[]> {

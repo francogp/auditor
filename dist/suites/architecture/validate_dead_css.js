@@ -18,6 +18,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { parseVueSfc } from "../../core/vueSfcParser.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { toPosixRelative } from "../../core/safePath.js";
@@ -174,6 +175,11 @@ function auditComponentScopedCss(params) {
 }
 export class DeadCssAuditor extends BaseAuditor {
     constructor(projectRoot = process.cwd()) {
+        const config = getAuditConfig(projectRoot);
+        const compRoots = [
+            ...(config.paths.componentsRoots ?? ['src/components']),
+            ...(config.paths.viewsRoots ?? ['src/views'])
+        ];
         super({
             capabilities: {
                 fix: false,
@@ -199,7 +205,7 @@ export class DeadCssAuditor extends BaseAuditor {
                 'dead-scoped-css': 'Clase scoped huérfana sin uso'
             },
             coverage: {
-                include: ['src/components/**/*.vue', 'src/views/**/*.vue']
+                include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), projectRoot).include
             },
             projectRoot
         });
@@ -214,6 +220,9 @@ export class DeadCssAuditor extends BaseAuditor {
             ...(config.paths.componentsRoots ?? ['src/components']),
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
+        this.redeclareCoverage({
+            include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), this.projectRoot).include
+        });
         const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
         if (componentFiles.length === 0) {
             this.markRuleNotApplicable('dead-scoped-css', 'No se encontraron componentes .vue en el proyecto');
