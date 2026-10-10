@@ -79,7 +79,18 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
             ...scriptAndCliDirs.map(d => `${d}/**/*.js`)
         ];
         super({
-            capabilities: { lint: true, fix: true, fixPriority: true },
+            capabilities: {
+                fix: true,
+                fixPriority: true,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
             id: 'validate_script_extensions',
             name: 'Script & Module Extensions Validator',
             description: 'Valida extensiones TypeScript (.ts) y prohíbe .mjs/.cjs',

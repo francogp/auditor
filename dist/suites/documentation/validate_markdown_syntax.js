@@ -39,7 +39,17 @@ function isTablePrecededProperly(prevLine) {
 export class MarkdownSyntaxAuditor extends FileScanAuditor {
     constructor(roots = ['.'], projectRoot) {
         super({
-            capabilities: { md: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: true,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_markdown_syntax',
             name: 'Markdown Syntax & NPM Script SSoT Validator',
             description: 'Comandos no autorizados o tablas mal formateadas en docs',

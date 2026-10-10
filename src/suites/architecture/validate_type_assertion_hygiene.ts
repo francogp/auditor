@@ -53,7 +53,17 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? ['src', 'scripts']);
 
     super({
-      capabilities: { lint: true, ast: false, fix: false, heavy: false },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: true,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_type_assertion_hygiene',
       name: 'TypeScript Assertion & Strict Typing Hygiene',
       description: 'Prohíbe as any, doble casteo y promesas flotantes',

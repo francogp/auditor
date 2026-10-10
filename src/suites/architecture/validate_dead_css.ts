@@ -219,6 +219,17 @@ function auditComponentScopedCss(params: {
 export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
 constructor(projectRoot: string = process.cwd()) {
     super({
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
 id: 'validate_dead_css',
       name: 'Scoped Dead CSS Auditor',
       description: 'Detecta clases CSS scoped huérfanas en componentes Vue',

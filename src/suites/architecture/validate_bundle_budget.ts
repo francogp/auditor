@@ -234,7 +234,17 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
 
   constructor(projectRoot: string = process.cwd()) {
     super({
-      capabilities: { requiresBuild: true, ast: true },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: true,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: true,
+        postRun: false
+      },
       gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
       id: 'validate_bundle_budget',
       name: 'Bundle Budget & Client Leak Auditor',

@@ -53,7 +53,17 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = resolveReactiveRoots(config, roots);
         super({
-            capabilities: { ast: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: true,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_reactive_leaks',
             name: 'Reactive & DOM Event Leak Auditor',
             description: 'Detecta posibles fugas de memoria y listeners sin limpiar',

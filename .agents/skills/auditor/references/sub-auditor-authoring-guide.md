@@ -395,50 +395,49 @@ export interface AuditorCapabilities {
 }
 ```
 
-### Zero-Boilerplate Contract & Immutable Defaults
+### Mandatory Capabilities Contract & 100% Complete Initialization
 
-`BaseAuditor` guarantees immutable defaults (`DEFAULT_AUDITOR_CAPABILITIES` with all flags set to `false`). Sub-auditors **MUST NEVER** repeat redundant `false` flags across their constructor. Only active capabilities need to be declared:
+`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST explicitly declare all 9 boolean capabilities** (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`) as booleans (`true` or `false`). Omitting capabilities or relying on fallback objects is strictly prohibited and fails loudly:
 
 ```typescript
-// Case 1: Standard sub-auditor with NO special capabilities (inherits all false automatically)
+// Standard sub-auditor: explicitly initialize all 9 capabilities
 export class MyValidator extends BaseAuditor<MyRuleId> {
   constructor() {
     super({
       id: 'validate_my_validator',
-      // No capabilities block needed at all!
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       ...
     });
   }
 }
 
-// Case 2: Auto-repair capable sub-auditor (only declare fix: true!)
+// Auto-repair capable sub-auditor: declare fix: true, fixableRuleIds, and all other 8 flags explicitly
 export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
   constructor() {
     super({
       id: 'validate_my_auto_fix',
-      capabilities: { fix: true },
-      ...
-    });
-  }
-}
-
-// Case 3: Priority environment/configuration fixer (declare fix: true, fixPriority: true!)
-export class MyConfigValidator extends BaseAuditor<MyRuleId> {
-  constructor() {
-    super({
-      id: 'validate_my_config',
-      capabilities: { fix: true, fixPriority: true },
-      ...
-    });
-  }
-}
-
-// Case 4: AST-driven sub-auditor (only declare ast: true!)
-export class MyAstValidator extends BaseAuditor<MyRuleId> {
-  constructor() {
-    super({
-      id: 'validate_my_ast',
-      capabilities: { ast: true },
+      capabilities: {
+        fix: true,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: ['my-fixable-rule'],
       ...
     });
   }

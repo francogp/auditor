@@ -517,6 +517,17 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
       description: 'Garantiza uso de path.posix y evita CWE-22 traversal',

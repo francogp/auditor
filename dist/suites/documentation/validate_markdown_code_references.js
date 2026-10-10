@@ -422,7 +422,17 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         const effectiveRoot = rootDir || process.cwd();
         const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
         super({
-            capabilities: { md: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: true,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_markdown_code_references',
             name: 'Markdown Code References Validator',
             description: 'Valida rutas, scripts, casing y skills en markdown',

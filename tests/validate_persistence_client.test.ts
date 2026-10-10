@@ -38,7 +38,6 @@ describe('ValidatePersistenceClientAuditor', () => {
   });
 
   it('fulfills point 2: clean path execution with zero findings', async () => {
-    const auditor = new ValidatePersistenceClientAuditor();
     class TestableAuditor extends ValidatePersistenceClientAuditor {
       public async testScan(file: string, content: string): Promise<void> {
         this.scanFile(file, content);

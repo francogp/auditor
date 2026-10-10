@@ -8,9 +8,7 @@ import {
   PACKAGE_SCRIPTS_RULES
 } from '../src/suites/architecture/validate_package_scripts.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig, defineAuditConfig, setAuditConfig } from '../src/core/auditConfig.ts';
-
-const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts').replace(/\\/g, '/');
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidatePackageScriptsAuditor', () => {
   let tempDir: string;

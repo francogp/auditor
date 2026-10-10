@@ -46,6 +46,17 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
             ? config.paths.codeRoots
             : ['src', 'scripts']);
         super({
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_error_suppression',
             name: 'Zero Error Suppression Auditor',
             description: 'Prohíbe supresión de errores, catch vacíos y fallbacks',

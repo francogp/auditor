@@ -33,7 +33,18 @@ const BASE_OPTIONS = {
   packageName: 'Sonda',
   icon: '🧪',
   configKey: 'core',
-  defaultConfig: {}
+  defaultConfig: {},
+  capabilities: {
+    fix: false,
+    fixPriority: false,
+    lint: false,
+    md: false,
+    ast: false,
+    changedSince: false,
+    heavy: false,
+    requiresBuild: false,
+    postRun: false
+  }
 } as const;
 
 class ProbeAuditor extends BaseAuditor<'probe-rule'> {

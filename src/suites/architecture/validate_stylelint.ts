@@ -325,7 +325,18 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const roots = config.paths.srcRoots ?? ['src'];
 
     super({
-      capabilities: { fix: true, lint: true },
+      capabilities: {
+        fix: true,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: [...STYLELINT_RULES],
       gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
       id: options?.id || 'validate_stylelint',
       name: options?.name || 'Stylelint & SCSS Hygiene Validator',

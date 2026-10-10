@@ -46,16 +46,36 @@ export interface ValidatePackageScriptsOptions {
   fix?: boolean;
 }
 
+function resolvePackageScriptsTarget(target?: string | ValidatePackageScriptsOptions): ValidatePackageScriptsOptions {
+  if (typeof target === 'string') return { projectRoot: target };
+  return target ?? {};
+}
+
 export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRuleId> {
   constructor(targetPathOrOptions?: string | ValidatePackageScriptsOptions) {
-    const options = typeof targetPathOrOptions === 'string'
-      ? { projectRoot: targetPathOrOptions }
-      : (targetPathOrOptions ?? {});
-    const projectRoot = options.projectRoot || process.cwd();
+    const scriptOpts = resolvePackageScriptsTarget(targetPathOrOptions);
+    const resolvedRoot = scriptOpts.projectRoot ?? process.cwd();
 
     super({
-      capabilities: { lint: true, fix: true, fixPriority: true, ast: false, heavy: false, requiresBuild: false, changedSince: false },
-      fix: options.fix,
+      projectRoot: resolvedRoot,
+      capabilities: {
+        fix: true,
+        fixPriority: true,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: [
+        'package-scripts-removed-commit-gate',
+        'package-scripts-build-missing-audit',
+        'package-scripts-missing-recommended',
+        'package-scripts-obsolete'
+      ],
+      fix: scriptOpts.fix,
       id: 'validate_package_scripts',
       name: 'Package Scripts & Build Chaining Validator',
       description: 'Valida scripts en package.json y encadenamiento del build',
@@ -76,8 +96,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       },
       coverage: {
         include: ['package.json', '.auditor/audit-baseline.json']
-      },
-      projectRoot
+      }
     });
   }
 

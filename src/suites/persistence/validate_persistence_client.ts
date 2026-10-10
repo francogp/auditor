@@ -58,7 +58,17 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
     const customPrefixes = typeof options === 'object' && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
 
     super({
-      capabilities: { lint: true, ast: false, fix: false, heavy: false },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_persistence_client',
       name: 'Client-Side Web Storage & Persistence Hygiene',
       description: 'Gobernanza de localStorage, cuotas y tipado de claves',

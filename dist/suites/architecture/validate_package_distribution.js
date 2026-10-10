@@ -60,9 +60,19 @@ export function parsePublintMessages(messages, pkg, _projectRoot = process.cwd()
 }
 export class ValidatePackageDistributionAuditor extends BaseAuditor {
     constructor(options = {}) {
-        const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: { requiresBuild: true },
+            projectRoot: options.projectRoot,
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: true,
+                postRun: false
+            },
             id: 'validate_package_distribution',
             name: 'Package Distribution & Exports Hygiene Auditor',
             description: 'Valida export maps y packaging con Publint',
@@ -78,7 +88,6 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
             coverage: {
                 include: ['package.json', 'dist/**']
             },
-            projectRoot: effectiveRoot,
             configKey: 'packageDistribution.enabled',
             defaultConfig: { enabled: true },
         });

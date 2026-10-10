@@ -284,7 +284,22 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             : (targetPathOrOptions ?? {});
         const projectRoot = options.projectRoot || process.cwd();
         super({
-            capabilities: { lint: true, fix: true, fixPriority: true },
+            capabilities: {
+                fix: true,
+                fixPriority: true,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: [
+                'audit-config-missing-section',
+                'audit-config-missing-file',
+                'audit-config-missing-gitignore-entry'
+            ],
             configFiles: [AUDIT_CONFIG_REQUIREMENT],
             fix: options.fix,
             id: 'validate_audit_config',

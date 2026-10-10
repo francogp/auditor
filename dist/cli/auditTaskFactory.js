@@ -102,19 +102,19 @@ export function buildTaskCliArguments(filename, fullPath, id, isBuiltin, options
     }
     return taskArgs;
 }
-function resolveTaskConfigKey(metadata) {
+function resolveTaskConfigKey(metadata, taskId) {
     if (metadata.configKey)
         return metadata.configKey;
     if (metadata.manifest?.configKey)
         return metadata.manifest.configKey;
-    return 'paths';
+    throw new Error(`[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'configKey'. Silent fallbacks are strictly prohibited.`);
 }
-function resolveTaskDefaultConfig(metadata) {
+function resolveTaskDefaultConfig(metadata, taskId) {
     if (metadata.defaultConfig)
         return metadata.defaultConfig;
     if (metadata.manifest?.defaultConfig)
         return metadata.manifest.defaultConfig;
-    return {};
+    throw new Error(`[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'defaultConfig'. Silent fallbacks are strictly prohibited.`);
 }
 function resolveTaskRuleDescriptions(metadata) {
     if (metadata.ruleDescriptions)
@@ -170,8 +170,8 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
         gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
         scripts: scripts && scripts.length > 0 ? scripts : undefined,
         manifest: metadata.manifest,
-        configKey: resolveTaskConfigKey(metadata),
-        defaultConfig: resolveTaskDefaultConfig(metadata),
+        configKey: resolveTaskConfigKey(metadata, id),
+        defaultConfig: resolveTaskDefaultConfig(metadata, id),
         ruleDescriptions: resolveTaskRuleDescriptions(metadata)
     };
 }

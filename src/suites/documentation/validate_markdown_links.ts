@@ -469,7 +469,17 @@ private readonly scanRoots: readonly string[];
     const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
     const config = getAuditConfig(projectRoot);
     super({
-      capabilities: { md: true },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: true,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_markdown_links',
       name: 'Markdown & DOX Relative Links Auditor',
       description: 'Enlaces relativos y rutas válidas en markdown',

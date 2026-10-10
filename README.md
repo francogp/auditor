@@ -27,7 +27,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 ## 1. Key Features & Architectural Architecture
 
 - **Built-In Generic Architectural Suites**: Comprehensive static verification across 4 canonical families (`architecture/`, `domain_data/`, `persistence/`, `documentation/`).
-- **Capability-Driven Auto-Coordination (`AuditorCapabilities`)**: Sub-auditors declare capabilities (`lint`, `fix`, `md`, `heavy`, `requiresBuild`, `ast`, `changedSince`) cleanly with immutable zero-boilerplate defaults (`DEFAULT_AUDITOR_CAPABILITIES`). No hardcoded suite lists in runners or scanners.
+- **Capability-Driven Auto-Coordination (`AuditorCapabilities`)**: Sub-auditors declare explicit capabilities (`lint`, `fix`, `fixPriority`, `md`, `heavy`, `requiresBuild`, `ast`, `changedSince`, `postRun`) with 100% mandatory completeness and zero fallbacks. No hardcoded suite lists in runners or scanners.
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
 - **Automated ESLint Configuration Auditor (`validate_eslint_config`)**: Statically analyzes `eslint.config.js` to ensure host projects enforce strict type safety, banning `any`, double casting, and legacy dates.
 - **Official Living Specification Engines**: Standards enforcement via official linters (`html-validate`, `stylelint`, `knip`, `publint`, `type-coverage`, `vue-tsc`) rather than handcrafted regex.

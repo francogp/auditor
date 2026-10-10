@@ -244,7 +244,17 @@ export class DomainTypesAuditor extends BaseAuditor {
             ? [...(config.paths.codeRoots ?? ['src', 'scripts']), ...(config.paths.testRoots ?? ['tests'])]
             : (config.paths.codeRoots ?? ['src', 'scripts']));
         super({
-            capabilities: { lint: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_domain_types',
             name: 'Domain Types Integrity Audit',
             description: 'Uso de strings crudos en vez de tipos de dominio',

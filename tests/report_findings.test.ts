@@ -177,12 +177,12 @@ describe('report_findings CLI Tool', () => {
   });
 
   it('loads and renders latest_fix_audit.json when fix flag is passed', () => {
-    fsExistsSpy.mockImplementation((targetPath) => {
+    fsExistsSpy.mockImplementation((targetPath: fs.PathLike) => {
       if (String(targetPath).includes('latest_fix_audit.json')) return true;
       return originalExistsSync(targetPath);
     });
 
-    fsReadSpy.mockImplementation((targetPath, options) => {
+    fsReadSpy.mockImplementation((targetPath: fs.PathOrFileDescriptor, options?: unknown) => {
       if (String(targetPath).includes('latest_fix_audit.json')) {
         return JSON.stringify({
           ...mockReport,
@@ -194,7 +194,7 @@ describe('report_findings CLI Tool', () => {
           }
         });
       }
-      return originalReadFileSync(targetPath, options);
+      return (originalReadFileSync as (...args: unknown[]) => string)(targetPath, options);
     });
 
     process.argv = ['node', 'report_findings.ts', 'fix', '--json', 'allow-stale'];

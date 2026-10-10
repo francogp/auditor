@@ -71,7 +71,18 @@ export function setLocalGitConfig(key: string, value: string, projectRoot: strin
 export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
   constructor(options: Partial<AuditorOptions<GitConfigRuleId>> = {}) {
     super({
-      capabilities: { lint: true, fix: true, fixPriority: true },
+      capabilities: {
+        fix: true,
+        fixPriority: true,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: [...GIT_CONFIG_RULES],
       id: 'validate_git_config',
       name: 'Git Configuration Validator',
       description: 'Valida y sincroniza configuración local de Git',

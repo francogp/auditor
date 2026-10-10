@@ -45,7 +45,17 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
             'src/stores'
         ];
         super({
-            capabilities: { lint: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_vue_reactivity',
             name: 'Vue Reactivity & State Hygiene Auditor',
             description: 'Verifica reactividad y pureza de Vue 3 Composition API',

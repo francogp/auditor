@@ -113,7 +113,18 @@ export function readAndParseHtmlValidateOutput(reportFile, combinedOutput, proje
 export class HtmlValidateAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
-            capabilities: { fix: true, lint: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: ['html-validate-issue'],
             id: 'validate_html_validate',
             name: 'HTML5 Standards & Markup Hygiene Validator',
             description: 'Valida estándares y elementos obsoletos con html-validate',

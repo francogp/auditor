@@ -109,7 +109,18 @@ export function parseMarkdownLintIssues(input, cwd = process.cwd()) {
 export class MarkdownLintAuditor extends BaseAuditor {
     constructor(projectRoot) {
         super({
-            capabilities: { fix: true, lint: true, md: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: true,
+                md: true,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: ['markdownlint-issue'],
             id: 'validate_markdown_lint',
             name: 'Markdownlint Style & Hygiene Validator',
             description: 'Estilo, espaciado y formato en documentación markdown',

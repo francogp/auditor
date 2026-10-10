@@ -101,6 +101,17 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     const srcRoots = config.paths.srcRoots || ['src'];
 
     super({
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_sql_anti_patterns',
       name: 'SQL & Relational Schema Anti-Patterns Validator',
       description: 'Antipatrones SQL, variables sin declarar o camelCase en BD',

@@ -278,6 +278,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         description: 'Audits code hygiene with ESLint flat config',
         capabilities: {
           fix: true,
+          fixPriority: true,
           lint: true,
           md: false,
           heavy: true,
@@ -326,7 +327,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'architecture',
         icon: '🏛️',
         description: 'First suite',
-        capabilities: { fix: true, lint: true, md: false, heavy: false, ast: false, changedSince: false, requiresBuild: false, postRun: false },
+        capabilities: { fix: true, fixPriority: true, lint: true, md: false, heavy: false, ast: false, changedSince: false, requiresBuild: false, postRun: false },
         scriptPath: 'src/a.ts',
         command: 'node',
         args: []
@@ -337,7 +338,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'domain_data',
         icon: '🔒',
         description: 'Second suite',
-        capabilities: { fix: false, lint: false, md: true, heavy: true, ast: false, changedSince: false, requiresBuild: false, postRun: false },
+        capabilities: { fix: false, fixPriority: false, lint: false, md: true, heavy: true, ast: false, changedSince: false, requiresBuild: false, postRun: false },
         scriptPath: 'src/b.ts',
         command: 'node',
         args: []
@@ -476,7 +477,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         command: 'node',
         args: [],
         description: 'Audits code hygiene with ESLint flat config',
-        capabilities: { fix: true, lint: true, md: false, heavy: true, ast: true, changedSince: true, requiresBuild: false, postRun: false },
+        capabilities: { fix: true, fixPriority: true, lint: true, md: false, heavy: true, ast: true, changedSince: true, requiresBuild: false, postRun: false },
         ruleDescriptions: { 'eslint-violation': 'Sintaxis o regla de lint violada' },
         configKey: 'eslint'
       };

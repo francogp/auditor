@@ -244,7 +244,18 @@ constructor(targetPath?: string) {
     const projectRoot = targetPath || process.cwd();
 
     super({
-      capabilities: { heavy: true, fix: true },
+      capabilities: {
+        fix: true,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: true,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: ['fallow-similar-code-failed'],
       id: 'validate_similar_code',
       name: 'Fallow Similar Code Semantics Validator',
       description: 'Detecta duplicados semánticos de funciones',

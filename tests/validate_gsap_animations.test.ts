@@ -310,6 +310,22 @@ describe('ValidateGsapAnimationsAuditor', () => {
       expect(violations).toHaveLength(0);
     });
 
+    it('strictly detects CSS transitions and rejects suppression attempts with anti-sabotage alert', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      auditor.testScanFile(
+        'src/styles/transition.scss',
+        `.btn {
+          /* transition-ok: attempted bypass */
+          transition: background-color 0.2s ease;
+        }`
+      );
+
+      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-css-animations');
+      expect(violations).toHaveLength(1);
+      expect(violations[0]?.message).toContain('ALERTA DE SABOTAJE');
+      expect(violations[0]?.message).toContain('MIGRACIÓN OBLIGATORIA A GSAP');
+    });
+
     it('honors // layout-ok: line suppression for backgroundPosition', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       auditor.testScanFile(

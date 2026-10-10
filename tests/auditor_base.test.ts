@@ -155,10 +155,14 @@ describe('auditorBase infrastructure', () => {
             ruleIds: ['test-rule'],
             capabilities: {
               fix: false,
+              fixPriority: false,
+              lint: false,
+              md: false,
               ast: false,
               changedSince: false,
               heavy: false,
-              requiresBuild: false
+              requiresBuild: false,
+              postRun: false
             },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
@@ -209,7 +213,18 @@ describe('auditorBase infrastructure', () => {
       defaultConfig: {},
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
-      coverage: { include: ['src/**/*.ts'] }
+      coverage: { include: ['src/**/*.ts'] },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }
     };
 
     it('enforces mandatory thematic icon/emoji during instantiation', () => {
@@ -271,40 +286,20 @@ describe('auditorBase infrastructure', () => {
       }).not.toThrow();
     });
 
-    it('defaults cleanly to DEFAULT_AUDITOR_CAPABILITIES when capabilities is omitted', () => {
-      const auditor = new MinimalAuditor({
-        ...validBaseOptions
-      });
-      expect(auditor.capabilities).toEqual({
-        fix: false,
-        lint: false,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false,
-        fixPriority: false
-      });
-      expect(auditor.requiresAst).toBe(false);
+    it('throws when capabilities is omitted from constructor options', () => {
+      const { capabilities: _, ...withoutCaps } = validBaseOptions;
+      expect(() => {
+        new MinimalAuditor(withoutCaps);
+      }).toThrow(/must define mandatory 'capabilities'/);
     });
 
-    it('merges partial capabilities with DEFAULT_AUDITOR_CAPABILITIES', () => {
-      const auditor = new MinimalAuditor({
-        ...validBaseOptions,
-        capabilities: { fix: true }
-      });
-      expect(auditor.capabilities).toEqual({
-        fix: true,
-        lint: false,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false,
-        fixPriority: false
-      });
+    it('throws when capabilities has missing sub-fields (partial capabilities rejected)', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          capabilities: { fix: false } as unknown as AuditorCapabilities
+        });
+      }).toThrow(/must explicitly define sub-capability 'capabilities.fixPriority' as a boolean/);
     });
 
     it('throws when declared capability is not a boolean or unknown', () => {
@@ -312,24 +307,26 @@ describe('auditorBase infrastructure', () => {
         new MinimalAuditor({
           ...validBaseOptions,
           capabilities: {
+            ...validBaseOptions.capabilities,
             fix: 'true' as unknown as boolean
           }
         });
-      }).toThrow(/capability 'fix' must be a boolean/);
+      }).toThrow(/must explicitly define sub-capability 'capabilities.fix' as a boolean/);
 
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
           capabilities: {
+            ...validBaseOptions.capabilities,
             unknownFlag: true
-          } as unknown as Partial<AuditorCapabilities>
+          } as unknown as AuditorCapabilities
         });
       }).toThrow(/declared unknown capability 'unknownFlag'/);
     });
 
     it('successfully exposes capabilities and auto-derives requiresAst on BaseAuditor instance', () => {
       const expectedCaps = {
-        fix: true,
+        fix: false,
         lint: false,
         md: false,
         ast: true,
@@ -341,7 +338,11 @@ describe('auditorBase infrastructure', () => {
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,
-        capabilities: { fix: true, ast: true, heavy: true }
+        capabilities: {
+          ...validBaseOptions.capabilities,
+          ast: true,
+          heavy: true
+        }
       });
       expect(auditor.capabilities).toEqual(expectedCaps);
       expect(auditor.requiresAst).toBe(true);
@@ -360,6 +361,17 @@ describe('auditorBase infrastructure', () => {
           icon: '✅',
           configKey: 'paths',
           defaultConfig: {},
+          capabilities: {
+            fix: false,
+            fixPriority: false,
+            lint: false,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          },
           ruleIds: ['rule-a', 'rule-b'],
           ruleDescriptions: {
             'rule-a': 'Regla de asercion A',

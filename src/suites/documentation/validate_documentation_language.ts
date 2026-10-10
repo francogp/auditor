@@ -213,7 +213,18 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
   constructor(rootDir?: string, options?: DocumentationLanguageOptions) {
     const projectRoot = rootDir || process.cwd();
     super({
-      capabilities: { md: true, fix: true, fixPriority: true },
+      capabilities: {
+        fix: true,
+        fixPriority: true,
+        lint: false,
+        md: true,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: ['docs-missing-language-mandate'],
       fix: options?.fix,
       id: 'validate_documentation_language',
       name: 'Documentation Language Validator',

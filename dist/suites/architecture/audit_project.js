@@ -713,8 +713,26 @@ export function getProjectArchitectureRuleDescriptions() {
 }
 export class ProjectArchitectureAuditor extends BaseAuditor {
     constructor() {
+        const ruleDescriptions = getProjectArchitectureRuleDescriptions();
+        const ruleIds = Object.keys(ruleDescriptions);
+        const fixableRuleIds = Object.entries(config)
+            .filter(([_, rule]) => typeof rule.fix === 'function' || rule.fixable === true)
+            .map(([key, rule]) => rule.id || key);
         super({
-            capabilities: { fix: true, lint: true, md: true, ast: true, changedSince: true, heavy: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: true,
+                md: true,
+                ast: true,
+                changedSince: true,
+                heavy: true,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds,
+            ruleIds,
+            ruleDescriptions,
             id: 'audit_project',
             name: 'Project Architecture & Style Rules',
             description: 'Audita reglas de arquitectura, TypeScript y estilo',
@@ -726,8 +744,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
             coverage: {
                 include: ['**/*.{vue,scss,css,ts,js,md}'],
                 exclude: [path.posix.join(AUDITOR_DIR, '**')]
-            },
-            ruleDescriptions: getProjectArchitectureRuleDescriptions()
+            }
         });
     }
     async runAudit() {

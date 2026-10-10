@@ -47,7 +47,17 @@ export class ValidateVueRouterAuditor extends FileScanAuditor {
             family: 'architecture',
             description: 'Verifica estándares de Vue Router 4 y navegación SPA',
             icon: '🧭',
-            capabilities: { lint: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             ruleIds: VUE_ROUTER_RULES,
             ruleDescriptions: {
                 'no-deprecated-router-next': 'Uso de next() obsoleto en navigation guard',

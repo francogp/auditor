@@ -57,6 +57,17 @@ export class TestHygieneAuditor extends FileScanAuditor {
             ...config.paths.testRoots
         ];
         super({
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_test_hygiene',
             name: 'Test Hygiene & Simulation Integrity Validator',
             description: 'Audita higiene en tests, mocks y locators de Playwright',

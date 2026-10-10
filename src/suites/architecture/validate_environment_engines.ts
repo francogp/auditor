@@ -74,7 +74,17 @@ export function syncNvmrc(projectRoot: string, targetNodeEngine: string): boolea
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
   constructor(options: Partial<AuditorOptions<EnvironmentEnginesRuleId>> = {}) {
     super({
-      capabilities: { lint: true, fix: false, fixPriority: false },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_environment_engines',
       name: 'Environment Engines & Runtime Validator',
       description: 'Valida versiones de Node.js y npm en package.json',

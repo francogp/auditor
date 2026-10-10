@@ -241,10 +241,14 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             defaultConfig: {},
             capabilities: {
                 fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
                 ast: false,
                 changedSince: false,
                 heavy: false,
-                requiresBuild: false
+                requiresBuild: false,
+                postRun: false
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.vue', '.scss', '.css']),
@@ -284,7 +288,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             const { line, column } = getLineAndColumnAt(content, m.index);
             this.addViolation({
                 ruleId: 'gsap-banned-css-animations',
-                message: `Animación manual detectada: '${m[0]}'. MIGRACIÓN OBLIGATORIA A GSAP: Está PROHIBIDO usar animaciones CSS manuales en vez de GSAP.`,
+                message: `Animación o transición CSS detectada: '${m[0]}'. MIGRACIÓN OBLIGATORIA A GSAP: Está estrictamente PROHIBIDO usar animaciones o transiciones CSS en vez de GSAP. ` +
+                    `[🚨 ALERTA DE SABOTAJE]: ESTÁ CATEGÓRICAMENTE PROHIBIDO BORRAR O ANULAR LA TRANSICIÓN PARA SILENCIAR EL AUDITOR. ` +
+                    `Todas las transiciones interactivas deben migrarse limpiamente a tweens de GSAP (gsap.to, gsap.fromTo, useGSAP).`,
                 filePath: relPath,
                 line,
                 column,

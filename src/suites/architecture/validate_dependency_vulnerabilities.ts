@@ -135,9 +135,19 @@ export function parseNpmAuditReport(
 
 export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<DependencyVulnerabilitiesRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
-    const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
-      capabilities: { heavy: true },
+      projectRoot: options.projectRoot,
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: true,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_dependency_vulnerabilities',
       name: 'Dependency Vulnerabilities & CVE Auditor',
       description: 'Detecta vulnerabilidades y avisos de seguridad CVE',
@@ -153,7 +163,6 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       coverage: {
         include: ['package.json', 'package-lock.json']
       },
-      projectRoot: effectiveRoot,
       configKey: 'dependencyVulnerabilities.enabled',
       defaultConfig: { enabled: true, failOn: 'critical' },
     });

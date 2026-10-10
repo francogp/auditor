@@ -102,12 +102,13 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly family: AuditFamily;
     readonly packageName: string;
     readonly icon: string;
-    readonly capabilities?: Partial<AuditorCapabilities>;
+    readonly capabilities: AuditorCapabilities;
+    readonly fixableRuleIds?: readonly TRuleId[];
     readonly fix?: boolean;
     readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
     readonly configFiles?: readonly AuditorConfigFileRequirement<TRuleId>[];
     readonly scripts?: readonly AuditorPackageScriptRequirement[];
-    readonly ruleIds?: readonly TRuleId[];
+    readonly ruleIds: readonly TRuleId[];
     readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
     readonly subAuditors?: readonly SubAuditorStep[];
     readonly roots?: readonly string[];
@@ -140,6 +141,7 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly context?: string;
     readonly fixable?: boolean;
 }
+export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["fix", "fixPriority", "lint", "md", "ast", "changedSince", "heavy", "requiresBuild", "postRun"];
 export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
     readonly id: string;
     readonly name: string;
@@ -163,6 +165,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly projectRoot: string;
     readonly configKey: string;
     readonly defaultConfig: Readonly<Record<string, unknown>>;
+    protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly errorsByRule: Map<TRuleId, number>;
@@ -174,6 +177,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected readonly fixMode: boolean;
     protected isSkipped: boolean;
     protected skipReason?: string;
+    getFixableRuleIds(): readonly TRuleId[];
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
     protected get filesScannedCount(): number;
     protected set filesScannedCount(count: number);

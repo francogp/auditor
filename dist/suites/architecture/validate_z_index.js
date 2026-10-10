@@ -91,7 +91,22 @@ export class ZIndexAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? (scssPath ? [path.dirname(scssPath)] : config.paths.srcRoots);
         super({
-            capabilities: { fix: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: [
+                'z-index-missing-var',
+                'z-index-mismatch',
+                'z-index-hardcoded-literal'
+            ],
             id: 'validate_z_index',
             name: 'Z-Index Consistency Validator',
             description: 'Valida paridad entre Z_LAYERS y variables CSS (SCSS)',

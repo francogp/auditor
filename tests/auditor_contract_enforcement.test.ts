@@ -50,6 +50,17 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
   },
   coverage: {
     include: ['src/**/*.ts']
+  },
+  capabilities: {
+    fix: false,
+    fixPriority: false,
+    lint: false,
+    md: false,
+    ast: false,
+    changedSince: false,
+    heavy: false,
+    requiresBuild: false,
+    postRun: false
   }
 };
 
@@ -213,7 +224,7 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
             'sample-rule-a': 'Solo la primera'
           } as unknown as Record<SampleRuleId, string>
         });
-      }).toThrow(/missing a rule description for rule 'sample-rule-b'/);
+      }).toThrow(/missing a rule description.*'sample-rule-b'/);
     });
   });
 

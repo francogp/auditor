@@ -260,7 +260,17 @@ function tryParseFallowJson(raw) {
 export class FallowArchitectureAuditor extends BaseAuditor {
     constructor(projectRoot = process.cwd()) {
         super({
-            capabilities: { lint: true, changedSince: true, heavy: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: true,
+                heavy: true,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_fallow',
             name: 'Fallow Architecture & Refactoring Targets',
             description: 'Audita código muerto, targets y CWE con Fallow',

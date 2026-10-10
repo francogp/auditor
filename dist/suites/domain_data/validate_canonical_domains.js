@@ -405,7 +405,17 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = options.roots ?? (config.paths.srcRoots ?? ['src']);
         super({
-            capabilities: { lint: true, ast: false, fix: false, heavy: false },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_canonical_domains',
             name: 'Canonical Domain Catalogs & SSoT Validator',
             description: 'Colisiones de catálogos y uniones de dominio repetidas',

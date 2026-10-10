@@ -174,7 +174,17 @@ export class ValidatePackageTypesAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: { requiresBuild: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: true,
+                postRun: false
+            },
             id: 'validate_package_types',
             name: 'Package Types Resolution Validator',
             description: 'Valida resolución de tipos .d.ts en dist con ATTW',

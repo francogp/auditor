@@ -34,7 +34,7 @@ export declare function instantiateAuditorClass(Cls: new (...args: unknown[]) =>
 /**
  * Validates in-memory constructor contract and metadata for an instantiated auditor.
  */
-export declare function validateAuditorConstruction(auditor: BaseAuditor<string>, taskId: string): string[];
+export declare function validateAuditorConstruction(auditor: BaseAuditor<string>, taskId?: string): string[];
 /**
  * Finds dedicated test file(s) for an auditor across core and extension conventions.
  */

@@ -194,7 +194,7 @@ const delay = 45; // inline magic number without named constant
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const aliasFindings = result.findings.filter(f => f.ruleId === 'constant-no-alias' && f.file.includes('dataCatalog.ts'));
+      const aliasFindings = result.findings.filter(f => f.ruleId === 'constant-no-alias' && f.file?.includes('dataCatalog.ts'));
       expect(aliasFindings).toHaveLength(0);
     });
   });

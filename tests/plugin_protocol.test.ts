@@ -45,10 +45,14 @@ describe('Auditor Plugin Protocol', () => {
           defaultConfig: { enabled: true },
           capabilities: {
             fix: false,
+            fixPriority: false,
+            lint: true,
+            md: false,
             ast: false,
             changedSince: false,
             heavy: false,
-            requiresBuild: false
+            requiresBuild: false,
+            postRun: false
           },
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
@@ -88,6 +92,18 @@ describe('Auditor Plugin Protocol', () => {
           icon: '🛡️',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          capabilities: {
+            fix: false,
+            fixPriority: false,
+            lint: true,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          },
+          ruleIds: ['registered-rule'],
           coverage: {
             include: ['src/**/*.ts']
           },
@@ -122,6 +138,18 @@ describe('Auditor Plugin Protocol', () => {
           icon: '📦',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          capabilities: {
+            fix: false,
+            fixPriority: false,
+            lint: true,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          },
+          ruleIds: ['step-one', 'step-two'],
           coverage: {
             include: ['src/**/*.ts']
           },

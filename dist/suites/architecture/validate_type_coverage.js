@@ -57,7 +57,17 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: { heavy: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: true,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_type_coverage',
             name: 'TypeScript Quantitative Type Coverage Auditor',
             description: 'Gobernanza cuantitativa de cobertura de tipos estricta',

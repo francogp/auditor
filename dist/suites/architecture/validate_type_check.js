@@ -108,7 +108,17 @@ function resolveTypeCheckBinary(projectRoot) {
 export class TypeCheckAuditor extends BaseAuditor {
     constructor(projectRoot) {
         super({
-            capabilities: { heavy: true, lint: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: true,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_type_check',
             name: 'TypeScript & Vue Type Validator',
             description: 'Errores de tipado y compilación en TypeScript y SFCs Vue',

@@ -278,7 +278,17 @@ export function listTrackedFiles(projectRoot: string): string[] {
 export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     super({
-      capabilities: { postRun: true },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: true
+      },
       id: AUDIT_COVERAGE_SUITE_ID,
       name: 'Audit Coverage & Blind Spots',
       description: 'Detecta puntos ciegos: archivos, reglas y exenciones',

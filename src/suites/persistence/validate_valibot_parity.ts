@@ -266,7 +266,17 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     ]);
 
     super({
-      capabilities: { ast: true },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: true,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_valibot_parity',
       name: 'Valibot Schema & Persistence Parity Auditor',
       description: 'Valida paridad bidireccional entre interfaces y Valibot',

@@ -426,7 +426,43 @@ export default defineAuditConfig({
 
     await fs.writeFile(path.join(tempDir, 'src/save.ts'), '// save', 'utf-8');
     await fs.writeFile(path.join(tempDir, 'src/styles/_base.scss'), '// base scss', 'utf-8');
-    await fs.writeFile(path.join(tempDir, 'scripts/custom.ts'), '// extension', 'utf-8');
+    await fs.writeFile(
+      path.join(tempDir, 'scripts/custom.ts'),
+      `
+import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
+export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
+  constructor(projectRoot = process.cwd()) {
+    super({
+      id: 'custom',
+      name: 'Custom Auditor',
+      description: 'Custom Auditor desc',
+      family: 'architecture',
+      packageName: 'Custom',
+      icon: '🔧',
+      configKey: 'paths',
+      defaultConfig: {},
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      ruleIds: ['custom-rule'],
+      ruleDescriptions: { 'custom-rule': 'Desc' },
+      coverage: { include: ['src/**'] },
+      projectRoot
+    });
+  }
+  public override async runAudit() {}
+}
+`,
+      'utf-8'
+    );
 
     const auditor = new ValidateAuditConfigAuditor(tempDir);
     const result = await auditor.execute();
@@ -598,6 +634,17 @@ export class CustomExtAuditor extends BaseAuditor {
       coverage: { include: ['scripts/**'] },
       configKey: 'customExt.enabled',
       defaultConfig: { enabled: true, customOption: 'default_val' },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
       projectRoot: opts?.projectRoot
     });

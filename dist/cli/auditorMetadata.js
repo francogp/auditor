@@ -46,8 +46,13 @@ export function extractStaticMetadataFromFile(fullPath) {
             caps.changedSince = true;
         if (content.includes('postRun: true'))
             caps.postRun = true;
-        const descMatch = content.match(/description\s*:\s*['"]([^'"]+)['"]/);
-        const configKeyMatch = content.match(/configKey\s*:\s*['"]([^'"]+)['"]/);
+        const descMatch = content.match(/description\s*[:=]\s*['"]([^'"]+)['"]/);
+        const configKeyMatch = content.match(/configKey\s*[:=]\s*['"]([^'"]+)['"]/);
+        const hasDefaultConfig = /defaultConfig\s*[:=]/.test(content);
+        let staticDefaultConfig;
+        if (hasDefaultConfig) {
+            staticDefaultConfig = content.includes('enabled: true') ? { enabled: true } : {};
+        }
         if (Object.keys(caps).length > 0) {
             result.capabilities = {
                 ...DEFAULT_AUDITOR_CAPABILITIES,
@@ -57,7 +62,8 @@ export function extractStaticMetadataFromFile(fullPath) {
         return {
             ...result,
             description: descMatch?.[1],
-            configKey: configKeyMatch?.[1]
+            configKey: configKeyMatch?.[1],
+            defaultConfig: staticDefaultConfig
         };
     }
     catch {
@@ -160,6 +166,9 @@ export async function extractAuditorMetadataFromFile(fullPath) {
         const staticMeta = extractStaticMetadataFromFile(fullPath);
         if (!result.configKey && staticMeta.configKey) {
             result.configKey = staticMeta.configKey;
+        }
+        if (!result.defaultConfig && staticMeta.defaultConfig) {
+            result.defaultConfig = staticMeta.defaultConfig;
         }
         if (!result.description && staticMeta.description) {
             result.description = staticMeta.description;

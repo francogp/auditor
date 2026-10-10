@@ -67,7 +67,18 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
   constructor(projectRoot?: string) {
     const effectiveRoot = projectRoot || process.cwd();
     super({
-      capabilities: { fix: true, lint: true },
+      capabilities: {
+        fix: true,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
+      fixableRuleIds: ['eslint-violation'],
       gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
       id: 'validate_eslint',
       name: 'ESLint Code Hygiene Validator',

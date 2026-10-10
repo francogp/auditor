@@ -92,6 +92,17 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths?.srcRoots ?? ['src'];
         super({
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_typography_line_height',
             name: 'Typography Line-Height & Interlinear Spacing Validator',
             description: 'Detecta colisiones de line-height en tipografías multilínea',

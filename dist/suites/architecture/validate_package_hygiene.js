@@ -246,7 +246,18 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: { fix: true, heavy: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: true,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: ['package-unused-dependency'],
             fix: options.fix,
             id: 'validate_package_hygiene',
             name: 'Package & Dependency Hygiene Auditor',

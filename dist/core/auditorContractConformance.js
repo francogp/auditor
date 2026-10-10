@@ -171,7 +171,7 @@ function validateAuditorManifest(auditor, taskId, errors) {
 /**
  * Validates in-memory constructor contract and metadata for an instantiated auditor.
  */
-export function validateAuditorConstruction(auditor, taskId) {
+export function validateAuditorConstruction(auditor, taskId = auditor.id) {
     const errors = [];
     validateBasicMetadata(auditor, taskId, errors);
     const activeFamilies = getActiveFamilies();
@@ -183,17 +183,60 @@ export function validateAuditorConstruction(auditor, taskId) {
     }
     validateRuleDescriptions(auditor, taskId, errors);
     validateAuditorManifest(auditor, taskId, errors);
-    if (!Array.isArray(auditor.scripts) || auditor.scripts.length === 0) {
-        errors.push(`Auditor [${taskId}] no define el contrato obligatorio de comandos de ejecución en 'scripts'.`);
+    validateAuditorConfigContract(auditor, taskId, errors);
+    validateAuditorCapabilitiesContract(auditor, taskId, errors);
+    validateAuditorScriptsContract(auditor, taskId, errors);
+    return errors;
+}
+function validateAuditorConfigContract(auditor, taskId, errors) {
+    if (!auditor.configKey || typeof auditor.configKey !== 'string') {
+        errors.push(`Auditor [${taskId}] no define un 'configKey' obligatorio.`);
     }
-    else {
-        for (const s of auditor.scripts) {
-            if (!s.name || !s.command || !s.description) {
-                errors.push(`Auditor [${taskId}] define un script inválido en 'scripts' (faltan campos obligatorios name, command o description).`);
+    if (!auditor.defaultConfig || typeof auditor.defaultConfig !== 'object') {
+        errors.push(`Auditor [${taskId}] no define un 'defaultConfig' obligatorio.`);
+    }
+    else if (auditor.configKey !== 'paths' && auditor.configKey !== 'core') {
+        if (typeof auditor.defaultConfig.enabled !== 'boolean') {
+            errors.push(`Auditor [${taskId}] defaultConfig.enabled debe ser explícitamente booleano (true o false).`);
+        }
+    }
+}
+function validateAuditorCapabilitiesContract(auditor, taskId, errors) {
+    if (!auditor.capabilities || typeof auditor.capabilities !== 'object') {
+        errors.push(`Auditor [${taskId}] no define un objeto de 'capabilities' obligatorio.`);
+        return;
+    }
+    const REQUIRED_CAPS = ['fix', 'fixPriority', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'];
+    for (const cap of REQUIRED_CAPS) {
+        if (typeof auditor.capabilities[cap] !== 'boolean') {
+            errors.push(`Auditor [${taskId}] debe definir explícitamente el sub-campo capabilities.${cap} como booleano (true o false).`);
+        }
+    }
+    const fixableRules = auditor.getFixableRuleIds();
+    if (auditor.capabilities.fix === true) {
+        if (fixableRules.length === 0) {
+            errors.push(`Auditor [${taskId}] declara capabilities.fix === true pero getFixableRuleIds() está vacío.`);
+        }
+        for (const r of fixableRules) {
+            if (!auditor.ruleIds.includes(r)) {
+                errors.push(`Auditor [${taskId}] declara regla corregible '${r}' que no existe en 'ruleIds'.`);
             }
         }
     }
-    return errors;
+    else if (fixableRules.length > 0) {
+        errors.push(`Auditor [${taskId}] declara reglas corregibles (${fixableRules.join(', ')}) pero capabilities.fix no es true.`);
+    }
+}
+function validateAuditorScriptsContract(auditor, taskId, errors) {
+    if (!Array.isArray(auditor.scripts) || auditor.scripts.length === 0) {
+        errors.push(`Auditor [${taskId}] no define el contrato obligatorio de comandos de ejecución en 'scripts'.`);
+        return;
+    }
+    for (const s of auditor.scripts) {
+        if (!s.name || !s.command || !s.description) {
+            errors.push(`Auditor [${taskId}] define un script inválido en 'scripts' (faltan campos obligatorios name, command o description).`);
+        }
+    }
 }
 function validateRuleDescriptions(auditor, taskId, errors) {
     if (!auditor.ruleDescriptions || typeof auditor.ruleDescriptions !== 'object') {

@@ -278,7 +278,17 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor {
     constructor(options = {}) {
         const root = options.projectRoot || process.cwd();
         super({
-            capabilities: { md: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: true,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_documented_commands',
             name: 'Documented Commands Validator',
             description: 'Valida comandos npm/npx documentados en markdown',

@@ -59,6 +59,17 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             ...(config.paths.e2eRoots ?? [])
         ];
         super({
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_test_fragmentation',
             name: 'Test Anti-Fragmentation Validator',
             description: 'Previene micro-tests (<60 líns) y JSDOM innecesario',

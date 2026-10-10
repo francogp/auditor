@@ -213,7 +213,7 @@ describe('MarkdownLinkAuditor', () => {
         const auditor = new MarkdownLinkAuditor([], sandbox);
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
-        expect(result.findings.some(f => f.ruleId === 'markdown-broken-relative-link' && f.file.includes('AGENTS.md'))).toBe(true);
+        expect(result.findings.some(f => f.ruleId === 'markdown-broken-relative-link' && f.file?.includes('AGENTS.md'))).toBe(true);
       } finally {
         await fs.rm(sandbox, { recursive: true, force: true });
       }

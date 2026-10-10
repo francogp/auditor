@@ -59,6 +59,17 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             ...(config.paths.composablesRoots ?? ['src/composables'])
         ];
         super({
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_reactive_purity',
             name: 'Reactive Computed Purity Auditor',
             description: 'Verifica pureza reactiva y ausencia de efectos en computeds',

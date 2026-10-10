@@ -178,6 +178,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         {
           id: 'validate_eslint',
           name: 'ESLint Code Hygiene Validator',
+          description: 'ESLint Code Hygiene Validator',
           family: 'architecture',
           status: 'failed',
           durationMs: 1200,
@@ -188,6 +189,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         {
           id: 'validate_stylelint',
           name: 'Stylelint & SCSS Hygiene Validator',
+          description: 'Stylelint & SCSS Hygiene Validator',
           family: 'architecture',
           status: 'failed',
           durationMs: 800,
@@ -198,6 +200,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         {
           id: 'audit_project',
           name: 'Project Architecture & Style Rules',
+          description: 'Project Architecture & Style Rules',
           family: 'architecture',
           status: 'failed',
           durationMs: 500,
@@ -208,6 +211,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         {
           id: 'validate_accessibility',
           name: 'Vue & Web Accessibility Standards Auditor',
+          description: 'Vue & Web Accessibility Standards Auditor',
           family: 'architecture',
           status: 'failed',
           durationMs: 300,
@@ -233,6 +237,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         {
           id: 'validate_eslint',
           name: 'ESLint Code Hygiene Validator',
+          description: 'ESLint Code Hygiene Validator',
           family: 'architecture',
           status: 'failed',
           durationMs: 500,
@@ -269,6 +274,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         {
           id: 'validate_eslint',
           name: 'ESLint Code Hygiene Validator',
+          description: 'ESLint Code Hygiene Validator',
           family: 'architecture',
           status: 'failed',
           durationMs: 500,

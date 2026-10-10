@@ -87,7 +87,30 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['dummy-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
+            super({
+              id: 'validate_dummy',
+              name: 'Dummy',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Dummy',
+              ruleIds: DUMMY_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'dummy-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }
@@ -125,7 +148,30 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['covered-rule', 'untested-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
+            super({
+              id: 'validate_dummy',
+              name: 'Dummy',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Dummy',
+              ruleIds: DUMMY_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'covered-rule': 'Desc', 'untested-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }
@@ -170,7 +216,30 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['my-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
+            super({
+              id: 'validate_dummy',
+              name: 'Dummy',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Dummy',
+              ruleIds: DUMMY_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'my-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }
@@ -210,7 +279,30 @@ describe('AuditorTestsAuditor', () => {
         export const CUSTOM_RULES = ['custom-rule'] as const;
         export class CustomExtAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_custom_ext', name: 'Custom', description: 'Desc', family: 'architecture', packageName: 'Custom', ruleIds: CUSTOM_RULES });
+            super({
+              id: 'validate_custom_ext',
+              name: 'Custom',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Custom',
+              ruleIds: CUSTOM_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'custom-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }
@@ -245,7 +337,30 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['my-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
+            super({
+              id: 'validate_dummy',
+              name: 'Dummy',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Dummy',
+              ruleIds: DUMMY_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'my-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }
@@ -300,7 +415,30 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['my-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
+            super({
+              id: 'validate_dummy',
+              name: 'Dummy',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Dummy',
+              ruleIds: DUMMY_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'my-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }
@@ -354,7 +492,30 @@ describe('AuditorTestsAuditor', () => {
         export const DUMMY_RULES = ['my-rule'] as const;
         export class DummyAuditor extends BaseAuditor<string> {
           constructor() {
-            super({ id: 'validate_dummy', name: 'Dummy', description: 'Desc', family: 'architecture', packageName: 'Dummy', ruleIds: DUMMY_RULES });
+            super({
+              id: 'validate_dummy',
+              name: 'Dummy',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Dummy',
+              ruleIds: DUMMY_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'my-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
           }
           public override async runAudit() {}
         }

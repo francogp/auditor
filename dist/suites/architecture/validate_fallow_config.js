@@ -278,7 +278,18 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
             candidateFiles: [relConfig]
         };
         super({
-            capabilities: { fix: true, fixPriority: true },
+            capabilities: {
+                fix: true,
+                fixPriority: true,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: ['fallow-config-missing'],
             configFiles: [configRequirement],
             fix,
             id: 'validate_fallow_config',

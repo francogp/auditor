@@ -134,7 +134,17 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths.codeRoots ?? ['src'];
         super({
-            capabilities: { lint: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_o1_data_structures',
             name: 'O(1) Data Structure & Performance Auditor',
             description: 'Búsqueda lineal O(N) o clonado con JSON.parse',

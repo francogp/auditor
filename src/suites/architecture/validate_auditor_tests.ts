@@ -54,7 +54,7 @@ export function extractSuiteDeclaredRules(source: string): string[] {
     for (const item of items) rules.add(item);
   }
 
-  // 2. Match ruleIds: [ ... ] inside super({ ... })
+  // 2. Match ruleIds: [ ... ] inside super({ ruleIds: [ ... ] })
   const ruleIdsMatch = source.match(/ruleIds\s*:\s*(\[[^\]]+\])/);
   if (ruleIdsMatch && ruleIdsMatch[1]) {
     const items = [...ruleIdsMatch[1].matchAll(/['"]([\w:-]+)['"]/g)].map(x => x[1]!);
@@ -191,12 +191,23 @@ function auditAuditorTask(params: {
 }
 
 export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
-constructor(projectRoot: string = process.cwd()) {
+  constructor(projectRoot: string = process.cwd()) {
     super({
-id: 'validate_auditor_tests',
+      id: 'validate_auditor_tests',
       name: 'Auditor Test Existence & Completeness Validator',
-      description: 'Valida existencia y cobertura completa de tests en auditores',
+      description: 'Valida existencia y cobertura de tests en auditores',
       family: 'architecture',
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       ruleIds: AUDITOR_TEST_RULES,
       packageName: 'Auditor',
       configKey: 'paths',

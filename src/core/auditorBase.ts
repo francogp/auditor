@@ -743,12 +743,13 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly family: AuditFamily;
   readonly packageName: string;
   readonly icon: string;
-  readonly capabilities?: Partial<AuditorCapabilities>;
+  readonly capabilities: AuditorCapabilities;
+  readonly fixableRuleIds?: readonly TRuleId[];
   readonly fix?: boolean;
   readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   readonly configFiles?: readonly AuditorConfigFileRequirement<TRuleId>[];
   readonly scripts?: readonly AuditorPackageScriptRequirement[];
-  readonly ruleIds?: readonly TRuleId[];
+  readonly ruleIds: readonly TRuleId[];
   readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
@@ -833,25 +834,83 @@ function validateAuditorDefaultConfig<TRuleId extends string>(options: AuditorOp
   }
 }
 
+export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
+  'fix',
+  'fixPriority',
+  'lint',
+  'md',
+  'ast',
+  'changedSince',
+  'heavy',
+  'requiresBuild',
+  'postRun'
+] as const;
+
 function validateAuditorCapabilities<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
-  if (options.capabilities === undefined) return;
-  if (typeof options.capabilities !== 'object' || options.capabilities === null) {
-    throw new Error(`Auditor [${options.id}] 'capabilities' must be an object if defined.`);
+  if (options.capabilities === undefined || typeof options.capabilities !== 'object' || options.capabilities === null) {
+    throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'capabilities' in its constructor.`);
   }
-  const KNOWN_CAPABILITIES = ['fix', 'fixPriority', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'] as const;
-  for (const [key, val] of Object.entries(options.capabilities)) {
-    if (!KNOWN_CAPABILITIES.includes(key as typeof KNOWN_CAPABILITIES[number])) {
-      throw new Error(`Auditor [${options.id}] declared unknown capability '${key}'.`);
+  for (const key of MANDATORY_AUDITOR_CAPABILITY_KEYS) {
+    if (typeof options.capabilities[key] !== 'boolean') {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define sub-capability 'capabilities.${key}' as a boolean (true or false). Missing sub-capabilities and partial capability objects are strictly prohibited.`
+      );
     }
-    if (typeof val !== 'boolean') {
-      throw new Error(`Auditor [${options.id}] capability '${key}' must be a boolean.`);
+  }
+  for (const key of Object.keys(options.capabilities)) {
+    if (!MANDATORY_AUDITOR_CAPABILITY_KEYS.includes(key as typeof MANDATORY_AUDITOR_CAPABILITY_KEYS[number])) {
+      throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared unknown capability '${key}'.`);
+    }
+  }
+}
+
+function validateAuditorFixContract<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  const isFix = Boolean(options.capabilities?.fix);
+  const fixableList = options.fixableRuleIds ?? [];
+  const configFilesWithFix = (options.configFiles ?? []).filter(c => Boolean(c.ruleId && c.generateDefaultContent));
+
+  if (isFix) {
+    if (fixableList.length === 0 && configFilesWithFix.length === 0) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] declared capabilities.fix === true but failed to explicitly initialize 'fixableRuleIds' in its constructor. ` +
+        `Every auto-repairing suite must explicitly declare which ruleIds it can mechanically fix.`
+      );
+    }
+    for (const ruleId of fixableList) {
+      if (!options.ruleIds.includes(ruleId)) {
+        throw new Error(
+          `[Auditor Contract Violation] Auditor [${options.id}] declared fixable rule '${ruleId}', but it is not registered in 'ruleIds'.`
+        );
+      }
+    }
+  } else {
+    if (fixableList.length > 0) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' (${fixableList.join(', ')}) but capabilities.fix is false or omitted.`
+      );
     }
   }
 }
 
 function validateAuditorRules<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (!Array.isArray(options.ruleIds) || options.ruleIds.length === 0) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must define a mandatory 'ruleIds' array containing at least one ruleId. Zero-rule suites or omitted rule catalogs are strictly prohibited.`
+    );
+  }
   if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object' || Object.keys(options.ruleDescriptions).length === 0) {
     throw new Error(`Auditor [${options.id}] must define mandatory 'ruleDescriptions' covering all its declared rules.`);
+  }
+  const descriptions = options.ruleDescriptions as Record<string, string | undefined>;
+  for (const ruleId of options.ruleIds) {
+    if (!descriptions[ruleId]) {
+      throw new Error(`Auditor [${options.id}] is missing a rule description in 'ruleDescriptions' for declared rule '${ruleId}'.`);
+    }
+  }
+  for (const ruleId of Object.keys(options.ruleDescriptions)) {
+    if (!options.ruleIds.includes(ruleId as TRuleId)) {
+      throw new Error(`Auditor [${options.id}] defines description for rule '${ruleId}' in 'ruleDescriptions' that is not declared in 'ruleIds'.`);
+    }
   }
 }
 
@@ -880,6 +939,7 @@ function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
   validateAuditorCapabilities(options);
+  validateAuditorFixContract(options);
   validateAuditorRules(options);
   validateAuditorScripts(options);
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
@@ -933,6 +993,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly projectRoot: string;
   public readonly configKey: string;
   public readonly defaultConfig: Readonly<Record<string, unknown>>;
+  protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
 
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
@@ -945,6 +1006,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   protected readonly fixMode: boolean;
   protected isSkipped = false;
   protected skipReason?: string;
+
+  public getFixableRuleIds(): readonly TRuleId[] {
+    return Array.from(this.fixableRuleIds);
+  }
 
   /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
   protected get filesScannedCount(): number {
@@ -1026,9 +1091,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const effectiveScripts = this.resolveEffectiveScripts(options);
     validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts });
 
-    const astRequired = Boolean(options.requiresAst || options.capabilities?.ast);
-    this.capabilities = { ...DEFAULT_AUDITOR_CAPABILITIES, ...options.capabilities, ast: astRequired };
-    this.requiresAst = astRequired;
+    this.capabilities = options.capabilities;
+    this.requiresAst = options.capabilities.ast;
     this.packageName = options.packageName;
     this.icon = options.icon;
     this.id = options.id;
@@ -1042,7 +1106,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.scripts = effectiveScripts;
     this.registerAuditorDependencies(options, effectiveScripts);
     this.fixMode = Boolean(options.fix);
-    this.ruleIds = options.ruleIds ?? (Object.keys(options.ruleDescriptions) as TRuleId[]);
+    this.ruleIds = options.ruleIds;
     this.ruleDescriptions = options.ruleDescriptions;
     this.explicitSubAuditors = options.subAuditors;
     this.roots = options.roots ?? getEffectiveScannableRoots();
@@ -1052,6 +1116,15 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.requiredFiles = options.requiredFiles ?? [];
     this.projectRoot = effectiveProjectRoot;
     this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage!);
+
+    const configFixableRules = (this.configFiles ?? [])
+      .filter(c => Boolean(c.ruleId && c.generateDefaultContent))
+      .map(c => c.ruleId as TRuleId);
+
+    this.fixableRuleIds = new Set<TRuleId>([
+      ...(options.fixableRuleIds ?? []),
+      ...configFixableRules
+    ]);
 
     validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
 
@@ -1329,17 +1402,19 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     const current = this.countsByRule.get(v.ruleId) ?? 0;
     this.countsByRule.set(v.ruleId, current + 1);
+    const isFixable = v.fixable !== undefined ? Boolean(v.fixable) : this.fixableRuleIds.has(v.ruleId);
+
     if (v.severity === 'error') {
       const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
       this.errorsByRule.set(v.ruleId, errCurrent + 1);
-      if (v.fixable === true) {
+      if (isFixable) {
         const fixErrCurrent = this.fixableErrorsByRule.get(v.ruleId) ?? 0;
         this.fixableErrorsByRule.set(v.ruleId, fixErrCurrent + 1);
       }
     } else {
       const warnCurrent = this.warningsByRule.get(v.ruleId) ?? 0;
       this.warningsByRule.set(v.ruleId, warnCurrent + 1);
-      if (v.fixable === true) {
+      if (isFixable) {
         const fixWarnCurrent = this.fixableWarningsByRule.get(v.ruleId) ?? 0;
         this.fixableWarningsByRule.set(v.ruleId, fixWarnCurrent + 1);
       }
@@ -1366,7 +1441,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         ruleDescription: ruleDesc,
         suiteId: this.id,
         suiteName: this.name,
-        fixable: v.fixable
+        fixable: isFixable
       });
     } else {
       if (!this.context.values['errors-only']) {
@@ -1381,7 +1456,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
           ruleDescription: ruleDesc,
           suiteId: this.id,
           suiteName: this.name,
-          fixable: v.fixable
+          fixable: isFixable
         });
       }
     }
@@ -1701,6 +1776,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         postRun: this.capabilities.postRun
       },
       rules: rulesRecord,
+      fixableRules: this.getFixableRuleIds().map(r => String(r)),
       configKey: this.configKey,
       defaultConfig: { ...this.defaultConfig },
       scripts: [...this.scripts]

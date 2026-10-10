@@ -16,10 +16,8 @@ import os from 'node:os';
 import {
   ValidateCanonicalDomainsAuditor,
   CANONICAL_DOMAIN_RULES,
-  detectRepeatedStringUnions,
   detectLibraryDomainTypeDuplicates,
   extractProjectCanonicalDomains,
-  detectProjectDomainDuplicatesAndSubsets,
   extractLibraryDomainTypes
 } from '../src/suites/domain_data/validate_canonical_domains.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
@@ -189,7 +187,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
       }
     ];
 
-    const { bySignature, list, collisions } = extractProjectCanonicalDomains(files);
+    const { bySignature, list, collisions } = extractProjectCanonicalDomains(files, tempDir);
     expect(collisions).toHaveLength(0);
     expect(bySignature.size).toBe(1);
     expect(list.length).toBe(1);

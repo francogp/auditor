@@ -65,8 +65,13 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     if (content.includes('changedSince: true')) caps.changedSince = true;
     if (content.includes('postRun: true')) caps.postRun = true;
 
-    const descMatch = content.match(/description\s*:\s*['"]([^'"]+)['"]/);
-    const configKeyMatch = content.match(/configKey\s*:\s*['"]([^'"]+)['"]/);
+    const descMatch = content.match(/description\s*[:=]\s*['"]([^'"]+)['"]/);
+    const configKeyMatch = content.match(/configKey\s*[:=]\s*['"]([^'"]+)['"]/);
+    const hasDefaultConfig = /defaultConfig\s*[:=]/.test(content);
+    let staticDefaultConfig: Record<string, unknown> | undefined;
+    if (hasDefaultConfig) {
+      staticDefaultConfig = content.includes('enabled: true') ? { enabled: true } : {};
+    }
 
     if (Object.keys(caps).length > 0) {
       result.capabilities = {
@@ -78,7 +83,8 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     return {
       ...result,
       description: descMatch?.[1],
-      configKey: configKeyMatch?.[1]
+      configKey: configKeyMatch?.[1],
+      defaultConfig: staticDefaultConfig
     };
   } catch {
     // catch-ok: Static metadata extraction fallback
@@ -198,6 +204,9 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
     const staticMeta = extractStaticMetadataFromFile(fullPath);
     if (!result.configKey && staticMeta.configKey) {
       result.configKey = staticMeta.configKey;
+    }
+    if (!result.defaultConfig && staticMeta.defaultConfig) {
+      result.defaultConfig = staticMeta.defaultConfig;
     }
     if (!result.description && staticMeta.description) {
       result.description = staticMeta.description;

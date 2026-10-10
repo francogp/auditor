@@ -61,15 +61,31 @@ function isStoreDestructuring(
   return ts.isIdentifier(initializer) && storeVariables.has(initializer.text);
 }
 
+function resolvePiniaAuditRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
+  return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? ['src'];
+}
+
 export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleId> {
-private readonly storesRoots: readonly string[];
+  private readonly storesRoots: readonly string[];
   private readonly authorizedStateMutationFiles: ReadonlySet<string>;
 
   constructor(roots?: readonly string[], projectRoot?: string) {
+    const piniaRoots = resolvePiniaAuditRoots(roots, projectRoot);
     const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
     super({
-      capabilities: { ast: true },
+      roots: piniaRoots,
+      projectRoot,
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: true,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',
       description: 'Protege reactividad e integridad de stores de Pinia',
@@ -83,10 +99,8 @@ private readonly storesRoots: readonly string[];
         'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',
         'no-direct-state-mutation-outside-actions': 'Mutación directa de $state'
       },
-      roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.ts']),
-      requiresAst: true,
-      projectRoot
+      requiresAst: true
     });
     this.storesRoots = config.paths.storesRoots ?? ['src/stores'];
     this.authorizedStateMutationFiles = getAuthorizedStateMutationFiles(projectRoot);

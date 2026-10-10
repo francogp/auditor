@@ -33,7 +33,17 @@ export class DoxIntegrityAuditor extends BaseAuditor {
     constructor(rootDir) {
         const projectRoot = rootDir || process.cwd();
         super({
-            capabilities: { md: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: true,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_dox_integrity',
             name: 'DOX & AGENTS.md Integrity Validator',
             description: 'Valida jerarquía, estructura e integridad de AGENTS.md',

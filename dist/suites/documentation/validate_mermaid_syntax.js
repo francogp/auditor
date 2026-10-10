@@ -71,7 +71,18 @@ const UNQUOTED_BRACE_NODE_REGEX = /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor {
     constructor(roots = ['.'], projectRoot) {
         super({
-            capabilities: { md: true, lint: true, fix: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: true,
+                md: true,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: [...MERMAID_SYNTAX_RULES],
             id: 'validate_mermaid_syntax',
             name: 'Mermaid Diagram Syntax Auditor',
             description: 'Sintaxis y caracteres válidos en diagramas Mermaid',

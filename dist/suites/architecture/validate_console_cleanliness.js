@@ -36,12 +36,26 @@ function getExemptLoggingFiles(projectRoot) {
     ];
     return new Set(custom);
 }
+function resolveConsoleCleanlinessRoots(roots, projectRoot) {
+    return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? ['src'];
+}
 export class ConsoleCleanlinessAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {
-        const config = getAuditConfig(projectRoot);
-        const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
+        const scannableRoots = resolveConsoleCleanlinessRoots(roots, projectRoot);
         super({
-            capabilities: { lint: true },
+            roots: scannableRoots,
+            projectRoot,
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_console_cleanliness',
             name: 'Console & Debugger Cleanliness Auditor',
             description: 'Prohíbe console.log directo y debugger en src/',
@@ -55,9 +69,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
                 'no-debugger-statement': 'Instrucciones debugger en src/',
                 'no-console-log-in-src': 'Llamadas directas a console.log()'
             },
-            roots: effectiveRoots,
-            allowedExtensions: new Set(['.ts', '.vue', '.js']),
-            projectRoot
+            allowedExtensions: new Set(['.ts', '.vue', '.js'])
         });
     }
     scanFile(relPath, content) {

@@ -147,7 +147,7 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     bootstrapCliProject(['node', 'auditor', `--project=${tempSandboxDir}`]);
 
     // Looking up eslint should resolve from AUDITOR_HOME_DIR because tempSandboxDir has no node_modules
-    const resolvedBin = resolvePackageBin('eslint', tempSandboxDir);
+    const resolvedBin = resolvePackageBin('eslint', { projectRoot: tempSandboxDir });
     expect(resolvedBin).toBeDefined();
     expect(fs.existsSync(resolvedBin!)).toBe(true);
   });

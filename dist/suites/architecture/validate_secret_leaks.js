@@ -65,7 +65,17 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: { lint: true },
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_secret_leaks',
             name: 'Secret Leaks & Credentials Auditor',
             description: 'Detecta credenciales, tokens y secretos expuestos',

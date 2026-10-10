@@ -20,6 +20,18 @@ import {
 } from '../src/core/auditorContractConformance.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
 
+const BASE_MOCK_CAPS = {
+  fix: false,
+  fixPriority: false,
+  lint: false,
+  md: false,
+  ast: false,
+  changedSince: false,
+  heavy: false,
+  requiresBuild: false,
+  postRun: false
+};
+
 // 1. Run dynamic conformance tests for all discovered auditors in this project
 runAuditorContractConformanceTests();
 
@@ -52,6 +64,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
             family: 'architecture',
             packageName: 'Mock',
             icon: '🧪',
+            capabilities: { ...BASE_MOCK_CAPS },
             configKey: 'paths',
             defaultConfig: {},
             coverage: { include: ['src/**'] },
@@ -78,6 +91,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
+              capabilities: { ...BASE_MOCK_CAPS },
               configKey: 'paths',
               defaultConfig: {},
               coverage: { include: ['src/**'] },
@@ -102,6 +116,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
+              capabilities: { ...BASE_MOCK_CAPS },
               configKey: 'paths',
               defaultConfig: {},
               coverage: { include: ['src/**'] },
@@ -112,7 +127,58 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           }
           public override async runAudit() {}
         })();
-      }).toThrowError(/description exceeds 60 characters/i);
+      }).toThrowError(/exceeds 60 characters/i);
+    });
+
+    it('detects capabilities.fix === true without fixableRuleIds at BaseAuditor construction', () => {
+      expect(() => {
+        new (class extends BaseAuditor<string> {
+          constructor() {
+            super({
+              id: 'mock_fix_missing',
+              name: 'Mock',
+              description: 'Mock desc',
+              family: 'architecture',
+              packageName: 'Mock',
+              icon: '🛠️',
+              capabilities: { ...BASE_MOCK_CAPS, fix: true },
+              configKey: 'paths',
+              defaultConfig: {},
+              coverage: { include: ['src/**'] },
+              ruleIds: ['rule-1'] as never,
+              ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_fix_missing', description: 'Mock' }]
+            });
+          }
+          public override async runAudit() {}
+        })();
+      }).toThrowError(/failed to explicitly initialize 'fixableRuleIds'/i);
+    });
+
+    it('detects fixableRuleIds declared when capabilities.fix is false', () => {
+      expect(() => {
+        new (class extends BaseAuditor<string> {
+          constructor() {
+            super({
+              id: 'mock_fix_invalid',
+              name: 'Mock',
+              description: 'Mock desc',
+              family: 'architecture',
+              packageName: 'Mock',
+              icon: '🛠️',
+              capabilities: { ...BASE_MOCK_CAPS, fix: false },
+              fixableRuleIds: ['rule-1'] as never,
+              configKey: 'paths',
+              defaultConfig: {},
+              coverage: { include: ['src/**'] },
+              ruleIds: ['rule-1'] as never,
+              ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_fix_invalid', description: 'Mock' }]
+            });
+          }
+          public override async runAudit() {}
+        })();
+      }).toThrowError(/declared 'fixableRuleIds'.*but capabilities\.fix is false/i);
     });
   });
 
@@ -126,6 +192,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           family: 'architecture',
           packageName: 'Mock',
           icon: '🧪',
+          capabilities: { ...BASE_MOCK_CAPS },
           configKey: 'paths',
           defaultConfig: {},
           coverage: { include: ['src/**'] },

@@ -61,7 +61,7 @@ describe('AuditorHygieneAuditor', () => {
     it('enforces composed rule descriptions <= 50 characters', () => {
       const auditor = new AuditorHygieneAuditor(tempDir);
       const descriptions = HomebrewDetectorRegistry.getRuleDescriptions();
-      for (const [ruleId, desc] of Object.entries(descriptions)) {
+      for (const [, desc] of Object.entries(descriptions)) {
         const composed = `${auditor.packageName}: ${desc}`;
         expect(composed.length).toBeLessThanOrEqual(50);
       }

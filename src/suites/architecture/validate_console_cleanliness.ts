@@ -46,12 +46,27 @@ function getExemptLoggingFiles(projectRoot?: string): ReadonlySet<string> {
   return new Set(custom);
 }
 
+function resolveConsoleCleanlinessRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
+  return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? ['src'];
+}
+
 export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlinessRuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.srcRoots ?? ['src'];
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const scannableRoots = resolveConsoleCleanlinessRoots(roots, projectRoot);
     super({
-      capabilities: { lint: true },
+      roots: scannableRoots,
+      projectRoot,
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_console_cleanliness',
       name: 'Console & Debugger Cleanliness Auditor',
       description: 'Prohíbe console.log directo y debugger en src/',
@@ -65,9 +80,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         'no-debugger-statement': 'Instrucciones debugger en src/',
         'no-console-log-in-src': 'Llamadas directas a console.log()'
       },
-      roots: effectiveRoots,
-      allowedExtensions: new Set(['.ts', '.vue', '.js']),
-      projectRoot
+      allowedExtensions: new Set(['.ts', '.vue', '.js'])
     });
   }
 

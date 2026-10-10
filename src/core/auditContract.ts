@@ -265,7 +265,7 @@ export interface AuditorConfigFileRequirement<TRuleId extends string = string> {
   /** Human-readable description of what this configuration governs */
   readonly description: string;
   /** The ruleId to report as a violation if the configuration file is missing and fix mode is inactive */
-  readonly ruleId?: TRuleId;
+  readonly ruleId: TRuleId;
   /** Function generating the canonical default/minimal configuration content when auto-repair runs */
   readonly generateDefaultContent: (context: AuditorConfigFixContext) => string | Promise<string>;
   /** Optional predicate determining if this configuration is applicable in the current project */
@@ -308,6 +308,8 @@ export interface AuditorManifestDTO {
   };
   /** Catálogo de reglas evaluadas con su descripción concisa en español */
   readonly rules: Readonly<Record<string, string>>;
+  /** Lista de ruleIds que esta suite puede reparar mecánicamente de forma automática */
+  readonly fixableRules: readonly string[];
   /**
    * Clave o sección de configuración en .auditor/audit.config.ts si la utiliza de forma específica.
    * Conciso (ej: 'styles.baseScssFile', 'fallow.security', 'testCoverage.thresholds', 'paths', 'core').

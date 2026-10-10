@@ -147,16 +147,16 @@ export function buildTaskCliArguments(
   return taskArgs;
 }
 
-function resolveTaskConfigKey(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): string {
+function resolveTaskConfigKey(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>, taskId: string): string {
   if (metadata.configKey) return metadata.configKey;
   if (metadata.manifest?.configKey) return metadata.manifest.configKey;
-  return 'paths';
+  throw new Error(`[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'configKey'. Silent fallbacks are strictly prohibited.`);
 }
 
-function resolveTaskDefaultConfig(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Readonly<Record<string, unknown>> {
+function resolveTaskDefaultConfig(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>, taskId: string): Readonly<Record<string, unknown>> {
   if (metadata.defaultConfig) return metadata.defaultConfig;
   if (metadata.manifest?.defaultConfig) return metadata.manifest.defaultConfig;
-  return {};
+  throw new Error(`[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'defaultConfig'. Silent fallbacks are strictly prohibited.`);
 }
 
 function resolveTaskRuleDescriptions(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Record<string, string> | undefined {
@@ -226,8 +226,8 @@ export async function createAuditTaskDefinition(
     gitIgnoreEntries: gitIgnoreEntries.length > 0 ? gitIgnoreEntries : undefined,
     scripts: scripts && scripts.length > 0 ? scripts : undefined,
     manifest: metadata.manifest,
-    configKey: resolveTaskConfigKey(metadata),
-    defaultConfig: resolveTaskDefaultConfig(metadata),
+    configKey: resolveTaskConfigKey(metadata, id),
+    defaultConfig: resolveTaskDefaultConfig(metadata, id),
     ruleDescriptions: resolveTaskRuleDescriptions(metadata)
   };
 }

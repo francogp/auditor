@@ -54,7 +54,18 @@ export class ValidateAccessibilityAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: { fix: true, lint: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: [...ACCESSIBILITY_RULES],
             fix: options.fix,
             id: 'validate_accessibility',
             name: 'Vue & Web Accessibility Standards Auditor',

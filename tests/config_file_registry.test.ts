@@ -31,6 +31,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
   it('registers and retrieves requirements idempotently', () => {
     const req1: AuditorConfigFileRequirement = {
       id: 'test-tool-config',
+      ruleId: 'test-tool-rule',
       file: 'tool.config.json',
       description: 'Configuración para herramienta de pruebas',
       generateDefaultContent: () => '{\n  "enabled": true\n}\n'
@@ -38,6 +39,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
     const req2: AuditorConfigFileRequirement = {
       id: 'another-tool-config',
+      ruleId: 'another-tool-rule',
       file: 'another.config.ts',
       description: 'Configuración secundaria',
       generateDefaultContent: () => 'export default {};\n'
@@ -80,6 +82,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         generateDefaultContent: (ctx) => `{\n  "name": "${ctx.packageName}",\n  "ok": true\n}\n`
       };
 
+      const isFix = Boolean(options.fix);
       super({
         id: 'validate_custom_tool',
         name: 'Custom Tool Config Validator',
@@ -89,13 +92,25 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         icon: '🔧',
         configKey: 'paths',
         defaultConfig: {},
+        capabilities: {
+          fix: isFix,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        },
+        fixableRuleIds: isFix ? ['custom-config-missing'] : undefined,
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
         ruleDescriptions: {
           'custom-config-missing': 'Configuración ausente',
           'custom-content-valid': 'Contenido válido'
         },
         configFiles: [requirement],
-        fix: options.fix,
+        fix: isFix,
         coverage: {
           include: ['custom.config.json', 'custom.config.js']
         },
@@ -181,6 +196,18 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           icon: '⚙️',
           configKey: 'paths',
           defaultConfig: {},
+          capabilities: {
+            fix: false,
+            fixPriority: false,
+            lint: true,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          },
+          ruleIds: ['optional-config-missing'],
           ruleDescriptions: {
             'optional-config-missing': 'Configuración condicional ausente'
           },
@@ -207,6 +234,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
   it('integrates with defineAuditorExtension and registers config requirements', async () => {
     const extRequirement: AuditorConfigFileRequirement = {
       id: 'ext-custom-config',
+      ruleId: 'ext-custom-rule',
       file: 'ext.config.json',
       description: 'Configuración de extensión personalizada',
       generateDefaultContent: () => '{\n  "version": 1\n}\n'

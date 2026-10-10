@@ -52,15 +52,29 @@ const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|i
 const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[\w-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[\w-]+="[^"\n]*"[\w$]/;
 export const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:\w*DataProvider|dataProvider)\.\w+\s*\(/g;
 
+function resolveVueSfcScanRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
+  if (roots) return roots;
+  const cfg = getAuditConfig(projectRoot);
+  return [...(cfg.paths.componentsRoots ?? ['src/components']), ...(cfg.paths.viewsRoots ?? ['src/views'])];
+}
+
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
-    ];
+  constructor(roots?: readonly string[], projectRoot?: string) {
+    const sfcRoots = resolveVueSfcScanRoots(roots, projectRoot);
     super({
-      capabilities: { lint: true },
+      roots: sfcRoots,
+      projectRoot,
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
       description: 'Verifica estándares de Vue SFC y <script setup lang="ts">',
@@ -76,9 +90,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         'vue-template-quote-escaping': 'Comillas sin escapar en template',
         'no-data-provider-in-template': 'Data provider en template'
       },
-      roots: effectiveRoots,
-      allowedExtensions: new Set(['.vue']),
-      projectRoot
+      allowedExtensions: new Set(['.vue'])
     });
   }
 

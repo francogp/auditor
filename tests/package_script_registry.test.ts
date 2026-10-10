@@ -21,7 +21,19 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       icon: '🧩',
       configKey: 'core',
       defaultConfig: { enabled: true },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       coverage: { include: ['src/**'] },
+      ruleIds: ['dummy-rule'],
       ruleDescriptions: {
         'dummy-rule': 'Regla de prueba'
       },
@@ -45,7 +57,19 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       icon: '⚙️',
       configKey: 'core',
       defaultConfig: { enabled: true },
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
       coverage: { include: ['src/**'] },
+      ruleIds: ['custom-rule'],
       ruleDescriptions: {
         'custom-rule': 'Regla personalizada'
       },
@@ -167,7 +191,19 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             icon: '💥',
             configKey: 'core',
             defaultConfig: { enabled: true },
+            capabilities: {
+              fix: false,
+              fixPriority: false,
+              lint: true,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            },
             coverage: { include: ['src/**'] },
+            ruleIds: ['rule-1'],
             ruleDescriptions: { 'rule-1': 'Desc' },
             scripts: [
               {

@@ -164,10 +164,21 @@ export function scanFileForIllegalHeaders(filePath, content) {
 export class AuditHeadersAuditor extends FileScanAuditor {
     collectedViolations = [];
     constructor(roots, projectRoot) {
-        const config = getAuditConfig(projectRoot);
-        const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
+        const headerRoots = roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
         super({
-            capabilities: { lint: true },
+            roots: headerRoots,
+            projectRoot,
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_audit_headers',
             name: 'Audit Headers & Suppression Validator',
             description: 'Prohíbe supresiones a nivel de archivo e ignores globales',
@@ -185,9 +196,7 @@ export class AuditHeadersAuditor extends FileScanAuditor {
                 'banned-style-suppression': 'Escape de estilos prohibido',
                 'header-auditor-escape': 'Escape hatch mal ubicado',
                 'unjustified-escape-hatch': 'Escape hatch sin justificación'
-            },
-            roots: effectiveRoots,
-            projectRoot
+            }
         });
     }
     getViolations() {

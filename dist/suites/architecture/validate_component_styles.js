@@ -364,7 +364,18 @@ export class ComponentStylesAuditor extends BaseAuditor {
             ...(config.paths.stylesRoots ?? ['src/styles'])
         ];
         super({
-            capabilities: { lint: true, fix: true },
+            capabilities: {
+                fix: true,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
+            fixableRuleIds: ['banned-plain-css-style'],
             fix: options.fix,
             id: 'validate_component_styles',
             name: 'Vue Component Style Linkage & SCSS Auditor',

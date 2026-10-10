@@ -50,7 +50,15 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
         source: 'declared-only'
       },
       capabilities: {
-        requiresBuild: false
+        fix: false,
+        fixPriority: false,
+        lint: false,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       },
       projectRoot: effectiveRoot
     });

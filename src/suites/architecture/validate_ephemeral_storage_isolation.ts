@@ -118,6 +118,17 @@ private readonly allowedDatabaseDirs: ReadonlySet<string>;
     const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 
     super({
+      capabilities: {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      },
 id: 'validate_ephemeral_storage_isolation',
       name: 'Ephemeral Storage & Scratch Isolation Validator',
       description: 'Aislamiento estricto de archivos temporales en scratch/',

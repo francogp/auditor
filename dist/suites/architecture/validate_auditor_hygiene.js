@@ -35,7 +35,15 @@ export class AuditorHygieneAuditor extends BaseAuditor {
                 enabled: true
             },
             capabilities: {
-                lint: true
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
             },
             coverage: {
                 include: ['src/suites/**/*.ts', 'src/analyzers/**/*.ts', 'scripts/auditors/**/*.ts'],

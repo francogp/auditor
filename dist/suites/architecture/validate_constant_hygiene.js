@@ -44,11 +44,15 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
         const effectiveRoots = rawRoots.map(r => toPosixRelative(effectiveProjectRoot, r));
         super({
             capabilities: {
-                ast: true,
                 fix: false,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: true,
                 changedSince: false,
                 heavy: false,
-                requiresBuild: false
+                requiresBuild: false,
+                postRun: false
             },
             id: 'validate_constant_hygiene',
             name: 'Constant Hygiene & Duplicate Validator',

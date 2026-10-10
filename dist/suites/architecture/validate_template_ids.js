@@ -142,6 +142,17 @@ export class TemplateIdAuditor extends FileScanAuditor {
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
         super({
+            capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+            },
             id: 'validate_template_ids',
             name: 'Template Static ID Uniqueness & Collision Validator',
             description: 'Verifica IDs estáticos e inputs en templates Vue',
