@@ -98,7 +98,7 @@ describe('ComponentStylesAuditor', () => {
     <span class="card-title">Clean</span>
   </div>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .clean-card {
   display: block;
 }
@@ -165,7 +165,7 @@ describe('ComponentStylesAuditor', () => {
         // Ad-hoc button style override
         await fs.writeFile(
           path.join(compDir, 'BadButton.vue'),
-          `<template><button class="btn btn-primary">Click</button></template>\n<style>\n.btn.custom { color: red; }\n</style>\n`,
+          `<template><button class="btn btn-primary">Click</button></template>\n<style lang="scss">\n.btn.custom { color: red; }\n</style>\n`,
           'utf-8'
         );
 

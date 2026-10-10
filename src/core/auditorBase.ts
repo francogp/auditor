@@ -602,10 +602,16 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     unignoreDirs,
     isPathIgnored: (relPath: string) => isPathIgnored(relPath, combinedIgnores, unignoreDirs, projectRoot),
     collectFiles: (roots: readonly string[] = getEffectiveScannableRoots(), allowedExtensions = SCANNABLE_EXTENSIONS) => {
+      const seen = new Set<string>();
       const all: string[] = []; // no-domain: Non-domain utility collection or data structure
       for (const root of roots) {
         const fullRoot = path.resolve(projectRoot, root);
-        all.push(...collectRepositoryFiles(fullRoot, projectRoot, combinedIgnores, allowedExtensions, unignoreDirs));
+        for (const file of collectRepositoryFiles(fullRoot, projectRoot, combinedIgnores, allowedExtensions, unignoreDirs)) {
+          if (!seen.has(file)) {
+            seen.add(file);
+            all.push(file);
+          }
+        }
       }
       config.onFilesCollected?.(all);
       return all;

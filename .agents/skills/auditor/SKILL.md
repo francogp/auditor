@@ -442,7 +442,7 @@ graph TD
     - **Post-Fix Invariant**: When running under auto-fix mode (`auditor fix` / `npm run auditor:fix`), post-repair audit passes MUST guarantee `fixableErrors === 0`, completely eliminating false-positive auto-repair banners or prompts on subsequent runs.
 78. **SCSS Enforcement & Component Style Governance (`validate_component_styles`, `styles.enforceScss`)**:
     - Governs component style linkage, SCSS orphan detection, button style overrides, and SCSS preprocessor enforcement across Vue SFCs and stylesheets.
-    - When `styles.enforceScss: true` is configured in `.auditor/audit.config.ts`:
+    - Under the Active by Default framework mandate (`styles.enforceScss: true` by default):
       - **SFC SCSS Mandate (`banned-plain-css-style`)**: Every `<style>` block in a `.vue` component MUST declare `lang="scss"`. Un-annotated `<style>`, `<style scoped>`, or `<style lang="css">` blocks trigger `severity: 'error'` with `fixable: true`.
       - **Automated SFC Style Upgrade**: Executing `auditor fix` automatically and non-destructively upgrades plain or CSS `<style>` tags to `lang="scss"` (e.g. `<style scoped>` -> `<style scoped lang="scss">`), processing blocks in reverse order of character offsets to prevent file corruption.
       - **Raw CSS File Prohibition (`banned-raw-css-file`)**: Plain standalone `.css` stylesheets in `srcRoots` and `stylesRoots` are forbidden (`severity: 'error'`). All project stylesheets must use the `.scss` preprocessor.

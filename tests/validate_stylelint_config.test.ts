@@ -20,8 +20,7 @@ import {
   CANONICAL_IGNORE_VALUES,
   CANONICAL_STRICT_VALUE_CONFIG,
   CANONICAL_ORDER_CONFIG,
-  validateOrderHasBlockPartitioning,
-  buildProjectStrictValueConfig
+  validateOrderHasBlockPartitioning
 } from '../src/suites/architecture/validate_stylelint_config.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';

@@ -138,7 +138,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
         enforceHasBlockPartitioning: true
       }
     },
-    enforceScss: false,
+    enforceScss: true,
     exemptCssFiles: []
   },
   stylelint: {

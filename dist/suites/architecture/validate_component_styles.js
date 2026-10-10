@@ -359,11 +359,12 @@ export class ComponentStylesAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         const config = getAuditConfig(effectiveRoot);
-        const effectiveRoots = options.roots ?? [
+        const effectiveRoots = options.roots ?? Array.from(new Set([
+            ...(config.paths.srcRoots ?? ['src']),
             ...(config.paths.componentsRoots ?? ['src/components']),
             ...(config.paths.viewsRoots ?? ['src/views']),
             ...(config.paths.stylesRoots ?? ['src/styles'])
-        ];
+        ]));
         super({
             capabilities: {
                 fix: true,
@@ -384,7 +385,7 @@ export class ComponentStylesAuditor extends BaseAuditor {
             family: 'architecture',
             packageName: 'Estilos',
             configKey: 'styles.enabled',
-            defaultConfig: { enabled: true },
+            defaultConfig: { enabled: true, enforceScss: true },
             criticalConfig: {},
             icon: '🎨',
             ruleIds: COMPONENT_STYLE_RULES,
@@ -441,7 +442,7 @@ export class ComponentStylesAuditor extends BaseAuditor {
         this.vueCount = vueFiles.length;
         this.scssCount = scssFiles.length;
         this.cssCount = cssFiles.length;
-        const enforceScss = Boolean(config.styles?.enforceScss);
+        const enforceScss = config.styles?.enforceScss !== false;
         const exemptCssFiles = config.styles?.exemptCssFiles ?? [];
         if (!enforceScss) {
             this.markRuleNotApplicable('banned-plain-css-style', 'SCSS no está forzado en configuración (styles.enforceScss: false)');
