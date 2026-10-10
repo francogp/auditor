@@ -184,6 +184,27 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
         category: 'fallow',
         isApplicable: (config) => config.fallow?.enabled !== false
     },
+    {
+        name: 'auditor:fallow:suppressions',
+        command: 'auditor-fallow category=suppressions',
+        description: 'Auditoría de marcadores de supresión activos de fallow-ignore',
+        category: 'fallow',
+        isApplicable: (config) => config.fallow?.enabled !== false
+    },
+    {
+        name: 'auditor:fallow:flags',
+        command: 'auditor-fallow category=flags',
+        description: 'Auditoría de feature flags y código condicional vía Fallow',
+        category: 'fallow',
+        isApplicable: (config) => config.fallow?.enabled !== false
+    },
+    {
+        name: 'auditor:fallow:viz',
+        command: 'auditor-fallow category=viz',
+        description: 'Generación de mapa interactivo HTML de arquitectura vía Fallow',
+        category: 'fallow',
+        isApplicable: (config) => config.fallow?.enabled !== false
+    },
     // Family Invocations
     {
         name: 'auditor:family:architecture',

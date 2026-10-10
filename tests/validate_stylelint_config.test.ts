@@ -13,10 +13,14 @@ import {
   ValidateStylelintConfigAuditor,
   STYLELINT_CONFIG_RULES,
   REQUIRED_STYLELINT_PLUGIN,
+  REQUIRED_ORDER_PLUGIN,
   REQUIRED_STRICT_VALUE_RULE,
+  REQUIRED_ORDER_RULE,
   REQUIRED_STRICT_PROPERTIES,
   CANONICAL_IGNORE_VALUES,
   CANONICAL_STRICT_VALUE_CONFIG,
+  CANONICAL_ORDER_CONFIG,
+  validateOrderHasBlockPartitioning,
   buildProjectStrictValueConfig
 } from '../src/suites/architecture/validate_stylelint_config.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
@@ -61,7 +65,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(STYLELINT_CONFIG_RULES);
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(3);
+      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(4);
     });
 
     it('enforces exact 13 canonical design token properties in REQUIRED_STRICT_PROPERTIES', () => {
@@ -106,6 +110,7 @@ describe('ValidateStylelintConfigAuditor', () => {
         plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
         rules: {
           [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
+          [REQUIRED_ORDER_RULE]: CANONICAL_ORDER_CONFIG,
           'block-no-empty': true
         }
       };
@@ -243,6 +248,127 @@ describe('ValidateStylelintConfigAuditor', () => {
         });
       }
     );
+
+    it('detects missing order/order rule (stylelint-config-missing-order)', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+      expect(finding?.message).toContain(REQUIRED_ORDER_RULE);
+    });
+
+    it('detects order/order missing blockless @include (hasBlock: false)', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
+          [REQUIRED_ORDER_RULE]: [
+            'declarations',
+            { type: 'at-rule', name: 'include', hasBlock: true }
+          ]
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain('hasBlock: false');
+    });
+
+    it('detects order/order missing block @include (hasBlock: true)', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
+          [REQUIRED_ORDER_RULE]: [
+            { type: 'at-rule', name: 'include', hasBlock: false },
+            'declarations'
+          ]
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain('hasBlock: true');
+    });
+
+    it('detects inverted order where hasBlock: false is placed after declarations', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
+          [REQUIRED_ORDER_RULE]: [
+            'declarations',
+            { type: 'at-rule', name: 'include', hasBlock: false },
+            { type: 'at-rule', name: 'include', hasBlock: true }
+          ]
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain('ANTES de "declarations"');
+    });
+
+    it('detects inverted order where hasBlock: true is placed before declarations', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
+          [REQUIRED_ORDER_RULE]: [
+            { type: 'at-rule', name: 'include', hasBlock: false },
+            { type: 'at-rule', name: 'include', hasBlock: true },
+            'declarations'
+          ]
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      expect(finding).toBeDefined();
+      expect(finding?.message).toContain('DESPUÉS de "declarations"');
+    });
+
+    it('validates helper validateOrderHasBlockPartitioning with granular checks', () => {
+      expect(validateOrderHasBlockPartitioning(null).valid).toBe(false);
+      expect(validateOrderHasBlockPartitioning([]).valid).toBe(false);
+      expect(validateOrderHasBlockPartitioning(['declarations']).valid).toBe(false);
+      expect(validateOrderHasBlockPartitioning(CANONICAL_ORDER_CONFIG).valid).toBe(true);
+    });
   });
 
   describe('Auto-Fix Mode (--fix)', () => {
@@ -366,6 +492,62 @@ export default {
       expect(finding?.message).toContain('font-size');
       expect(finding?.message).toContain('box-shadow');
       expect(finding?.message).toContain('border-radius');
+    });
+
+    it('automatically repairs missing order/order and missing stylelint-order plugin in fix mode', async () => {
+      const initialConfig = {
+        extends: ['stylelint-config-standard'],
+        plugins: [REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(initialConfig, null, 2), 'utf-8');
+
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.summary.errors).toBe(0);
+
+      const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
+      expect(repaired.plugins).toContain(REQUIRED_ORDER_PLUGIN);
+      expect(repaired.plugins).toContain(REQUIRED_STYLELINT_PLUGIN);
+      expect(repaired.rules[REQUIRED_ORDER_RULE]).toBeDefined();
+      expect(validateOrderHasBlockPartitioning(repaired.rules[REQUIRED_ORDER_RULE]).valid).toBe(true);
+
+      const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const verifyResult = await verifyAuditor.execute();
+      expect(verifyResult.status).toBe('passed');
+      expect(verifyResult.summary.errors).toBe(0);
+    });
+
+    it('marks stylelint-config-missing-order as not applicable when order.enforceHasBlockPartitioning is false', async () => {
+      const auditorConfig = `
+export default {
+  stylelint: {
+    enabled: true,
+    order: {
+      enforceHasBlockPartitioning: false
+    }
+  }
+};
+`;
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), auditorConfig, 'utf-8');
+
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBe(0);
     });
   });
 });

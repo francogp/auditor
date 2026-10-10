@@ -131,6 +131,36 @@ describe('report_fallow CLI Tool', () => {
     expect(() => runFallowReportCli()).not.toThrow();
   });
 
+  it('runs report for category=suppressions in json and table mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=suppressions', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
+    const parsed = JSON.parse(output);
+    expect(parsed).toHaveProperty('total');
+    expect(parsed).toHaveProperty('suppressions');
+
+    process.argv = ['node', 'report_fallow.ts', 'category=suppressions', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
+  it('runs report for category=flags in json and table mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=flags', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=flags', 'top=5'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
+  it('runs report for category=viz in json and terminal mode', () => {
+    process.argv = ['node', 'report_fallow.ts', 'category=viz', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=viz'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
   it('handles unknown category gracefully', () => {
     process.argv = ['node', 'report_fallow.ts', 'category=unknown'];
     expect(() => runFallowReportCli()).not.toThrow();

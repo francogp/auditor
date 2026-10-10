@@ -25,16 +25,96 @@ enableCompileCache();
 export type StylelintConfigRuleId =
   | 'stylelint-config-missing'
   | 'stylelint-config-missing-plugin'
-  | 'stylelint-config-missing-strict-value';
+  | 'stylelint-config-missing-strict-value'
+  | 'stylelint-config-missing-order';
 
 export const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[] = [
   'stylelint-config-missing',
   'stylelint-config-missing-plugin',
-  'stylelint-config-missing-strict-value'
+  'stylelint-config-missing-strict-value',
+  'stylelint-config-missing-order'
 ] as const;
 
 export const REQUIRED_STYLELINT_PLUGIN = 'stylelint-declaration-strict-value';
+export const REQUIRED_ORDER_PLUGIN = 'stylelint-order';
 export const REQUIRED_STRICT_VALUE_RULE = 'scale-unlimited/declaration-strict-value';
+export const REQUIRED_ORDER_RULE = 'order/order';
+
+export const CANONICAL_ORDER_CONFIG: readonly unknown[] = [
+  'dollar-variables',
+  'custom-properties',
+  {
+    type: 'at-rule',
+    name: 'include',
+    hasBlock: false
+  },
+  'declarations',
+  {
+    type: 'at-rule',
+    name: 'include',
+    hasBlock: true
+  },
+  {
+    type: 'rule',
+    selector: '^&:\\w'
+  },
+  'rules'
+] as const;
+
+function findIncludeMixinIndex(order: readonly unknown[], hasBlock: boolean): number {
+  return order.findIndex(
+    item =>
+      typeof item === 'object' &&
+      item !== null &&
+      (item as { type?: string; name?: string; hasBlock?: boolean }).type === 'at-rule' &&
+      (item as { type?: string; name?: string; hasBlock?: boolean }).name === 'include' &&
+      (item as { type?: string; name?: string; hasBlock?: boolean }).hasBlock === hasBlock
+  );
+}
+
+export function validateOrderHasBlockPartitioning(order: unknown): { valid: boolean; reason?: string } {
+  if (!Array.isArray(order)) {
+    return { valid: false, reason: 'order/order no está configurado como un array' };
+  }
+
+  const declIndex = order.indexOf('declarations');
+  if (declIndex === -1) {
+    return { valid: false, reason: 'Falta "declarations" en order/order' };
+  }
+
+  const blocklessIncludeIndex = findIncludeMixinIndex(order, false);
+  const blockIncludeIndex = findIncludeMixinIndex(order, true);
+
+  if (blocklessIncludeIndex === -1) {
+    return {
+      valid: false,
+      reason: 'Falta at-rule @include con hasBlock: false (mixins sin bloque antes de declaraciones)'
+    };
+  }
+
+  if (blockIncludeIndex === -1) {
+    return {
+      valid: false,
+      reason: 'Falta at-rule @include con hasBlock: true (mixins con bloque después de declaraciones)'
+    };
+  }
+
+  if (blocklessIncludeIndex > declIndex) {
+    return {
+      valid: false,
+      reason: 'at-rule @include con hasBlock: false debe ubicarse ANTES de "declarations"'
+    };
+  }
+
+  if (blockIncludeIndex < declIndex) {
+    return {
+      valid: false,
+      reason: 'at-rule @include con hasBlock: true debe ubicarse DESPUÉS de "declarations"'
+    };
+  }
+
+  return { valid: true };
+}
 
 // no-domain: Non-domain Stylelint property names configuration
 export const REQUIRED_STRICT_PROPERTIES = [
@@ -172,6 +252,7 @@ export const CANONICAL_STYLELINT_CONFIG_CONTENT = JSON.stringify(
     ],
     rules: {
       [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
+      [REQUIRED_ORDER_RULE]: CANONICAL_ORDER_CONFIG,
       'no-duplicate-selectors': true,
       'declaration-block-no-duplicate-properties': true,
       'block-no-empty': true,
@@ -226,7 +307,13 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       family: 'architecture',
       packageName: 'Stylelint',
       configKey: 'stylelint.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        order: {
+          enabled: true,
+          enforceHasBlockPartitioning: true
+        }
+      },
       criticalConfig: {
         rationale:
           'Exigir variables SCSS ($var) o CSS (var(--var)) en propiedades de diseño (color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function) es un estándar inmutable para erradicar números mágicos en estilos.',
@@ -238,8 +325,9 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       ruleIds: STYLELINT_CONFIG_RULES,
       ruleDescriptions: {
         'stylelint-config-missing': 'Falta .stylelintrc.json',
-        'stylelint-config-missing-plugin': 'Falta plugin strict-value',
-        'stylelint-config-missing-strict-value': 'Falta regla strict-value'
+        'stylelint-config-missing-plugin': 'Falta plugin stylelint',
+        'stylelint-config-missing-strict-value': 'Falta regla strict-value',
+        'stylelint-config-missing-order': 'Falta regla order/order'
       },
       coverage: {
         include: ['.stylelintrc*']
@@ -251,12 +339,21 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
 
   private auditPlugin(parsedConfig: Record<string, unknown>, targetFile: string): boolean {
     const plugins = Array.isArray(parsedConfig.plugins) ? [...parsedConfig.plugins] : [];
-    if (plugins.includes(REQUIRED_STYLELINT_PLUGIN) || extendsAuditorConfig(parsedConfig)) {
+    if (extendsAuditorConfig(parsedConfig)) {
+      return false;
+    }
+
+    const requiredPlugins = [REQUIRED_STYLELINT_PLUGIN, REQUIRED_ORDER_PLUGIN] as const;
+    const missingPlugins = requiredPlugins.filter(p => !plugins.includes(p));
+
+    if (missingPlugins.length === 0) {
       return false;
     }
 
     if (this.isFixActive()) {
-      plugins.push(REQUIRED_STYLELINT_PLUGIN);
+      for (const p of missingPlugins) {
+        plugins.push(p);
+      }
       parsedConfig.plugins = plugins;
       return true;
     }
@@ -266,8 +363,44 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       severity: 'error',
       file: toPosixRelative(this.projectRoot, targetFile),
       line: 1,
-      message: `Falta el plugin requerido "${REQUIRED_STYLELINT_PLUGIN}" en plugins de ${path.basename(targetFile)}. Ejecuta "auditor fix" para agregarlo.`,
-      context: REQUIRED_STYLELINT_PLUGIN
+      message: `Faltan plugins requeridos (${missingPlugins.join(', ')}) en plugins de ${path.basename(targetFile)}. Ejecuta "auditor fix" para agregarlos.`,
+      context: missingPlugins.join(', ')
+    });
+    return false;
+  }
+
+  private auditOrderRule(
+    parsedConfig: Record<string, unknown>,
+    targetFile: string
+  ): boolean {
+    if (extendsAuditorConfig(parsedConfig)) {
+      return false;
+    }
+
+    const rules = (typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null)
+      ? { ...(parsedConfig.rules as Record<string, unknown>) }
+      : {};
+
+    const orderRule = rules[REQUIRED_ORDER_RULE];
+    const validation = validateOrderHasBlockPartitioning(orderRule);
+
+    if (validation.valid) {
+      return false;
+    }
+
+    if (this.isFixActive()) {
+      rules[REQUIRED_ORDER_RULE] = CANONICAL_ORDER_CONFIG;
+      parsedConfig.rules = rules;
+      return true;
+    }
+
+    this.addViolation({
+      ruleId: 'stylelint-config-missing-order',
+      severity: 'error',
+      file: toPosixRelative(this.projectRoot, targetFile),
+      line: 1,
+      message: `La regla "${REQUIRED_ORDER_RULE}" en ${path.basename(targetFile)} es inválida o está ausente (${validation.reason}). Ejecuta "auditor fix" para auto-repararla.`,
+      context: REQUIRED_ORDER_RULE
     });
     return false;
   }
@@ -358,8 +491,15 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
 
     const pluginModified = this.auditPlugin(parsedConfig, targetFile);
     const strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
+    const orderEnabled = config.stylelint?.order?.enforceHasBlockPartitioning ?? config.styles?.stylelint?.order?.enforceHasBlockPartitioning ?? true;
+    let orderModified = false;
+    if (orderEnabled !== false) {
+      orderModified = this.auditOrderRule(parsedConfig, targetFile);
+    } else {
+      this.markRuleNotApplicable('stylelint-config-missing-order', 'Orden de mixins desactivado en configuración');
+    }
 
-    if ((pluginModified || strictModified) && this.isFixActive()) {
+    if ((pluginModified || strictModified || orderModified) && this.isFixActive()) {
       fs.writeFileSync(targetFile, JSON.stringify(parsedConfig, null, 2) + '\n', 'utf-8');
     }
   }

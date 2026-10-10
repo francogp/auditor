@@ -132,7 +132,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     stylelint: {
       enabled: true,
       rules: {},
-      ignoreGlobs: []
+      ignoreGlobs: [],
+      order: {
+        enabled: true,
+        enforceHasBlockPartitioning: true
+      }
     },
     enforceScss: false,
     exemptCssFiles: []
@@ -140,7 +144,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   stylelint: {
     enabled: true,
     rules: {},
-    ignoreGlobs: []
+    ignoreGlobs: [],
+    order: {
+      enabled: true,
+      enforceHasBlockPartitioning: true
+    }
   },
   eslint: {
     enabled: true
@@ -189,6 +197,16 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     },
     coverage: {
       enabled: true
+    },
+    typeAware: true,
+    showCascade: true,
+    duplicates: {
+      nearMiss: true,
+      mode: 'strict'
+    },
+    viz: {
+      enabled: true,
+      outputPath: 'scratch/fallow_map.html'
     }
   },
   constants: {
@@ -401,12 +419,18 @@ function buildStylelintSubConfig(
     ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
   } : undefined;
 
+  const order = {
+    enabled: rawSl?.order?.enabled ?? true,
+    enforceHasBlockPartitioning: rawSl?.order?.enforceHasBlockPartitioning ?? true
+  };
+
   return {
     enabled: rawSl?.enabled ?? DEFAULT_AUDIT_CONFIG.styles?.stylelint?.enabled ?? true,
     configFile: rawSl?.configFile,
     rules: parsedRules,
     ignoreGlobs: rawSl?.ignoreGlobs ? [...rawSl.ignoreGlobs] : [],
-    strictValues
+    strictValues,
+    order
   };
 }
 
@@ -576,7 +600,20 @@ export function buildFallowConfig(
     maxTargetPriority: f.maxTargetPriority ?? def?.maxTargetPriority ?? 'high',
     similarCode: buildFallowSimilarCodeConfig(f.similarCode),
     flags: buildFallowFlagsConfig(f.flags, def?.flags),
-    coverage: buildFallowCoverageConfig(f.coverage, def?.coverage)
+    coverage: buildFallowCoverageConfig(f.coverage, def?.coverage),
+    typeAware: f.typeAware ?? def?.typeAware ?? true,
+    showCascade: f.showCascade ?? def?.showCascade ?? true,
+    duplicates: {
+      nearMiss: f.duplicates?.nearMiss ?? def?.duplicates?.nearMiss ?? true,
+      mode: f.duplicates?.mode ?? def?.duplicates?.mode ?? 'strict',
+      ...(f.duplicates?.minTokens !== undefined ? { minTokens: f.duplicates.minTokens } : {}),
+      ...(f.duplicates?.minLines !== undefined ? { minLines: f.duplicates.minLines } : {}),
+      ...(f.duplicates?.minOccurrences !== undefined ? { minOccurrences: f.duplicates.minOccurrences } : {})
+    },
+    viz: {
+      enabled: f.viz?.enabled ?? def?.viz?.enabled ?? true,
+      outputPath: f.viz?.outputPath ?? def?.viz?.outputPath ?? 'scratch/fallow_map.html'
+    }
   };
 }
 

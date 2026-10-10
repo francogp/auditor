@@ -374,7 +374,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
                 '*.{ts,js,mjs,cjs,json}'
             ];
         const ephemeralConfig = {
-            $schema: 'https://unpkg.com/knip@5/overview/configuration-schema.json',
+            $schema: 'https://unpkg.com/knip@6/overview/configuration-schema.json',
             entry: effectiveEntry,
             project: effectiveProject,
             ignore: [

@@ -361,4 +361,106 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(violations.filter(v => v.ruleId === 'fallow-refactoring-targets')).toHaveLength(0);
     });
   });
+
+  describe('Fallow Modern Capabilities & Flags Dispatching', () => {
+    it('dispatches --dupes-near and --dupes-mode when configured in fallow.duplicates', async () => {
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          duplicates: {
+            nearMiss: true,
+            mode: 'semantic'
+          }
+        }
+      }));
+
+      const auditor = new FallowArchitectureAuditor(tempDir);
+      const dispatchedArgs: Record<string, string[]> = {};
+      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+        dispatchedArgs[cmd] = args || [];
+        return [];
+      };
+
+      await auditor.runAudit();
+
+      expect(dispatchedArgs.dupes).toBeDefined();
+      expect(dispatchedArgs.dupes).toContain('--dupes-near');
+      expect(dispatchedArgs.dupes).toContain('--dupes-mode');
+      expect(dispatchedArgs.dupes).toContain('semantic');
+    });
+
+    it('dispatches --type-aware and --show-cascade when tsconfig.json exists on disk', async () => {
+      await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
+
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          typeAware: true,
+          showCascade: true
+        }
+      }));
+
+      const auditor = new FallowArchitectureAuditor(tempDir);
+      const dispatchedArgs: Record<string, string[]> = {};
+      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+        dispatchedArgs[cmd] = args || [];
+        return [];
+      };
+
+      await auditor.runAudit();
+
+      expect(dispatchedArgs['dead-code']).toBeDefined();
+      expect(dispatchedArgs['dead-code']).toContain('--type-aware');
+      expect(dispatchedArgs['dead-code']).toContain('--show-cascade');
+    });
+
+    it('omits --type-aware when fallow.typeAware is explicitly false or tsconfig.json is missing', async () => {
+      // 1. Without tsconfig.json
+      const auditorWithoutTs = new FallowArchitectureAuditor(tempDir);
+      const argsWithoutTs: Record<string, string[]> = {};
+      (auditorWithoutTs as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+        argsWithoutTs[cmd] = args || [];
+        return [];
+      };
+      await auditorWithoutTs.runAudit();
+      expect(argsWithoutTs['dead-code']).not.toContain('--type-aware');
+
+      // 2. With tsconfig.json but typeAware: false
+      await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
+      setAuditConfig(defineAuditConfig({
+        name: 'validate-fallow-test',
+        fallow: {
+          typeAware: false
+        }
+      }));
+      const auditorWithDisabled = new FallowArchitectureAuditor(tempDir);
+      const argsWithDisabled: Record<string, string[]> = {};
+      (auditorWithDisabled as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+        argsWithDisabled[cmd] = args || [];
+        return [];
+      };
+      await auditorWithDisabled.runAudit();
+      expect(argsWithDisabled['dead-code']).not.toContain('--type-aware');
+    });
+
+    it('always passes --report-only to health command and includes coverage if file exists', async () => {
+      const covDir = path.join(tempDir, 'coverage');
+      await fs.mkdir(covDir, { recursive: true });
+      await fs.writeFile(path.join(covDir, 'coverage-final.json'), '{}', 'utf-8');
+
+      const auditor = new FallowArchitectureAuditor(tempDir);
+      const dispatchedArgs: Record<string, string[]> = {};
+      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+        dispatchedArgs[cmd] = args || [];
+        return [];
+      };
+
+      await auditor.runAudit();
+
+      expect(dispatchedArgs.health).toBeDefined();
+      expect(dispatchedArgs.health).toContain('--targets');
+      expect(dispatchedArgs.health).toContain('--report-only');
+      expect(dispatchedArgs.health).toContain('--coverage');
+    });
+  });
 });

@@ -116,12 +116,18 @@ export interface AuditStylelintStrictValuesConfig {
   readonly ignoreAtRules?: readonly string[];
 }
 
+export interface AuditStylelintOrderConfig {
+  readonly enabled?: boolean;
+  readonly enforceHasBlockPartitioning?: boolean;
+}
+
 export interface AuditStylelintConfig {
   readonly enabled?: boolean;
   readonly configFile?: string;
   readonly rules?: Record<string, unknown>;
   readonly ignoreGlobs?: readonly string[];
   readonly strictValues?: AuditStylelintStrictValuesConfig;
+  readonly order?: AuditStylelintOrderConfig;
 }
 
 export interface AuditEslintConfig {
@@ -232,6 +238,19 @@ export interface AuditFallowCoverageConfig {
   readonly root?: string;
 }
 
+export interface AuditFallowDuplicatesConfig {
+  readonly mode?: 'strict' | 'mild' | 'weak' | 'semantic';
+  readonly nearMiss?: boolean;
+  readonly minTokens?: number;
+  readonly minLines?: number;
+  readonly minOccurrences?: number;
+}
+
+export interface AuditFallowVizConfig {
+  readonly enabled?: boolean;
+  readonly outputPath?: string;
+}
+
 export const FALLOW_TARGET_PRIORITIES = ['critical', 'high', 'medium', 'moderate', 'low', 'all'] as const;
 export type FallowTargetPriorityNamed = (typeof FALLOW_TARGET_PRIORITIES)[number];
 export type FallowTargetPriority = FallowTargetPriorityNamed | number;
@@ -244,6 +263,10 @@ export interface AuditFallowConfig {
   readonly similarCode?: AuditFallowSimilarCodeConfig;
   readonly flags?: AuditFallowFlagsConfig;
   readonly coverage?: AuditFallowCoverageConfig;
+  readonly typeAware?: boolean;
+  readonly showCascade?: boolean;
+  readonly duplicates?: AuditFallowDuplicatesConfig;
+  readonly viz?: AuditFallowVizConfig;
 }
 
 export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;

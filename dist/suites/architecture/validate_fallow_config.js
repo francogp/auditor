@@ -78,6 +78,11 @@ export function createDefaultFallowConfigContent() {
             'scratch/**',
             'tests/**'
         ],
+        typeAware: true,
+        duplicates: {
+            nearMiss: true,
+            mode: 'strict'
+        },
         health: {
             maxCrap: 0
         }

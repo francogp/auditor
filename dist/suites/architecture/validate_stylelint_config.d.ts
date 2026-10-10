@@ -14,10 +14,17 @@ import 'stylelint-declaration-strict-value';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
-export type StylelintConfigRuleId = 'stylelint-config-missing' | 'stylelint-config-missing-plugin' | 'stylelint-config-missing-strict-value';
+export type StylelintConfigRuleId = 'stylelint-config-missing' | 'stylelint-config-missing-plugin' | 'stylelint-config-missing-strict-value' | 'stylelint-config-missing-order';
 export declare const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[];
 export declare const REQUIRED_STYLELINT_PLUGIN = "stylelint-declaration-strict-value";
+export declare const REQUIRED_ORDER_PLUGIN = "stylelint-order";
 export declare const REQUIRED_STRICT_VALUE_RULE = "scale-unlimited/declaration-strict-value";
+export declare const REQUIRED_ORDER_RULE = "order/order";
+export declare const CANONICAL_ORDER_CONFIG: readonly unknown[];
+export declare function validateOrderHasBlockPartitioning(order: unknown): {
+    valid: boolean;
+    reason?: string;
+};
 export declare const REQUIRED_STRICT_PROPERTIES: readonly ["/color$/", "font-size", "z-index", "box-shadow", "border-radius", "font-family", "transition-duration", "animation-duration", "gap", "row-gap", "column-gap", "font-weight", "transition-timing-function"];
 export declare const CANONICAL_IGNORE_AT_RULES: readonly ["@font-face"];
 export declare const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>>;
@@ -35,6 +42,7 @@ export declare class ValidateStylelintConfigAuditor extends BaseAuditor<Stylelin
         fix?: boolean;
     }, maybeProjectRoot?: string);
     private auditPlugin;
+    private auditOrderRule;
     private auditStrictRule;
     runAudit(): Promise<void>;
 }

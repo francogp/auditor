@@ -2,6 +2,7 @@
 /**
  * src/cli/report_fallow.ts
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
@@ -11,6 +12,7 @@ import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import { runGuardReport } from './report_guard.ts';
 import { runFlagsReport } from './report_flags.ts';
+import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
 
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
@@ -18,7 +20,8 @@ const RADIX_DECIMAL = 10;
 const VALID_CATEGORY_ALIASES = new Set([
   'dupes', 'duplicates', 'security', 'cwe', 'dead-code', 'deadcode', 'unused',
   'complexity', 'circular', 'exports', 'orphans', 'boundaries', 'architecture', 'boundary',
-  'coverage-gaps', 'coverage_gaps', 'gaps', 'guard', 'flags', 'all'
+  'coverage-gaps', 'coverage_gaps', 'gaps', 'guard', 'flags', 'suppressions', 'stale-suppressions',
+  'viz', 'all'
 ]);
 
 function parsePositionalOption(pos: string, currentCategory: string): { category?: string; top?: number; json?: boolean } {
@@ -75,26 +78,31 @@ function parseCommandLineArgs() {
 }
 
 
-function runFallowCommand(command: string, extraArgs: string[] = []): Record<string, unknown> | null { // open-record: Generic key-value data dictionary container
+function runFallowCommand<T = Record<string, unknown>>(command: string, extraArgs: string[] = []): T | null { // open-record: Generic key-value data dictionary container
   try {
     const effectiveExtra = [...extraArgs];
-    if (command.startsWith('health') && !effectiveExtra.includes('--coverage')) {
-      const covArgs = resolveCoverageArgs();
-      if (covArgs.length > 0) {
-        effectiveExtra.push(...covArgs);
+    if (command.startsWith('health')) {
+      if (!effectiveExtra.includes('--report-only')) {
+        effectiveExtra.push('--report-only');
+      }
+      if (!effectiveExtra.includes('--coverage')) {
+        const covArgs = resolveCoverageArgs();
+        if (covArgs.length > 0) {
+          effectiveExtra.push(...covArgs);
+        }
       }
     }
     const args = ['--format', 'json', ...effectiveExtra]; // no-domain: Non-domain utility collection or data structure
-    const fallowBin = path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+    const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
     const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
     const stdout = execSync(cmd, {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
       maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
     });
-    return parseJsonObjectOutput<Record<string, unknown>>(stdout);
+    return parseJsonObjectOutput<T>(stdout);
   } catch (e: unknown) {
-    return parseJsonObjectOutput<Record<string, unknown>>(e);
+    return parseJsonObjectOutput<T>(e);
   }
 }
 
@@ -799,6 +807,138 @@ function executeComplexityReport(jsonOutput: boolean): void {
   execSync(`node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? 'json' : ''}`, { stdio: 'inherit' });
 }
 
+interface FallowSuppressionItem {
+  readonly line: number;
+  readonly kind: string;
+  readonly level?: string;
+  readonly origin?: string;
+  readonly reason?: string | null;
+  readonly reason_present?: boolean;
+}
+
+interface FallowSuppressionFile {
+  readonly path: string;
+  readonly suppressions: readonly FallowSuppressionItem[];
+}
+
+interface FallowSuppressionsPayload {
+  readonly kind?: string;
+  readonly summary?: {
+    readonly total?: number;
+    readonly files?: number;
+    readonly without_reason?: number;
+    readonly stale?: number;
+    readonly by_kind?: readonly { kind: string; count: number }[];
+  };
+  readonly files?: readonly FallowSuppressionFile[];
+}
+
+function reportSuppressions(top: number, json: boolean): void {
+  const data = runFallowCommand<FallowSuppressionsPayload>('suppressions');
+  const files = data?.files ?? [];
+  const summary = data?.summary;
+
+  const flattened: Array<{ path: string; suppression: FallowSuppressionItem }> = [];
+  for (const f of files) {
+    for (const s of f.suppressions || []) {
+      flattened.push({ path: f.path, suppression: s });
+    }
+  }
+
+  if (json) {
+    console.log(JSON.stringify({ summary, total: flattened.length, suppressions: flattened.slice(0, top) }, null, 2));
+    return;
+  }
+
+  const sub = summary
+    ? `Total: ${summary.total ?? flattened.length} • Sin justificación: ${summary.without_reason ?? 0} • Obsoletas: ${summary.stale ?? 0}`
+    : `Total: ${flattened.length}`;
+
+  console.log('\n' + renderBanner('INVENTARIO DE SUPRESIONES ACTIVAS (FALLOW SUPPRESSIONS)', sub));
+
+  if (flattened.length === 0) {
+    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se encontraron comentarios ni reglas de supresión activas.\n'));
+    return;
+  }
+
+  interface SuppressionTableRow {
+    index: string;
+    location: string;
+    kind: string;
+    level: string;
+    reason: string;
+  }
+
+  const cols: readonly TableColumn<SuppressionTableRow>[] = [
+    { header: '#', width: 3, align: 'center', key: 'index' },
+    { header: 'UBICACIÓN', width: 32, align: 'left', key: 'location' },
+    { header: 'TIPO / REGLA', width: 18, align: 'left', key: 'kind' },
+    { header: 'NIVEL', width: 8, align: 'center', key: 'level' },
+    { header: 'JUSTIFICACIÓN', width: 38, align: 'left', key: 'reason' }
+  ];
+
+  const rows: SuppressionTableRow[] = flattened.slice(0, top).map((item, idx) => {
+    const loc = `${item.path}:${item.suppression.line}`;
+    const kind = styleText('cyan', item.suppression.kind || 'desconocido');
+    const level = item.suppression.level || 'line';
+    const reasonText = item.suppression.reason
+      ? item.suppression.reason
+      : styleText('yellow', 'Sin justificación');
+    return {
+      index: String(idx + 1),
+      location: loc,
+      kind,
+      level,
+      reason: reasonText
+    };
+  });
+
+  console.log('\n' + renderBoxTable(cols, rows));
+  console.log();
+}
+
+function reportViz(json: boolean): void {
+  const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+  const scratchDir = path.resolve(process.cwd(), 'scratch');
+  const targetHtml = path.resolve(scratchDir, 'fallow_map.html');
+  const defaultHtml = path.resolve(process.cwd(), 'fallow-viz.html');
+
+  if (!fs.existsSync(scratchDir)) {
+    fs.mkdirSync(scratchDir, { recursive: true });
+  }
+
+  try {
+    const cmd = `node "${fallowBin}" viz`;
+    const stdout = execSync(cmd, {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
+    });
+
+    if (fs.existsSync(defaultHtml)) {
+      fs.copyFileSync(defaultHtml, targetHtml);
+      fs.unlinkSync(defaultHtml);
+    }
+
+    if (json) {
+      console.log(JSON.stringify({ success: true, outputPath: 'scratch/fallow_map.html', message: stdout.trim() }, null, 2));
+      return;
+    }
+
+    console.log('\n' + renderBanner('MAPA INTERACTIVO DEL CODEBASE (FALLOW VIZ)', 'Visualización interactiva HTML'));
+    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Mapa generado con éxito!\n'));
+    console.log(`  Archivo generado: ${styleText('cyan', 'scratch/fallow_map.html')}`);
+    console.log(`  Para visualizarlo, ábrelo en tu navegador.\n`);
+  } catch (err: unknown) {
+    if (json) {
+      console.log(JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) }, null, 2));
+      return;
+    }
+    console.error(styleText('red', `Error generando fallow viz: ${err instanceof Error ? err.message : String(err)}`));
+  }
+}
+
 type FallowReportHandler = (top: number, jsonOutput: boolean) => number | void;
 
 const REPORT_DISPATCH_MAP: Record<string, FallowReportHandler> = {
@@ -830,6 +970,9 @@ const REPORT_DISPATCH_MAP: Record<string, FallowReportHandler> = {
       json
     });
   },
+  suppressions: (top, json) => reportSuppressions(top, json),
+  'stale-suppressions': (top, json) => reportSuppressions(top, json),
+  viz: (_top, json) => reportViz(json),
   complexity: (_top, json) => executeComplexityReport(json)
 };
 

@@ -9,6 +9,7 @@
  *   3. Dead code, unused exports, files, dependencies, and circular dependencies.
  *   4. Structural complexity and refactoring targets enforcement.
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { BaseAuditor } from "../../core/auditorBase.js";
@@ -277,7 +278,19 @@ export class FallowArchitectureAuditor extends BaseAuditor {
             family: 'architecture',
             packageName: 'Fallow',
             configKey: 'fallow.enabled',
-            defaultConfig: { enabled: true },
+            defaultConfig: {
+                enabled: true,
+                typeAware: true,
+                showCascade: true,
+                duplicates: {
+                    nearMiss: true,
+                    mode: 'strict'
+                },
+                viz: {
+                    enabled: true,
+                    outputPath: 'scratch/fallow_map.html'
+                }
+            },
             criticalConfig: {},
             icon: '🌾',
             ruleIds: FALLOW_RULES,
@@ -337,7 +350,14 @@ export class FallowArchitectureAuditor extends BaseAuditor {
         // Collect all findings in memory before emitting
         const allFindings = [];
         // 1. Duplicates
-        const dupes = this.runFallowSubCommand('dupes', FALLOW_DUPES_CONFIG);
+        const dupesArgs = [...FALLOW_DUPES_CONFIG];
+        if (config.fallow?.duplicates?.nearMiss !== false) {
+            dupesArgs.push('--dupes-near');
+        }
+        if (config.fallow?.duplicates?.mode) {
+            dupesArgs.push('--dupes-mode', config.fallow.duplicates.mode);
+        }
+        const dupes = this.runFallowSubCommand('dupes', dupesArgs);
         allFindings.push(...dupes);
         // 2. Triplets
         const triplets = this.runFallowSubCommand('triplets', FALLOW_TRIPLETS_CONFIG);
@@ -348,10 +368,22 @@ export class FallowArchitectureAuditor extends BaseAuditor {
             allFindings.push(...security);
         }
         // 4. Dead Code
-        const deadCode = this.runFallowSubCommand('dead-code');
+        const deadCodeArgs = [];
+        if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))) {
+            deadCodeArgs.push('--type-aware');
+        }
+        if (config.fallow?.showCascade !== false) {
+            deadCodeArgs.push('--show-cascade');
+        }
+        const deadCode = this.runFallowSubCommand('dead-code', deadCodeArgs);
         allFindings.push(...deadCode);
         // 5. Health & Targets
-        const health = this.runFallowSubCommand('health', ['--targets']);
+        const healthArgs = ['--targets', '--report-only'];
+        const covPath = path.resolve(this.projectRoot, 'coverage/coverage-final.json');
+        if (fs.existsSync(covPath)) {
+            healthArgs.push('--coverage', 'coverage/coverage-final.json');
+        }
+        const health = this.runFallowSubCommand('health', healthArgs);
         allFindings.push(...health);
         for (const f of allFindings) {
             const relPath = toPosixRelative(this.projectRoot, f.file);

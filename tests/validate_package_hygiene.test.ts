@@ -255,5 +255,23 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.findings.some(f => f.severity === 'error')).toBe(true);
     });
+
+    it('generates ephemeral Knip configuration pointing to Knip v6 schema', () => {
+      const auditor = new ValidatePackageHygieneAuditor({ projectRoot: tempDir });
+      const scratchDir = path.join(tempDir, 'scratch');
+      fs.mkdirSync(scratchDir, { recursive: true });
+      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
+
+      const cfg = defineAuditConfig({
+        name: 'Knip Schema Test',
+        packageHygiene: { enabled: true }
+      });
+
+      const ephemeralConfigPath = (auditor as unknown as { buildEphemeralKnipConfig: (c: typeof cfg, s: string) => string }).buildEphemeralKnipConfig(cfg, scratchDir);
+      expect(fs.existsSync(ephemeralConfigPath)).toBe(true);
+
+      const parsed = JSON.parse(fs.readFileSync(ephemeralConfigPath, 'utf-8'));
+      expect(parsed.$schema).toContain('knip@6');
+    });
   });
 });

@@ -209,6 +209,9 @@ describe('ValidateFallowConfigAuditor', () => {
       const createdContent = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(createdContent.entry).toContain('src/index.ts');
       expect(createdContent.ignorePatterns).toContain('dist/**');
+      expect(createdContent.typeAware).toBe(true);
+      expect(createdContent.duplicates?.nearMiss).toBe(true);
+      expect(createdContent.duplicates?.mode).toBe('strict');
     });
   });
 });

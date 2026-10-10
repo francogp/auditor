@@ -25,10 +25,26 @@ export interface FallowIgnoreExportEntry {
     exports: string[];
 }
 export interface FallowConfigSchema {
+    $schema?: string;
     entry?: string[];
     ignorePatterns?: string[];
     ignoreExports?: FallowIgnoreExportEntry[];
     rules?: Record<string, string>;
+    typeAware?: boolean;
+    duplicates?: {
+        mode?: string;
+        nearMiss?: boolean;
+        minTokens?: number;
+        minLines?: number;
+        minOccurrences?: number;
+    };
+    viz?: {
+        enabled?: boolean;
+        outputPath?: string;
+    };
+    health?: {
+        maxCrap?: number;
+    };
 }
 export declare function createDefaultFallowConfigContent(): string;
 export interface FallowWorkspaceDiagnosticItem {

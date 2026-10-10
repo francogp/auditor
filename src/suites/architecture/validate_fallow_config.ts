@@ -95,10 +95,26 @@ export interface FallowIgnoreExportEntry {
 }
 
 export interface FallowConfigSchema {
+  $schema?: string;
   entry?: string[];
   ignorePatterns?: string[];
   ignoreExports?: FallowIgnoreExportEntry[];
   rules?: Record<string, string>;
+  typeAware?: boolean;
+  duplicates?: {
+    mode?: string;
+    nearMiss?: boolean;
+    minTokens?: number;
+    minLines?: number;
+    minOccurrences?: number;
+  };
+  viz?: {
+    enabled?: boolean;
+    outputPath?: string;
+  };
+  health?: {
+    maxCrap?: number;
+  };
 }
 
 export function createDefaultFallowConfigContent(): string {
@@ -113,6 +129,11 @@ export function createDefaultFallowConfigContent(): string {
         'scratch/**',
         'tests/**'
       ],
+      typeAware: true,
+      duplicates: {
+        nearMiss: true,
+        mode: 'strict'
+      },
       health: {
         maxCrap: 0
       }
