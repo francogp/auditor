@@ -36,6 +36,7 @@ export const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[] = [
 export const REQUIRED_STYLELINT_PLUGIN = 'stylelint-declaration-strict-value';
 export const REQUIRED_STRICT_VALUE_RULE = 'scale-unlimited/declaration-strict-value';
 
+// no-domain: Non-domain Stylelint property names configuration
 export const REQUIRED_STRICT_PROPERTIES = [
   '/color$/',
   'font-size',
@@ -52,54 +53,98 @@ export const REQUIRED_STRICT_PROPERTIES = [
   'transition-timing-function'
 ] as const;
 
-export const CANONICAL_STRICT_VALUE_CONFIG = [
-  [...REQUIRED_STRICT_PROPERTIES],
-  {
-    ignoreAtRules: ['@font-face'],
-    ignoreValues: {
-      '': ['inherit', 'initial', 'unset'],
-      '/color$/': ['transparent', 'currentColor', 'none'],
-      'z-index': ['auto', '0', '-1'],
-      'font-size': ['inherit', 'initial'],
-      'box-shadow': ['none'],
-      'border-radius': ['0', '50%', '100%', '9999px'],
-      'font-family': [
-        'inherit',
-        'initial',
-        'unset',
-        'sans-serif',
-        'serif',
-        'monospace',
-        'cursive',
-        'fantasy',
-        'system-ui',
-        'ui-sans-serif',
-        'ui-serif',
-        'ui-monospace',
-        ',',
-        '/^var\\(.*\\),?$/',
-        '/^\\$.*,?$/'
-      ],
-      'transition-duration': ['0', '0s', '0ms'],
-      'animation-duration': ['0', '0s', '0ms'],
-      'gap': ['0', 'normal'],
-      'row-gap': ['0', 'normal'],
-      'column-gap': ['0', 'normal'],
-      'font-weight': ['normal', 'bold', 'bolder', 'lighter'],
-      'transition-timing-function': [
-        'linear',
-        'ease',
-        'ease-in',
-        'ease-out',
-        'ease-in-out',
-        'step-start',
-        'step-end'
-      ]
-    },
-    message:
-      'Enforce using SCSS variables ($variable) or CSS variables (var(--variable)) instead of literal values (no magic values/numbers in styles)'
+export const CANONICAL_IGNORE_AT_RULES = ['@font-face'] as const; // no-domain: CSS at-rules for Stylelint strict-value
+
+export const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>> = {
+  '': ['inherit', 'initial', 'unset'],
+  '/color$/': ['transparent', 'currentColor', 'none'],
+  'z-index': ['auto', '0', '-1'],
+  'font-size': ['inherit', 'initial'],
+  'box-shadow': ['none'],
+  'border-radius': ['0', '50%', '100%', '9999px'],
+  'font-family': [
+    'inherit',
+    'initial',
+    'unset',
+    'sans-serif',
+    'serif',
+    'monospace',
+    'cursive',
+    'fantasy',
+    'system-ui',
+    'ui-sans-serif',
+    'ui-serif',
+    'ui-monospace',
+    ',',
+    '/^var\\(.*\\),?$/',
+    '/^\\$.*,?$/'
+  ],
+  'transition-duration': ['0', '0s', '0ms'],
+  'animation-duration': ['0', '0s', '0ms'],
+  'gap': ['0', 'normal'],
+  'row-gap': ['0', 'normal'],
+  'column-gap': ['0', 'normal'],
+  'font-weight': ['normal', 'bold', 'bolder', 'lighter'],
+  'transition-timing-function': [
+    'linear',
+    'ease',
+    'ease-in',
+    'ease-out',
+    'ease-in-out',
+    'step-start',
+    'step-end'
+  ]
+} as const;
+
+export function getMergedStrictProperties(config?: ReturnType<typeof getAuditConfig>): readonly string[] {
+  const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties ?? [];
+  const merged = new Set<string>([...REQUIRED_STRICT_PROPERTIES, ...custom]);
+  return Array.from(merged);
+}
+
+export function getMergedIgnoreValues(config?: ReturnType<typeof getAuditConfig>): Record<string, readonly string[]> {
+  const custom = config?.stylelint?.strictValues?.ignoreValues ?? config?.styles?.stylelint?.strictValues?.ignoreValues ?? {};
+  const result: Record<string, readonly string[]> = {};
+
+  for (const [prop, values] of Object.entries(CANONICAL_IGNORE_VALUES)) {
+    result[prop] = [...values];
   }
-];
+
+  for (const [prop, values] of Object.entries(custom)) {
+    if (result[prop]) {
+      const set = new Set([...result[prop], ...values]);
+      result[prop] = Array.from(set);
+    } else {
+      result[prop] = [...values];
+    }
+  }
+
+  return result;
+}
+
+export function getMergedIgnoreAtRules(config?: ReturnType<typeof getAuditConfig>): readonly string[] {
+  const custom = config?.stylelint?.strictValues?.ignoreAtRules ?? config?.styles?.stylelint?.strictValues?.ignoreAtRules ?? [];
+  const merged = new Set<string>([...CANONICAL_IGNORE_AT_RULES, ...custom]);
+  return Array.from(merged);
+}
+
+export function buildProjectStrictValueConfig(config?: ReturnType<typeof getAuditConfig>): unknown[] {
+  const properties = getMergedStrictProperties(config);
+  const ignoreValues = getMergedIgnoreValues(config);
+  const ignoreAtRules = getMergedIgnoreAtRules(config);
+
+  return [
+    properties,
+    {
+      ignoreAtRules,
+      ignoreValues,
+      message:
+        'Enforce using SCSS variables ($variable) or CSS variables (var(--variable)) instead of literal values (no magic values/numbers in styles)'
+    }
+  ];
+}
+
+export const CANONICAL_STRICT_VALUE_CONFIG = buildProjectStrictValueConfig();
 
 export const CANONICAL_STYLELINT_CONFIG_CONTENT = JSON.stringify(
   {
@@ -182,6 +227,75 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     });
   }
 
+  private auditPlugin(parsedConfig: Record<string, unknown>, targetFile: string): boolean {
+    const plugins = Array.isArray(parsedConfig.plugins) ? [...parsedConfig.plugins] : [];
+    if (plugins.includes(REQUIRED_STYLELINT_PLUGIN)) {
+      return false;
+    }
+
+    if (this.isFixActive()) {
+      plugins.push(REQUIRED_STYLELINT_PLUGIN);
+      parsedConfig.plugins = plugins;
+      return true;
+    }
+
+    this.addViolation({
+      ruleId: 'stylelint-config-missing-plugin',
+      severity: 'error',
+      file: toPosixRelative(this.projectRoot, targetFile),
+      line: 1,
+      message: `Falta el plugin requerido "${REQUIRED_STYLELINT_PLUGIN}" en plugins de ${path.basename(targetFile)}. Ejecuta "auditor fix" para agregarlo.`,
+      context: REQUIRED_STYLELINT_PLUGIN
+    });
+    return false;
+  }
+
+  private auditStrictRule(
+    parsedConfig: Record<string, unknown>,
+    targetFile: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): boolean {
+    const rules = (typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null)
+      ? { ...(parsedConfig.rules as Record<string, unknown>) }
+      : {};
+
+    const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
+    const isStrictRuleConfigured = Array.isArray(strictRule) && strictRule.length >= 1;
+    const requiredProps = getMergedStrictProperties(config);
+    let missingProperties: readonly string[] = []; // no-domain: Non-domain Stylelint property names
+
+    if (isStrictRuleConfigured && Array.isArray(strictRule[0])) {
+      const configuredProps = new Set(
+        strictRule[0].filter((item): item is string => typeof item === 'string')
+      );
+      missingProperties = requiredProps.filter(p => !configuredProps.has(p));
+    }
+
+    if (isStrictRuleConfigured && missingProperties.length === 0) {
+      return false;
+    }
+
+    if (this.isFixActive()) {
+      rules[REQUIRED_STRICT_VALUE_RULE] = buildProjectStrictValueConfig(config);
+      parsedConfig.rules = rules;
+      return true;
+    }
+
+    const detailMsg = missingProperties.length > 0
+      ? `La regla "${REQUIRED_STRICT_VALUE_RULE}" en ${path.basename(targetFile)} no cubre todas las propiedades canónicas (faltan: ${missingProperties.join(', ')}). Ejecuta "auditor fix" para sincronizarla.`
+      : `Falta la regla requerida "${REQUIRED_STRICT_VALUE_RULE}" en rules de ${path.basename(targetFile)}. Ejecuta "auditor fix" para inyectarla.`;
+
+    this.addViolation({
+      ruleId: 'stylelint-config-missing-strict-value',
+      severity: 'error',
+      file: toPosixRelative(this.projectRoot, targetFile),
+      line: 1,
+      message: detailMsg,
+      context: missingProperties.length > 0 ? missingProperties.join(', ') : REQUIRED_STRICT_VALUE_RULE
+    });
+    return false;
+  }
+
   public override async runAudit(): Promise<void> {
     for (const r of STYLELINT_CONFIG_RULES) {
       this.markRuleEvaluated(r);
@@ -209,69 +323,13 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       const content = fs.readFileSync(targetFile, 'utf-8');
       parsedConfig = JSON.parse(content);
     } catch {
-      // If not JSON (e.g. JS file), skip content AST checks
       return;
     }
 
-    let modified = false;
+    const pluginModified = this.auditPlugin(parsedConfig, targetFile);
+    const strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
 
-    // 1. Verify plugin
-    const plugins = Array.isArray(parsedConfig.plugins) ? [...parsedConfig.plugins] : [];
-    if (!plugins.includes(REQUIRED_STYLELINT_PLUGIN)) {
-      if (this.isFixActive()) {
-        plugins.push(REQUIRED_STYLELINT_PLUGIN);
-        parsedConfig.plugins = plugins;
-        modified = true;
-      } else {
-        this.addViolation({
-          ruleId: 'stylelint-config-missing-plugin',
-          severity: 'error',
-          file: toPosixRelative(this.projectRoot, targetFile),
-          line: 1,
-          message: `Falta el plugin requerido "${REQUIRED_STYLELINT_PLUGIN}" en plugins de ${path.basename(targetFile)}. Ejecuta "auditor fix" para agregarlo.`,
-          context: REQUIRED_STYLELINT_PLUGIN
-        });
-      }
-    }
-
-    // 2. Verify strict value rule
-    const rules = (typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null)
-      ? { ...(parsedConfig.rules as Record<string, unknown>) }
-      : {};
-
-    const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
-    const isStrictRuleConfigured = Array.isArray(strictRule) && strictRule.length >= 1;
-    let missingProperties: readonly string[] = []; // no-domain: Non-domain Stylelint property names
-
-    if (isStrictRuleConfigured && Array.isArray(strictRule[0])) {
-      const configuredProps = new Set(
-        strictRule[0].filter((item): item is string => typeof item === 'string')
-      );
-      missingProperties = REQUIRED_STRICT_PROPERTIES.filter(p => !configuredProps.has(p));
-    }
-
-    if (!isStrictRuleConfigured || missingProperties.length > 0) {
-      if (this.isFixActive()) {
-        rules[REQUIRED_STRICT_VALUE_RULE] = CANONICAL_STRICT_VALUE_CONFIG;
-        parsedConfig.rules = rules;
-        modified = true;
-      } else {
-        const detailMsg = missingProperties.length > 0
-          ? `La regla "${REQUIRED_STRICT_VALUE_RULE}" en ${path.basename(targetFile)} no cubre todas las propiedades canónicas (faltan: ${missingProperties.join(', ')}). Ejecuta "auditor fix" para sincronizarla.`
-          : `Falta la regla requerida "${REQUIRED_STRICT_VALUE_RULE}" en rules de ${path.basename(targetFile)}. Ejecuta "auditor fix" para inyectarla.`;
-
-        this.addViolation({
-          ruleId: 'stylelint-config-missing-strict-value',
-          severity: 'error',
-          file: toPosixRelative(this.projectRoot, targetFile),
-          line: 1,
-          message: detailMsg,
-          context: missingProperties.length > 0 ? missingProperties.join(', ') : REQUIRED_STRICT_VALUE_RULE
-        });
-      }
-    }
-
-    if (modified && this.isFixActive()) {
+    if ((pluginModified || strictModified) && this.isFixActive()) {
       fs.writeFileSync(targetFile, JSON.stringify(parsedConfig, null, 2) + '\n', 'utf-8');
     }
   }

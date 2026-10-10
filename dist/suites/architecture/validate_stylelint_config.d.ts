@@ -12,32 +12,20 @@
  */
 import 'stylelint-declaration-strict-value';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 export type StylelintConfigRuleId = 'stylelint-config-missing' | 'stylelint-config-missing-plugin' | 'stylelint-config-missing-strict-value';
 export declare const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[];
 export declare const REQUIRED_STYLELINT_PLUGIN = "stylelint-declaration-strict-value";
 export declare const REQUIRED_STRICT_VALUE_RULE = "scale-unlimited/declaration-strict-value";
 export declare const REQUIRED_STRICT_PROPERTIES: readonly ["/color$/", "font-size", "z-index", "box-shadow", "border-radius", "font-family", "transition-duration", "animation-duration", "gap", "row-gap", "column-gap", "font-weight", "transition-timing-function"];
-export declare const CANONICAL_STRICT_VALUE_CONFIG: (("z-index" | "/color$/" | "font-size" | "box-shadow" | "border-radius" | "font-family" | "transition-duration" | "animation-duration" | "gap" | "row-gap" | "column-gap" | "font-weight" | "transition-timing-function")[] | {
-    ignoreAtRules: string[];
-    ignoreValues: {
-        '': string[];
-        '/color$/': string[];
-        'z-index': string[];
-        'font-size': string[];
-        'box-shadow': string[];
-        'border-radius': string[];
-        'font-family': string[];
-        'transition-duration': string[];
-        'animation-duration': string[];
-        gap: string[];
-        'row-gap': string[];
-        'column-gap': string[];
-        'font-weight': string[];
-        'transition-timing-function': string[];
-    };
-    message: string;
-})[];
+export declare const CANONICAL_IGNORE_AT_RULES: readonly ["@font-face"];
+export declare const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>>;
+export declare function getMergedStrictProperties(config?: ReturnType<typeof getAuditConfig>): readonly string[];
+export declare function getMergedIgnoreValues(config?: ReturnType<typeof getAuditConfig>): Record<string, readonly string[]>;
+export declare function getMergedIgnoreAtRules(config?: ReturnType<typeof getAuditConfig>): readonly string[];
+export declare function buildProjectStrictValueConfig(config?: ReturnType<typeof getAuditConfig>): unknown[];
+export declare const CANONICAL_STRICT_VALUE_CONFIG: unknown[];
 export declare const CANONICAL_STYLELINT_CONFIG_CONTENT: string;
 export declare const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<StylelintConfigRuleId>;
 export declare class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigRuleId> {
@@ -45,6 +33,8 @@ export declare class ValidateStylelintConfigAuditor extends BaseAuditor<Stylelin
         projectRoot?: string;
         fix?: boolean;
     }, maybeProjectRoot?: string);
+    private auditPlugin;
+    private auditStrictRule;
     runAudit(): Promise<void>;
 }
 export { ValidateStylelintConfigAuditor as StylelintConfigAuditor };

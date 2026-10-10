@@ -110,11 +110,18 @@ export interface AuditCssDuplicatesConfig {
   readonly checkUnused?: boolean;
 }
 
+export interface AuditStylelintStrictValuesConfig {
+  readonly properties?: readonly string[];
+  readonly ignoreValues?: Record<string, readonly string[]>;
+  readonly ignoreAtRules?: readonly string[];
+}
+
 export interface AuditStylelintConfig {
   readonly enabled?: boolean;
   readonly configFile?: string;
   readonly rules?: Record<string, unknown>;
   readonly ignoreGlobs?: readonly string[];
+  readonly strictValues?: AuditStylelintStrictValuesConfig;
 }
 
 export interface AuditEslintConfig {

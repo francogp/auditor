@@ -176,5 +176,40 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(verifyResult.status).toBe('passed');
       expect(verifyResult.summary.errors).toBe(0);
     });
+
+    it('honors custom strict properties and ignoreValues configured in audit.config.ts in fix and check mode', async () => {
+      const auditorConfig = `
+export default {
+  stylelint: {
+    enabled: true,
+    strictValues: {
+      properties: ['letter-spacing'],
+      ignoreValues: {
+        'letter-spacing': ['normal'],
+        'z-index': ['999']
+      }
+    }
+  }
+};
+`;
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), auditorConfig, 'utf-8');
+
+      // Run in fix mode to scaffold/update .stylelintrc.json
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
+      await fixAuditor.execute();
+
+      const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
+      const strictRule = repaired.rules[REQUIRED_STRICT_VALUE_RULE];
+      expect(strictRule[0]).toContain('letter-spacing');
+      expect(strictRule[1].ignoreValues['letter-spacing']).toContain('normal');
+      expect(strictRule[1].ignoreValues['z-index']).toContain('999');
+
+      // Subsequent check should pass cleanly
+      const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const verifyResult = await verifyAuditor.execute();
+      expect(verifyResult.status).toBe('passed');
+      expect(verifyResult.summary.errors).toBe(0);
+    });
   });
 });

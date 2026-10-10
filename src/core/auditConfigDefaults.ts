@@ -395,11 +395,18 @@ function buildStylelintSubConfig(
   rawSl?: DeepPartial<AuditStylelintConfig>
 ): AuditStylelintConfig {
   const parsedRules: Record<string, unknown> | undefined = rawSl?.rules ? { ...rawSl.rules } : undefined;
+  const strictValues = rawSl?.strictValues ? {
+    properties: rawSl.strictValues.properties ? [...rawSl.strictValues.properties] : [],
+    ignoreValues: rawSl.strictValues.ignoreValues ? { ...rawSl.strictValues.ignoreValues } : {},
+    ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
+  } : undefined;
+
   return {
     enabled: rawSl?.enabled ?? DEFAULT_AUDIT_CONFIG.styles?.stylelint?.enabled ?? true,
     configFile: rawSl?.configFile,
     rules: parsedRules,
-    ignoreGlobs: rawSl?.ignoreGlobs ? [...rawSl.ignoreGlobs] : []
+    ignoreGlobs: rawSl?.ignoreGlobs ? [...rawSl.ignoreGlobs] : [],
+    strictValues
   };
 }
 
@@ -875,7 +882,12 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
       enabled: config.stylelint.enabled ?? true,
       configFile: config.stylelint.configFile,
       rules: config.stylelint.rules ? Object.assign({}, config.stylelint.rules) : undefined,
-      ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : []
+      ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : [],
+      strictValues: config.stylelint.strictValues ? {
+        properties: config.stylelint.strictValues.properties ? [...config.stylelint.strictValues.properties] : [],
+        ignoreValues: config.stylelint.strictValues.ignoreValues ? { ...config.stylelint.strictValues.ignoreValues } : {},
+        ignoreAtRules: config.stylelint.strictValues.ignoreAtRules ? [...config.stylelint.strictValues.ignoreAtRules] : []
+      } : undefined
     } : {
       enabled: true,
       rules: {},
