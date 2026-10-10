@@ -12,6 +12,7 @@ export interface EslintConfigAuditOptions {
  * Validates that an ESLint configuration file enforces strict /domain-type-first rules.
  */
 export declare function auditEslintConfigContent(content: string, fileName: string): AuditFinding[];
+export declare function repairEslintConfigContent(content: string): string;
 export declare const ESLINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<EslintConfigRuleId>;
 export declare class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId> {
     constructor(options?: EslintConfigAuditOptions);

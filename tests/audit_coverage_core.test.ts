@@ -211,7 +211,7 @@ describe('coverage config anti-abuse', () => {
 describe('exemption policy registry', () => {
   it('classifies configured vs structural policies', () => {
     const kinds = Object.fromEntries(EXEMPTION_POLICIES.map(p => [p.id, p.kind]));
-    expect(kinds).toMatchObject({ cli: 'configured', scripts: 'configured', test: 'structural', constants: 'structural' });
+    expect(kinds).toMatchObject({ cli: 'configured', scripts: 'configured', test: 'structural' });
   });
 
   it('matches policies from configuration', () => {

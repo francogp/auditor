@@ -20,7 +20,6 @@ import { FileScanAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { detectDuplicateConstants } from '../../analyzers/constantAnalyzer.ts';
 import {
-  magicNumbers,
   badConstantNames,
   noAliasConstants,
   noLiteralSuffixInConstantName
@@ -35,7 +34,6 @@ enableCompileCache();
 export const CONSTANT_HYGIENE_RULES = [
   'duplicate-constant-identical',
   'duplicate-constant-divergent',
-  'constant-magic-numbers',
   'constant-bad-names',
   'constant-no-alias',
   'constant-no-literal-suffix'
@@ -70,7 +68,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
       },
       id: 'validate_constant_hygiene',
       name: 'Constant Hygiene & Duplicate Validator',
-      description: 'Gobernanza de constantes, números mágicos y duplicados',
+      description: 'Gobernanza de constantes, duplicados y nomenclatura',
       family: 'architecture',
       packageName: 'Constantes',
       configKey: 'constants',
@@ -83,7 +81,6 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
       ruleDescriptions: {
         'duplicate-constant-identical': 'Constante idéntica duplicada',
         'duplicate-constant-divergent': 'Constante dispar entre módulos',
-        'constant-magic-numbers': 'Número mágico inline en código',
         'constant-bad-names': 'Nombre con sufijo de valor',
         'constant-no-alias': 'Alias redundante de constante',
         'constant-no-literal-suffix': 'Sufijo numérico en constante'
@@ -94,7 +91,6 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
 
   private scanRegexConstantRules(relPath: string, content: string, range: { start: number; end: number }): void {
     const regexChecks = [
-      { ruleId: 'constant-magic-numbers' as const, rule: magicNumbers },
       { ruleId: 'constant-bad-names' as const, rule: badConstantNames },
       { ruleId: 'constant-no-literal-suffix' as const, rule: noLiteralSuffixInConstantName },
       { ruleId: 'constant-no-alias' as const, rule: noAliasConstants }

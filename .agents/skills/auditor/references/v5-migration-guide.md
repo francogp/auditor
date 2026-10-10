@@ -79,7 +79,6 @@ export default defineAuditConfig({
     scriptsRoots: ['scripts'],
     codeRoots: ['src', 'scripts', 'supabase'],
     dataRoots: ['src/data'], // Exempt from function LOC/complexity limits
-    constantsRoots: ['src/logic/constants'],
     componentsRoots: ['src/components'],
     viewsRoots: ['src/views'],
     storesRoots: ['src/stores'],

@@ -148,6 +148,13 @@ export function parseLintResultsToFindings(input, options) {
         if (!fileReport.messages || fileReport.messages.length === 0)
             continue;
         for (const msg of fileReport.messages) {
+            if (options.transform) {
+                const custom = options.transform(msg, cleanFile, options);
+                if (custom) {
+                    findings.push(custom);
+                    continue;
+                }
+            }
             const rule = msg.ruleId || options.defaultRuleName || options.ruleId;
             const text = msg.message || options.defaultMessage || 'Lint issue';
             findings.push({

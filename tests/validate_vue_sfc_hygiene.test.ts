@@ -46,6 +46,7 @@ describe('VueSfcHygieneAuditor', () => {
       expect(VUE_SFC_HYGIENE_RULES).toContain('no-script-setup-exports');
       expect(VUE_SFC_HYGIENE_RULES).toContain('vue-template-quote-escaping');
       expect(VUE_SFC_HYGIENE_RULES).toContain('no-data-provider-in-template');
+      expect(VUE_SFC_HYGIENE_RULES).toContain('vue-template-magic-calculation');
     });
 
     it('initializes with correct id and family', () => {
@@ -196,6 +197,60 @@ describe('VueSfcHygieneAuditor', () => {
       const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-data-provider-in-template');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
+    });
+
+    it('detects inline arithmetic calculations with numbers in template (vue-template-magic-calculation)', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      const sfc = `
+        <template>
+          <div>{{ price * 1.21 }}</div>
+        </template>
+        <script setup lang="ts">
+          const price = 100;
+        </script>
+      `;
+      auditor.testScanFile('src/components/CalcPrice.vue', sfc);
+      const violation = auditor.collectedViolations.find(v => v.ruleId === 'vue-template-magic-calculation');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.message).toContain('* 1.21');
+    });
+
+    it('detects magic number comparisons in directives (vue-template-magic-calculation)', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      const sfc = `
+        <template>
+          <div v-if="items.length > 5">More than five</div>
+        </template>
+        <script setup lang="ts">
+          const items = ['a', 'b'];
+        </script>
+      `;
+      auditor.testScanFile('src/components/CompareMagic.vue', sfc);
+      const violation = auditor.collectedViolations.find(v => v.ruleId === 'vue-template-magic-calculation');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.message).toContain('> 5');
+    });
+
+    it('allows valid markup props, 0/1 comparisons, and index + 1 without violations', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      const sfc = `
+        <template>
+          <div :cols="2" :span="12">
+            <span v-if="items.length === 0">Vacío</span>
+            <span v-if="items.length > 0">Con items</span>
+            <p>{{ index + 1 }}</p>
+          </div>
+        </template>
+        <script setup lang="ts">
+          const items = [];
+          const index = 0;
+        </script>
+      `;
+      auditor.testScanFile('src/components/ValidTemplate.vue', sfc);
+      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'vue-template-magic-calculation');
+      expect(violations).toHaveLength(0);
     });
   });
 

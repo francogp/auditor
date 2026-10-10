@@ -31,21 +31,6 @@ export function isDemoPath(filePath) {
     return matchesAnyRoot(norm, demoRoots);
 }
 /**
- * Determines whether a file path belongs to a constants definition directory or module
- * configured in paths.constantsRoots or located within a /constants/ directory.
- */
-export function isConstantsPath(filePath) {
-    if (!filePath)
-        return false;
-    const norm = filePath.split('\\').join('/').toLowerCase();
-    if (norm.includes('/constants/') || norm.startsWith('constants/')) {
-        return true;
-    }
-    const config = getAuditConfig();
-    const constantsRoots = config?.paths?.constantsRoots ?? ['src/constants'];
-    return matchesAnyRoot(norm, constantsRoots);
-}
-/**
  * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
  */
 export function isExemptFile(filePath, config = getAuditConfig()) {

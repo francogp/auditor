@@ -5,7 +5,7 @@
  */
 import path from 'node:path';
 import { DEFAULT_MAX_AUDIT_STALENESS_MINUTES, ACKNOWLEDGEABLE_EXEMPTION_POLICIES, AUDITOR_DIR } from "./auditConfigTypes.js";
-import { assertNarrowCoverageGlob, assertCoverageReason, getExemptRootsForPolicy, filterOutExemptRoots, validateConstantsExemptGlobs } from "./auditConfigAntiAbuse.js";
+import { assertNarrowCoverageGlob, assertCoverageReason, getExemptRootsForPolicy, filterOutExemptRoots } from "./auditConfigAntiAbuse.js";
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
@@ -22,7 +22,6 @@ export const DEFAULT_AUDIT_CONFIG = {
         cliRoots: ['src/cli'],
         dataRoots: ['src/data'],
         demoRoots: [],
-        constantsRoots: ['src/constants'],
         componentsRoots: ['src/components'],
         viewsRoots: ['src/views'],
         storesRoots: ['src/stores'],
@@ -141,10 +140,10 @@ export const DEFAULT_AUDIT_CONFIG = {
         }
     },
     constants: {
+        enabled: true,
         ignoredNames: [],
         exemptMagicNumbers: [],
-        allowedNumericPrefixes: [],
-        exemptGlobs: []
+        allowedNumericPrefixes: []
     },
     packageHygiene: {
         enabled: true,
@@ -399,15 +398,11 @@ export function buildAgentAndSecurityConfig(config) {
     };
 }
 function buildConstantsSubConfig(c) {
-    const exemptGlobs = c?.exemptGlobs ? [...c.exemptGlobs] : [];
-    if (exemptGlobs.length > 0) {
-        validateConstantsExemptGlobs(exemptGlobs);
-    }
     return {
+        enabled: c?.enabled ?? DEFAULT_AUDIT_CONFIG.constants?.enabled ?? true,
         ignoredNames: c?.ignoredNames ?? [],
         exemptMagicNumbers: c?.exemptMagicNumbers ?? [],
-        allowedNumericPrefixes: c?.allowedNumericPrefixes ?? [],
-        exemptGlobs
+        allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
     };
 }
 function buildDocumentationSubConfig(d) {

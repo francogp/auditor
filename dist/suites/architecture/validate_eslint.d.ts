@@ -16,8 +16,8 @@
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
-export type EslintRuleId = 'eslint-violation';
-export declare const ESLINT_RULES: readonly EslintRuleId[];
+export declare const ESLINT_RULES: readonly ["eslint-violation"];
+export type EslintRuleId = (typeof ESLINT_RULES)[number];
 export type RawEslintMessage = RawLintMessage;
 export type RawEslintFileReport = RawLintFileReport;
 /**

@@ -175,6 +175,9 @@ export function auditEslintConfigContent(content, fileName) {
     }
     return findings;
 }
+export function repairEslintConfigContent(content) {
+    return content;
+}
 export const ESLINT_CONFIG_REQUIREMENT = {
     id: 'eslint-config',
     file: 'eslint.config.js',
@@ -250,7 +253,14 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
         for (const r of ESLINT_CONFIG_RULES) {
             this.markRuleEvaluated(r);
         }
-        const content = fs.readFileSync(resolvedPath, 'utf-8');
+        let content = fs.readFileSync(resolvedPath, 'utf-8');
+        if (this.isFixActive()) {
+            const repaired = repairEslintConfigContent(content);
+            if (repaired !== content) {
+                fs.writeFileSync(resolvedPath, repaired, 'utf-8');
+                content = repaired;
+            }
+        }
         const findings = auditEslintConfigContent(content, relFileName);
         for (const finding of findings) {
             this.addViolation({

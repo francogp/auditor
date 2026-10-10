@@ -564,9 +564,10 @@ async function runAstFileScans(
 
   let processed = 0;
   const total = files.length;
+  const AST_PROGRESS_BATCH_SIZE = 200;
   for (const f of files) {
     processed++;
-    if (processed % 200 === 0 || processed === total) {
+    if (processed % AST_PROGRESS_BATCH_SIZE === 0 || processed === total) {
       logProgress(styleText('cyan', `   ⏳ Progreso AST: ${processed}/${total} archivos (${Math.round((processed / total) * 100)}%)`));
     }
     violations = violations.concat(await auditFile(f, Boolean(ctx.values.fix), ctx.activeConfigRules));

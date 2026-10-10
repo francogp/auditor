@@ -208,7 +208,9 @@
     "auditor:vue-router": "auditor task=validate_vue_router",
     "auditor:git-config": "auditor task=validate_git_config",
     "auditor:auditor-hygiene": "auditor task=validate_auditor_hygiene",
-    "auditor:script-extensions": "auditor task=validate_script_extensions"
+    "auditor:script-extensions": "auditor task=validate_script_extensions",
+    "auditor:magic-numbers": "auditor task=validate_magic_numbers",
+    "auditor:stylelint-config": "auditor task=validate_stylelint_config"
   },
   "dependencies": {
     "@arethetypeswrong/core": "^0.18.5",
@@ -235,6 +237,7 @@
     "stylelint-config-standard": "^40.0.0",
     "stylelint-config-standard-scss": "^17.0.0",
     "stylelint-config-standard-vue": "^2.0.0",
+    "stylelint-declaration-strict-value": "^1.12.1",
     "stylelint-order": "^8.1.1",
     "stylelint-scss": "^7.3.0",
     "type-coverage": "^2.30.3",

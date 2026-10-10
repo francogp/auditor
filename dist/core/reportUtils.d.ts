@@ -50,6 +50,7 @@ export interface ParseLintFindingsOptions {
     ruleDescription: string;
     defaultRuleName?: string;
     defaultMessage?: string;
+    transform?: (msg: RawLintMessage, cleanFile: string, options: ParseLintFindingsOptions) => AuditFinding | null;
 }
 /**
  * Parses raw JSON output or an array of file reports from standard linters (ESLint, HTML-Validate)

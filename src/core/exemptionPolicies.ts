@@ -16,7 +16,6 @@ import {
   ACKNOWLEDGEABLE_EXEMPTION_POLICIES,
   getAuditConfig,
   isCliPath,
-  isConstantsPath,
   isDataPath,
   isDemoPath,
   isExemptFile,
@@ -25,7 +24,7 @@ import {
   type AuditEngineConfig
 } from './auditConfig.ts';
 
-export const STRUCTURAL_EXEMPTION_POLICIES = ['test', 'constants'] as const;
+export const STRUCTURAL_EXEMPTION_POLICIES = ['test'] as const;
 export const EXEMPTION_POLICY_IDS = [...ACKNOWLEDGEABLE_EXEMPTION_POLICIES, ...STRUCTURAL_EXEMPTION_POLICIES] as const;
 export type ExemptionPolicyId = (typeof EXEMPTION_POLICY_IDS)[number];
 
@@ -88,13 +87,6 @@ export const EXEMPTION_POLICIES: readonly ExemptionPolicy[] = [
     configKey: 'paths.testRoots',
     silences: 'reglas de código de producción',
     matches: p => isCodeFile(p) && isTestPath(p)
-  },
-  {
-    id: 'constants',
-    kind: 'structural',
-    configKey: 'paths.constantsRoots',
-    silences: 'números mágicos (módulos de constantes)',
-    matches: p => isCodeFile(p) && isConstantsPath(p)
   }
 ];
 

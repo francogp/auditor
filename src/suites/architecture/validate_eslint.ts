@@ -19,17 +19,17 @@ import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative } from '../../core/auditCoverage.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { parseLintResultsToFindings, extractJsonReportFilePaths, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
 
 enableCompileCache();
 
-export type EslintRuleId = 'eslint-violation';
-
-export const ESLINT_RULES: readonly EslintRuleId[] = [
+export const ESLINT_RULES = [
   'eslint-violation'
 ] as const;
+
+export type EslintRuleId = (typeof ESLINT_RULES)[number];
 
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
@@ -47,7 +47,7 @@ export function parseEslintResults(input: string | object[], cwd: string = proce
     suiteId: 'validate_eslint',
     suiteName: 'ESLint Code Hygiene Validator',
     ruleId: 'eslint-violation',
-    ruleDescription: 'Error de sintaxis o regla',
+    ruleDescription: 'Error de sintaxis o regla de ESLint',
     defaultRuleName: 'eslint',
     defaultMessage: 'ESLint violation'
   });
@@ -152,7 +152,19 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
     }
 
     this.markRuleEvaluated('eslint-violation');
-    this.importAuditFindings(findings, 'eslint-violation', 'eslint');
+
+    for (const finding of findings) {
+      this.addViolation({
+        ruleId: (finding.ruleId as EslintRuleId) ?? 'eslint-violation',
+        severity: finding.severity,
+        file: finding.file,
+        line: finding.line,
+        col: finding.col,
+        context: finding.context,
+        message: finding.message,
+        fixable: finding.fixable
+      });
+    }
 
     this.context.setMetric('eslint_violations', findings.length);
     this.context.setMetric('mode', isFixMode ? 'fix' : 'check');

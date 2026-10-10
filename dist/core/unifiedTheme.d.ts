@@ -24,7 +24,9 @@ export interface FindingCountData {
     warnings: number;
 }
 export declare function renderFindingsBreakdownTable(items: readonly [string, FindingCountData][], labelHeader?: string): string;
-export declare function renderSampleFindings(findings: readonly AuditFinding[], limitOrAll?: number | 'all'): string;
+export declare function renderSampleFindings(findings: readonly AuditFinding[], limitOrAll?: number | 'all', options?: {
+    readonly title?: string;
+}): string;
 export declare const NOTICE_BOX_COLORS: readonly ["yellow", "cyan", "red", "green", "magenta", "blue"];
 export type NoticeBoxColor = (typeof NOTICE_BOX_COLORS)[number];
 export declare function renderBanner(title: string, subtitle?: string, borderColor?: NoticeBoxColor): string;

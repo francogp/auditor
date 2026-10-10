@@ -17,6 +17,7 @@ import {
   AUDITOR_DIR,
   AUDIT_CONFIG_FILE,
   LEGACY_ROOT_CONFIG_FILES,
+  DEFAULT_AUDIT_CONFIG,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
 import type { GitIgnoreRequirement, AuditorConfigFileRequirement, AuditTaskDefinition } from '../../core/auditContract.ts';
@@ -262,14 +263,16 @@ export type AuditConfigRuleId =
   | 'audit-config-missing-file'
   | 'audit-config-invalid-extension'
   | 'audit-config-missing-gitignore-entry'
-  | 'audit-config-missing-section';
+  | 'audit-config-missing-section'
+  | 'audit-config-unknown-field';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
   'audit-config-missing-file',
   'audit-config-invalid-extension',
   'audit-config-missing-gitignore-entry',
-  'audit-config-missing-section'
+  'audit-config-missing-section',
+  'audit-config-unknown-field'
 ] as const;
 
 export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
@@ -280,7 +283,6 @@ export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
   'scriptsRoots',
   'codeRoots',
   'dataRoots',
-  'constantsRoots',
   'componentsRoots',
   'viewsRoots',
   'storesRoots',
@@ -380,7 +382,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-file': 'Archivo configurado no existe',
         'audit-config-invalid-extension': 'Extensión configurada no existe',
         'audit-config-missing-gitignore-entry': 'Falta entrada en .gitignore',
-        'audit-config-missing-section': 'Falta sección en audit.config'
+        'audit-config-missing-section': 'Falta sección en audit.config',
+        'audit-config-unknown-field': 'Campo no reconocido en config'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']
@@ -407,7 +410,15 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       this.recordScanned(baselineFile);
     }
 
-    await this.verifyRequiredSections(config);
+    let tasks: AuditTaskDefinition[] = [];
+    try {
+      tasks = await discoverAuditors({ projectRoot: this.projectRoot });
+    } catch {
+      // catch-ok: fallback when running in isolated test environments without suite discovery
+    }
+
+    await this.verifyRequiredSections(config, tasks);
+    this.verifyUnknownFields(config, tasks);
     this.verifyPathRoots(config);
     this.verifyPersistencePaths(config);
     this.verifyDomainAndStylePaths(config);
@@ -415,16 +426,83 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     await this.verifyGitIgnore(config);
   }
 
-  private async verifyRequiredSections(config: AuditEngineConfig): Promise<void> {
-    let tasks: AuditTaskDefinition[];
-    try {
-      tasks = await discoverAuditors({ projectRoot: this.projectRoot });
-    } catch {
-      // catch-ok: fallback when running in isolated test environments without suite discovery
-      return;
+  private verifyUnknownFields(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): void {
+    const rawConfig = config._rawConfig ?? {};
+    if (typeof rawConfig !== 'object' || rawConfig === null) return;
+
+    this.verifyUnknownTopLevelSections(rawConfig as Record<string, unknown>, tasks);
+    this.verifyUnknownPathsFields(rawConfig as Record<string, unknown>);
+    this.verifyUnknownConstantsFields(rawConfig as Record<string, unknown>);
+  }
+
+  private verifyUnknownTopLevelSections(rawConfig: Record<string, unknown>, tasks: readonly AuditTaskDefinition[]): void {
+    const validTopLevelKeys = new Set<string>(
+      Object.keys(DEFAULT_AUDIT_CONFIG).filter(k => !k.startsWith('_'))
+    );
+    for (const task of tasks) {
+      if (task.configKey && task.configKey !== 'paths' && task.configKey !== 'core' && task.configKey !== 'none') {
+        const rootKey = task.configKey.split('.')[0];
+        if (rootKey) validTopLevelKeys.add(rootKey);
+      }
     }
 
-    const missingByRootKey = collectMissingSections(tasks, config._rawConfig ?? {});
+    for (const key of Object.keys(rawConfig)) {
+      if (key.startsWith('_')) continue;
+      if (!validTopLevelKeys.has(key)) {
+        this.addViolation({
+          ruleId: 'audit-config-unknown-field',
+          severity: 'error',
+          file: AUDIT_CONFIG_FILE,
+          line: 1,
+          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy top-level section "${key}". This section is not supported by @francogp/auditor. Please remove it.`,
+          context: key
+        });
+      }
+    }
+  }
+
+  private verifyUnknownPathsFields(rawConfig: Record<string, unknown>): void {
+    const rawPaths = rawConfig.paths;
+    if (typeof rawPaths !== 'object' || rawPaths === null) return;
+
+    const validPathKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.paths));
+    for (const key of Object.keys(rawPaths)) {
+      if (!validPathKeys.has(key)) {
+        this.addViolation({
+          ruleId: 'audit-config-unknown-field',
+          severity: 'error',
+          file: AUDIT_CONFIG_FILE,
+          line: 1,
+          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "paths.${key}". This field is not supported. Please remove it.`,
+          context: `paths.${key}`
+        });
+      }
+    }
+  }
+
+  private verifyUnknownConstantsFields(rawConfig: Record<string, unknown>): void {
+    const rawConstants = rawConfig.constants;
+    if (typeof rawConstants !== 'object' || rawConstants === null) return;
+
+    const validConstantsKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.constants ?? {}));
+    for (const key of Object.keys(rawConstants)) {
+      if (!validConstantsKeys.has(key)) {
+        this.addViolation({
+          ruleId: 'audit-config-unknown-field',
+          severity: 'error',
+          file: AUDIT_CONFIG_FILE,
+          line: 1,
+          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "constants.${key}". This field is not supported. Please remove it.`,
+          context: `constants.${key}`
+        });
+      }
+    }
+  }
+
+  private async verifyRequiredSections(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void> {
+    if (tasks.length === 0) return;
+
+    const missingByRootKey = collectMissingSections(tasks as AuditTaskDefinition[], config._rawConfig ?? {});
     if (missingByRootKey.size === 0) return;
 
     if (this.isFixActive()) {

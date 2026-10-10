@@ -13,7 +13,7 @@ import type { AuditorConfigFileRequirement, AuditTaskDefinition } from '../../co
 export declare function formatSectionObjectLiteral(value: unknown): string;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
-export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section';
+export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
 export interface ValidateAuditConfigOptions {
@@ -24,6 +24,10 @@ export declare const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Audi
 export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     constructor(targetPathOrOptions?: string | ValidateAuditConfigOptions);
     runAudit(): Promise<void>;
+    private verifyUnknownFields;
+    private verifyUnknownTopLevelSections;
+    private verifyUnknownPathsFields;
+    private verifyUnknownConstantsFields;
     private verifyRequiredSections;
     private applyMissingSectionsFix;
     private reportMissingSectionViolations;

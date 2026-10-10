@@ -27,6 +27,18 @@ export default tseslint.config(
           objectLiteralTypeAssertions: 'never'
         }
       ],
+      '@typescript-eslint/no-magic-numbers': [
+        'error',
+        {
+          ignore: [-1, 0, 1, 100, 200, 404, 500],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreEnums: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       'no-restricted-syntax': [
         'error',
         {

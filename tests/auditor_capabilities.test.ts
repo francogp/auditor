@@ -99,6 +99,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_script_extensions',
       'validate_similar_code',
       'validate_stylelint',
+      'validate_stylelint_config',
       'validate_z_index'
     ].sort();
 
@@ -117,6 +118,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'audit_project',
       'validate_bundle_budget',
       'validate_constant_hygiene',
+      'validate_magic_numbers',
       'validate_pinia_reactivity',
       'validate_reactive_leaks',
       'validate_valibot_parity'

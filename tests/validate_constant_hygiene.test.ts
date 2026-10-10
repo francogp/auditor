@@ -39,7 +39,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       expect(auditor.requiresAst).toBe(true);
       expect(auditor.ruleIds).toEqual(CONSTANT_HYGIENE_RULES);
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(6);
+      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(5);
     });
   });
 
@@ -88,19 +88,6 @@ describe('ValidateConstantHygieneAuditor', () => {
       expect(finding?.message).toContain('diferentes');
     });
 
-    it('detects inline magic numbers in source logic (constant-magic-numbers)', async () => {
-      const logicFile = path.join(srcDir, 'service.ts');
-      await fs.writeFile(logicFile, 'export function calculateDiscount(price: number): number {\n  return price * 87;\n}\n', 'utf-8');
-
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
-      const result = await auditor.execute();
-
-      const finding = result.findings.find(f => f.ruleId === 'constant-magic-numbers');
-      expect(finding).toBeDefined();
-      expect(finding?.severity).toBe('error');
-      expect(finding?.message).toContain('Número mágico inline');
-    });
-
     it('detects bad constant names with numeric value suffix (constant-bad-names)', async () => {
       const constFile = path.join(srcDir, 'types.ts');
       await fs.writeFile(constFile, 'export const MAX_USERS_50 = 50;\n', 'utf-8');
@@ -135,51 +122,6 @@ describe('ValidateConstantHygieneAuditor', () => {
       const finding = result.findings.find(f => f.ruleId === 'constant-no-literal-suffix');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
-    });
-
-    it('does not flag template button text like "+10" or "Agregar 10" as magic numbers in .vue files', async () => {
-      const vueFile = path.join(srcDir, 'CounterButtons.vue');
-      const vueContent = `<template>
-  <div class="actions">
-    <button @click="increment(10)">+10</button>
-    <button>Agregar 10 de cada uno</button>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-
-const count = ref(0);
-function increment(step: number) {
-  count.value += step;
-}
-</script>`;
-      await fs.writeFile(vueFile, vueContent, 'utf-8');
-
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
-      const result = await auditor.execute();
-
-      const magicFindings = result.findings.filter(f => f.ruleId === 'constant-magic-numbers');
-      expect(magicFindings).toHaveLength(0);
-    });
-
-    it('detects magic numbers inside .vue script setup logic', async () => {
-      const vueFile = path.join(srcDir, 'BadScript.vue');
-      const vueContent = `<template>
-  <div>Hello</div>
-</template>
-
-<script setup lang="ts">
-const delay = 45; // inline magic number without named constant
-</script>`;
-      await fs.writeFile(vueFile, vueContent, 'utf-8');
-
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
-      const result = await auditor.execute();
-
-      const magicFindings = result.findings.filter(f => f.ruleId === 'constant-magic-numbers');
-      expect(magicFindings.length).toBeGreaterThanOrEqual(1);
-      expect(magicFindings[0]?.severity).toBe('error');
     });
 
     it('does not flag JSON module default exports or end-of-line escape hatches as redundant aliases', async () => {

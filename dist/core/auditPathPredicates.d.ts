@@ -14,11 +14,6 @@ export declare function isDataPath(filePath: string): boolean;
  */
 export declare function isDemoPath(filePath: string): boolean;
 /**
- * Determines whether a file path belongs to a constants definition directory or module
- * configured in paths.constantsRoots or located within a /constants/ directory.
- */
-export declare function isConstantsPath(filePath: string): boolean;
-/**
  * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
  */
 export declare function isExemptFile(filePath: string, config?: import("./auditConfigTypes.ts").AuditEngineConfig): boolean;

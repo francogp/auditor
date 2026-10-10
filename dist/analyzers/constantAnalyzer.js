@@ -192,7 +192,7 @@ export async function detectDuplicateConstants(files, astContext, projectRoot = 
     const declarations = new Map();
     const astEngine = astContext ?? new SharedAstContext();
     const config = getAuditConfig(projectRoot);
-    const targetConstantsDir = config.paths.constantsRoots?.[0] ?? 'un módulo compartido de constantes';
+    const targetConstantsDir = 'un módulo compartido de constantes';
     const effectiveIgnored = getEffectiveIgnoredConstantNames(projectRoot);
     for (const filePath of files) {
         if (!isConstantAuditCandidate(filePath, projectRoot, config))

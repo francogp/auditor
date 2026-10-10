@@ -178,12 +178,16 @@ export function evaluateParagraphLanguage(
   para: ProseParagraph,
   targetLanguage: DocumentationLanguage
 ): { isUnauthorized: boolean; detectedLang: string } {
+  const MIN_PARAGRAPH_CHARS = 35;
+  const MIN_PARAGRAPH_WORDS = 5;
+  const FRANC_MIN_LENGTH = 20;
+
   const words = para.text.split(/\s+/).filter(Boolean);
-  if (para.text.length < 35 || words.length < 5) {
+  if (para.text.length < MIN_PARAGRAPH_CHARS || words.length < MIN_PARAGRAPH_WORDS) {
     return { isUnauthorized: false, detectedLang: 'und' };
   }
 
-  const detectedLang = franc(para.text, { minLength: 20 });
+  const detectedLang = franc(para.text, { minLength: FRANC_MIN_LENGTH });
 
   if (targetLanguage === 'en') {
     const isUnauthorized =

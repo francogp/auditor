@@ -6,7 +6,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { PERSISTENCE_ENGINES, PACKAGE_DISTRIBUTION_LEVELS, FALLOW_TARGET_PRIORITIES, AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "./auditConfigTypes.js";
-import { validateConstantsExemptGlobs } from "./auditConfigAntiAbuse.js";
 export { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES };
 function checkPersistenceSubsystem(config, missing) {
     const engine = config.persistence?.engine;
@@ -45,21 +44,10 @@ function checkPackageGovernanceSubsystem(config, missing) {
         missing.push("  - 'scriptExtensions': El campo 'enforceTypeScript' debe ser un booleano estricto (true o false).");
     }
 }
-function checkConstantsSubsystem(config, missing) {
-    if (config.constants?.exemptGlobs) {
-        try {
-            validateConstantsExemptGlobs(config.constants.exemptGlobs);
-        }
-        catch (err) {
-            missing.push(`  - 'constants': ${err instanceof Error ? err.message : String(err)}`);
-        }
-    }
-}
 export function checkInfrastructureSubsystems(config, missing) {
     checkPersistenceSubsystem(config, missing);
     checkCoverageAndBundleSubsystem(config, missing);
     checkPackageGovernanceSubsystem(config, missing);
-    checkConstantsSubsystem(config, missing);
 }
 export function checkUiSubsystems(config, missing) {
     if (typeof config.styles?.zLayersEnabled !== 'boolean') {

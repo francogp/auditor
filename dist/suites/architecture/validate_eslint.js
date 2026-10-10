@@ -18,7 +18,7 @@ import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { parseLintResultsToFindings, extractJsonReportFilePaths } from "../../core/reportUtils.js";
 enableCompileCache();
 export const ESLINT_RULES = [
@@ -36,7 +36,7 @@ export function parseEslintResults(input, cwd = process.cwd()) {
         suiteId: 'validate_eslint',
         suiteName: 'ESLint Code Hygiene Validator',
         ruleId: 'eslint-violation',
-        ruleDescription: 'Error de sintaxis o regla',
+        ruleDescription: 'Error de sintaxis o regla de ESLint',
         defaultRuleName: 'eslint',
         defaultMessage: 'ESLint violation'
     });
@@ -132,7 +132,18 @@ export class EslintAuditor extends BaseAuditor {
             });
         }
         this.markRuleEvaluated('eslint-violation');
-        this.importAuditFindings(findings, 'eslint-violation', 'eslint');
+        for (const finding of findings) {
+            this.addViolation({
+                ruleId: finding.ruleId ?? 'eslint-violation',
+                severity: finding.severity,
+                file: finding.file,
+                line: finding.line,
+                col: finding.col,
+                context: finding.context,
+                message: finding.message,
+                fixable: finding.fixable
+            });
+        }
         this.context.setMetric('eslint_violations', findings.length);
         this.context.setMetric('mode', isFixMode ? 'fix' : 'check');
     }

@@ -92,13 +92,17 @@ export function renderFindingsBreakdownTable(items, labelHeader = 'TIPO DE INCID
     };
     return renderBoxTable(cols, rows, { footerRows: [footerRow] });
 }
-export function renderSampleFindings(findings, limitOrAll = 5) {
+export function renderSampleFindings(findings, limitOrAll = 5, options) {
     if (findings.length === 0)
         return '';
     const limit = limitOrAll === 'all' ? findings.length : limitOrAll;
     const sample = limit >= findings.length ? findings : findings.slice(-limit);
     const countLabel = limit >= findings.length ? `todos los ${sample.length}` : `últimos ${sample.length}`;
-    const header = `\n❌ Muestra de errores detectados (${countLabel} de ${findings.length}):\n`;
+    const isOnlyWarnings = findings.length > 0 && findings.every(f => f.severity === 'warning');
+    const defaultHeader = isOnlyWarnings
+        ? `\n⚠️  Muestra de advertencias detectadas (${countLabel} de ${findings.length}):\n`
+        : `\n❌ Muestra de errores detectados (${countLabel} de ${findings.length}):\n`;
+    const header = options?.title ? `\n${options.title} (${countLabel} de ${findings.length}):\n` : defaultHeader;
     const lines = sample.map((f, idx) => {
         const fileLoc = f.file ? `${path.relative(process.cwd(), f.file)}${f.line ? `:${f.line}` : ''}` : 'General';
         const cleanMsg = f.message.replace(/^Sugerencia de calidad \(Fallow\):\s*/i, '');
@@ -333,13 +337,14 @@ export function renderAuditorDetailCard(task) {
     sections.push(capLines);
     const rules = task.ruleDescriptions ?? task.manifest?.rules;
     if (rules && Object.keys(rules).length > 0) {
+        const MAX_CARD_DISPLAY_RULES = 8;
         const count = Object.keys(rules).length;
         const ruleLines = [boldYellow(`🔍 REGLAS EVALUADAS (${count}):`)];
-        for (const [rId, rDesc] of Object.entries(rules).slice(0, 8)) {
+        for (const [rId, rDesc] of Object.entries(rules).slice(0, MAX_CARD_DISPLAY_RULES)) {
             ruleLines.push(`  • ${boldWhite(rId)}: ${dim(rDesc)}`);
         }
-        if (count > 8) {
-            ruleLines.push(dim(`  ... y ${count - 8} reglas más.`));
+        if (count > MAX_CARD_DISPLAY_RULES) {
+            ruleLines.push(dim(`  ... y ${count - MAX_CARD_DISPLAY_RULES} reglas más.`));
         }
         sections.push(ruleLines);
     }
@@ -410,9 +415,10 @@ export function formatStatusBadge(status) {
             return `[ ${styleText('cyan', '⏭️ SKIP')} ]`;
     }
 }
+const DURATION_PAD_LENGTH = 7;
 export function formatDuration(ms) {
     const str = `${ms}ms`;
-    return str.padStart(7);
+    return str.padStart(DURATION_PAD_LENGTH);
 }
 const METRIC_COL_WIDTH = 16;
 function formatTaskMetricCol(metrics) {

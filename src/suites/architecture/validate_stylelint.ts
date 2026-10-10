@@ -36,7 +36,8 @@ export const STYLELINT_RULES = [
   'css-empty-blocks',
   'css-order-violation',
   'scss-syntax-issue',
-  'scss-sass-collision-casing'
+  'scss-sass-collision-casing',
+  'scss-strict-values'
 ] as const;
 export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 
@@ -91,6 +92,7 @@ export function resolveStylelintConfigFile(projectRoot: string, configuredConfig
 export function categorizeStylelintRule(ruleName: string | undefined): StylelintRuleId {
   if (!ruleName) return 'stylelint-issue';
   if (ruleName === SASS_TRAPS_RULE_NAME) return 'scss-sass-collision-casing';
+  if (ruleName === 'scale-unlimited/declaration-strict-value') return 'scss-strict-values';
   if (ruleName === 'no-duplicate-selectors') return 'css-duplicate-selectors';
   if (ruleName === 'declaration-block-no-duplicate-properties') return 'css-duplicate-properties';
   if (ruleName === 'block-no-empty') return 'css-empty-blocks';
@@ -354,7 +356,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         'css-empty-blocks': 'Bloques de estilos vacíos',
         'css-order-violation': 'Orden de propiedades CSS',
         'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
-        'scss-sass-collision-casing': 'Función CSS colisiona con Sass'
+        'scss-sass-collision-casing': 'Función CSS colisiona con Sass',
+        'scss-strict-values': 'Valores no estrictos en SCSS'
       },
       coverage: {
         include: ['src/**/*.{css,scss,sass,vue}', '.stylelintrc*', 'stylelint.config.*'],

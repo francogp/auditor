@@ -24,7 +24,6 @@ export default defineAuditConfig({
     scriptsRoots: ['scripts'], // CLI utilities, automation scripts, and maintenance tasks outside production
     codeRoots: ['src', 'scripts', 'supabase'], // Consolidated directories subject to static code audits
     dataRoots: ['src/data'], // Catalogs and tabular data directories (exempt from LOC/complexity limits but audited for types)
-    constantsRoots: ['src/logic/constants'], // Global constants and system configuration directories
     componentsRoots: ['src/components'], // Visual UI components (Vue SFC .vue files)
     viewsRoots: ['src/views'], // Main routed page views connected to Vue Router
     storesRoots: ['src/stores'], // Global reactive state stores (Pinia stores)
@@ -121,11 +120,7 @@ export default defineAuditConfig({
   constants: {
     ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constants ignored by duplicate detector
     allowedNumericPrefixes: ['BASE_', 'TAX_'], // Permitted prefixes for numeric constants
-    exemptMagicNumbers: [21, 10.5, 27], // Fiscal tax rate numbers exempt from magic number alerts (0, 1, 100, 200, 404, 500, 9999 are built-in defaults)
-    exemptGlobs: [
-      'scripts/maintenance/**', // Specific maintenance scripts exempt from magic numbers
-      'src/data/seed/**' // Tabular seed databases exempt from magic numbers
-    ]
+    exemptMagicNumbers: [21, 10.5, 27] // Fiscal tax rate numbers exempt from magic number alerts (0, 1, 100, 200, 404, 500, 9999 are built-in defaults)
   },
 
   ratchet: {

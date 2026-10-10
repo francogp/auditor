@@ -268,9 +268,6 @@ export {
   isConstantNameExemptFromNumericSuffixCheck,
   noAliasConstants,
   noLiteralSuffixInConstantName,
-  isMagicNumberExemptFile,
-  EXEMPT_AUDIT_NUMERIC_LITERALS,
-  magicNumbers,
   badConstantNames
 } from '../../analyzers/constantRules.ts';
 import {

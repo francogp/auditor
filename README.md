@@ -372,6 +372,8 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **Type Assertion Hygiene** | `validate_type_assertion_hygiene` | Ban on `as any`, double casting (`as unknown as`), boolean literal annotations, and unhandled floating promises. |
 | **`stylelint`** | `validate_stylelint` | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`. |
 | **`html-validate`** | `validate_html_validate` | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation. |
+| **Magic Numbers (AST)** | `validate_magic_numbers` | Native TypeScript Compiler AST magic numbers governance with shared context and zero directory ignores. |
+| **Stylelint Config** | `validate_stylelint_config` | Stylelint configuration file integrity and strict design tokens auto-repair (`--fix`). |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |
 | **`publint`** | `validate_package_distribution` | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation. |
 | **`@arethetypeswrong/core`** | `validate_package_types` | Multi-resolution `.d.ts` typing validation and dual-package hazard checks. |
@@ -544,7 +546,7 @@ export default defineAuditConfig({
     safeTemplateFunctions: ['formatMoney', 'translate']
   },
   constants: {
-    exemptGlobs: ['scripts/maintenance/**', 'src/data/seed/**']
+    ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE']
   },
   documentation: {
     language: 'en', // Primary documentation and file writing language ('en' | 'es', defaults to 'en')
@@ -698,6 +700,7 @@ See [`LICENSE`](LICENSE) for complete details.
 | **Stylelint** | [`stylelint/stylelint`](https://github.com/stylelint/stylelint) | [MIT License](https://github.com/stylelint/stylelint/blob/main/LICENSE) |
 | **Stylelint SCSS** | [`stylelint-scss/stylelint-scss`](https://github.com/stylelint-scss/stylelint-scss) | [MIT License](https://github.com/stylelint-scss/stylelint-scss/blob/master/LICENSE) |
 | **Stylelint Order** | [`hudochenkov/stylelint-order`](https://github.com/hudochenkov/stylelint-order) | [MIT License](https://github.com/hudochenkov/stylelint-order/blob/master/LICENSE) |
+| **Stylelint Declaration Strict Value** | [`AndyOGo/stylelint-declaration-strict-value`](https://github.com/AndyOGo/stylelint-declaration-strict-value) | [MIT License](https://github.com/AndyOGo/stylelint-declaration-strict-value/blob/master/LICENSE) |
 | **postcss-html** | [`ota-meshi/postcss-html`](https://github.com/ota-meshi/postcss-html) | [MIT License](https://github.com/ota-meshi/postcss-html/blob/master/LICENSE) |
 | **postcss-scss** | [`postcss/postcss-scss`](https://github.com/postcss/postcss-scss) | [MIT License](https://github.com/postcss/postcss-scss/blob/main/LICENSE) |
 | **postcss-value-parser** | [`TrySound/postcss-value-parser`](https://github.com/TrySound/postcss-value-parser) | [MIT License](https://github.com/TrySound/postcss-value-parser/blob/master/LICENSE) |

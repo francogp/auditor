@@ -15,7 +15,7 @@ import os from 'node:os';
 import { NativePathsAuditor } from '../src/suites/architecture/validate_native_paths.ts';
 import { ErrorSuppressionAuditor } from '../src/suites/architecture/validate_error_suppression.ts';
 import { AuditCoverageAuditor } from '../src/suites/architecture/validate_audit_coverage.ts';
-import { magicNumbers, legacyDates } from '../src/suites/architecture/audit_rules.ts';
+import { legacyDates } from '../src/suites/architecture/audit_rules.ts';
 import {
   COVERAGE_RUN_ID_ENV,
   COVERAGE_RUN_MODE_ENV,
@@ -99,18 +99,11 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     expect(result.summary.errors).toBeGreaterThan(0);
   });
 
-  it('Canary 3: audit_rules magicNumbers and legacyDates canaries trigger rule violations', async () => {
-    const magicCanary = await fs.readFile(
-      path.resolve(__dirname, 'canaries/audit_rules/magicNumbers.ts.canary'),
-      'utf-8'
-    );
+  it('Canary 3: audit_rules legacyDates canary triggers rule violations', async () => {
     const dateCanary = await fs.readFile(
       path.resolve(__dirname, 'canaries/audit_rules/legacyDates.ts.canary'),
       'utf-8'
     );
-
-    magicNumbers.regex.lastIndex = 0;
-    expect(magicNumbers.regex.test(magicCanary)).toBe(true);
 
     legacyDates.regex.lastIndex = 0;
     expect(legacyDates.regex.test(dateCanary)).toBe(true);
@@ -126,7 +119,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     await fs.mkdir(coverageDir, { recursive: true });
 
     // Simulate broken activation condition: audit_project ran and scanned files,
-    // but a broken gate caused magicNumbers to evaluate 0 files (dormant rule).
+    // but a broken gate caused hardcodedTimezone to evaluate 0 files (dormant rule).
     const brokenLedger: CoverageLedger = {
       runId,
       suiteId: 'audit_project',
@@ -134,9 +127,9 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
       declared: { include: ['src/**/*.ts', '.auditor/audit.config.ts'], source: 'runtime' },
       source: 'runtime',
       scanned: ['src/app.ts', '.auditor/audit.config.ts'],
-      ruleIds: ['magicNumbers', 'legacyDates'],
+      ruleIds: ['hardcodedTimezone', 'legacyDates'],
       ruleEvaluations: {
-        magicNumbers: 0, // Broken gate! False clean!
+        hardcodedTimezone: 0, // Broken gate! False clean!
         legacyDates: 5
       },
       notApplicable: {} // Not marked notApplicable!
@@ -162,7 +155,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
 
     const dormantFinding = coverageResult.findings?.find(f => f.ruleId === 'coverage-dormant-rule');
     expect(dormantFinding).toBeDefined();
-    expect(dormantFinding?.context).toBe('audit_project/magicNumbers');
+    expect(dormantFinding?.context).toBe('audit_project/hardcodedTimezone');
     expect(dormantFinding?.severity).toBe('error');
   });
 });

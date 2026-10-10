@@ -56,6 +56,7 @@ describe('StylelintAuditor Suite', () => {
       expect(auditor.ruleIds).toContain('css-empty-blocks');
       expect(auditor.ruleIds).toContain('css-order-violation');
       expect(auditor.ruleIds).toContain('scss-syntax-issue');
+      expect(auditor.ruleIds).toContain('scss-strict-values');
     });
 
     it('enforces composed rule descriptions <= 50 characters (AGENTS.md rule)', () => {
@@ -75,6 +76,7 @@ describe('StylelintAuditor Suite', () => {
       expect(categorizeStylelintRule('block-no-empty')).toBe('css-empty-blocks');
       expect(categorizeStylelintRule('order/properties-order')).toBe('css-order-violation');
       expect(categorizeStylelintRule('scss/no-duplicate-dollar-variables')).toBe('scss-syntax-issue');
+      expect(categorizeStylelintRule('scale-unlimited/declaration-strict-value')).toBe('scss-strict-values');
       expect(categorizeStylelintRule('unknown-rule')).toBe('stylelint-issue');
     });
   });
@@ -121,14 +123,14 @@ describe('StylelintAuditor Suite', () => {
 
 <style scoped lang="scss">
 @mixin button-theme {
-  border-radius: 4px;
+  border-radius: var(--btn-radius);
 }
 
 // Rule with mixin (must NOT trigger block-no-empty)
 .card {
   @include button-theme;
   &:hover {
-    color: blue;
+    color: var(--card-hover);
   }
 }
 
@@ -136,7 +138,7 @@ describe('StylelintAuditor Suite', () => {
 .btn {
   display: inline-block;
   &:hover {
-    color: red;
+    color: var(--btn-hover);
   }
 }
 </style>
@@ -426,6 +428,25 @@ describe('StylelintAuditor Suite', () => {
         expect(result.status).toBe('failed');
         expect(result.summary.errors).toBeGreaterThan(0);
         expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('detects raw naked values in z-index, font-size, and color as scss-strict-values', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sl-strict-'));
+      try {
+        await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+        await fs.writeFile(
+          path.join(tempDir, 'src/magic.scss'),
+          `.box {\n  z-index: 99;\n  font-size: 16px;\n  color: #ff0000;\n}\n`,
+          'utf-8'
+        );
+        const auditor = new StylelintAuditor({ projectRoot: tempDir });
+        const result = await auditor.execute();
+        expect(result.status).toBe('failed');
+        const strictFindings = result.findings.filter(f => f.ruleId === 'scss-strict-values');
+        expect(strictFindings.length).toBeGreaterThanOrEqual(1);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }

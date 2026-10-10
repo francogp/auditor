@@ -25,7 +25,6 @@ export default defineAuditConfig({
     scriptsRoots: ['scripts'], // Support, compilation, and game emulation scripts directory
     codeRoots: ['src', 'scripts', 'database'], // Consolidated directories subject to static code audits
     dataRoots: ['src/data'], // Massive game catalogs (creatures, moves, items) exempt from LOC/complexity limits but strongly typed
-    constantsRoots: ['src/logic/constants', 'src/constants'], // Global constants and immutable master tables directories
     componentsRoots: ['src/components'], // Visual UI components (Vue SFC .vue files)
     viewsRoots: ['src/views'], // Screen views and game battle scenarios (Vue Router)
     storesRoots: ['src/stores'], // Global reactive state stores (Pinia stores)
@@ -390,14 +389,6 @@ export default defineAuditConfig({
         alternative: 'OFFICIAL_SERVERS_BY_ID[serverId]', // Recommended key-indexed O(1) access alternative
         definingFile: 'src/data/system/official_servers.ts' // Defining file for indexed catalog
       }
-    ]
-  },
-
-  constants: {
-    exemptGlobs: [
-      'scripts/maintenance/**', // Specific maintenance scripts exempt from magic numbers
-      'scripts/data/generate_*.ts', // Data generators exempt from magic numbers
-      'src/data/seed/**' // Seed databases exempt from magic numbers
     ]
   },
 

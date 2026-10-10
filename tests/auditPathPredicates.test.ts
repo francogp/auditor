@@ -5,7 +5,6 @@ import os from 'node:os';
 import {
   isDataPath,
   isDemoPath,
-  isConstantsPath,
   isExemptFile,
   isInCodeRoots,
   isScriptPath,
@@ -75,7 +74,7 @@ describe('auditPathPredicates', () => {
     });
   });
 
-  describe('path categories: isDataPath, isDemoPath, isConstantsPath, isScriptPath, isSrcPath, isCliPath', () => {
+  describe('path categories: isDataPath, isDemoPath, isScriptPath, isSrcPath, isCliPath', () => {
     it('identifies data paths', () => {
       expect(isDataPath('')).toBe(false);
       expect(isDataPath('src/data/pokedex.json')).toBe(true);
@@ -85,13 +84,6 @@ describe('auditPathPredicates', () => {
     it('identifies demo paths', () => {
       expect(isDemoPath('')).toBe(false);
       expect(isDemoPath('src/components/Button.vue')).toBe(false);
-    });
-
-    it('identifies constants paths', () => {
-      expect(isConstantsPath('')).toBe(false);
-      expect(isConstantsPath('src/constants/colors.ts')).toBe(true);
-      expect(isConstantsPath('constants/theme.ts')).toBe(true);
-      expect(isConstantsPath('src/utils/helpers.ts')).toBe(false);
     });
 
     it('identifies script, src, and cli paths', () => {

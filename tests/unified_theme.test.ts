@@ -19,6 +19,7 @@ import {
   renderAuditorDetailCard,
   renderCliHelp,
   renderAutoFixNoticeBanner,
+  renderSampleFindings,
   renderFamilyHeader,
   getVisualWidth,
   padVisual,
@@ -507,6 +508,24 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       }
       expect(formatted).toContain('v1.0.0');
       expect(formatted).toContain('Similar-Code: OMITIDO ⏭️');
+    });
+  });
+
+  describe('renderSampleFindings', () => {
+    it('renders error title and red icon when findings are errors', () => {
+      const sample = renderSampleFindings([
+        { file: 'src/app.ts', line: 10, ruleId: 'error-rule', message: 'Test error', severity: 'error' }
+      ]);
+      expect(sample).toContain('❌ Muestra de errores detectados (todos los 1 de 1):');
+      expect(sample).toContain('app.ts:10: [error-rule] Test error');
+    });
+
+    it('renders warning title and warning icon when findings are warnings', () => {
+      const sample = renderSampleFindings([
+        { file: 'package.json', line: 1, ruleId: 'warn-rule', message: 'Test warning', severity: 'warning' }
+      ]);
+      expect(sample).toContain('⚠️  Muestra de advertencias detectadas (todos los 1 de 1):');
+      expect(sample).toContain('package.json:1: [warn-rule] Test warning');
     });
   });
 });

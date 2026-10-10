@@ -24,7 +24,7 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
  */
 import { FileScanAuditor } from '../../core/auditorBase.ts';
-export type VueSfcHygieneRuleId = 'script-setup-required' | 'no-script-setup-exports' | 'vue-template-quote-escaping' | 'no-data-provider-in-template';
+export type VueSfcHygieneRuleId = 'script-setup-required' | 'no-script-setup-exports' | 'vue-template-quote-escaping' | 'no-data-provider-in-template' | 'vue-template-magic-calculation';
 export declare const VUE_SFC_HYGIENE_RULES: readonly VueSfcHygieneRuleId[];
 export declare const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 export declare const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX: RegExp;
@@ -37,6 +37,7 @@ export declare class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneR
     private auditTemplateQuoteEscaping;
     private extractDynamicExpressions;
     private auditDataProviderInTemplate;
+    private auditTemplateMagicCalculation;
     private reportTemplateViolation;
 }
 //# sourceMappingURL=validate_vue_sfc_hygiene.d.ts.map

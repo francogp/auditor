@@ -19,7 +19,7 @@ export declare const noDomainIdFallbacks: AuditRule;
 export declare const nodePrefix: AuditRule;
 export declare const esmExtensions: AuditRule;
 export declare const tsIgnore: AuditRule;
-export { isAuditableCodeFile, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, isConstantNameExemptFromNumericSuffixCheck, noAliasConstants, noLiteralSuffixInConstantName, isMagicNumberExemptFile, EXEMPT_AUDIT_NUMERIC_LITERALS, magicNumbers, badConstantNames } from '../../analyzers/constantRules.ts';
+export { isAuditableCodeFile, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, isConstantNameExemptFromNumericSuffixCheck, noAliasConstants, noLiteralSuffixInConstantName, badConstantNames } from '../../analyzers/constantRules.ts';
 export declare const timersPromises: AuditRule;
 export declare const explicitResource: AuditRule;
 export declare const zeroTimerLogic: AuditRule;

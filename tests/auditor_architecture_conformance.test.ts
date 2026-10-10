@@ -258,6 +258,7 @@ describe('Auditor Architecture Conformance', () => {
         'validate_script_extensions',
         'validate_similar_code',
         'validate_stylelint',
+        'validate_stylelint_config',
         'validate_z_index'
       ].sort();
 

@@ -103,7 +103,8 @@ describe('ValidateAuditConfigAuditor', () => {
       'audit-config-missing-file',
       'audit-config-invalid-extension',
       'audit-config-missing-gitignore-entry',
-      'audit-config-missing-section'
+      'audit-config-missing-section',
+      'audit-config-unknown-field'
     ]);
   });
 
@@ -504,57 +505,6 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
     }).toThrow(/Error de tipo en 'accessibility\.rules\.alt-text'/);
   });
 
-  it('throws a loud error when constants.exemptGlobs contains universal wildcards', () => {
-    expect(() => {
-      defineAuditConfig({
-        name: 'invalid-app',
-        paths: { srcRoots: ['src'] },
-        persistence: { engine: 'none', schemaQualified: false },
-        styles: { zLayersEnabled: false },
-        constants: { exemptGlobs: ['**'] }
-      });
-    }).toThrow(/comodín global no permitido/);
-  });
-
-  it('throws a loud error when constants.exemptGlobs targets protected production roots', () => {
-    expect(() => {
-      defineAuditConfig({
-        name: 'invalid-app',
-        paths: { srcRoots: ['src'] },
-        persistence: { engine: 'none', schemaQualified: false },
-        styles: { zLayersEnabled: false },
-        constants: { exemptGlobs: ['src/logic/battle/**'] }
-      });
-    }).toThrow(/ruta de lógica de producción protegida/);
-  });
-
-  it('throws a loud error when constants.exemptGlobs exceeds the ceiling limit of 15', () => {
-    const manyGlobs = Array.from({ length: 16 }, (_, i) => `scripts/seed_${i}.ts`);
-    expect(() => {
-      defineAuditConfig({
-        name: 'invalid-app',
-        paths: { srcRoots: ['src'] },
-        persistence: { engine: 'none', schemaQualified: false },
-        styles: { zLayersEnabled: false },
-        constants: { exemptGlobs: manyGlobs }
-      });
-    }).toThrow(/excede el límite máximo de 15 patrones/);
-  });
-
-  it('accepts legitimate non-production patterns in constants.exemptGlobs', () => {
-    const config = defineAuditConfig({
-      name: 'valid-app',
-      paths: { srcRoots: ['src'] },
-      persistence: { engine: 'none', schemaQualified: false },
-      styles: { zLayersEnabled: false },
-      constants: {
-        exemptGlobs: ['scripts/database/seeds/**', 'ui-demo/**']
-      }
-    });
-
-    expect(config.constants?.exemptGlobs).toEqual(['scripts/database/seeds/**', 'ui-demo/**']);
-  });
-
   it('reports errors when required configuration sections are missing from audit.config.ts', async () => {
     const configContent = `
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
@@ -684,6 +634,79 @@ export default defineAuditConfig({
     const repairedContent = await fs.readFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'utf-8');
     expect(repairedContent).toContain('customExt:');
     expect(repairedContent).toContain('customOption');
+  });
+
+  it('detects unknown top-level sections and reports audit-config-unknown-field', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  ${BASE_TEST_CONFIG_SECTIONS},
+  unknownLegacySection: { enabled: true }
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'unknownLegacySection');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain('Unknown or legacy top-level section "unknownLegacySection"');
+  });
+
+  it('detects legacy paths.constantsRoots and reports audit-config-unknown-field', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: {
+    srcRoots: ['src'],
+    constantsRoots: ['src/constants']
+  },
+  ${BASE_TEST_CONFIG_SECTIONS}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'paths.constantsRoots');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain('Unknown or legacy field "paths.constantsRoots"');
+  });
+
+  it('detects legacy constants.exemptGlobs and reports audit-config-unknown-field', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  constants: {
+    exemptGlobs: ['src/**/*.ts']
+  },
+  ${BASE_TEST_CONFIG_SECTIONS.replace(/constants:\s*\{[^}]*\},/g, '')}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'constants.exemptGlobs');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain('Unknown or legacy field "constants.exemptGlobs"');
   });
 });
 

@@ -169,6 +169,7 @@ export interface ParseLintFindingsOptions {
   ruleDescription: string;
   defaultRuleName?: string;
   defaultMessage?: string;
+  transform?: (msg: RawLintMessage, cleanFile: string, options: ParseLintFindingsOptions) => AuditFinding | null;
 }
 
 /**
@@ -190,6 +191,14 @@ export function parseLintResultsToFindings(
     if (!fileReport.messages || fileReport.messages.length === 0) continue;
 
     for (const msg of fileReport.messages) {
+      if (options.transform) {
+        const custom = options.transform(msg, cleanFile, options);
+        if (custom) {
+          findings.push(custom);
+          continue;
+        }
+      }
+
       const rule = msg.ruleId || options.defaultRuleName || options.ruleId;
       const text = msg.message || options.defaultMessage || 'Lint issue';
 

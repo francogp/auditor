@@ -12,8 +12,8 @@
  *   appear in the coverage map for transparency.
  */
 import { type AuditEngineConfig } from './auditConfig.ts';
-export declare const STRUCTURAL_EXEMPTION_POLICIES: readonly ["test", "constants"];
-export declare const EXEMPTION_POLICY_IDS: readonly ["cli", "scripts", "data", "demo", "exemptFiles", "test", "constants"];
+export declare const STRUCTURAL_EXEMPTION_POLICIES: readonly ["test"];
+export declare const EXEMPTION_POLICY_IDS: readonly ["cli", "scripts", "data", "demo", "exemptFiles", "test"];
 export type ExemptionPolicyId = (typeof EXEMPTION_POLICY_IDS)[number];
 export declare const EXEMPTION_POLICY_KINDS: readonly ["configured", "structural"];
 export type ExemptionPolicyKind = (typeof EXEMPTION_POLICY_KINDS)[number];

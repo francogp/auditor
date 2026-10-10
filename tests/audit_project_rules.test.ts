@@ -8,7 +8,6 @@ import { describe, it, expect } from 'vitest';
 import {
   matchesRule,
   forbiddenTypeCasts,
-  magicNumbers,
   badConstantNames,
   noLiteralBooleanType,
   noInlineAnonymousObjectType,
@@ -75,14 +74,6 @@ describe('Project Architecture Rules & Auditor', () => {
 
       forbiddenTypeCasts.regex.lastIndex = 0;
       expect(forbiddenTypeCasts.regex.test('const w = <any>val;')).toBe(true);
-    });
-
-    it('magicNumbers detects raw inline numbers without named constants', () => {
-      magicNumbers.regex.lastIndex = 0;
-      expect(magicNumbers.regex.test('const timeout = 5000;')).toBe(true);
-
-      magicNumbers.regex.lastIndex = 0;
-      expect(magicNumbers.regex.test('const margin = 24;')).toBe(true);
     });
 
     it('badConstantNames detects numeric suffixes in constant names', () => {

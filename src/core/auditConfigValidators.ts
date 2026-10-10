@@ -15,7 +15,6 @@ import {
   AUDIT_CONFIG_FILE,
   LEGACY_ROOT_CONFIG_FILES
 } from './auditConfigTypes.ts';
-import { validateConstantsExemptGlobs } from './auditConfigAntiAbuse.ts';
 
 export { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES };
 
@@ -58,16 +57,6 @@ function checkPackageGovernanceSubsystem(config: AuditEngineConfig, missing: str
   }
 }
 
-function checkConstantsSubsystem(config: AuditEngineConfig, missing: string[]): void {
-  if (config.constants?.exemptGlobs) {
-    try {
-      validateConstantsExemptGlobs(config.constants.exemptGlobs);
-    } catch (err: unknown) {
-      missing.push(`  - 'constants': ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-}
-
 export function checkInfrastructureSubsystems(
   config: AuditEngineConfig,
   missing: string[]
@@ -75,7 +64,6 @@ export function checkInfrastructureSubsystems(
   checkPersistenceSubsystem(config, missing);
   checkCoverageAndBundleSubsystem(config, missing);
   checkPackageGovernanceSubsystem(config, missing);
-  checkConstantsSubsystem(config, missing);
 }
 
 export function checkUiSubsystems(

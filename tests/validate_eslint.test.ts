@@ -33,6 +33,7 @@ describe('EslintAuditor & parseEslintResults', () => {
       const auditor = new EslintAuditor();
       expect(auditor.id).toBe('validate_eslint');
       expect(auditor.family).toBe('architecture');
+      expect(auditor.ruleIds).toContain('eslint-violation');
     });
   });
 
@@ -73,7 +74,7 @@ describe('EslintAuditor & parseEslintResults', () => {
                 "ruleId": "vue/no-unused-components",
                 "severity": 2,
                 "message": "Component is not used",
-                "line: 3
+                "line": 3
               }
             ]
           }

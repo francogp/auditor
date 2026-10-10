@@ -4,7 +4,8 @@
     "stylelint-config-standard"
   ],
   "plugins": [
-    "stylelint-order"
+    "stylelint-order",
+    "stylelint-declaration-strict-value"
   ],
   "overrides": [
     {
@@ -20,6 +21,67 @@
     }
   ],
   "rules": {
+    "scale-unlimited/declaration-strict-value": [
+      [
+        "/color$/",
+        "font-size",
+        "z-index",
+        "box-shadow",
+        "border-radius",
+        "font-family",
+        "transition-duration",
+        "animation-duration",
+        "gap",
+        "row-gap",
+        "column-gap",
+        "font-weight",
+        "transition-timing-function"
+      ],
+      {
+        "ignoreAtRules": ["@font-face"],
+        "ignoreValues": {
+          "": ["inherit", "initial", "unset"],
+          "/color$/": ["transparent", "currentColor", "none"],
+          "z-index": ["auto", "0", "-1"],
+          "font-size": ["inherit", "initial"],
+          "box-shadow": ["none"],
+          "border-radius": ["0", "50%", "100%", "9999px"],
+          "font-family": [
+            "inherit",
+            "initial",
+            "unset",
+            "sans-serif",
+            "serif",
+            "monospace",
+            "cursive",
+            "fantasy",
+            "system-ui",
+            "ui-sans-serif",
+            "ui-serif",
+            "ui-monospace",
+            ",",
+            "/^var\\(.*\\),?$/",
+            "/^\\$.*,?$/"
+          ],
+          "transition-duration": ["0", "0s", "0ms"],
+          "animation-duration": ["0", "0s", "0ms"],
+          "gap": ["0", "normal"],
+          "row-gap": ["0", "normal"],
+          "column-gap": ["0", "normal"],
+          "font-weight": ["normal", "bold", "bolder", "lighter"],
+          "transition-timing-function": [
+            "linear",
+            "ease",
+            "ease-in",
+            "ease-out",
+            "ease-in-out",
+            "step-start",
+            "step-end"
+          ]
+        },
+        "message": "Enforce using SCSS variables ($variable) or CSS variables (var(--variable)) instead of literal values (no magic values/numbers in styles)"
+      }
+    ],
     "function-name-case": [
       "lower",
       {

@@ -54,8 +54,7 @@ import {
   assertNarrowCoverageGlob,
   assertCoverageReason,
   getExemptRootsForPolicy,
-  filterOutExemptRoots,
-  validateConstantsExemptGlobs
+  filterOutExemptRoots
 } from './auditConfigAntiAbuse.ts';
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
@@ -75,7 +74,6 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     cliRoots: ['src/cli'],
     dataRoots: ['src/data'],
     demoRoots: [],
-    constantsRoots: ['src/constants'],
     componentsRoots: ['src/components'],
     viewsRoots: ['src/views'],
     storesRoots: ['src/stores'],
@@ -194,10 +192,10 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     }
   },
   constants: {
+    enabled: true,
     ignoredNames: [],
     exemptMagicNumbers: [],
-    allowedNumericPrefixes: [],
-    exemptGlobs: []
+    allowedNumericPrefixes: []
   },
   packageHygiene: {
     enabled: true,
@@ -482,15 +480,11 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
 }
 
 function buildConstantsSubConfig(c?: DeepPartial<AuditConstantsConfig>): AuditConstantsConfig {
-  const exemptGlobs = c?.exemptGlobs ? [...c.exemptGlobs] : [];
-  if (exemptGlobs.length > 0) {
-    validateConstantsExemptGlobs(exemptGlobs);
-  }
   return {
+    enabled: c?.enabled ?? DEFAULT_AUDIT_CONFIG.constants?.enabled ?? true,
     ignoredNames: c?.ignoredNames ?? [],
     exemptMagicNumbers: c?.exemptMagicNumbers ?? [],
-    allowedNumericPrefixes: c?.allowedNumericPrefixes ?? [],
-    exemptGlobs
+    allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
   };
 }
 

@@ -19,7 +19,7 @@
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
-export declare const STYLELINT_RULES: readonly ["stylelint-issue", "css-duplicate-selectors", "css-duplicate-properties", "css-empty-blocks", "css-order-violation", "scss-syntax-issue", "scss-sass-collision-casing"];
+export declare const STYLELINT_RULES: readonly ["stylelint-issue", "css-duplicate-selectors", "css-duplicate-properties", "css-empty-blocks", "css-order-violation", "scss-syntax-issue", "scss-sass-collision-casing", "scss-strict-values"];
 export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 export declare function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string;
 export declare function categorizeStylelintRule(ruleName: string | undefined): StylelintRuleId;

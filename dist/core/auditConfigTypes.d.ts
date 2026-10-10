@@ -18,7 +18,6 @@ export interface AuditPathsConfig {
     readonly cliRoots?: readonly string[];
     readonly dataRoots?: readonly string[];
     readonly demoRoots?: readonly string[];
-    readonly constantsRoots?: readonly string[];
     readonly componentsRoots?: readonly string[];
     readonly viewsRoots?: readonly string[];
     readonly storesRoots?: readonly string[];
@@ -163,10 +162,10 @@ export interface AuditAnimationConfig {
     readonly customTimerFunctions?: readonly string[];
 }
 export interface AuditConstantsConfig {
+    readonly enabled?: boolean;
     readonly ignoredNames?: readonly string[];
     readonly exemptMagicNumbers?: readonly number[];
     readonly allowedNumericPrefixes?: readonly string[];
-    readonly exemptGlobs?: readonly string[];
 }
 export interface AuditSecurityConfig {
     readonly enabled?: boolean;

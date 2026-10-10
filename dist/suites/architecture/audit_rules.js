@@ -218,7 +218,7 @@ export const tsIgnore = {
     fix: () => '',
     fixable: true
 };
-export { isAuditableCodeFile, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, isConstantNameExemptFromNumericSuffixCheck, noAliasConstants, noLiteralSuffixInConstantName, isMagicNumberExemptFile, EXEMPT_AUDIT_NUMERIC_LITERALS, magicNumbers, badConstantNames } from "../../analyzers/constantRules.js";
+export { isAuditableCodeFile, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, isConstantNameExemptFromNumericSuffixCheck, noAliasConstants, noLiteralSuffixInConstantName, badConstantNames } from "../../analyzers/constantRules.js";
 import { isAuditableCodeFile } from "../../analyzers/constantRules.js";
 export const timersPromises = {
     regex: /new Promise\(r => setTimeout\(r, (\d+)\)\)/g,

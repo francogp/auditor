@@ -111,6 +111,7 @@ describe('ValidateEslintConfigAuditor & auditEslintConfigContent', () => {
       expect(findings.some(f => f.ruleId === 'eslint-config-legacy-date-allowed')).toBe(true);
     });
 
+
     it('flags eslint-config-missing when no config file exists on disk', async () => {
       const auditor = new ValidateEslintConfigAuditor({ projectRoot: tempDir });
       await auditor.runAudit();
@@ -132,6 +133,21 @@ describe('ValidateEslintConfigAuditor & auditEslintConfigContent', () => {
           rules: {
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/ban-ts-comment': 'error',
+            '@typescript-eslint/no-magic-numbers': [
+              'error',
+              {
+                ignore: [0, 1, 100, 200, 404, 500, 9999],
+                ignoreArrayIndexes: true,
+                ignoreDefaultValues: true,
+                ignoreClassFieldInitialValues: true,
+                ignoreEnums: true,
+                ignoreNumericLiteralTypes: true,
+                ignoreReadonlyClassProperties: true,
+                ignoreTypeIndexes: true,
+                enforceConst: true,
+                detectObjects: false
+              }
+            ],
             'no-restricted-syntax': [
               'error',
               {

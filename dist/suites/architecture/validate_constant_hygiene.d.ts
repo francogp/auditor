@@ -15,7 +15,7 @@
  */
 import { FileScanAuditor } from '../../core/auditorBase.ts';
 import { type SharedAstContext } from '../../core/astContext.ts';
-export declare const CONSTANT_HYGIENE_RULES: readonly ["duplicate-constant-identical", "duplicate-constant-divergent", "constant-magic-numbers", "constant-bad-names", "constant-no-alias", "constant-no-literal-suffix"];
+export declare const CONSTANT_HYGIENE_RULES: readonly ["duplicate-constant-identical", "duplicate-constant-divergent", "constant-bad-names", "constant-no-alias", "constant-no-literal-suffix"];
 export type ConstantHygieneRuleId = (typeof CONSTANT_HYGIENE_RULES)[number];
 export declare class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygieneRuleId> {
     private readonly scannedAbsFiles;

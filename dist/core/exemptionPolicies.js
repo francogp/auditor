@@ -11,8 +11,8 @@
  * - `structural` policies are framework design (e.g. tests are not production code) and only
  *   appear in the coverage map for transparency.
  */
-import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, getAuditConfig, isCliPath, isConstantsPath, isDataPath, isDemoPath, isExemptFile, isScriptPath, isTestPath } from "./auditConfig.js";
-export const STRUCTURAL_EXEMPTION_POLICIES = ['test', 'constants'];
+import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, getAuditConfig, isCliPath, isDataPath, isDemoPath, isExemptFile, isScriptPath, isTestPath } from "./auditConfig.js";
+export const STRUCTURAL_EXEMPTION_POLICIES = ['test'];
 export const EXEMPTION_POLICY_IDS = [...ACKNOWLEDGEABLE_EXEMPTION_POLICIES, ...STRUCTURAL_EXEMPTION_POLICIES];
 export const EXEMPTION_POLICY_KINDS = ['configured', 'structural'];
 export function isCodeFile(relPosixPath) {
@@ -60,13 +60,6 @@ export const EXEMPTION_POLICIES = [
         configKey: 'paths.testRoots',
         silences: 'reglas de código de producción',
         matches: p => isCodeFile(p) && isTestPath(p)
-    },
-    {
-        id: 'constants',
-        kind: 'structural',
-        configKey: 'paths.constantsRoots',
-        silences: 'números mágicos (módulos de constantes)',
-        matches: p => isCodeFile(p) && isConstantsPath(p)
     }
 ];
 /** Every policy matching the given file, in registry order. */

@@ -32,7 +32,8 @@ export const VUE_SFC_HYGIENE_RULES = [
     'script-setup-required',
     'no-script-setup-exports',
     'vue-template-quote-escaping',
-    'no-data-provider-in-template'
+    'no-data-provider-in-template',
+    'vue-template-magic-calculation'
 ];
 export const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
@@ -40,6 +41,44 @@ const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
 const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[\w-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[\w-]+="[^"\n]*"[\w$]/;
 export const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:\w*DataProvider|dataProvider)\.\w+\s*\(/g;
+const MULT_DIV_MOD_REGEX = /[*/%]\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*[*/%]/;
+const COMPARISON_REGEX = /(?:===|!==|==|!=|<=|>=|<|>)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:===|!==|==|!=|<=|>=|<|>)/g;
+const ADD_SUB_REGEX = /(?:\+|-)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:\+|-)/g;
+function checkMultDivMod(code) {
+    const m = MULT_DIV_MOD_REGEX.exec(code);
+    return m ? m[0].trim() : null;
+}
+function checkMagicComparison(code) {
+    const compRegex = new RegExp(COMPARISON_REGEX.source, COMPARISON_REGEX.flags);
+    let compMatch;
+    while ((compMatch = compRegex.exec(code)) !== null) {
+        const val = Number(compMatch[1] ?? compMatch[2]);
+        if (val !== 0 && val !== 1) {
+            return compMatch[0].trim();
+        }
+    }
+    return null;
+}
+function checkMagicAddSub(code) {
+    const addRegex = new RegExp(ADD_SUB_REGEX.source, ADD_SUB_REGEX.flags);
+    let addMatch;
+    while ((addMatch = addRegex.exec(code)) !== null) {
+        const val = Number(addMatch[1] ?? addMatch[2]);
+        if (val > 1) {
+            return addMatch[0].trim();
+        }
+    }
+    return null;
+}
+function detectTemplateMagicCalculation(expression) {
+    const trimmed = expression.trim();
+    if (!trimmed || !/\d/.test(trimmed))
+        return null;
+    if (/^[+-]?\d+(?:\.\d+)?$/.test(trimmed))
+        return null;
+    const codeOnly = trimmed.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"|`[\s\S]*?`/g, match => ' '.repeat(match.length));
+    return checkMultDivMod(codeOnly) ?? checkMagicComparison(codeOnly) ?? checkMagicAddSub(codeOnly);
+}
 function resolveVueSfcScanRoots(roots, projectRoot) {
     if (roots)
         return roots;
@@ -76,7 +115,8 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
                 'script-setup-required': 'Componente sin script setup',
                 'no-script-setup-exports': 'Export dentro de script setup',
                 'vue-template-quote-escaping': 'Comillas sin escapar en template',
-                'no-data-provider-in-template': 'Data provider en template'
+                'no-data-provider-in-template': 'Data provider en template',
+                'vue-template-magic-calculation': 'Cálculo mágico en template Vue'
             },
             allowedExtensions: new Set(['.vue'])
         });
@@ -93,6 +133,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
         this.auditTemplateQuoteEscaping(relPath, content);
         // 4. Audit data provider calls in template (scanRegexMatches auto-marks 'no-data-provider-in-template')
         this.auditDataProviderInTemplate(relPath, content);
+        // 5. Audit magic calculations and comparisons in template expressions
+        this.markRuleEvaluated('vue-template-magic-calculation');
+        this.auditTemplateMagicCalculation(relPath, content);
     }
     auditScriptSetup(relPath, content) {
         // Options API detection
@@ -257,6 +300,31 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
                     const fullIndex = templateStartIndex + offsetInTemplate + dbMatch.index;
                     this.reportTemplateViolation(relPath, content, fullIndex, `Acceso directo a persistencia/base de datos detectado en template Vue. Cachea los datos con computed o acciones en <script>.`);
                 }
+            }
+        }
+    }
+    auditTemplateMagicCalculation(relPath, content) {
+        const template = this.extractTemplateBlock(content);
+        if (!template)
+            return;
+        const { templateContent, templateStartIndex } = template;
+        const dynamicExpressions = this.extractDynamicExpressions(templateContent);
+        for (const { expression, offsetInTemplate } of dynamicExpressions) {
+            const matchedSnippet = detectTemplateMagicCalculation(expression);
+            if (!matchedSnippet)
+                continue;
+            const fullIndex = templateStartIndex + offsetInTemplate;
+            const line = this.getLineNumber(content, fullIndex);
+            const lineContent = this.getLineAt(content, line);
+            if (!this.hasEscapeHatch(lineContent, ['template-ok', 'sfc-ok'])) {
+                this.addViolation({
+                    ruleId: 'vue-template-magic-calculation',
+                    severity: 'error',
+                    file: relPath,
+                    line,
+                    message: `Cálculo o comparación con número mágico en template Vue ('${matchedSnippet}'). Mueve la lógica a un 'computed()' en <script setup>.`,
+                    context: lineContent.trim()
+                });
             }
         }
     }
