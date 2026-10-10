@@ -43,6 +43,8 @@ export const REQUIRED_STRICT_PROPERTIES = [
   'z-index'
 ] as const;
 
+const REQUIRED_STRICT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(REQUIRED_STRICT_PROPERTIES);
+
 export const RECOMMENDED_EXPANDED_PROPERTIES = [
   'box-shadow',
   'border-radius',
@@ -101,10 +103,15 @@ export const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>
 
 export function getMergedStrictProperties(config?: ReturnType<typeof getAuditConfig>): readonly string[] {
   const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties;
+  const merged = new Set<string>(REQUIRED_STRICT_PROPERTIES);
   if (custom && Array.isArray(custom)) {
-    return custom;
+    for (const prop of custom) {
+      if (typeof prop === 'string' && prop.trim().length > 0) {
+        merged.add(prop.trim());
+      }
+    }
   }
-  return REQUIRED_STRICT_PROPERTIES;
+  return Array.from(merged);
 }
 
 export function getMergedIgnoreValues(config?: ReturnType<typeof getAuditConfig>): Record<string, readonly string[]> {
@@ -271,12 +278,16 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       : {};
 
     const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
+    const requiredProps = getMergedStrictProperties(config);
+    const hasCustomExtraProps = requiredProps.some(p => !REQUIRED_STRICT_PROPERTIES_SET.has(p));
+
     if (strictRule === undefined && extendsAuditorConfig(parsedConfig)) {
-      return false;
+      if (!hasCustomExtraProps) {
+        return false;
+      }
     }
 
     const isStrictRuleConfigured = Array.isArray(strictRule) && strictRule.length >= 1;
-    const requiredProps = getMergedStrictProperties(config);
     let missingProperties: readonly string[] = []; // no-domain: Non-domain Stylelint property names
 
     if (isStrictRuleConfigured && Array.isArray(strictRule[0])) {

@@ -31,6 +31,7 @@ export const REQUIRED_STRICT_PROPERTIES = [
     'font-size',
     'z-index'
 ];
+const REQUIRED_STRICT_PROPERTIES_SET = new Set(REQUIRED_STRICT_PROPERTIES);
 export const RECOMMENDED_EXPANDED_PROPERTIES = [
     'box-shadow',
     'border-radius',
@@ -86,10 +87,15 @@ export const CANONICAL_IGNORE_VALUES = {
 };
 export function getMergedStrictProperties(config) {
     const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties;
+    const merged = new Set(REQUIRED_STRICT_PROPERTIES);
     if (custom && Array.isArray(custom)) {
-        return custom;
+        for (const prop of custom) {
+            if (typeof prop === 'string' && prop.trim().length > 0) {
+                merged.add(prop.trim());
+            }
+        }
     }
-    return REQUIRED_STRICT_PROPERTIES;
+    return Array.from(merged);
 }
 export function getMergedIgnoreValues(config) {
     const custom = config?.stylelint?.strictValues?.ignoreValues ?? config?.styles?.stylelint?.strictValues?.ignoreValues ?? {};
@@ -229,11 +235,14 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
             ? { ...parsedConfig.rules }
             : {};
         const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
+        const requiredProps = getMergedStrictProperties(config);
+        const hasCustomExtraProps = requiredProps.some(p => !REQUIRED_STRICT_PROPERTIES_SET.has(p));
         if (strictRule === undefined && extendsAuditorConfig(parsedConfig)) {
-            return false;
+            if (!hasCustomExtraProps) {
+                return false;
+            }
         }
         const isStrictRuleConfigured = Array.isArray(strictRule) && strictRule.length >= 1;
-        const requiredProps = getMergedStrictProperties(config);
         let missingProperties = []; // no-domain: Non-domain Stylelint property names
         if (isStrictRuleConfigured && Array.isArray(strictRule[0])) {
             const configuredProps = new Set(strictRule[0].filter((item) => typeof item === 'string'));

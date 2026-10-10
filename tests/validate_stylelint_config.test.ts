@@ -218,6 +218,9 @@ export default {
 
       const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
       const strictRule = repaired.rules[REQUIRED_STRICT_VALUE_RULE];
+      expect(strictRule[0]).toContain('/color$/');
+      expect(strictRule[0]).toContain('font-size');
+      expect(strictRule[0]).toContain('z-index');
       expect(strictRule[0]).toContain('letter-spacing');
       expect(strictRule[1].ignoreValues['letter-spacing']).toContain('normal');
       expect(strictRule[1].ignoreValues['z-index']).toContain('999');
@@ -227,6 +230,40 @@ export default {
       const verifyResult = await verifyAuditor.execute();
       expect(verifyResult.status).toBe('passed');
       expect(verifyResult.summary.errors).toBe(0);
+    });
+
+    it('fails when .stylelintrc.json attempts to omit mandatory minimum properties even if custom config tried to restrict them', async () => {
+      const auditorConfig = `
+export default {
+  stylelint: {
+    enabled: true,
+    strictValues: {
+      properties: ['z-index']
+    }
+  }
+};
+`;
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), auditorConfig, 'utf-8');
+
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: [['z-index']]
+        }
+      };
+      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+      expect(finding?.message).toContain('/color$/');
+      expect(finding?.message).toContain('font-size');
     });
   });
 });
