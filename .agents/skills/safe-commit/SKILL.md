@@ -41,6 +41,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
 | **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.2). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.2 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
 | **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
+| **Mandatory 3-Pillar Documentation Audit & Anti-Bypass Mandate** | Agents are CATEGORICALLY PROHIBITED from skipping Phase 3, self-declaring "zero updates exist", or bypassing `learn-with-docs` whenever source code (`src/**`), package scripts (`package.json`), or configurations have changed. In such cases, generating `learning_proposal.md` with `RequestFeedback: true` and obtaining explicit user approval at the 🛑 HARD STOP is strictly mandatory before advancing to Phase 4. |
 | **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
 | **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), the completion template, AND the narrative explanations in brain artifacts (`learning_proposal.md`, `walkthrough.md`); `config.documentation.language` dynamically governs repository files, code, comments, documentation, markdown files, commit messages, `scratch/release_notes.txt`, and git tags, as well as code contracts and diffs embedded within artifacts. Zero hardcoded languages. |
 
@@ -236,16 +237,29 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 - **Differentiating Scope**:
   - **MANDATORY**: Synchronizing host program documentation (`README.md`, `docs/**`), DOX indices, and affected skills directly related to or impacted by the session's changes.
   - **STRICTLY PROHIBITED**: Unrelated repository-wide sweeps (fixing random typos in unrelated files or auditing unimpacted modules).
-- **Conditional Approval Gate**:
-  - **When Pending Documentation Updates, New Lessons or Unresolved Contradictions Exist**:
-    - If there are new contracts or harmonizations that have **not yet been applied to disk**, `learn-with-docs` generates `<appDataDir>/brain/<conversation-id>/learning_proposal.md` detailing the primary DOX contract updates AND the collateral skill/documentation modernizations.
+- **Mandatory 3-Pillar Documentation Audit Gate & Anti-Bypass Mandate**:
+  - **Categorical Prohibition on Declaring "Zero Lessons" When Code/Configs Changed**:
+    AI agents and developers are **STRICTLY AND CATEGORICALLY PROHIBITED** from declaring "zero updates exist", skipping Phase 3, or advancing to Phase 4 whenever the session modified, added, or deleted:
+    1. Functional code, suites, or analyzers (`src/**`)
+    2. Package scripts or CLI entrypoints (`package.json`, `src/cli/**`, `scripts/**`)
+    3. Configuration defaults, schemas, or templates (`.auditor/audit.config.ts`, `.fallowrc.json`, `.stylelintrc.json`, `auditConfigDefaults.ts`, etc.)
+    4. Architectural policies, user directives, or bug resolutions.
+  - **Mandatory Generation of `learning_proposal.md`**:
+    Whenever ANY non-documentation file was changed and the corresponding documentation updates are not ALREADY applied and staged on disk across all 3 pillars (`README.md`, target `AGENTS.md`, and affected skills), `learn-with-docs` **MUST ALWAYS** generate `<appDataDir>/brain/<conversation-id>/learning_proposal.md` detailing:
+    1. The primary architectural contract to persist in the target `AGENTS.md` (e.g. user directives, invariants, bug root causes).
+    2. Missing command/script documentation or option tables to add to `README.md`.
+    3. Updates or harmonizations for affected skills (`.agents/skills/**`).
+  - **MANDATORY 🛑 HARD STOP**:
     - **CRITICAL SEQUENCING RULE**: `learning_proposal.md` MUST be the **FINAL tool call** executed in the turn so the native feedback card remains active in the UI.
-    - Present direct clickable Markdown links (`👉 [learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and stop the turn to wait for user confirmation on the learning proposal before proceeding to Phase 4.
-  - **When Zero Updates Exist or All Changes Are Already Applied on Disk**:
-    - If no contracts changed, no documentation was affected, or all updates/harmonizations are ALREADY written to disk in the working tree, **DO NOT invent artifacts or trigger an artificial hard stop**.
-    - Advance directly to **Phase 4** (commit and release). Since the user already commanded `/safe-commit` and all changes are already on disk, prompting for confirmation creates cognitive friction and wastes time.
+    - Present direct clickable Markdown links (`👉 [learning_proposal.md](file://...)` and `[walkthrough.md](file://...)`) and **STOP EXECUTION IMMEDIATELY** to wait for user confirmation.
+    - Advancing to Phase 4 without user approval on `learning_proposal.md` when functional changes were made is strictly forbidden.
+  - **Strictly Limited Exception (When Phase 3 May Advance Without a Proposal)**:
+    Phase 3 may ONLY advance directly to Phase 4 without generating `learning_proposal.md` IF AND ONLY IF:
+    1. The git diff consists **exclusively** of non-functional markdown/documentation fixes (`git status` shows only `*.md` files), OR
+    2. The 3 documentation surfaces (`README.md`, `AGENTS.md`, and relevant skills) have **ALREADY** been modified and verified on disk in the current `git status` diff alongside the code changes, AND zero unpersisted user directives or lessons remain.
+    If functional code changed and documentation was not updated on disk, claiming "zero updates exist" is considered a critical architectural violation and gross misconduct.
 
-**✓ Completion gate**: If pending documentation updates or lessons were proposed via `learning_proposal.md`, wait for user approval; if no unapplied updates exist, proceed directly to Phase 4.
+**✓ Completion gate**: `learning_proposal.md` was generated, presented, and explicitly approved by the user; or all 3 documentation surfaces are already fully updated on disk in the git diff. Proceed to Phase 4.
 
 ---
 

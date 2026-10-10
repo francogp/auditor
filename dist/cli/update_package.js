@@ -87,7 +87,8 @@ export function updateAuditorPackage(options = {}) {
         console.log(renderBanner('@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE', `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`));
         console.log(styleText('cyan', '📦 Ejecutando actualización nativa vía npm update @francogp/auditor...\n'));
     }
-    const proc = childProcess.spawnSync('npm', ['update', '@francogp/auditor'], {
+    const npmBinary = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const proc = childProcess.spawnSync(npmBinary, ['update', '@francogp/auditor'], {
         cwd: projectRoot,
         stdio: options.silent ? 'pipe' : 'inherit',
         encoding: 'utf-8'
@@ -126,7 +127,7 @@ export function runAuditorFixAutoRemediation(projectRoot, silent) {
             console.log(styleText('cyan', '🛠️ Ejecutando auditor fix automáticamente para sincronizar scripts y configuraciones...\n'));
         }
         const hostAuditorPkg = path.join(projectRoot, 'node_modules/@francogp/auditor/dist/cli/audit_full.js');
-        let cmd = 'npm';
+        let cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
         let args = ['run', 'auditor:fix'];
         if (!isSelf && fs.existsSync(hostAuditorPkg)) {
             cmd = 'node';

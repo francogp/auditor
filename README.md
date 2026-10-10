@@ -664,7 +664,10 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
 | `auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
 | `auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |
-| `auditor-fallow` | `src/cli/report_fallow.ts` | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`). |
+| `auditor-fallow` | `src/cli/report_fallow.ts` | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`). |
+| `auditor:fallow:suppressions` | `src/cli/report_fallow.ts` | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications. |
+| `auditor:fallow:flags` | `src/cli/report_fallow.ts` | Discovers and reports active feature flags across the codebase. |
+| `auditor:fallow:viz` | `src/cli/report_fallow.ts` | Generates interactive architecture and dependency HTML map in `scratch/fallow_map.html`. |
 | `auditor-complexity` | `src/cli/report_complexity.ts` | Fallow refactoring targets and code complexity analysis report. |
 | `auditor-similar` | `src/cli/report_similar_code.ts` | Semantic clone and function similarity analysis via Fallow vector embeddings. |
 | `auditor-review` | `src/cli/report_review.ts` | Graph-grounded architectural review brief for changed code. |
