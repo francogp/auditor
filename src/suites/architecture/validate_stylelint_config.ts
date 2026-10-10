@@ -40,12 +40,7 @@ export const REQUIRED_STRICT_VALUE_RULE = 'scale-unlimited/declaration-strict-va
 export const REQUIRED_STRICT_PROPERTIES = [
   '/color$/',
   'font-size',
-  'z-index'
-] as const;
-
-const REQUIRED_STRICT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(REQUIRED_STRICT_PROPERTIES);
-
-export const RECOMMENDED_EXPANDED_PROPERTIES = [
+  'z-index',
   'box-shadow',
   'border-radius',
   'font-family',
@@ -57,6 +52,8 @@ export const RECOMMENDED_EXPANDED_PROPERTIES = [
   'font-weight',
   'transition-timing-function'
 ] as const;
+
+const REQUIRED_STRICT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(REQUIRED_STRICT_PROPERTIES);
 
 export const CANONICAL_IGNORE_AT_RULES = ['@font-face'] as const; // no-domain: CSS at-rules for Stylelint strict-value
 
@@ -231,7 +228,8 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       configKey: 'stylelint.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {
-        rationale: 'Exigir variables SCSS ($var) o CSS (var(--var)) en color, font-size y z-index es un estándar inmutable para erradicar números mágicos en estilos.',
+        rationale:
+          'Exigir variables SCSS ($var) o CSS (var(--var)) en propiedades de diseño (color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function) es un estándar inmutable para erradicar números mágicos en estilos.',
         requiredMinimums: {
           'strictValues.properties': [...REQUIRED_STRICT_PROPERTIES]
         }

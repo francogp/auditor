@@ -18,8 +18,7 @@ export type StylelintConfigRuleId = 'stylelint-config-missing' | 'stylelint-conf
 export declare const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[];
 export declare const REQUIRED_STYLELINT_PLUGIN = "stylelint-declaration-strict-value";
 export declare const REQUIRED_STRICT_VALUE_RULE = "scale-unlimited/declaration-strict-value";
-export declare const REQUIRED_STRICT_PROPERTIES: readonly ["/color$/", "font-size", "z-index"];
-export declare const RECOMMENDED_EXPANDED_PROPERTIES: readonly ["box-shadow", "border-radius", "font-family", "transition-duration", "animation-duration", "gap", "row-gap", "column-gap", "font-weight", "transition-timing-function"];
+export declare const REQUIRED_STRICT_PROPERTIES: readonly ["/color$/", "font-size", "z-index", "box-shadow", "border-radius", "font-family", "transition-duration", "animation-duration", "gap", "row-gap", "column-gap", "font-weight", "transition-timing-function"];
 export declare const CANONICAL_IGNORE_AT_RULES: readonly ["@font-face"];
 export declare const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>>;
 export declare function getMergedStrictProperties(config?: ReturnType<typeof getAuditConfig>): readonly string[];

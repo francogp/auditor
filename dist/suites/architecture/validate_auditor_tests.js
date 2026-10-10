@@ -172,7 +172,11 @@ export class AuditorTestsAuditor extends BaseAuditor {
             ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
             coverage: {
                 include: ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts'],
-                exclude: ['src/suites/architecture/audit_rules.ts', 'src/suites/architecture/stylelintSassTrapsPlugin.ts']
+                exclude: [
+                    'src/suites/architecture/audit_rules.ts',
+                    'src/suites/architecture/stylelintSassTrapsPlugin.ts',
+                    'tests/validate_critical_config.test.ts'
+                ]
             },
             projectRoot
         });
@@ -190,7 +194,11 @@ export class AuditorTestsAuditor extends BaseAuditor {
             ? ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts']
             : ['scripts/auditors/**/*.ts', 'tests/**/validate_*.test.ts', 'tests/**/audit_*.test.ts'];
         const exclude = isSelfRepo && hasCoreSuites
-            ? ['src/suites/architecture/audit_rules.ts', 'src/suites/architecture/stylelintSassTrapsPlugin.ts']
+            ? [
+                'src/suites/architecture/audit_rules.ts',
+                'src/suites/architecture/stylelintSassTrapsPlugin.ts',
+                'tests/validate_critical_config.test.ts'
+            ]
             : [
                 'scripts/auditors/**/_*',
                 'scripts/auditors/**/report_*',

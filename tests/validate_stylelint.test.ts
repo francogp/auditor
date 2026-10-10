@@ -433,20 +433,70 @@ describe('StylelintAuditor Suite', () => {
       }
     });
 
-    it('detects raw naked values in z-index, font-size, and color as scss-strict-values', async () => {
+    it('detects raw naked values across all canonical properties (box-shadow, border-radius, font-family, transition-duration, gap, font-weight, color, font-size, z-index) as scss-strict-values', async () => {
       const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sl-strict-'));
       try {
         await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
         await fs.writeFile(
           path.join(tempDir, 'src/magic.scss'),
-          `.box {\n  z-index: 99;\n  font-size: 16px;\n  color: #ff0000;\n}\n`,
+          `.box {
+  z-index: 99;
+  font-size: 16px;
+  color: #ff0000;
+  box-shadow: 2px 2px 4px black;
+  border-radius: 8px;
+  font-family: Arial;
+  transition-duration: 300ms;
+  animation-duration: 500ms;
+  gap: 12px;
+  row-gap: 8px;
+  column-gap: 4px;
+  font-weight: 600;
+  transition-timing-function: custom-ease;
+}
+`,
           'utf-8'
         );
         const auditor = new StylelintAuditor({ projectRoot: tempDir });
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
         const strictFindings = result.findings.filter(f => f.ruleId === 'scss-strict-values');
-        expect(strictFindings.length).toBeGreaterThanOrEqual(1);
+        expect(strictFindings.length).toBe(13);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('passes cleanly when all 13 canonical properties use SCSS/CSS variables or canonical ignoreValues', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-sl-clean-'));
+      try {
+        await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+        await fs.writeFile(
+          path.join(tempDir, 'src/tokens.scss'),
+          `$custom-color: #ff0000;
+
+.card {
+  z-index: auto;
+  font-size: inherit;
+  color: $custom-color;
+  box-shadow: none;
+  border-radius: 50%;
+  font-family: inherit;
+  transition-duration: 0s;
+  animation-duration: 0s;
+  gap: 0;
+  row-gap: normal;
+  column-gap: normal;
+  font-weight: bold;
+  transition-timing-function: ease-in-out;
+}
+`,
+          'utf-8'
+        );
+        const auditor = new StylelintAuditor({ projectRoot: tempDir });
+        const result = await auditor.execute();
+        const strictFindings = result.findings.filter(f => f.ruleId === 'scss-strict-values');
+        expect(strictFindings).toHaveLength(0);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }

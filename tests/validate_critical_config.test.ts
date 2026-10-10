@@ -303,15 +303,56 @@ export default defineAuditConfig({
   });
 
   describe('Core Suite Integration: ValidateStylelintConfigAuditor', () => {
-    it('declares criticalConfig with REQUIRED_STRICT_PROPERTIES', () => {
+    it('declares criticalConfig with all 13 REQUIRED_STRICT_PROPERTIES', () => {
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       expect(auditor.criticalConfig).toBeDefined();
       expect(auditor.criticalConfig?.rationale).toContain('Exigir variables SCSS ($var) o CSS');
-      expect(auditor.criticalConfig?.requiredMinimums?.['strictValues.properties']).toEqual(
-        expect.arrayContaining([...REQUIRED_STRICT_PROPERTIES])
-      );
+      const strictMinima = auditor.criticalConfig?.requiredMinimums?.['strictValues.properties'];
+      expect(strictMinima).toBeDefined();
+      expect(strictMinima).toHaveLength(13);
+      expect(strictMinima).toEqual(expect.arrayContaining([...REQUIRED_STRICT_PROPERTIES]));
       const errors = validateAuditorConstruction(auditor);
       expect(errors).toEqual([]);
+    });
+
+    it('fails with audit-config-critical-violation when host project configures fewer than the 13 canonical properties', async () => {
+      const auditor = new TestableAuditConfigAuditor({ projectRoot: tempDir });
+      const stylelintTask: AuditTaskDefinition = {
+        id: 'validate_stylelint_config',
+        name: 'Stylelint Configuration Validator',
+        family: 'architecture',
+        scriptPath: 'src/suites/architecture/validate_stylelint_config.ts',
+        command: 'node',
+        args: [],
+        configKey: 'stylelint.strictValues.properties',
+        criticalConfig: {
+          rationale: 'Las 13 propiedades canónicas son obligatorias.',
+          requiredMinimums: {
+            'strictValues.properties': [...REQUIRED_STRICT_PROPERTIES]
+          }
+        }
+      };
+
+      await auditor.testVerifyCritical(
+        {
+          _rawConfig: {
+            stylelint: {
+              strictValues: {
+                properties: ['/color$/', 'font-size', 'z-index'] // Missing 10 properties
+              }
+            }
+          }
+        },
+        [stylelintTask]
+      );
+
+      const findings = auditor.getFindings();
+      const criticalViolation = findings.find(f => f.ruleId === 'audit-config-critical-violation');
+      expect(criticalViolation).toBeDefined();
+      expect(criticalViolation?.severity).toBe('error');
+      expect(criticalViolation?.message).toContain('missing required minimum values for "strictValues.properties"');
+      expect(criticalViolation?.message).toContain('box-shadow');
+      expect(criticalViolation?.message).toContain('border-radius');
     });
   });
 });

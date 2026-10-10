@@ -1,7 +1,8 @@
 /**
  * tests/validate_stylelint_config.test.ts
  *
- * Exhaustive unit tests for ValidateStylelintConfigAuditor conforming to BaseAuditor 5-point contract.
+ * Exhaustive unit and integrity tests for ValidateStylelintConfigAuditor conforming to BaseAuditor 5-point contract.
+ * Enforces the 13 canonical design token properties across constants, configuration, violation detection, and auto-fix.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -13,10 +14,29 @@ import {
   STYLELINT_CONFIG_RULES,
   REQUIRED_STYLELINT_PLUGIN,
   REQUIRED_STRICT_VALUE_RULE,
-  CANONICAL_STRICT_VALUE_CONFIG
+  REQUIRED_STRICT_PROPERTIES,
+  CANONICAL_IGNORE_VALUES,
+  CANONICAL_STRICT_VALUE_CONFIG,
+  buildProjectStrictValueConfig
 } from '../src/suites/architecture/validate_stylelint_config.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
+
+const EXPECTED_CANONICAL_13_PROPERTIES: readonly string[] = [
+  '/color$/',
+  'font-size',
+  'z-index',
+  'box-shadow',
+  'border-radius',
+  'font-family',
+  'transition-duration',
+  'animation-duration',
+  'gap',
+  'row-gap',
+  'column-gap',
+  'font-weight',
+  'transition-timing-function'
+];
 
 describe('ValidateStylelintConfigAuditor', () => {
   let tempDir: string;
@@ -43,10 +63,44 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(auditor.ruleDescriptions).toBeDefined();
       expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(3);
     });
+
+    it('enforces exact 13 canonical design token properties in REQUIRED_STRICT_PROPERTIES', () => {
+      expect(REQUIRED_STRICT_PROPERTIES).toHaveLength(13);
+      expect([...REQUIRED_STRICT_PROPERTIES]).toEqual(EXPECTED_CANONICAL_13_PROPERTIES);
+    });
+
+    it('declares all 13 canonical properties in criticalConfig.requiredMinimums', () => {
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      expect(auditor.criticalConfig).toBeDefined();
+      expect(auditor.criticalConfig?.rationale).toContain('Exigir variables SCSS ($var) o CSS');
+      const criticalProps = auditor.criticalConfig?.requiredMinimums?.['strictValues.properties'];
+      expect(criticalProps).toBeDefined();
+      expect(criticalProps).toHaveLength(13);
+      expect(criticalProps).toEqual(expect.arrayContaining([...EXPECTED_CANONICAL_13_PROPERTIES]));
+    });
+
+    it('declares dedicated ignoreValues hash entries for all 13 canonical properties', () => {
+      for (const prop of EXPECTED_CANONICAL_13_PROPERTIES) {
+        expect(CANONICAL_IGNORE_VALUES[prop]).toBeDefined();
+        expect(Array.isArray(CANONICAL_IGNORE_VALUES[prop])).toBe(true);
+      }
+    });
+
+    it('ensures root .stylelintrc.json in repository enforces all 13 canonical properties', async () => {
+      const repoRootConfigPath = path.resolve(process.cwd(), '.stylelintrc.json');
+      const raw = await fs.readFile(repoRootConfigPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      const strictRule = parsed.rules[REQUIRED_STRICT_VALUE_RULE];
+      expect(strictRule).toBeDefined();
+      expect(Array.isArray(strictRule)).toBe(true);
+      expect(Array.isArray(strictRule[0])).toBe(true);
+      expect(strictRule[0]).toHaveLength(13);
+      expect(strictRule[0]).toEqual(EXPECTED_CANONICAL_13_PROPERTIES);
+    });
   });
 
   describe('Clean Path: Valid Stylelint Configuration', () => {
-    it('passes cleanly when .stylelintrc.json contains required plugin and strict-value rule', async () => {
+    it('passes cleanly when .stylelintrc.json contains required plugin and strict-value rule with all 13 properties', async () => {
       const config = {
         extends: ['stylelint-config-standard'],
         plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
@@ -83,7 +137,7 @@ describe('ValidateStylelintConfigAuditor', () => {
     });
   });
 
-  describe('Violation Path: 100% Rule ID Verification', () => {
+  describe('Violation Path: 100% Rule ID & Exhaustive Property Verification', () => {
     it('detects missing .stylelintrc.json (stylelint-config-missing)', async () => {
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
@@ -134,12 +188,13 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(finding?.message).toContain(REQUIRED_STRICT_VALUE_RULE);
     });
 
-    it('detects incomplete canonical properties in strict-value rule (stylelint-config-missing-strict-value)', async () => {
+    it('detects multiple missing canonical properties (PokeBorrador regression scenario)', async () => {
+      // Configuration with only 3 properties (missing the other 10)
       const config = {
         extends: ['stylelint-config-standard'],
         plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
         rules: {
-          [REQUIRED_STRICT_VALUE_RULE]: [['/color$/', 'font-size']]
+          [REQUIRED_STRICT_VALUE_RULE]: [['/color$/', 'font-size', 'z-index']]
         }
       };
       await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
@@ -151,12 +206,47 @@ describe('ValidateStylelintConfigAuditor', () => {
       const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
-      expect(finding?.message).toContain('z-index');
+      expect(finding?.message).toContain('box-shadow');
+      expect(finding?.message).toContain('border-radius');
+      expect(finding?.message).toContain('font-family');
+      expect(finding?.message).toContain('transition-duration');
+      expect(finding?.message).toContain('animation-duration');
+      expect(finding?.message).toContain('gap');
+      expect(finding?.message).toContain('row-gap');
+      expect(finding?.message).toContain('column-gap');
+      expect(finding?.message).toContain('font-weight');
+      expect(finding?.message).toContain('transition-timing-function');
     });
+
+    describe.each(EXPECTED_CANONICAL_13_PROPERTIES)(
+      'Parametric Integrity Check: Omitting property "%s"',
+      (omittedProp) => {
+        it(`fails when "${omittedProp}" is missing from strict-value configuration`, async () => {
+          const subset = EXPECTED_CANONICAL_13_PROPERTIES.filter(p => p !== omittedProp);
+          const config = {
+            extends: ['stylelint-config-standard'],
+            plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
+            rules: {
+              [REQUIRED_STRICT_VALUE_RULE]: [subset]
+            }
+          };
+          await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+          const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+          const result = await auditor.execute();
+
+          expect(result.status).toBe('failed');
+          const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
+          expect(finding).toBeDefined();
+          expect(finding?.severity).toBe('error');
+          expect(finding?.message).toContain(omittedProp);
+        });
+      }
+    );
   });
 
   describe('Auto-Fix Mode (--fix)', () => {
-    it('automatically scaffolds .stylelintrc.json when missing in fix mode', async () => {
+    it('automatically scaffolds .stylelintrc.json with all 13 canonical properties when missing in fix mode', async () => {
       const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
       const result = await fixAuditor.execute();
 
@@ -167,14 +257,18 @@ describe('ValidateStylelintConfigAuditor', () => {
 
       const content = JSON.parse(await fs.readFile(createdFile, 'utf-8'));
       expect(content.plugins).toContain(REQUIRED_STYLELINT_PLUGIN);
-      expect(content.rules[REQUIRED_STRICT_VALUE_RULE]).toBeDefined();
+      const strictRule = content.rules[REQUIRED_STRICT_VALUE_RULE];
+      expect(strictRule).toBeDefined();
+      expect(strictRule[0]).toHaveLength(13);
+      expect(strictRule[0]).toEqual(EXPECTED_CANONICAL_13_PROPERTIES);
     });
 
-    it('automatically injects missing plugin and rule into existing .stylelintrc.json', async () => {
+    it('automatically re-injects all 13 canonical properties when repairing an incomplete .stylelintrc.json', async () => {
       const initialConfig = {
         extends: ['stylelint-config-standard'],
         plugins: ['stylelint-order'],
         rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: [['/color$/', 'font-size', 'z-index']],
           'block-no-empty': true
         }
       };
@@ -185,16 +279,18 @@ describe('ValidateStylelintConfigAuditor', () => {
 
       const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
       expect(repaired.plugins).toContain(REQUIRED_STYLELINT_PLUGIN);
-      expect(repaired.rules[REQUIRED_STRICT_VALUE_RULE]).toBeDefined();
+      const strictRule = repaired.rules[REQUIRED_STRICT_VALUE_RULE];
+      expect(strictRule[0]).toHaveLength(13);
+      expect(strictRule[0]).toEqual(EXPECTED_CANONICAL_13_PROPERTIES);
 
-      // Subsequent check should pass cleanly
+      // Subsequent check must pass cleanly
       const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const verifyResult = await verifyAuditor.execute();
       expect(verifyResult.status).toBe('passed');
       expect(verifyResult.summary.errors).toBe(0);
     });
 
-    it('honors custom strict properties and ignoreValues configured in audit.config.ts in fix and check mode', async () => {
+    it('honors custom additive properties and ignoreValues configured in audit.config.ts preserving all 13 canonicals', async () => {
       const auditorConfig = `
 export default {
   stylelint: {
@@ -218,10 +314,14 @@ export default {
 
       const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
       const strictRule = repaired.rules[REQUIRED_STRICT_VALUE_RULE];
-      expect(strictRule[0]).toContain('/color$/');
-      expect(strictRule[0]).toContain('font-size');
-      expect(strictRule[0]).toContain('z-index');
+      
+      // All 13 canonicals must be present
+      for (const canonical of EXPECTED_CANONICAL_13_PROPERTIES) {
+        expect(strictRule[0]).toContain(canonical);
+      }
+      // Plus the user-added custom property
       expect(strictRule[0]).toContain('letter-spacing');
+      expect(strictRule[0]).toHaveLength(14);
       expect(strictRule[1].ignoreValues['letter-spacing']).toContain('normal');
       expect(strictRule[1].ignoreValues['z-index']).toContain('999');
 
@@ -232,7 +332,7 @@ export default {
       expect(verifyResult.summary.errors).toBe(0);
     });
 
-    it('fails when .stylelintrc.json attempts to omit mandatory minimum properties even if custom config tried to restrict them', async () => {
+    it('fails loudly when .stylelintrc.json attempts to omit mandatory canonical minimum properties even if custom config tried to restrict them', async () => {
       const auditorConfig = `
 export default {
   stylelint: {
@@ -264,6 +364,8 @@ export default {
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('/color$/');
       expect(finding?.message).toContain('font-size');
+      expect(finding?.message).toContain('box-shadow');
+      expect(finding?.message).toContain('border-radius');
     });
   });
 });
