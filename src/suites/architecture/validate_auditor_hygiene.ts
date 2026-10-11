@@ -47,7 +47,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
         fix: false,
         fixPriority: false,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

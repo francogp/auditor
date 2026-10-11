@@ -84,7 +84,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
             ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
                 fix: false,
                 fixPriority: false,
-                lint: true,
+                lint: false,
                 md: false,
                 ast: false,
                 changedSince: false,

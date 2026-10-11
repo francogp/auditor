@@ -740,6 +740,29 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
 - **Post-Build verification (`auditor:build` / `preset=build`)**: Automatically runs suites with `capabilities.requiresBuild === true` against `dist/` post-compilation, excluding them from source audits.
 - **Pre-heat AST**: Automatically initializes `SharedAstContext` before executing any suite with `capabilities.ast === true`.
 
+### Mandatory Speed Contract (`speed: AuditExecutionSpeed`) & Scheduler LPT
+
+The framework enforces strict governance over execution speed across all suites and host extensions:
+
+1. **Mandatory Speed Property (`SubAuditorReport.speed`)**:
+   - Every sub-auditor report step MUST contain `speed: AuditExecutionSpeed` (`'fast' | 'heavy'`).
+   - The speed property is **strictly non-optional**. Setting `speed` to `undefined` or allowing it to remain unassigned is categorically forbidden.
+   - If a sub-auditor or rule capability does not define `heavy: boolean` or cannot resolve its execution speed, the orchestrator **FAILS LOUDLY** (`throw new Error(...)`) at runtime, preventing silent contract degradation.
+
+2. **Longest Processing Time First (Scheduler LPT)**:
+   - When preparing the execution queue in `audit_full`, tasks are prioritized dynamically: suites that execute at least one heavy command or rule are placed **FIRST** in the queue.
+   - This ensures background worker threads absorb heavy suites (e.g. `validate_type_check`, `validate_eslint`, `validate_fallow`) immediately from $T_0$, while lighter suites execute concurrently across free threads, eliminating tail-end bottlenecks.
+
+3. **Sub-Line Console Indicators (`⚡` / `🐢`)**:
+   - The suite header remains clean and unaltered.
+   - Sub-auditor child lines render the execution speed emoji alongside the elapsed duration:
+     - `⚡` indicates fast command / rule execution.
+     - `🐢` indicates heavy command / rule execution.
+
+4. **Logical Classification for `lint: true` vs `lint: false`**:
+   - **`lint: true`**: Reserved strictly for fast, pure static analysis of application source code (`.ts`, `.vue`, `.scss`, `.html`), Domain-Type-First validation, and O(1) structures.
+   - **`lint: false`**: Heavy workspace scanning, environment and packaging checks (`validate_environment_engines`, `validate_package_scripts`), test hygiene and fragmentation, secret leak scanning, documentation linting (`preset=md`), and database/asset verifications.
+
 ---
 
 ## 9. Registering Host Extensions in `.auditor/audit.config.ts`

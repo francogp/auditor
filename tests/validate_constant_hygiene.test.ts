@@ -38,6 +38,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.requiresAst).toBe(true);
       expect(auditor.ruleIds).toEqual(CONSTANT_HYGIENE_RULES);
+      expect(auditor.capabilities.lint).toBe(true);
       expect(auditor.ruleDescriptions).toBeDefined();
       expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(5);
     });

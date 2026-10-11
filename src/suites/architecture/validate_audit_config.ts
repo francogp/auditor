@@ -379,7 +379,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

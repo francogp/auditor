@@ -140,7 +140,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
         fix: true,
         fixPriority: false,
-        lint: true,
+        lint: false,
         md: true,
         ast: false,
         changedSince: false,

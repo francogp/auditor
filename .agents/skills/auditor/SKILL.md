@@ -156,6 +156,17 @@ graph TD
 - Each rule capability explicitly enforces all 9 boolean flags (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`).
 - Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept full 9-field literals via `createUniformRuleCapabilities(RULES, { ... })`.
 
+### 21.1 Mandatory Execution Speed Contract (`speed: AuditExecutionSpeed`)
+
+- Every sub-auditor step strictly reports `speed: AuditExecutionSpeed` (`'fast' | 'heavy'`) in `SubAuditorReport`.
+- **Absolute Prohibition on `undefined`**: Speed can NEVER be `undefined` or optional.
+- **Loud Failure Mandate**: If any sub-auditor, rule capability, or host extension omits its speed contract (missing rule capability or undefined `heavy: boolean`), the engine throws a loud blocking error (`throw new Error(...)`), immediately halting execution.
+
+### 21.2 LPT Task Scheduler & Sub-Line Speed Indicators (`⚡` / `🐢`)
+
+- **Scheduler LPT (Longest Processing Time First)**: In `audit_full`, suites that execute heavy commands or rules are sorted and dispatched FIRST in the worker queue, ensuring multi-core CPU workers absorb heavy suites immediately while fast suites execute concurrently.
+- **Sub-Line Console Indicators**: The suite header remains clean. Individual sub-auditor child lines display `⚡` for fast execution and `🐢` for heavy execution alongside execution durations.
+
 ### 22. Strict ESLint Flat Config & Domain-Type-First Type Integrity
 
 - Governs `eslint.config.js` enforcing `@typescript-eslint/no-explicit-any: 'error'`, banning `as unknown as` and `Date` constructors without explicit domain wrappers.

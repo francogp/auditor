@@ -23,6 +23,7 @@ import {
   type SubAuditorStep,
   type SubAuditorReport,
   type SubAuditorStatus,
+  type AuditExecutionSpeed,
   type AuditorCapabilities,
   type AuditorCoverageDeclaration,
   type GitIgnoreRequirement,
@@ -1664,14 +1665,22 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     result: number | 'passed' | 'warning' | 'failed' | string,
     detail?: string,
     counts?: { errors?: number; warnings?: number },
-    durationMs?: number
+    durationMs?: number,
+    speed?: AuditExecutionSpeed
   ): void {
+    if (!speed || (speed !== 'fast' && speed !== 'heavy')) {
+      throw new Error(
+        `[${this.id}] Sub-auditor step ${stepNumber} ('${name}') logged without mandatory execution speed ('fast' | 'heavy'). ` +
+        `All sub-auditors must strictly declare their speed.`
+      );
+    }
     const count = typeof result === 'number' ? result : 0;
     const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
     const warningsCount = counts?.warnings ?? 0;
     const badge = this.formatSubAuditorBadge(result);
+    const speedBadge = speed === 'fast' ? ' ⚡' : ' 🐢';
     const extra = detail ? (badge ? ` - ${detail}` : ` (${detail})`) : '';
-    this.context.logStep(stepNumber, totalSteps, `${name}${badge}${extra}`);
+    this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`);
     const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
     this.subAuditorReports.push({
       id: `${this.id}_step_${stepNumber}`,
@@ -1681,7 +1690,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       errorsCount,
       warningsCount,
       detail,
-      durationMs
+      durationMs,
+      speed
     });
   }
 
@@ -2064,7 +2074,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
           name: skipMessage,
           status: 'passed',
           count: 0,
-          detail: 'skipped'
+          detail: 'skipped',
+          speed: 'fast'
         }]
       });
     }
@@ -2094,6 +2105,21 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       }
       const empiricalDurationMs = durationMs ?? 0;
       const formattedDuration = formatDurationMs(empiricalDurationMs);
+
+      let speed: AuditExecutionSpeed;
+      if (this.executedCommandTiers.size > 0) {
+        speed = this.isFastMode() ? 'fast' : 'heavy';
+      } else {
+        const ruleCap = this.ruleCapabilities[sub.id as TRuleId];
+        if (!ruleCap || typeof ruleCap.heavy !== 'boolean') {
+          throw new Error(
+            `[${this.id}] Missing rule capability or undefined 'heavy' speed flag for sub-auditor '${sub.id}'. ` +
+            `All sub-auditors and rules must strictly declare their execution speed contract.`
+          );
+        }
+        speed = ruleCap.heavy ? 'heavy' : 'fast';
+      }
+
       this.logSubAudit(
         i + 1,
         totalSteps,
@@ -2101,7 +2127,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         count,
         formattedDuration,
         { errors: errorsCount, warnings: warningsCount },
-        empiricalDurationMs
+        empiricalDurationMs,
+        speed
       );
     }
   }

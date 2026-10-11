@@ -176,6 +176,9 @@ export interface SubAuditorStep {
 export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'] as const;
 export type SubAuditorStatus = (typeof SUB_AUDITOR_STATUSES)[number];
 
+export const AUDIT_EXECUTION_SPEEDS = ['fast', 'heavy'] as const;
+export type AuditExecutionSpeed = (typeof AUDIT_EXECUTION_SPEEDS)[number];
+
 export interface SubAuditorReport {
   readonly id: string;
   readonly name: string;
@@ -186,6 +189,7 @@ export interface SubAuditorReport {
   readonly durationMs?: number;
   readonly detail?: string;
   readonly capabilities?: AuditorCapabilities;
+  readonly speed: AuditExecutionSpeed;
 }
 
 export interface ICompositeAuditor {

@@ -56,10 +56,10 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
       ruleCapabilities: {
-        'host-catalog-sync': { fix: false, fixPriority: false, lint: true, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
-        'host-schema-invariants': { fix: false, fixPriority: false, lint: true, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
-        'host-state-consistency': { fix: false, fixPriority: false, lint: true, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
-        'host-missing-config': { fix: true, fixPriority: true, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
+        'host-catalog-sync': { fix: false, fixPriority: false, lint: false, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+        'host-schema-invariants': { fix: false, fixPriority: false, lint: false, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+        'host-state-consistency': { fix: false, fixPriority: false, lint: false, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+        'host-missing-config': { fix: true, fixPriority: true, lint: false, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
       },
       defaultConfig: {
         enabled: true

@@ -74,7 +74,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
         md: false,
         ast: false,
         changedSince: false,
-        heavy: false,
+        heavy: true,
         requiresBuild: false,
         postRun: false
       }, ['eslint-violation']),

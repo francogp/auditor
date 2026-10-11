@@ -90,6 +90,7 @@ export function getActiveFamilies(customFamilies) {
 export const FINDING_SEVERITIES = ['error', 'warning', 'info'];
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
 export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'];
+export const AUDIT_EXECUTION_SPEEDS = ['fast', 'heavy'];
 export const COVERAGE_SOURCES = ['runtime', 'declared-only'];
 /**
  * Derives the canonical package.json script requirement for any auditor by convention.

@@ -89,7 +89,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
       ruleCapabilities: createRuleCapabilities(SECRET_LEAKS_RULES, {
         fix: false,
         fixPriority: false,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

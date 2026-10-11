@@ -67,6 +67,10 @@ describe('MyFeatureAuditor', () => {
     expect(result.summary.warnings).toBe(0);
     expect(result.findings.length).toBe(0);
     expect(result.status).toBe('passed');
+    expect(result.subAuditors).toBeDefined();
+    for (const sub of result.subAuditors!) {
+      expect(['fast', 'heavy']).toContain(sub.speed);
+    }
   });
 
   it('detects violations and records structured ruleId and error severity', async () => {

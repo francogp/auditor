@@ -1030,8 +1030,9 @@ function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: 
     for (let i = 0; i < total; i++) {
       const s = result.subAuditors[i]!;
       const badge = s.count > 0 ? ` (🐛 ${formatNumber(s.count)})` : '';
+      const speedEmoji = s.speed === 'fast' ? ' ⚡' : s.speed === 'heavy' ? ' 🐢' : '';
       const durationBadge = s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
-      subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}${durationBadge}`);
+      subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}${speedEmoji}${durationBadge}`);
     }
   }
   return false;
@@ -1131,6 +1132,12 @@ function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): vo
       if (aPriority && !bPriority) return -1;
       if (!aPriority && bPriority) return 1;
     }
+
+    const aHeavy = Boolean(a.capabilities?.heavy);
+    const bHeavy = Boolean(b.capabilities?.heavy);
+    if (aHeavy && !bHeavy) return -1;
+    if (!aHeavy && bHeavy) return 1;
+
     const orderA = (a.order ?? FALLBACK_FAMILY_ORDER);
     const orderB = (b.order ?? FALLBACK_FAMILY_ORDER);
     if (orderA !== orderB) return orderA - orderB;

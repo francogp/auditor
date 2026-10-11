@@ -1289,13 +1289,18 @@ export class BaseAuditor {
         }
         return result !== 'passed' ? ` (${result})` : '';
     }
-    logSubAudit(stepNumber, totalSteps, name, result, detail, counts, durationMs) {
+    logSubAudit(stepNumber, totalSteps, name, result, detail, counts, durationMs, speed) {
+        if (!speed || (speed !== 'fast' && speed !== 'heavy')) {
+            throw new Error(`[${this.id}] Sub-auditor step ${stepNumber} ('${name}') logged without mandatory execution speed ('fast' | 'heavy'). ` +
+                `All sub-auditors must strictly declare their speed.`);
+        }
         const count = typeof result === 'number' ? result : 0;
         const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
         const warningsCount = counts?.warnings ?? 0;
         const badge = this.formatSubAuditorBadge(result);
+        const speedBadge = speed === 'fast' ? ' ⚡' : ' 🐢';
         const extra = detail ? (badge ? ` - ${detail}` : ` (${detail})`) : '';
-        this.context.logStep(stepNumber, totalSteps, `${name}${badge}${extra}`);
+        this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`);
         const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
         this.subAuditorReports.push({
             id: `${this.id}_step_${stepNumber}`,
@@ -1305,7 +1310,8 @@ export class BaseAuditor {
             errorsCount,
             warningsCount,
             detail,
-            durationMs
+            durationMs,
+            speed
         });
     }
     getCountsByRule() {
@@ -1624,7 +1630,8 @@ export class BaseAuditor {
                         name: skipMessage,
                         status: 'passed',
                         count: 0,
-                        detail: 'skipped'
+                        detail: 'skipped',
+                        speed: 'fast'
                     }]
             });
         }
@@ -1652,7 +1659,19 @@ export class BaseAuditor {
             }
             const empiricalDurationMs = durationMs ?? 0;
             const formattedDuration = formatDurationMs(empiricalDurationMs);
-            this.logSubAudit(i + 1, totalSteps, sub.name, count, formattedDuration, { errors: errorsCount, warnings: warningsCount }, empiricalDurationMs);
+            let speed;
+            if (this.executedCommandTiers.size > 0) {
+                speed = this.isFastMode() ? 'fast' : 'heavy';
+            }
+            else {
+                const ruleCap = this.ruleCapabilities[sub.id];
+                if (!ruleCap || typeof ruleCap.heavy !== 'boolean') {
+                    throw new Error(`[${this.id}] Missing rule capability or undefined 'heavy' speed flag for sub-auditor '${sub.id}'. ` +
+                        `All sub-auditors and rules must strictly declare their execution speed contract.`);
+                }
+                speed = ruleCap.heavy ? 'heavy' : 'fast';
+            }
+            this.logSubAudit(i + 1, totalSteps, sub.name, count, formattedDuration, { errors: errorsCount, warnings: warningsCount }, empiricalDurationMs, speed);
         }
     }
     importAuditFindings(findings, fallbackRuleId, fallbackContext = this.id) {

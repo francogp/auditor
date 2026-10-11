@@ -78,7 +78,7 @@ constructor() {
       ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
         fix: false,
         fixPriority: false,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

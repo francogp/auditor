@@ -18,7 +18,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.description).not.toContain('\n');
 
     expect(manifest.capabilities.fix).toBe(true);
-    expect(manifest.capabilities.lint).toBe(true);
+    expect(manifest.capabilities.lint).toBe(false);
 
     expect(manifest.configKey).toBe('paths');
 

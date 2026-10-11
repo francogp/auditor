@@ -45,7 +45,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
             ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
                 fix: false,
                 fixPriority: false,
-                lint: false,
+                lint: true,
                 md: false,
                 ast: true,
                 changedSince: false,

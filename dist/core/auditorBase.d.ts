@@ -8,7 +8,7 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, deriveCanonicalAuditorScript } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditExecutionSpeed, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, deriveCanonicalAuditorScript } from './auditContract.ts';
 export { deriveCanonicalAuditorScript };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
@@ -328,7 +328,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string, counts?: {
         errors?: number;
         warnings?: number;
-    }, durationMs?: number): void;
+    }, durationMs?: number, speed?: AuditExecutionSpeed): void;
     getCountsByRule(): ReadonlyMap<TRuleId, number>;
     getErrorsByRule(): ReadonlyMap<TRuleId, number>;
     getWarningsByRule(): ReadonlyMap<TRuleId, number>;

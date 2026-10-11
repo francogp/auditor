@@ -61,7 +61,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       ruleCapabilities: createRuleCapabilities(PACKAGE_SCRIPTS_RULES, {
         fix: true,
         fixPriority: true,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

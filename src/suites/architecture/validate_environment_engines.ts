@@ -88,7 +88,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
       ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
         fix: false,
         fixPriority: false,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

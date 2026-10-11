@@ -69,7 +69,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
         fix: false,
         fixPriority: false,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,

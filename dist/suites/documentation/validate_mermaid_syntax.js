@@ -74,7 +74,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor {
             ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
                 fix: true,
                 fixPriority: false,
-                lint: true,
+                lint: false,
                 md: true,
                 ast: false,
                 changedSince: false,

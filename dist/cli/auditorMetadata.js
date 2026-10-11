@@ -30,13 +30,13 @@ export function extractStaticMetadataFromFile(fullPath) {
         const caps = {};
         if (content.includes('requiresBuild: true'))
             caps.requiresBuild = true;
-        if (content.includes('ast: true') || content.includes('requiresAst: true'))
+        if (content.includes('ast: true') || content.includes('requiresAst: true') || content.includes('AST_RULE_CAPABILITIES'))
             caps.ast = true;
         if (content.includes('fix: true'))
             caps.fix = true;
         if (content.includes('fixPriority: true'))
             caps.fixPriority = true;
-        if (content.includes('lint: true'))
+        if (content.includes('lint: true') || content.includes('LINT_RULE_CAPABILITIES') || content.includes('AST_RULE_CAPABILITIES'))
             caps.lint = true;
         if (content.includes('md: true'))
             caps.md = true;
