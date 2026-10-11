@@ -23,7 +23,7 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_error_suppression.ts
  */
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { stripComments } from "../../core/scannerUtils.js";
 enableCompileCache();
@@ -46,7 +46,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
             ? config.paths.codeRoots
             : ['src', 'scripts']);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -56,7 +56,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_error_suppression',
             name: 'Zero Error Suppression Auditor',
             description: 'Prohíbe supresión de errores, catch vacíos y fallbacks',
@@ -79,14 +79,18 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
         });
     }
     scanFile(relPath, content) {
-        // 1. Audit empty catch blocks
-        this.auditEmptyCatch(relPath, content);
-        // 2. Audit silent promise catches
-        this.auditSilentPromiseCatch(relPath, content);
-        // 3. Audit silent schema fallbacks
-        this.auditSchemaFallbacks(relPath, content);
-        // 4. Audit loose catch narrowing
-        this.auditCatchNarrowing(relPath, content);
+        this.runSubAuditorSync('no-empty-catch', () => {
+            this.auditEmptyCatch(relPath, content);
+        });
+        this.runSubAuditorSync('no-silent-promise-catch', () => {
+            this.auditSilentPromiseCatch(relPath, content);
+        });
+        this.runSubAuditorSync('no-silent-mock-fallbacks', () => {
+            this.auditSchemaFallbacks(relPath, content);
+        });
+        this.runSubAuditorSync('strict-catch-narrowing', () => {
+            this.auditCatchNarrowing(relPath, content);
+        });
     }
     forEachNonCommentMatch(content, regexTemplate, callback) {
         const regex = new RegExp(regexTemplate.source, regexTemplate.flags);

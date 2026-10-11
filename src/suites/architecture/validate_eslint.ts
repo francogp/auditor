@@ -17,7 +17,7 @@
 import path from 'node:path';
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
@@ -67,7 +67,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
   constructor(projectRoot?: string) {
     const effectiveRoot = projectRoot || process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(ESLINT_RULES, {
         fix: true,
         fixPriority: false,
         lint: true,
@@ -77,7 +77,7 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, ['eslint-violation']),
       fixableRuleIds: ['eslint-violation'],
       gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
       id: 'validate_eslint',

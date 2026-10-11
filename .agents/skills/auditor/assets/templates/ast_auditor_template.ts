@@ -9,7 +9,7 @@
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
+import { BaseAuditor, SharedAstContext, createUniformRuleCapabilities } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -30,7 +30,10 @@ export interface MyAstAuditorOptions {
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   constructor(options: MyAstAuditorOptions = {}) {
     super({
-      capabilities: { ast: true },
+      ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
+        ast: true,
+        lint: true
+      }),
       id: 'validate_my_ast',
       name: 'My AST Validator',
       description: 'Valida contratos AST en TypeScript y Vue SFC',
@@ -70,18 +73,24 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     for (const relFile of targetFiles) {
       const absPath = path.resolve(this.projectRoot, relFile);
       this.recordScanned(relFile);
-      this.markRuleEvaluated('my-ast-forbidden-pattern');
 
       // Cached O(1) AST retrieval with Vue script extraction & line offset support
       const sourceFile = astEngine.getSourceFile(absPath);
 
-      const visit = (node: ts.Node): void => {
-        // Implement AST inspection logic:
-        // if (ts.isIdentifier(node) && node.text === 'forbidden') { ... }
-        ts.forEachChild(node, visit);
-      };
+      // Rule 1: Forbidden pattern in AST (automatically timed and marked evaluated)
+      this.runSubAuditorSync('my-ast-forbidden-pattern', () => {
+        const visit = (node: ts.Node): void => {
+          // Implement AST inspection logic:
+          // if (ts.isIdentifier(node) && node.text === 'forbidden') { ... }
+          ts.forEachChild(node, visit);
+        };
+        visit(sourceFile);
+      });
 
-      visit(sourceFile);
+      // Rule 2: Missing contract in AST (automatically timed and marked evaluated)
+      this.runSubAuditorSync('my-ast-missing-contract', () => {
+        // Implement missing contract inspection logic
+      });
     }
 
     this.context.setMetric('AST Files Analyzed', targetFiles.length);

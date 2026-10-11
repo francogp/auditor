@@ -28,9 +28,10 @@ export interface Finding {
     severity: FindingSeverity;
     ruleId: DomainTypesRuleId;
 }
-export declare function auditFile(filePath: string): Promise<Finding[]>;
+export declare function auditFile(filePath: string, ruleFilter?: DomainTypesRuleId): Promise<Finding[]>;
 export declare class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
+    private collectAuditableDomainFiles;
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_domain_types.d.ts.map

@@ -28,7 +28,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 enableCompileCache();
@@ -81,7 +81,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'migrations';
         const srcRoots = config.paths.srcRoots || ['src'];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -91,7 +91,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_sql_anti_patterns',
             name: 'SQL & Relational Schema Anti-Patterns Validator',
             description: 'Antipatrones SQL, variables sin declarar o camelCase en BD',
@@ -142,14 +142,57 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
             ]
         });
         const migrationsDir = path.resolve(this.projectRoot, this.configuredMigrationsDir);
-        const sqlMigrations = this.collectAndScanMigrations(migrationsDir, config);
-        this.scanSourceFiles(config.paths.srcRoots || ['src']);
-        this.scanRlsPolicyIntegrity(sqlMigrations);
+        const sqlMigrations = this.collectSqlMigrations(migrationsDir, config);
+        this.runSubAuditorSync('db-payload-snake-case', () => {
+            this.scanSourceFiles(config.paths.srcRoots || ['src']);
+        });
+        this.runSubAuditorSync('sql-no-positional-arrays', () => {
+            if (sqlMigrations.length === 0) {
+                this.markRuleNotApplicable('sql-no-positional-arrays', 'No se encontraron archivos .sql en migraciones o schemas');
+                return;
+            }
+            this.scanPositionalArrays(sqlMigrations);
+        });
+        this.runSubAuditorSync('sql-plpgsql-declared-variables', () => {
+            if (sqlMigrations.length === 0) {
+                this.markRuleNotApplicable('sql-plpgsql-declared-variables', 'No se encontraron archivos .sql en migraciones o schemas');
+                return;
+            }
+            this.scanPlpgsqlVariables(sqlMigrations);
+        });
+        this.runSubAuditorSync('sql-rls-policy-grant-integrity', () => {
+            if (sqlMigrations.length === 0) {
+                this.markRuleNotApplicable('sql-rls-policy-grant-integrity', 'No se encontraron archivos .sql en migraciones o schemas');
+                return;
+            }
+            this.scanRlsPolicyIntegrity(sqlMigrations);
+        });
     }
-    markSqlRulesNotApplicable(reason) {
-        this.markRuleNotApplicable('sql-no-positional-arrays', reason);
-        this.markRuleNotApplicable('sql-plpgsql-declared-variables', reason);
-        this.markRuleNotApplicable('sql-rls-policy-grant-integrity', reason);
+    scanPositionalArrays(sqlMigrations) {
+        const positionalRegex = getPositionalJsonMutationRegex();
+        for (const { relPath, content } of sqlMigrations) {
+            const lines = content.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const lineText = lines[i];
+                if (!lineText)
+                    continue;
+                if (positionalRegex.test(lineText) && !this.isLineIgnored(lineText, ['sql-ok'])) {
+                    this.addViolation({
+                        ruleId: 'sql-no-positional-arrays',
+                        severity: 'error',
+                        file: relPath,
+                        line: i + 1,
+                        message: `Positional JSON array mutation or access is forbidden in SQL migrations/queries. Mutate or filter entities via canonical UIDs or whole-save updates.`,
+                        context: lineText.trim()
+                    });
+                }
+            }
+        }
+    }
+    scanPlpgsqlVariables(sqlMigrations) {
+        for (const { relPath, content } of sqlMigrations) {
+            this.scanPlpgsqlUndeclaredVariables(relPath, content);
+        }
     }
     resolveMigrationScanDirs(migrationsDir, config) {
         const dirsToScan = new Set();
@@ -168,51 +211,36 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         }
         return dirsToScan;
     }
-    scanSingleSqlFile(fullPath, relPath, sqlMigrations) {
-        try {
-            const content = fs.readFileSync(fullPath, 'utf-8');
-            this.recordScanned(relPath);
-            this.markRuleEvaluated('sql-no-positional-arrays');
-            this.markRuleEvaluated('sql-plpgsql-declared-variables');
-            this.markRuleEvaluated('sql-rls-policy-grant-integrity');
-            sqlMigrations.push({ relPath, content });
-            this.scanSqlFile(relPath, content);
-        }
-        catch {
-            // catch-ok: Ignore read errors
-        }
-    }
-    scanSingleSqlDirectory(dir, sqlMigrations) {
-        let entries;
-        try {
-            entries = fs.readdirSync(dir);
-        }
-        catch {
-            // catch-ok: Ignore unreadable directory
-            return;
-        }
-        for (const entry of entries) {
-            if (!entry.endsWith('.sql'))
-                continue;
-            const fullPath = path.join(dir, entry);
-            const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-            if (this.context.isPathIgnored(relPath))
-                continue;
-            this.scanSingleSqlFile(fullPath, relPath, sqlMigrations);
-        }
-    }
-    collectAndScanMigrations(migrationsDir, config) {
+    collectSqlMigrations(migrationsDir, config) {
         const sqlMigrations = [];
         const dirsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
         if (dirsToScan.size === 0) {
-            this.markSqlRulesNotApplicable('No existe directorio de migraciones o schemas SQL');
             return sqlMigrations;
         }
         for (const dir of dirsToScan) {
-            this.scanSingleSqlDirectory(dir, sqlMigrations);
-        }
-        if (sqlMigrations.length === 0) {
-            this.markSqlRulesNotApplicable('No se encontraron archivos .sql en migraciones o schemas');
+            let entries;
+            try {
+                entries = fs.readdirSync(dir);
+            }
+            catch {
+                continue;
+            }
+            for (const entry of entries) {
+                if (!entry.endsWith('.sql'))
+                    continue;
+                const fullPath = path.join(dir, entry);
+                const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+                if (this.context.isPathIgnored(relPath))
+                    continue;
+                try {
+                    const content = fs.readFileSync(fullPath, 'utf-8');
+                    this.recordScanned(relPath);
+                    sqlMigrations.push({ relPath, content });
+                }
+                catch {
+                    // catch-ok
+                }
+            }
         }
         return sqlMigrations;
     }
@@ -225,7 +253,6 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         for (const file of srcFiles) {
             const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
             this.recordScanned(relPath);
-            this.markRuleEvaluated('db-payload-snake-case');
             try {
                 const content = fs.readFileSync(file, 'utf-8');
                 this.scanTypeScriptFile(relPath, content);
@@ -234,28 +261,6 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
                 // catch-ok: Ignore read errors
             }
         }
-    }
-    scanSqlFile(relPath, content) {
-        const lines = content.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-            const lineText = lines[i];
-            if (!lineText)
-                continue;
-            // Rule 1: sql-no-positional-arrays
-            const positionalRegex = getPositionalJsonMutationRegex();
-            if (positionalRegex.test(lineText) && !this.isLineIgnored(lineText, ['sql-ok'])) {
-                this.addViolation({
-                    ruleId: 'sql-no-positional-arrays',
-                    severity: 'error',
-                    file: relPath,
-                    line: i + 1,
-                    message: `Positional JSON array mutation or access is forbidden in SQL migrations/queries. Mutate or filter entities via canonical UIDs or whole-save updates.`,
-                    context: lineText.trim()
-                });
-            }
-        }
-        // Rule 2: sql-plpgsql-declared-variables
-        this.scanPlpgsqlUndeclaredVariables(relPath, content);
     }
     checkPlpgsqlLoops(executionBody, context) {
         const forLoopRegex = /\bFOR\s+(\w+)\s+IN\b/gi;

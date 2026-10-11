@@ -54,6 +54,32 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
   });
 
   describe('validateAuditorConstruction', () => {
+    it('detects redundant capabilities at BaseAuditor construction', () => {
+      expect(() => {
+        new (class extends BaseAuditor<string> {
+          constructor() {
+            super({
+              id: 'mock_redundant',
+              name: 'Mock',
+              description: 'Mock desc',
+              family: 'architecture',
+              packageName: 'Mock',
+              icon: '🧪',
+              capabilities: { ...BASE_MOCK_CAPS } as never,
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
+              configKey: 'paths',
+              defaultConfig: {},
+              criticalConfig: {},
+              coverage: { include: ['src/**'] },
+              ruleIds: ['rule-1'],
+              ruleDescriptions: { 'rule-1': 'Desc' }
+            });
+          }
+          public override async runAudit() {}
+        })();
+      }).toThrowError(/passed redundant 'capabilities' to constructor options/i);
+    });
+
     it('detects mismatched taskId vs auditor id', () => {
       class MockAuditor extends BaseAuditor<string> {
         constructor() {
@@ -64,7 +90,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
             family: 'architecture',
             packageName: 'Mock',
             icon: '🧪',
-            capabilities: { ...BASE_MOCK_CAPS },
+            ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
@@ -92,7 +118,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
-              capabilities: { ...BASE_MOCK_CAPS },
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS }, 'rule-2': { ...BASE_MOCK_CAPS } } as never,
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
@@ -107,6 +133,31 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
       }).toThrowError(/is missing a rule description/i);
     });
 
+    it('detects missing ruleCapabilities at BaseAuditor construction', () => {
+      expect(() => {
+        new (class extends BaseAuditor<string> {
+          constructor() {
+            super({
+              id: 'mock_suite',
+              name: 'Mock',
+              description: 'Mock desc',
+              family: 'architecture',
+              packageName: 'Mock',
+              icon: '🧪',
+              configKey: 'paths',
+              defaultConfig: {},
+              criticalConfig: {},
+              coverage: { include: ['src/**'] },
+              ruleIds: ['rule-1'] as never,
+              ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
+            } as never);
+          }
+          public override async runAudit() {}
+        })();
+      }).toThrowError(/must define mandatory 'ruleCapabilities'/i);
+    });
+
     it('detects description exceeding 60 characters at BaseAuditor construction', () => {
       expect(() => {
         new (class extends BaseAuditor<string> {
@@ -118,7 +169,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
-              capabilities: { ...BASE_MOCK_CAPS },
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
@@ -144,7 +195,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🛠️',
-              capabilities: { ...BASE_MOCK_CAPS, fix: true },
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS, fix: true } },
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
@@ -170,7 +221,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🛠️',
-              capabilities: { ...BASE_MOCK_CAPS, fix: false },
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS, fix: false } },
               fixableRuleIds: ['rule-1'] as never,
               configKey: 'paths',
               defaultConfig: {},
@@ -197,7 +248,10 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           family: 'architecture',
           packageName: 'Mock',
           icon: '🧪',
-          capabilities: { ...BASE_MOCK_CAPS },
+          ruleCapabilities: {
+            'test-rule-alpha': { ...BASE_MOCK_CAPS },
+            'test-rule-beta': { ...BASE_MOCK_CAPS }
+          },
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},

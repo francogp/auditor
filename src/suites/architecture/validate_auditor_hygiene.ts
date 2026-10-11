@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
@@ -44,7 +44,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
         enabled: true
       },
       criticalConfig: {},
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -54,7 +54,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       coverage: {
         include: ['src/suites/**/*.ts', 'src/analyzers/**/*.ts', 'scripts/auditors/**/*.ts'],
         exclude: ['src/analyzers/homebrew/**']
@@ -100,13 +100,18 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    for (const r of this.ruleIds) {
-      this.markRuleEvaluated(r);
-    }
-
     const config = getAuditConfig(this.projectRoot);
     const disabledDetectors = config.auditorHygiene?.disabledDetectors ?? [];
     const targetFiles = this.collectTargetFiles();
+
+    if (targetFiles.length === 0) {
+      for (const r of this.ruleIds) {
+        this.runSubAuditorSync(r, () => {
+          this.markRuleNotApplicable(r, 'No se encontraron archivos de auditor');
+        });
+      }
+      return;
+    }
 
     let cleanFilesCount = 0;
 
@@ -129,7 +134,14 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
         projectRoot: this.projectRoot
       };
 
-      const findings = HomebrewDetectorRegistry.run(inspectionContext, disabledDetectors);
+      const findings = HomebrewDetectorRegistry.run(
+        inspectionContext,
+        disabledDetectors,
+        (ruleId, durationMs) => {
+          this.markRuleEvaluated(ruleId);
+          this.recordRuleDuration(ruleId, durationMs); // timing-ok: record detector empirical duration from registry callback
+        }
+      );
 
       if (findings.length === 0) {
         cleanFilesCount++;

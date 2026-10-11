@@ -19,6 +19,7 @@ import {
   clearLockedSkillsCache,
   isPathIgnored,
   BaseAuditor,
+  createUniformRuleCapabilities,
   type AuditorOptions
 } from '../src/core/auditorBase.ts';
 import type { AuditFinding } from '../src/core/auditContract.ts';
@@ -154,6 +155,18 @@ describe('Official Locked Skills Isolation', () => {
       expect(skills.has('root-skill')).toBe(true);
       expect(skills.has('auditor-skill')).toBe(true);
     });
+
+    it('loads inherited skills from node_modules/@francogp/auditor/skills-lock.json when present in consumer project', () => {
+      const nmAuditorDir = path.join(tempDir, 'node_modules/@francogp/auditor');
+      fs.mkdirSync(nmAuditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(nmAuditorDir, 'skills-lock.json'),
+        JSON.stringify({ version: 1, skills: { 'inherited-skill': {} } })
+      );
+
+      const skills = loadLockedSkills(tempDir);
+      expect(skills.has('inherited-skill')).toBe(true);
+    });
   });
 
   describe('isLockedSkillPath', () => {
@@ -237,7 +250,7 @@ describe('Official Locked Skills Isolation', () => {
         configKey: 'core',
         defaultConfig: {},
         criticalConfig: {},
-        capabilities: {
+        ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
           fix: false,
           fixPriority: false,
           lint: false,
@@ -247,7 +260,7 @@ describe('Official Locked Skills Isolation', () => {
           heavy: false,
           requiresBuild: false,
           postRun: false
-        },
+        }),
         coverage: { include: ['**/*'] },
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
@@ -297,7 +310,7 @@ describe('Official Locked Skills Isolation', () => {
         configKey: 'core',
         defaultConfig: {},
         criticalConfig: {},
-        capabilities: {
+        ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
           fix: false,
           fixPriority: false,
           lint: false,
@@ -307,7 +320,7 @@ describe('Official Locked Skills Isolation', () => {
           heavy: false,
           requiresBuild: false,
           postRun: false
-        },
+        }),
         coverage: { include: ['**/*'] },
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },

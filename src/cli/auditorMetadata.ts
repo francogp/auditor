@@ -20,6 +20,7 @@ const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
 
 export interface ExtractedAuditorMetadata {
   readonly capabilities: AuditorCapabilities;
+  readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
   readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   readonly scripts?: readonly AuditorPackageScriptRequirement[];
   readonly icon?: string;
@@ -30,18 +31,8 @@ export interface ExtractedAuditorMetadata {
   readonly defaultConfig?: Readonly<Record<string, unknown>>;
   readonly criticalConfig?: AuditorCriticalConfig;
 }
-
 type MutableExtractedAuditorMetadata = {
-  capabilities: AuditorCapabilities;
-  gitIgnoreEntries: readonly GitIgnoreRequirement[];
-  scripts?: readonly AuditorPackageScriptRequirement[];
-  icon?: string;
-  manifest?: AuditorManifestDTO;
-  description?: string;
-  ruleDescriptions?: Readonly<Record<string, string>>;
-  configKey?: string;
-  defaultConfig?: Readonly<Record<string, unknown>>;
-  criticalConfig?: AuditorCriticalConfig;
+  -readonly [K in keyof ExtractedAuditorMetadata]: ExtractedAuditorMetadata[K];
 };
 
 export function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
@@ -104,6 +95,9 @@ function extractMetadataFromAuditorInstance(
     const instance = new val();
     if (instance?.capabilities && typeof instance.capabilities === 'object') {
       result.capabilities = instance.capabilities;
+    }
+    if (instance?.ruleCapabilities && typeof instance.ruleCapabilities === 'object') {
+      result.ruleCapabilities = instance.ruleCapabilities;
     }
     if (instance?.icon && typeof instance.icon === 'string') {
       result.icon = instance.icon;

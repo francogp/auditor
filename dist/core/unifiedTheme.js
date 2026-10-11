@@ -80,15 +80,15 @@ export function renderFindingsBreakdownTable(items, labelHeader = 'TIPO DE INCID
     ];
     const rows = items.map(([name, data]) => ({
         label: name,
-        errors: data.errors > 0 ? styleText('red', String(data.errors)) : styleText('dim', '0'),
-        warnings: data.warnings > 0 ? styleText('yellow', String(data.warnings)) : styleText('dim', '0')
+        errors: data.errors > 0 ? styleText('red', formatNumber(data.errors)) : styleText('dim', '0'),
+        warnings: data.warnings > 0 ? styleText('yellow', formatNumber(data.warnings)) : styleText('dim', '0')
     }));
     const totalErrors = items.reduce((acc, [_, data]) => acc + data.errors, 0);
     const totalWarnings = items.reduce((acc, [_, data]) => acc + data.warnings, 0);
     const footerRow = {
         label: styleText('bold', 'TOTAL CONSOLIDADO'),
-        errors: totalErrors > 0 ? styleText(['bold', 'red'], String(totalErrors)) : styleText('dim', '0'),
-        warnings: totalWarnings > 0 ? styleText(['bold', 'yellow'], String(totalWarnings)) : styleText('dim', '0')
+        errors: totalErrors > 0 ? styleText(['bold', 'red'], formatNumber(totalErrors)) : styleText('dim', '0'),
+        warnings: totalWarnings > 0 ? styleText(['bold', 'yellow'], formatNumber(totalWarnings)) : styleText('dim', '0')
     };
     return renderBoxTable(cols, rows, { footerRows: [footerRow] });
 }
@@ -415,18 +415,16 @@ export function formatStatusBadge(status) {
             return `[ ${styleText('cyan', '⏭️ SKIP')} ]`;
     }
 }
-const DURATION_PAD_LENGTH = 7;
-export function formatDuration(ms) {
-    const str = `${ms}ms`;
-    return str.padStart(DURATION_PAD_LENGTH);
-}
+import { DURATION_PAD_LENGTH, formatDurationMs, formatDuration, formatNumber } from "./durationFormatter.js";
+export { DURATION_PAD_LENGTH, formatDurationMs, formatDuration, formatNumber };
 const METRIC_COL_WIDTH = 16;
 function formatTaskMetricCol(metrics) {
     const entries = Object.entries(metrics || {});
     if (entries.length === 0)
         return ' '.repeat(METRIC_COL_WIDTH);
     const [k, v] = entries[0];
-    const primaryMetric = `${v} ${k.split(' ')[0] ?? ''}`.trim();
+    const formattedVal = typeof v === 'number' ? formatNumber(v) : v;
+    const primaryMetric = `${formattedVal} ${k.split(' ')[0] ?? ''}`.trim();
     const cleanMetric = primaryMetric.length > METRIC_COL_WIDTH
         ? primaryMetric.slice(0, METRIC_COL_WIDTH - 1) + '…'
         : primaryMetric;
@@ -443,7 +441,7 @@ function computeTaskBadge(status, errors, warnings) {
 }
 export const COUNT_BADGE_COLORS = ['red', 'yellow'];
 function formatTaskCount(count, icon, color) {
-    const text = `${count} ${icon}`.padStart(6);
+    const text = `${formatNumber(count)} ${icon}`.padStart(6);
     return count > 0 ? styleText(color, text) : styleText('dim', text);
 }
 export const TASK_NAME_COL_WIDTH = 38;
@@ -465,9 +463,9 @@ export function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors,
     const statusText = totalErrors === 0
         ? styleText(['bold', 'green'], '🎉 ¡SUITE DE AUDITORÍA GLOBAL APROBADA!')
         : styleText(['bold', 'red'], '🚨 AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
-    const skippedNote = suitesSkipped > 0 ? ` (${suitesSkipped} Omitidas)` : '';
-    const durationText = styleText('dim', `Duración Total: ${totalDurationMs}ms | Suites: ${suitesPassed}/${suitesTotal} Aprobadas${skippedNote}`);
-    const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', String(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', String(totalWarnings))}`;
+    const skippedNote = suitesSkipped > 0 ? ` (${formatNumber(suitesSkipped)} Omitidas)` : '';
+    const durationText = styleText('dim', `Duración Total: ${formatDurationMs(totalDurationMs)} | Suites: ${formatNumber(suitesPassed)}/${formatNumber(suitesTotal)} Aprobadas${skippedNote}`);
+    const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', formatNumber(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', formatNumber(totalWarnings))}`;
     const rawLines = [statusText, durationText, countsText];
     if (errorFindings && errorFindings.length > 0) {
         rawLines.push(...renderSampleErrors(errorFindings));

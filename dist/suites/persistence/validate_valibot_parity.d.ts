@@ -73,7 +73,9 @@ export declare class ValidateValibotParityAuditor extends BaseAuditor<ValibotPar
     private auditSingleNestedTarget;
     private verifyNestedFieldInSchema;
     private verifyNestedFieldInInitialState;
-    private auditSchemaQuality;
+    private iterateSchemaObjectProperties;
+    private auditUnknownUsage;
+    private auditRedundantNullability;
     private checkUnknownUsage;
     private checkRedundantNullability;
 }

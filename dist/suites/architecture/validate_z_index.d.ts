@@ -34,7 +34,6 @@ export declare class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
     private readonly scssPath?;
     private readonly isExplicit;
     constructor(scssPath?: string, roots?: readonly string[], projectRoot?: string);
-    protected scanFile(relPath: string, content: string): void;
     runAudit(): Promise<void>;
 }
 //# sourceMappingURL=validate_z_index.d.ts.map

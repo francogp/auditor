@@ -28,6 +28,10 @@ export const SIMILAR_CODE_RULES = [
     'fallow-similar-code',
     'fallow-similar-code-failed'
 ];
+export const SIMILAR_CODE_RULE_CAPABILITIES = {
+    'fallow-similar-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-similar-code-failed': { fix: true, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: true, requiresBuild: false, postRun: false }
+};
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;
 export function resolveFallowBinary(projectRoot = process.cwd()) {
@@ -126,12 +130,12 @@ function normalizeRelativeCandidatePath(rawPath, projectRoot) {
         return '';
     return toPosixRelative(projectRoot, rawPath);
 }
-function isCandidatePairIgnored(leftPath, rightPath, ignoreSameFile, auditor, includeTests) {
-    if (ignoreSameFile && leftPath === rightPath)
+function isCandidatePairIgnored(options) {
+    if (options.ignoreSameFile && options.leftPath === options.rightPath)
         return true;
-    if (auditor.isPathIgnored(leftPath) || auditor.isPathIgnored(rightPath))
+    if (options.auditor.isPathIgnored(options.leftPath) || options.auditor.isPathIgnored(options.rightPath))
         return true;
-    if (!includeTests && (isTestPath(leftPath) || isTestPath(rightPath)))
+    if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath)))
         return true;
     return false;
 }
@@ -158,7 +162,13 @@ export function evaluateSimilarCodeCandidates(candidates, options, auditor) {
     for (const c of candidates) {
         const leftPath = normalizeRelativeCandidatePath(c.left?.path, auditor.projectRoot);
         const rightPath = normalizeRelativeCandidatePath(c.right?.path, auditor.projectRoot);
-        if (isCandidatePairIgnored(leftPath, rightPath, ignoreSameFile, auditor, Boolean(config.paths?.includeTestsInCodeAudit))) {
+        if (isCandidatePairIgnored({
+            leftPath,
+            rightPath,
+            ignoreSameFile,
+            auditor,
+            includeTests: Boolean(config.paths?.includeTestsInCodeAudit)
+        })) {
             continue;
         }
         reportSingleCandidateViolation(c, leftPath, rightPath, auditor);
@@ -170,17 +180,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
     constructor(targetPath) {
         const projectRoot = targetPath || process.cwd();
         super({
-            capabilities: {
-                fix: true,
-                fixPriority: false,
-                lint: false,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: true,
-                requiresBuild: false,
-                postRun: false
-            },
+            ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
             fixableRuleIds: ['fallow-similar-code-failed'],
             id: 'validate_similar_code',
             name: 'Fallow Similar Code Semantics Validator',
@@ -288,8 +288,6 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
         }
     }
     async runAudit() {
-        this.markRuleEvaluated('fallow-similar-code');
-        this.markRuleEvaluated('fallow-similar-code-failed');
         this.recordExternalScanCount(1);
         const config = getAuditConfig(this.projectRoot);
         const similarCfg = config.fallow?.similarCode;
@@ -309,11 +307,19 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor {
             this.markSkipped('Omitido en preset rápido');
             return;
         }
-        const fallowBin = this.ensureFallowBinaryAndModel();
+        let fallowBin = null;
+        this.runSubAuditorSync('fallow-similar-code-failed', () => {
+            fallowBin = this.ensureFallowBinaryAndModel();
+        });
         if (!fallowBin) {
+            this.runSubAuditorSync('fallow-similar-code', () => {
+                this.markRuleNotApplicable('fallow-similar-code', 'Binario o modelo de Fallow no disponible');
+            });
             return;
         }
-        this.executeAnalysis(fallowBin, similarCfg);
+        this.runSubAuditorSync('fallow-similar-code', () => {
+            this.executeAnalysis(fallowBin, similarCfg);
+        });
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

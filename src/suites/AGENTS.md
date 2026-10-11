@@ -1,6 +1,6 @@
 # Purpose
 
-Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 61 domain-agnostic suites organized across 4 canonical families: `architecture/` (46 suites), `domain_data/` (3 suites), `persistence/` (3 suites), and `documentation/` (9 suites).
+Modular static analysis and architecture verification suites for `@francogp/auditor`. Contains 90 domain-agnostic suites organized across 6 canonical families: `architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, and `documentation/`.
 
 ## Ownership
 
@@ -13,6 +13,7 @@ Architecture & Tooling Engineers.
 - **Inheritance Mandate**: Every suite extends `BaseAuditor` or `FileScanAuditor`.
 - **Mandatory Thematic Emojis (`icon`)**: Every suite declares its dedicated thematic emoji representing its domain.
 - **Zero Untested Rules**: Every suite has a corresponding test in `tests/<suite_filename>.test.ts`.
+- **Universal Empirical Individual Timing Mandate**: Multi-rule suites must measure each declared rule individually using superclass execution wrappers (`this.runSubAuditorSync<T>`, `this.runSubAuditor<T>`, or `declareFileSubAuditor`). Synthetic duration division or duplicate batch stamping across rules is strictly prohibited. Calling `markRuleEvaluated` immediately prior to `runSubAuditorSync` is redundant boilerplate because `runSubAuditorSync` automatically marks the rule evaluated. Legacy batch methods (`runSubAuditorsBatch`, `runSubAuditorsBatchSync`) are strictly prohibited and fail loudly with an immediate runtime Error; monolithic external tools report individual rule telemetry directly via `this.reportRuleDuration(ruleId, durationMs)`. When a subsystem or directory does not exist or is disabled in config, suites must explicitly call `this.markRuleNotApplicable(ruleId, 'reason')` to prevent false passes with `(0 ms)` badges.
 
 ## Work Guidance
 
@@ -27,7 +28,9 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
-- [`architecture/AGENTS.md`](./architecture/AGENTS.md): Architectural integrity suites (Vue, GSAP, CSS, Fallow, Z-index).
+- [`architecture/AGENTS.md`](./architecture/AGENTS.md): Architectural integrity suites (Vue, GSAP, CSS, Fallow, Z-index, simplification, SCSS).
 - [`documentation/AGENTS.md`](./documentation/AGENTS.md): Documentation integrity suites (DOX, links, markdownlint).
 - [`domain_data/AGENTS.md`](./domain_data/AGENTS.md): Domain modeling and O(1) data structure suites.
 - [`persistence/AGENTS.md`](./persistence/AGENTS.md): Persistence integrity and SQL anti-pattern suites.
+- [`performance/AGENTS.md`](./performance/AGENTS.md): Web performance, asset budgets, Core Web Vitals, and database query optimization suites.
+- [`security/AGENTS.md`](./security/AGENTS.md): Security hardening, secret leak detection, ReDoS prevention, and OWASP compliance suites.

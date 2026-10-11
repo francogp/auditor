@@ -49,6 +49,5 @@ export declare function scanFileForNativePathViolations(filePath: string, conten
 export declare function auditNativePaths(targetDir?: string): NativePathAuditResult;
 export declare class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
-    protected scanFile(relPath: string, content: string): void;
 }
 //# sourceMappingURL=validate_native_paths.d.ts.map

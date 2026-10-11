@@ -48,6 +48,12 @@ export declare function scanFileForO1Issues(filePath: string, content: string, c
 }>): O1Issue[];
 export declare class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
+    runAudit(astContext?: any): Promise<void>;
     protected scanFile(relPath: string, content: string): void;
+    private scanCatalogLookups;
+    private scanLinearMembership;
+    private scanObjectScan;
+    private scanJsonClone;
+    private scanRedundantSpreadReturn;
 }
 //# sourceMappingURL=validate_o1_data_structures.d.ts.map

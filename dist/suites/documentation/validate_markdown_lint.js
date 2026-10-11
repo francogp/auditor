@@ -16,7 +16,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, loadLockedSkills, getEffectiveUnignoreDirs } from "../../core/auditorBase.js";
+import { BaseAuditor, loadLockedSkills, getEffectiveUnignoreDirs, createRuleCapabilities } from "../../core/auditorBase.js";
 import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { parseJsonArrayOutput, normalizePosixPath } from "../../core/reportUtils.js";
@@ -109,7 +109,7 @@ export function parseMarkdownLintIssues(input, cwd = process.cwd()) {
 export class MarkdownLintAuditor extends BaseAuditor {
     constructor(projectRoot) {
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
                 fix: true,
                 fixPriority: false,
                 lint: true,
@@ -119,7 +119,7 @@ export class MarkdownLintAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, ['markdownlint-issue']),
             fixableRuleIds: ['markdownlint-issue'],
             id: 'validate_markdown_lint',
             name: 'Markdownlint Style & Hygiene Validator',

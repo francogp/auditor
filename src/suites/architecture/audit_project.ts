@@ -12,7 +12,7 @@ import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
-import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored } from '../../core/auditorBase.ts';
+import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored , createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   type AuditRule,
   type Violation,
@@ -387,6 +387,8 @@ export function applyRuleFix(rule: AuditRule, content: string, filePath: string)
   });
 }
 
+export const activeProjectRuleTimings = new Map<string, number>();
+
 export function runRules(filePath: string, content: string, rules: AuditRule[], violations: Violation[], fix: boolean, offset: number): string {
   let result = content;
   const getLineNo = createLineLocator(content, offset);
@@ -395,9 +397,16 @@ export function runRules(filePath: string, content: string, rules: AuditRule[], 
     if (rule.appliesTo && !rule.appliesTo(filePath)) {
       continue;
     }
+    const ruleKey = rule.id;
+    const start = performance.now(); // timing-ok: CLI internal rule runner telemetry
     collectRuleViolations(rule, content, filePath, getLineNo, violations);
     if (fix && rule.fix) {
       result = applyRuleFix(rule, result, filePath);
+    }
+    if (ruleKey) {
+      const elapsed = performance.now() - start; // timing-ok: CLI internal rule runner telemetry
+      const current = activeProjectRuleTimings.get(ruleKey) ?? 0;
+      activeProjectRuleTimings.set(ruleKey, current + elapsed);
     }
   }
   return result;
@@ -830,7 +839,7 @@ async function persistProjectReports(jsonReport: object): Promise<{ archJsonPath
 
 export async function main(cliArgs?: string[]): Promise<Violation[]> {
   await loadAuditConfig();
-  const startTime = performance.now();
+  const startTime = performance.now(); // timing-ok: CLI standalone runner execution timer
   const ctx = parseProjectCliContext(cliArgs);
 
   function logProgress(msg: string) {
@@ -866,7 +875,7 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
     topFiles,
     errorsCount,
     warningsCount,
-    durationMs: Math.round(performance.now() - startTime)
+    durationMs: Math.round(performance.now() - startTime) // timing-ok: CLI standalone runner execution timer
   });
 
   const { archJsonPath, jsonReportStr } = await persistProjectReports(jsonReport);
@@ -908,7 +917,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       .map(([key, rule]) => (rule as AuditRule).id || key);
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(ruleIds, {
         fix: true,
         fixPriority: false,
         lint: true,
@@ -918,7 +927,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         heavy: true,
         requiresBuild: false,
         postRun: false
-      },
+      }, fixableRuleIds),
       fixableRuleIds,
       ruleIds,
       ruleDescriptions,
@@ -939,14 +948,21 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
   }
 
   public override async runAudit(): Promise<void> {
+    activeProjectRuleTimings.clear();
     const files = await getFilesToAudit(this.projectRoot);
     for (const f of files) {
       this.recordScanned(f);
     }
     for (const r of Object.keys(this.ruleDescriptions ?? {})) {
       this.markRuleEvaluated(r);
+      if (!activeProjectRuleTimings.has(r)) {
+        activeProjectRuleTimings.set(r, 0);
+      }
     }
     const violations = await main();
+    for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) {
+      this.reportRuleDuration(ruleId, durationMs);
+    }
     for (const v of violations) {
       const relFile = v.file
         ? normalizePosixPath(path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file)

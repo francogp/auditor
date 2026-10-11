@@ -25,7 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveScannableRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, getEffectiveScannableRoots, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const EPHEMERAL_STORAGE_RULES = [
@@ -84,7 +84,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
             : (optionsOrRoot ?? {});
         const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -94,7 +94,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_ephemeral_storage_isolation',
             name: 'Ephemeral Storage & Scratch Isolation Validator',
             description: 'Aislamiento estricto de archivos temporales en scratch/',
@@ -131,11 +131,15 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
         this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles && configuredDbFiles.length > 0 ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
     }
     runAudit() {
-        this.markRuleEvaluated('ephemeral-no-source-temp-dirs');
-        this.scanSourceDirectoriesOnDisk();
-        this.markRuleEvaluated('ephemeral-no-gitignore-source-temp');
-        this.scanGitignoreRules();
-        this.scanSourceCodeReferences();
+        this.runSubAuditorSync('ephemeral-no-source-temp-dirs', () => {
+            this.scanSourceDirectoriesOnDisk();
+        });
+        this.runSubAuditorSync('ephemeral-no-gitignore-source-temp', () => {
+            this.scanGitignoreRules();
+        });
+        this.runSubAuditorSync('ephemeral-no-source-temp-references', () => {
+            this.scanSourceCodeReferences();
+        });
     }
     scanSourceDirectoriesOnDisk() {
         for (const root of this.roots) {
@@ -247,7 +251,6 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
             if (isSelfReferentialFile(relPath))
                 continue;
             this.recordScanned(relPath);
-            this.markRuleEvaluated('ephemeral-no-source-temp-references');
             try {
                 const content = fs.readFileSync(filePath, 'utf-8');
                 if (content.includes('/temp') || content.includes('/tmp')) {

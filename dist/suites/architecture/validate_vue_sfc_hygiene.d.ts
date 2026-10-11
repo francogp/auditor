@@ -36,6 +36,7 @@ export declare class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneR
     private extractTemplateBlock;
     private auditTemplateQuoteEscaping;
     private extractDynamicExpressions;
+    private getTemplateDynamicExpressions;
     private auditDataProviderInTemplate;
     private auditTemplateMagicCalculation;
     private reportTemplateViolation;

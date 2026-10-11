@@ -18,7 +18,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -53,7 +53,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(GSAP_SCROLLTRIGGER_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -63,7 +63,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.js']),
       ruleIds: GSAP_SCROLLTRIGGER_RULES,
@@ -74,6 +74,25 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         'gsap-scrolltrigger-animating-pinned-element': 'Animación en elemento fijado pin',
         'gsap-scrolltrigger-container-animation-ease': 'Falta ease: none en contenedor'
       }
+    });
+  }
+
+  protected override scanFile(relPath: string, content: string): void {
+    if (isExemptFile(relPath)) return;
+    this.runSubAuditorSync('gsap-scrolltrigger-in-timeline-child', () => {
+      this.checkTimelineChild(relPath, content);
+    });
+    this.runSubAuditorSync('gsap-scrolltrigger-scrub-and-toggle', () => {
+      this.checkScrubAndToggle(relPath, content);
+    });
+    this.runSubAuditorSync('gsap-scrolltrigger-markers-production', () => {
+      this.checkMarkersProduction(relPath, content);
+    });
+    this.runSubAuditorSync('gsap-scrolltrigger-animating-pinned-element', () => {
+      this.checkAnimatingPinnedElement(relPath, content);
+    });
+    this.runSubAuditorSync('gsap-scrolltrigger-container-animation-ease', () => {
+      this.checkContainerAnimationEase(relPath, content);
     });
   }
 
@@ -88,11 +107,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
     return pattern.test(lineText);
   }
 
-  protected override scanFile(relPath: string, content: string): void {
-    if (isExemptFile(relPath)) return;
-
-    // 1. gsap-scrolltrigger-in-timeline-child
-    // Detects child tweens declaring scrollTrigger configuration inside timeline sequence
+  private checkTimelineChild(relPath: string, content: string): void {
     const timelineChildRegex = /(?:\b(?:tl|timeline|\w*Timeline)|\))\s*\.\s*(?:to|from|fromTo)\s*\([^){]*\{[^)}]*(?:\}[^){]*\{[^)}]*)*(?:\)[^}]*)?\bscrollTrigger\s*:/g;
     let m: RegExpExecArray | null;
     while ((m = timelineChildRegex.exec(content)) !== null) {
@@ -107,16 +122,24 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         severity: 'error'
       });
     }
+  }
 
-    // 2. gsap-scrolltrigger-scrub-and-toggle & 3. markers-production & 4. animating pinned element
-    // Inspect scrollTrigger config blocks: scrollTrigger: { ... } or ScrollTrigger.create({ ... })
+  private scanScrollTriggerBlocks(
+    content: string,
+    callback: (blockBody: string, matchIndex: number) => void
+  ): void {
     const stBlockRegex = /(?:scrollTrigger\s*:\s*\{|ScrollTrigger\.create\s*\(\s*\{)([^}]*)\}/g;
+    let m: RegExpExecArray | null;
     while ((m = stBlockRegex.exec(content)) !== null) {
       const blockBody = m[1] ?? '';
       const matchIndex = m.index;
       if (this.isLineSuppressed(content, matchIndex, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i)) continue;
+      callback(blockBody, matchIndex);
+    }
+  }
 
-      // 2. Conflict between scrub and toggleActions
+  private checkScrubAndToggle(relPath: string, content: string): void {
+    this.scanScrollTriggerBlocks(content, (blockBody, matchIndex) => {
       if (/\bscrub\s*:/i.test(blockBody) && /\btoggleActions\s*:/i.test(blockBody)) {
         this.addViolationAtMatch({
           ruleId: 'gsap-scrolltrigger-scrub-and-toggle',
@@ -127,8 +150,11 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
           severity: 'error'
         });
       }
+    });
+  }
 
-      // 3. markers: true in production
+  private checkMarkersProduction(relPath: string, content: string): void {
+    this.scanScrollTriggerBlocks(content, (blockBody, matchIndex) => {
       if (/\bmarkers\s*:\s*true\b/i.test(blockBody)) {
         const surroundingWindow = content.slice(Math.max(0, matchIndex - 100), Math.min(content.length, matchIndex + 200));
         const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(surroundingWindow);
@@ -144,11 +170,13 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
           });
         }
       }
-    }
+    });
+  }
 
-    // 4. gsap-scrolltrigger-animating-pinned-element
-    // Detects tween with pin: true animating transforms on same target
+
+  private checkAnimatingPinnedElement(relPath: string, content: string): void {
     const pinnedAnimationRegex = /\b(?:gsap|tl|timeline)\s*\.\s*(?:to|from|fromTo)\s*\([^,]+,\s*\{[^}]*\bpin\s*:\s*true[^}]*(?:\bx|\by|\bscale|\brotation)\s*:/g;
+    let m: RegExpExecArray | null;
     while ((m = pinnedAnimationRegex.exec(content)) !== null) {
       if (this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok|pin-ok):\s*\S+/i)) continue;
 
@@ -161,14 +189,14 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         severity: 'error'
       });
     }
+  }
 
-    // 5. gsap-scrolltrigger-container-animation-ease
-    // Detects containerAnimation where horizontal tween ease is not 'none'
+  private checkContainerAnimationEase(relPath: string, content: string): void {
     const containerAnimRegex = /\bcontainerAnimation\s*:\s*([^,}\n]+)/g;
+    let m: RegExpExecArray | null;
     while ((m = containerAnimRegex.exec(content)) !== null) {
       const animVar = m[1]?.trim() ?? '';
       if (!animVar) continue;
-      // Look for definition of animVar
       const defRegex = new RegExp(`(?:const|let|var)\\s+${animVar}\\s*=\\s*gsap\\.(?:to|from|fromTo)\\s*\\([^}]*\\}`, 'g');
       const defMatch = defRegex.exec(content);
       if (defMatch) {

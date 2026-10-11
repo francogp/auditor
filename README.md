@@ -26,7 +26,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 
 ## 1. Key Features & Architectural Architecture
 
-- **Built-In Generic Architectural Suites**: Comprehensive static verification across 4 canonical families (`architecture/`, `domain_data/`, `persistence/`, `documentation/`).
+- **Built-In Generic Architectural Suites**: Comprehensive static verification across 6 canonical families (`architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, `documentation/`).
 - **Capability-Driven Auto-Coordination (`AuditorCapabilities`)**: Sub-auditors declare explicit capabilities (`lint`, `fix`, `fixPriority`, `md`, `heavy`, `requiresBuild`, `ast`, `changedSince`, `postRun`) with 100% mandatory completeness and zero fallbacks. No hardcoded suite lists in runners or scanners.
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
 - **Automated ESLint Configuration Auditor (`validate_eslint_config`)**: Statically analyzes `eslint.config.js` to ensure host projects enforce strict type safety, banning `any`, double casting, and legacy dates.
@@ -419,14 +419,14 @@ Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomo
 ### 8.2. Skill Catalog Summary
 
 - **Architecture & Governance**: `auditor`, `architecture`, `clean-code`, `codebase-design`, `domain-modeling`, `domain-type-first`, `improve-codebase-architecture`.
-- **Vue 3, SFC & Reactivity**: `create-adaptable-composable`, `vue-best-practices`, `vue-debug-guides`, `vue-jsx-best-practices`, `vue-options-api-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vueuse-functions`.
+- **Vue 3, SFC, Styles & Reactivity**: `create-adaptable-composable`, `pinia`, `scss-best-practices`, `vite`, `vue-best-practices`, `vue-debug-guides`, `vue-jsx-best-practices`, `vue-options-api-best-practices`, `vue-pinia-best-practices`, `vue-router-best-practices`, `vue-testing-best-practices`, `vueuse-functions`.
 - **GSAP UI Animation**: `gsap-core`, `gsap-frameworks`, `gsap-performance`, `gsap-plugins`, `gsap-react`, `gsap-scrolltrigger`, `gsap-timeline`, `gsap-utils`.
-- **Codebase Intelligence & Optimization**: `fallow`, `fallow-review`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
+- **Codebase Intelligence & Optimization**: `code-simplification`, `fallow`, `fallow-review`, `performance-optimization`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
 - **Security, Pentesting & Hardening**: `security-and-hardening`, `security-review`.
-- **Database & Validation**: `database-design`, `supabase-postgres-best-practices`, `valibot`.
+- **Database & Validation**: `database-migrations`, `supabase-postgres-best-practices`, `valibot`.
 - **Documentation & DOX Governance**: `dox-navigator`, `learn-with-docs`.
-- **Testing & QA Automation**: `playwright-cli`, `tdd`, `testing-patterns`, `vitest`.
-- **DevOps, Design, Discovery & Meta-Agent Skills**: `brainstorming`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
+- **Testing & QA Automation**: `playwright-cli`, `tdd`, `vitest`.
+- **DevOps, Design, Discovery & Meta-Agent Skills**: `brainstorming`, `ci-cd-and-automation`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
 
 ### 8.3. Dynamic Dual-Language Governance (Zero Hardcoding)
 
@@ -476,19 +476,22 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
   protected override scanFile(relPath: string, content: string): void {
     if (relPath.includes('.test.') || relPath.includes('.spec.')) return;
 
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (/SELECT\s+.*\s+FROM\s+/i.test(lines[i]!)) {
-        this.addViolation({
-          ruleId: 'inline-sql-detected',
-          severity: 'error',
-          file: relPath,
-          line: i + 1,
-          message: 'Extrae la consulta SQL al servicio o repositorio correspondiente.',
-          context: lines[i]!.trim()
-        });
+    // Evaluated and timed individually via runSubAuditorSync
+    this.runSubAuditorSync('inline-sql-detected', () => {
+      const lines = content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (/SELECT\s+.*\s+FROM\s+/i.test(lines[i]!)) {
+          this.addViolation({
+            ruleId: 'inline-sql-detected',
+            severity: 'error',
+            file: relPath,
+            line: i + 1,
+            message: 'Extrae la consulta SQL al servicio o repositorio correspondiente.',
+            context: lines[i]!.trim()
+          });
+        }
       }
-    }
+    });
   }
 }
 ```
@@ -615,6 +618,36 @@ export default defineAuditConfig({
         serializerFile: 'src/logic/storage/saveSerializer.ts'
       }
     ]
+  },
+  webPerformance: {
+    enabled: true,
+    maxDomDepth: 32,
+    maxInlineSvgBytes: 4096,
+    maxUncompressedVideoBytes: 10485760
+  },
+  queryPerformance: {
+    enabled: true,
+    enforceSelectStar: true,
+    enforcePagination: true,
+    enforceNPlusOneDetection: true
+  },
+  securityHardening: {
+    enabled: true,
+    enforceInsecureRandom: true,
+    enforceVulnerableRegex: true,
+    enforceEvalDetection: true
+  },
+  codeSimplification: {
+    enabled: true,
+    maxNestingDepth: 4,
+    maxBooleanParams: 2,
+    maxSwitchCases: 10
+  },
+  scssArchitecture: {
+    enabled: true,
+    maxNestingDepth: 4,
+    enforceThemeTokens: true,
+    bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']
   },
   extensions: [
     './scripts/auditors/architecture/validate_no_inline_sql.ts'

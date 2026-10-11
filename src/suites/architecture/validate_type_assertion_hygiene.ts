@@ -12,11 +12,10 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor } from '../../core/auditorBase.ts';
+import { FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
-import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -53,7 +52,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? ['src', 'scripts']);
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -63,7 +62,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
         heavy: true,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_type_assertion_hygiene',
       name: 'TypeScript Assertion & Strict Typing Hygiene',
       description: 'Prohíbe as any, doble casteo y promesas flotantes',
@@ -139,39 +138,6 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       if (line.includes('// domain-ok:') || line.includes('// array-ok:') || line.includes('// no-domain:') || line.includes('// type-ok:') || line.includes('// open-record:')) return false;
       return true;
     }, 'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`');
-  }
-
-  private scanPattern(
-    content: string,
-    lines: string[],
-    file: string,
-    regex: RegExp,
-    ruleId: TypeAssertionRuleId,
-    filter: (match: RegExpExecArray, line: string) => boolean,
-    message: string
-  ): void {
-    regex.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
-      const matchIndex = match.index;
-      const before = content.slice(0, matchIndex);
-      const lineNum = (before.match(/\n/g) ?? []).length + 1;
-      const col = matchIndex - before.lastIndexOf('\n');
-      const line = lines[lineNum - 1] ?? '';
-
-      if (isCommentLine(line.trim())) continue;
-      if (!filter(match, line)) continue;
-
-      this.addViolation({
-        ruleId,
-        severity: 'error',
-        file,
-        line: lineNum,
-        column: col,
-        message,
-        context: match[0].trim()
-      });
-    }
   }
 }
 

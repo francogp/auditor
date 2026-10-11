@@ -17,7 +17,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveIgnoreDirs } from '../../core/auditorBase.ts';
+import { BaseAuditor, getEffectiveIgnoreDirs , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { loadAuditConfig } from '../../core/auditConfig.ts';
 import { checkDoxIntegrity } from '../../analyzers/doxAnalyzer.ts';
 
@@ -46,7 +46,7 @@ private readonly rootDir: string;
   constructor(rootDir?: string) {
     const projectRoot = rootDir || process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(DOX_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -56,7 +56,7 @@ private readonly rootDir: string;
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_dox_integrity',
       name: 'DOX & AGENTS.md Integrity Validator',
       description: 'Valida jerarquía, estructura e integridad de AGENTS.md',
@@ -85,9 +85,6 @@ private readonly rootDir: string;
 
   public override async runAudit(): Promise<void> {
     await loadAuditConfig(this.rootDir);
-    for (const r of DOX_RULES) {
-      this.markRuleEvaluated(r);
-    }
 
     const agentsFiles = await this.context.collectFiles(['.'], new Set(['.md']));
     for (const f of agentsFiles) {
@@ -101,16 +98,22 @@ private readonly rootDir: string;
 
     const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
 
-    for (const v of rawViolations) {
-      const ruleId = (v.ruleId as DoxRuleId) || 'dox-missing-agents-md';
+    for (const ruleId of DOX_RULES) {
+      this.runSubAuditorSync(ruleId, () => {
+        const ruleViolations = rawViolations.filter(
+          v => ((v.ruleId as DoxRuleId) || 'dox-missing-agents-md') === ruleId
+        );
 
-      this.addViolation({
-        ruleId,
-        severity: v.severity || 'error',
-        file: v.file,
-        line: v.line || 1,
-        message: v.message,
-        context: v.context
+        for (const v of ruleViolations) {
+          this.addViolation({
+            ruleId,
+            severity: v.severity || 'error',
+            file: v.file,
+            line: v.line || 1,
+            message: v.message,
+            context: v.context
+          });
+        }
       });
     }
 

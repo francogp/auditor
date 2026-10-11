@@ -16,7 +16,7 @@ import path from 'node:path';
 import fsSync from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 
 enableCompileCache();
@@ -127,7 +127,7 @@ function resolveTypeCheckBinary(projectRoot: string): { cmd: string; args: strin
 export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
   constructor(projectRoot?: string) {
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -137,7 +137,7 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
         heavy: true,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_type_check',
       name: 'TypeScript & Vue Type Validator',
       description: 'Errores de tipado y compilación en TypeScript y SFCs Vue',
@@ -163,8 +163,24 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
     this.markRuleEvaluated('ts-compiler-error');
     recordTsConfigFiles(this.projectRoot, p => this.recordScanned(p));
 
-    const { cmd, args } = resolveTypeCheckBinary(this.projectRoot);
-    const proc = spawnSync(cmd, args, {
+    const { cmd, args: baseArgs } = resolveTypeCheckBinary(this.projectRoot);
+    const tsBuildInfoPath = path.resolve(this.projectRoot, 'scratch/.tsbuildinfo');
+
+    if (this.isFastMode()) {
+      try {
+        fsSync.mkdirSync(path.dirname(tsBuildInfoPath), { recursive: true });
+      } catch {
+        // catch-ok: ignore directory creation failures
+      }
+    }
+
+    const resolvedArgs = this.resolveCommandArgs<string[]>({
+      command: 'tsc-type-check',
+      fastArgs: [...baseArgs, '--incremental', '--tsBuildInfoFile', tsBuildInfoPath],
+      heavyArgs: baseArgs
+    });
+
+    const proc = spawnSync(cmd, resolvedArgs, {
       cwd: this.projectRoot,
       encoding: 'utf-8',
       maxBuffer: MAX_BUFFER_BYTES,

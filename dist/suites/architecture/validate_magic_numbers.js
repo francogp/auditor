@@ -29,7 +29,7 @@
  */
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig, isInCodeRoots, isDataPath } from "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
@@ -215,7 +215,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
         const rawRoots = optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? ['src', 'scripts']));
         const effectiveRoots = rawRoots.map(r => toPosixRelative(projectRoot, r));
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -225,7 +225,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_magic_numbers',
             name: 'Magic Numbers Validator',
             description: 'Gobernanza de números mágicos desnudos en lógica',

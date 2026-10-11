@@ -23,10 +23,11 @@ To eliminate these hazards, the framework establishes **Official Locked Skills I
 
 Vendor skills are tracked declaratively in `skills-lock.json`. The framework searches candidate locations in strict order of precedence:
 
-1. `skills-lock.json` (Project root)
-2. `.auditor/skills-lock.json` (Auditor directory)
-3. `.agents/skills-lock.json` (Agents directory)
-4. Custom path declared via `config.paths.skillsLockFile` in `.auditor/audit.config.ts`.
+1. Custom path declared via `config.paths.skillsLockFile` in `.auditor/audit.config.ts`.
+2. `skills-lock.json` (Project root)
+3. `.auditor/skills-lock.json` (Auditor directory)
+4. `.agents/skills-lock.json` (Agents directory)
+5. `node_modules/@francogp/auditor/skills-lock.json` (Inherited from upstream framework)
 
 ### 2.1 Manifest Structure Example
 
@@ -160,3 +161,89 @@ When an AI agent is instructed to audit skills, review governance rules, or chec
 
 3. **Editing Custom Skills**:
    When editing skills like `safe-commit` or `learn-with-docs`, do so freely using standard tools; they are first-class codebase assets not restricted by `skills-lock.json`.
+
+---
+
+## 6. Official Locked Skills Update Protocol (Step-by-Step)
+
+When developers or users request to update, upgrade, or sync external skills (e.g. *"actualizar skills"*, *"update skills"*, *"actualizar skills-lock"*, *"sync skills"*), execute this deterministic zero-guesswork workflow without redundant investigation.
+
+### 6.1 Canonical Command Execution
+
+Use the official Skills CLI (`skills`) documented in [`find-skills`](../../find-skills/SKILL.md):
+
+```bash
+# Update ALL project-scoped skills non-interactively
+skills update -p -y
+
+# Or update a specific locked skill by name
+skills update <skill-name> -p -y
+```
+
+> **Note**: If `skills` is not yet present in `$PATH`, it can be run via npm package execution (`skills` package on npm).
+
+**Key Flags Explained**:
+
+- `-p` / `--project`: Restricts update strictly to the project repository scope (`.agents/skills/`), avoiding global user-level contamination.
+- `-y` / `--yes`: Skips interactive confirmation prompts, enabling non-blocking execution.
+
+### 6.2 Automated Manifest Synchronization
+
+Running `skills update` automatically:
+
+1. Fetches the latest revisions from the upstream Git repositories configured in `skills-lock.json` (`obra/superpowers`, `greensock/gsap-skills`, `fallow-rs/fallow-skills`, `DietrichGebert/ponytail`, `mattpocock/skills`, `vuejs-ai/skills`, etc.).
+2. Re-computes and overwrites cryptographic `computedHash` SHA-256 signatures directly in `skills-lock.json`.
+3. Overwrites skill definition files in `.agents/skills/<skill-name>/`.
+
+### 6.3 Post-Update Verification Pipeline
+
+Immediately following command completion, verify the changes and validate isolation integrity:
+
+```bash
+# 1. Review lockfile and skill changes
+git status --short skills-lock.json .agents/skills
+
+# 2. Inspect modified skill hashes
+git diff skills-lock.json
+
+# 3. Verify framework isolation tests pass 100%
+npm test tests/locked_skills.test.ts
+```
+
+### 6.4 Reporting Template
+
+Deliver a consolidated final report detailing:
+
+- Total skills audited vs. updated vs. already up-to-date.
+- Per-skill change breakdown (modified files, added/removed features, upstream version upgrades).
+- Confirmation of updated `skills-lock.json` hashes and 100% passing test status.
+
+---
+
+## 7. Mandatory Dependency-to-Skill Synchronization Matrix
+
+When upgrading, bumping, or adding libraries in `package.json`, developers and AI agents must check whether the dependency has a corresponding official agent skill in the repository. If so, the skill **must be updated simultaneously** to keep agent knowledge aligned with library capabilities, CLI flags, and best practices.
+
+### 7.1 Dependency-to-Skill Mapping Matrix
+
+| Library / Package (`package.json`) | Associated Agent Skill(s) | Upstream Repository Source |
+| :--- | :--- | :--- |
+| `fallow` | [`fallow`](../../fallow/SKILL.md), [`fallow-review`](../../fallow-review/SKILL.md) | `fallow-rs/fallow-skills` |
+| `vitest`, `@vitest/*` | [`vitest`](../../vitest/SKILL.md) | `antfu/skills` |
+| `vite`, `rolldown` | [`vite`](../../vite/SKILL.md) | `antfu/skills` |
+| `valibot` | [`valibot`](../../valibot/SKILL.md) | `open-circle/agent-skills` |
+| `pinia` | [`pinia`](../../pinia/SKILL.md), [`vue-pinia-best-practices`](../../vue-pinia-best-practices/SKILL.md) | `antfu/skills`, `vuejs-ai/skills` |
+| `vue`, `vue-router` | [`vue-best-practices`](../../vue-best-practices/SKILL.md), [`vue-debug-guides`](../../vue-debug-guides/SKILL.md), [`vue-jsx-best-practices`](../../vue-jsx-best-practices/SKILL.md), [`vue-options-api-best-practices`](../../vue-options-api-best-practices/SKILL.md), [`vue-router-best-practices`](../../vue-router-best-practices/SKILL.md), [`vue-testing-best-practices`](../../vue-testing-best-practices/SKILL.md), [`create-adaptable-composable`](../../create-adaptable-composable/SKILL.md) | `vuejs-ai/skills` |
+| `gsap` | [`gsap-core`](../../gsap-core/SKILL.md), [`gsap-frameworks`](../../gsap-frameworks/SKILL.md), [`gsap-performance`](../../gsap-performance/SKILL.md), [`gsap-plugins`](../../gsap-plugins/SKILL.md), [`gsap-react`](../../gsap-react/SKILL.md), [`gsap-scrolltrigger`](../../gsap-scrolltrigger/SKILL.md), [`gsap-timeline`](../../gsap-timeline/SKILL.md), [`gsap-utils`](../../gsap-utils/SKILL.md) | `greensock/gsap-skills` |
+| `@playwright/test`, `playwright` | [`playwright-cli`](../../playwright-cli/SKILL.md) | `microsoft/playwright-cli` |
+| `@vueuse/core`, `vueuse` | [`vueuse-functions`](../../vueuse-functions/SKILL.md) | `vueuse/skills` |
+
+### 7.2 Coupled Update Protocol
+
+When the user asks to update dependencies (e.g. *"actualizar dependencias"*, *"update fallow"*, *"upgrade vitest"*):
+
+1. **Update Library**: Bump the package version in `package.json` and install via `npm install` or `npm update <pkg>`.
+2. **Identify Associated Skills**: Match the upgraded package against the table above.
+3. **Update Associated Skills**: Run the skill update command for each affected skill (`skills update <skill-name> -p -y`) or synchronize all project skills concurrently (`skills update -p -y`).
+4. **Verify Lockfile & Tests**: Ensure `skills-lock.json` reflects the new hashes and run tests: `git diff skills-lock.json` and `npm test tests/locked_skills.test.ts`.
+5. **Report Coordinated Updates**: In the final response, confirm both the new library version and the updated skill status.

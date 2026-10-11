@@ -43,16 +43,18 @@ describe('Auditor Manifest & Introspection Registry', () => {
           family: 'architecture',
           ruleIds: ['test-rule'],
           packageName: 'Test',
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: false,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+          ruleCapabilities: {
+            'test-rule': {
+              fix: false,
+              fixPriority: false,
+              lint: false,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            }
           },
           configKey: 'paths',
           defaultConfig: {},

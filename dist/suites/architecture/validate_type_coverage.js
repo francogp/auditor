@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
@@ -57,7 +57,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -67,7 +67,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
                 heavy: true,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_type_coverage',
             name: 'TypeScript Quantitative Type Coverage Auditor',
             description: 'Gobernanza cuantitativa de cobertura de tipos estricta',
@@ -94,9 +94,6 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
             return;
         }
         this.recordExternalScanCount(1);
-        for (const r of TYPE_COVERAGE_RULES) {
-            this.markRuleEvaluated(r);
-        }
         const config = getAuditConfig(this.projectRoot);
         const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
         const cacheDir = path.resolve(this.projectRoot, 'scratch/cache/type-coverage');
@@ -114,6 +111,8 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
         const threshold = config.typeCoverage?.atLeast ?? DEFAULT_MIN_TYPE_COVERAGE_PERCENT;
         const report = this.executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold);
         if (!report) {
+            this.markRuleEvaluated('type-coverage-below-threshold');
+            this.markRuleEvaluated('type-coverage-untyped-identifier');
             return;
         }
         this.applyCoverageMetricsAndFindings(report, threshold);
@@ -157,14 +156,21 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
         this.context.setMetric('Type Coverage', `${percentStr}% (≥${threshold}%)`);
         this.context.setMetric('Typed Identifiers', `${correct}/${total}`);
         const findings = parseTypeCoverageReport(report, threshold, this.projectRoot);
-        for (const finding of findings) {
-            this.addViolation({
-                ruleId: finding.ruleId ?? 'type-coverage-below-threshold',
-                severity: finding.severity,
-                file: finding.file ?? 'tsconfig.json',
-                line: finding.line ?? 1,
-                context: finding.context ?? finding.message,
-                message: finding.message
+        for (const ruleId of TYPE_COVERAGE_RULES) {
+            this.runSubAuditorSync(ruleId, () => {
+                for (const finding of findings) {
+                    const targetRule = finding.ruleId ?? 'type-coverage-below-threshold';
+                    if (targetRule !== ruleId)
+                        continue;
+                    this.addViolation({
+                        ruleId,
+                        severity: finding.severity,
+                        file: finding.file ?? 'tsconfig.json',
+                        line: finding.line ?? 1,
+                        context: finding.context ?? finding.message,
+                        message: finding.message
+                    });
+                }
             });
         }
     }

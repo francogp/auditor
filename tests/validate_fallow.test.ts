@@ -462,5 +462,53 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(dispatchedArgs.health).toContain('--report-only');
       expect(dispatchedArgs.health).toContain('--coverage');
     });
+
+    it('executes ONLY fast syntactic dead-code and skips heavy commands in lint mode (preset=lint)', async () => {
+      const prevPreset = process.env.AUDITOR_PRESET;
+      process.env.AUDITOR_PRESET = 'lint';
+
+      try {
+        const auditor = new FallowArchitectureAuditor(tempDir);
+        expect(auditor.isFastMode()).toBe(true);
+
+        const dispatchedCommands: string[] = [];
+        (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string) => {
+          dispatchedCommands.push(cmd);
+          return [];
+        };
+
+        await auditor.runAudit();
+
+        // dead-code and security are dispatched in fast lint profile
+        expect(dispatchedCommands).toEqual(['dead-code', 'security']);
+        expect(dispatchedCommands).not.toContain('dupes');
+        expect(dispatchedCommands).not.toContain('triplets');
+        expect(dispatchedCommands).not.toContain('health');
+      } finally {
+        if (prevPreset !== undefined) {
+          process.env.AUDITOR_PRESET = prevPreset;
+        } else {
+          delete process.env.AUDITOR_PRESET;
+        }
+      }
+    });
+
+    it('enforces the Anti-Repetition invariant when resolving dual command profiles', () => {
+      const auditor = new FallowArchitectureAuditor(tempDir);
+      const profile = {
+        command: 'fallow dead-code',
+        fastArgs: ['--fast'],
+        heavyArgs: ['--heavy']
+      };
+
+      // First resolution succeeds
+      const first = auditor.resolveCommandArgs(profile);
+      expect(first).toEqual(['--heavy']);
+
+      // Attempting to resolve again throws Contract Violation
+      expect(() => auditor.resolveCommandArgs(profile)).toThrow(
+        /\[Auditor Contract Violation\].*ya fue resuelto\/ejecutado/
+      );
+    });
   });
 });

@@ -17,7 +17,7 @@
  */
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const REACTIVE_LEAK_RULES = [
@@ -53,7 +53,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = resolveReactiveRoots(config, roots);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -63,7 +63,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_reactive_leaks',
             name: 'Reactive & DOM Event Leak Auditor',
             description: 'Detecta posibles fugas de memoria y listeners sin limpiar',
@@ -133,14 +133,24 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
             const lineText = fullLines[lineNum - 1] || '';
             return lineText.includes('leak-ok') || lineText.includes('reactive-leak-ok');
         };
-        const visit = (node) => {
-            if (ts.isCallExpression(node)) {
-                this.checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook);
-                this.checkIntervalLeak(node, sf, relPath, checkLineEscape, hasClearInterval);
-            }
-            ts.forEachChild(node, visit);
-        };
-        visit(sf);
+        this.runSubAuditorSync('dom-event-leak', () => {
+            const visitEvents = (node) => {
+                if (ts.isCallExpression(node)) {
+                    this.checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook);
+                }
+                ts.forEachChild(node, visitEvents);
+            };
+            visitEvents(sf);
+        });
+        this.runSubAuditorSync('interval-leak', () => {
+            const visitIntervals = (node) => {
+                if (ts.isCallExpression(node)) {
+                    this.checkIntervalLeak(node, sf, relPath, checkLineEscape, hasClearInterval);
+                }
+                ts.forEachChild(node, visitIntervals);
+            };
+            visitIntervals(sf);
+        });
     }
 }
 // Canonical CLI Entrypoint

@@ -26,8 +26,8 @@ class TestableGsapAnimationsAuditor extends ValidateGsapAnimationsAuditor {
     super.addViolation(v);
   }
 
-  public testScanFile(relPath: string, content: string): void {
-    this.scanFile(relPath, content);
+  public override testScanFile(relPath: string, content: string): void {
+    super.testScanFile(relPath, content);
   }
 }
 

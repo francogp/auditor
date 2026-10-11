@@ -25,7 +25,10 @@ import { PackageScriptRegistry, CORE_PACKAGE_SCRIPT_REQUIREMENTS } from '../core
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 
-export const AUDIT_PRESETS: Record<string, readonly string[]> = {};
+export const AUDIT_PRESETS: Record<string, readonly string[]> = {
+  performance: ['validate_web_performance', 'validate_query_performance'],
+  security: ['validate_security_hardening']
+};
 
 export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
 

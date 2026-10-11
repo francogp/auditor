@@ -27,7 +27,7 @@ class TestableMarkdownSyntaxAuditor extends MarkdownSyntaxAuditor {
     super.addViolation(v);
   }
 
-  public testScanFile(relPath: string, content: string): void {
+  public override testScanFile(relPath: string, content: string): void {
     this.scanFile(relPath, content);
   }
 }

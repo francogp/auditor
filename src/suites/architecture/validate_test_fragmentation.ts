@@ -26,6 +26,7 @@ import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
   BaseAuditor,
+  createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { renderBoxTable } from '../../core/unifiedTheme.ts';
@@ -83,7 +84,7 @@ private readonly minTestLines: number;
       ...(config.paths.e2eRoots ?? [])
     ];
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -93,7 +94,7 @@ private readonly minTestLines: number;
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
 id: 'validate_test_fragmentation',
       name: 'Test Anti-Fragmentation Validator',
       description: 'Previene micro-tests (<60 líns) y JSDOM innecesario',
@@ -149,10 +150,14 @@ id: 'validate_test_fragmentation',
     }
 
     // 1. Check micro-test fragmentation
-    this.checkMicroTestFragmentation(normalized, content, lineCount);
+    this.runSubAuditorSync('no-fragmented-tests', () => {
+      this.checkMicroTestFragmentation(normalized, content, lineCount);
+    });
 
     // 2. Check unnecessary JSDOM overhead
-    this.checkUnnecessaryJsdom(normalized, content);
+    this.runSubAuditorSync('unnecessary-jsdom', () => {
+      this.checkUnnecessaryJsdom(normalized, content);
+    });
   }
 
   private checkMicroTestFragmentation(relPath: string, content: string, lineCount: number): void {

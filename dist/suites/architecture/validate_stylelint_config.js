@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import 'stylelint-declaration-strict-value';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
@@ -241,7 +241,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
             : undefined;
         const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(STYLELINT_CONFIG_RULES, {
                 fix: true,
                 fixPriority: true,
                 lint: true,
@@ -251,7 +251,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [...STYLELINT_CONFIG_RULES]),
             fixableRuleIds: [...STYLELINT_CONFIG_RULES],
             configFiles: [STYLELINT_CONFIG_REQUIREMENT],
             id: 'validate_stylelint_config',
@@ -382,21 +382,32 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
         return false;
     }
     async runAudit() {
-        for (const r of STYLELINT_CONFIG_RULES) {
-            this.markRuleEvaluated(r);
-        }
         const config = getAuditConfig(this.projectRoot);
         if (config.stylelint?.enabled === false && config.styles?.stylelint?.enabled === false) {
             for (const r of STYLELINT_CONFIG_RULES) {
-                this.markRuleNotApplicable(r, 'Stylelint deshabilitado en audit.config.ts');
+                this.runSubAuditorSync(r, () => {
+                    this.markRuleNotApplicable(r, 'Stylelint deshabilitado en audit.config.ts');
+                });
             }
             return;
         }
-        const configFile = this.resolveConfigFile(STYLELINT_CONFIG_REQUIREMENT);
+        let configFile = null;
+        this.runSubAuditorSync('stylelint-config-missing', () => {
+            configFile = this.resolveConfigFile(STYLELINT_CONFIG_REQUIREMENT);
+        });
         if (!configFile) {
-            const ensured = await this.ensureConfigFile(STYLELINT_CONFIG_REQUIREMENT);
-            if (!ensured)
+            let ensured = null;
+            await this.runSubAuditor('stylelint-config-missing', async () => {
+                ensured = await this.ensureConfigFile(STYLELINT_CONFIG_REQUIREMENT);
+            });
+            if (!ensured) {
+                for (const r of ['stylelint-config-missing-plugin', 'stylelint-config-missing-strict-value', 'stylelint-config-missing-order']) {
+                    this.runSubAuditorSync(r, () => {
+                        this.markRuleNotApplicable(r, 'Configuración de stylelint ausente');
+                    });
+                }
                 return;
+            }
         }
         const targetFile = configFile ?? path.resolve(this.projectRoot, '.stylelintrc.json');
         this.recordScanned(toPosixRelative(this.projectRoot, targetFile));
@@ -406,17 +417,32 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor {
             parsedConfig = JSON.parse(content);
         }
         catch {
+            for (const r of ['stylelint-config-missing-plugin', 'stylelint-config-missing-strict-value', 'stylelint-config-missing-order']) {
+                this.runSubAuditorSync(r, () => {
+                    this.markRuleNotApplicable(r, 'Archivo .stylelintrc.json inválido o corrupto');
+                });
+            }
             return;
         }
-        const pluginModified = this.auditPlugin(parsedConfig, targetFile);
-        const strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
+        let pluginModified = false;
+        this.runSubAuditorSync('stylelint-config-missing-plugin', () => {
+            pluginModified = this.auditPlugin(parsedConfig, targetFile);
+        });
+        let strictModified = false;
+        this.runSubAuditorSync('stylelint-config-missing-strict-value', () => {
+            strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
+        });
         const orderEnabled = config.stylelint?.order?.enforceHasBlockPartitioning ?? config.styles?.stylelint?.order?.enforceHasBlockPartitioning ?? true;
         let orderModified = false;
         if (orderEnabled !== false) {
-            orderModified = this.auditOrderRule(parsedConfig, targetFile);
+            this.runSubAuditorSync('stylelint-config-missing-order', () => {
+                orderModified = this.auditOrderRule(parsedConfig, targetFile);
+            });
         }
         else {
-            this.markRuleNotApplicable('stylelint-config-missing-order', 'Orden de mixins desactivado en configuración');
+            this.runSubAuditorSync('stylelint-config-missing-order', () => {
+                this.markRuleNotApplicable('stylelint-config-missing-order', 'Orden de mixins desactivado en configuración');
+            });
         }
         if ((pluginModified || strictModified || orderModified) && this.isFixActive()) {
             fs.writeFileSync(targetFile, JSON.stringify(parsedConfig, null, 2) + '\n', 'utf-8');

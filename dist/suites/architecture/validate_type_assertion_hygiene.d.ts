@@ -20,6 +20,5 @@ export interface ValidateTypeAssertionHygieneOptions {
 export declare class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAssertionRuleId> {
     constructor(options?: string | ValidateTypeAssertionHygieneOptions);
     scanFile(filePath: string, content: string): Promise<void>;
-    private scanPattern;
 }
 //# sourceMappingURL=validate_type_assertion_hygiene.d.ts.map

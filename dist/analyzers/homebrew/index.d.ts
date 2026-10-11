@@ -13,7 +13,8 @@ import { braceCountingDetector } from './detectors/braceCountingDetector.ts';
 import { pathContainmentDetector } from './detectors/pathContainmentDetector.ts';
 import { fileWalkerDetector } from './detectors/fileWalkerDetector.ts';
 import { predicatesDetector } from './detectors/predicatesDetector.ts';
+import { manualTimingDetector } from './detectors/manualTimingDetector.ts';
 export * from './homebrewTypes.ts';
 export * from './homebrewRegistry.ts';
-export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector };
+export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector };
 //# sourceMappingURL=index.d.ts.map

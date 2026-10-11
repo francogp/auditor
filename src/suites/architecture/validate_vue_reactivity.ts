@@ -21,7 +21,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
@@ -41,9 +41,11 @@ export const VUE_REACTIVITY_RULES: readonly VueReactivityRuleId[] = [
 ] as const;
 
 const ASYNC_COMPUTED_REGEX = /\bcomputed\s*\(\s*(?:<[^>]+>\s*)?async\s*(?:\([^)]*\)|[\w$]+)\s*=>/g;
+// redos-ok: deterministic property accessor regex
 const WATCH_PROP_NAKED_REGEX = /\bwatch\s*\(\s*(props\.[\w$]+(?:\.[\w$]+)*)\s*,/g;
 const DESTRUCTURED_REACTIVE_REGEX = /const\s+\{[^}]+\}\s*=\s*reactive\s*(?:<[^>]+>\s*)?\(/g;
 
+// redos-ok: deterministic property accessor regex
 const DIRECT_REACTIVE_MUTATION_REGEX =
   /\b(?:(?:props|store)\.(?!value\b)[\w$]+(?:\.[\w$]+)*|[\w$]+\.value)\s*\??\.(?:sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 const LOCAL_IDENTIFIER_MUTATION_REGEX =
@@ -60,7 +62,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     ];
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -70,7 +72,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_vue_reactivity',
       name: 'Vue Reactivity & State Hygiene Auditor',
       description: 'Verifica reactividad y pureza de Vue 3 Composition API',
@@ -130,8 +132,9 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       content
     );
 
-    this.markRuleEvaluated('no-side-effects-in-computed');
-    this.auditComputedSideEffects(relPath, content, scriptContent);
+    this.runSubAuditorSync('no-side-effects-in-computed', () => {
+      this.auditComputedSideEffects(relPath, content, scriptContent);
+    });
   }
 
   private reportComputedViolation(

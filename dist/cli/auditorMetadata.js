@@ -77,6 +77,9 @@ function extractMetadataFromAuditorInstance(val, result) {
         if (instance?.capabilities && typeof instance.capabilities === 'object') {
             result.capabilities = instance.capabilities;
         }
+        if (instance?.ruleCapabilities && typeof instance.ruleCapabilities === 'object') {
+            result.ruleCapabilities = instance.ruleCapabilities;
+        }
         if (instance?.icon && typeof instance.icon === 'string') {
             result.icon = instance.icon;
         }

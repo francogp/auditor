@@ -81,7 +81,7 @@ export class GitIgnoreMatcher {
                 this.ignoredDirPrefixes.push(pattern + '/');
                 this.ignoredDirPrefixes.push(pattern);
             }
-            const regex = this.patternToRegex(pattern, isDirectoryOnly, isRootRelative);
+            const regex = this.patternToRegex(pattern, isRootRelative);
             this.rules.push({
                 pattern,
                 isNegative,
@@ -91,7 +91,7 @@ export class GitIgnoreMatcher {
             });
         }
     }
-    patternToRegex(pattern, _isDirectoryOnly, isRootRelative) {
+    patternToRegex(pattern, isRootRelative) {
         const escaped = convertGlobToRegexString(pattern);
         const prefix = isRootRelative ? '^' : '(?:^|/)';
         return new RegExp(`${prefix}${escaped}(?:/.*)?$`);

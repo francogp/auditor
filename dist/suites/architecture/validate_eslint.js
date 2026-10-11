@@ -16,7 +16,7 @@
 import path from 'node:path';
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { parseLintResultsToFindings, extractJsonReportFilePaths } from "../../core/reportUtils.js";
@@ -54,7 +54,7 @@ export class EslintAuditor extends BaseAuditor {
     constructor(projectRoot) {
         const effectiveRoot = projectRoot || process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(ESLINT_RULES, {
                 fix: true,
                 fixPriority: false,
                 lint: true,
@@ -64,7 +64,7 @@ export class EslintAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, ['eslint-violation']),
             fixableRuleIds: ['eslint-violation'],
             gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
             id: 'validate_eslint',

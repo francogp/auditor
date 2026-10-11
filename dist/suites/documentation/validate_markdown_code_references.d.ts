@@ -50,7 +50,7 @@ export declare class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownC
     private readonly scanRoots;
     private readonly gitIgnoreMatcher;
     constructor(scanRoots?: readonly string[], rootDir?: string);
-    private scanMarkdownFile;
+    private scanMarkdownDocReferences;
     runAudit(): Promise<void>;
     private collectMarkdownFiles;
 }

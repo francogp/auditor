@@ -226,9 +226,31 @@ export function validateAuditorConstruction(auditor: BaseAuditor<string>, taskId
   validateAuditorConfigContract(auditor, taskId, errors);
   validateAuditorCriticalConfigContract(auditor, taskId, errors);
   validateAuditorCapabilitiesContract(auditor, taskId, errors);
+  validateAuditorRuleCapabilitiesContract(auditor, taskId, errors);
   validateAuditorScriptsContract(auditor, taskId, errors);
 
   return errors;
+}
+
+function validateAuditorRuleCapabilitiesContract(auditor: BaseAuditor<string>, taskId: string, errors: string[]): void {
+  if (!auditor.ruleCapabilities || typeof auditor.ruleCapabilities !== 'object') {
+    errors.push(`Auditor [${taskId}] no define el mapa obligatorio de 'ruleCapabilities' por sub-auditor.`);
+    return;
+  }
+
+  const REQUIRED_CAPS = ['fix', 'fixPriority', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'] as const;
+  for (const ruleId of auditor.ruleIds) {
+    const caps = auditor.ruleCapabilities[ruleId];
+    if (!caps || typeof caps !== 'object') {
+      errors.push(`Auditor [${taskId}] no define 'ruleCapabilities' para la regla declarada '${ruleId}'.`);
+      continue;
+    }
+    for (const cap of REQUIRED_CAPS) {
+      if (typeof caps[cap] !== 'boolean') {
+        errors.push(`Auditor [${taskId}] sub-auditor '${ruleId}' debe definir explícitamente ruleCapabilities.${ruleId}.${cap} como booleano.`);
+      }
+    }
+  }
 }
 
 function validateAuditorCriticalConfigContract(auditor: BaseAuditor<string>, taskId: string, errors: string[]): void {

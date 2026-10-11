@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { publint, type Message } from 'publint';
 import { formatMessage } from 'publint/utils';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { PackageDistributionLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
@@ -82,7 +82,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
   constructor(options: { projectRoot?: string } = {}) {
     super({
       projectRoot: options.projectRoot,
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(PACKAGE_DISTRIBUTION_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -92,7 +92,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         heavy: false,
         requiresBuild: true,
         postRun: false
-      },
+      }),
       id: 'validate_package_distribution',
       name: 'Package Distribution & Exports Hygiene Auditor',
       description: 'Valida export maps y packaging con Publint',
@@ -119,7 +119,6 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
       return;
     }
 
-    PACKAGE_DISTRIBUTION_RULES.forEach((r) => this.markRuleEvaluated(r));
     this.recordScanned('package.json');
 
     const config = getAuditConfig(this.projectRoot);
@@ -130,11 +129,25 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
     const pkgJson = this.readTargetPackageJson(targetPkgDir);
     if (!pkgJson) return;
 
-    await this.runPublintAnalysis(
-      targetPkgDir,
-      pkgJson,
-      (config.packageDistribution?.level ?? 'warning') as PackageDistributionLevel
-    );
+    const level = (config.packageDistribution?.level ?? 'warning') as PackageDistributionLevel;
+    const result = await publint({ pkgDir: targetPkgDir, level });
+    const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
+
+    for (const ruleId of PACKAGE_DISTRIBUTION_RULES) {
+      this.runSubAuditorSync(ruleId, () => {
+        const ruleFindings = findings.filter(f => f.ruleId === ruleId);
+        for (const finding of ruleFindings) {
+          this.addViolation({
+            ruleId,
+            severity: finding.severity,
+            file: finding.file ?? 'package.json',
+            line: finding.line ?? 1,
+            context: finding.context ?? finding.message,
+            message: finding.message
+          });
+        }
+      });
+    }
   }
 
   private readTargetPackageJson(targetPkgDir: string): Record<string, unknown> | null {
@@ -163,25 +176,6 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         message: `package.json corrupto o inválido: ${err instanceof Error ? err.message : String(err)}`
       });
       return null;
-    }
-  }
-
-  private async runPublintAnalysis(
-    targetPkgDir: string,
-    pkgJson: Record<string, unknown>,
-    level: PackageDistributionLevel
-  ): Promise<void> {
-    const result = await publint({ pkgDir: targetPkgDir, level });
-    const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
-    for (const finding of findings) {
-      this.addViolation({
-        ruleId: (finding.ruleId as PackageDistributionRuleId) ?? 'pkg-distribution-invalid-exports',
-        severity: finding.severity,
-        file: finding.file ?? 'package.json',
-        line: finding.line ?? 1,
-        context: finding.context ?? finding.message,
-        message: finding.message
-      });
     }
   }
 }

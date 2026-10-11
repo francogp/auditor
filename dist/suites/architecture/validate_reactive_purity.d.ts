@@ -21,6 +21,7 @@ export declare const REACTIVE_PURITY_RULES: readonly ReactivePurityRuleId[];
 export declare class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
     private checkComputedCall;
+    private activeTargetRule?;
     protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void;
     private reportComputedViolation;
     private inspectGetterBody;

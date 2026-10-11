@@ -13,7 +13,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { lintSource } from '@secretlint/core';
 import { rules as presetRules } from '@secretlint/secretlint-rule-preset-recommend';
-import { BaseAuditor, FileScanAuditor, matchesSinglePattern } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, matchesSinglePattern, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const SECRET_LEAKS_RULES = [
@@ -65,7 +65,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(SECRET_LEAKS_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -75,7 +75,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_secret_leaks',
             name: 'Secret Leaks & Credentials Auditor',
             description: 'Detecta credenciales, tokens y secretos expuestos',
@@ -112,6 +112,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
         }
         const maskSecrets = config.secretLeaks?.maskSecrets ?? true;
         const ext = path.extname(relPath) || '.txt';
+        let messages = [];
         try {
             const result = await lintSource({
                 source: {
@@ -125,10 +126,17 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
                     maskSecrets
                 }
             });
-            for (const msg of result.messages) {
+            messages = result.messages;
+        }
+        catch {
+            // catch-ok: Ignore unparseable or binary files during secret scanning
+        }
+        this.runSubAuditorSync('secret-leak-detected', () => {
+            const regularMessages = messages.filter(msg => msg.messageId !== 'PrivateKey' && !msg.ruleId.includes('privatekey'));
+            for (const msg of regularMessages) {
                 const finding = mapSecretLintMessageToFinding(msg, relPath);
                 this.addViolation({
-                    ruleId: finding.ruleId,
+                    ruleId: 'secret-leak-detected',
                     severity: finding.severity,
                     file: finding.file,
                     line: finding.line,
@@ -137,10 +145,22 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
                     message: finding.message
                 });
             }
-        }
-        catch {
-            // catch-ok: Ignore unparseable or binary files during secret scanning
-        }
+        });
+        this.runSubAuditorSync('secret-leak-private-key', () => {
+            const keyMessages = messages.filter(msg => msg.messageId === 'PrivateKey' || msg.ruleId.includes('privatekey'));
+            for (const msg of keyMessages) {
+                const finding = mapSecretLintMessageToFinding(msg, relPath);
+                this.addViolation({
+                    ruleId: 'secret-leak-private-key',
+                    severity: finding.severity,
+                    file: finding.file,
+                    line: finding.line,
+                    col: finding.col,
+                    context: finding.context,
+                    message: finding.message
+                });
+            }
+        });
     }
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSecretLeaksAuditor());

@@ -13,7 +13,7 @@
  *   5. o1-redundant-spread-return: Redundant 'return [...arr]' instead of directly returning 'readonly T[]'.
  */
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
@@ -134,7 +134,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths.codeRoots ?? ['src'];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(O1_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -144,7 +144,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_o1_data_structures',
             name: 'O(1) Data Structure & Performance Auditor',
             description: 'Búsqueda lineal O(N) o clonado con JSON.parse',
@@ -167,6 +167,14 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
             projectRoot
         });
     }
+    async runAudit(astContext) {
+        const config = getAuditConfig(this.projectRoot);
+        const catalogPatterns = config.domain?.o1CatalogPatterns ?? [];
+        if (catalogPatterns.length === 0) {
+            this.markRuleNotApplicable('o1-catalog-lookup', 'No o1CatalogPatterns configurados en audit.config.ts');
+        }
+        await super.runAudit(astContext);
+    }
     scanFile(relPath, content) {
         const config = getAuditConfig(this.projectRoot);
         const isTest = isTestPath(relPath);
@@ -176,16 +184,123 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
         if (relPath.endsWith('validate_o1_data_structures.ts')) {
             return;
         }
-        const issues = scanFileForO1Issues(relPath, content);
-        for (const issue of issues) {
-            this.addViolation({
-                ruleId: issue.ruleId,
-                severity: issue.isWarning ? 'warning' : 'error',
-                file: relPath,
-                line: issue.line,
-                message: issue.message,
-                context: issue.context
+        const lines = content.split('\n');
+        const normalizedPath = normalizePosixPath(relPath);
+        const catalogPatterns = getResolvedO1CatalogPatterns();
+        if (catalogPatterns.length > 0) {
+            this.runSubAuditorSync('o1-catalog-lookup', () => {
+                this.scanCatalogLookups(relPath, lines, normalizedPath, catalogPatterns);
             });
+        }
+        this.runSubAuditorSync('o1-linear-membership', () => {
+            this.scanLinearMembership(relPath, lines);
+        });
+        this.runSubAuditorSync('o1-object-scan', () => {
+            this.scanObjectScan(relPath, lines);
+        });
+        this.runSubAuditorSync('o1-json-clone', () => {
+            this.scanJsonClone(relPath, lines);
+        });
+        this.runSubAuditorSync('o1-redundant-spread-return', () => {
+            this.scanRedundantSpreadReturn(relPath, lines);
+        });
+    }
+    scanCatalogLookups(relPath, lines, normalizedPath, catalogPatterns) {
+        for (let index = 0; index < lines.length; index++) {
+            const lineText = lines[index];
+            if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*'))
+                continue;
+            for (const catalog of catalogPatterns) {
+                if (normalizedPath.endsWith(catalog.definingFile))
+                    continue;
+                catalog.pattern.lastIndex = 0;
+                if (catalog.pattern.test(lineText)) {
+                    this.addViolation({
+                        ruleId: 'o1-catalog-lookup',
+                        severity: 'error',
+                        file: relPath,
+                        line: index + 1,
+                        message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
+                        context: lineText.trim()
+                    });
+                }
+            }
+        }
+    }
+    scanLinearMembership(relPath, lines) {
+        for (let index = 0; index < lines.length; index++) {
+            const lineText = lines[index];
+            if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*'))
+                continue;
+            P_STATIC_ARRAY_INCLUDES.lastIndex = 0;
+            let match;
+            while ((match = P_STATIC_ARRAY_INCLUDES.exec(lineText)) !== null) {
+                const arrayName = match[1];
+                this.addViolation({
+                    ruleId: 'o1-linear-membership',
+                    severity: 'error',
+                    file: relPath,
+                    line: index + 1,
+                    message: `Linear O(N) membership check with '.includes()' on '${arrayName}'. Derive a 'ReadonlySet<T>' and use '.has()'`,
+                    context: lineText.trim()
+                });
+            }
+        }
+    }
+    scanObjectScan(relPath, lines) {
+        for (let index = 0; index < lines.length; index++) {
+            const lineText = lines[index];
+            if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*'))
+                continue;
+            P_OBJECT_SCAN_LOOKUP.lastIndex = 0;
+            if (P_OBJECT_SCAN_LOOKUP.test(lineText)) {
+                this.addViolation({
+                    ruleId: 'o1-object-scan',
+                    severity: 'error',
+                    file: relPath,
+                    line: index + 1,
+                    message: "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
+                    context: lineText.trim()
+                });
+            }
+        }
+    }
+    scanJsonClone(relPath, lines) {
+        for (let index = 0; index < lines.length; index++) {
+            const lineText = lines[index];
+            if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*'))
+                continue;
+            P_JSON_CLONE.lastIndex = 0;
+            if (P_JSON_CLONE.test(lineText)) {
+                this.addViolation({
+                    ruleId: 'o1-json-clone',
+                    severity: 'error',
+                    file: relPath,
+                    line: index + 1,
+                    message: "Forbidden 'JSON" + ".parse(JSON" + ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
+                    context: lineText.trim()
+                });
+            }
+        }
+    }
+    scanRedundantSpreadReturn(relPath, lines) {
+        for (let index = 0; index < lines.length; index++) {
+            const lineText = lines[index];
+            if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*'))
+                continue;
+            P_REDUNDANT_SPREAD_RETURN.lastIndex = 0;
+            const spreadMatch = P_REDUNDANT_SPREAD_RETURN.exec(lineText);
+            if (spreadMatch && spreadMatch[1]) {
+                const target = spreadMatch[1].trim();
+                this.addViolation({
+                    ruleId: 'o1-redundant-spread-return',
+                    severity: 'error',
+                    file: relPath,
+                    line: index + 1,
+                    message: `Redundant array spread 'return [...${target}]'. Return the collection directly typed as 'readonly T[]' to prevent unnecessary heap allocations and GC churn.`,
+                    context: lineText.trim()
+                });
+            }
         }
     }
 }

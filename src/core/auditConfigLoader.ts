@@ -145,12 +145,12 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
     cachedProjectRoot = projectRoot;
     serializeAuditConfigToEnv(cachedConfig, projectRoot);
     return cachedConfig;
-  } else {
-    const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
-    if (loaded) {
-      serializeAuditConfigToEnv(loaded, projectRoot);
-      return loaded;
-    }
+  }
+
+  const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
+  if (loaded) {
+    serializeAuditConfigToEnv(loaded, projectRoot);
+    return loaded;
   }
 
   cachedConfig = DEFAULT_AUDIT_CONFIG;

@@ -22,7 +22,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, getAuditConfig } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, getAuditConfig } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -63,6 +63,17 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       description: 'Valida higiene GPU y blend-modes en capas de clima',
       icon: '⚡',
       family: 'architecture',
+      ruleCapabilities: createUniformRuleCapabilities(RENDER_PERFORMANCE_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: true,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }),
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',
       configKey: 'styles.heavyEffectPaths',
@@ -94,47 +105,53 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
 
     const lines = content.split(/\r?\n/);
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const lineNum = i + 1;
-
-      // Escape hatches
-      if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) {
-        continue;
-      }
-
-      // Rule 1: render-banned-mix-blend-mode
-      if (isWeatherStyle || line.includes('weather-overlay') || line.includes('rain-layer')) {
-        const mixBlendMatch = /mix-blend-mode\s*:\s*(?!normal\b)([a-z-]+)/i.exec(line);
-        if (mixBlendMatch) {
-          this.addViolation({
-            ruleId: 'render-banned-mix-blend-mode',
-            severity: 'error',
-            file: relPath,
-            line: lineNum,
-            message: `Uso prohibido de 'mix-blend-mode: ${mixBlendMatch[1]}' en capa de clima/animación. Causa framebuffer readbacks y degrada el fill-rate GPU. Usa composición alpha estándar o capas SVG.`,
-            context: line.trim()
-          });
+    // Rule 1: render-banned-mix-blend-mode
+    this.runSubAuditorSync('render-banned-mix-blend-mode', () => {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
+        if (isWeatherStyle || line.includes('weather-overlay') || line.includes('rain-layer')) {
+          const mixBlendMatch = /mix-blend-mode\s*:\s*(?!normal\b)([a-z-]+)/i.exec(line);
+          if (mixBlendMatch) {
+            this.addViolation({
+              ruleId: 'render-banned-mix-blend-mode',
+              severity: 'error',
+              file: relPath,
+              line: i + 1,
+              message: `Uso prohibido de 'mix-blend-mode: ${mixBlendMatch[1]}' en capa de clima/animación. Causa framebuffer readbacks y degrada el fill-rate GPU. Usa composición alpha estándar o capas SVG.`,
+              context: line.trim()
+            });
+          }
         }
       }
+    });
 
-      // Rule 2: render-banned-filter-in-weather
-      if (isWeatherStyle) {
+    // Rule 2: render-banned-filter-in-weather
+    this.runSubAuditorSync('render-banned-filter-in-weather', () => {
+      if (!isWeatherStyle) return;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         const filterMatch = /filter\s*:\s*[^;]*(?:drop-shadow|blur)\s*\(/i.exec(line);
         if (filterMatch) {
           this.addViolation({
             ruleId: 'render-banned-filter-in-weather',
             severity: 'error',
             file: relPath,
-            line: lineNum,
+            line: i + 1,
             message: `Filtro costoso ('drop-shadow' o 'blur') en estilos de clima. Forzar convolución gaussiana en GPU a 60 FPS causa tirones de fotogramas. Usa siluetas SVG multicapa o box-shadow.`,
             context: line.trim()
           });
         }
       }
+    });
 
-      // Rule 3: render-excessive-atmospheric-inset
-      if (isWeatherStyle) {
+    // Rule 3: render-excessive-atmospheric-inset
+    this.runSubAuditorSync('render-excessive-atmospheric-inset', () => {
+      if (!isWeatherStyle) return;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         const insetMatch = /inset\s*:\s*-\s*([0-9]+)px/i.exec(line);
         if (insetMatch) {
           const px = parseInt(insetMatch[1]!, 10);
@@ -143,28 +160,33 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
               ruleId: 'render-excessive-atmospheric-inset',
               severity: 'error',
               file: relPath,
-              line: lineNum,
+              line: i + 1,
               message: `Inset negativo excesivo (-${px}px > -${MAX_PERMISSIBLE_NEGATIVE_INSET_PX}px) en capa atmosférica. Multiplica el búfer de textura por millones de píxeles innecesarios. Usa inset: -128px como máximo.`,
               context: line.trim()
             });
           }
         }
       }
+    });
 
-      // Rule 4: render-gsap-cpu-modifier
-      if (isAtmosphereAnim) {
+    // Rule 4: render-gsap-cpu-modifier
+    this.runSubAuditorSync('render-gsap-cpu-modifier', () => {
+      if (!isAtmosphereAnim) return;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         if (/\bmodifiers\s*:\s*\{/.test(line)) {
           this.addViolation({
             ruleId: 'render-gsap-cpu-modifier',
             severity: 'error',
             file: relPath,
-            line: lineNum,
+            line: i + 1,
             message: `Modificador JS en GSAP ('modifiers: { ... }') ejecutado en bucle continuo de animación. Forzar cálculos en CPU cada fotograma degrada los 60 FPS. Usa transformaciones de GPU nativas con bucle modular de GSAP.`,
             context: line.trim()
           });
         }
       }
-    }
+    });
   }
 }
 

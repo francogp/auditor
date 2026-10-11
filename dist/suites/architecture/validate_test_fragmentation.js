@@ -22,7 +22,7 @@
  */
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor, } from "../../core/auditorBase.js";
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { renderBoxTable } from "../../core/unifiedTheme.js";
 enableCompileCache();
@@ -59,7 +59,7 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             ...(config.paths.e2eRoots ?? [])
         ];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -69,7 +69,7 @@ export class TestFragmentationAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_test_fragmentation',
             name: 'Test Anti-Fragmentation Validator',
             description: 'Previene micro-tests (<60 líns) y JSDOM innecesario',
@@ -122,9 +122,13 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             this.distribution.other++;
         }
         // 1. Check micro-test fragmentation
-        this.checkMicroTestFragmentation(normalized, content, lineCount);
+        this.runSubAuditorSync('no-fragmented-tests', () => {
+            this.checkMicroTestFragmentation(normalized, content, lineCount);
+        });
         // 2. Check unnecessary JSDOM overhead
-        this.checkUnnecessaryJsdom(normalized, content);
+        this.runSubAuditorSync('unnecessary-jsdom', () => {
+            this.checkUnnecessaryJsdom(normalized, content);
+        });
     }
     checkMicroTestFragmentation(relPath, content, lineCount) {
         if (this.minTestLines <= 0 || lineCount >= this.minTestLines) {

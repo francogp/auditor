@@ -132,12 +132,10 @@ export async function loadAuditConfig(projectRoot = process.cwd()) {
         serializeAuditConfigToEnv(cachedConfig, projectRoot);
         return cachedConfig;
     }
-    else {
-        const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
-        if (loaded) {
-            serializeAuditConfigToEnv(loaded, projectRoot);
-            return loaded;
-        }
+    const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
+    if (loaded) {
+        serializeAuditConfigToEnv(loaded, projectRoot);
+        return loaded;
     }
     cachedConfig = DEFAULT_AUDIT_CONFIG;
     cachedProjectRoot = projectRoot;

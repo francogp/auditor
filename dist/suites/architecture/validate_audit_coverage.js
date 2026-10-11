@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import nodeFs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, isPathIgnored } from "../../core/auditorBase.js";
+import { BaseAuditor, isPathIgnored, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig, AUDIT_CONFIG_FILE } from "../../core/auditConfig.js";
 import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_RUN_MODE_ENV, isAuditableCodebaseFile, isDeclaredByCoverage, readCoverageLedgers, resolveActiveCoverageRunId } from "../../core/auditCoverage.js";
 import { getMatchingExemptionPolicies } from "../../core/exemptionPolicies.js";
@@ -78,28 +78,35 @@ function buildDegradedPolicyFindings(degradedByPolicy, config) {
     }
     return findings;
 }
-function analyzeUncoveredAndDegraded(input, ledgers, scannedSets) {
+function analyzeUncoveredFiles(input, ledgers, scannedSets) {
     const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
-    const acknowledged = input.config.coverage?.acknowledgedDegradations ?? [];
-    const uncovered = []; // no-domain: Non-domain utility collection or data structure
-    const degradedByPolicy = new Map();
+    const uncovered = []; // domain-ok: Non-domain relative file path strings collection
     for (const file of input.trackedFiles) {
         if (input.isGloballyIgnored(file) || !isAuditableCodebaseFile(file, customExemptGlobs)) {
             continue;
         }
         if (!ledgers.some(l => isCoveredBy(file, l, scannedSets))) {
             uncovered.push(file);
+        }
+    }
+    return directoryFindings('coverage-uncovered-file', uncovered, count => `${count} archivo(s) versionado(s) que ninguna suite analiza (falso limpio)`, 'Agrega una suite que los cubra o declara coverage.exemptGlobs con reason');
+}
+function analyzeDegradedFiles(input, ledgers, scannedSets) {
+    const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+    const acknowledged = input.config.coverage?.acknowledgedDegradations ?? [];
+    const degradedByPolicy = new Map();
+    for (const file of input.trackedFiles) {
+        if (input.isGloballyIgnored(file) || !isAuditableCodebaseFile(file, customExemptGlobs)) {
             continue;
         }
-        recordDegradedPolicyViolations(file, input.config, acknowledged, degradedByPolicy);
+        if (ledgers.some(l => isCoveredBy(file, l, scannedSets))) {
+            recordDegradedPolicyViolations(file, input.config, acknowledged, degradedByPolicy);
+        }
     }
-    const findings = directoryFindings('coverage-uncovered-file', uncovered, count => `${count} archivo(s) versionado(s) que ninguna suite analiza (falso limpio)`, 'Agrega una suite que los cubra o declara coverage.exemptGlobs con reason');
-    findings.push(...buildDegradedPolicyFindings(degradedByPolicy, input.config));
-    return findings;
+    return buildDegradedPolicyFindings(degradedByPolicy, input.config);
 }
-function analyzeDrift(input, ledgers, scannedSets) {
+function analyzeDeclaredNotScanned(input, ledgers, scannedSets) {
     const findings = [];
-    const tracked = new Set(input.trackedFiles);
     const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
     for (const ledger of ledgers) {
         if (ledger.skipped || ledger.source !== 'runtime')
@@ -109,8 +116,18 @@ function analyzeDrift(input, ledgers, scannedSets) {
             !input.isGloballyIgnored(f) &&
             isAuditableCodebaseFile(f, customExemptGlobs) &&
             isDeclaredByCoverage(f, ledger.declared));
-        const undeclared = [...scanned].filter(f => tracked.has(f) && !isDeclaredByCoverage(f, ledger.declared));
         findings.push(...directoryFindings('coverage-declared-not-scanned', notScanned, count => `[${ledger.suiteId}] declara ${count} archivo(s) que no escaneó`, `${ledger.suiteId}: alinea coverage.include/exclude con lo que realmente analiza`));
+    }
+    return findings;
+}
+function analyzeScannedNotDeclared(input, ledgers, scannedSets) {
+    const findings = [];
+    const tracked = new Set(input.trackedFiles);
+    for (const ledger of ledgers) {
+        if (ledger.skipped || ledger.source !== 'runtime')
+            continue;
+        const scanned = scannedSets.get(ledger.suiteId);
+        const undeclared = [...scanned].filter(f => tracked.has(f) && !isDeclaredByCoverage(f, ledger.declared));
         findings.push(...directoryFindings('coverage-scanned-undeclared', undeclared, count => `[${ledger.suiteId}] escaneó ${count} archivo(s) fuera de su declaración`, `${ledger.suiteId}: amplía coverage.include o deja de escanearlos`));
     }
     return findings;
@@ -133,7 +150,7 @@ function analyzeDormantRules(ledgers) {
     }
     return findings;
 }
-function analyzeExemptionsAndLedgers(input, ledgers) {
+function analyzeInvalidExemptions(input) {
     const findings = [];
     const configFile = AUDIT_CONFIG_FILE;
     for (const exemption of input.config.coverage?.exemptGlobs ?? []) {
@@ -157,6 +174,10 @@ function analyzeExemptionsAndLedgers(input, ledgers) {
             });
         }
     }
+    return findings;
+}
+function analyzeMissingLedgers(input, ledgers) {
+    const findings = [];
     const ledgerIds = new Set(ledgers.map(l => l.suiteId));
     for (const suiteId of input.expectedSuites) {
         if (!ledgerIds.has(suiteId)) {
@@ -177,10 +198,13 @@ export function analyzeAuditCoverage(input) {
     const ledgers = input.ledgers.filter(l => l.suiteId !== AUDIT_COVERAGE_SUITE_ID);
     const scannedSets = new Map(ledgers.map(l => [l.suiteId, new Set(l.scanned)]));
     return [
-        ...analyzeUncoveredAndDegraded(input, ledgers, scannedSets),
-        ...analyzeDrift(input, ledgers, scannedSets),
+        ...analyzeUncoveredFiles(input, ledgers, scannedSets),
+        ...analyzeDegradedFiles(input, ledgers, scannedSets),
+        ...analyzeDeclaredNotScanned(input, ledgers, scannedSets),
+        ...analyzeScannedNotDeclared(input, ledgers, scannedSets),
         ...analyzeDormantRules(ledgers),
-        ...analyzeExemptionsAndLedgers(input, ledgers)
+        ...analyzeInvalidExemptions(input),
+        ...analyzeMissingLedgers(input, ledgers)
     ];
 }
 /** Tracked files (git index) that still exist on disk, as POSIX relative paths. */
@@ -197,7 +221,7 @@ export function listTrackedFiles(projectRoot) {
 export class AuditCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -207,7 +231,7 @@ export class AuditCoverageAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: true
-            },
+            }),
             id: AUDIT_COVERAGE_SUITE_ID,
             name: 'Audit Coverage & Blind Spots',
             description: 'Detecta puntos ciegos: archivos, reglas y exenciones',
@@ -249,15 +273,39 @@ export class AuditCoverageAuditor extends BaseAuditor {
             .split(',')
             .map(s => s.trim())
             .filter(s => s.length > 0 && s !== AUDIT_COVERAGE_SUITE_ID);
-        const findings = analyzeAuditCoverage({
-            trackedFiles: listTrackedFiles(this.projectRoot),
-            ledgers: await readCoverageLedgers(this.projectRoot, runId),
+        const trackedFiles = listTrackedFiles(this.projectRoot);
+        const rawLedgers = await readCoverageLedgers(this.projectRoot, runId);
+        const ledgers = rawLedgers.filter(l => l.suiteId !== AUDIT_COVERAGE_SUITE_ID);
+        const scannedSets = new Map(ledgers.map(l => [l.suiteId, new Set(l.scanned)]));
+        const input = {
+            trackedFiles,
+            ledgers: rawLedgers,
             expectedSuites,
             config,
             isGloballyIgnored: rel => isPathIgnored(rel)
+        };
+        const findings = [];
+        this.runSubAuditorSync('coverage-uncovered-file', () => {
+            findings.push(...analyzeUncoveredFiles(input, ledgers, scannedSets));
         });
-        for (const ruleId of AUDIT_COVERAGE_RULES)
-            this.markRuleEvaluated(ruleId);
+        this.runSubAuditorSync('coverage-degraded-file', () => {
+            findings.push(...analyzeDegradedFiles(input, ledgers, scannedSets));
+        });
+        this.runSubAuditorSync('coverage-declared-not-scanned', () => {
+            findings.push(...analyzeDeclaredNotScanned(input, ledgers, scannedSets));
+        });
+        this.runSubAuditorSync('coverage-scanned-undeclared', () => {
+            findings.push(...analyzeScannedNotDeclared(input, ledgers, scannedSets));
+        });
+        this.runSubAuditorSync('coverage-dormant-rule', () => {
+            findings.push(...analyzeDormantRules(ledgers));
+        });
+        this.runSubAuditorSync('coverage-invalid-exemption', () => {
+            findings.push(...analyzeInvalidExemptions(input));
+        });
+        this.runSubAuditorSync('coverage-missing-ledger', () => {
+            findings.push(...analyzeMissingLedgers(input, ledgers));
+        });
         for (const finding of findings) {
             this.addViolation({ ...finding, severity: 'error', line: 1 });
         }

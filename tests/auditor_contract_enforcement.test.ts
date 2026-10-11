@@ -52,16 +52,29 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
   coverage: {
     include: ['src/**/*.ts']
   },
-  capabilities: {
-    fix: false,
-    fixPriority: false,
-    lint: false,
-    md: false,
-    ast: false,
-    changedSince: false,
-    heavy: false,
-    requiresBuild: false,
-    postRun: false
+  ruleCapabilities: {
+    'sample-rule-a': {
+      fix: false,
+      fixPriority: false,
+      lint: false,
+      md: false,
+      ast: false,
+      changedSince: false,
+      heavy: false,
+      requiresBuild: false,
+      postRun: false
+    },
+    'sample-rule-b': {
+      fix: false,
+      fixPriority: false,
+      lint: false,
+      md: false,
+      ast: false,
+      changedSince: false,
+      heavy: false,
+      requiresBuild: false,
+      postRun: false
+    }
   }
 };
 

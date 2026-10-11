@@ -19,6 +19,21 @@ Pre-formatted, production-ready templates conforming to all project standards ar
 
 Use `FileScanAuditor` when the audit inspects files line-by-line across specific directories (e.g. searching for regex patterns, forbidden tokens, or syntax rules).
 
+```mermaid
+flowchart LR
+    A["File Discovery (collectFiles)"] --> B["File Content Ingestion"]
+    B --> C["FileScanAuditor Pipeline"]
+    subgraph Declarative Architecture
+        C --> D["declarePatternSubAuditor (Regex Pattern)"]
+        C --> E["declareFileSubAuditor (Document AST/Logic)"]
+        C --> F["scanFile (Custom Rule Walk)"]
+    end
+    D --> G["runSubAuditorSync (Rule 1: Empirical Timing)"]
+    E --> H["runSubAuditorSync (Rule 2: Empirical Timing)"]
+    F --> I["runSubAuditorSync (Rule 3: Empirical Timing)"]
+    G & H & I --> J["Consolidated Box-Drawing Report"]
+```
+
 ```typescript
 /**
  * scripts/auditors/architecture/validate_my_feature.ts
@@ -73,24 +88,42 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 
   protected override scanFile(relPath: string, content: string): void {
     const lines = content.split(/\r?\n/);
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const lineNum = i + 1;
 
-      // Check escape hatches: // domain-ok, // my-feature-ok, or multiline comments
-      if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-token', lines, i)) continue;
+    // Rule 1: Forbidden token check (empirically timed, markRuleEvaluated handled automatically)
+    this.runSubAuditorSync('my-feature-forbidden-token', () => {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        const lineNum = i + 1;
 
-      if (line.includes('bannedToken')) {
+        // Check escape hatches: // domain-ok, // my-feature-ok, or multiline comments
+        if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-token', lines, i)) continue;
+
+        if (line.includes('bannedToken')) {
+          this.addViolation({
+            ruleId: 'my-feature-forbidden-token',
+            severity: 'error',
+            file: relPath,
+            line: lineNum,
+            message: `Forbidden token 'bannedToken' detected. Use canonical helper instead.`,
+            context: line.trim()
+          });
+        }
+      }
+    });
+
+    // Rule 2: Missing attribute check (empirically timed)
+    this.runSubAuditorSync('my-feature-missing-attribute', () => {
+      if (relPath.endsWith('.vue') && content.includes('<custom-widget') && !content.includes('aria-label=')) {
         this.addViolation({
-          ruleId: 'my-feature-forbidden-token',
+          ruleId: 'my-feature-missing-attribute',
           severity: 'error',
           file: relPath,
-          line: lineNum,
-          message: `Forbidden token 'bannedToken' detected. Use canonical helper instead.`,
-          context: line.trim()
+          line: 1,
+          message: `<custom-widget> requires an 'aria-label' attribute.`,
+          context: '<custom-widget'
         });
       }
-    }
+    });
   }
 }
 
@@ -159,22 +192,40 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
   public override async runAudit(): Promise<void> {
     const dataFilePath = path.resolve(this.projectRoot, 'src/data/myData.ts');
     this.recordScanned(dataFilePath);
-    this.markRuleEvaluated('my-data-key-missing');
-    this.markRuleEvaluated('my-data-value-invalid');
 
     this.context.logStep(1, 2, 'Validating my data keys...');
-    for (const [key, value] of Object.entries(MY_DATA)) {
-      if (!value.requiredField) {
-        this.addViolation({
-          ruleId: 'my-data-key-missing',
-          severity: 'error',
-          file: 'src/data/myData.ts',
-          line: 1,
-          message: `Entry '${key}' is missing 'requiredField'.`,
-          context: key
-        });
+
+    // Rule 1: Missing key check (timed empirically)
+    this.runSubAuditorSync('my-data-key-missing', () => {
+      for (const [key, value] of Object.entries(MY_DATA)) {
+        if (!value.requiredField) {
+          this.addViolation({
+            ruleId: 'my-data-key-missing',
+            severity: 'error',
+            file: 'src/data/myData.ts',
+            line: 1,
+            message: `Entry '${key}' is missing 'requiredField'.`,
+            context: key
+          });
+        }
       }
-    }
+    });
+
+    // Rule 2: Value check (timed empirically)
+    this.runSubAuditorSync('my-data-value-invalid', () => {
+      for (const [key, value] of Object.entries(MY_DATA)) {
+        if (typeof value.requiredField !== 'string') {
+          this.addViolation({
+            ruleId: 'my-data-value-invalid',
+            severity: 'error',
+            file: 'src/data/myData.ts',
+            line: 1,
+            message: `Entry '${key}' has invalid value.`,
+            context: key
+          });
+        }
+      }
+    });
 
     this.context.setMetric('Total Entries Checked', Object.keys(MY_DATA).length);
   }
@@ -200,15 +251,14 @@ Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFil
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext } from '@francogp/auditor';
+import { BaseAuditor, SharedAstContext, createRuleCapabilities } from '@francogp/auditor';
 
 enableCompileCache();
 
-export type MyAstRuleId = 'my-ast-forbidden-call';
-
-export const MY_AST_RULES: readonly MyAstRuleId[] = [
+export const MY_AST_RULES = [
   'my-ast-forbidden-call'
 ] as const;
+export type MyAstRuleId = (typeof MY_AST_RULES)[number];
 
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   constructor() {
@@ -228,7 +278,17 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
       },
-      capabilities: { ast: true },
+      ruleCapabilities: createRuleCapabilities(MY_AST_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: true,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }),
       requiresAst: true,
       roots: ['src'],
       allowedExtensions: new Set(['.ts', '.vue'])
@@ -236,24 +296,24 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
-    this.context.logStep(1, 1, 'Analizando AST con contexto compartido...');
-
     const astEngine = astContext ?? new SharedAstContext();
     const relFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
 
-    for (const relFile of relFiles) {
-      this.filesScannedCount++;
-      const absPath = path.resolve(this.projectRoot, relFile);
-      const sourceFile = astEngine.getSourceFile(absPath);
+    this.runSubAuditorSync('my-ast-forbidden-call', () => {
+      for (const relFile of relFiles) {
+        this.recordScanned(relFile);
+        const absPath = path.resolve(this.projectRoot, relFile);
+        const sourceFile = astEngine.getSourceFile(absPath);
 
-      ts.forEachChild(sourceFile, (node) => {
-        if (ts.isCallExpression(node)) {
-          // Inspect AST node properties...
-        }
-      });
-    }
+        ts.forEachChild(sourceFile, (node) => {
+          if (ts.isCallExpression(node)) {
+            // Inspect AST node properties...
+          }
+        });
+      }
+    });
 
-    this.context.setMetric('Files Scanned with AST', this.filesScannedCount);
+    this.context.setMetric('Files Scanned with AST', relFiles.length);
   }
 }
 
@@ -331,7 +391,202 @@ Any unlogged steps will be backfilled automatically by `ensureSubAuditorsLogged(
 
 ---
 
-## 6. Official Stylelint Engine & Pure In-Memory Analysis (Zero External Binaries)
+## 6. Universal Empirical Individual Timing Contract & Sub-Auditor Execution Mechanics
+
+To eliminate false passes, unmeasured rules, synthetic time divisions, and duplicate batch timestamps in the terminal Box-Drawing summary table, all sub-auditors and host extensions MUST adhere strictly to the **Universal Empirical Individual Timing Contract**.
+
+### 6.1. 100% Empirical Individual Measurement (Zero Synthetic Division & Zero Batch Duplication)
+
+- **Mandatory Empirical Stamping**: 100% of declared rules in `ruleIds` MUST record and display an empirical execution duration badge (`(X ms)` or `(<0,1 ms)`).
+- **Prohibition of Synthetic Division**: Dividing total audit duration by the number of rules ($T / N$) is **STRICTLY PROHIBITED**. Synthetic divisions produce fake numbers that mask actual slow checks.
+- **Prohibition of Batch Stamping Duplication**: Running a batch action and stamping the entire elapsed time identically onto every rule (e.g. duplicating `(449,5 ms)` across multiple rules) is **STRICTLY PROHIBITED**. Each rule check must measure its own distinct execution slice.
+
+### 6.2. Superclass Measurement Wrappers (`runSubAuditorSync` & `runSubAuditor`)
+
+`BaseAuditor` and `FileScanAuditor` provide built-in execution wrappers that measure execution time via high-resolution timers (`performance.now()`), accumulate durations across multiple files, and automatically mark rules as evaluated:
+
+1. **Synchronous Checks (`this.runSubAuditorSync`)**:
+
+   ```typescript
+   this.runSubAuditorSync('my-rule-id', () => {
+     // Perform analysis for this rule...
+     if (hasViolation) {
+       this.addViolation({ ruleId: 'my-rule-id', ... });
+     }
+   });
+   ```
+
+2. **Asynchronous Checks (`await this.runSubAuditor`)**:
+
+   ```typescript
+   await this.runSubAuditor('my-async-rule-id', async () => {
+     const data = await fetchOrReadData();
+     // Perform async analysis...
+   });
+   ```
+
+3. **In `FileScanAuditor.scanFile` Loops**:
+   When scanning files, wrap the evaluation of each rule inside `runSubAuditorSync`:
+
+   ```typescript
+   protected override scanFile(relPath: string, content: string): void {
+     const lines = content.split(/\r?\n/);
+
+     this.runSubAuditorSync('rule-one', () => {
+       // Evaluate rule one across lines...
+     });
+
+     this.runSubAuditorSync('rule-two', () => {
+       // Evaluate rule two across lines...
+     });
+   }
+   ```
+
+   `FileScanAuditor` automatically sums the execution time across all scanned files for each rule ID.
+
+### 6.2.1 Generic Action Return Values (`runSubAuditorSync<T>` & `runSubAuditor<T>`)
+
+Both `this.runSubAuditorSync<T>` and `await this.runSubAuditor<T>` return the evaluated result of their action callback directly:
+
+```typescript
+// Synchronous check returning data directly:
+const parsedConfig = this.runSubAuditorSync('config-syntax', () => {
+  return JSON.parse(rawContent) as MyConfig;
+});
+
+// Asynchronous check returning data directly:
+const verifiedFiles = await this.runSubAuditor('config-missing', async () => {
+  return await this.ensureConfigFile(requirement);
+});
+```
+
+This pattern eliminates the need for outer mutable `let` variables across closures, preventing TypeScript Control Flow Analysis (CFA) narrowing issues (such as variables being inferred as `null` or `never` following an `await` closure).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as Sub-Auditor / scanFile()
+    participant Base as BaseAuditor
+    participant Timer as performance.now()
+    participant Ledger as durationsByRule Map
+
+    Caller->>Base: runSubAuditorSync(ruleId, action)
+    Base->>Base: markRuleEvaluated(ruleId)
+    Base->>Timer: Record start timestamp
+    Base->>Caller: Execute action callback
+    Caller-->>Base: Return result <T> (or add violations)
+    Base->>Timer: Record end timestamp
+    Base->>Base: Calculate elapsed = end - start
+    Base->>Ledger: Accumulate duration for ruleId
+    Base-->>Caller: Return result <T> directly
+```
+
+### 6.3. Deconstruction Pattern for External Multi-Rule Tools (ESLint, Stylelint, Knip, TypeCoverage)
+
+When an auditor wraps a heavy external tool or linter that produces a composite report for multiple rules in a single pass:
+
+1. **Execute Shared Tool Once**: Run the external CLI, parser, or library once up-front to collect the raw findings list.
+2. **Deconstruct Rule Evaluation**: Iterate over each declared rule, wrapping the filtering and registration of its specific findings inside `this.runSubAuditorSync(ruleId, () => { ... })`:
+
+```mermaid
+flowchart TD
+    A["External Multi-Rule Tool (e.g. ESLint / Knip)"] -->|"Single High-Cost Execution"| B["Raw Tool Findings List"]
+    B --> C{"Deconstruct per Declared Rule"}
+    C -->|"Rule 1"| D1["runSubAuditorSync('rule-1', () => filter findings)"]
+    C -->|"Rule 2"| D2["runSubAuditorSync('rule-2', () => filter findings)"]
+    C -->|"Rule N"| DN["runSubAuditorSync('rule-N', () => filter findings)"]
+    D1 --> E["Empirical Duration Badge: rule-1 (0.2 ms)"]
+    D2 --> F["Empirical Duration Badge: rule-2 (0.1 ms)"]
+    DN --> G["Empirical Duration Badge: rule-N (0.3 ms)"]
+```
+
+```typescript
+// Step 1: Run the shared analysis once up-front
+const findings = await runExternalTool(this.projectRoot);
+
+// Step 2: Evaluate and measure each declared rule individually
+for (const ruleId of MY_DECLARED_RULES) {
+  this.runSubAuditorSync(ruleId, () => {
+    const matchingFindings = findings.filter(f => f.ruleId === ruleId);
+    for (const finding of matchingFindings) {
+      this.addViolation({
+        ruleId,
+        severity: finding.severity,
+        file: finding.file,
+        line: finding.line,
+        message: finding.message
+      });
+    }
+  });
+}
+```
+
+This pattern guarantees:
+
+- External CLI executes only once (zero performance regression).
+- 100% of declared rules receive individual, empirical execution timestamps (`<0,1 ms`, `0,2 ms`, etc.) in the terminal table.
+- Zero duplicate batch times (`449,5 ms`) or fake `(0 ms)` badges.
+
+### 6.4. Automatic Rule Evaluation & Prohibition of Redundant `markRuleEvaluated` Boilerplate
+
+`runSubAuditorSync` and `runSubAuditor` internally call `this.markRuleEvaluated(ruleId)`.
+Preceding these calls with explicit loops like:
+
+```typescript
+// ❌ PROHIBITED: Redundant boilerplate
+for (const r of this.ruleIds) {
+  this.markRuleEvaluated(r);
+}
+```
+
+is completely redundant and strictly prohibited. Let the superclass wrappers handle rule evaluation tracking automatically.
+
+### 6.5. Transparent Inapplicability & Empty Targets (`markRuleNotApplicable`)
+
+If a subsystem, configuration, or target folder does not exist on disk (for example, `e2e/` folder does not exist, or `persistence.engine: 'none'`), rules must NEVER be silently skipped without timing, which would leave their duration undefined and cause `(0 ms)` badges.
+
+Always wrap the inapplicability declaration inside `runSubAuditorSync`:
+
+```typescript
+if (!fs.existsSync(targetDir)) {
+  for (const ruleId of this.ruleIds) {
+    this.runSubAuditorSync(ruleId, () => {
+      this.markRuleNotApplicable(ruleId, `Directorio objetivo '${targetDir}' no encontrado`);
+    });
+  }
+  return;
+}
+```
+
+This records a genuine duration badge (`<0,1 ms`), marks the status cleanly as `passed`, and provides transparent audit logging.
+
+### 6.6. Canonical Implementation Blueprints from New Framework Suites
+
+The framework includes 5 modern sub-auditors implementing this contract across architectural, performance, and security domains:
+
+1. **`validate_web_performance`** (`performance` family, 7 rules):
+   - Rules: `unoptimized-images`, `font-display-missing`, `inline-svg-bloat`, `css-render-blocking`, `excessive-dom-depth`, `layout-shift-dimensions`, `uncompressed-video`.
+   - Pattern: AST and SFC scanner measuring font-display, img dimension attributes, and inline SVG sizes with per-rule `runSubAuditorSync`.
+
+2. **`validate_query_performance`** (`performance` family, 6 rules):
+   - Rules: `unindexed-foreign-keys`, `select-star-in-queries`, `unpaginated-queries`, `n-plus-one-patterns`, `heavy-count-queries`, `unindexed-order-by`.
+   - Pattern: Static query analyzer inspecting SQL and ORM queries for `SELECT *` anti-patterns, missing `.limit()` calls, and query loops inside array mappings.
+
+3. **`validate_security_hardening`** (`security` family, 8 rules):
+   - Rules: `hardcoded-secrets`, `insecure-random`, `vulnerable-regex-redos`, `raw-html-injection`, `missing-csrf-token`, `eval-or-function-constructor`, `permissive-cors`, `unvalidated-redirect`.
+   - Pattern: High-speed AST scanner checking `Math.random()`, `eval()`, `new Function()`, `v-html`, and unvalidated redirect targets.
+
+4. **`validate_code_simplification`** (`architecture` family, 6 rules):
+   - Rules: `dead-code-accumulation`, `boolean-trap-parameters`, `deep-nesting-control-flow`, `redundant-else-after-return`, `premature-abstraction-wrapper`, `massive-switch-branching`.
+   - Pattern: Structural AST analyzer inspecting nested control flow depth, redundant else branches after return/throw, and boolean trap signatures.
+
+5. **`validate_scss_architecture`** (`architecture` family, 5 rules):
+   - Rules: `raw-css-in-sfc`, `scss-deep-selector-abuse`, `non-standard-spacing-unit`, `missing-theme-token-usage`, `excessive-scss-nesting`.
+   - Pattern: Style preprocessor analyzer enforcing `lang="scss"` on SFC `<style>` blocks, disallowing obsolete spacing units (`pt`, `in`, `cm`), and preventing excessive nesting depth.
+
+---
+
+## 7. Official Stylelint Engine & Pure In-Memory Analysis (Zero External Binaries)
 
 Sub-auditors validating styles, stylesheets (`.css`, `.scss`), or Vue SFC `<style>` blocks **MUST NOT** spawn external native binaries (such as `css-checker-kit`, Go binaries, or unmaintained tools). These binaries cause Smart App Control (SAC) blocks on Windows, fail under `ignore-scripts: true`, and create platform fragility.
 
@@ -369,7 +624,7 @@ The native Stylelint plugin [`src/suites/architecture/stylelintSassTrapsPlugin.t
 
 ---
 
-## 7. Sub-Auditor Capabilities Contract (`AuditorCapabilities`) & Zero-Boilerplate Defaults
+## 8. Sub-Auditor Capabilities Contract (`AuditorCapabilities`) & Zero-Boilerplate Defaults
 
 Every sub-auditor declares its execution capabilities dynamically. The orchestrator inspects these capabilities to coordinate specialized execution modes (such as `auditor fix`, fast presets, differential runs, or AST sharing) without maintaining hardcoded suite lists.
 
@@ -456,7 +711,7 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
 
 ---
 
-## 8. Registering Host Extensions in `.auditor/audit.config.ts`
+## 9. Registering Host Extensions in `.auditor/audit.config.ts`
 
 Host applications implementing custom rules in `scripts/auditors/<family>/validate_<name>.ts` register them dynamically in `.auditor/audit.config.ts`:
 
@@ -479,7 +734,7 @@ When `auditor` or `npm run auditor` runs, `auditScanner.ts` automatically discov
 
 ---
 
-## 9. Dynamic GitIgnore Requirements Contract (`gitIgnoreEntries`)
+## 10. Dynamic GitIgnore Requirements Contract (`gitIgnoreEntries`)
 
 Sub-auditors and extensions MUST NOT rely on hardcoded tool lists in the general framework. If a sub-auditor, tool, or CLI runner produces intermediate artifacts (e.g. `.mytoolcache`, `dist/`), it must declare its required patterns via `gitIgnoreEntries`:
 
@@ -517,7 +772,7 @@ The orchestrator and `validate_audit_config` will:
 
 ---
 
-## 10. Mandatory Hermetic Unit Testing
+## 11. Mandatory Hermetic Unit Testing
 
 Every sub-auditor MUST have a companion unit test file in `tests/<suite_name>.test.ts` (or `tests/node/auditors/` for host extensions) adhering to:
 
@@ -527,7 +782,7 @@ Every sub-auditor MUST have a companion unit test file in `tests/<suite_name>.te
 
 ---
 
-## 11. Mandatory Thematic Emoji Contract (`AuditorOptions.icon`)
+## 12. Mandatory Thematic Emoji Contract (`AuditorOptions.icon`)
 
 Every sub-auditor (built-in framework suites and user host extensions alike) **MUST** declare a non-empty thematic emoji in `AuditorOptions.icon`:
 
@@ -550,7 +805,7 @@ super({
 
 ---
 
-## 12. Transparent Skip Reporting Contract (`markSkipped`, `status: 'skipped'`)
+## 13. Transparent Skip Reporting Contract (`markSkipped`, `status: 'skipped'`)
 
 When an auditor must be bypassed (e.g. due to environmental guards, configuration flags, or fast presets), it **MUST NOT** pretend to have passed (`status: 'passed'`) with a green checkmark `✅`. Doing so creates cognitive friction and conceals skipped checks.
 
@@ -569,7 +824,7 @@ if (isSkippedByEnvironment()) {
 
 ---
 
-## 13. Anti-Abuse Protection for `constants.exemptGlobs`
+## 14. Anti-Abuse Protection for `constants.exemptGlobs`
 
 When configuring path-based constant exceptions, host projects configure `constants.exemptGlobs`:
 
@@ -584,7 +839,7 @@ constants: {
 
 ---
 
-## 14. Introspection & Canonical DTO Contract (`toManifest()`, `AuditorManifestDTO`)
+## 15. Introspection & Canonical DTO Contract (`toManifest()`, `AuditorManifestDTO`)
 
 Every sub-auditor and host extension inherits from `BaseAuditor` and provides the typed `toManifest(): AuditorManifestDTO` method:
 
@@ -611,7 +866,7 @@ export interface AuditorManifestDTO {
 
 ---
 
-## 15. Hierarchical Architecture & Sub-Auditor Composition
+## 16. Hierarchical Architecture & Sub-Auditor Composition
 
 The auditor framework follows a 3-tier hierarchical structure:
 
@@ -642,7 +897,7 @@ graph TD
 
 ---
 
-## 16. Declarative Configuration File Requirements & Auto-Fix Contract
+## 17. Declarative Configuration File Requirements & Auto-Fix Contract
 
 Sub-auditors and extensions that validate or depend on external tool configuration files (such as `eslint.config.js`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`, or custom host configs) MUST NOT implement bespoke file writers or manual boilerplate checking.
 
@@ -709,7 +964,7 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
 
 ---
 
-## 17. Mandatory Constructor Metadata Contract (Zero Bypass / Zero Optional Defaults)
+## 18. Mandatory Constructor Metadata Contract (Zero Bypass / Zero Optional Defaults)
 
 Under the v5 architecture, it is mathematically impossible to instantiate a sub-auditor or extension without supplying all canonical metadata in the constructor:
 
@@ -718,7 +973,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `id` | `string` | Canonical ID | Unique identifier across the orchestrator (`validate_<name>`). |
 | `name` | `string` | Non-empty | Formal human-readable name of the suite. |
 | `description` | `string` | `<= 60` chars | Concise Spanish explanation of what the suite verifies. |
-| `family` | `AuditFamily` | Strict enum | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'fsm'`, `'assets'`, `'documentation'`. |
+| `family` | `AuditFamily` | Strict enum | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'performance'`, `'security'`, `'documentation'` (or dynamic host extensions). |
 | `packageName` | `string` | Non-empty | Technology scope prefix (`'ESLint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
 | `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
 | `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
@@ -731,7 +986,7 @@ If any of these fields are missing or invalid, `BaseAuditor` throws an immediate
 
 ---
 
-## 18. Dynamic Introspection, Auto-Registration & Dynamic Suite Gating
+## 19. Dynamic Introspection, Auto-Registration & Dynamic Suite Gating
 
 The master orchestrator does not maintain hardcoded lists of enabled suites. Every auditor dropped into `src/suites/` or declared as a host extension is discovered automatically:
 
@@ -740,7 +995,7 @@ The master orchestrator does not maintain hardcoded lists of enabled suites. Eve
 
 ---
 
-## 19. Post-Build Compiled Artifact Partitioning (`audit:build` / `preset=build`)
+## 20. Post-Build Compiled Artifact Partitioning (`audit:build` / `preset=build`)
 
 Suites that validate compiled distribution artifacts (such as bundle budgets, export maps, or TypeScript `.d.ts` declaration maps) declare:
 
@@ -759,7 +1014,7 @@ capabilities: { requiresBuild: true }
 
 ---
 
-## 20. Mandatory Dynamic Testing Conformance & 5-Point Unit Test Contract
+## 21. Mandatory Dynamic Testing Conformance & 5-Point Unit Test Contract
 
 Every official sub-auditor in `@francogp/auditor` and every extension created in host projects (`scripts/auditors/`) MUST have a dedicated Vitest unit test. The test runner dynamically discovers all declared tasks and verifies conformance via `auditorContractConformance.ts`.
 
@@ -819,7 +1074,7 @@ describe('All Auditors Dynamic Conformance', () => {
 
 ---
 
-## 21. Dynamic Package Script Contract & Collision Prevention (`PackageScriptRegistry`)
+## 22. Dynamic Package Script Contract & Collision Prevention (`PackageScriptRegistry`)
 
 Every sub-auditor and host extension has a mandatory execution contract (`scripts`) defining how it is invoked via CLI and package scripts:
 
@@ -873,7 +1128,7 @@ When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` d
 
 ---
 
-## 22. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
+## 23. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
 All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly evaluated by `validate_auditor_hygiene`. To guarantee performance, cross-platform stability, and architectural cleanliness, all sub-auditors and extensions MUST follow these 10 invariants:
 

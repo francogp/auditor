@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { BaseAuditor, getEffectiveScannableRoots, isPathIgnored, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { toPosixRelative, normalizePosixPath } from "../../core/safePath.js";
@@ -79,7 +79,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
             ...scriptAndCliDirs.map(d => `${d}/**/*.js`)
         ];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
                 fix: true,
                 fixPriority: true,
                 lint: true,
@@ -89,7 +89,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [...SCRIPT_EXTENSIONS_RULES]),
             fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
             id: 'validate_script_extensions',
             name: 'Script & Module Extensions Validator',
@@ -120,9 +120,6 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        for (const r of SCRIPT_EXTENSIONS_RULES) {
-            this.markRuleEvaluated(r);
-        }
         const config = getAuditConfig(this.projectRoot);
         if (config.scriptExtensions?.enabled === false) {
             this.markSkipped('Desactivado en config (scriptExtensions.enabled = false)');
@@ -138,42 +135,67 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
         for (const fullPath of candidateFiles) {
             const relPath = toPosixRelative(this.projectRoot, fullPath);
             this.recordScanned(relPath);
-            if (isExemptScriptFile(relPath, exemptFiles)) {
-                continue;
-            }
-            const ext = path.extname(fullPath).toLowerCase();
-            const targetTsPath = fullPath.slice(0, -ext.length) + '.ts';
-            if (ext === '.mjs' && !allowMjs) {
-                violations.push({
-                    file: relPath,
-                    fullPath,
-                    ruleId: 'banned-mjs-extension',
-                    message: `Archivo con extensión ".mjs" detectado: "${relPath}". En proyectos Node.js 26+ nativos, todo módulo o script debe ser TypeScript (.ts).`,
-                    targetTsPath
-                });
-            }
-            else if (ext === '.cjs' && !allowCjs) {
-                violations.push({
-                    file: relPath,
-                    fullPath,
-                    ruleId: 'banned-cjs-extension',
-                    message: `Archivo con extensión ".cjs" detectado: "${relPath}". En proyectos Node.js 26+ ("type": "module"), los módulos CommonJS (.cjs) están prohibidos.`,
-                    targetTsPath
-                });
-            }
-            else if (ext === '.js' && !allowJsScripts) {
-                const isScriptDir = scriptAndCliDirs.some(dir => relPath === dir || relPath.startsWith(dir + '/'));
-                if (isScriptDir) {
+        }
+        this.runSubAuditorSync('banned-mjs-extension', () => {
+            if (allowMjs)
+                return;
+            for (const fullPath of candidateFiles) {
+                const ext = path.extname(fullPath).toLowerCase();
+                if (ext === '.mjs') {
+                    const relPath = toPosixRelative(this.projectRoot, fullPath);
+                    if (isExemptScriptFile(relPath, exemptFiles))
+                        continue;
                     violations.push({
                         file: relPath,
                         fullPath,
-                        ruleId: 'banned-raw-js-script',
-                        message: `Script JavaScript sin tipar "${relPath}" detectado en directorio de scripts. Debe migrarse a TypeScript (.ts).`,
-                        targetTsPath
+                        ruleId: 'banned-mjs-extension',
+                        message: `Archivo con extensión ".mjs" detectado: "${relPath}". En proyectos Node.js 26+ nativos, todo módulo o script debe ser TypeScript (.ts).`,
+                        targetTsPath: fullPath.slice(0, -ext.length) + '.ts'
                     });
                 }
             }
-        }
+        });
+        this.runSubAuditorSync('banned-cjs-extension', () => {
+            if (allowCjs)
+                return;
+            for (const fullPath of candidateFiles) {
+                const ext = path.extname(fullPath).toLowerCase();
+                if (ext === '.cjs') {
+                    const relPath = toPosixRelative(this.projectRoot, fullPath);
+                    if (isExemptScriptFile(relPath, exemptFiles))
+                        continue;
+                    violations.push({
+                        file: relPath,
+                        fullPath,
+                        ruleId: 'banned-cjs-extension',
+                        message: `Archivo con extensión ".cjs" detectado: "${relPath}". En proyectos Node.js 26+ ("type": "module"), los módulos CommonJS (.cjs) están prohibidos.`,
+                        targetTsPath: fullPath.slice(0, -ext.length) + '.ts'
+                    });
+                }
+            }
+        });
+        this.runSubAuditorSync('banned-raw-js-script', () => {
+            if (allowJsScripts)
+                return;
+            for (const fullPath of candidateFiles) {
+                const ext = path.extname(fullPath).toLowerCase();
+                if (ext === '.js') {
+                    const relPath = toPosixRelative(this.projectRoot, fullPath);
+                    if (isExemptScriptFile(relPath, exemptFiles))
+                        continue;
+                    const isScriptDir = scriptAndCliDirs.some(dir => relPath === dir || relPath.startsWith(dir + '/'));
+                    if (isScriptDir) {
+                        violations.push({
+                            file: relPath,
+                            fullPath,
+                            ruleId: 'banned-raw-js-script',
+                            message: `Script JavaScript sin tipar "${relPath}" detectado en directorio de scripts. Debe migrarse a TypeScript (.ts).`,
+                            targetTsPath: fullPath.slice(0, -ext.length) + '.ts'
+                        });
+                    }
+                }
+            }
+        });
         if (violations.length === 0) {
             return;
         }

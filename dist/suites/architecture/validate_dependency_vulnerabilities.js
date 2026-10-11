@@ -14,7 +14,7 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 const NPM_AUDIT_TIMEOUT_MS = 30_000;
@@ -106,7 +106,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
             projectRoot: options.projectRoot,
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -116,7 +116,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
                 heavy: true,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_dependency_vulnerabilities',
             name: 'Dependency Vulnerabilities & CVE Auditor',
             description: 'Detecta vulnerabilidades y avisos de seguridad CVE',
@@ -141,9 +141,6 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
         if (this.isSuiteGatingDisabled('Auditoría de vulnerabilidades de dependencias desactivada')) {
             return;
         }
-        DEPENDENCY_VULNERABILITIES_RULES.forEach((ruleId) => {
-            this.markRuleEvaluated(ruleId);
-        });
         const pkgJsonRelative = 'package.json';
         if (fs.existsSync(path.resolve(this.projectRoot, pkgJsonRelative))) {
             this.recordScanned(pkgJsonRelative);
@@ -160,6 +157,11 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
         if (error || !stdout) {
             // catch-ok: Offline development environment or network lookup failure
             this.context.logProgress('⚠️  No se pudo conectar con el registro npm para audit (modo offline)');
+            for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
+                this.runSubAuditorSync(ruleId, () => {
+                    this.markRuleNotApplicable(ruleId, 'Sin conexión con registro npm (offline)');
+                });
+            }
             return;
         }
         let report;
@@ -168,17 +170,27 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
         }
         catch {
             // catch-ok: Malformed stdout payload
+            for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
+                this.runSubAuditorSync(ruleId, () => {
+                    this.markRuleNotApplicable(ruleId, 'Reporte de npm audit inválido');
+                });
+            }
             return;
         }
         const findings = parseNpmAuditReport(report, allowList, failOn);
-        for (const f of findings) {
-            this.addViolation({
-                ruleId: f.ruleId,
-                severity: f.severity,
-                file: f.file ?? 'package-lock.json',
-                line: f.line ?? 1,
-                context: f.context ?? f.ruleId,
-                message: f.message
+        for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
+            this.runSubAuditorSync(ruleId, () => {
+                const matching = findings.filter(f => f.ruleId === ruleId);
+                for (const f of matching) {
+                    this.addViolation({
+                        ruleId: f.ruleId,
+                        severity: f.severity,
+                        file: f.file ?? 'package-lock.json',
+                        line: f.line ?? 1,
+                        context: f.context ?? f.ruleId,
+                        message: f.message
+                    });
+                }
             });
         }
     }

@@ -124,6 +124,7 @@ describe('DocumentationLanguageAuditor', () => {
     expect(manifest.family).toBe('documentation');
     expect(manifest.rules['docs-unauthorized-language']).toBeDefined();
     expect(manifest.rules['docs-missing-language-mandate']).toBeDefined();
+    expect(manifest.rules['code-comment-unauthorized-language']).toBeDefined();
     expect(manifest.capabilities.fix).toBe(true);
   });
 
@@ -493,5 +494,31 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
       expect((afterFix2.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(1);
       expect(afterFix2).toBe(afterFix);
     });
+
+    it('flags code-comment-unauthorized-language when detecting Spanish comments in source code files', async () => {
+      const srcDir = path.join(scratchDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+
+      const badSource = [
+        '/**',
+        ' * Declara formalmente una sub-herramienta vinculada a una regla declarada.',
+        ' * La superclase se encarga automáticamente de orquestar su ejecución.',
+        ' */',
+        'export function testFunc(): void {}',
+        ''
+      ].join('\n');
+
+      fs.writeFileSync(path.join(srcDir, 'module.ts'), badSource, 'utf8');
+
+      const auditor = new DocumentationLanguageAuditor(scratchDir, { language: 'en' });
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'code-comment-unauthorized-language');
+      expect(finding).toBeDefined();
+      expect(finding?.file).toBe('src/module.ts');
+    });
   });
 });
+

@@ -10,6 +10,7 @@ import { type AuditRule, type Violation } from './audit_rules.ts';
 export declare function isInsideComment(content: string, index: number): boolean;
 export declare function createLineLocator(content: string, offset: number): (idx: number) => number;
 export declare function applyRuleFix(rule: AuditRule, content: string, filePath: string): string;
+export declare const activeProjectRuleTimings: Map<string, number>;
 export declare function runRules(filePath: string, content: string, rules: AuditRule[], violations: Violation[], fix: boolean, offset: number): string;
 export interface VueBlock {
     content: string;

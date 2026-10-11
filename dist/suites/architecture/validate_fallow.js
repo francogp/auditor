@@ -30,6 +30,19 @@ export const FALLOW_RULES = [
     'fallow-workspace-diagnostic',
     'fallow-security-cwe'
 ];
+export const FALLOW_RULE_CAPABILITIES = {
+    'fallow-boundary-violations': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+    'fallow-stale-suppressions': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+    'fallow-workspace-diagnostic': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+    'fallow-refactoring-targets': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-duplicate-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-triplicate-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-unused-exports': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-unused-files': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-unused-dependencies': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-circular-dependencies': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
+    'fallow-security-cwe': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false }
+};
 export const FALLOW_RULE_DESCRIPTIONS = {
     'fallow-refactoring-targets': 'Objetivo refactor Fallow',
     'fallow-duplicate-code': 'Código duplicado detectado',
@@ -261,17 +274,7 @@ function tryParseFallowJson(raw) {
 export class FallowArchitectureAuditor extends BaseAuditor {
     constructor(projectRoot = process.cwd()) {
         super({
-            capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: true,
-                heavy: true,
-                requiresBuild: false,
-                postRun: false
-            },
+            ruleCapabilities: FALLOW_RULE_CAPABILITIES,
             id: 'validate_fallow',
             name: 'Fallow Architecture & Refactoring Targets',
             description: 'Audita código muerto, targets y CWE con Fallow',
@@ -302,13 +305,15 @@ export class FallowArchitectureAuditor extends BaseAuditor {
             projectRoot
         });
     }
-    runFallowSubCommand(command, extraArgs = []) {
+    runFallowSubCommand(command, extraArgs = [], associatedRules = []) {
         const fallowBin = resolveFallowBinary(this.projectRoot);
         if (!fallowBin)
             return [];
         const args = ['--format', 'json', ...extraArgs];
         const cliSubCommand = command === 'triplets' ? 'dupes' : command;
         const cmd = `node "${fallowBin}" ${cliSubCommand} ${args.join(' ')}`;
+        let reportedElapsed;
+        const start = performance.now(); // timing-ok: External third-party CLI execution fallback
         try {
             const stdout = execSync(cmd, {
                 cwd: this.projectRoot,
@@ -317,14 +322,22 @@ export class FallowArchitectureAuditor extends BaseAuditor {
                 maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
             });
             const parsed = tryParseFallowJson(stdout);
-            if (parsed)
+            if (parsed) {
+                if (typeof parsed.elapsed_ms === 'number') {
+                    reportedElapsed = parsed.elapsed_ms;
+                }
                 return mapFallowJson(command, parsed, this.projectRoot);
+            }
         }
         catch (e) {
             const err = e;
             const parsed = tryParseFallowJson(err.stdout);
-            if (parsed)
+            if (parsed) {
+                if (typeof parsed.elapsed_ms === 'number') {
+                    reportedElapsed = parsed.elapsed_ms;
+                }
                 return mapFallowJson(command, parsed, this.projectRoot);
+            }
             this.addViolation({
                 ruleId: 'fallow-workspace-diagnostic',
                 severity: 'error',
@@ -334,57 +347,94 @@ export class FallowArchitectureAuditor extends BaseAuditor {
                 context: `fallow ${command}`
             });
         }
+        finally {
+            const elapsed = reportedElapsed ?? (performance.now() - start); // timing-ok: External third-party CLI execution fallback
+            for (const rule of associatedRules) {
+                this.reportRuleDuration(rule, elapsed);
+            }
+        }
         return [];
     }
     async runAudit() {
         if (this.isSuiteGatingDisabled('Fallow deshabilitado en configuración'))
             return;
-        // Mark all rules evaluated for audit coverage
+        // Mark rules evaluated or not applicable according to the active tier
         for (const rule of FALLOW_RULES) {
-            this.markRuleEvaluated(rule);
+            if (this.isRuleActiveForCurrentRun(rule)) {
+                this.markRuleEvaluated(rule);
+            }
+            else {
+                this.markRuleNotApplicable(rule, `Omitido en tier '${this.getExecutionTier()}'`);
+            }
         }
         this.recordExternalScanCount(1);
         const config = getAuditConfig(this.projectRoot);
-        const fallowSecActive = config.fallow?.security?.enabled ?? config.security?.enabled ?? true;
-        const isSecurityActive = fallowSecActive !== false;
-        // Collect all findings in memory before emitting
         const allFindings = [];
-        // 1. Duplicates
-        const dupesArgs = [...FALLOW_DUPES_CONFIG];
-        if (config.fallow?.duplicates?.nearMiss !== false) {
-            dupesArgs.push('--dupes-near');
+        // Dead Code execution profile (Fast syntax in lint, Type-Aware cascade in full audit)
+        const deadCodeProfile = {
+            command: 'fallow dead-code',
+            fastArgs: [],
+            heavyArgs: (() => {
+                const args = [];
+                if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))) {
+                    args.push('--type-aware');
+                }
+                if (config.fallow?.showCascade !== false) {
+                    args.push('--show-cascade');
+                }
+                return args;
+            })()
+        };
+        const deadCodeArgs = this.resolveCommandArgs(deadCodeProfile);
+        const deadCodeRules = ['fallow-unused-exports', 'fallow-unused-files'];
+        const executeFallowSecurity = () => {
+            const isSecActive = config.fallow?.security?.enabled ?? config.security?.enabled ?? true;
+            if (isSecActive !== false) {
+                allFindings.push(...this.runFallowSubCommand('security', [], ['fallow-security-cwe']));
+            }
+            else {
+                this.markRuleNotApplicable('fallow-security-cwe', 'Desactivado en config (fallow.security.enabled: false)');
+            }
+        };
+        if (this.isFastMode()) {
+            // FAST PROFILE: Execute fast syntactic dead-code and security CWE
+            const deadCode = this.runFallowSubCommand('dead-code', deadCodeArgs, deadCodeRules);
+            allFindings.push(...deadCode.filter(f => this.isRuleActiveForCurrentRun(f.ruleId)));
+            executeFallowSecurity();
         }
-        if (config.fallow?.duplicates?.mode) {
-            dupesArgs.push('--dupes-mode', config.fallow.duplicates.mode);
+        else {
+            // FULL AUDIT: Execute full suite once without repeating any commands
+            // 1. Duplicates
+            const dupesArgs = [...FALLOW_DUPES_CONFIG];
+            if (config.fallow?.duplicates?.nearMiss !== false) {
+                dupesArgs.push('--dupes-near');
+            }
+            if (config.fallow?.duplicates?.mode) {
+                dupesArgs.push('--dupes-mode', config.fallow.duplicates.mode);
+            }
+            allFindings.push(...this.runFallowSubCommand('dupes', dupesArgs, ['fallow-duplicate-code']));
+            // 2. Triplets
+            allFindings.push(...this.runFallowSubCommand('triplets', FALLOW_TRIPLETS_CONFIG, ['fallow-triplicate-code']));
+            // 3. Security
+            executeFallowSecurity();
+            // 4. Dead Code (heavy version)
+            allFindings.push(...this.runFallowSubCommand('dead-code', deadCodeArgs, deadCodeRules));
+            // 5. Health & Targets
+            const healthArgs = ['--targets', '--report-only'];
+            const covPath = path.resolve(this.projectRoot, 'coverage/coverage-final.json');
+            if (fs.existsSync(covPath)) {
+                healthArgs.push('--coverage', 'coverage/coverage-final.json');
+            }
+            const healthRules = [
+                'fallow-refactoring-targets',
+                'fallow-circular-dependencies',
+                'fallow-boundary-violations',
+                'fallow-unused-dependencies',
+                'fallow-stale-suppressions',
+                'fallow-workspace-diagnostic'
+            ];
+            allFindings.push(...this.runFallowSubCommand('health', healthArgs, healthRules));
         }
-        const dupes = this.runFallowSubCommand('dupes', dupesArgs);
-        allFindings.push(...dupes);
-        // 2. Triplets
-        const triplets = this.runFallowSubCommand('triplets', FALLOW_TRIPLETS_CONFIG);
-        allFindings.push(...triplets);
-        // 3. Security
-        if (isSecurityActive) {
-            const security = this.runFallowSubCommand('security');
-            allFindings.push(...security);
-        }
-        // 4. Dead Code
-        const deadCodeArgs = [];
-        if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))) {
-            deadCodeArgs.push('--type-aware');
-        }
-        if (config.fallow?.showCascade !== false) {
-            deadCodeArgs.push('--show-cascade');
-        }
-        const deadCode = this.runFallowSubCommand('dead-code', deadCodeArgs);
-        allFindings.push(...deadCode);
-        // 5. Health & Targets
-        const healthArgs = ['--targets', '--report-only'];
-        const covPath = path.resolve(this.projectRoot, 'coverage/coverage-final.json');
-        if (fs.existsSync(covPath)) {
-            healthArgs.push('--coverage', 'coverage/coverage-final.json');
-        }
-        const health = this.runFallowSubCommand('health', healthArgs);
-        allFindings.push(...health);
         for (const f of allFindings) {
             const relPath = toPosixRelative(this.projectRoot, f.file);
             this.recordScanned(relPath);

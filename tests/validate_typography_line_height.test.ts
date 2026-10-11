@@ -24,7 +24,7 @@ class TestableTypographyLineHeightAuditor extends TypographyLineHeightAuditor {
     super.addViolation(v);
   }
 
-  public testScanFile(path: string, content: string): void {
+  public override testScanFile(path: string, content: string): void {
     this.scanFile(path, content);
   }
 }

@@ -15,7 +15,7 @@
  *   // storage-ok: <justification>
  */
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
@@ -41,7 +41,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
         const customAuthorized = typeof options === 'object' && options?.authorizedSaveFiles ? options.authorizedSaveFiles : cfg.persistence?.authorizedSaveFiles ?? [];
         const customPrefixes = typeof options === 'object' && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -51,7 +51,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_persistence_client',
             name: 'Client-Side Web Storage & Persistence Hygiene',
             description: 'Gobernanza de localStorage, cuotas y tipado de claves',
@@ -81,70 +81,61 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
     }
     scanFile(file, content) {
         const config = getAuditConfig(this.projectRoot);
-        if (config.persistence?.engine === 'none') {
+        if (config.persistence?.engine === 'none')
             return;
-        }
         if (isTestFileForCodeAudit(file, this.projectRoot))
             return;
-        const lines = content.split('\n');
-        const isAuthorizedFile = this.isAuthorizedSaveFile(file);
-        this.scanMethodCalls(content, lines, file, isAuthorizedFile);
-        this.scanIndexedAccesses(content, lines, file, isAuthorizedFile);
+        this.runSubAuditorSync('persistence-client-uncoordinated-save', () => {
+            this.scanUncoordinatedSave(file, content);
+        });
+        this.runSubAuditorSync('persistence-client-untyped-key', () => {
+            this.scanUntypedKey(file, content);
+        });
+        this.runSubAuditorSync('persistence-client-unhandled-quota-error', () => {
+            this.scanQuotaError(file, content);
+        });
     }
-    scanMethodCalls(content, lines, file, isAuthorizedFile) {
+    forEachStorageAccess(content, callback) {
+        const lines = content.split('\n');
         P_STORAGE_METHOD.lastIndex = 0;
         let match;
         while ((match = P_STORAGE_METHOD.exec(content)) !== null) {
-            const method = match[1];
-            this.validateStorageAccess({
-                file,
-                content,
-                lines,
-                matchIndex: match.index,
+            const lineNum = content.slice(0, match.index).split('\n').length;
+            if (this.isIgnoredLine(lines, lineNum))
+                continue;
+            callback({
                 rawKeyArg: match[2]?.trim() ?? '',
-                isWrite: method === 'setItem',
-                isAuthorizedFile,
+                matchIndex: match.index,
+                isWrite: match[1] === 'setItem',
+                line: lines[lineNum - 1] ?? '',
                 mutationLabel: "'.setItem()'"
             });
         }
-    }
-    scanIndexedAccesses(content, lines, file, isAuthorizedFile) {
         P_STORAGE_INDEXED.lastIndex = 0;
-        let match;
         while ((match = P_STORAGE_INDEXED.exec(content)) !== null) {
             const matchIndex = match.index;
+            const lineNum = content.slice(0, matchIndex).split('\n').length;
+            if (this.isIgnoredLine(lines, lineNum))
+                continue;
             const rawKeyArg = match[1]?.trim() ?? '';
             const afterMatch = content.slice(matchIndex + match[0].length).trimStart();
             const isWrite = afterMatch.startsWith('=') && !afterMatch.startsWith('==') && !afterMatch.startsWith('=>');
-            this.validateStorageAccess({
-                file,
-                content,
-                lines,
-                matchIndex,
+            callback({
                 rawKeyArg,
+                matchIndex,
                 isWrite,
-                isAuthorizedFile,
+                line: lines[lineNum - 1] ?? '',
                 mutationLabel: "by indexed assignment ('[key] = ...')"
             });
         }
     }
-    isIgnoredLine(lines, lineNum) {
-        const line = lines[lineNum - 1] ?? '';
-        const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
-        const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
-        return (isCommentLine(line.trim()) ||
-            this.hasStorageEscapeHatch(line) ||
-            this.hasStorageEscapeHatch(prevLine) ||
-            this.hasStorageEscapeHatch(prevPrevLine));
-    }
-    validateStorageAccess(params) {
-        const { file, content, lines, matchIndex, rawKeyArg, isWrite, isAuthorizedFile, mutationLabel } = params;
-        const lineNum = content.slice(0, matchIndex).split('\n').length;
-        if (this.isIgnoredLine(lines, lineNum))
+    scanUncoordinatedSave(file, content) {
+        const isAuthorizedFile = this.isAuthorizedSaveFile(file);
+        if (isAuthorizedFile || this.saveKeyPrefixes.length === 0)
             return;
-        const line = lines[lineNum - 1] ?? '';
-        // Check 1: Uncoordinated save bypass (mutations only)
-        if (isWrite && !isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
+        this.forEachStorageAccess(content, ({ rawKeyArg, matchIndex, isWrite, line }) => {
+            if (!isWrite)
+                return;
             const matchesSavePrefix = this.saveKeyPrefixes.some(prefix => rawKeyArg.includes(`'${prefix}`) ||
                 rawKeyArg.includes(`"${prefix}`) ||
                 rawKeyArg.includes(`\`${prefix}`));
@@ -158,29 +149,44 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
                     context: line.trim()
                 });
             }
-        }
-        // Check 2: Untyped string key literal
-        if (/^['"`][\w$-]+['"`]$/.test(rawKeyArg)) {
-            this.addViolationAtMatch({
-                ruleId: 'persistence-client-untyped-key',
-                filePath: file,
-                content,
-                matchIndex,
-                message: `Storage key ${rawKeyArg} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
-                context: line.trim()
-            });
-        }
-        // Check 3: Storage mutation without try/catch handling for QuotaExceededError
-        if (isWrite && !this.isInsideTryCatch(content, matchIndex)) {
-            this.addViolationAtMatch({
-                ruleId: 'persistence-client-unhandled-quota-error',
-                filePath: file,
-                content,
-                matchIndex,
-                message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
-                context: line.trim()
-            });
-        }
+        });
+    }
+    scanUntypedKey(file, content) {
+        this.forEachStorageAccess(content, ({ rawKeyArg, matchIndex, line }) => {
+            if (/^['"`][\w$-]+['"`]$/.test(rawKeyArg)) {
+                this.addViolationAtMatch({
+                    ruleId: 'persistence-client-untyped-key',
+                    filePath: file,
+                    content,
+                    matchIndex,
+                    message: `Storage key ${rawKeyArg} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
+                    context: line.trim()
+                });
+            }
+        });
+    }
+    scanQuotaError(file, content) {
+        this.forEachStorageAccess(content, ({ matchIndex, isWrite, line, mutationLabel }) => {
+            if (isWrite && !this.isInsideTryCatch(content, matchIndex)) {
+                this.addViolationAtMatch({
+                    ruleId: 'persistence-client-unhandled-quota-error',
+                    filePath: file,
+                    content,
+                    matchIndex,
+                    message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
+                    context: line.trim()
+                });
+            }
+        });
+    }
+    isIgnoredLine(lines, lineNum) {
+        const line = lines[lineNum - 1] ?? '';
+        const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
+        const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
+        return (isCommentLine(line.trim()) ||
+            this.hasStorageEscapeHatch(line) ||
+            this.hasStorageEscapeHatch(prevLine) ||
+            this.hasStorageEscapeHatch(prevPrevLine));
     }
     isAuthorizedSaveFile(file) {
         const normalized = normalizePosixPath(file);

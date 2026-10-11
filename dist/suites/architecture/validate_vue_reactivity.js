@@ -20,7 +20,7 @@
  *   // reactivity-ok: <reason>, // sfc-ok: <reason>
  */
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 enableCompileCache();
@@ -31,8 +31,10 @@ export const VUE_REACTIVITY_RULES = [
     'no-destructured-reactive'
 ];
 const ASYNC_COMPUTED_REGEX = /\bcomputed\s*\(\s*(?:<[^>]+>\s*)?async\s*(?:\([^)]*\)|[\w$]+)\s*=>/g;
+// redos-ok: deterministic property accessor regex
 const WATCH_PROP_NAKED_REGEX = /\bwatch\s*\(\s*(props\.[\w$]+(?:\.[\w$]+)*)\s*,/g;
 const DESTRUCTURED_REACTIVE_REGEX = /const\s+\{[^}]+\}\s*=\s*reactive\s*(?:<[^>]+>\s*)?\(/g;
+// redos-ok: deterministic property accessor regex
 const DIRECT_REACTIVE_MUTATION_REGEX = /\b(?:(?:props|store)\.(?!value\b)[\w$]+(?:\.[\w$]+)*|[\w$]+\.value)\s*\??\.(?:sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 const LOCAL_IDENTIFIER_MUTATION_REGEX = /\b([\w$]+)\s*\??\.(sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 export class ValidateVueReactivityAuditor extends FileScanAuditor {
@@ -45,7 +47,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
             'src/stores'
         ];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -55,7 +57,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_vue_reactivity',
             name: 'Vue Reactivity & State Hygiene Auditor',
             description: 'Verifica reactividad y pureza de Vue 3 Composition API',
@@ -84,8 +86,9 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
         this.scanRegexMatches(scriptContent, ASYNC_COMPUTED_REGEX, relPath, 'no-async-in-computed', ['reactivity-ok', 'sfc-ok'], 'Asynchronous callback passed to computed(). computed cannot unwrap promises; use watchEffect or computedAsync from VueUse.', undefined, content);
         this.scanRegexMatches(scriptContent, WATCH_PROP_NAKED_REGEX, relPath, 'watch-reactive-property-getter', ['reactivity-ok', 'sfc-ok'], 'Watching reactive property directly as value instead of a getter. Use watch(() => props.prop, ...) to preserve reactivity.', undefined, content);
         this.scanRegexMatches(scriptContent, DESTRUCTURED_REACTIVE_REGEX, relPath, 'no-destructured-reactive', ['reactivity-ok', 'sfc-ok'], 'Destructuring reactive() object directly causes reactivity loss. Wrap with toRefs() before destructuring.', undefined, content);
-        this.markRuleEvaluated('no-side-effects-in-computed');
-        this.auditComputedSideEffects(relPath, content, scriptContent);
+        this.runSubAuditorSync('no-side-effects-in-computed', () => {
+            this.auditComputedSideEffects(relPath, content, scriptContent);
+        });
     }
     reportComputedViolation(relPath, fullContent, startIdx, needle, message) {
         const line = this.getLineNumber(fullContent, fullContent.indexOf(needle, startIdx));

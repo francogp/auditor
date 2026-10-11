@@ -203,11 +203,14 @@ async function checkIsCrossImported(
   return false;
 }
 
+export type DuplicateConstantFilter = 'identical' | 'divergent';
+
 function createConstantViolations(
   constName: string,
   decls: readonly ConstDecl[],
   uniqueFiles: readonly string[],
-  targetConstantsDir: string
+  targetConstantsDir: string,
+  filter?: DuplicateConstantFilter
 ): Violation[] {
   const normalizedValueA = decls[0]!.valueStr.replace(/\s+/g, '');
   const hasIdenticalValues = decls.every(d => d.valueStr.replace(/\s+/g, '') === normalizedValueA);
@@ -215,6 +218,7 @@ function createConstantViolations(
 
   const violations: Violation[] = [];
   if (hasIdenticalValues) {
+    if (filter === 'divergent') return violations;
     for (const decl of decls) {
       violations.push({
         file: decl.file,
@@ -226,6 +230,7 @@ function createConstantViolations(
       });
     }
   } else {
+    if (filter === 'identical') return violations;
     for (const decl of decls) {
       violations.push({
         file: decl.file,
@@ -243,7 +248,8 @@ function createConstantViolations(
 export async function detectDuplicateConstants(
   files: string[],
   astContext?: SharedAstContext,
-  projectRoot = process.cwd()
+  projectRoot = process.cwd(),
+  filter?: DuplicateConstantFilter
 ): Promise<Violation[]> {
   const declarations = new Map<string, ConstDecl[]>();
   const astEngine = astContext ?? new SharedAstContext();
@@ -266,7 +272,7 @@ export async function detectDuplicateConstants(
 
     const isCrossImported = await checkIsCrossImported(constName, uniqueFiles, fileContentCache);
     if (!isCrossImported) {
-      violations.push(...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir));
+      violations.push(...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir, filter));
     }
   }
 

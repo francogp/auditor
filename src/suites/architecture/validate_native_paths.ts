@@ -36,7 +36,9 @@ import {
   getEffectiveScannableRoots,
   FileScanAuditor,
   BaseAuditor,
-  assertSafePathComponent
+  AuditedDocument,
+  assertSafePathComponent,
+  createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
@@ -443,23 +445,29 @@ function evaluateLineNativePathViolations(
   );
 }
 
+function forEachActiveLine(
+  lines: readonly string[],
+  callback: (rawLine: string, trimmed: string, lineNum: number, lineIndex: number) => void
+): void {
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i]!;
+    const trimmed = rawLine.trim();
+    if (!isIgnoredOrCommentLine(rawLine, trimmed, lines[i - 1])) {
+      callback(rawLine, trimmed, i + 1, i);
+    }
+  }
+}
+
 export function scanFileForNativePathViolations(filePath: string, content: string): NativePathViolation[] {
   const violations: NativePathViolation[] = [];
   const lines = content.split(/\r?\n/);
 
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i]!;
-    const trimmed = rawLine.trim();
-
-    if (isIgnoredOrCommentLine(rawLine, trimmed, lines[i - 1])) {
-      continue;
-    }
-
-    const violation = evaluateLineNativePathViolations(rawLine, trimmed, filePath, i + 1, lines, i, content);
+  forEachActiveLine(lines, (rawLine, trimmed, lineNum, lineIndex) => {
+    const violation = evaluateLineNativePathViolations(rawLine, trimmed, filePath, lineNum, lines, lineIndex, content);
     if (violation) {
       violations.push(violation);
     }
-  }
+  });
 
   return violations;
 }
@@ -517,7 +525,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(NATIVE_PATH_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -527,7 +535,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
       description: 'Garantiza uso de path.posix y evita CWE-22 traversal',
@@ -548,13 +556,24 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
       roots: effectiveRoots,
       projectRoot
     });
-  }
 
-  protected override scanFile(relPath: string, content: string): void {
-    const fileViolations = scanFileForNativePathViolations(relPath, content);
-    for (const v of fileViolations) {
-      this.addViolation(v);
-    }
+    const registerLineRule = (
+      ruleId: NativePathRuleId,
+      checker: (rawLine: string, trimmed: string, relPath: string, lineNum: number, lines: readonly string[], index: number, doc: AuditedDocument) => NativePathViolation | null
+    ) => {
+      this.declareFileSubAuditor(ruleId, (doc) => {
+        forEachActiveLine(doc.lines, (rawLine, trimmed, lineNum, lineIndex) => {
+          const v = checker(rawLine, trimmed, doc.relPath, lineNum, doc.lines, lineIndex, doc);
+          if (v) this.addViolation(v);
+        });
+      });
+    };
+
+    registerLineRule('homebrew-path-manipulation', (raw, trim, rel, num) => checkHomebrewPathManipulation(raw, trim, rel, num));
+    registerLineRule('unsafe-path-concat', (raw, trim, rel, num) => checkUnsafePathConcat(raw, trim, rel, num));
+    registerLineRule('unsanitized-env-argv-path', (raw, trim, rel, num, lines, i) => checkUnsanitizedEnvArgv(raw, trim, rel, num, lines, i));
+    registerLineRule('untrusted-url-fetch', (raw, trim, rel, num, _lines, _i, doc) => checkUntrustedUrlFetch(raw, trim, rel, num, doc.rawContent));
+    registerLineRule('hardcoded-slash-path', (raw, trim, rel, num) => checkHardcodedSlashPath(raw, trim, rel, num));
   }
 }
 

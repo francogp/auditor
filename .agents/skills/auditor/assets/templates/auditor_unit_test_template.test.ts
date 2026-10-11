@@ -108,4 +108,15 @@ describe('MyFeatureAuditor', () => {
     expect(declaredRules).toContain('my-feature-forbidden-pattern');
     expect(declaredRules).toContain('my-feature-missing-attribute');
   });
+
+  it('guarantees 100% of declared rules record individual empirical durations', async () => {
+    const auditor = new MyFeatureAuditor({ projectRoot: TEST_DIR });
+    auditor.testScanFile('clean.ts', 'export const valid = true;\n');
+    await auditor.finishAudit();
+
+    for (const ruleId of auditor.ruleIds) {
+      expect(auditor.isRuleEvaluated(ruleId)).toBe(true);
+      expect(auditor.getRuleDuration(ruleId)).toBeGreaterThanOrEqual(0);
+    }
+  });
 });

@@ -19,7 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, getAuditConfig, toPosixRelative, parseVueSfc } from '@francogp/auditor';
+import { BaseAuditor, createUniformRuleCapabilities, getAuditConfig, toPosixRelative, parseVueSfc } from '@francogp/auditor';
 
 export type ButtonGovernanceRuleId =
   | 'ad-hoc-button-styles'
@@ -40,6 +40,17 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       description: 'Valida gobernanza de botones y variantes canónicas',
       icon: '🔘',
       family: 'architecture',
+      ruleCapabilities: createUniformRuleCapabilities(BUTTON_GOVERNANCE_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: true,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }),
       ruleIds: BUTTON_GOVERNANCE_RULES,
       packageName: 'Botones',
       configKey: 'styles.buttonGovernance',
@@ -69,24 +80,38 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       const relButtons = toPosixRelative(buttonsScssPath, this.projectRoot);
       this.recordScanned(relButtons);
 
-      this.assertRule('button-border-clipping', !btnContent.includes('border-bottom-color'), {
-        severity: 'error',
-        file: relButtons,
-        line: 1,
-        message: 'Forbidden usage of "border-bottom-color" on buttons. All buttons must maintain continuous 360° perimeter borders.',
-        context: 'border-bottom-color'
+      this.runSubAuditorSync('button-border-clipping', () => {
+        if (btnContent.includes('border-bottom-color')) {
+          this.addViolation({
+            ruleId: 'button-border-clipping',
+            severity: 'error',
+            file: relButtons,
+            line: 1,
+            message: 'Forbidden usage of "border-bottom-color" on buttons. All buttons must maintain continuous 360° perimeter borders.',
+            context: 'border-bottom-color'
+          });
+        }
       });
 
-      this.assertRule('button-inset-cutoff', !/inset\s+0\s+-[0-9]+px/i.test(btnContent), {
-        severity: 'error',
-        file: relButtons,
-        line: 1,
-        message: 'Forbidden negative vertical inset shadow on buttons simulating visual clipping.',
-        context: 'inset 0 -Npx'
+      this.runSubAuditorSync('button-inset-cutoff', () => {
+        if (/inset\s+0\s+-[0-9]+px/i.test(btnContent)) {
+          this.addViolation({
+            ruleId: 'button-inset-cutoff',
+            severity: 'error',
+            file: relButtons,
+            line: 1,
+            message: 'Forbidden negative vertical inset shadow on buttons simulating visual clipping.',
+            context: 'inset 0 -Npx'
+          });
+        }
       });
     } else {
-      this.markRuleNotApplicable('button-border-clipping', 'No _buttons.scss found in styles');
-      this.markRuleNotApplicable('button-inset-cutoff', 'No _buttons.scss found in styles');
+      this.runSubAuditorSync('button-border-clipping', () => {
+        this.markRuleNotApplicable('button-border-clipping', 'No _buttons.scss found in styles');
+      });
+      this.runSubAuditorSync('button-inset-cutoff', () => {
+        this.markRuleNotApplicable('button-inset-cutoff', 'No _buttons.scss found in styles');
+      });
     }
 
     // 2. Audit Vue components for ad-hoc button classes
@@ -94,13 +119,14 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       [...(config.paths.componentsRoots ?? ['src/components']), ...(config.paths.viewsRoots ?? ['src/views'])],
       new Set(['.vue'])
     );
-    this.markRuleEvaluated('ad-hoc-button-styles');
 
     const canonicalVariants = new Set([
       'btn-primary', 'btn-secondary', 'btn-dark', 'btn-success', 'btn-warning', 'btn-danger',
       'btn-sm', 'btn-md', 'btn-lg', 'btn-block', 'btn-3d', 'btn-icon',
       ...(config.styles?.canonicalButtonVariants ?? [])
     ]);
+
+    this.runSubAuditorSync('ad-hoc-button-styles', () => {
 
     for (const file of compFiles) {
       const relPath = toPosixRelative(file, this.projectRoot);
@@ -144,6 +170,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
         }
       }
     }
+    });
   }
 }
 

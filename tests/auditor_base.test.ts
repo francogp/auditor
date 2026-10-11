@@ -22,7 +22,6 @@ import {
   type AuditorOptions
 } from '../src/core/auditorBase.ts';
 import { deriveCoverageFromRequiredFiles } from '../src/core/auditCoverage.ts';
-import type { AuditorCapabilities } from '../src/core/auditContract.ts';
 
 describe('auditorBase infrastructure', () => {
   describe('SSoT Ignore Sets Integrity', () => {
@@ -154,16 +153,18 @@ describe('auditorBase infrastructure', () => {
             defaultConfig: {},
             criticalConfig: {},
             ruleIds: ['test-rule'],
-            capabilities: {
-              fix: false,
-              fixPriority: false,
-              lint: false,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
+            ruleCapabilities: {
+              'test-rule': {
+                fix: false,
+                fixPriority: false,
+                lint: false,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              }
             },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
@@ -216,16 +217,18 @@ describe('auditorBase infrastructure', () => {
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
       coverage: { include: ['src/**/*.ts'] },
-      capabilities: {
-        fix: false,
-        fixPriority: false,
-        lint: false,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+      ruleCapabilities: {
+        dummy: {
+          fix: false,
+          fixPriority: false,
+          lint: false,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        }
       }
     };
 
@@ -288,45 +291,68 @@ describe('auditorBase infrastructure', () => {
       }).not.toThrow();
     });
 
-    it('throws when capabilities is omitted from constructor options', () => {
-      const { capabilities: _, ...withoutCaps } = validBaseOptions;
-      expect(() => {
-        new MinimalAuditor(withoutCaps);
-      }).toThrow(/must define mandatory 'capabilities'/);
-    });
-
-    it('throws when capabilities has missing sub-fields (partial capabilities rejected)', () => {
-      expect(() => {
-        new MinimalAuditor({
-          ...validBaseOptions,
-          capabilities: { fix: false } as unknown as AuditorCapabilities
-        });
-      }).toThrow(/must explicitly define sub-capability 'capabilities.fixPriority' as a boolean/);
-    });
-
-    it('throws when declared capability is not a boolean or unknown', () => {
+    it('throws when redundant capabilities is passed to constructor options', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
           capabilities: {
-            ...validBaseOptions.capabilities,
-            fix: 'true' as unknown as boolean
+            fix: false,
+            fixPriority: false,
+            lint: false,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          }
+        } as never);
+      }).toThrow(/passed redundant 'capabilities' to constructor options/);
+    });
+
+    it('throws when ruleCapabilities is omitted from constructor options', () => {
+      const { ruleCapabilities: _, ...withoutCaps } = validBaseOptions;
+      expect(() => {
+        new MinimalAuditor(withoutCaps as never);
+      }).toThrow(/must define mandatory 'ruleCapabilities'/);
+    });
+
+    it('throws when ruleCapabilities has missing sub-fields (partial capabilities rejected)', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          ruleCapabilities: { dummy: { fix: false } as never }
+        });
+      }).toThrow(/must explicitly define sub-capability 'ruleCapabilities\.dummy\.fixPriority' as a boolean/);
+    });
+
+    it('throws when declared sub-capability is not a boolean or unknown', () => {
+      expect(() => {
+        new MinimalAuditor({
+          ...validBaseOptions,
+          ruleCapabilities: {
+            dummy: {
+              ...validBaseOptions.ruleCapabilities.dummy,
+              fix: 'true' as unknown as boolean
+            }
           }
         });
-      }).toThrow(/must explicitly define sub-capability 'capabilities.fix' as a boolean/);
+      }).toThrow(/must explicitly define sub-capability 'ruleCapabilities\.dummy\.fix' as a boolean/);
 
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          capabilities: {
-            ...validBaseOptions.capabilities,
-            unknownFlag: true
-          } as unknown as AuditorCapabilities
+          ruleCapabilities: {
+            dummy: {
+              ...validBaseOptions.ruleCapabilities.dummy,
+              unknownFlag: true
+            } as never
+          }
         });
       }).toThrow(/declared unknown capability 'unknownFlag'/);
     });
 
-    it('successfully exposes capabilities and auto-derives requiresAst on BaseAuditor instance', () => {
+    it('successfully exposes capabilities derived from ruleCapabilities and auto-derives requiresAst on BaseAuditor instance', () => {
       const expectedCaps = {
         fix: false,
         lint: false,
@@ -340,10 +366,12 @@ describe('auditorBase infrastructure', () => {
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,
-        capabilities: {
-          ...validBaseOptions.capabilities,
-          ast: true,
-          heavy: true
+        ruleCapabilities: {
+          dummy: {
+            ...validBaseOptions.ruleCapabilities.dummy,
+            ast: true,
+            heavy: true
+          }
         }
       });
       expect(auditor.capabilities).toEqual(expectedCaps);
@@ -364,16 +392,29 @@ describe('auditorBase infrastructure', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: false,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+          ruleCapabilities: {
+            'rule-a': {
+              fix: false,
+              fixPriority: false,
+              lint: false,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            },
+            'rule-b': {
+              fix: false,
+              fixPriority: false,
+              lint: false,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            }
           },
           ruleIds: ['rule-a', 'rule-b'],
           ruleDescriptions: {
@@ -452,6 +493,51 @@ describe('auditorBase infrastructure', () => {
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }
+    });
+
+    it('measures real durationMs for single-rule suites and explicit rule evaluations without synthetic divisions', async () => {
+      const loggedSteps: string[] = [];
+      class SingleRuleAuditor extends BaseAuditor<'only-rule'> {
+        constructor() {
+          super({
+            id: 'test_single',
+            name: 'Single Rule Auditor',
+            description: 'Single rule auditor',
+            family: 'architecture',
+            packageName: 'Test',
+            icon: '⏱️',
+            configKey: 'paths',
+            defaultConfig: {},
+            criticalConfig: {},
+            ruleIds: ['only-rule'],
+            ruleDescriptions: {
+              'only-rule': 'Regla única'
+            },
+            coverage: { include: ['src/**/*.ts'] },
+            ruleCapabilities: {
+              'only-rule': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
+            }
+          });
+        }
+        public override async runAudit(): Promise<void> {}
+      }
+
+      const auditor = new SingleRuleAuditor();
+      auditor.setStepLogger((_step, _total, desc) => {
+        loggedSteps.push(desc);
+      });
+
+      const result = await auditor.execute();
+      expect(result.status).toBe('passed');
+      expect(result.subAuditors).toBeDefined();
+      expect(result.subAuditors!.length).toBe(1);
+
+      const subReport = result.subAuditors![0]!;
+      expect(typeof subReport.durationMs).toBe('number');
+      expect(subReport.durationMs!).toBeGreaterThanOrEqual(0);
+
+      expect(loggedSteps.length).toBe(1);
+      expect(loggedSteps[0]).toMatch(/\(<?[0-9.,]+ ms\)/);
     });
   });
 });

@@ -19,7 +19,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
@@ -63,7 +63,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
       family: 'architecture',
       description: 'Verifica estándares de Vue Router 4 y navegación SPA',
       icon: '🧭',
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(VUE_ROUTER_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -73,7 +73,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       ruleIds: VUE_ROUTER_RULES,
       ruleDescriptions: {
         'no-deprecated-router-next': 'Uso de next() obsoleto en navigation guard',

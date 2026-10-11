@@ -9,17 +9,20 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { ValidateDocumentedCommandsAuditor } from '../src/suites/documentation/validate_documented_commands.ts';
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateDocumentedCommandsAuditor', () => {
   let tempDir: string;
 
   beforeEach(async () => {
     process.env.AUDIT_SUBPROCESS = 'true';
+    resetAuditConfig();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-cmd-test-'));
   });
 
   afterEach(async () => {
     delete process.env.AUDIT_SUBPROCESS;
+    resetAuditConfig();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 

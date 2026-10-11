@@ -10,6 +10,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRuleCapabilities,
   type AuditorConfigFileRequirement,
   type AuditorPackageScriptRequirement,
   type GitIgnoreRequirement
@@ -56,8 +57,11 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
   constructor(options: MyCompositeAuditorOptions = {}) {
     super({
-      // Optional capabilities: all default to false automatically.
-      // Example: capabilities: { lint: true, fix: true, fixPriority: true }, // Use fixPriority: true for environment/config bootstrappers
+      ruleCapabilities: {
+        'composite-missing-entry': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false },
+        'composite-parity-mismatch': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false },
+        'composite-missing-config': { fix: true, fixPriority: true, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
+      },
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
       // Optional declarative configuration files verified and auto-created with --fix:
@@ -100,28 +104,33 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       this.recordScanned(file);
     }
 
-    // Option B: Validate data structures or relationships
+    // Option B: Validate data structures or relationships with individual empirical timing
     this.context.logStep(2, 2, 'Verifying cross-entity parity...');
-    const simulatedMismatch = false;
 
-    // Mark rules evaluated so telemetry verifies active evaluation (prevents coverage-dormant-rule)
-    this.markRuleEvaluated('composite-missing-entry');
-    this.markRuleEvaluated('composite-parity-mismatch');
+    // Rule 1: Missing entry check (measured individually)
+    this.runSubAuditorSync('composite-missing-entry', () => {
+      // In real code: check if all required entries exist in registry
+    });
 
-    if (simulatedMismatch) {
-      this.addViolation({
-        ruleId: 'composite-parity-mismatch',
-        severity: 'error',
-        file: 'src/data/canonicalData.ts',
-        line: 1,
-        message: `Entity parity mismatch between canonical list and runtime registry.`,
-        context: 'entity_id_example'
-      });
-    }
+    // Rule 2: Parity mismatch check (measured individually)
+    this.runSubAuditorSync('composite-parity-mismatch', () => {
+      const simulatedMismatch = false;
+      if (simulatedMismatch) {
+        this.addViolation({
+          ruleId: 'composite-parity-mismatch',
+          severity: 'error',
+          file: 'src/data/canonicalData.ts',
+          line: 1,
+          message: `Entity parity mismatch between canonical list and runtime registry.`,
+          context: 'entity_id_example'
+        });
+      }
+    });
 
-    // Option C: Verify declarative configuration files and auto-create them in --fix mode
-    this.markRuleEvaluated('composite-missing-config');
-    const missingConfigs = await this.verifyAndFixConfigFiles();
+    // Rule 3: Verify declarative configuration files (measured individually via async wrapper, returns result directly)
+    const missingConfigs = await this.runSubAuditor('composite-missing-config', async () => {
+      return await this.verifyAndFixConfigFiles();
+    });
     for (const missing of missingConfigs) {
       this.addViolation({
         ruleId: 'composite-missing-config',

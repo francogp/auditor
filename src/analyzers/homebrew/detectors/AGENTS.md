@@ -24,6 +24,7 @@ Architecture & Tooling Engineers.
 - [`pathContainmentDetector.ts`](./pathContainmentDetector.ts): Detects manual startsWith/relative path containment checks (`auditor-manual-path-containment`).
 - [`fileWalkerDetector.ts`](./fileWalkerDetector.ts): Detects manual recursive fs directory traversal (`auditor-manual-file-walker`).
 - [`predicatesDetector.ts`](./predicatesDetector.ts): Detects homebrew test/path predicates (`auditor-homebrew-predicates`).
+- [`manualTimingDetector.ts`](./manualTimingDetector.ts): Detects manual rule duration measurements (`auditor-manual-rule-timing`).
 
 ## Work Guidance
 

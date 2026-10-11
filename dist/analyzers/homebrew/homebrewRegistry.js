@@ -34,7 +34,7 @@ export class HomebrewDetectorRegistry {
         }
         return descriptions;
     }
-    static run(context, disabledDetectors = []) {
+    static run(context, disabledDetectors = [], onDetectorDuration) {
         // Whole file exemption check
         if (context.content.includes('// homebrew-ok: all') ||
             context.content.includes('// homebrew-exempt')) {
@@ -45,7 +45,11 @@ export class HomebrewDetectorRegistry {
         for (const detector of this.detectors.values()) {
             if (disabledSet.has(detector.id))
                 continue;
+            const t0 = performance.now();
             const detectorFindings = detector.detect(context);
+            if (onDetectorDuration) {
+                onDetectorDuration(detector.ruleId, performance.now() - t0);
+            }
             for (const finding of detectorFindings) {
                 const lineIdx = finding.line - 1;
                 const lineText = context.lines[lineIdx] ?? '';

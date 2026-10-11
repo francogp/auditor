@@ -15,7 +15,7 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
@@ -52,9 +52,7 @@ function isExemptDomainCastTarget(castTarget) {
     const lowerTarget = castTarget.toLowerCase().replace(/_/g, '');
     return infraList.some(infra => lowerTarget.includes(infra));
 }
-function isFunctionParameterContext(content, matchIndex) {
-    return isPositionInsideFunctionParams(content, matchIndex);
-}
+const isFunctionParameterContext = isPositionInsideFunctionParams;
 export const DOMAIN_TYPES_RULES = [
     'domain-naked-string-primitive',
     'domain-untyped-collection',
@@ -80,6 +78,7 @@ const P_AMBIGUOUS_EMPTY_NULL_FIELD = /^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;
 const P_TYPECAST_INLINE_DOMAIN_ID = /\bas\s+(?:[A-Z]\w*Id|keyof\s+typeof\s+[A-Z_a-z]\w*)\b/g;
 const P_OBJECT_KEYS_CAST = /\bObject\.(?:keys|entries)\s*\([^)]+\)\s+as\s+(?:\([|\w\s]+\)|[A-Za-z]\w*)\[\]/g;
 // Advanced Strict Domain Typing Patterns
+// redos-ok: deterministic token parsing regex for function parameter signatures
 const P_INLINE_ANONYMOUS_OBJECT_PARAM = /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*(?:;|,)\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g;
 const P_UNBRANDED_DOMAIN_ID_ALIAS = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=\s*string\s*;/g;
 const P_PARAM_WILDCARD_STRING_UNION = /\b(\w{2,}[iI]d)\s*\??:\s*[A-Z]\w*\s*\|\s*string\b/g;
@@ -111,7 +110,9 @@ function isAmbientDeclarationFile(file) {
 function isOpenUnknownDictionary(line) {
     return /Record\s*<\s*string\s*,\s*unknown\s*>|\[\s*\w+\s*:\s*string\s*\]\s*:\s*unknown/.test(line);
 }
-function findMatches(content, file, pattern, label, severity, ruleId, filter, overrideEscapeHatch) {
+function findMatches(content, file, pattern, label, severity, ruleId, filter, overrideEscapeHatch, ruleFilter) {
+    if (ruleFilter && ruleId !== ruleFilter)
+        return [];
     const findings = [];
     const lines = content.split('\n');
     pattern.lastIndex = 0;
@@ -140,7 +141,7 @@ function findMatches(content, file, pattern, label, severity, ruleId, filter, ov
     }
     return findings;
 }
-export async function auditFile(filePath) {
+export async function auditFile(filePath, ruleFilter) {
     const content = await fs.readFile(filePath, 'utf8');
     const rel = toRepoPath(filePath);
     if (rel.endsWith('validate_domain_types.ts'))
@@ -235,7 +236,7 @@ export async function auditFile(filePath) {
         return isFunctionParameterContext(content, match.index);
     }));
     findings.push(...findMatches(content, rel, P_DOMAIN_TYPE_NULLABLE, 'Domain ID type alias includes null/undefined — domain types must represent valid present entities', 'ERROR', 'domain-naked-string-primitive', (_match, line) => !line.includes('// nullable-ok:') && !line.includes('// domain-ok:')));
-    return findings;
+    return ruleFilter ? findings.filter(f => f.ruleId === ruleFilter) : findings;
 }
 export class DomainTypesAuditor extends BaseAuditor {
     constructor(roots, projectRoot) {
@@ -244,7 +245,7 @@ export class DomainTypesAuditor extends BaseAuditor {
             ? [...(config.paths.codeRoots ?? ['src', 'scripts']), ...(config.paths.testRoots ?? ['tests'])]
             : (config.paths.codeRoots ?? ['src', 'scripts']));
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -254,7 +255,7 @@ export class DomainTypesAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_domain_types',
             name: 'Domain Types Integrity Audit',
             description: 'Uso de strings crudos en vez de tipos de dominio',
@@ -281,43 +282,48 @@ export class DomainTypesAuditor extends BaseAuditor {
             projectRoot
         });
     }
+    collectAuditableDomainFiles() {
+        const files = this.context.collectFiles(this.roots, this.allowedExtensions);
+        if (files.length === 0) {
+            for (const rule of DOMAIN_TYPES_RULES) {
+                this.markRuleNotApplicable(rule, 'Sin archivos fuente para validar tipos de dominio');
+            }
+        }
+        return files;
+    }
     async runAudit() {
         if (this.isSuiteGatingDisabled('Dominio desactivado en config')) {
             this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
             return;
         }
-        for (const r of DOMAIN_TYPES_RULES) {
-            this.markRuleEvaluated(r);
-        }
-        const filePaths = this.context.collectFiles(this.roots, this.allowedExtensions);
-        if (filePaths.length === 0) {
-            for (const r of DOMAIN_TYPES_RULES) {
-                this.markRuleNotApplicable(r, 'No se encontraron archivos de código candidatos');
-            }
+        const filePaths = this.collectAuditableDomainFiles();
+        if (filePaths.length === 0)
             return;
-        }
-        const allFindings = [];
-        let scannedCount = 0;
         for (const filePath of filePaths) {
-            const rel = toRepoPath(filePath);
-            this.recordScanned(rel);
-            const findings = await auditFile(filePath);
-            allFindings.push(...findings);
-            scannedCount++;
+            this.recordScanned(toRepoPath(filePath));
         }
-        for (const finding of allFindings) {
-            this.addViolation({
-                ruleId: finding.ruleId,
-                severity: finding.severity === 'ERROR' ? 'error' : 'warning',
-                file: finding.file,
-                line: finding.line,
-                column: finding.col,
-                message: finding.pattern,
-                context: finding.snippet
+        let totalIssues = 0;
+        for (const ruleId of DOMAIN_TYPES_RULES) {
+            await this.runSubAuditor(ruleId, async () => {
+                for (const filePath of filePaths) {
+                    const findings = await auditFile(filePath, ruleId);
+                    for (const finding of findings) {
+                        totalIssues++;
+                        this.addViolation({
+                            ruleId: finding.ruleId,
+                            severity: finding.severity === 'ERROR' ? 'error' : 'warning',
+                            file: finding.file,
+                            line: finding.line,
+                            column: finding.col,
+                            message: finding.pattern,
+                            context: finding.snippet
+                        });
+                    }
+                }
             });
         }
-        this.context.setMetric('Scanned files', scannedCount);
-        this.context.setMetric('Domain issues', allFindings.length);
+        this.context.setMetric('Scanned files', filePaths.length);
+        this.context.setMetric('Domain issues', totalIssues);
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

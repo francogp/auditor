@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig, loadAuditConfig, isSelfProviderProject } from "../../core/auditConfig.js";
 import { initAgentSkill } from "../../cli/init_agent.js";
 enableCompileCache();
@@ -46,7 +46,7 @@ function isPluginRegisteredInAgents(projectRoot) {
 export class AgentPluginAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
                 fix: true,
                 fixPriority: true,
                 lint: false,
@@ -56,7 +56,7 @@ export class AgentPluginAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, ['missing-agent-plugin-registration']),
             fixableRuleIds: ['missing-agent-plugin-registration'],
             id: 'validate_agent_plugin',
             name: 'Agent Plugin & Skill Integration Validator',
@@ -130,14 +130,15 @@ export class AgentPluginAuditor extends BaseAuditor {
             if (fs.existsSync(path.join(this.projectRoot, registryFile)))
                 this.recordScanned(registryFile);
         }
-        this.markRuleEvaluated('missing-agent-plugin-registration');
-        if (isPluginRegisteredInAgents(this.projectRoot)) {
-            this.context.setMetric('Agent Plugin Status', 'Registered');
-            return;
-        }
-        if (this.tryAutoFixPlugin())
-            return;
-        this.reportMissingPluginViolation();
+        this.runSubAuditorSync('missing-agent-plugin-registration', () => {
+            if (isPluginRegisteredInAgents(this.projectRoot)) {
+                this.context.setMetric('Agent Plugin Status', 'Registered');
+                return;
+            }
+            if (this.tryAutoFixPlugin())
+                return;
+            this.reportMissingPluginViolation();
+        });
     }
 }
 // Canonical CLI Entrypoint

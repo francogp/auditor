@@ -38,7 +38,12 @@ const BASE_TEST_CONFIG_SECTIONS = `
   coverage: { enabled: false },
   auditorHygiene: { enabled: false },
   packageScripts: { enabled: true },
-  scriptExtensions: { enabled: false }
+  scriptExtensions: { enabled: false },
+  webPerformance: { enabled: false },
+  queryPerformance: { enabled: false },
+  securityHardening: { enabled: false },
+  codeSimplification: { enabled: false },
+  scssArchitecture: { enabled: false }
 `;
 
 describe('ValidateAuditConfigAuditor', () => {
@@ -588,16 +593,18 @@ export class CustomExtAuditor extends BaseAuditor {
       configKey: 'customExt.enabled',
       defaultConfig: { enabled: true, customOption: 'default_val' },
       criticalConfig: {},
-      capabilities: {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+      ruleCapabilities: {
+        'custom-rule': {
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        }
       },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
       projectRoot: opts?.projectRoot

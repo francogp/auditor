@@ -19,7 +19,7 @@ import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
   BaseAuditor
-} from '../../core/auditorBase.ts';
+, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -128,7 +128,7 @@ private totalRulesChecked = 0;
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? config.paths?.srcRoots ?? ['src'];
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -138,7 +138,7 @@ private totalRulesChecked = 0;
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
 id: 'validate_typography_line_height',
       name: 'Typography Line-Height & Interlinear Spacing Validator',
       description: 'Detecta colisiones de line-height en tipografías multilínea',

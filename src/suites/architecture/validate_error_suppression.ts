@@ -24,7 +24,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
 
@@ -60,7 +60,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       : ['src', 'scripts']);
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -70,7 +70,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
 id: 'validate_error_suppression',
       name: 'Zero Error Suppression Auditor',
       description: 'Prohíbe supresión de errores, catch vacíos y fallbacks',
@@ -94,17 +94,18 @@ id: 'validate_error_suppression',
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    // 1. Audit empty catch blocks
-    this.auditEmptyCatch(relPath, content);
-
-    // 2. Audit silent promise catches
-    this.auditSilentPromiseCatch(relPath, content);
-
-    // 3. Audit silent schema fallbacks
-    this.auditSchemaFallbacks(relPath, content);
-
-    // 4. Audit loose catch narrowing
-    this.auditCatchNarrowing(relPath, content);
+    this.runSubAuditorSync('no-empty-catch', () => {
+      this.auditEmptyCatch(relPath, content);
+    });
+    this.runSubAuditorSync('no-silent-promise-catch', () => {
+      this.auditSilentPromiseCatch(relPath, content);
+    });
+    this.runSubAuditorSync('no-silent-mock-fallbacks', () => {
+      this.auditSchemaFallbacks(relPath, content);
+    });
+    this.runSubAuditorSync('strict-catch-narrowing', () => {
+      this.auditCatchNarrowing(relPath, content);
+    });
   }
 
   private forEachNonCommentMatch(

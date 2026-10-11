@@ -25,7 +25,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
@@ -108,7 +108,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     super({
       roots: sfcRoots,
       projectRoot,
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -118,7 +118,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
       description: 'Verifica estándares de Vue SFC y <script setup lang="ts">',
@@ -142,23 +142,29 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
 
   protected override scanFile(relPath: string, content: string): void {
     // 1. Audit Script Setup requirement and Options API prohibition
-    this.markRuleEvaluated('script-setup-required');
-    this.auditScriptSetup(relPath, content);
+    this.runSubAuditorSync('script-setup-required', () => {
+      this.auditScriptSetup(relPath, content);
+    });
 
     // 2. Audit exports inside <script setup>
-    this.markRuleEvaluated('no-script-setup-exports');
-    this.auditScriptSetupExports(relPath, content);
+    this.runSubAuditorSync('no-script-setup-exports', () => {
+      this.auditScriptSetupExports(relPath, content);
+    });
 
     // 3. Audit template quote escaping
-    this.markRuleEvaluated('vue-template-quote-escaping');
-    this.auditTemplateQuoteEscaping(relPath, content);
+    this.runSubAuditorSync('vue-template-quote-escaping', () => {
+      this.auditTemplateQuoteEscaping(relPath, content);
+    });
 
-    // 4. Audit data provider calls in template (scanRegexMatches auto-marks 'no-data-provider-in-template')
-    this.auditDataProviderInTemplate(relPath, content);
+    // 4. Audit data provider calls in template
+    this.runSubAuditorSync('no-data-provider-in-template', () => {
+      this.auditDataProviderInTemplate(relPath, content);
+    });
 
     // 5. Audit magic calculations and comparisons in template expressions
-    this.markRuleEvaluated('vue-template-magic-calculation');
-    this.auditTemplateMagicCalculation(relPath, content);
+    this.runSubAuditorSync('vue-template-magic-calculation', () => {
+      this.auditTemplateMagicCalculation(relPath, content);
+    });
   }
 
   private auditScriptSetup(relPath: string, content: string): void {
@@ -311,15 +317,23 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     return results;
   }
 
-  private auditDataProviderInTemplate(relPath: string, content: string): void {
+  private getTemplateDynamicExpressions(content: string): {
+    templateStartIndex: number;
+    dynamicExpressions: Array<{ expression: string; offsetInTemplate: number }>;
+  } | null {
     const template = this.extractTemplateBlock(content);
-    if (!template) return;
+    if (!template) return null;
+    return {
+      templateStartIndex: template.templateStartIndex,
+      dynamicExpressions: this.extractDynamicExpressions(template.templateContent)
+    };
+  }
 
-    this.markRuleEvaluated('no-data-provider-in-template');
+  private auditDataProviderInTemplate(relPath: string, content: string): void {
+    const data = this.getTemplateDynamicExpressions(content);
+    if (!data) return;
 
-    const { templateContent, templateStartIndex } = template;
-    const dynamicExpressions = this.extractDynamicExpressions(templateContent);
-
+    const { templateStartIndex, dynamicExpressions } = data;
     const config = getAuditConfig(this.projectRoot);
     const customPatterns = config.templates?.forbiddenTemplateCallPatterns;
     const providerRegex = customPatterns && customPatterns.length > 0
@@ -363,11 +377,11 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   }
 
   private auditTemplateMagicCalculation(relPath: string, content: string): void {
-    const template = this.extractTemplateBlock(content);
-    if (!template) return;
+    const data = this.getTemplateDynamicExpressions(content);
+    if (!data) return;
 
-    const { templateContent, templateStartIndex } = template;
-    const dynamicExpressions = this.extractDynamicExpressions(templateContent);
+    const { templateStartIndex, dynamicExpressions } = data;
+
 
     for (const { expression, offsetInTemplate } of dynamicExpressions) {
       const matchedSnippet = detectTemplateMagicCalculation(expression);

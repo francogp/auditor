@@ -47,16 +47,18 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
       ruleDescriptions: {
         'sample-rule': 'Regla de muestra para validación'
       },
-      capabilities: {
-        fix: true,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+      ruleCapabilities: {
+        'sample-rule': {
+          fix: true,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        }
       },
       coverage: {
         include: ['src/**']
@@ -87,16 +89,18 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
       ruleDescriptions: {
         'sample-rule': 'Regla de muestra para validación'
       },
-      capabilities: {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+      ruleCapabilities: {
+        'sample-rule': {
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        }
       },
       coverage: {
         include: ['src/**']

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveScannableRoots } from '../../core/auditorBase.ts';
+import { BaseAuditor, getEffectiveScannableRoots , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
 import type { AuditConfig } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
@@ -300,7 +300,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
         fix: true,
         fixPriority: false,
         lint: false,
@@ -310,7 +310,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         heavy: true,
         requiresBuild: false,
         postRun: false
-      },
+      }, ['package-unused-dependency']),
       fixableRuleIds: ['package-unused-dependency'],
       fix: options.fix,
       id: 'validate_package_hygiene',
@@ -341,26 +341,25 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       return;
     }
 
-    for (const r of PACKAGE_HYGIENE_RULES) {
-      this.markRuleEvaluated(r);
-    }
     this.recordScanned('package.json');
     if (fs.existsSync(path.resolve(this.projectRoot, 'package-lock.json'))) {
       this.recordScanned('package-lock.json');
     }
 
-    const lockFindings = verifyLockfileIntegrity(this.projectRoot);
-    for (const lf of lockFindings) {
-      this.addViolation({
-        ruleId: lf.ruleId as PackageHygieneRuleId,
-        severity: lf.severity,
-        file: lf.file,
-        line: lf.line,
-        col: lf.col,
-        context: lf.context,
-        message: lf.message
-      });
-    }
+    this.runSubAuditorSync('package-lockfile-integrity', () => {
+      const lockFindings = verifyLockfileIntegrity(this.projectRoot);
+      for (const lf of lockFindings) {
+        this.addViolation({
+          ruleId: lf.ruleId as PackageHygieneRuleId,
+          severity: lf.severity,
+          file: lf.file,
+          line: lf.line,
+          col: lf.col,
+          context: lf.context,
+          message: lf.message
+        });
+      }
+    });
 
     const config = getAuditConfig(this.projectRoot);
     const scratchDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
@@ -382,10 +381,32 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     const ephemeralConfigPath = this.buildEphemeralKnipConfig(config, scratchDir);
     const report = this.executeKnip(ephemeralConfigPath, cachePath, rawOutPath);
     if (!report) {
+      this.markRuleEvaluated('package-unlisted-dependency');
+      this.markRuleEvaluated('package-unused-dependency');
+      this.markRuleEvaluated('package-unused-binary');
       return;
     }
 
-    this.processKnipFindings(report);
+    const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p));
+    for (const ruleId of ['package-unused-dependency', 'package-unlisted-dependency', 'package-unused-binary'] as const) {
+      this.runSubAuditorSync(ruleId, () => {
+        for (const finding of findings) {
+          const mappedRuleId = (finding.ruleId as PackageHygieneRuleId) ?? 'package-unused-dependency';
+          if (mappedRuleId !== ruleId) continue;
+          if (finding.file && finding.file !== 'package.json' && this.isPathIgnored(finding.file)) {
+            continue;
+          }
+          this.addViolation({
+            ruleId,
+            severity: finding.severity,
+            file: finding.file ?? 'package.json',
+            line: finding.line ?? 1,
+            context: finding.context ?? finding.message,
+            message: finding.message
+          });
+        }
+      });
+    }
   }
 
   private readFallowConfigData(): { fallowEntries: string[]; fallowIgnoredDeps: string[] } {
@@ -492,23 +513,6 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       cwd: this.projectRoot,
       shell: !resolvedBin
     });
-  }
-
-  private processKnipFindings(report: KnipReport): void {
-    const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p));
-    for (const finding of findings) {
-      if (finding.file && finding.file !== 'package.json' && this.isPathIgnored(finding.file)) {
-        continue;
-      }
-      this.addViolation({
-        ruleId: (finding.ruleId as PackageHygieneRuleId) ?? 'package-unused-dependency',
-        severity: finding.severity,
-        file: finding.file ?? 'package.json',
-        line: finding.line ?? 1,
-        context: finding.context ?? finding.message,
-        message: finding.message
-      });
-    }
   }
 }
 

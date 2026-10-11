@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { parseSemver, compareVersions, getAuditorEngines } from "../../cli/check_environment.js";
 import { getPackageJson } from "../../core/packageJson.js";
 enableCompileCache();
@@ -59,7 +59,7 @@ export function syncNvmrc(projectRoot, targetNodeEngine) {
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -69,7 +69,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_environment_engines',
             name: 'Environment Engines & Runtime Validator',
             description: 'Valida versiones de Node.js y npm en package.json',
@@ -111,8 +111,8 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
         }
         return pkg;
     }
-    auditMissingEngines(hasNodeEngine, hasNpmEngine) {
-        if (!hasNodeEngine || !hasNpmEngine) {
+    auditMissingEngines(engines) {
+        if (!engines.hasNodeEngine || !engines.hasNpmEngine) {
             const isWin = process.platform === 'win32';
             const setupScript = isWin ? '.\\setup-windows.ps1' : './setup-linux.sh';
             this.addViolation({
@@ -177,19 +177,27 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor {
         const minNpmReq = parseSemver(auditorEngines.npm);
         const pkg = this.validatePackageJson(pkgPath);
         if (!pkg) {
-            this.markRuleEvaluated('environment-engines-missing');
-            this.markRuleEvaluated('environment-engines-below-floor');
-            this.markRuleEvaluated('environment-runtime-mismatch');
+            this.runSubAuditorSync('environment-engines-missing', () => { });
+            this.runSubAuditorSync('environment-engines-below-floor', () => {
+                this.markRuleNotApplicable('environment-engines-below-floor', 'package.json ausente o inválido');
+            });
+            this.runSubAuditorSync('environment-runtime-mismatch', () => {
+                this.markRuleNotApplicable('environment-runtime-mismatch', 'package.json ausente o inválido');
+            });
             return;
         }
         const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
         const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
-        this.auditMissingEngines(hasNodeEngine, hasNpmEngine);
-        this.markRuleEvaluated('environment-engines-missing');
-        const belowFloorResult = this.auditEnginesBelowFloor(pkg.engines?.node ?? '', pkg.engines?.npm ?? '', auditorEngines, minNodeReq, minNpmReq);
-        this.markRuleEvaluated('environment-engines-below-floor');
-        this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
-        this.markRuleEvaluated('environment-runtime-mismatch');
+        this.runSubAuditorSync('environment-engines-missing', () => {
+            this.auditMissingEngines({ hasNodeEngine, hasNpmEngine });
+        });
+        let belowFloorResult;
+        this.runSubAuditorSync('environment-engines-below-floor', () => {
+            belowFloorResult = this.auditEnginesBelowFloor(pkg.engines?.node ?? '', pkg.engines?.npm ?? '', auditorEngines, minNodeReq, minNpmReq);
+        });
+        this.runSubAuditorSync('environment-runtime-mismatch', () => {
+            this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
+        });
     }
 }
 // CLI entrypoint

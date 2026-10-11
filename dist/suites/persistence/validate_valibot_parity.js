@@ -25,7 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { SharedAstContext } from "../../core/astContext.js";
 enableCompileCache();
@@ -223,7 +223,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
             ...(t.initialStateFile ? [t.initialStateFile] : [])
         ]);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -233,7 +233,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_valibot_parity',
             name: 'Valibot Schema & Persistence Parity Auditor',
             description: 'Valida paridad bidireccional entre interfaces y Valibot',
@@ -295,16 +295,28 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
         }
         this.recordScanned(target.typesFile);
         this.recordScanned(target.schemaFile);
-        for (const r of VALIBOT_PARITY_RULES)
-            this.markRuleEvaluated(r);
         const typesAst = astEngine.getSourceFile(absTypes);
         const schemaAst = astEngine.getSourceFile(absSchema);
         const expectedKeys = this.computeExpectedKeys(typesAst, target);
-        this.auditSchemaParity(target, expectedKeys, schemaAst);
-        this.auditSerializerParity(target, expectedKeys, astEngine);
-        const initialNested = this.auditInitialStateParity(target, expectedKeys, astEngine);
-        this.auditNestedTargets(target, typesAst, schemaAst, initialNested);
-        this.auditSchemaQuality(target, schemaAst);
+        this.runSubAuditorSync('valibot-schema-missing-field', () => {
+            this.auditSchemaParity(target, expectedKeys, schemaAst);
+        });
+        this.runSubAuditorSync('valibot-serializer-missing-field', () => {
+            this.auditSerializerParity(target, expectedKeys, astEngine);
+        });
+        let initialNested;
+        this.runSubAuditorSync('valibot-initial-state-missing-field', () => {
+            initialNested = this.auditInitialStateParity(target, expectedKeys, astEngine);
+        });
+        this.runSubAuditorSync('valibot-nested-missing-field', () => {
+            this.auditNestedTargets(target, typesAst, schemaAst, initialNested);
+        });
+        this.runSubAuditorSync('valibot-domain-type-violation', () => {
+            this.auditUnknownUsage(target, schemaAst);
+        });
+        this.runSubAuditorSync('valibot-redundant-nullability', () => {
+            this.auditRedundantNullability(target, schemaAst);
+        });
     }
     computeExpectedKeys(typesAst, target) {
         const interfaceKeys = extractInterfaceKeys(typesAst, target.interfaceName);
@@ -417,23 +429,32 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
             context: nKey
         });
     }
-    auditSchemaQuality(target, schemaAst) {
+    iterateSchemaObjectProperties(target, schemaAst, callback) {
         const { declNode } = extractSchemaKeys(schemaAst, target.schemaVarName);
         if (!declNode?.initializer || !ts.isCallExpression(declNode.initializer))
             return;
         const firstArg = declNode.initializer.arguments[0];
         if (!firstArg || !ts.isObjectLiteralExpression(firstArg))
             return;
-        const allowedNullable = new Set(target.allowedNullableFields ?? []);
-        const allowedUnknown = new Set(target.allowedUnknownFields ?? []);
         for (const prop of firstArg.properties) {
             if (!ts.isPropertyAssignment(prop))
                 continue;
             const propName = prop.name.getText(schemaAst).replace(/['"]/g, '');
             const line = schemaAst.getLineAndCharacterOfPosition(prop.getStart(schemaAst)).line + 1;
-            this.checkUnknownUsage(target, propName, prop.initializer, line, allowedUnknown);
-            this.checkRedundantNullability(target, propName, prop.initializer, line, allowedNullable);
+            callback(propName, prop.initializer, line);
         }
+    }
+    auditUnknownUsage(target, schemaAst) {
+        const allowedUnknown = new Set(target.allowedUnknownFields ?? []);
+        this.iterateSchemaObjectProperties(target, schemaAst, (propName, initializer, line) => {
+            this.checkUnknownUsage(target, propName, initializer, line, allowedUnknown);
+        });
+    }
+    auditRedundantNullability(target, schemaAst) {
+        const allowedNullable = new Set(target.allowedNullableFields ?? []);
+        this.iterateSchemaObjectProperties(target, schemaAst, (propName, initializer, line) => {
+            this.checkRedundantNullability(target, propName, initializer, line, allowedNullable);
+        });
     }
     checkUnknownUsage(target, propName, initializer, line, allowedUnknown) {
         let expr = initializer;

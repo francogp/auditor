@@ -15,6 +15,7 @@ import { braceCountingDetector } from './detectors/braceCountingDetector.ts';
 import { pathContainmentDetector } from './detectors/pathContainmentDetector.ts';
 import { fileWalkerDetector } from './detectors/fileWalkerDetector.ts';
 import { predicatesDetector } from './detectors/predicatesDetector.ts';
+import { manualTimingDetector } from './detectors/manualTimingDetector.ts';
 
 // Auto-register canonical built-in detectors
 HomebrewDetectorRegistry.register(packageJsonDetector);
@@ -27,6 +28,7 @@ HomebrewDetectorRegistry.register(braceCountingDetector);
 HomebrewDetectorRegistry.register(pathContainmentDetector);
 HomebrewDetectorRegistry.register(fileWalkerDetector);
 HomebrewDetectorRegistry.register(predicatesDetector);
+HomebrewDetectorRegistry.register(manualTimingDetector);
 
 export * from './homebrewTypes.ts';
 export * from './homebrewRegistry.ts';
@@ -40,5 +42,6 @@ export {
   braceCountingDetector,
   pathContainmentDetector,
   fileWalkerDetector,
-  predicatesDetector
+  predicatesDetector,
+  manualTimingDetector
 };

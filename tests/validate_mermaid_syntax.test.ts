@@ -25,7 +25,7 @@ class TestableMermaidSyntaxAuditor extends ValidateMermaidSyntaxAuditor {
     super.addViolation(v);
   }
 
-  public async testScanFile(relPath: string, content: string): Promise<void> {
+  public override async testScanFile(relPath: string, content: string): Promise<void> {
     await this.scanFile(relPath, content);
   }
 }

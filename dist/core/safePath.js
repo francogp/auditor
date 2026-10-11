@@ -28,6 +28,7 @@ export function safeResolve(...pathSegments) {
 /**
  * Joins path segments safely within project root boundary.
  */
+// wrapper-ok: Canonical framework export wrapper for safeResolve
 export function safeJoin(...pathSegments) {
     return safeResolve(...pathSegments);
 }

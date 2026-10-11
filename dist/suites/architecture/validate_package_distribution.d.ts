@@ -20,6 +20,5 @@ export declare class ValidatePackageDistributionAuditor extends BaseAuditor<Pack
     });
     runAudit(): Promise<void>;
     private readTargetPackageJson;
-    private runPublintAnalysis;
 }
 //# sourceMappingURL=validate_package_distribution.d.ts.map

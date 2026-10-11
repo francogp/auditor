@@ -20,6 +20,7 @@ import { getAuditConfig } from "../core/auditConfig.js";
 import { isMainModule } from "./cliUtils.js";
 export const CLI_BUMP_TYPES = ['major', 'minor', 'patch', 'build', 'auto'];
 const CLI_BUMP_TYPE_SET = new Set(CLI_BUMP_TYPES);
+// wrapper-ok: type guard predicate for CliBumpType
 export function isCliBumpType(val) {
     return CLI_BUMP_TYPE_SET.has(val);
 }

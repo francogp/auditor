@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { publint } from 'publint';
 import { formatMessage } from 'publint/utils';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const PACKAGE_DISTRIBUTION_RULES = [
@@ -62,7 +62,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
             projectRoot: options.projectRoot,
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(PACKAGE_DISTRIBUTION_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -72,7 +72,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: true,
                 postRun: false
-            },
+            }),
             id: 'validate_package_distribution',
             name: 'Package Distribution & Exports Hygiene Auditor',
             description: 'Valida export maps y packaging con Publint',
@@ -97,7 +97,6 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
         if (this.isSuiteGatingDisabled('Distribución de paquete desactivada en config')) {
             return;
         }
-        PACKAGE_DISTRIBUTION_RULES.forEach((r) => this.markRuleEvaluated(r));
         this.recordScanned('package.json');
         const config = getAuditConfig(this.projectRoot);
         const targetPkgDir = config.packageDistribution?.pkgDir
@@ -106,7 +105,24 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
         const pkgJson = this.readTargetPackageJson(targetPkgDir);
         if (!pkgJson)
             return;
-        await this.runPublintAnalysis(targetPkgDir, pkgJson, (config.packageDistribution?.level ?? 'warning'));
+        const level = (config.packageDistribution?.level ?? 'warning');
+        const result = await publint({ pkgDir: targetPkgDir, level });
+        const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
+        for (const ruleId of PACKAGE_DISTRIBUTION_RULES) {
+            this.runSubAuditorSync(ruleId, () => {
+                const ruleFindings = findings.filter(f => f.ruleId === ruleId);
+                for (const finding of ruleFindings) {
+                    this.addViolation({
+                        ruleId,
+                        severity: finding.severity,
+                        file: finding.file ?? 'package.json',
+                        line: finding.line ?? 1,
+                        context: finding.context ?? finding.message,
+                        message: finding.message
+                    });
+                }
+            });
+        }
     }
     readTargetPackageJson(targetPkgDir) {
         const pkgJsonPath = path.resolve(targetPkgDir, 'package.json');
@@ -134,20 +150,6 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor {
                 message: `package.json corrupto o inválido: ${err instanceof Error ? err.message : String(err)}`
             });
             return null;
-        }
-    }
-    async runPublintAnalysis(targetPkgDir, pkgJson, level) {
-        const result = await publint({ pkgDir: targetPkgDir, level });
-        const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
-        for (const finding of findings) {
-            this.addViolation({
-                ruleId: finding.ruleId ?? 'pkg-distribution-invalid-exports',
-                severity: finding.severity,
-                file: finding.file ?? 'package.json',
-                line: finding.line ?? 1,
-                context: finding.context ?? finding.message,
-                message: finding.message
-            });
         }
     }
 }

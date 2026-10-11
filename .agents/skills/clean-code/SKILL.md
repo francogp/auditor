@@ -61,7 +61,7 @@ metadata:
 | **Guard Clauses** | Early returns for edge cases |
 | **Flat > Nested** | Avoid deep nesting (max 2 levels) |
 | **Composition** | Small functions composed together |
-| **Modularity** | **Fallow Quality Governance**: Maintain low cognitive (≤ 20) and cyclomatic (≤ 25) complexity, and follow Fallow refactoring targets. Modularize based on Single Responsibility and cognitive load, eliminating arbitrary line limits. |
+| **Modularity** | **Fallow Quality Governance**: Maintain low cognitive and cyclomatic complexity according to project auditor options (configured dynamically in `.auditor/audit.config.ts`), and follow Fallow refactoring targets. Modularize based on Single Responsibility and cognitive load, eliminating arbitrary line limits. |
 | **Colocation** | Keep related code close |
 | **Layout Centering** | Use `display: flex` + `justify-content` + `align-items` for centering. Avoid `position: absolute` with `translate(-50%, -50%)` as it creates sub-pixel blurring and breaks layout flow. |
 | **Stable Sorting** | When using `Array.prototype.sort()`, ensure the comparison function returns stable and predictable values (1, -1, 0). Use a unique identifier (like `uid`) as a final tie-breaker. ALWAYS filter out null/undefined slots BEFORE sorting to prevent runtime type errors. |

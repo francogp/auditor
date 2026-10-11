@@ -8,20 +8,17 @@ This manual provides a comprehensive reference, step-by-step tutorial, and compl
 
 Host extensions allow individual projects to enforce bespoke architectural invariants, game engine rules, design token constraints, and asset integrity standards without polluting the upstream `@francogp/auditor` framework.
 
-```text
-┌────────────────────────────────────────────────────────┐
-│               Consumer Repository                      │
-│                                                        │
-│  .auditor/audit.config.ts                              │
-│    └─► extensions: [ myCustomExtension ]               │
-│                                                        │
-│  scripts/auditors/my_custom_auditor.ts                 │
-│    └─► extends FileScanAuditor / BaseAuditor           │
-│    └─► uses official helpers from @francogp/auditor    │
-│                                                        │
-│  tests/validate_my_custom_auditor.test.ts              │
-│    └─► enforces 5-point BaseAuditor contract           │
-└────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph HostRepo ["Consumer Host Repository"]
+        A[".auditor/audit.config.ts"] -->|"extensions: [ myCustomExtension ]"| B["Orchestrator Dynamic Discovery"]
+        C["scripts/auditors/my_custom_auditor.ts"] -->|"inherits from"| D["FileScanAuditor / BaseAuditor"]
+        C -->|"imports official helpers"| E["@francogp/auditor"]
+        F["tests/validate_my_custom_auditor.test.ts"] -->|"enforces"| G["5-Point BaseAuditor Contract"]
+    end
+    B --> H["audit_full.ts Master Runner"]
+    D --> H
+    H --> I["Unified Box-Drawing Table & Empirical Badges"]
 ```
 
 ### Core Invariants for Host Extensions
@@ -35,12 +32,29 @@ Host extensions allow individual projects to enforce bespoke architectural invar
    - Point 5: 100% of declared rule IDs tested.
 3. **Description Length Ceiling**: The composite description (`${packageName}: ${ruleDescription}`) MUST NOT exceed 50 characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) and contain zero newlines.
 4. **Zero Homebrew Helpers & Extension Hygiene (`validate_auditor_hygiene`)**: Re-inventing path sanitizers (`.replace(/\\/g, '/')`), handcrafted Vue SFC regexes (`/<template[\s\S]*<\/template>/`), isolated `ts.createSourceFile()` calls, ad-hoc comment strippers, or reading `package.json` with `fs.readFileSync` is strictly forbidden and actively blocked by `validate_auditor_hygiene`. Host extensions must import official helpers from `@francogp/auditor`.
+5. **Universal Empirical Individual Timing Mandate**: Extensions MUST measure 100% of declared rules individually using `this.runSubAuditorSync(ruleId, () => ...)` or `await this.runSubAuditor(ruleId, async () => ...)`. Duplicate batch duration stamping across rules, synthetic time divisions, and fake `(0 ms)` badges are strictly prohibited. Redundant calls to `this.markRuleEvaluated(ruleId)` are forbidden because `runSubAuditorSync` marks the rule evaluated automatically. Transparent inapplicability (`this.markRuleNotApplicable`) MUST also be wrapped inside `runSubAuditorSync` to record `<0,1 ms` badges.
 
 ---
 
 ## 2. Official Framework Helpers Reference
 
-### 2.1 Base Classes (`@francogp/auditor`)
+### 2.1 Base Classes & Execution Primitives (`@francogp/auditor`)
+
+#### `this.runSubAuditorSync(ruleId, fn)` & `this.runSubAuditor(ruleId, asyncFn)`
+
+Mandatory execution wrappers provided by `BaseAuditor`. Measures the exact microsecond runtime of `fn` using `performance.now()`, records the empirical duration in the superclass ledger (`durationsByRule`), and automatically marks `ruleId` as evaluated:
+
+```typescript
+// Synchronous evaluation inside scanFile or runAudit:
+this.runSubAuditorSync('my-rule-id', () => {
+  // Logic evaluating my-rule-id exclusively
+});
+
+// Asynchronous evaluation:
+await this.runSubAuditor('my-async-rule', async () => {
+  // Async logic evaluating my-async-rule exclusively
+});
+```
 
 #### `FileScanAuditor<TRuleId extends string>`
 
@@ -227,19 +241,34 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
   protected override scanFile(relPath: string, content: string): void {
     if (isExemptFile(relPath, this.projectRoot)) return;
 
-    // Rule 1: game-banned-magic-speed
-    const speedRegex = /\bspeed\s*:\s*([0-9]{3,})\b/g;
-    let match: RegExpExecArray | null;
-    while ((match = speedRegex.exec(content)) !== null) {
-      this.addViolationAtMatch({
-        ruleId: 'game-banned-magic-speed',
-        filePath: relPath,
-        content,
-        matchIndex: match.index,
-        message: `Velocidad física mágica detectada (${match[1]}). Declara una constante en 'src/constants/physics.ts'.`,
-        severity: 'error'
-      });
-    }
+    // Rule 1: game-banned-magic-speed (individually measured & marked evaluated)
+    this.runSubAuditorSync('game-banned-magic-speed', () => {
+      const speedRegex = /\bspeed\s*:\s*([0-9]{3,})\b/g;
+      let match: RegExpExecArray | null;
+      while ((match = speedRegex.exec(content)) !== null) {
+        this.addViolationAtMatch({
+          ruleId: 'game-banned-magic-speed',
+          filePath: relPath,
+          content,
+          matchIndex: match.index,
+          message: `Velocidad física mágica detectada (${match[1]}). Declara una constante en 'src/constants/physics.ts'.`,
+          severity: 'error'
+        });
+      }
+    });
+
+    // Rule 2: game-missing-layer-tag (individually measured & marked evaluated)
+    this.runSubAuditorSync('game-missing-layer-tag', () => {
+      if (content.includes('class Entity') && !content.includes('@LayerTag')) {
+        this.addViolation({
+          ruleId: 'game-missing-layer-tag',
+          severity: 'error',
+          file: relPath,
+          line: 1,
+          message: 'Entidad carece de decorador @LayerTag mandatorio.'
+        });
+      }
+    });
   }
 }
 
@@ -320,18 +349,20 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
   protected override scanFile(relPath: string, content: string): void {
     if (isExemptFile(relPath, this.projectRoot)) return;
 
-    const hexRegex = /#(?:[0-9a-fA-F]{3}){1,2}\b/g;
-    let match: RegExpExecArray | null;
-    while ((match = hexRegex.exec(content)) !== null) {
-      this.addViolationAtMatch({
-        ruleId: 'ui-banned-raw-hex-color',
-        filePath: relPath,
-        content,
-        matchIndex: match.index,
-        message: `Color hexadecimal directo detectado: '${match[0]}'. Usa variables CSS del tema (var(--color-*)).`,
-        severity: 'error'
-      });
-    }
+    this.runSubAuditorSync('ui-banned-raw-hex-color', () => {
+      const hexRegex = /#(?:[0-9a-fA-F]{3}){1,2}\b/g;
+      let match: RegExpExecArray | null;
+      while ((match = hexRegex.exec(content)) !== null) {
+        this.addViolationAtMatch({
+          ruleId: 'ui-banned-raw-hex-color',
+          filePath: relPath,
+          content,
+          matchIndex: match.index,
+          message: `Color hexadecimal directo detectado: '${match[0]}'. Usa variables CSS del tema (var(--color-*)).`,
+          severity: 'error'
+        });
+      }
+    });
   }
 }
 ```
@@ -371,24 +402,26 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     if (!sourceFile || isExemptFile(relPath, this.projectRoot)) return;
 
-    const visit = (node: ts.Node): void => {
-      if (ts.isFunctionDeclaration(node) && node.name) {
-        const isExported = node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
-        if (isExported && !node.type) {
-          this.addViolationAtMatch({
-            ruleId: 'service-missing-explicit-return-type',
-            filePath: relPath,
-            content,
-            matchIndex: node.name.getStart(sourceFile),
-            message: `Función exportada '${node.name.text}' carece de tipo de retorno explícito.`,
-            severity: 'error'
-          });
+    this.runSubAuditorSync('service-missing-explicit-return-type', () => {
+      const visit = (node: ts.Node): void => {
+        if (ts.isFunctionDeclaration(node) && node.name) {
+          const isExported = node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+          if (isExported && !node.type) {
+            this.addViolationAtMatch({
+              ruleId: 'service-missing-explicit-return-type',
+              filePath: relPath,
+              content,
+              matchIndex: node.name.getStart(sourceFile),
+              message: `Función exportada '${node.name.text}' carece de tipo de retorno explícito.`,
+              severity: 'error'
+            });
+          }
         }
-      }
-      ts.forEachChild(node, visit);
-    };
+        ts.forEachChild(node, visit);
+      };
 
-    visit(sourceFile);
+      visit(sourceFile);
+    });
   }
 }
 ```
@@ -402,9 +435,10 @@ Validates game assets on disk (PNG, WebP, audio) ensuring sprite atlases have co
 ```typescript
 import nodeFs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, isInsideRoot } from '@francogp/auditor';
+import { BaseAuditor, createRuleCapabilities } from '@francogp/auditor';
 
-export type AssetIntegrityRuleId = 'asset-missing-atlas-manifest';
+export const ASSET_INTEGRITY_RULES = ['asset-missing-atlas-manifest'] as const;
+export type AssetIntegrityRuleId = (typeof ASSET_INTEGRITY_RULES)[number];
 
 export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRuleId> {
   constructor(projectRoot?: string) {
@@ -417,35 +451,53 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
       icon: '📦',
       configKey: 'paths',
       defaultConfig: {},
-      capabilities: { fix: false, ast: false, changedSince: false, heavy: false, requiresBuild: false },
-      ruleIds: ['asset-missing-atlas-manifest'],
+      ruleCapabilities: createRuleCapabilities(ASSET_INTEGRITY_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }),
+      ruleIds: ASSET_INTEGRITY_RULES,
       ruleDescriptions: {
         'asset-missing-atlas-manifest': 'Falta manifiesto JSON de atlas'
-      }
-    }, projectRoot);
+      },
+      projectRoot
+    });
   }
 
   public override async runAudit(): Promise<void> {
     const assetsDir = path.resolve(this.projectRoot, 'public/assets/sprites');
-    if (!nodeFs.existsSync(assetsDir)) return;
+    if (!nodeFs.existsSync(assetsDir)) {
+      this.runSubAuditorSync('asset-missing-atlas-manifest', () => {
+        this.markRuleNotApplicable('asset-missing-atlas-manifest', 'Directorio public/assets/sprites no existe');
+      });
+      return;
+    }
 
-    const files = nodeFs.readdirSync(assetsDir);
-    for (const file of files) {
-      if (file.endsWith('.png') && file.startsWith('atlas_')) {
-        const manifest = file.replace(/\.png$/, '.json');
-        const manifestPath = path.resolve(assetsDir, manifest);
-        if (!nodeFs.existsSync(manifestPath)) {
-          this.addViolation({
-            ruleId: 'asset-missing-atlas-manifest',
-            filePath: `public/assets/sprites/${file}`,
-            line: 1,
-            column: 1,
-            message: `Atlas de sprites '${file}' no tiene manifiesto correspondiente '${manifest}'.`,
-            severity: 'error'
-          });
+    this.runSubAuditorSync('asset-missing-atlas-manifest', () => {
+      const files = nodeFs.readdirSync(assetsDir);
+      for (const file of files) {
+        if (file.endsWith('.png') && file.startsWith('atlas_')) {
+          const manifest = file.replace(/\.png$/, '.json');
+          const manifestPath = path.resolve(assetsDir, manifest);
+          if (!nodeFs.existsSync(manifestPath)) {
+            this.addViolation({
+              ruleId: 'asset-missing-atlas-manifest',
+              filePath: `public/assets/sprites/${file}`,
+              line: 1,
+              column: 1,
+              message: `Atlas de sprites '${file}' no tiene manifiesto correspondiente '${manifest}'.`,
+              severity: 'error'
+            });
+          }
         }
       }
-    }
+    });
   }
 }
 ```
@@ -511,15 +563,25 @@ describe('ValidateGameDesignAuditor (5-Point Contract)', () => {
     const auditor = new TestableGameDesignAuditor();
     auditor.testScanFile('src/entities/Enemy.ts', 'const player = { speed: 500 };');
     const violations = auditor.recordedViolations.filter(v => v.ruleId === 'game-banned-magic-speed');
-    expect(violations.length).toBe(1);
     expect(violations[0]?.severity).toBe('error');
+  });
+
+  // Empirical Timing Verification
+  it('guarantees 100% of declared rules record individual empirical durations', async () => {
+    const auditor = new ValidateGameDesignAuditor();
+    auditor.testScanFile('src/entities/Player.ts', 'const speed = PHYSICS_PLAYER_SPEED;');
+    await auditor.finishAudit();
+    for (const ruleId of GAME_DESIGN_RULES) {
+      expect(auditor.isRuleEvaluated(ruleId)).toBe(true);
+      expect(auditor.getRuleDuration(ruleId)).toBeGreaterThanOrEqual(0);
+    }
   });
 });
 ```
 
 ---
 
-## 4. Remote Testing & Debugging Host Extensions
+## 6. Remote Testing & Debugging Host Extensions
 
 When developing or upgrading `@francogp/auditor` features, you can verify host extensions across local repositories without publishing or modifying the host workspace:
 

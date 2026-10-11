@@ -39,6 +39,11 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 29. `eslint`: ESLint flat configuration integrity and Domain-Type-First type safety governance (defaults to `enabled: true`).
 30. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
 31. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
+32. `webPerformance`: Frontend web performance hygiene (defaults to `enabled: true`, `maxDomDepth: 32`, `maxInlineSvgBytes: 4096`, `maxUncompressedVideoBytes: 10485760`).
+33. `queryPerformance`: Database query efficiency and anti-pattern governance (defaults to `enabled: true`, `enforceSelectStar: true`, `enforcePagination: true`, `enforceNPlusOneDetection: true`).
+34. `securityHardening`: Static security hygiene and vulnerability hardening (defaults to `enabled: true`, `enforceInsecureRandom: true`, `enforceVulnerableRegex: true`, `enforceEvalDetection: true`).
+35. `codeSimplification`: Pragmatic code complexity and anti-pattern governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `maxBooleanParams: 2`, `maxSwitchCases: 10`).
+36. `scssArchitecture`: Modular SCSS styling architecture and token governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `enforceThemeTokens: true`, `bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']`).
 
 When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.requiresBuild: true`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:build` / `preset=build`).
 

@@ -9,10 +9,19 @@
  * setup script (setup-windows.ps1 / setup-linux.sh) to align the environment.
  */
 import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
+import { type SemverVersion } from '../../cli/check_environment.ts';
 export declare const ENVIRONMENT_ENGINES_RULES: readonly ["environment-engines-missing", "environment-engines-below-floor", "environment-runtime-mismatch"];
 export type EnvironmentEnginesRuleId = (typeof ENVIRONMENT_ENGINES_RULES)[number];
 export interface EnvironmentEnginesConfig {
     readonly enabled?: boolean;
+}
+export interface EngineAvailability {
+    readonly hasNodeEngine: boolean;
+    readonly hasNpmEngine: boolean;
+}
+export interface EngineFloorCheckResult {
+    readonly nodeReq: SemverVersion;
+    readonly npmReq: SemverVersion;
 }
 export declare function detectNpmVersion(): string;
 export declare function extractBaseNodeVersion(engineStr: string): string;

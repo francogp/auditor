@@ -53,7 +53,9 @@ import {
   renderAutoFixNoticeBanner,
   renderAuditorsRegistryTable,
   renderAuditorDetailCard,
-  renderCliHelp
+  renderCliHelp,
+  formatDurationMs,
+  formatNumber
 } from '../core/unifiedTheme.ts';
 import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from '../core/streamingRunner.ts';
@@ -296,7 +298,9 @@ async function tryReadTaskResult(
   try {
     const fileContent = await fs.readFile(taskJsonPath, 'utf-8');
     const parsed = JSON.parse(fileContent) as StandardAuditResult;
-    parsed.durationMs = durationMs;
+    if (parsed.durationMs === undefined || parsed.durationMs === 0) {
+      parsed.durationMs = durationMs;
+    }
     return parsed;
   } catch {
     // catch-ok: fallback to parsing JSON from stdout
@@ -309,7 +313,9 @@ async function tryReadTaskResult(
       const lastBrace = raw.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1)) as StandardAuditResult;
-        parsed.durationMs = durationMs;
+        if (parsed.durationMs === undefined || parsed.durationMs === 0) {
+          parsed.durationMs = durationMs;
+        }
         return parsed;
       }
     } catch {
@@ -660,6 +666,7 @@ export interface FixableCountsResult {
  * In fix mode (isFixMode === true), any remaining error could not be resolved,
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
+// wrapper-ok: facade delegator exported for orchestrator consumers
 export function computeFixableViolations(
   results: readonly StandardAuditResult[],
   isFixMode: boolean
@@ -908,6 +915,7 @@ function handleIntrospectionCommands(
   return false;
 }
 
+// boolean-trap-ok: CLI master banner formatting params
 export function createAuditBannerDetails(
   cliOptions: AuditFullCliOptions,
   isFixMode: boolean,
@@ -997,7 +1005,8 @@ async function runTaskExecution(
 
   const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
   const parsed = await parseSubprocessOutput(task, proc, ctx.scratchAuditsDir);
-  return { result: parsed, durationMs: proc.durationMs };
+  const suiteDuration = parsed.durationMs !== undefined && parsed.durationMs > 0 ? parsed.durationMs : proc.durationMs;
+  return { result: parsed, durationMs: suiteDuration };
 }
 
 function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: string[]): boolean {
@@ -1020,8 +1029,9 @@ function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: 
     const total = result.subAuditors.length;
     for (let i = 0; i < total; i++) {
       const s = result.subAuditors[i]!;
-      const badge = s.count > 0 ? ` (🐛 ${s.count})` : '';
-      subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}`);
+      const badge = s.count > 0 ? ` (🐛 ${formatNumber(s.count)})` : '';
+      const durationBadge = s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
+      subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}${durationBadge}`);
     }
   }
   return false;
@@ -1087,6 +1097,7 @@ async function setupCoverageRunEnvironment(runMode: string, workerTasks: readonl
   await fs.mkdir(coverageLedgerDir, { recursive: true });
 }
 
+// boolean-trap-ok: CLI master banner formatting params
 function displayMasterBanner(
   config: AuditEngineConfig,
   cliOptions: AuditFullCliOptions,
@@ -1155,6 +1166,10 @@ export async function runMasterAudit(): Promise<void> {
   assertAuditConfigComplete(config);
   const activeFamilies = getActiveFamilies(config.customFamilies);
   const cliOptions = parseAuditFullCliArgs(activeFamilies);
+
+  if (cliOptions.targetPreset) {
+    process.env.AUDITOR_PRESET = cliOptions.targetPreset;
+  }
 
   if (cliOptions.skipSimilar) {
     process.env.AUDIT_SKIP_SIMILAR = 'true';

@@ -4,7 +4,7 @@ import { enableCompileCache } from 'node:module';
 import { ESLint } from 'eslint';
 import vueParser from 'vue-eslint-parser';
 import vueA11y from 'eslint-plugin-vuejs-accessibility';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
@@ -27,41 +27,36 @@ export type AccessibilityRuleId = (typeof ACCESSIBILITY_RULES)[number];
 /** Canonical rules evaluated through the ESLint vuejs-accessibility engine (all except the index.html viewport check). */
 const ESLINT_BACKED_RULES: readonly AccessibilityRuleId[] = ACCESSIBILITY_RULES.filter(id => id !== 'a11y-viewport-zoom-lock');
 
+const A11Y_RULE_ID_MAP: Readonly<Record<string, AccessibilityRuleId>> = {
+  'alt-text': 'a11y-img-alt',
+  'form-control-has-label': 'a11y-form-control-has-label',
+  'label-has-for': 'a11y-form-control-has-label',
+  'interactive-supports-focus': 'a11y-interactive-supports-focus',
+  'click-events-have-key-events': 'a11y-interactive-supports-focus',
+  'mouse-events-have-key-events': 'a11y-interactive-supports-focus',
+  'anchor-has-content': 'a11y-anchor-has-content',
+  'heading-has-content': 'a11y-anchor-has-content',
+  'aria-props': 'a11y-aria-role-invalid',
+  'aria-role': 'a11y-aria-role-invalid',
+  'aria-unsupported-elements': 'a11y-aria-role-invalid',
+  'role-has-required-aria-props': 'a11y-aria-role-invalid',
+  'no-redundant-roles': 'a11y-aria-role-invalid',
+  'no-role-presentation-on-focusable': 'a11y-aria-role-invalid'
+};
+
 /**
  * Maps an eslint-plugin-vuejs-accessibility rule to canonical AccessibilityRuleId.
  */
 export function mapA11yRuleId(eslintRuleId: string): AccessibilityRuleId {
   const bare = eslintRuleId.replace(/^vuejs-accessibility\//, '');
-  switch (bare) {
-    case 'alt-text':
-      return 'a11y-img-alt';
-    case 'form-control-has-label':
-    case 'label-has-for':
-      return 'a11y-form-control-has-label';
-    case 'interactive-supports-focus':
-    case 'click-events-have-key-events':
-    case 'mouse-events-have-key-events':
-      return 'a11y-interactive-supports-focus';
-    case 'anchor-has-content':
-    case 'heading-has-content':
-      return 'a11y-anchor-has-content';
-    case 'aria-props':
-    case 'aria-role':
-    case 'aria-unsupported-elements':
-    case 'role-has-required-aria-props':
-    case 'no-redundant-roles':
-    case 'no-role-presentation-on-focusable':
-      return 'a11y-aria-role-invalid';
-    default:
-      return 'a11y-aria-role-invalid';
-  }
+  return A11Y_RULE_ID_MAP[bare] ?? 'a11y-aria-role-invalid';
 }
 
 export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
         fix: true,
         fixPriority: false,
         lint: true,
@@ -71,7 +66,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, [...ACCESSIBILITY_RULES]),
       fixableRuleIds: [...ACCESSIBILITY_RULES],
       fix: options.fix,
       id: 'validate_accessibility',
@@ -112,12 +107,16 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include]
     });
 
-    this.auditIndexViewport();
+    this.runSubAuditorSync('a11y-viewport-zoom-lock', () => {
+      this.auditIndexViewport();
+    });
 
     const vueFiles = this.collectScannableVueFiles(scannableRoots);
     if (vueFiles.length === 0) {
       for (const ruleId of ESLINT_BACKED_RULES) {
-        this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
+        this.runSubAuditorSync(ruleId, () => {
+          this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
+        });
       }
       return;
     }
@@ -190,32 +189,40 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     results: readonly ESLint.LintResult[],
     effectiveRules: Record<string, 'error' | 'off'>
   ): void {
+    for (const res of results) {
+      const relFile = toPosixRelative(this.projectRoot, res.filePath);
+      this.recordScanned(relFile);
+    }
+
     const activeRules = new Set<AccessibilityRuleId>();
     for (const [eslintRuleId, level] of Object.entries(effectiveRules)) {
       if (level !== 'off') activeRules.add(mapA11yRuleId(eslintRuleId));
     }
+
     for (const ruleId of ESLINT_BACKED_RULES) {
       if (!activeRules.has(ruleId)) {
         this.markRuleNotApplicable(ruleId, 'Todas sus reglas ESLint están en off (config.accessibility.rules)');
+        continue;
       }
-    }
 
-    for (const res of results) {
-      const relFile = toPosixRelative(this.projectRoot, res.filePath);
-      this.recordScanned(relFile);
-      for (const ruleId of activeRules) this.markRuleEvaluated(ruleId);
-      for (const msg of res.messages) {
-        if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/')) continue;
-        this.addViolation({
-          ruleId: mapA11yRuleId(msg.ruleId),
-          severity: 'error',
-          file: relFile,
-          line: msg.line,
-          context: msg.ruleId,
-          message: msg.message,
-          fixable: Boolean(msg.fix)
-        });
-      }
+      this.runSubAuditorSync(ruleId, () => {
+        for (const res of results) {
+          const relFile = toPosixRelative(this.projectRoot, res.filePath);
+          for (const msg of res.messages) {
+            if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/')) continue;
+            if (mapA11yRuleId(msg.ruleId) !== ruleId) continue;
+            this.addViolation({
+              ruleId,
+              severity: 'error',
+              file: relFile,
+              line: msg.line,
+              context: msg.ruleId,
+              message: msg.message,
+              fixable: Boolean(msg.fix)
+            });
+          }
+        }
+      });
     }
   }
 
@@ -228,7 +235,6 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
 
     const content = fs.readFileSync(indexPath, 'utf-8');
     this.recordScanned(INDEX_HTML_FILE);
-    this.markRuleEvaluated('a11y-viewport-zoom-lock');
     const viewportMatch = content.match(/<meta\s+name=["']viewport["'][^>]*>/i);
     if (!viewportMatch) return;
 

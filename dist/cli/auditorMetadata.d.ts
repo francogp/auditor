@@ -6,6 +6,7 @@
 import { type AuditorCapabilities, type GitIgnoreRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig } from '../core/auditContract.ts';
 export interface ExtractedAuditorMetadata {
     readonly capabilities: AuditorCapabilities;
+    readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
     readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
     readonly scripts?: readonly AuditorPackageScriptRequirement[];
     readonly icon?: string;

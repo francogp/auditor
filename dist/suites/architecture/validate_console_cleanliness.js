@@ -18,7 +18,7 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_console_cleanliness.ts
  */
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/safePath.js";
 enableCompileCache();
@@ -45,7 +45,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
         super({
             roots: scannableRoots,
             projectRoot,
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -55,7 +55,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_console_cleanliness',
             name: 'Console & Debugger Cleanliness Auditor',
             description: 'Prohíbe console.log directo y debugger en src/',
@@ -76,16 +76,20 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
     scanFile(relPath, content) {
         const normalizedPath = normalizePosixPath(relPath);
         // 1. Audit debugger statements (all files)
-        this.auditDebugger(normalizedPath, content);
+        this.runSubAuditorSync('no-debugger-statement', () => {
+            this.auditDebugger(normalizedPath, content);
+        });
         // 2. Audit raw console.log (exempt files, CLI tools, and terminal/auditor engine modules excluded)
         const config = getAuditConfig(this.projectRoot);
         const exemptFiles = getExemptLoggingFiles(this.projectRoot);
         const isCliOrTerminalOutput = isScriptPath(normalizedPath, config) ||
             isExemptFile(normalizedPath, config) ||
             isCliPath(normalizedPath, config);
-        if (!exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput) {
-            this.auditConsoleLog(normalizedPath, content);
-        }
+        this.runSubAuditorSync('no-console-log-in-src', () => {
+            if (!exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput) {
+                this.auditConsoleLog(normalizedPath, content);
+            }
+        });
     }
     auditDebugger(relPath, content) {
         this.scanRegexMatches(content, DEBUGGER_REGEX, relPath, 'no-debugger-statement', ['debugger-ok', 'console-ok'], 'Forbidden debugger statement found. Remove all debug breakpoints before committing.', (lineContent) => {

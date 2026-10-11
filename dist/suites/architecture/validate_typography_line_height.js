@@ -15,7 +15,7 @@
  *   npm run validate:line-height
  */
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const TYPOGRAPHY_LINE_HEIGHT_RULES = [
@@ -92,7 +92,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths?.srcRoots ?? ['src'];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -102,7 +102,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_typography_line_height',
             name: 'Typography Line-Height & Interlinear Spacing Validator',
             description: 'Detecta colisiones de line-height en tipografías multilínea',

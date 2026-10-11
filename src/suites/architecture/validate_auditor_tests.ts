@@ -14,7 +14,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
 import type { AuditTaskDefinition } from '../../core/auditContract.ts';
@@ -112,84 +112,6 @@ function auditTaskRuleCoverage(params: {
   return { rulesChecked, rulesTested };
 }
 
-function auditAuditorTask(params: {
-  task: AuditTaskDefinition;
-  projectRoot: string;
-  testRoots: readonly string[];
-  auditor: AuditorTestsAuditor;
-}): { rulesChecked: number; rulesTested: number; hasDedicatedTest: boolean } {
-  const { testFileAbs, testFileRel, allTestSources } = findDedicatedTestFile(params.projectRoot, params.task.id, params.testRoots);
-
-  if (!testFileAbs) {
-    params.auditor.addViolation({
-      ruleId: 'missing-auditor-test',
-      severity: 'error',
-      file: params.task.scriptPath,
-      line: 1,
-      message: `El sub-auditor '${params.task.id}' no posee un archivo de prueba dedicado. Se esperaba '${testFileRel}'.`,
-      context: params.task.id
-    });
-    return { rulesChecked: 0, rulesTested: 0, hasDedicatedTest: false };
-  }
-
-  const suiteAbs = path.isAbsolute(params.task.scriptPath)
-    ? params.task.scriptPath
-    : (fs.existsSync(path.resolve(params.projectRoot, params.task.scriptPath))
-        ? path.resolve(params.projectRoot, params.task.scriptPath)
-        : path.resolve(params.task.scriptPath));
-  if (!fs.existsSync(suiteAbs)) {
-    return { rulesChecked: 0, rulesTested: 0, hasDedicatedTest: true };
-  }
-
-  const suiteSource = fs.readFileSync(suiteAbs, 'utf-8');
-  const testSource = allTestSources ?? fs.readFileSync(testFileAbs, 'utf-8');
-  params.auditor.recordScannedFile(suiteAbs);
-  params.auditor.recordScannedFile(testFileAbs);
-
-  const { rulesChecked, rulesTested } = auditTaskRuleCoverage({
-    suiteSource,
-    testSource,
-    testFileRel,
-    taskId: params.task.id,
-    auditor: params.auditor
-  });
-
-  if (!checkConstructionVerification(testSource)) {
-    params.auditor.addViolation({
-      ruleId: 'missing-construction-auditor-test',
-      severity: 'error',
-      file: testFileRel,
-      line: 1,
-      message: `El test '${testFileRel}' para '${params.task.id}' no incluye verificación de construcción o metadatos del auditor.`,
-      context: params.task.id
-    });
-  }
-
-  if (!checkCleanVerification(testSource)) {
-    params.auditor.addViolation({
-      ruleId: 'missing-clean-auditor-test',
-      severity: 'error',
-      file: testFileRel,
-      line: 1,
-      message: `El test '${testFileRel}' para '${params.task.id}' no incluye verificación de ejecución limpia (cero errores).`,
-      context: params.task.id
-    });
-  }
-
-  if (!checkViolationVerification(testSource)) {
-    params.auditor.addViolation({
-      ruleId: 'missing-violation-auditor-test',
-      severity: 'error',
-      file: testFileRel,
-      line: 1,
-      message: `El test '${testFileRel}' para '${params.task.id}' no incluye verificación de detección de violaciones o fallos con error.`,
-      context: params.task.id
-    });
-  }
-
-  return { rulesChecked, rulesTested, hasDedicatedTest: true };
-}
-
 export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   constructor(projectRoot: string = process.cwd()) {
     super({
@@ -197,7 +119,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       name: 'Auditor Test Existence & Completeness Validator',
       description: 'Valida existencia y cobertura de tests en auditores',
       family: 'architecture',
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(AUDITOR_TEST_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -207,7 +129,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       ruleIds: AUDITOR_TEST_RULES,
       packageName: 'Auditor',
       configKey: 'paths',
@@ -232,9 +154,6 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    for (const r of AUDITOR_TEST_RULES) {
-      this.markRuleEvaluated(r);
-    }
     const hasCoreSuites = fs.existsSync(path.join(this.projectRoot, 'src/suites'));
     const isSelfRepo = isSelfProviderProject(this.projectRoot);
     const include = isSelfRepo && hasCoreSuites
@@ -264,21 +183,124 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const testRoots = config.paths.testRoots ?? ['tests'];
 
+    interface TaskTestContext {
+      task: AuditTaskDefinition;
+      testFileAbs: string | null;
+      testFileRel: string;
+      suiteSource: string | null;
+      testSource: string | null;
+    }
+
+    const taskContexts: TaskTestContext[] = [];
+    for (const task of tasks) {
+      const { testFileAbs, testFileRel, allTestSources } = findDedicatedTestFile(this.projectRoot, task.id, testRoots);
+      let suiteSource: string | null = null;
+      let testSource: string | null = null;
+
+      if (testFileAbs) {
+        const suiteAbs = path.isAbsolute(task.scriptPath)
+          ? task.scriptPath
+          : (fs.existsSync(path.resolve(this.projectRoot, task.scriptPath))
+              ? path.resolve(this.projectRoot, task.scriptPath)
+              : path.resolve(task.scriptPath));
+        if (fs.existsSync(suiteAbs)) {
+          suiteSource = fs.readFileSync(suiteAbs, 'utf-8');
+          testSource = allTestSources ?? fs.readFileSync(testFileAbs, 'utf-8');
+          this.recordScanned(suiteAbs);
+          this.recordScanned(testFileAbs);
+        }
+      }
+      taskContexts.push({
+        task,
+        testFileAbs,
+        testFileRel,
+        suiteSource,
+        testSource
+      });
+    }
+
     let auditorsWithDedicatedTests = 0;
+    this.runSubAuditorSync('missing-auditor-test', () => {
+      for (const ctx of taskContexts) {
+        if (!ctx.testFileAbs) {
+          this.addViolation({
+            ruleId: 'missing-auditor-test',
+            severity: 'error',
+            file: ctx.task.scriptPath,
+            line: 1,
+            message: `El sub-auditor '${ctx.task.id}' no posee un archivo de prueba dedicado. Se esperaba '${ctx.testFileRel}'.`,
+            context: ctx.task.id
+          });
+        } else {
+          auditorsWithDedicatedTests++;
+        }
+      }
+    });
+
     let totalRulesChecked = 0;
     let testedRulesCount = 0;
+    this.runSubAuditorSync('untested-auditor-rule', () => {
+      for (const ctx of taskContexts) {
+        if (!ctx.testFileAbs || !ctx.suiteSource || !ctx.testSource) continue;
+        const { rulesChecked, rulesTested } = auditTaskRuleCoverage({
+          suiteSource: ctx.suiteSource,
+          testSource: ctx.testSource,
+          testFileRel: ctx.testFileRel,
+          taskId: ctx.task.id,
+          auditor: this
+        });
+        totalRulesChecked += rulesChecked;
+        testedRulesCount += rulesTested;
+      }
+    });
 
-    for (const task of tasks) {
-      const stats = auditAuditorTask({
-        task,
-        projectRoot: this.projectRoot,
-        testRoots,
-        auditor: this
-      });
-      if (stats.hasDedicatedTest) auditorsWithDedicatedTests++;
-      totalRulesChecked += stats.rulesChecked;
-      testedRulesCount += stats.rulesTested;
-    }
+    this.runSubAuditorSync('missing-clean-auditor-test', () => {
+      for (const ctx of taskContexts) {
+        if (!ctx.testFileAbs || !ctx.suiteSource || !ctx.testSource) continue;
+        if (!checkCleanVerification(ctx.testSource)) {
+          this.addViolation({
+            ruleId: 'missing-clean-auditor-test',
+            severity: 'error',
+            file: ctx.testFileRel,
+            line: 1,
+            message: `El test '${ctx.testFileRel}' para '${ctx.task.id}' no incluye verificación de ejecución limpia (cero errores).`,
+            context: ctx.task.id
+          });
+        }
+      }
+    });
+
+    this.runSubAuditorSync('missing-construction-auditor-test', () => {
+      for (const ctx of taskContexts) {
+        if (!ctx.testFileAbs || !ctx.suiteSource || !ctx.testSource) continue;
+        if (!checkConstructionVerification(ctx.testSource)) {
+          this.addViolation({
+            ruleId: 'missing-construction-auditor-test',
+            severity: 'error',
+            file: ctx.testFileRel,
+            line: 1,
+            message: `El test '${ctx.testFileRel}' para '${ctx.task.id}' no incluye verificación de construcción o metadatos del auditor.`,
+            context: ctx.task.id
+          });
+        }
+      }
+    });
+
+    this.runSubAuditorSync('missing-violation-auditor-test', () => {
+      for (const ctx of taskContexts) {
+        if (!ctx.testFileAbs || !ctx.suiteSource || !ctx.testSource) continue;
+        if (!checkViolationVerification(ctx.testSource)) {
+          this.addViolation({
+            ruleId: 'missing-violation-auditor-test',
+            severity: 'error',
+            file: ctx.testFileRel,
+            line: 1,
+            message: `El test '${ctx.testFileRel}' para '${ctx.task.id}' no incluye verificación de detección de violaciones o fallos con error.`,
+            context: ctx.task.id
+          });
+        }
+      }
+    });
 
     this.context.setMetric('Auditors Checked', tasks.length);
     this.context.setMetric('Tested Auditors', auditorsWithDedicatedTests);

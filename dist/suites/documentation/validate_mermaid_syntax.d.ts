@@ -31,6 +31,8 @@ export declare class ValidateMermaidSyntaxAuditor extends FileScanAuditor<Mermai
     constructor(roots?: readonly string[], projectRoot?: string);
     private fixMermaidLine;
     private checkSpecialCharacters;
+    private validateDiagramBlock;
+    private processMermaidContentLine;
     protected scanFile(relPath: string, content: string): Promise<void>;
 }
 //# sourceMappingURL=validate_mermaid_syntax.d.ts.map

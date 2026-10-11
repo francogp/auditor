@@ -11,7 +11,7 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, ALWAYS_IGNORE_DIRS, matchesSinglePattern } from '../../core/auditorBase.ts';
+import { BaseAuditor, ALWAYS_IGNORE_DIRS, matchesSinglePattern , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
@@ -354,7 +354,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
   constructor(options: { projectRoot?: string } = {}) {
     const root = options.projectRoot || process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(DOCUMENTED_COMMANDS_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -364,7 +364,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_documented_commands',
       name: 'Documented Commands Validator',
       description: 'Valida comandos npm/npx documentados en markdown',
@@ -389,40 +389,6 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
     this.gitIgnoreMatcher = new GitIgnoreMatcher(root);
   }
 
-  private auditSingleMarkdownFile(
-    absFile: string,
-    customExemptGlobs: readonly string[],
-    env: {
-      scripts: ReadonlySet<string>;
-      declaredBins: ReadonlySet<string>;
-      installedBins: ReadonlySet<string>;
-      allowedNpx: ReadonlySet<string>;
-    }
-  ): void {
-    const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
-    if (!isAuditableCodebaseFile(relPosix, customExemptGlobs) || this.gitIgnoreMatcher.isIgnored(absFile)) {
-      return;
-    }
-
-    this.recordScanned(relPosix);
-
-    let content: string;
-    try {
-      content = fsSync.readFileSync(absFile, 'utf8');
-    } catch {
-      // catch-ok: Unreadable file
-      return;
-    }
-
-    const commands = extractDocumentedCommands(content);
-    for (const cmd of commands) {
-      const violation = evaluateCommandViolation(cmd, relPosix, env);
-      if (violation) {
-        this.addViolation(violation);
-      }
-    }
-  }
-
   public override async runAudit(): Promise<void> {
     const { scripts, declaredBins, installedBins } = loadPackageScriptsAndBins(this.rootDir);
     const mdFiles = this.collectAllMarkdownFiles(this.rootDir);
@@ -434,18 +400,65 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
       return;
     }
 
-    for (const rule of DOCUMENTED_COMMANDS_RULES) {
-      this.markRuleEvaluated(rule);
-    }
-
     const config = getAuditConfig(this.rootDir);
     const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map(e => e.glob);
     const allowedNpx = new Set(config.documentation?.allowedNpxBinaries ?? []);
     const env = { scripts, declaredBins, installedBins, allowedNpx };
 
-    for (const absFile of mdFiles) {
-      this.auditSingleMarkdownFile(absFile, customExemptGlobs, env);
+    interface ExtractedDocFile {
+      relPosix: string;
+      commands: ExtractedCommand[];
     }
+
+    const extractedFiles: ExtractedDocFile[] = [];
+    for (const absFile of mdFiles) {
+      const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
+      if (!isAuditableCodebaseFile(relPosix, customExemptGlobs) || this.gitIgnoreMatcher.isIgnored(absFile)) {
+        continue;
+      }
+      this.recordScanned(relPosix);
+      let content: string;
+      try {
+        content = fsSync.readFileSync(absFile, 'utf8');
+      } catch {
+        continue;
+      }
+      const commands = extractDocumentedCommands(content);
+      extractedFiles.push({ relPosix, commands });
+    }
+
+    this.runSubAuditorSync('documented-cmd-unregistered-npm', () => {
+      for (const file of extractedFiles) {
+        for (const cmd of file.commands) {
+          const v = evaluateCommandViolation(cmd, file.relPosix, env);
+          if (v && v.ruleId === 'documented-cmd-unregistered-npm') {
+            this.addViolation(v);
+          }
+        }
+      }
+    });
+
+    this.runSubAuditorSync('documented-cmd-invalid-npm-syntax', () => {
+      for (const file of extractedFiles) {
+        for (const cmd of file.commands) {
+          const v = evaluateCommandViolation(cmd, file.relPosix, env);
+          if (v && v.ruleId === 'documented-cmd-invalid-npm-syntax') {
+            this.addViolation(v);
+          }
+        }
+      }
+    });
+
+    this.runSubAuditorSync('documented-cmd-unregistered-npx', () => {
+      for (const file of extractedFiles) {
+        for (const cmd of file.commands) {
+          const v = evaluateCommandViolation(cmd, file.relPosix, env);
+          if (v && v.ruleId === 'documented-cmd-unregistered-npx') {
+            this.addViolation(v);
+          }
+        }
+      }
+    });
   }
 
   private collectAllMarkdownFiles(dir: string): string[] {

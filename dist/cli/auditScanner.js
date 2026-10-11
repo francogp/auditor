@@ -14,7 +14,10 @@ import { loadAuditConfig } from "../core/auditConfig.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { PackageScriptRegistry, CORE_PACKAGE_SCRIPT_REQUIREMENTS } from "../core/packageScriptRegistry.js";
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
-export const AUDIT_PRESETS = {};
+export const AUDIT_PRESETS = {
+    performance: ['validate_web_performance', 'validate_query_performance'],
+    security: ['validate_security_hardening']
+};
 export { getTimeoutForTask, DEFAULT_PERMISSIONS, getPermissionsForTask, formatTaskTitle, shouldSkipTaskByFilters, shouldSkipTaskByCapabilities, buildTaskCliArguments, createAuditTaskDefinition } from "./auditTaskFactory.js";
 import { createAuditTaskDefinition } from "./auditTaskFactory.js";
 export { extractStaticMetadataFromFile, extractAuditorMetadataFromFile } from "./auditorMetadata.js";

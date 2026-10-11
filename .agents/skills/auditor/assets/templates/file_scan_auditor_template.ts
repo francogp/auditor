@@ -8,7 +8,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, hasLineSuppression, type GitIgnoreRequirement } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, hasLineSuppression, createUniformRuleCapabilities, type GitIgnoreRequirement } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -32,8 +32,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 
   constructor(options: MyFeatureAuditorOptions = {}) {
     super({
-      // Optional capabilities: all default to false automatically.
-      // Example: capabilities: { lint: true, fix: true },
+      ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
+        lint: true
+      }),
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyFeatureAuditor.gitIgnoreEntries,
       id: 'validate_my_feature',
@@ -60,33 +61,53 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       allowedExtensions: new Set(['.vue', '.ts']),
       projectRoot: options.projectRoot
     });
+
+    // ARCHITECTURAL NOTE: FileScanAuditor supports two canonical authoring patterns:
+    // Option A (Declarative): Register sub-auditors in the constructor via:
+    //   this.declarePatternSubAuditor('my-feature-forbidden-pattern', { pattern: /forbiddenToken/, message: '...' });
+    //   this.declareFileSubAuditor('my-feature-missing-attribute', (doc) => { /* check doc.rawContent */ });
+    // Option B (Per-file scanner): Override scanFile(relPath, content) with runSubAuditorSync (shown below).
   }
 
   protected override scanFile(relPath: string, content: string): void {
     const lines = content.split(/\r?\n/);
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const lineNum = i + 1;
+    // Rule 1: Forbidden pattern check
+    // runSubAuditorSync automatically measures duration and marks the rule evaluated.
+    // Do NOT manually call markRuleEvaluated beforehand.
+    this.runSubAuditorSync('my-feature-forbidden-pattern', () => {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        const lineNum = i + 1;
 
-      // 1. Support localized suppression comments: // my-feature-ok, // auditor-disable-next-line
-      if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-pattern', lines, i)) continue;
+        if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-pattern', lines, i)) continue;
 
-      // 2. Mark rule evaluated for this file
-      this.markRuleEvaluated('my-feature-forbidden-pattern');
+        if (line.includes('forbiddenToken')) {
+          this.addViolation({
+            ruleId: 'my-feature-forbidden-pattern',
+            severity: 'error',
+            file: relPath,
+            line: lineNum,
+            message: `Detected forbidden token 'forbiddenToken'. Replace with canonical helper.`,
+            context: line.trim()
+          });
+        }
+      }
+    });
 
-      // 3. Perform line checks
-      if (line.includes('forbiddenToken')) {
+    // Rule 2: Missing attribute check
+    this.runSubAuditorSync('my-feature-missing-attribute', () => {
+      if (relPath.endsWith('.vue') && content.includes('<custom-widget') && !content.includes('aria-label=')) {
         this.addViolation({
-          ruleId: 'my-feature-forbidden-pattern',
+          ruleId: 'my-feature-missing-attribute',
           severity: 'error',
           file: relPath,
-          line: lineNum,
-          message: `Detected forbidden token 'forbiddenToken'. Replace with canonical helper.`,
-          context: line.trim()
+          line: 1,
+          message: `<custom-widget> requires an 'aria-label' attribute.`,
+          context: '<custom-widget'
         });
       }
-    }
+    });
   }
 }
 

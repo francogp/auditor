@@ -140,6 +140,21 @@ export default defineAuditConfig({
   scriptExtensions: {
     enabled: true
   },
+  webPerformance: {
+    enabled: true
+  },
+  queryPerformance: {
+    enabled: true
+  },
+  securityHardening: {
+    enabled: true
+  },
+  codeSimplification: {
+    enabled: true
+  },
+  scssArchitecture: {
+    enabled: true
+  },
   runner: {
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
   }

@@ -52,7 +52,8 @@ export class HomebrewDetectorRegistry {
 
   public static run(
     context: HomebrewInspectionContext,
-    disabledDetectors: readonly string[] = []
+    disabledDetectors: readonly string[] = [],
+    onDetectorDuration?: (ruleId: AuditorHomebrewRuleId, durationMs: number) => void
   ): HomebrewFinding[] {
     // Whole file exemption check
     if (
@@ -68,7 +69,11 @@ export class HomebrewDetectorRegistry {
     for (const detector of this.detectors.values()) {
       if (disabledSet.has(detector.id)) continue;
 
+      const t0 = performance.now();
       const detectorFindings = detector.detect(context);
+      if (onDetectorDuration) {
+        onDetectorDuration(detector.ruleId, performance.now() - t0);
+      }
       for (const finding of detectorFindings) {
         const lineIdx = finding.line - 1;
         const lineText = context.lines[lineIdx] ?? '';

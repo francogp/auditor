@@ -17,12 +17,15 @@ import {
   AUDITOR_TEST_RULES,
   extractSuiteDeclaredRules
 } from '../src/suites/architecture/validate_auditor_tests.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('AuditorTestsAuditor', () => {
   let tempDir: string;
 
   beforeEach(async () => {
     process.env.AUDIT_SUBPROCESS = 'true';
+    resetAuditConfig();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-tests-test-'));
   });
 
@@ -40,11 +43,13 @@ describe('AuditorTestsAuditor', () => {
       expect(AUDITOR_TEST_RULES).toContain('missing-violation-auditor-test');
     });
 
-    it('initializes with correct id and family', () => {
+    it('initializes with correct id and family and fulfills BaseAuditor contract', () => {
       const auditor = new AuditorTestsAuditor();
       expect(auditor.id).toBe('validate_auditor_tests');
       expect(auditor.family).toBe('architecture');
       expect(auditor.name).toBe('Auditor Test Existence & Completeness Validator');
+      auditor.recordScannedFile('src/suites/some.ts');
+      validateAuditorConstruction(auditor);
     });
   });
 
@@ -56,6 +61,18 @@ describe('AuditorTestsAuditor', () => {
       const rules = extractSuiteDeclaredRules(source);
       expect(rules).toContain('rule-a');
       expect(rules).toContain('rule-b');
+    });
+
+    it('extracts rules from ruleIds array', () => {
+      const source = `
+        super({
+          id: 'val_bar',
+          ruleIds: ['rule-alpha', 'rule-beta']
+        });
+      `;
+      const rules = extractSuiteDeclaredRules(source);
+      expect(rules).toContain('rule-alpha');
+      expect(rules).toContain('rule-beta');
     });
 
     it('extracts rules from ruleDescriptions map', () => {
@@ -562,6 +579,101 @@ describe('AuditorTestsAuditor', () => {
 
       const auditor = new AuditorTestsAuditor(tempDir);
       const result = await auditor.execute();
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('scans self-provider repositories with core suites and custom testRoots', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }),
+        'utf-8'
+      );
+      await fs.writeFile(path.join(tempDir, 'plugin.json'), JSON.stringify({ name: 'auditor' }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'skills/auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'skills/auditor/SKILL.md'), '# Auditor Skill', 'utf-8');
+
+      const suiteDir = path.join(tempDir, 'src', 'suites', 'custom');
+      const testDir = path.join(tempDir, 'custom-tests');
+      await fs.mkdir(suiteDir, { recursive: true });
+      await fs.mkdir(testDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(suiteDir, 'validate_custom.ts'),
+        `
+        import { BaseAuditor } from '../../core/auditorBase.ts';
+        export const CUSTOM_RULES = ['custom-rule'] as const;
+        export class CustomAuditor extends BaseAuditor<string> {
+          constructor() {
+            super({
+              id: 'validate_custom',
+              name: 'Custom',
+              description: 'Desc',
+              family: 'architecture',
+              packageName: 'Custom',
+              ruleIds: CUSTOM_RULES,
+              configKey: 'paths',
+              defaultConfig: {},
+              criticalConfig: {},
+              icon: '🧪',
+              ruleDescriptions: { 'custom-rule': 'Desc' },
+              capabilities: {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              },
+              coverage: { include: ['src/**'] }
+            });
+          }
+          public override async runAudit() {}
+        }
+        `,
+        'utf-8'
+      );
+
+      await fs.writeFile(
+        path.join(testDir, 'validate_custom.test.ts'),
+        `
+        import { describe, it, expect } from 'vitest';
+        describe('ValidateCustom', () => {
+          it('checks construction', () => {
+            const auditor = new CustomAuditor();
+            expect(auditor.id).toBe('validate_custom');
+          });
+          it('checks custom-rule and verifies clean execution', () => {
+            const rule = 'custom-rule';
+            expect(rule).toBe('custom-rule');
+            expect(result.summary.errors).toBe(0);
+            expect(result.status).toBe('passed');
+          });
+          it('detects violations with error', () => {
+            expect(result.status).toBe('failed');
+            expect(result.summary.errors).toBe(1);
+          });
+        });
+        `,
+        'utf-8'
+      );
+
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.json'),
+        JSON.stringify({
+          name: 'test-app',
+          paths: { testRoots: ['custom-tests'] }
+        }),
+        'utf-8'
+      );
+
+      const auditor = new AuditorTestsAuditor(tempDir);
+      const result = await auditor.execute();
+
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });

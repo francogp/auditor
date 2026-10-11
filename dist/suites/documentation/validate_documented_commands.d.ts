@@ -46,7 +46,6 @@ export declare class ValidateDocumentedCommandsAuditor extends BaseAuditor<Docum
     constructor(options?: {
         projectRoot?: string;
     });
-    private auditSingleMarkdownFile;
     runAudit(): Promise<void>;
     private collectAllMarkdownFiles;
 }

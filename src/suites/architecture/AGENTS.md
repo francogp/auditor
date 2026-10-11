@@ -106,6 +106,8 @@ Architecture & Tooling Engineers.
 - [`validate_type_check.ts`](./validate_type_check.ts): Strict TypeScript type checking via `vue-tsc`.
 - [`validate_type_coverage.ts`](./validate_type_coverage.ts): TypeScript type coverage and untyped symbol threshold auditor.
 - [`validate_typography_line_height.ts`](./validate_typography_line_height.ts): CSS typography line-height collision detector.
+- [`validate_code_simplification.ts`](./validate_code_simplification.ts): Code clarity, dead code removal, boolean trap elimination, nesting reduction, and switch simplification auditor.
+- [`validate_scss_architecture.ts`](./validate_scss_architecture.ts): SCSS modular architecture, `:deep()` governance, theme token compliance, and nesting depth limits.
 - [`validate_vue_sfc_hygiene.ts`](./validate_vue_sfc_hygiene.ts): Vue SFC `<script setup lang="ts">` standards and template hygiene.
 - [`validate_vue_reactivity.ts`](./validate_vue_reactivity.ts): Vue 3 Composition API reactivity rules, pure computed derivations, and getter-wrapped watchers.
 - [`validate_vue_router.ts`](./validate_vue_router.ts): Vue Router 4 navigation standards, deprecation prevention, and SPA state preservation.

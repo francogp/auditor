@@ -11,11 +11,10 @@
  * 5. Zero broad array casts ('as string[]', 'as readonly string[]').
  */
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
-import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
 export const TYPE_ASSERTION_RULES = [
@@ -39,7 +38,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor {
         const cfg = getAuditConfig(rootPath);
         const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? ['src', 'scripts']);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -49,7 +48,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor {
                 heavy: true,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_type_assertion_hygiene',
             name: 'TypeScript Assertion & Strict Typing Hygiene',
             description: 'Prohíbe as any, doble casteo y promesas flotantes',
@@ -123,30 +122,6 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor {
                 return false;
             return true;
         }, 'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`');
-    }
-    scanPattern(content, lines, file, regex, ruleId, filter, message) {
-        regex.lastIndex = 0;
-        let match;
-        while ((match = regex.exec(content)) !== null) {
-            const matchIndex = match.index;
-            const before = content.slice(0, matchIndex);
-            const lineNum = (before.match(/\n/g) ?? []).length + 1;
-            const col = matchIndex - before.lastIndexOf('\n');
-            const line = lines[lineNum - 1] ?? '';
-            if (isCommentLine(line.trim()))
-                continue;
-            if (!filter(match, line))
-                continue;
-            this.addViolation({
-                ruleId,
-                severity: 'error',
-                file,
-                line: lineNum,
-                column: col,
-                message,
-                context: match[0].trim()
-            });
-        }
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

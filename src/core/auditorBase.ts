@@ -33,6 +33,8 @@ import {
   type AuditorCriticalConfig,
   type FixableFindingCounts,
   type FixableViolationsSummary,
+  type AuditorExecutionTier,
+  type DualCommandProfile,
   deriveCanonicalAuditorScript,
   countFixableFindings,
   computeResultsFixableViolations
@@ -63,6 +65,7 @@ import { type AuditEngineConfig, getAuditConfig, loadAuditConfig } from './audit
 import { evaluateSuiteStatus } from './suiteGating.ts';
 import type { SharedAstContext } from './astContext.ts';
 import ts from 'typescript';
+import { formatDurationMs } from './durationFormatter.ts';
 import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
 
 export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
@@ -238,6 +241,10 @@ function resolveSkillsLockCandidates(projectRoot: string): string[] {
     }
   } catch {
     // catch-ok: Ignore config load failures during skill lock resolution
+  }
+  const inheritedLock = 'node_modules/@francogp/auditor/skills-lock.json';
+  if (nodeFs.existsSync(path.resolve(projectRoot, inheritedLock))) {
+    candidatePaths.push(inheritedLock);
   }
   return candidatePaths;
 }
@@ -743,6 +750,62 @@ export const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities = Object.freeze({
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 
+/**
+ * Derives aggregate suite-level capabilities from the logical union of all its sub-auditor ruleCapabilities.
+ */
+export function deriveSuiteCapabilities(
+  ruleCapabilities: Readonly<Record<string, AuditorCapabilities>> | undefined
+): AuditorCapabilities {
+  if (!ruleCapabilities || typeof ruleCapabilities !== 'object') {
+    return { ...DEFAULT_AUDITOR_CAPABILITIES };
+  }
+  const entries = Object.values(ruleCapabilities);
+  if (entries.length === 0) return { ...DEFAULT_AUDITOR_CAPABILITIES };
+
+  return {
+    fix: entries.some(c => c.fix),
+    fixPriority: entries.some(c => c.fixPriority),
+    lint: entries.some(c => c.lint),
+    md: entries.some(c => c.md),
+    ast: entries.some(c => c.ast),
+    changedSince: entries.some(c => c.changedSince),
+    heavy: entries.some(c => c.heavy),
+    requiresBuild: entries.some(c => c.requiresBuild),
+    postRun: entries.some(c => c.postRun)
+  };
+}
+
+/**
+ * Creates individual rule capabilities for suites, automatically adjusting
+ * the `fix` capability per rule based on declared fixableRuleIds.
+ */
+export function createRuleCapabilities<TRuleId extends string>(
+  ruleIds: readonly TRuleId[],
+  baseCapabilities: AuditorCapabilities,
+  fixableRuleIds?: readonly TRuleId[]
+): Record<TRuleId, AuditorCapabilities> {
+  const fixableSet = new Set(fixableRuleIds ?? (baseCapabilities.fix ? ruleIds : []));
+  const result = {} as Record<TRuleId, AuditorCapabilities>;
+  for (const id of ruleIds) {
+    result[id] = {
+      ...baseCapabilities,
+      fix: fixableSet.has(id)
+    };
+  }
+  return result;
+}
+
+/**
+ * Creates uniform rule capabilities for suites where every declared rule
+ * shares the same operational capabilities.
+ */
+export function createUniformRuleCapabilities<TRuleId extends string>(
+  ruleIds: readonly TRuleId[],
+  capabilities: AuditorCapabilities
+): Record<TRuleId, AuditorCapabilities> {
+  return createRuleCapabilities(ruleIds, capabilities);
+}
+
 export interface AuditorOptions<TRuleId extends string = string> {
   readonly id: string;
   readonly name: string;
@@ -750,7 +813,8 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly family: AuditFamily;
   readonly packageName: string;
   readonly icon: string;
-  readonly capabilities: AuditorCapabilities;
+  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
+  readonly capabilities?: never;
   readonly fixableRuleIds?: readonly TRuleId[];
   readonly fix?: boolean;
   readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
@@ -924,26 +988,43 @@ export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
   'postRun'
 ] as const;
 
-function validateAuditorCapabilities<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
-  if (options.capabilities === undefined || typeof options.capabilities !== 'object' || options.capabilities === null) {
-    throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'capabilities' in its constructor.`);
+function validateAuditorRuleCapabilities<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (options.ruleCapabilities === undefined || typeof options.ruleCapabilities !== 'object' || options.ruleCapabilities === null) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'ruleCapabilities' in its constructor. ` +
+      `Every sub-auditor / rule must declare individual capabilities.`
+    );
   }
-  for (const key of MANDATORY_AUDITOR_CAPABILITY_KEYS) {
-    if (typeof options.capabilities[key] !== 'boolean') {
+  for (const ruleId of options.ruleIds) {
+    const caps = options.ruleCapabilities[ruleId];
+    if (!caps || typeof caps !== 'object') {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define sub-capability 'capabilities.${key}' as a boolean (true or false). Missing sub-capabilities and partial capability objects are strictly prohibited.`
+        `[Auditor Contract Violation] Auditor [${options.id}] is missing 'ruleCapabilities' for declared rule '${ruleId}'. ` +
+        `Every sub-auditor must declare its individual capabilities.`
       );
     }
+    for (const key of MANDATORY_AUDITOR_CAPABILITY_KEYS) {
+      if (typeof caps[key] !== 'boolean') {
+        throw new Error(
+          `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define sub-capability 'ruleCapabilities.${ruleId}.${key}' as a boolean (true or false).`
+        );
+      }
+    }
+    for (const key of Object.keys(caps)) {
+      if (!MANDATORY_AUDITOR_CAPABILITY_KEYS.includes(key as typeof MANDATORY_AUDITOR_CAPABILITY_KEYS[number])) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared unknown capability '${key}' in rule '${ruleId}'.`);
+      }
+    }
   }
-  for (const key of Object.keys(options.capabilities)) {
-    if (!MANDATORY_AUDITOR_CAPABILITY_KEYS.includes(key as typeof MANDATORY_AUDITOR_CAPABILITY_KEYS[number])) {
-      throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared unknown capability '${key}'.`);
+  for (const ruleId of Object.keys(options.ruleCapabilities)) {
+    if (!options.ruleIds.includes(ruleId as TRuleId)) {
+      throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declares 'ruleCapabilities' for rule '${ruleId}' which is not in 'ruleIds'.`);
     }
   }
 }
 
-function validateAuditorFixContract<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
-  const isFix = Boolean(options.capabilities?.fix);
+function validateAuditorFixContract<TRuleId extends string>(options: AuditorOptions<TRuleId>, capabilities: AuditorCapabilities): void {
+  const isFix = capabilities.fix;
   const fixableList = options.fixableRuleIds ?? [];
   const configFilesWithFix = (options.configFiles ?? []).filter(c => Boolean(c.ruleId && c.generateDefaultContent));
 
@@ -1012,14 +1093,14 @@ function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<
   }
 }
 
-function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>, effectiveCapabilities: AuditorCapabilities): void {
   validateAuditorIdentity(options);
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
   validateAuditorCriticalConfig(options);
-  validateAuditorCapabilities(options);
-  validateAuditorFixContract(options);
   validateAuditorRules(options);
+  validateAuditorRuleCapabilities(options);
+  validateAuditorFixContract(options, effectiveCapabilities);
   validateAuditorScripts(options);
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
     throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
@@ -1057,6 +1138,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly packageName: string;
   public readonly icon: string;
   public readonly capabilities: AuditorCapabilities;
+  public readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
   public readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   public readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
   public readonly scripts: readonly AuditorPackageScriptRequirement[];
@@ -1074,6 +1156,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly defaultConfig: Readonly<Record<string, unknown>>;
   public readonly criticalConfig: AuditorCriticalConfig;
   protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
+  protected readonly durationsByRule: Map<TRuleId, number> = new Map();
+  protected auditExecutionDurationMs?: number;
+  protected readonly instanceStartTime: number = performance.now();
+  protected readonly declaredSubAuditors: Map<TRuleId, () => Promise<void> | void> = new Map();
 
   protected readonly context: AuditorContext;
   protected readonly countsByRule: Map<TRuleId, number> = new Map();
@@ -1089,6 +1175,139 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   public getFixableRuleIds(): readonly TRuleId[] {
     return Array.from(this.fixableRuleIds);
+  }
+
+  public recordRuleDuration(ruleId: TRuleId, durationMs: number): void {
+    const current = this.durationsByRule.get(ruleId) ?? 0;
+    this.durationsByRule.set(ruleId, current + Math.max(0, durationMs));
+  }
+
+  /**
+   * Allows an external subprogram with its own telemetry (such as Fallow elapsed_ms)
+   * or extension to report or override its net internally measured execution time.
+   */
+  public reportRuleDuration(ruleId: TRuleId, durationMs: number): void {
+    this.durationsByRule.set(ruleId, Math.max(0, durationMs));
+  }
+
+  /**
+   * Formally declares a sub-tool or sub-auditor bound to a declared rule.
+   * The superclass automatically orchestrates its execution and empirically measures
+   * its execution runtime homogeneously and transparently.
+   */
+  public declareSubAuditor(ruleId: TRuleId, action: () => Promise<void> | void): void {
+    if (!this.ruleIds.includes(ruleId)) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${this.id}] attempted to declare sub-auditor for '${ruleId}', but that rule is not registered in 'ruleIds'.`
+      );
+    }
+    this.declaredSubAuditors.set(ruleId, action);
+  }
+
+  /**
+   * Executes a sub-auditor or rule block empirically measuring its start and end
+   * completely transparently.
+   */
+  public async runSubAuditor<T = void>(ruleId: TRuleId, action: () => Promise<T> | T): Promise<T> {
+    this.markRuleEvaluated(ruleId);
+    const start = performance.now();
+    try {
+      return await action();
+    } finally {
+      this.recordRuleDuration(ruleId, performance.now() - start);
+    }
+  }
+
+  public runSubAuditorSync<T = void>(ruleId: TRuleId, action: () => T): T {
+    this.markRuleEvaluated(ruleId);
+    const start = performance.now();
+    try {
+      return action();
+    } finally {
+      this.recordRuleDuration(ruleId, performance.now() - start);
+    }
+  }
+
+  /**
+   * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
+   * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
+   */
+  public async runSubAuditorsBatch(ruleIds: readonly TRuleId[], _action: () => Promise<void> | void): Promise<void> {
+    throw new Error(
+      `[BaseAuditor] 'runSubAuditorsBatch' is strictly prohibited under the Universal Empirical Individual Timing Contract. ` +
+      `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
+      `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
+    );
+  }
+
+  /**
+   * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
+   * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
+   */
+  public runSubAuditorsBatchSync(ruleIds: readonly TRuleId[], _action: () => void): void {
+    throw new Error(
+      `[BaseAuditor] 'runSubAuditorsBatchSync' is strictly prohibited under the Universal Empirical Individual Timing Contract. ` +
+      `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
+      `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
+    );
+  }
+
+  public getRuleDuration(ruleId: TRuleId): number | undefined {
+    return this.durationsByRule.get(ruleId);
+  }
+
+  public getDurationsByRule(): ReadonlyMap<TRuleId, number> {
+    return this.durationsByRule;
+  }
+
+  private readonly executedCommandTiers: Map<string, string> = new Map();
+
+  /**
+   * Returns the active execution tier ('lint', 'md', 'fix', or 'full').
+   */
+  public getExecutionTier(): AuditorExecutionTier {
+    if (process.env.AUDITOR_PRESET === 'lint') return 'lint';
+    if (process.env.AUDITOR_PRESET === 'md') return 'md';
+    if (this.fixMode) return 'fix';
+    return 'full';
+  }
+
+  /**
+   * Returns true when the active run is a fast/lightweight preset (lint or md).
+   */
+  public isFastMode(): boolean {
+    const tier = this.getExecutionTier();
+    return tier === 'lint' || tier === 'md';
+  }
+
+  /**
+   * Checks whether a specific declared ruleId is active for the current execution tier.
+   */
+  public isRuleActiveForCurrentRun(ruleId: TRuleId): boolean {
+    const caps = this.ruleCapabilities[ruleId];
+    if (!caps) return false;
+    const tier = this.getExecutionTier();
+    if (tier === 'lint') return caps.lint;
+    if (tier === 'md') return caps.md;
+    if (tier === 'fix') return caps.fix;
+    return true;
+  }
+
+  /**
+   * Resolves arguments for a dual command profile (fast for lint/md, heavy for full audit),
+   * enforcing the Anti-Repetition Invariant: a command cannot be resolved in multiple tiers in the same run.
+   */
+  public resolveCommandArgs<TArgs = readonly string[]>(profile: DualCommandProfile<TArgs>): TArgs {
+    const profileTier = this.isFastMode() ? 'fast' : 'heavy';
+    const previousTier = this.executedCommandTiers.get(profile.command);
+    if (previousTier !== undefined) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${this.id}]: El comando '${profile.command}' ya fue resuelto/ejecutado con perfil '${previousTier}'. ` +
+        `Ejecutar o resolver tanto la versión rápida como la versión heavy del MISMO comando en la misma corrida está estrictamente prohibido.`
+      );
+    }
+    this.executedCommandTiers.set(profile.command, profileTier);
+    return profileTier === 'fast' ? profile.fastArgs : profile.heavyArgs;
   }
 
   /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
@@ -1166,13 +1385,22 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   constructor(options: AuditorOptions<TRuleId>) {
+    if (Object.hasOwn(options, 'capabilities')) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] passed redundant 'capabilities' to constructor options. ` +
+        `Suite-level capabilities must NOT be passed directly; define individual 'ruleCapabilities' for each sub-auditor/rule and BaseAuditor will automatically derive suite capabilities.`
+      );
+    }
+    validateAuditorRuleCapabilities(options);
     const effectiveProjectRoot = options.projectRoot || process.cwd();
     const effectiveCoverage = this.resolveEffectiveCoverage(options, effectiveProjectRoot);
     const effectiveScripts = this.resolveEffectiveScripts(options);
-    validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts });
+    const effectiveCapabilities = deriveSuiteCapabilities(options.ruleCapabilities);
+    validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts }, effectiveCapabilities);
 
-    this.capabilities = options.capabilities;
-    this.requiresAst = options.capabilities.ast;
+    this.ruleCapabilities = options.ruleCapabilities;
+    this.capabilities = effectiveCapabilities;
+    this.requiresAst = effectiveCapabilities.ast;
     this.packageName = options.packageName;
     this.icon = options.icon;
     this.id = options.id;
@@ -1248,7 +1476,12 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     evaluateFn: () => void | Promise<void>
   ): Promise<void> {
     this.markRuleEvaluated(ruleId);
-    await evaluateFn();
+    const start = performance.now();
+    try {
+      await evaluateFn();
+    } finally {
+      this.recordRuleDuration(ruleId, performance.now() - start);
+    }
   }
 
   /** Synchronous variant for inline invariant evaluation. */
@@ -1257,7 +1490,12 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     evaluateFn: () => void
   ): void {
     this.markRuleEvaluated(ruleId);
-    evaluateFn();
+    const start = performance.now();
+    try {
+      evaluateFn();
+    } finally {
+      this.recordRuleDuration(ruleId, performance.now() - start);
+    }
   }
 
   /**
@@ -1304,8 +1542,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
-  protected markRuleNotApplicable(ruleId: TRuleId, reason: string): void {
+  public markRuleNotApplicable(ruleId: TRuleId, reason: string): void {
     this.coverageRecorder.markRuleNotApplicable(ruleId, reason);
+    if (!this.durationsByRule.has(ruleId)) {
+      this.recordRuleDuration(ruleId, 0);
+    }
   }
 
   /**
@@ -1386,7 +1627,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     name: string,
     result: number | 'passed' | 'warning' | 'failed' | string,
     detail?: string,
-    counts?: { errors?: number; warnings?: number }
+    counts?: { errors?: number; warnings?: number },
+    durationMs?: number
   ): void {
     const count = typeof result === 'number' ? result : 0;
     const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
@@ -1402,7 +1644,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       count,
       errorsCount,
       warningsCount,
-      detail
+      detail,
+      durationMs
     });
   }
 
@@ -1704,22 +1947,27 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     sourceForLines: string = content,
     charOffset: number = 0
   ): void {
-    let match: RegExpExecArray | null;
-    const re = new RegExp(regex.source, regex.flags);
-    this.markRuleEvaluated(ruleId);
-    while ((match = re.exec(content)) !== null) {
-      const line = this.getLineNumber(sourceForLines, charOffset + match.index);
-      const lineContent = this.getLineAt(sourceForLines, line);
-      if (filter && !filter(lineContent, match)) continue;
-      if (this.hasEscapeHatch(lineContent, escapeHatches)) continue;
-      this.addViolation({
-        ruleId,
-        severity: 'error',
-        file: relPath,
-        line,
-        message,
-        context: lineContent.trim()
-      });
+    const start = performance.now();
+    try {
+      let match: RegExpExecArray | null;
+      const re = new RegExp(regex.source, regex.flags);
+      this.markRuleEvaluated(ruleId);
+      while ((match = re.exec(content)) !== null) {
+        const line = this.getLineNumber(sourceForLines, charOffset + match.index);
+        const lineContent = this.getLineAt(sourceForLines, line);
+        if (filter && !filter(lineContent, match)) continue;
+        if (this.hasEscapeHatch(lineContent, escapeHatches)) continue;
+        this.addViolation({
+          ruleId,
+          severity: 'error',
+          file: relPath,
+          line,
+          message,
+          context: lineContent.trim()
+        });
+      }
+    } finally {
+      this.recordRuleDuration(ruleId, performance.now() - start);
     }
   }
 
@@ -1743,7 +1991,15 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       const { SharedAstContext } = await import('./astContext.ts');
       effectiveAst = new SharedAstContext();
     }
+    const auditExecutionStart = performance.now();
     await this.runAudit(effectiveAst);
+    this.auditExecutionDurationMs = Math.max(0, performance.now() - auditExecutionStart);
+    if (this.ruleIds.length === 1) {
+      const singleRuleId = this.ruleIds[0]!;
+      if (!this.durationsByRule.has(singleRuleId)) {
+        this.durationsByRule.set(singleRuleId, this.auditExecutionDurationMs);
+      }
+    }
 
     this.context.setMetric('Files Scanned', this.filesScannedCount);
     for (const [ruleId, count] of this.countsByRule.entries()) {
@@ -1792,12 +2048,27 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     if (this.subAuditorReports.length > 0) return;
     const subAuditors = this.getSubAuditors();
     const totalSteps = Math.max(1, subAuditors.length);
+
     for (let i = 0; i < subAuditors.length; i++) {
       const sub = subAuditors[i]!;
       const count = this.countsByRule.get(sub.id as TRuleId) ?? 0;
       const errorsCount = this.errorsByRule.get(sub.id as TRuleId) ?? 0;
       const warningsCount = this.warningsByRule.get(sub.id as TRuleId) ?? 0;
-      this.logSubAudit(i + 1, totalSteps, sub.name, count, undefined, { errors: errorsCount, warnings: warningsCount });
+      let durationMs = this.durationsByRule.get(sub.id as TRuleId);
+      if (durationMs === undefined && this.ruleIds.length === 1 && this.auditExecutionDurationMs !== undefined) {
+        durationMs = this.auditExecutionDurationMs;
+      }
+      const empiricalDurationMs = durationMs ?? 0;
+      const formattedDuration = formatDurationMs(empiricalDurationMs);
+      this.logSubAudit(
+        i + 1,
+        totalSteps,
+        sub.name,
+        count,
+        formattedDuration,
+        { errors: errorsCount, warnings: warningsCount },
+        empiricalDurationMs
+      );
     }
   }
 
@@ -1828,8 +2099,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   /**
-   * Genera el DTO canónico AuditorManifestDTO para introspección limpia y tipada,
-   * permitiendo a herramientas externas y agentes consultar dinámicamente qué hace y cómo opera.
+   * Generates the canonical AuditorManifestDTO for clean and typed introspection,
+   * allowing external tools and AI agents to dynamically inspect capabilities and rules.
    */
   public toManifest(): AuditorManifestDTO {
     const rulesRecord: Record<string, string> = {};
@@ -1894,12 +2165,109 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
+  protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>> = new Map();
+
   /**
    * Primary file scanning entry point receiving an immutable AuditedDocument.
-   * By default, delegates to scanFile(relPath, content, sourceFile, doc).
+   * Automatically executes declared file sub-auditors measuring their runtimes
+   * before delegating to scanFile(relPath, content, sourceFile, doc).
    */
   protected scanDocument(doc: AuditedDocument): void | Promise<void> {
-    return this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : undefined, doc);
+    const pending: Promise<void>[] = [];
+    for (const [ruleId, handler] of this.declaredFileSubAuditors.entries()) {
+      this.markRuleEvaluated(ruleId);
+      const start = performance.now();
+      try {
+        const res = handler(doc);
+        if (res instanceof Promise) {
+          pending.push(
+            res.finally(() => {
+              this.recordRuleDuration(ruleId, performance.now() - start);
+            })
+          );
+        } else {
+          this.recordRuleDuration(ruleId, performance.now() - start);
+        }
+      } catch (err) {
+        this.recordRuleDuration(ruleId, performance.now() - start);
+        throw err;
+      }
+    }
+    const scanFileRes = this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : undefined, doc);
+    if (scanFileRes instanceof Promise) {
+      pending.push(scanFileRes);
+    }
+    if (pending.length > 0) {
+      return Promise.all(pending).then(() => {});
+    }
+  }
+
+  /**
+   * Helper for in-memory testing of file scanning logic without touching the filesystem.
+   */
+  public testScanFile(relPath: string, content: string, _sourceFile?: ts.SourceFile): void | Promise<void> {
+    const doc = new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
+    const prevTotalEvals = this.getRuleCatalog().reduce((acc, r) => acc + this.getEvaluations(r), 0);
+    const finishScan = (): void => {
+      this.recordScanned(relPath);
+      const newTotalEvals = this.getRuleCatalog().reduce((acc, r) => acc + this.getEvaluations(r), 0);
+      if (newTotalEvals === prevTotalEvals) {
+        for (const ruleId of this.getRuleCatalog()) {
+          this.markRuleEvaluated(ruleId);
+        }
+      }
+    };
+    const res = this.scanDocument(doc);
+    if (res instanceof Promise) {
+      return res.then(finishScan);
+    }
+    finishScan();
+  }
+
+  /**
+   * Declares a file-scoped sub-auditor tied to a declared rule.
+   * The superclass executes the handler for each audited file and empirically accumulates duration.
+   */
+  public declareFileSubAuditor(ruleId: TRuleId, handler: (doc: AuditedDocument) => void | Promise<void>): void {
+    if (!this.ruleIds.includes(ruleId)) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${this.id}] attempted to declare file sub-auditor for '${ruleId}', but that rule is not registered in 'ruleIds'.`
+      );
+    }
+    this.declaredFileSubAuditors.set(ruleId, handler);
+  }
+
+  /**
+   * Declares a regex pattern sub-auditor tied to a declared rule.
+   * Scans safe patterns skipping comments and strings automatically.
+   */
+  public declarePatternSubAuditor(
+    ruleId: TRuleId,
+    options: {
+      regex: RegExp;
+      message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+      severity?: FindingSeverity;
+      skipComments?: boolean;
+      skipStrings?: boolean;
+      fixable?: boolean;
+      onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void;
+    }
+  ): void {
+    this.declareFileSubAuditor(ruleId, (doc) => {
+      this.scanSafePattern(
+        doc,
+        {
+          ruleId,
+          regex: options.regex,
+          message: options.message,
+          severity: options.severity,
+          skipComments: options.skipComments,
+          skipStrings: options.skipStrings,
+          fixable: options.fixable
+        },
+        options.onMatch
+      );
+    });
   }
 
   /**
@@ -1968,42 +2336,95 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
     },
     onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void
   ): void {
-    const skipComments = options.skipComments ?? true;
-    const skipStrings = options.skipStrings ?? true;
-    const regex = new RegExp(options.regex.source, options.regex.flags.includes('g') ? options.regex.flags : options.regex.flags + 'g');
-    let m: RegExpExecArray | null;
+    const start = performance.now();
+    try {
+      const skipComments = options.skipComments ?? true;
+      const skipStrings = options.skipStrings ?? true;
+      const regex = new RegExp(options.regex.source, options.regex.flags.includes('g') ? options.regex.flags : options.regex.flags + 'g');
+      let m: RegExpExecArray | null;
 
-    while ((m = regex.exec(doc.rawContent)) !== null) {
-      const matchIdx = m.index;
+      while ((m = regex.exec(doc.rawContent)) !== null) {
+        const matchIdx = m.index;
 
-      if (skipComments && doc.isInsideComment(matchIdx)) {
-        continue;
+        if (skipComments && doc.isInsideComment(matchIdx)) {
+          continue;
+        }
+        if (skipStrings && doc.isInsideString(matchIdx)) {
+          continue;
+        }
+
+        const pos = doc.getLineAndColumn(matchIdx);
+        if (doc.hasEscapeHatch(pos.line, options.ruleId)) {
+          continue;
+        }
+
+        if (onMatch) {
+          const shouldContinue = onMatch(m, pos);
+          if (shouldContinue === false) continue;
+        }
+
+        const msg = typeof options.message === 'function' ? options.message(m, pos) : options.message;
+        this.addViolation({
+          ruleId: options.ruleId,
+          filePath: doc.relPath,
+          line: pos.line,
+          column: pos.column,
+          message: msg,
+          severity: options.severity ?? 'error',
+          context: pos.lineText.trim(),
+          fixable: options.fixable
+        });
       }
-      if (skipStrings && doc.isInsideString(matchIdx)) {
-        continue;
-      }
+    } finally {
+      this.recordRuleDuration(options.ruleId, performance.now() - start);
+    }
+  }
 
-      const pos = doc.getLineAndColumn(matchIdx);
-      if (doc.hasEscapeHatch(pos.line, options.ruleId)) {
-        continue;
+  /**
+   * Superclass pattern scanner that executes a regex search over content or file lines,
+   * skips comments, evaluates filters, records violations, and automatically measures
+   * and records the empirical rule duration in the superclass.
+   */
+  public scanPattern(
+    content: string,
+    lines: readonly string[],
+    file: string,
+    regex: RegExp,
+    ruleId: TRuleId,
+    filter?: (match: RegExpExecArray, line: string) => boolean,
+    message?: string | ((match: RegExpExecArray, line: string) => string),
+    severity: FindingSeverity = 'error'
+  ): void {
+    const start = performance.now();
+    try {
+      regex.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(content)) !== null) {
+        const matchIndex = match.index;
+        const before = content.slice(0, matchIndex);
+        const lineNum = (before.match(/\n/g) ?? []).length + 1;
+        const col = matchIndex - before.lastIndexOf('\n');
+        const line = lines[lineNum - 1] ?? '';
+        const trimmed = line.trim();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+          continue;
+        }
+        if (filter && !filter(match, line)) {
+          continue;
+        }
+        const msg = typeof message === 'function' ? message(match, line) : (message ?? `Violación de regla ${ruleId}`);
+        this.addViolation({
+          ruleId,
+          severity,
+          file,
+          line: lineNum,
+          column: col,
+          message: msg,
+          context: match[0].trim()
+        });
       }
-
-      if (onMatch) {
-        const shouldContinue = onMatch(m, pos);
-        if (shouldContinue === false) continue;
-      }
-
-      const msg = typeof options.message === 'function' ? options.message(m, pos) : options.message;
-      this.addViolation({
-        ruleId: options.ruleId,
-        filePath: doc.relPath,
-        line: pos.line,
-        column: pos.column,
-        message: msg,
-        severity: options.severity ?? 'error',
-        context: pos.lineText.trim(),
-        fixable: options.fixable
-      });
+    } finally {
+      this.recordRuleDuration(ruleId, performance.now() - start);
     }
   }
 
@@ -2049,7 +2470,9 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
 
     if (files.length === 0) {
       for (const ruleId of catalog) {
-        this.markRuleNotApplicable(ruleId, 'No matching files found in scanned roots');
+        this.runSubAuditorSync(ruleId, () => {
+          this.markRuleNotApplicable(ruleId, 'No matching files found in scanned roots');
+        });
       }
       this.ensureSubAuditorsLogged();
       return;

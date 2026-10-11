@@ -25,7 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { normalizePosixPath, toPosixRelative } from "../../core/safePath.js";
@@ -422,7 +422,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         const effectiveRoot = rootDir || process.cwd();
         const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -432,7 +432,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_markdown_code_references',
             name: 'Markdown Code References Validator',
             description: 'Valida rutas, scripts, casing y skills en markdown',
@@ -466,38 +466,30 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         this.scanRoots = effectiveScanRoots;
         this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
     }
-    scanMarkdownFile(filePath, allSkills, knownValidAbstractPaths, seenViolations) {
-        const relPath = toPosixRelative(this.rootDir, filePath);
-        const rawContent = fs.readFileSync(filePath, 'utf8');
-        const cleanContent = stripCodeBlocks(rawContent);
-        const lines = cleanContent.split('\n');
-        const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
-        const fileDir = path.dirname(filePath);
-        let dirEntries = [];
-        if (relPath.endsWith('AGENTS.md')) {
-            try {
-                dirEntries = fs.readdirSync(fileDir);
+    scanMarkdownDocReferences(docs, targetRuleId, knownValidAbstractPaths) {
+        let count = 0;
+        const sink = {
+            addViolation: (v) => {
+                if (v.ruleId === targetRuleId) {
+                    this.addViolation(v);
+                }
             }
-            catch {
-                // catch-ok: unreadable directory
-                dirEntries = [];
-            }
-        }
-        let checked = 0;
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const lineNum = i + 1;
-            if (!isSkillDoc) {
-                checked += checkSourcePathReferences(line, lineNum, relPath, filePath, this.rootDir, this.gitIgnoreMatcher, knownValidAbstractPaths, this);
-            }
-            checked += checkHardcodedRuntimeVersions(line, lineNum, relPath, this);
-            checked += checkSkillReferences(line, lineNum, relPath, allSkills, this);
-            if (relPath.endsWith('AGENTS.md')) {
-                checked += checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, this.rootDir, this.gitIgnoreMatcher, seenViolations, this);
-                checked += checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, this.gitIgnoreMatcher, seenViolations, this);
+        };
+        const seenViolations = new Set();
+        for (const doc of docs) {
+            for (let i = 0; i < doc.lines.length; i++) {
+                const line = doc.lines[i];
+                const lineNum = i + 1;
+                if (!doc.isSkillDoc) {
+                    count += checkSourcePathReferences(line, lineNum, doc.relPath, doc.filePath, this.rootDir, this.gitIgnoreMatcher, knownValidAbstractPaths, sink);
+                }
+                if (doc.relPath.endsWith('AGENTS.md')) {
+                    count += checkAgentsMdBulletDeclaration(line, lineNum, doc.relPath, doc.fileDir, this.rootDir, this.gitIgnoreMatcher, seenViolations, sink);
+                    count += checkAgentsMdInlineTokens(line, lineNum, doc.relPath, doc.fileDir, doc.dirEntries, this.gitIgnoreMatcher, seenViolations, sink);
+                }
             }
         }
-        return checked;
+        return count;
     }
     async runAudit() {
         const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
@@ -510,14 +502,51 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
             return;
         }
         let referencesChecked = 0;
-        const seenViolations = new Set();
+        const docs = [];
         for (const filePath of mdFiles) {
             this.recordScanned(filePath);
-            for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
-                this.markRuleEvaluated(r);
+            const relPath = toPosixRelative(this.rootDir, filePath);
+            const rawContent = fs.readFileSync(filePath, 'utf8');
+            const cleanContent = stripCodeBlocks(rawContent);
+            const lines = cleanContent.split('\n');
+            const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
+            const fileDir = path.dirname(filePath);
+            let dirEntries = [];
+            if (relPath.endsWith('AGENTS.md')) {
+                try {
+                    dirEntries = fs.readdirSync(fileDir);
+                }
+                catch {
+                    // catch-ok
+                    dirEntries = [];
+                }
             }
-            referencesChecked += this.scanMarkdownFile(filePath, allSkills, knownValidAbstractPaths, seenViolations);
+            docs.push({ filePath, relPath, lines, isSkillDoc, fileDir, dirEntries });
         }
+        // 1. markdown-broken-source-ref
+        this.runSubAuditorSync('markdown-broken-source-ref', () => {
+            referencesChecked += this.scanMarkdownDocReferences(docs, 'markdown-broken-source-ref', knownValidAbstractPaths);
+        });
+        // 2. markdown-hardcoded-runtime-version
+        this.runSubAuditorSync('markdown-hardcoded-runtime-version', () => {
+            for (const doc of docs) {
+                for (let i = 0; i < doc.lines.length; i++) {
+                    referencesChecked += checkHardcodedRuntimeVersions(doc.lines[i], i + 1, doc.relPath, this);
+                }
+            }
+        });
+        // 3. markdown-broken-skill-ref
+        this.runSubAuditorSync('markdown-broken-skill-ref', () => {
+            for (const doc of docs) {
+                for (let i = 0; i < doc.lines.length; i++) {
+                    referencesChecked += checkSkillReferences(doc.lines[i], i + 1, doc.relPath, allSkills, this);
+                }
+            }
+        });
+        // 4. markdown-case-mismatch
+        this.runSubAuditorSync('markdown-case-mismatch', () => {
+            this.scanMarkdownDocReferences(docs, 'markdown-case-mismatch', knownValidAbstractPaths);
+        });
         this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);
         this.context.setMetric('Referencias de código analizadas', referencesChecked);
     }

@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import stylelint from 'stylelint';
-import { BaseAuditor, CANONICAL_IGNORE_DIRS } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
@@ -275,7 +275,7 @@ export class StylelintAuditor extends BaseAuditor {
             ...(config.paths.stylesRoots ?? ['src/styles'])
         ]));
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
                 fix: true,
                 fixPriority: false,
                 lint: true,
@@ -285,7 +285,7 @@ export class StylelintAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [...STYLELINT_RULES]),
             fixableRuleIds: [...STYLELINT_RULES],
             gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
             id: options?.id || 'validate_stylelint',
@@ -325,7 +325,6 @@ export class StylelintAuditor extends BaseAuditor {
         return this.lastLinterResult;
     }
     async runAudit() {
-        const startTime = performance.now();
         if (this.isSuiteGatingDisabled('Stylelint desactivado en config'))
             return;
         const config = getAuditConfig(this.projectRoot);
@@ -380,22 +379,31 @@ export class StylelintAuditor extends BaseAuditor {
                 message: `Fallo al ejecutar Stylelint: ${errorMsg}`,
                 context: 'stylelint-engine-error'
             });
+            for (const r of STYLELINT_RULES) {
+                if (r !== 'stylelint-issue')
+                    this.markRuleEvaluated(r);
+            }
             return;
         }
+        if (!linterResult)
+            return;
         this.lastLinterResult = linterResult;
-        for (const r of STYLELINT_RULES) {
-            this.markRuleEvaluated(r);
-        }
         for (const fileResult of linterResult.results) {
             if (fileResult.source) {
                 this.recordScanned(fileResult.source);
             }
         }
         const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot);
-        for (const v of violations) {
-            this.addViolation(v);
+        for (const ruleId of STYLELINT_RULES) {
+            this.runSubAuditorSync(ruleId, () => {
+                for (const v of violations) {
+                    if (v.ruleId === ruleId) {
+                        this.addViolation(v);
+                    }
+                }
+            });
         }
-        persistStylelintReport(this.projectRoot, this.id, this.filesScannedCount, { totalErrors, totalWarnings }, linterResult.results, Math.round(performance.now() - startTime));
+        persistStylelintReport(this.projectRoot, this.id, this.filesScannedCount, { totalErrors, totalWarnings }, linterResult.results, Math.round(this.durationsByRule.get('stylelint-issue') ?? 0));
         this.context.setMetric('Archivos Escaneados', this.filesScannedCount);
         this.context.setMetric('Errores CSS', totalErrors);
         this.context.setMetric('Advertencias CSS', totalWarnings);

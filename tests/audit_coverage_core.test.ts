@@ -35,16 +35,18 @@ const BASE_OPTIONS = {
   configKey: 'core',
   defaultConfig: {},
   criticalConfig: {},
-  capabilities: {
-    fix: false,
-    fixPriority: false,
-    lint: false,
-    md: false,
-    ast: false,
-    changedSince: false,
-    heavy: false,
-    requiresBuild: false,
-    postRun: false
+  ruleCapabilities: {
+    'probe-rule': {
+      fix: false,
+      fixPriority: false,
+      lint: false,
+      md: false,
+      ast: false,
+      changedSince: false,
+      heavy: false,
+      requiresBuild: false,
+      postRun: false
+    }
   }
 } as const;
 

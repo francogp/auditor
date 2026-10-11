@@ -28,7 +28,7 @@ class TestableTestHygieneAuditor extends TestHygieneAuditor {
     super.addViolation(v);
   }
 
-  public testScanFile(relPath: string, content: string): void {
+  public override testScanFile(relPath: string, content: string): void {
     this.scanFile(relPath, content);
   }
 }
@@ -145,6 +145,11 @@ describe('TestHygieneAuditor', () => {
   describe('Clean Execution', () => {
     it('runs on compliant test suites and reports zero errors', async () => {
       const auditor = new TestableTestHygieneAuditor();
+      const intCode = `
+        import { expect, test } from 'vitest';
+        test('ok', () => { expect(1).toBe(1); });
+      `;
+      auditor.testScanFile('tests/integration/clean_integration.test.ts', intCode);
       const e2eCode = `
         await page.locator('#input-username').fill('admin');
         await page.locator('#btn-login').click();

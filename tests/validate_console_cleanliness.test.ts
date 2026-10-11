@@ -15,7 +15,7 @@ import {
 } from '../src/suites/architecture/validate_console_cleanliness.ts';
 
 class TestableConsoleCleanlinessAuditor extends ConsoleCleanlinessAuditor {
-  public testScanFile(relPath: string, content: string): void {
+  public override testScanFile(relPath: string, content: string): void {
     this.scanFile(relPath, content);
   }
 }

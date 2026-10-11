@@ -26,7 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveScannableRoots } from '../../core/auditorBase.ts';
+import { BaseAuditor, getEffectiveScannableRoots , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -118,7 +118,7 @@ private readonly allowedDatabaseDirs: ReadonlySet<string>;
     const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -128,7 +128,7 @@ private readonly allowedDatabaseDirs: ReadonlySet<string>;
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
 id: 'validate_ephemeral_storage_isolation',
       name: 'Ephemeral Storage & Scratch Isolation Validator',
       description: 'Aislamiento estricto de archivos temporales en scratch/',
@@ -168,11 +168,15 @@ id: 'validate_ephemeral_storage_isolation',
   }
 
   public override runAudit(): void {
-    this.markRuleEvaluated('ephemeral-no-source-temp-dirs');
-    this.scanSourceDirectoriesOnDisk();
-    this.markRuleEvaluated('ephemeral-no-gitignore-source-temp');
-    this.scanGitignoreRules();
-    this.scanSourceCodeReferences();
+    this.runSubAuditorSync('ephemeral-no-source-temp-dirs', () => {
+      this.scanSourceDirectoriesOnDisk();
+    });
+    this.runSubAuditorSync('ephemeral-no-gitignore-source-temp', () => {
+      this.scanGitignoreRules();
+    });
+    this.runSubAuditorSync('ephemeral-no-source-temp-references', () => {
+      this.scanSourceCodeReferences();
+    });
   }
 
   private scanSourceDirectoriesOnDisk(): void {
@@ -301,7 +305,6 @@ id: 'validate_ephemeral_storage_isolation',
       if (isSelfReferentialFile(relPath)) continue;
 
       this.recordScanned(relPath);
-      this.markRuleEvaluated('ephemeral-no-source-temp-references');
 
       try {
         const content = fs.readFileSync(filePath, 'utf-8');

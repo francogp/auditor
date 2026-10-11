@@ -22,16 +22,18 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       configKey: 'core',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      capabilities: {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+      ruleCapabilities: {
+        'dummy-rule': {
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        }
       },
       coverage: { include: ['src/**'] },
       ruleIds: ['dummy-rule'],
@@ -59,16 +61,18 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       configKey: 'core',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      capabilities: {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+      ruleCapabilities: {
+        'custom-rule': {
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        }
       },
       coverage: { include: ['src/**'] },
       ruleIds: ['custom-rule'],
@@ -194,16 +198,18 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             configKey: 'core',
             defaultConfig: { enabled: true },
             criticalConfig: {},
-            capabilities: {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
+            ruleCapabilities: {
+              'rule-1': {
+                fix: false,
+                fixPriority: false,
+                lint: true,
+                md: false,
+                ast: false,
+                changedSince: false,
+                heavy: false,
+                requiresBuild: false,
+                postRun: false
+              }
             },
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],

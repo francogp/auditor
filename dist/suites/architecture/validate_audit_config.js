@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { loadAuditConfig, AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES, DEFAULT_AUDIT_CONFIG } from "../../core/auditConfig.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { discoverAuditors, collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
@@ -309,7 +309,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
             : (targetPathOrOptions ?? {});
         const projectRoot = options.projectRoot || process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
                 fix: true,
                 fixPriority: true,
                 lint: true,
@@ -319,7 +319,12 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [
+                'audit-config-missing-section',
+                'audit-config-missing-file',
+                'audit-config-missing-gitignore-entry',
+                'audit-config-critical-violation'
+            ]),
             fixableRuleIds: [
                 'audit-config-missing-section',
                 'audit-config-missing-file',
@@ -354,11 +359,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        for (const r of AUDIT_CONFIG_RULES) {
-            this.markRuleEvaluated(r);
-        }
-        const requirement = this.configFiles[0] ?? AUDIT_CONFIG_REQUIREMENT;
-        const ensured = await this.ensureConfigFile(requirement);
+        let ensured = null;
+        await this.runSubAuditor('audit-config-missing-file', async () => {
+            const requirement = this.configFiles[0] ?? AUDIT_CONFIG_REQUIREMENT;
+            ensured = await this.ensureConfigFile(requirement);
+        });
         if (!ensured) {
             return;
         }
@@ -377,14 +382,26 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         catch {
             // catch-ok: fallback when running in isolated test environments without suite discovery
         }
-        await this.verifyRequiredSections(config, tasks);
-        await this.verifyCriticalConfigurations(config, tasks);
-        this.verifyUnknownFields(config, tasks);
-        this.verifyPathRoots(config);
-        this.verifyPersistencePaths(config);
-        this.verifyDomainAndStylePaths(config);
-        this.verifyExtensionPaths(config);
-        await this.verifyGitIgnore(config);
+        await this.runSubAuditor('audit-config-missing-section', async () => {
+            await this.verifyRequiredSections(config, tasks);
+        });
+        await this.runSubAuditor('audit-config-critical-violation', async () => {
+            await this.verifyCriticalConfigurations(config, tasks);
+        });
+        this.runSubAuditorSync('audit-config-unknown-field', () => {
+            this.verifyUnknownFields(config, tasks);
+        });
+        this.runSubAuditorSync('audit-config-missing-path', () => {
+            this.verifyPathRoots(config);
+            this.verifyPersistencePaths(config);
+            this.verifyDomainAndStylePaths(config);
+        });
+        this.runSubAuditorSync('audit-config-invalid-extension', () => {
+            this.verifyExtensionPaths(config);
+        });
+        await this.runSubAuditor('audit-config-missing-gitignore-entry', async () => {
+            await this.verifyGitIgnore(config);
+        });
     }
     verifyUnknownFields(config, tasks) {
         const rawConfig = config._rawConfig ?? {};

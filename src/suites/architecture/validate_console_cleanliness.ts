@@ -19,7 +19,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
@@ -56,7 +56,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
     super({
       roots: scannableRoots,
       projectRoot,
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -66,7 +66,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_console_cleanliness',
       name: 'Console & Debugger Cleanliness Auditor',
       description: 'Prohíbe console.log directo y debugger en src/',
@@ -89,7 +89,9 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
     const normalizedPath = normalizePosixPath(relPath);
 
     // 1. Audit debugger statements (all files)
-    this.auditDebugger(normalizedPath, content);
+    this.runSubAuditorSync('no-debugger-statement', () => {
+      this.auditDebugger(normalizedPath, content);
+    });
 
     // 2. Audit raw console.log (exempt files, CLI tools, and terminal/auditor engine modules excluded)
     const config = getAuditConfig(this.projectRoot);
@@ -99,9 +101,11 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       isExemptFile(normalizedPath, config) ||
       isCliPath(normalizedPath, config);
 
-    if (!exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput) {
-      this.auditConsoleLog(normalizedPath, content);
-    }
+    this.runSubAuditorSync('no-console-log-in-src', () => {
+      if (!exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput) {
+        this.auditConsoleLog(normalizedPath, content);
+      }
+    });
   }
 
   private auditDebugger(relPath: string, content: string): void {

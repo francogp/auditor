@@ -392,6 +392,7 @@ export const noLiteralBooleanType = createTypeScriptRule({
     fix: (content) => content.replace(/:\s*(?:true|false)\b/g, ': boolean')
 });
 export const noInlineAnonymousObjectType = createTypeScriptRule({
+    // redos-ok: deterministic parameter signature regex
     regex: /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*(?:;|,)\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g,
     message: (match) => `Tipo de objeto anónimo inline detectado en parámetro: '${match.trim()}'. Está PROHIBIDO usar estructuras de objeto anónimas inline en firmas de función (estilo Java). Define e importa una interface o tipo nombrado (ej. UserPayload).`,
     bypassAnnotations: ['// type-ok: Type contract declaration', 'withDefaults']

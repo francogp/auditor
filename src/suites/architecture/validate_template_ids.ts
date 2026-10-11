@@ -25,7 +25,7 @@ import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
   BaseAuditor
-} from '../../core/auditorBase.ts';
+, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
@@ -178,7 +178,7 @@ private readonly globalIdMap = new Map<string, IdOccurrence[]>();
       ...(config.paths.viewsRoots ?? ['src/views'])
     ];
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -188,7 +188,7 @@ private readonly globalIdMap = new Map<string, IdOccurrence[]>();
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
 id: 'validate_template_ids',
       name: 'Template Static ID Uniqueness & Collision Validator',
       description: 'Verifica IDs estáticos e inputs en templates Vue',
@@ -232,10 +232,14 @@ id: 'validate_template_ids',
       globalIdMap: this.globalIdMap
     };
 
-    scanTemplateStaticIds(ctx);
+    this.runSubAuditorSync('template-duplicate-static-id', () => {
+      scanTemplateStaticIds(ctx);
+    });
 
     if (this.requireInputIds) {
-      scanTemplateFormControlIds(ctx);
+      this.runSubAuditorSync('template-missing-input-id', () => {
+        scanTemplateFormControlIds(ctx);
+      });
     }
   }
 
@@ -267,9 +271,11 @@ id: 'validate_template_ids',
 
   public override async runAudit(): Promise<void> {
     await super.runAudit();
-    for (const [id, occs] of this.globalIdMap.entries()) {
-      this.checkSingleIdCollisions(id, occs);
-    }
+    this.runSubAuditorSync('template-shared-static-id', () => {
+      for (const [id, occs] of this.globalIdMap.entries()) {
+        this.checkSingleIdCollisions(id, occs);
+      }
+    });
   }
 }
 

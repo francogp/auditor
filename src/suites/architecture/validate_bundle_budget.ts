@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
@@ -60,63 +60,23 @@ function isImportTypeOnly(node: ts.ImportDeclaration): boolean {
   return false;
 }
 
-function checkImportViolations(
-  importPath: string,
-  lineNum: number,
-  relPath: string,
-  isUiLayer: boolean,
-  forbiddenSegments: readonly string[],
-  forbiddenUiImports: readonly { module: string; reason: string }[],
-  auditor: BundleBudgetAuditor
-): void {
-  for (const seg of forbiddenSegments) {
-    if (importPath.includes(seg) || importPath.startsWith(`..${seg}`)) {
-      auditor.addViolation({
-        ruleId: 'bundle-runtime-leak',
-        severity: 'error',
-        file: relPath,
-        line: lineNum,
-        message: `Fuga de código en tiempo de ejecución: '${importPath}'. No se permite importar valores desde '${seg}' en código de producción.`,
-        context: importPath
-      });
-    }
-  }
-
-  if (isUiLayer) {
-    for (const forbidden of forbiddenUiImports) {
-      if (importPath === forbidden.module || importPath.startsWith(`${forbidden.module}/`)) {
-        auditor.addViolation({
-          ruleId: 'bundle-heavy-import',
-          severity: 'error',
-          file: relPath,
-          line: lineNum,
-          message: `Import de valor en tiempo de ejecución prohibido en UI: '${importPath}'. ${forbidden.reason}`,
-          context: importPath
-        });
-      }
-    }
-  }
+interface ParsedImport {
+  moduleSpecifier: string;
+  lineNum: number;
 }
 
-function auditFileImports(
-  relPath: string,
+function extractRuntimeImports(
   fullPath: string,
-  projectRoot: string,
-  effectiveUiDirs: readonly string[],
-  forbiddenSegments: readonly string[],
-  forbiddenUiImports: readonly { module: string; reason: string }[],
-  astEngine: SharedAstContext,
-  auditor: BundleBudgetAuditor
-): void {
+  astEngine: SharedAstContext
+): ParsedImport[] {
   const content = fs.readFileSync(fullPath, 'utf8');
-  if (!content.includes('import ')) return;
+  if (!content.includes('import ')) return [];
 
-  const norm = toPosixRelative(projectRoot, fullPath);
   const sourceFile = astEngine.getSourceFile(fullPath, content);
-  if (!sourceFile.text.trim()) return;
+  if (!sourceFile.text.trim()) return [];
 
-  const isUiLayer = effectiveUiDirs.some(d => norm.startsWith(d));
   const fullLines = content.split('\n');
+  const results: ParsedImport[] = [];
 
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isImportDeclaration(node)) {
@@ -128,17 +88,58 @@ function auditFileImports(
       const lineText = fullLines[lineNum - 1] || '';
       if (lineText.includes('// bundle-leak-ok:')) return;
 
-      checkImportViolations(
-        moduleSpecifier.text,
-        lineNum,
-        relPath,
-        isUiLayer,
-        forbiddenSegments,
-        forbiddenUiImports,
-        auditor
-      );
+      results.push({
+        moduleSpecifier: moduleSpecifier.text,
+        lineNum
+      });
     }
   });
+
+  return results;
+}
+
+function checkRuntimeLeaks(
+  imports: readonly ParsedImport[],
+  relPath: string,
+  forbiddenSegments: readonly string[],
+  auditor: BundleBudgetAuditor
+): void {
+  for (const imp of imports) {
+    for (const seg of forbiddenSegments) {
+      if (imp.moduleSpecifier.includes(seg) || imp.moduleSpecifier.startsWith(`..${seg}`)) {
+        auditor.addViolation({
+          ruleId: 'bundle-runtime-leak',
+          severity: 'error',
+          file: relPath,
+          line: imp.lineNum,
+          message: `Fuga de código en tiempo de ejecución: '${imp.moduleSpecifier}'. No se permite importar valores desde '${seg}' en código de producción.`,
+          context: imp.moduleSpecifier
+        });
+      }
+    }
+  }
+}
+
+function checkHeavyImports(
+  imports: readonly ParsedImport[],
+  relPath: string,
+  forbiddenUiImports: readonly { module: string; reason: string }[],
+  auditor: BundleBudgetAuditor
+): void {
+  for (const imp of imports) {
+    for (const forbidden of forbiddenUiImports) {
+      if (imp.moduleSpecifier === forbidden.module || imp.moduleSpecifier.startsWith(`${forbidden.module}/`)) {
+        auditor.addViolation({
+          ruleId: 'bundle-heavy-import',
+          severity: 'error',
+          file: relPath,
+          line: imp.lineNum,
+          message: `Import de valor en tiempo de ejecución prohibido en UI: '${imp.moduleSpecifier}'. ${forbidden.reason}`,
+          context: imp.moduleSpecifier
+        });
+      }
+    }
+  }
 }
 
 function auditSingleChunkBudget(
@@ -239,7 +240,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
     const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : 'dist';
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -249,7 +250,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
         heavy: false,
         requiresBuild: true,
         postRun: false
-      },
+      }),
       gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
       id: 'validate_bundle_budget',
       name: 'Bundle Budget & Client Leak Auditor',
@@ -315,15 +316,28 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
     } else {
       for (const relPath of candidateFiles) {
         this.recordScanned(relPath);
-        this.markRuleEvaluated('bundle-runtime-leak');
-        this.markRuleEvaluated('bundle-heavy-import');
         const fullPath = path.resolve(this.projectRoot, relPath);
-        auditFileImports(relPath, fullPath, this.projectRoot, effectiveUiDirs, forbiddenSegments, effectiveForbiddenUiImports, astEngine, this);
+        const norm = toPosixRelative(this.projectRoot, fullPath);
+        const isUiLayer = effectiveUiDirs.some(d => norm.startsWith(d));
+        const imports = extractRuntimeImports(fullPath, astEngine);
+
+        this.runSubAuditorSync('bundle-runtime-leak', () => {
+          checkRuntimeLeaks(imports, relPath, forbiddenSegments, this);
+        });
+
+        this.runSubAuditorSync('bundle-heavy-import', () => {
+          if (isUiLayer) {
+            checkHeavyImports(imports, relPath, effectiveForbiddenUiImports, this);
+          }
+        });
       }
     }
 
     const distAssetsDir = path.resolve(this.projectRoot, config.bundle?.distDir ?? 'dist/assets');
-    const chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
+    let chunksAudited = 0;
+    this.runSubAuditorSync('bundle-chunk-size', () => {
+      chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
+    });
     if (chunksAudited === 0) {
       this.markRuleNotApplicable('bundle-chunk-size', 'No se encontraron artefactos compilados en dist');
     }

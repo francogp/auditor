@@ -13,12 +13,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
+import { BaseAuditor, type AuditorOptions , createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   parseSemver,
   compareVersions,
   getAuditorEngines,
-  type SemverVersion
+  type SemverVersion,
+  type AuditorEngineSpecs
 } from '../../cli/check_environment.ts';
 import { getPackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
@@ -34,6 +35,16 @@ export type EnvironmentEnginesRuleId = (typeof ENVIRONMENT_ENGINES_RULES)[number
 
 export interface EnvironmentEnginesConfig {
   readonly enabled?: boolean;
+}
+
+export interface EngineAvailability {
+  readonly hasNodeEngine: boolean;
+  readonly hasNpmEngine: boolean;
+}
+
+export interface EngineFloorCheckResult {
+  readonly nodeReq: SemverVersion;
+  readonly npmReq: SemverVersion;
 }
 
 export function detectNpmVersion(): string {
@@ -74,7 +85,7 @@ export function syncNvmrc(projectRoot: string, targetNodeEngine: string): boolea
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
   constructor(options: Partial<AuditorOptions<EnvironmentEnginesRuleId>> = {}) {
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -84,7 +95,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_environment_engines',
       name: 'Environment Engines & Runtime Validator',
       description: 'Valida versiones de Node.js y npm en package.json',
@@ -129,8 +140,8 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     return pkg;
   }
 
-  private auditMissingEngines(hasNodeEngine: boolean, hasNpmEngine: boolean): void {
-    if (!hasNodeEngine || !hasNpmEngine) {
+  private auditMissingEngines(engines: EngineAvailability): void {
+    if (!engines.hasNodeEngine || !engines.hasNpmEngine) {
       const isWin = process.platform === 'win32';
       const setupScript = isWin ? '.\\setup-windows.ps1' : './setup-linux.sh';
       this.addViolation({
@@ -145,10 +156,10 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
   private auditEnginesBelowFloor(
     currentNodeEngine: string,
     currentNpmEngine: string,
-    auditorEngines: { node: string; npm: string },
+    auditorEngines: AuditorEngineSpecs,
     minNodeReq: SemverVersion,
     minNpmReq: SemverVersion
-  ): { nodeReq: SemverVersion; npmReq: SemverVersion } {
+  ): EngineFloorCheckResult {
     let nodeEngineReq: SemverVersion = { major: 0, minor: 0, patch: 0 };
     let npmEngineReq: SemverVersion = { major: 0, minor: 0, patch: 0 };
 
@@ -179,7 +190,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
 
   private auditRuntimeMismatch(
     pkg: PackageJsonDTO,
-    auditorEngines: { node: string; npm: string },
+    auditorEngines: AuditorEngineSpecs,
     nodeEngineReq: SemverVersion,
     npmEngineReq: SemverVersion,
     minNodeReq: SemverVersion,
@@ -222,29 +233,37 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
 
     const pkg = this.validatePackageJson(pkgPath);
     if (!pkg) {
-      this.markRuleEvaluated('environment-engines-missing');
-      this.markRuleEvaluated('environment-engines-below-floor');
-      this.markRuleEvaluated('environment-runtime-mismatch');
+      this.runSubAuditorSync('environment-engines-missing', () => {});
+      this.runSubAuditorSync('environment-engines-below-floor', () => {
+        this.markRuleNotApplicable('environment-engines-below-floor', 'package.json ausente o inválido');
+      });
+      this.runSubAuditorSync('environment-runtime-mismatch', () => {
+        this.markRuleNotApplicable('environment-runtime-mismatch', 'package.json ausente o inválido');
+      });
       return;
     }
 
     const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
     const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
 
-    this.auditMissingEngines(hasNodeEngine, hasNpmEngine);
-    this.markRuleEvaluated('environment-engines-missing');
+    this.runSubAuditorSync('environment-engines-missing', () => {
+      this.auditMissingEngines({ hasNodeEngine, hasNpmEngine });
+    });
 
-    const belowFloorResult = this.auditEnginesBelowFloor(
-      pkg.engines?.node ?? '',
-      pkg.engines?.npm ?? '',
-      auditorEngines,
-      minNodeReq,
-      minNpmReq
-    );
-    this.markRuleEvaluated('environment-engines-below-floor');
+    let belowFloorResult!: ReturnType<typeof this.auditEnginesBelowFloor>;
+    this.runSubAuditorSync('environment-engines-below-floor', () => {
+      belowFloorResult = this.auditEnginesBelowFloor(
+        pkg.engines?.node ?? '',
+        pkg.engines?.npm ?? '',
+        auditorEngines,
+        minNodeReq,
+        minNpmReq
+      );
+    });
 
-    this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
-    this.markRuleEvaluated('environment-runtime-mismatch');
+    this.runSubAuditorSync('environment-runtime-mismatch', () => {
+      this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
+    });
   }
 }
 

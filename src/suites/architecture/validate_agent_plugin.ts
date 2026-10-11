@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
+import { BaseAuditor, type AuditorOptions , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, loadAuditConfig, isSelfProviderProject } from '../../core/auditConfig.ts';
 import { initAgentSkill } from '../../cli/init_agent.ts';
 
@@ -56,7 +56,7 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
 constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
         fix: true,
         fixPriority: true,
         lint: false,
@@ -66,7 +66,7 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, ['missing-agent-plugin-registration']),
       fixableRuleIds: ['missing-agent-plugin-registration'],
       id: 'validate_agent_plugin',
       name: 'Agent Plugin & Skill Integration Validator',
@@ -142,16 +142,16 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     for (const registryFile of AGENT_REGISTRY_FILES) {
       if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
     }
-    this.markRuleEvaluated('missing-agent-plugin-registration');
+    this.runSubAuditorSync('missing-agent-plugin-registration', () => {
+      if (isPluginRegisteredInAgents(this.projectRoot)) {
+        this.context.setMetric('Agent Plugin Status', 'Registered');
+        return;
+      }
 
-    if (isPluginRegisteredInAgents(this.projectRoot)) {
-      this.context.setMetric('Agent Plugin Status', 'Registered');
-      return;
-    }
+      if (this.tryAutoFixPlugin()) return;
 
-    if (this.tryAutoFixPlugin()) return;
-
-    this.reportMissingPluginViolation();
+      this.reportMissingPluginViolation();
+    });
   }
 }
 

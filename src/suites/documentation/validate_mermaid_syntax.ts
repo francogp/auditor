@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { JSDOM } from 'jsdom';
-import { FileScanAuditor, BaseAuditor } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -95,7 +95,7 @@ const UNQUOTED_BRACE_NODE_REGEX = /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
   public constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
         fix: true,
         fixPriority: false,
         lint: true,
@@ -105,7 +105,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, [...MERMAID_SYNTAX_RULES]),
       fixableRuleIds: [...MERMAID_SYNTAX_RULES],
       id: 'validate_mermaid_syntax',
       name: 'Mermaid Diagram Syntax Auditor',
@@ -209,6 +209,53 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
     }
   }
 
+  private async validateDiagramBlock(
+    relPath: string,
+    diagramCode: string,
+    mermaidStartLine: number
+  ): Promise<void> {
+    if (!diagramCode) return;
+    await this.runSubAuditor('mermaid-syntax-error', async () => {
+      const validation = await validateMermaid(diagramCode);
+      if (!validation.valid && validation.error) {
+        const offsetLine = Math.max(0, validation.error.line - 1);
+        const errorLine = mermaidStartLine + offsetLine;
+
+        this.addViolation({
+          ruleId: 'mermaid-syntax-error',
+          severity: 'error',
+          file: relPath,
+          line: errorLine,
+          context: validation.error.message.slice(0, 100),
+          message: `Error de sintaxis en diagrama Mermaid: ${validation.error.message}`
+        });
+      }
+    });
+  }
+
+  private processMermaidContentLine(
+    line: string,
+    lineIndex: number,
+    relPath: string,
+    isFix: boolean
+  ): { fixedLine: string | null; isIgnored: boolean } {
+    if (this.isLineIgnored(line, ['mermaid-ok', 'doc-ok'])) {
+      return { fixedLine: null, isIgnored: true };
+    }
+    let fixedLine: string | null = null;
+    if (isFix) {
+      const fixed = this.fixMermaidLine(line);
+      if (fixed !== line) {
+        fixedLine = fixed;
+      }
+    }
+    const lineToCheck = fixedLine ?? line;
+    this.runSubAuditorSync('mermaid-unquoted-special-chars', () => {
+      this.checkSpecialCharacters(lineToCheck, lineIndex + 1, relPath);
+    });
+    return { fixedLine, isIgnored: false };
+  }
+
   protected override async scanFile(relPath: string, content: string): Promise<void> {
     const lines = content.split('\n');
     let inMermaid = false;
@@ -237,45 +284,25 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
             .map(l => l.replace(/<!--[\s\S]*?-->/g, '').trimEnd())
             .join('\n')
             .trim();
-
-          if (diagramCode) {
-            const validation = await validateMermaid(diagramCode);
-            if (!validation.valid && validation.error) {
-              const offsetLine = Math.max(0, validation.error.line - 1);
-              const errorLine = mermaidStartLine + offsetLine;
-
-              this.addViolation({
-                ruleId: 'mermaid-syntax-error',
-                severity: 'error',
-                file: relPath,
-                line: errorLine,
-                context: validation.error.message.slice(0, 100),
-                message: `Error de sintaxis en diagrama Mermaid: ${validation.error.message}`
-              });
-            }
-          }
+          await this.validateDiagramBlock(relPath, diagramCode, mermaidStartLine);
         }
         continue;
       }
 
       if (inMermaid) {
-        if (this.isLineIgnored(line, ['mermaid-ok', 'doc-ok'])) {
+        const result = this.processMermaidContentLine(line, i, relPath, isFix);
+        if (result.isIgnored) {
           diagramIgnored = true;
+        } else if (result.fixedLine !== null) {
+          lines[i] = result.fixedLine;
+          fileModified = true;
+          mermaidLines.push(result.fixedLine);
         } else {
-          if (isFix) {
-            const fixedLine = this.fixMermaidLine(line);
-            if (fixedLine !== line) {
-              lines[i] = fixedLine;
-              fileModified = true;
-              mermaidLines.push(fixedLine);
-              continue;
-            }
-          }
           mermaidLines.push(line);
-          this.checkSpecialCharacters(line, i + 1, relPath);
         }
       }
     }
+
 
     if (isFix && fileModified) {
       const absPath = path.resolve(this.projectRoot, relPath);

@@ -15,7 +15,7 @@ export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax
 export declare const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[];
 export declare function getBannedEntryGlobs(projectRoot?: string): readonly string[];
 export declare const BANNED_ENTRY_GLOBS: readonly ["src/components/**/*.vue", "src/views/**/*.vue", "src/components/**", "src/views/**"];
-export declare function escapeRegExp(str: string): string;
+export declare const escapeRegExp: (string: string) => string;
 /**
  * Checks whether a symbol is exported from file content.
  */

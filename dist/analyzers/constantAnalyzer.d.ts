@@ -21,6 +21,7 @@ interface ConstDecl {
  * Extracts top-level const declarations using TypeScript AST.
  */
 export declare function extractConstantsFromSource(sourceFile: ts.SourceFile, filePath: string, ignoredNames?: ReadonlySet<string>): ConstDecl[];
-export declare function detectDuplicateConstants(files: string[], astContext?: SharedAstContext, projectRoot?: string): Promise<Violation[]>;
+export type DuplicateConstantFilter = 'identical' | 'divergent';
+export declare function detectDuplicateConstants(files: string[], astContext?: SharedAstContext, projectRoot?: string, filter?: DuplicateConstantFilter): Promise<Violation[]>;
 export {};
 //# sourceMappingURL=constantAnalyzer.d.ts.map

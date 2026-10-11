@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/safePath.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
@@ -35,7 +35,7 @@ export class AuditorHygieneAuditor extends BaseAuditor {
                 enabled: true
             },
             criticalConfig: {},
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -45,7 +45,7 @@ export class AuditorHygieneAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             coverage: {
                 include: ['src/suites/**/*.ts', 'src/analyzers/**/*.ts', 'scripts/auditors/**/*.ts'],
                 exclude: ['src/analyzers/homebrew/**']
@@ -88,12 +88,17 @@ export class AuditorHygieneAuditor extends BaseAuditor {
         return Array.from(files);
     }
     async runAudit() {
-        for (const r of this.ruleIds) {
-            this.markRuleEvaluated(r);
-        }
         const config = getAuditConfig(this.projectRoot);
         const disabledDetectors = config.auditorHygiene?.disabledDetectors ?? [];
         const targetFiles = this.collectTargetFiles();
+        if (targetFiles.length === 0) {
+            for (const r of this.ruleIds) {
+                this.runSubAuditorSync(r, () => {
+                    this.markRuleNotApplicable(r, 'No se encontraron archivos de auditor');
+                });
+            }
+            return;
+        }
         let cleanFilesCount = 0;
         for (const absPath of targetFiles) {
             const relPath = normalizePosixPath(path.relative(this.projectRoot, absPath));
@@ -112,7 +117,10 @@ export class AuditorHygieneAuditor extends BaseAuditor {
                 isAnalyzer,
                 projectRoot: this.projectRoot
             };
-            const findings = HomebrewDetectorRegistry.run(inspectionContext, disabledDetectors);
+            const findings = HomebrewDetectorRegistry.run(inspectionContext, disabledDetectors, (ruleId, durationMs) => {
+                this.markRuleEvaluated(ruleId);
+                this.recordRuleDuration(ruleId, durationMs); // timing-ok: record detector empirical duration from registry callback
+            });
             if (findings.length === 0) {
                 cleanFilesCount++;
             }

@@ -11,7 +11,7 @@ import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
-import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored } from "../../core/auditorBase.js";
+import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored, createRuleCapabilities } from "../../core/auditorBase.js";
 import { matchesRule, auditRulesConfig as config } from "./audit_rules.js";
 import { loadAuditConfig, AUDITOR_DIR } from "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/safePath.js";
@@ -299,6 +299,7 @@ export function applyRuleFix(rule, content, filePath) {
         return fixer(match);
     });
 }
+export const activeProjectRuleTimings = new Map();
 export function runRules(filePath, content, rules, violations, fix, offset) {
     let result = content;
     const getLineNo = createLineLocator(content, offset);
@@ -306,9 +307,16 @@ export function runRules(filePath, content, rules, violations, fix, offset) {
         if (rule.appliesTo && !rule.appliesTo(filePath)) {
             continue;
         }
+        const ruleKey = rule.id;
+        const start = performance.now(); // timing-ok: CLI internal rule runner telemetry
         collectRuleViolations(rule, content, filePath, getLineNo, violations);
         if (fix && rule.fix) {
             result = applyRuleFix(rule, result, filePath);
+        }
+        if (ruleKey) {
+            const elapsed = performance.now() - start; // timing-ok: CLI internal rule runner telemetry
+            const current = activeProjectRuleTimings.get(ruleKey) ?? 0;
+            activeProjectRuleTimings.set(ruleKey, current + elapsed);
         }
     }
     return result;
@@ -655,7 +663,7 @@ async function persistProjectReports(jsonReport) {
 }
 export async function main(cliArgs) {
     await loadAuditConfig();
-    const startTime = performance.now();
+    const startTime = performance.now(); // timing-ok: CLI standalone runner execution timer
     const ctx = parseProjectCliContext(cliArgs);
     function logProgress(msg) {
         if (process.env.AUDIT_SUBPROCESS === 'true') {
@@ -686,7 +694,7 @@ export async function main(cliArgs) {
         topFiles,
         errorsCount,
         warningsCount,
-        durationMs: Math.round(performance.now() - startTime)
+        durationMs: Math.round(performance.now() - startTime) // timing-ok: CLI standalone runner execution timer
     });
     const { archJsonPath, jsonReportStr } = await persistProjectReports(jsonReport);
     if (process.env.AUDIT_SUBPROCESS !== 'true') {
@@ -720,7 +728,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
             .filter(([_, rule]) => typeof rule.fix === 'function' || rule.fixable === true)
             .map(([key, rule]) => rule.id || key);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(ruleIds, {
                 fix: true,
                 fixPriority: false,
                 lint: true,
@@ -730,7 +738,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
                 heavy: true,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, fixableRuleIds),
             fixableRuleIds,
             ruleIds,
             ruleDescriptions,
@@ -750,14 +758,21 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
+        activeProjectRuleTimings.clear();
         const files = await getFilesToAudit(this.projectRoot);
         for (const f of files) {
             this.recordScanned(f);
         }
         for (const r of Object.keys(this.ruleDescriptions ?? {})) {
             this.markRuleEvaluated(r);
+            if (!activeProjectRuleTimings.has(r)) {
+                activeProjectRuleTimings.set(r, 0);
+            }
         }
         const violations = await main();
+        for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) {
+            this.reportRuleDuration(ruleId, durationMs);
+        }
         for (const v of violations) {
             const relFile = v.file
                 ? normalizePosixPath(path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file)

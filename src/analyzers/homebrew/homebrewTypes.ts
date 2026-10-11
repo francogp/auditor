@@ -16,7 +16,8 @@ export const AUDITOR_HOMEBREW_RULES = [
   'auditor-manual-brace-counting',
   'auditor-manual-path-containment',
   'auditor-manual-file-walker',
-  'auditor-homebrew-predicates'
+  'auditor-homebrew-predicates',
+  'auditor-manual-rule-timing'
 ] as const;
 
 export type AuditorHomebrewRuleId = (typeof AUDITOR_HOMEBREW_RULES)[number];

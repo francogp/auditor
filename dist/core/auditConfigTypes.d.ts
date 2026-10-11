@@ -387,6 +387,23 @@ export interface AuditScriptExtensionsConfig {
     readonly allowJsScripts?: boolean;
     readonly exemptFiles?: readonly string[];
 }
+export interface AuditWebPerformanceConfig {
+    readonly enabled?: boolean;
+}
+export interface AuditQueryPerformanceConfig {
+    readonly enabled?: boolean;
+}
+export interface AuditSecurityHardeningConfig {
+    readonly enabled?: boolean;
+}
+export interface AuditCodeSimplificationConfig {
+    readonly enabled?: boolean;
+    readonly maxNestingDepth?: number;
+}
+export interface AuditScssArchitectureConfig {
+    readonly enabled?: boolean;
+    readonly maxNestingDepth?: number;
+}
 export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
@@ -425,6 +442,11 @@ export interface AuditEngineConfig {
     readonly secretLeaks?: AuditSecretLeaksConfig;
     readonly dependencyVulnerabilities?: AuditDependencyVulnerabilitiesConfig;
     readonly coverage?: AuditCoverageConfig;
+    readonly webPerformance?: AuditWebPerformanceConfig;
+    readonly queryPerformance?: AuditQueryPerformanceConfig;
+    readonly securityHardening?: AuditSecurityHardeningConfig;
+    readonly codeSimplification?: AuditCodeSimplificationConfig;
+    readonly scssArchitecture?: AuditScssArchitectureConfig;
     readonly customFamilies?: readonly CustomAuditFamilyConfig[];
     readonly extensions?: readonly string[];
     readonly presets?: Record<string, readonly string[]>;

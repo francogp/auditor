@@ -21,7 +21,7 @@
  */
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { parseVueSfc } from "../../core/vueSfcParser.js";
 enableCompileCache();
@@ -142,7 +142,7 @@ export class TemplateIdAuditor extends FileScanAuditor {
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -152,7 +152,7 @@ export class TemplateIdAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_template_ids',
             name: 'Template Static ID Uniqueness & Collision Validator',
             description: 'Verifica IDs estáticos e inputs en templates Vue',
@@ -193,9 +193,13 @@ export class TemplateIdAuditor extends FileScanAuditor {
             auditor: this,
             globalIdMap: this.globalIdMap
         };
-        scanTemplateStaticIds(ctx);
+        this.runSubAuditorSync('template-duplicate-static-id', () => {
+            scanTemplateStaticIds(ctx);
+        });
         if (this.requireInputIds) {
-            scanTemplateFormControlIds(ctx);
+            this.runSubAuditorSync('template-missing-input-id', () => {
+                scanTemplateFormControlIds(ctx);
+            });
         }
     }
     checkSingleIdCollisions(id, occs) {
@@ -220,9 +224,11 @@ export class TemplateIdAuditor extends FileScanAuditor {
     }
     async runAudit() {
         await super.runAudit();
-        for (const [id, occs] of this.globalIdMap.entries()) {
-            this.checkSingleIdCollisions(id, occs);
-        }
+        this.runSubAuditorSync('template-shared-static-id', () => {
+            for (const [id, occs] of this.globalIdMap.entries()) {
+                this.checkSingleIdCollisions(id, occs);
+            }
+        });
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

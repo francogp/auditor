@@ -50,6 +50,11 @@ Architecture & Tooling Engineers.
 - [`validate_test_coverage.test.ts`](./validate_test_coverage.test.ts): Tests for test execution coverage thresholds and uncovered files detection.
 - [`validate_type_coverage.test.ts`](./validate_type_coverage.test.ts): Tests for quantitative TypeScript type coverage threshold enforcement.
 - [`validate_valibot_parity.test.ts`](./validate_valibot_parity.test.ts): Tests for Valibot schema and save persistence parity validator.
+- [`validate_web_performance.test.ts`](./validate_web_performance.test.ts): Tests for web asset optimization and Core Web Vitals auditor.
+- [`validate_query_performance.test.ts`](./validate_query_performance.test.ts): Tests for SQL indexing, query limits, and N+1 loop pattern detection.
+- [`validate_security_hardening.test.ts`](./validate_security_hardening.test.ts): Tests for security hardening and OWASP Top 10 guardrails auditor.
+- [`validate_code_simplification.test.ts`](./validate_code_simplification.test.ts): Tests for code simplification, boolean traps, and nesting reduction.
+- [`validate_scss_architecture.test.ts`](./validate_scss_architecture.test.ts): Tests for SCSS architecture, :deep() governance, and theme token usage.
 - [`version_bump.test.ts`](./version_bump.test.ts): Tests for SemVer bump calculation, build timestamp formatting, and git diff heuristics.
 
 ## Work Guidance

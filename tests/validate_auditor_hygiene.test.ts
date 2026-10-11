@@ -21,28 +21,33 @@ import {
   HomebrewDetectorRegistry,
   type HomebrewDetector
 } from '../src/analyzers/homebrew/index.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('AuditorHygieneAuditor', () => {
   let tempDir: string;
 
   beforeEach(async () => {
     process.env.AUDIT_SUBPROCESS = 'true';
+    resetAuditConfig();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-hygiene-test-'));
   });
 
   afterEach(async () => {
     delete process.env.AUDIT_SUBPROCESS;
+    resetAuditConfig();
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
   describe('Metadata & Construction', () => {
-    it('initializes with correct id, family, icon and package name', () => {
+    it('initializes with correct id, family, icon and package name and fulfills contract', () => {
       const auditor = new AuditorHygieneAuditor(tempDir);
       expect(auditor.id).toBe('validate_auditor_hygiene');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Auditor');
       expect(auditor.icon).toBe('🧹');
       expect(auditor.name).toBe('Auditor Architecture & Homebrew Hygiene Validator');
+      validateAuditorConstruction(auditor);
     });
 
     it('declares all 10 canonical rules in AUDITOR_HOMEBREW_RULES', () => {
@@ -275,6 +280,24 @@ describe('AuditorHygieneAuditor', () => {
       expect(finding).toBeDefined();
     });
 
+    it('detects auditor-manual-rule-timing when measuring rule duration manually', async () => {
+      const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
+      await fs.mkdir(auditorsDir, { recursive: true });
+
+      const snippet = 'const start = performance.' + 'now();\n' +
+        'doWork();\n' +
+        'const elapsed = performance.' + 'now() - start;\n' +
+        'this.recordDuration("rule-1", elapsed);';
+      await fs.writeFile(path.join(auditorsDir, 'bad_timing.ts'), snippet, 'utf8');
+
+      const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBeGreaterThan(0);
+      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-rule-timing' as AuditorHomebrewRuleId));
+      expect(finding).toBeDefined();
+    });
+
     it('respects inline // homebrew-ok: exemption annotations', async () => {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
@@ -283,6 +306,100 @@ describe('AuditorHygieneAuditor', () => {
       await fs.writeFile(path.join(auditorsDir, 'exempt_file.ts'), snippet, 'utf8');
 
       const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('scans self-provider repo suites and analyzers while skipping ignored patterns', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }),
+        'utf-8'
+      );
+      await fs.writeFile(path.join(tempDir, 'plugin.json'), JSON.stringify({ name: 'auditor' }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'skills/auditor'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'skills/auditor/SKILL.md'), '# Auditor Skill', 'utf-8');
+
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, '.auditor/audit.config.json'),
+        JSON.stringify({ name: '@francogp/auditor' }),
+        'utf-8'
+      );
+
+      const suitesDir = path.join(tempDir, 'src/suites');
+      const analyzersDir = path.join(tempDir, 'src/analyzers');
+      const homebrewDir = path.join(tempDir, 'src/analyzers/homebrew');
+      await fs.mkdir(suitesDir, { recursive: true });
+      await fs.mkdir(analyzersDir, { recursive: true });
+      await fs.mkdir(homebrewDir, { recursive: true });
+
+      // Clean files
+      await fs.writeFile(path.join(suitesDir, 'clean_suite.ts'), 'export const SUITE = 1;\n', 'utf-8');
+      await fs.writeFile(path.join(analyzersDir, 'clean_analyzer.ts'), 'export const ANALYZER = 2;\n', 'utf-8');
+
+      // Ignored patterns: .d.ts, test file, _private, and analyzers/homebrew/
+      await fs.writeFile(path.join(suitesDir, 'types.d.ts'), 'export type Foo = string;\n', 'utf-8');
+      await fs.writeFile(path.join(suitesDir, 'suite.test.ts'), 'console.' + 'log("test");\n', 'utf-8');
+      await fs.writeFile(path.join(suitesDir, '_private.ts'), 'console.' + 'log("private");\n', 'utf-8');
+      await fs.writeFile(path.join(homebrewDir, 'detector.ts'), 'console.' + 'log("homebrew");\n', 'utf-8');
+
+      const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('handles configured extensions, exemptFiles, and disabledDetectors', async () => {
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, '.auditor/audit.config.json'),
+        JSON.stringify({
+          name: 'ext-project',
+          extensions: ['scripts/custom/my_extension.ts'],
+          auditorHygiene: {
+            exemptFiles: ['scripts/auditors/exempted.ts'],
+            disabledDetectors: ['raw-console']
+          }
+        }),
+        'utf-8'
+      );
+
+      const customDir = path.join(tempDir, 'scripts/custom');
+      const auditorsDir = path.join(tempDir, 'scripts/auditors');
+      await fs.mkdir(customDir, { recursive: true });
+      await fs.mkdir(auditorsDir, { recursive: true });
+
+      // Extension file
+      await fs.writeFile(path.join(customDir, 'my_extension.ts'), 'export const EXT = 1;\n', 'utf-8');
+
+      // Exempt file has raw console but is exempt
+      await fs.writeFile(path.join(auditorsDir, 'exempted.ts'), 'console.' + 'log("exempt");\n', 'utf-8');
+
+      // File with raw console, but detector is disabled
+      await fs.writeFile(path.join(auditorsDir, 'runner.ts'), 'console.' + 'log("disabled detector");\n', 'utf-8');
+
+      const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('marks rules not applicable when targetFiles is empty', async () => {
+      const emptyDir = path.join(tempDir, 'empty-auditor-project');
+      await fs.mkdir(emptyDir, { recursive: true });
+      await fs.mkdir(path.join(emptyDir, '.auditor'), { recursive: true });
+      await fs.writeFile(
+        path.join(emptyDir, '.auditor/audit.config.json'),
+        JSON.stringify({ name: 'empty-project' }),
+        'utf-8'
+      );
+
+      const auditor = new AuditorHygieneAuditor(emptyDir);
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);

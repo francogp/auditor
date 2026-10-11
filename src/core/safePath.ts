@@ -34,9 +34,12 @@ export function safeResolve(...pathSegments: string[]): string {
 /**
  * Joins path segments safely within project root boundary.
  */
+// wrapper-ok: Canonical framework export wrapper for safeResolve
 export function safeJoin(...pathSegments: string[]): string {
   return safeResolve(...pathSegments);
 }
+
+
 
 function assertNotLockedSkill(filePath: string): string {
   const resolved = safeResolve(filePath);

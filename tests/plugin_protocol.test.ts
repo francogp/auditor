@@ -44,16 +44,18 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: true,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+          ruleCapabilities: {
+            'dummy-rule': {
+              fix: false,
+              fixPriority: false,
+              lint: true,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            }
           },
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
@@ -94,16 +96,18 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: true,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+          ruleCapabilities: {
+            'registered-rule': {
+              fix: false,
+              fixPriority: false,
+              lint: true,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            }
           },
           ruleIds: ['registered-rule'],
           coverage: {
@@ -141,16 +145,29 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: true,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+          ruleCapabilities: {
+            'step-one': {
+              fix: false,
+              fixPriority: false,
+              lint: true,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            },
+            'step-two': {
+              fix: false,
+              fixPriority: false,
+              lint: true,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            }
           },
           ruleIds: ['step-one', 'step-two'],
           coverage: {

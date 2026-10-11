@@ -35,15 +35,22 @@ export declare const GSAP_LAYOUT_PROPERTIES: readonly ["backgroundPosition", "ba
 export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 export declare class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
+    private getScriptRanges;
     private getNamedTimerConstantsRegex;
     private scanCssAnimations;
+    private scanEmptyVueTransitions;
+    private scanNoImportantTransforms;
+    private scanNoImportantFilters;
+    private scanGpuLayerPromotion;
     private scanUiTimers;
-    private scanGsapTweenConfig;
-    private scanGsapTweens;
+    private forEachTweenConfig;
+    private scanLayoutProperties;
+    private scanKebabCaseProperties;
+    private scanRawTransformString;
+    private scanSimultaneousOriginConflict;
     private scanNamedTimerConstants;
-    private scanStyleConventions;
-    private scanTimelineAndEases;
-    protected scanFile(relPath: string, content: string): void;
+    private scanTimelineConstructorDuration;
+    private scanLegacyEaseNames;
     private scanHighFrequencyTweens;
 }
 //# sourceMappingURL=validate_gsap_animations.d.ts.map

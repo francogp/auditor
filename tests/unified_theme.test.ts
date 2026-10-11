@@ -25,6 +25,7 @@ import {
   padVisual,
   truncateVisual,
   formatDuration,
+  formatDurationMs,
   formatStatusBadge,
   type TableColumn
 } from '../src/core/unifiedTheme.ts';
@@ -90,7 +91,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       expect(padVisual('hi', 5, 'left')).toBe('hi   ');
       expect(padVisual('hi', 5, 'right')).toBe('   hi');
       expect(truncateVisual('hello world', 5)).toBe('hell…');
-      expect(formatDuration(1500).trim()).toBe('1500ms');
+      expect(formatDuration(1500).trim()).toBe('1.500 ms');
     });
 
     it('formats status badges correctly', () => {
@@ -119,7 +120,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
       const row = renderAuditTaskRow(passedResult);
       expect(row).toContain('Test Suite');
-      expect(row).toContain('42ms');
+      expect(row).toContain('42 ms');
       expect(row).toContain('15 Items');
     });
   });
@@ -128,7 +129,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     it('renders footer for 100% passed execution', () => {
       const footer = renderConsolidatedFooter(10, 10, 0, 0, 1500, undefined, 0);
       expect(footer).toContain('¡SUITE DE AUDITORÍA GLOBAL APROBADA!');
-      expect(footer).toContain('1500ms');
+      expect(footer).toContain('1.500 ms');
     });
 
     it('renders footer for failed execution with sample error lines', () => {
@@ -526,6 +527,15 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       ]);
       expect(sample).toContain('⚠️  Muestra de advertencias detectadas (todos los 1 de 1):');
       expect(sample).toContain('package.json:1: [warn-rule] Test warning');
+    });
+  });
+
+  describe('formatDurationMs', () => {
+    it('formats numbers with thousands separators and optional decimals using Spanish locale', () => {
+      expect(formatDurationMs(450)).toBe('450 ms');
+      expect(formatDurationMs(2140)).toBe('2.140 ms');
+      expect(formatDurationMs(120150)).toBe('120.150 ms');
+      expect(formatDurationMs(120150.5)).toBe('120.150,5 ms');
     });
   });
 });

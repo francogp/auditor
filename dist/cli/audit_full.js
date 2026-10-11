@@ -27,7 +27,7 @@ import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig, sanitiz
 import { runWarningRatchet, initWarningBaseline } from "./auditRatchet.js";
 import { migrateLegacyAuditConfig } from "./migrateAuditConfig.js";
 import { COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV } from "../core/auditCoverage.js";
-import { getVisualWidth, renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner, renderAutoFixNoticeBanner, renderAuditorsRegistryTable, renderAuditorDetailCard, renderCliHelp } from "../core/unifiedTheme.js";
+import { getVisualWidth, renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner, renderAutoFixNoticeBanner, renderAuditorsRegistryTable, renderAuditorDetailCard, renderCliHelp, formatDurationMs, formatNumber } from "../core/unifiedTheme.js";
 import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
@@ -225,7 +225,9 @@ async function tryReadTaskResult(taskJsonPath, stdout, durationMs) {
     try {
         const fileContent = await fs.readFile(taskJsonPath, 'utf-8');
         const parsed = JSON.parse(fileContent);
-        parsed.durationMs = durationMs;
+        if (parsed.durationMs === undefined || parsed.durationMs === 0) {
+            parsed.durationMs = durationMs;
+        }
         return parsed;
     }
     catch {
@@ -238,7 +240,9 @@ async function tryReadTaskResult(taskJsonPath, stdout, durationMs) {
             const lastBrace = raw.lastIndexOf('}');
             if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
                 const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1));
-                parsed.durationMs = durationMs;
+                if (parsed.durationMs === undefined || parsed.durationMs === 0) {
+                    parsed.durationMs = durationMs;
+                }
                 return parsed;
             }
         }
@@ -501,6 +505,7 @@ function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
  * In fix mode (isFixMode === true), any remaining error could not be resolved,
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
+// wrapper-ok: facade delegator exported for orchestrator consumers
 export function computeFixableViolations(results, isFixMode) {
     return BaseAuditor.computeFixableViolations(results, isFixMode);
 }
@@ -685,6 +690,7 @@ function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamili
     }
     return false;
 }
+// boolean-trap-ok: CLI master banner formatting params
 export function createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tasksCount, allAvailableCount, omittedCount) {
     const subtitleDetails = [
         `v${AUDITOR_VERSION}`,
@@ -753,7 +759,8 @@ async function runTaskExecution(task, ctx, subLines) {
     }
     const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
     const parsed = await parseSubprocessOutput(task, proc, ctx.scratchAuditsDir);
-    return { result: parsed, durationMs: proc.durationMs };
+    const suiteDuration = parsed.durationMs !== undefined && parsed.durationMs > 0 ? parsed.durationMs : proc.durationMs;
+    return { result: parsed, durationMs: suiteDuration };
 }
 function normalizeTaskSummaryAndSubLines(result, subLines) {
     if (!result.summary) {
@@ -773,8 +780,9 @@ function normalizeTaskSummaryAndSubLines(result, subLines) {
         const total = result.subAuditors.length;
         for (let i = 0; i < total; i++) {
             const s = result.subAuditors[i];
-            const badge = s.count > 0 ? ` (🐛 ${s.count})` : '';
-            subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}`);
+            const badge = s.count > 0 ? ` (🐛 ${formatNumber(s.count)})` : '';
+            const durationBadge = s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
+            subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}${durationBadge}`);
         }
     }
     return false;
@@ -829,6 +837,7 @@ async function setupCoverageRunEnvironment(runMode, workerTasks) {
     await fs.rm(coverageLedgerDir, { recursive: true, force: true });
     await fs.mkdir(coverageLedgerDir, { recursive: true });
 }
+// boolean-trap-ok: CLI master banner formatting params
 function displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds) {
     const subtitleDetails = createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tasksToRun.length, allAvailableTasks.length, omittedSuiteIds.length);
     let bannerTitle = config.name ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN` : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
@@ -882,6 +891,9 @@ export async function runMasterAudit() {
     assertAuditConfigComplete(config);
     const activeFamilies = getActiveFamilies(config.customFamilies);
     const cliOptions = parseAuditFullCliArgs(activeFamilies);
+    if (cliOptions.targetPreset) {
+        process.env.AUDITOR_PRESET = cliOptions.targetPreset;
+    }
     if (cliOptions.skipSimilar) {
         process.env.AUDIT_SKIP_SIMILAR = 'true';
     }

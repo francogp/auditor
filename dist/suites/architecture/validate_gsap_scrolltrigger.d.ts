@@ -21,7 +21,13 @@ export type GsapScrollTriggerRuleId = 'gsap-scrolltrigger-in-timeline-child' | '
 export declare const GSAP_SCROLLTRIGGER_RULES: readonly GsapScrollTriggerRuleId[];
 export declare class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScrollTriggerRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
-    private isLineSuppressed;
     protected scanFile(relPath: string, content: string): void;
+    private isLineSuppressed;
+    private checkTimelineChild;
+    private scanScrollTriggerBlocks;
+    private checkScrubAndToggle;
+    private checkMarkersProduction;
+    private checkAnimatingPinnedElement;
+    private checkContainerAnimationEase;
 }
 //# sourceMappingURL=validate_gsap_scrolltrigger.d.ts.map

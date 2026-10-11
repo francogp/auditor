@@ -35,13 +35,11 @@ export declare class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRu
     private readonly configuredMigrationsDir;
     constructor(customMigrationsDir?: string, projectRoot?: string);
     runAudit(): void;
-    private markSqlRulesNotApplicable;
+    private scanPositionalArrays;
+    private scanPlpgsqlVariables;
     private resolveMigrationScanDirs;
-    private scanSingleSqlFile;
-    private scanSingleSqlDirectory;
-    private collectAndScanMigrations;
+    private collectSqlMigrations;
     private scanSourceFiles;
-    private scanSqlFile;
     private checkPlpgsqlLoops;
     private scanPlpgsqlUndeclaredVariables;
     private collectRlsMigrations;

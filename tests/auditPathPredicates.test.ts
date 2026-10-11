@@ -11,8 +11,8 @@ import {
   isSrcPath,
   isCliPath
 } from '../src/core/auditPathPredicates.ts';
-import { matchesAnyRoot } from '../src/core/auditRootMatcher.ts';
 import { isTestPath, isTestFileForCodeAudit } from '../src/core/auditTestPredicates.ts';
+import { matchesAnyRoot } from '../src/core/auditRootMatcher.ts';
 import { isSelfProviderProject } from '../src/core/auditProjectIdentity.ts';
 import {
   resolveZLayersScssPath,
@@ -71,6 +71,17 @@ describe('auditPathPredicates', () => {
 
     it('honors includeTestsInCodeAudit flag in isTestFileForCodeAudit', () => {
       expect(isTestFileForCodeAudit('tests/unit/app.test.ts')).toBe(true);
+      expect(isTestFileForCodeAudit('src/services/api.ts')).toBe(false);
+
+      const customDir = path.join(tempDir, 'custom-test-filter');
+      const customAuditorDir = path.join(customDir, '.auditor');
+      fs.mkdirSync(customAuditorDir, { recursive: true });
+      const customConfig = {
+        name: 'test-custom',
+        paths: { includeTestsInCodeAudit: true }
+      };
+      fs.writeFileSync(path.join(customAuditorDir, 'audit.config.json'), JSON.stringify(customConfig), 'utf8');
+      expect(isTestFileForCodeAudit('tests/unit/app.test.ts', customDir)).toBe(false);
     });
   });
 

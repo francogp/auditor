@@ -1,7 +1,7 @@
 /**
  * @file reportUtils.ts
- * @description Utilidades compartidas para formateo de reportes y salida de scripts de validación
- * del proyecto. Evita la duplicación de lógica de generación de archivos de reporte.
+ * @description Shared utilities for report formatting and validation script output.
+ * Avoids duplication of report file generation logic.
  */
 import type { AuditFinding } from './auditContract.ts';
 export interface ValidationSummary {

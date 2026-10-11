@@ -348,7 +348,7 @@ describe('Auditor Architecture Conformance', () => {
 
       const getColWidths = (row: string) => row.split('│').map(col => getVisualWidth(col));
 
-      const expectedWidths = [14, 40, 9, 18, 9, 7];
+      const expectedWidths = [14, 40, 12, 18, 9, 7];
       expect(getColWidths(rowFail)).toEqual(expectedWidths);
       expect(getColWidths(rowWarn)).toEqual(expectedWidths);
       expect(getColWidths(rowPass)).toEqual(expectedWidths);

@@ -28,6 +28,8 @@ export declare function findGsapScopeRanges(content: string): readonly GsapScope
 export declare class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);
     protected scanFile(relPath: string, content: string): void;
+    private isCodeFile;
+    private isUiComponent;
     private scanUnscopedSelectors;
     private scanContextRevert;
     private scanPluginRegistration;

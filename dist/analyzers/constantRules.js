@@ -26,6 +26,7 @@ export function isConstantNameExemptFromNumericSuffixCheck(constName, config = g
     return prefixes.some(prefix => constName.startsWith(prefix) || constName.includes(prefix));
 }
 export const noAliasConstants = {
+    // redos-ok: deterministic property accessor regex
     regex: /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*(?:[^\s=;][^=;\r\n]*)?\S)?\s*=\s*([A-Z0-9_]+(?:\.[A-Z0-9_]+)*)(?:\s+as\s+[^\s;]+(?:\s+[^\s;]+)*)?\s*(?:;\s*)?$/gm,
     message: (match) => `Alias de constante detectado: '${match.trim()}'. Está PROHIBIDO inicializar una constante con otra constante o propiedad de constante existente para crear un alias duplicado/intermedio. Usa la constante canónica de origen de forma directa.`,
     severity: 'error',

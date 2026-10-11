@@ -39,6 +39,5 @@ export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHy
     private readFallowConfigData;
     private buildEphemeralKnipConfig;
     private executeKnip;
-    private processKnipFindings;
 }
 //# sourceMappingURL=validate_package_hygiene.d.ts.map

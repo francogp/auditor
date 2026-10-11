@@ -18,7 +18,10 @@ import {
   CANONICAL_DOMAIN_RULES,
   detectLibraryDomainTypeDuplicates,
   extractProjectCanonicalDomains,
-  extractLibraryDomainTypes
+  extractLibraryDomainTypes,
+  extractSortedLiterals,
+  extractSortedLiteralsSignature,
+  detectProjectDomainDuplicatesAndSubsets
 } from '../src/suites/domain_data/validate_canonical_domains.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
@@ -195,4 +198,191 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const libMap = extractLibraryDomainTypes(tempDir);
     expect(libMap).toBeDefined();
   });
+
+  it('handles extractSortedLiterals edge cases and invalid tokens', () => {
+    expect(extractSortedLiterals('no literals here')).toBeNull();
+    expect(extractSortedLiterals('const a = ["onlyone"];')).toBeNull();
+    expect(extractSortedLiterals('["one", "two"]')).toEqual(['one', 'two']);
+    expect(extractSortedLiteralsSignature('["z", "a"]')).toBe('a|z');
+  });
+
+  it('honors escape hatches and comment lines across all rules', async () => {
+    const fileA = [
+      '// This is a comment: export const ROLES = ["admin", "editor"] as const;',
+      'export const APP_ROLES = ["admin", "editor"] as const; // collision-ok: intentionally duplicated',
+      'export function setMode(mode: "sync" | "async") {} // domain-ok: internal only',
+      'export interface Props { role: "admin" | "editor"; } // lib-duplicate-ok: local override'
+    ].join('\n');
+
+    const fileB = [
+      'export function getMode(): "sync" | "async" { return "sync"; } // domain-ok: internal only',
+      'const SUB_ROLES = ["admin", "editor"]; // domain-ok: allowed duplicate'
+    ].join('\n');
+
+    await fs.writeFile(path.join(tempDir, 'src/exemptA.ts'), fileA, 'utf-8');
+    await fs.writeFile(path.join(tempDir, 'src/exemptB.ts'), fileB, 'utf-8');
+
+    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('discovers library domain types from package.json and node_modules .d.ts files', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-app',
+        dependencies: {
+          'vendor-ui': '^1.0.0',
+          'non-existent-pkg': '^2.0.0'
+        }
+      }),
+      'utf-8'
+    );
+
+    const dtsDir = path.join(tempDir, 'node_modules/vendor-ui');
+    await fs.mkdir(dtsDir, { recursive: true });
+    const dtsContent = [
+      'export type WidgetStatus = "active" | "archived" | "draft";',
+      'export type SortOrder = "asc" | "desc";', // in universal blacklist
+      'export type SingleValue = "only";'
+    ].join('\n');
+    await fs.writeFile(path.join(dtsDir, 'index.d.ts'), dtsContent, 'utf-8');
+
+    const libMap = await extractLibraryDomainTypes(tempDir);
+    expect(libMap.has('active|archived|draft')).toBe(true);
+    expect(libMap.get('active|archived|draft')?.typeName).toBe('WidgetStatus');
+    expect(libMap.has('asc|desc')).toBe(false);
+
+    // Verify detection of all duplicate styles: array, prop, and type
+    const scanned = [
+      {
+        file: 'src/widgets.ts',
+        content: [
+          'export const WIDGET_LIST = ["active", "archived", "draft"];',
+          'export interface Widget { status: "active" | "archived" | "draft"; }',
+          'export type MyStatus = "active" | "archived" | "draft";',
+          'export type WidgetKeys = keyof ("active" | "archived" | "draft");'
+        ].join('\n')
+      }
+    ];
+
+    const findings = detectLibraryDomainTypeDuplicates(scanned, libMap);
+    expect(findings.length).toBe(3); // array, prop, type (keyof is skipped)
+    expect(findings.some(f => f.message.includes("WIDGET_LIST' duplicates 'WidgetStatus"))).toBe(true);
+    expect(findings.some(f => f.message.includes("status' duplicates 'WidgetStatus"))).toBe(true);
+    expect(findings.some(f => f.message.includes("MyStatus' duplicates 'WidgetStatus"))).toBe(true);
+  });
+
+  it('handles missing package.json gracefully in extractLibraryDomainTypes', async () => {
+    const emptyDir = path.join(tempDir, 'no-pkg');
+    await fs.mkdir(emptyDir, { recursive: true });
+    const libMap = await extractLibraryDomainTypes(emptyDir);
+    expect(libMap.size).toBe(0);
+  });
+
+  it('scores files according to architectural roots and ignores reserved collection names', async () => {
+    await fs.mkdir(path.join(tempDir, 'src/types'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'src/data'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'src/logic'), { recursive: true });
+
+    // Canonical array in types root (score 3)
+    await fs.writeFile(
+      path.join(tempDir, 'src/types/account.ts'),
+      'export const TIERS = ["basic", "enterprise", "premium"] as const;\n' +
+      'export const ROUTES = ["home", "settings"] as const;\n', // Ignored name
+      'utf-8'
+    );
+
+    // Canonical type in data root (score 2)
+    await fs.writeFile(
+      path.join(tempDir, 'src/data/priority.ts'),
+      'export type Priority = "high" | "low" | "medium";\n',
+      'utf-8'
+    );
+
+    // Duplicate type in logic root (score 1)
+    await fs.writeFile(
+      path.join(tempDir, 'src/logic/consumer.ts'),
+      'type LocalPriority = "high" | "low" | "medium";\n',
+      'utf-8'
+    );
+
+    // D.ts file should be ignored
+    await fs.writeFile(
+      path.join(tempDir, 'src/types/ignored.d.ts'),
+      'export const TIERS = ["basic", "enterprise", "premium"] as const;\n',
+      'utf-8'
+    );
+
+    // Test file should be skipped during code audit
+    await fs.writeFile(
+      path.join(tempDir, 'src/types/account.test.ts'),
+      'export const TIERS = ["basic", "enterprise", "premium"] as const;\n',
+      'utf-8'
+    );
+
+    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const typeDup = result.findings.find(f => f.message.includes('Duplicate domain type union'));
+    expect(typeDup).toBeDefined();
+    expect(typeDup?.message).toContain('LocalPriority');
+    expect(typeDup?.message).toContain('Priority');
+
+    // ROUTES should not have been registered or collided
+    const routeCollisions = result.findings.filter(f => f.message.includes('ROUTES'));
+    expect(routeCollisions).toHaveLength(0);
+  });
+
+  it('tests detectProjectDomainDuplicatesAndSubsets edge cases', () => {
+    const domains = {
+      bySignature: new Map(),
+      list: [
+        {
+          name: 'BIG_CATALOG',
+          file: 'src/big.ts',
+          line: 1,
+          col: 1,
+          signature: Array.from({ length: 42 }, (_, i) => `item${i}`).join('|'),
+          elements: new Set(Array.from({ length: 42 }, (_, i) => `item${i}`)),
+          literals: Array.from({ length: 42 }, (_, i) => `item${i}`),
+          isContract: true
+        },
+        {
+          name: 'SMALL_CATALOG',
+          file: 'src/small.ts',
+          line: 1,
+          col: 1,
+          signature: 'a|b|c|d',
+          elements: new Set(['a', 'b', 'c', 'd']),
+          literals: ['a', 'b', 'c', 'd'],
+          isContract: true
+        }
+      ]
+    };
+
+    const files = [
+      {
+        file: 'src/consumerA.ts',
+        content: `
+          // non-matching subset (not subset of either)
+          const UNRELATED = ["x", "y", "z"];
+          // valid subset of BIG_CATALOG (ratio >= 0.5)
+          const BIG_SUBSET = [${Array.from({ length: 25 }, (_, i) => `"item${i}"`).join(', ')}];
+          // subset of SMALL_CATALOG (ratio >= 0.5, length >= 3)
+          const SMALL_SUBSET = ["a", "b", "c"];
+        `
+      }
+    ];
+
+    const findings = detectProjectDomainDuplicatesAndSubsets(files, domains);
+    expect(findings.length).toBe(2);
+    expect(findings[0]?.message).toContain('BIG_SUBSET');
+    expect(findings[1]?.message).toContain('SMALL_SUBSET');
+  });
 });
+

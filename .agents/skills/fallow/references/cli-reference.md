@@ -8,6 +8,7 @@ Complete command and flag specifications for all fallow CLI commands.
 
 - [Commands](#commands)
 - [`dead-code`: Dead Code Analysis](#dead-code-dead-code-analysis)
+- [`architecture`: Cycles, Boundaries and Policy Rules](#architecture-cycles-boundaries-and-policy-rules)
 - [`dupes`: Duplication Detection](#dupes-duplication-detection)
 - [`fix`: Auto-Remove Unused Code](#fix-auto-remove-unused-code)
 - [`list`: Project Introspection](#list-project-introspection)
@@ -47,6 +48,7 @@ Every fallow command with its purpose and key flags. The table is regenerated fr
 |---|---|---|
 | `fallow` | Run full codebase analysis: cleanup + duplication + health (default) | `--only`, `--skip`, `--production`, `--production-dead-code`, `--production-health`, `--production-dupes`, `--ci`, `--fail-on-issues`, `--group-by`, `--summary`, `--fail-on-regression`, `--tolerance`, `--regression-baseline`, `--save-regression-baseline`, `--score`, `--trend`, `--save-snapshot`, `--include-entry-exports` |
 | `dead-code` | Dead code analysis (`check` is an alias) | `--unused-exports`, `--changed-since`, `--changed-workspaces`, `--production`, `--file`, `--include-entry-exports`, `--stale-suppressions`, `--ci`, `--group-by`, `--summary`, `--fail-on-regression`, `--tolerance`, `--regression-baseline`, `--save-regression-baseline` |
+| `architecture` | Check import cycles, boundaries and policy rules after editing | `--cycles`, `--boundaries`, `--policy`, `--file`, `--finding-id`, `path` |
 | `watch` | Watch for changes and re-run analysis | `--no-clear` |
 | `type-aware` | Inspect the optional TypeScript semantic companion |  |
 | `doctor` | Diagnose project readiness without analysis or mutation |  |
@@ -77,6 +79,7 @@ Every fallow command with its purpose and key flags. The table is regenerated fr
 | `explain` | Explain one issue type without running analysis | `<issue-type>`, `--format json` |
 | `audit` | Combined dead-code + complexity + duplication + styling for changed files, returns a verdict; `fallow review` is an alias for `fallow audit --brief` (advisory orientation brief, always exits 0) | `--base`, `--gate`, `--brief`, `--max-decisions`, `--walkthrough-guide`, `--walkthrough-file`, `--show-deprioritized`, `--production`, `--production-dead-code`, `--production-health`, `--production-dupes`, `--workspace`, `--changed-workspaces`, `--ci`, `--fail-on-issues`, `--explain`, `--explain-skipped`, `--dead-code-baseline`, `--health-baseline`, `--dupes-baseline`, `--max-crap`, `--coverage`, `--coverage-root`, `--no-css`, `--css-deep`, `--no-css-deep`, `--include-entry-exports` |
 | `audit-cache` | Maintain reusable audit base-snapshot caches |  |
+| `baselines` | Maintain committed baselines: `baselines prune` removes the entries of fixed findings and never adds one | `prune --check`, `prune --dead-code-baseline`, `prune --health-baseline`, `prune --dupes-baseline` |
 | `decision-surface` | Surface the consequential structural DECISIONS a change embeds (the apex of the review brief), each framed as a judgment question with the routed expert to ask | `--max-decisions` |
 | `impact` | Show what fallow has done for you: how many issues it is surfacing, the trend since the last recorded run, and how many commits it contained at the pre-commit gate | `--all`, `--sort`, `--limit` |
 | `security` | Surface opt-in local security candidates for agent verification (not confirmed vulnerabilities). Rule families include the graph rule `client-server-leak`, a data-driven `tainted-sink` catalogue, and the include-required `hardcoded-secret` category for provider-prefix credentials and high-entropy literals assigned to secret-shaped identifiers. Most catalogue rows require non-literal input; narrowly literal-aware rows flag deterministic unsafe literals. Rules default off; suppress a file with `// fallow-ignore-file security-sink`; scope categories with `security.categories`. Add project-local request object names with `security.requestReceivers`; it extends the built-in `req` / `request` / `ctx` / `context` / `event` allowlist for HTTP `query`, `params`, and `body` reads. `hardcoded-secret` runs only when listed in `security.categories.include`. | `--format human\|json\|sarif`, `--changed-since`, `--file`, `--diff-file`, `--workspace`, `--changed-workspaces`, `--surface`, `--ci`, `--fail-on-issues`, `--sarif-file`, `--summary` |
@@ -209,6 +212,56 @@ fallow dead-code --format json --quiet --file src/utils.ts --file src/helpers.ts
 
 # Catch typos in entry file exports
 fallow dead-code --format json --quiet --include-entry-exports
+```
+
+---
+
+## `architecture`: Cycles, Boundaries and Policy Rules
+
+Reports circular dependencies, re-export cycles, package cycles, boundary violations (with boundary coverage and forbidden calls) and rule-pack policy violations. The command runs the `dead-code` analysis with these issue types selected. The JSON output has `kind: "architecture"` (with `--group-by`: `architecture-grouped`) and its own `schema_version`. The arrays, finding ids, actions, exit codes, gate outcomes and baselines are the same as on `dead-code`. A saved baseline keeps `kind: "dead-code"`. `fallow report --from` renders a saved architecture envelope in every format. The global scope and output flags (`--format`, `--changed-since`, `--workspace`, `--baseline`, `--save-baseline`) work as on `dead-code`.
+
+`fallow dead-code` still reports these findings by default until the next major version. Its `--circular-deps`, `--re-export-cycles`, `--package-cycles`, `--boundary-violations` and `--policy-violations` flags are deprecated aliases. `fallow architecture` reports only part of the issue types, so `--fail-on-stale-baseline` does not gate on it, with any baseline. A baseline that `fallow architecture --save-baseline` writes lists only the architecture findings, and `fallow dead-code` warns when it reads such a baseline.
+
+| Flag | Selects |
+|---|---|
+| `--cycles` | Circular dependencies, re-export cycles and package cycles (`dead-code --circular-deps --re-export-cycles --package-cycles`) |
+| `--boundaries` | Boundary violations, boundary coverage and forbidden calls (`dead-code --boundary-violations`) |
+| `--policy` | Rule-pack policy violations (`dead-code --policy-violations`) |
+| `--file <PATH>` | Only report findings in these files |
+| `--finding-id <ID>` | Only report the findings with these ids |
+
+Without a selection flag, the command reports every architecture issue type.
+
+```json
+{
+  "kind": "architecture",
+  "schema_version": 1,
+  "total_issues": 1,
+  "circular_dependencies": [
+    { "files": ["src/a.ts", "src/b.ts"], "length": 2, "finding_id": "dc1:circular-dependency:...", "actions": [] }
+  ],
+  "boundary_violations": [],
+  "policy_violations": []
+}
+```
+
+The MCP tool is `check_architecture` and the Node binding is `detectArchitecture`.
+
+With `--group-by`, each group shows its findings under one "Architecture" heading.
+
+Bare `fallow --only architecture` runs the `dead-code` analysis and reports only these findings in the `check` section. Bare `fallow --skip architecture` removes them from the `check` section. The health score, the duplication section and the file that `--save-baseline` writes stay the same as in a run without the value. The regression counts follow the narrowed section.
+
+### Examples
+
+```bash
+# Before an edit: the rules that apply to the files
+fallow guard src/ui/App.ts --format json --quiet
+
+# After an edit: cycles, boundaries and policy rules
+fallow architecture --format json --quiet
+
+# Only import cycles on the changed files
+fallow architecture --cycles --changed-since main --format json --quiet
 ```
 
 ---
@@ -467,7 +520,7 @@ Human output groups paths under "Shared with your team (commit these)" and "Loca
 {
   "kind": "agent-install",
   "schema_version": 1,
-  "fallow_version": "3.31.0",
+  "fallow_version": "3.33.1",
   "root": "/abs/path",
   "mode": "install",
   "dry_run": false,
@@ -677,7 +730,7 @@ fallow health --format json --quiet --trend
 {
   "kind": "health",
   "schema_version": 7,
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -1036,6 +1089,13 @@ Common global flags for this command: [`--format`](#global-flags), [`--quiet`](#
 
 With `--gate new-only`, inherited error-severity findings can be present in the JSON output while the verdict remains `pass`; check the `attribution` object and per-finding `introduced` booleans.
 
+A complexity finding matches its base finding by file path and function name. The line and the exceeded category do not affect the match, and a renamed file keeps its match. A complexity finding is introduced in these cases:
+
+- No base finding matches it.
+- A metric that the head finding exceeds has a higher value than in the base finding.
+
+An unchanged or decreased metric keeps the finding inherited, also when the exceeded category changes (for example from `both` to `cyclomatic`). When one file has more than one finding with the same function name, each base finding matches at most one head finding. Head findings with unchanged metric values match first. The other findings then match in line order.
+
 ### JSON contract: which fields are severity-aware
 
 | Field | Severity-aware? | What it counts |
@@ -1086,7 +1146,7 @@ fallow audit \
 {
   "kind": "audit",
   "schema_version": 7,
-  "version": "3.31.0",
+  "version": "3.33.1",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -1174,7 +1234,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 7,
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1275,7 +1335,7 @@ fallow security --gate newly-reachable --changed-since origin/main
 {
   "kind": "security",
   "schema_version": "4",
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 42,
   "config": {
     "rules": {
@@ -1304,7 +1364,7 @@ fallow security --gate newly-reachable --changed-since origin/main
 {
   "kind": "security",
   "schema_version": "4",
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 42,
   "config": {
     "rules": {
@@ -1438,6 +1498,11 @@ Each `--path` hop carries `type_only` and `dynamic`. A `dynamic` hop loads its t
 <!-- generated:flags:trace:start -->
 | Flag | Type | Default | Description |
 |---|---|---|---|
+| `--dependency` | `string` | - | How the code uses each imported name of a package: file and call counts, one hop through project wrappers, and a count of each use that the trace cannot resolve |
+| `--specifier` | `string` | - | With `--dependency`, report only these imported names (repeatable or comma-separated). Turns on the site page |
+| `--sites` | `bool` | `false` | With `--dependency`, list the usage sites with file, line and column |
+| `--limit` | `string` | - | With `--dependency`, the largest number of sites on a page (1 to 500, default 50). Turns on the site page |
+| `--cursor` | `string` | - | With `--dependency`, the `next_cursor` of the previous page. Turns on the site page |
 | `--path` | `string` | - | Shortest import path between two modules, as two file paths (e.g. `--path src/app.ts src/db.ts`). Mutually exclusive with the symbol target and the call-chain flags |
 | `--eager-only` | `bool` | `false` | With `--path`, follow only static value imports, so the route explains why TO loads before FROM runs. `import()`, lazy globs, worker loads and `import type` do not qualify |
 | `--callers` | `bool` | `false` | Walk UP to callers (modules that import the symbol). When neither `--callers` nor `--callees` is set, both directions are walked |
@@ -1817,7 +1882,7 @@ Uploads retry network failures, HTTP 429, and HTTP 502/503/504 up to three attem
 | `--repo <NAME>` | string | `package.json` `repository.url`, then `git remote get-url origin` parsed to `owner/repo` | Repo identifier used in the source-map API path. Must match the beacon's `projectId` (and `upload-inventory`'s `--project-id`); pass `--repo <bare-name>` explicitly if the beacon reports a bare name. |
 | `--git-sha <SHA>` | string | `$GITHUB_SHA` -> `$CI_COMMIT_SHA` -> `$COMMIT_SHA` -> `git rev-parse HEAD` | Commit SHA, 7-40 hex chars. |
 | `--endpoint <URL>` | string | `$FALLOW_API_URL` or `https://api.fallow.cloud` | Override for staging / on-prem. |
-| `--strip-path <BOOL>` | bool | `true` | Upload basename-only `fileName` values. Use `--strip-path=false` when runtime coverage reports paths like `assets/app.js`. |
+| `--strip-path <BOOL>` | bool | `true` | Upload basename-only `fileName` values. Use `--strip-path=false` when runtime coverage reports paths like `assets/app.js`. Maps that share a basename are sent under their build-directory path, so no map replaces another. The command warns when a map's `sources` do not resolve to files in the repository (for example `sourceRoot: "/"` in `tsconfig.json`). |
 | `--dry-run` | bool | `false` | Print what would upload; no API key or network call. |
 | `--concurrency <N>` | integer | `4` | Parallel upload fanout. |
 | `--fail-fast` | bool | `false` | Stop on the first upload failure. |
@@ -1892,10 +1957,10 @@ Available on all commands:
 | `--diff-stdin` | `bool` | `false` | Read the unified diff from stdin. Equivalent to `--diff-file -` |
 | `--churn-file` | `string` | - | Import change history from a `fallow-churn/v1` JSON file instead of `git log`, powering hotspots, ownership, and bus-factor on projects with no git repository (Yandex Arc, Mercurial, Perforce). A small wrapper translates your VCS log into the contract. Resolved relative to `--root`. Affects `health --hotspots` / `--ownership` / `--targets` only; `audit`, `impact`, and `--changed-since` still require git |
 | `--max-file-size` | `string` | - | Skip source files larger than this many megabytes (default 5) instead of parsing them, guarding against the out-of-memory blowup a single multi-MB generated/vendored/bundled file causes on large repos. Use `0` for no limit. Declaration files (`.d.ts`) are always analyzed. Skipped files are reported and excluded from every analysis. Also settable via `FALLOW_MAX_FILE_SIZE` |
-| `--baseline` | `string` | - | Compare to baseline |
+| `--baseline` | `string` | - | Compare to baseline. On bare `fallow` it holds the dead-code baseline only; use `--health-baseline` and `--dupes-baseline` for the others |
 | `--baseline-mode` | `count\|identity` | - | How `--baseline` matches health findings: per file and category (`count`, the default) or per function identity (`identity`, strict, and only against a baseline saved with `--baseline-mode identity`; such a baseline still reads in count mode). Identity is file path plus function name, so renaming or moving a function that is still in the baseline reports it as new; re-save after that kind of refactor. |
 | `--parent-run` | `string` | - | Correlate this run with a previous telemetry analysis run |
-| `--save-baseline` | `string` | - | Save results as baseline |
+| `--save-baseline` | `string` | - | Save results as baseline. On bare `fallow` it saves the dead-code baseline only |
 | `--production` | `bool` | `false` | Exclude test/dev files, only start/build scripts (applies to every analysis) |
 | `--no-production` | `bool` | `false` | Force production mode OFF for every analysis, overriding a project config's `production: true` (and `FALLOW_PRODUCTION`). Conflicts with `--production` |
 | `--production-dead-code` | `bool` | `false` | Run dead-code analysis in production mode when using bare combined mode |
@@ -1922,8 +1987,8 @@ Available on all commands:
 | `--tolerance` | `string` | `0` | Allowed increase: `"2%"` (percentage) or `"5"` (absolute). Default: `"0"` |
 | `--regression-baseline` | `string` | - | Path to a standalone regression baseline file. Without it, fallow uses `regression.baseline` from the config |
 | `--save-regression-baseline` | `string` | - | Save current issue counts. With no path, update `regression.baseline` in the discovered fallow config or create `.fallowrc.json`; with a path, write a standalone baseline file |
-| `--only` | `dead-code\|dupes\|health` | - | Run only specific analyses (e.g., `--only dead-code,dupes`). Values: `dead-code` (alias: `check`), `dupes`, `health` |
-| `--skip` | `dead-code\|dupes\|health` | - | Skip specific analyses (e.g., `--skip health`). Values: `dead-code` (alias: `check`), `dupes`, `health` |
+| `--only` | `dead-code\|dupes\|health\|architecture` | - | Run only specific analyses (e.g., `--only dead-code,dupes`). Values: `dead-code` (alias: `check`), `dupes`, `health`, `architecture`. `architecture` alone runs the dead-code analysis and reports only import cycles, boundary violations and policy violations |
+| `--skip` | `dead-code\|dupes\|health\|architecture` | - | Skip specific analyses (e.g., `--skip health`). Values: `dead-code` (alias: `check`), `dupes`, `health`, `architecture`. `architecture` alone removes import cycles, boundary violations and policy violations from the dead-code section |
 | `--dupes-mode` | `strict\|mild\|weak\|semantic` | - | Override duplication detection mode in combined mode |
 | `--dupes-near` | `bool` | `false` | Enable function-scoped near-miss clone detection in combined mode |
 | `--dupes-threshold` | `string` | - | Override duplication threshold in combined mode |
@@ -1945,6 +2010,7 @@ Available on all commands:
 | `--dupes-baseline` | `string` | - | Compare duplication clone groups against a saved baseline in combined mode (produced by `fallow dupes --save-baseline`) |
 | `--health-baseline` | `string` | - | Compare health findings against a saved baseline in combined mode (produced by `fallow health --save-baseline`) |
 | `--include-entry-exports` | `bool` | `false` | Report unused exports in entry files instead of auto-marking them as used |
+| `--show-cascade` | `bool` | `false` | Also report the unused exports, types, class members and enum members of unused files. By default the report hides them, because deleting the file removes them, and counts them in `cascade_hidden` |
 | `--type-aware` | `bool` | `false` | Opt in to TypeScript semantic analysis for project-wide symbol evidence. This does not emit compiler diagnostics or typed lint findings |
 | `--no-type-aware` | `bool` | `false` | Disable TypeScript semantic analysis even when `typeAware.enabled` or `FALLOW_TYPE_AWARE` opts in, keeping this run fully syntactic |
 | `--type-aware-project` | `string` | - | TypeScript project config to use for type-aware analysis (repeatable) |
@@ -1965,8 +2031,8 @@ guarded edits.
 <!-- generated:flags:fallow-combined:start -->
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--only` | `dead-code\|dupes\|health` | - | Run only specific analyses when no subcommand is given |
-| `--skip` | `dead-code\|dupes\|health` | - | Skip specific analyses when no subcommand is given |
+| `--only` | `dead-code\|dupes\|health\|architecture` | - | Run only specific analyses when no subcommand is given |
+| `--skip` | `dead-code\|dupes\|health\|architecture` | - | Skip specific analyses when no subcommand is given |
 | `--production` | `bool` | `false` | Production mode: exclude test/story/dev files, only start/build scripts, report type-only dependencies |
 | `--no-production` | `bool` | `false` | Force production mode OFF for every analysis, overriding a project config's `production: true` (and `FALLOW_PRODUCTION`). Conflicts with `--production` |
 | `--production-dead-code` | `bool` | `false` | Run dead-code analysis in production mode when using bare combined mode |
@@ -2113,7 +2179,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 {
   "kind": "dead-code",
   "schema_version": 7,
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -2273,7 +2339,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 {
   "kind": "dupes",
   "schema_version": 7,
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -2317,11 +2383,11 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "kind": "combined",
   "schema_version": 7,
-  "version": "3.31.0",
+  "version": "3.33.1",
   "elapsed_ms": 159,
   "check": {
     "schema_version": 7,
-    "version": "3.31.0",
+    "version": "3.33.1",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
@@ -2356,7 +2422,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 }
 ```
 
-Use `--only` or `--skip` to control which analyses are included in the combined output. Use `--coverage` and `--coverage-root` to feed Istanbul coverage data to the embedded health analysis for exact CRAP scoring.
+Use `--only` or `--skip` to control which analyses are included in the combined output. The `architecture` value selects the import cycles, boundary violations and policy violations of the dead-code analysis: `--only architecture` reports only them, and `--skip architecture` removes them. Human output shows them in an "Architecture" category after the other dead-code categories, with and without `--quiet`, and also with `--group-by` and `--summary`. Use `--coverage` and `--coverage-root` to feed Istanbul coverage data to the embedded health analysis for exact CRAP scoring.
 
 With `--score`, the combined output's `health` section includes a `health_score` object (same schema as `health --score`). With `--trend`, it includes a `health_trend` object comparing against the most recent saved snapshot. With `--save-snapshot`, a vital signs snapshot is persisted for future trend comparisons.
 

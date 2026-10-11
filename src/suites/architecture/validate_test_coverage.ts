@@ -6,7 +6,7 @@
 
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, buildTestCoverageConfig } from '../../core/auditConfig.ts';
 import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
@@ -50,7 +50,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
         source: 'declared-only'
       },
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -60,7 +60,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       projectRoot: effectiveRoot
     });
   }
@@ -73,26 +73,32 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
 
     if (this.isSuiteGatingDisabled('Test coverage enforceInAudit desactivado')) return;
 
-    for (const r of TEST_COVERAGE_RULES) {
-      this.markRuleEvaluated(r);
-    }
-
     const projectRoot = this.projectRoot;
     const config = getAuditConfig(projectRoot);
     const resolvedCovConfig = buildTestCoverageConfig(config.testCoverage);
     const threshold = resolvedCovConfig.threshold;
 
-    const coverageFile = resolveCoverageFile(projectRoot, resolvedCovConfig.path);
+    let coverageFile: string | null = null;
+    this.runSubAuditorSync('test-coverage-missing-report', () => {
+      coverageFile = resolveCoverageFile(projectRoot, resolvedCovConfig.path);
+      if (!coverageFile) {
+        this.addViolation({
+          ruleId: 'test-coverage-missing-report',
+          severity: 'error',
+          file: resolvedCovConfig.path,
+          line: 1,
+          context: 'coverage missing',
+          message: `No se encontró el archivo de cobertura de tests en '${resolvedCovConfig.path}'. Ejecuta las pruebas con cobertura antes de auditar.`
+        });
+      }
+    });
 
     if (!coverageFile) {
-      this.addViolation({
-        ruleId: 'test-coverage-missing-report',
-        severity: 'error',
-        file: resolvedCovConfig.path,
-        line: 1,
-        context: 'coverage missing',
-        message: `No se encontró el archivo de cobertura de tests en '${resolvedCovConfig.path}'. Ejecuta las pruebas con cobertura antes de auditar.`
-      });
+      for (const r of ['test-coverage-below-threshold', 'test-coverage-untracked-files'] as const) {
+        this.runSubAuditorSync(r, () => {
+          this.markRuleNotApplicable(r, 'Reporte de cobertura no disponible');
+        });
+      }
       return;
     }
 
@@ -100,27 +106,31 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       const rawJson = JSON.parse(fs.readFileSync(coverageFile, 'utf8')) as Record<string, unknown>; // open-record: Generic parsed coverage JSON dictionary
       const report = analyzeTestCoverage(rawJson, projectRoot, resolvedCovConfig);
 
-      if (report.overall.statements.pct < threshold) {
-        this.addViolation({
-          ruleId: 'test-coverage-below-threshold',
-          severity: 'error',
-          file: toPosixRelative(projectRoot, coverageFile),
-          line: 1,
-          context: `${report.overall.statements.pct}% < ${threshold}%`,
-          message: `Cobertura global de statements (${report.overall.statements.pct}%) inferior al umbral configurado de ${threshold}% (${report.overall.statements.covered}/${report.overall.statements.total} sentencias cubiertas).`
-        });
-      }
+      this.runSubAuditorSync('test-coverage-below-threshold', () => {
+        if (report.overall.statements.pct < threshold) {
+          this.addViolation({
+            ruleId: 'test-coverage-below-threshold',
+            severity: 'error',
+            file: toPosixRelative(projectRoot, coverageFile!),
+            line: 1,
+            context: `${report.overall.statements.pct}% < ${threshold}%`,
+            message: `Cobertura global de statements (${report.overall.statements.pct}%) inferior al umbral configurado de ${threshold}% (${report.overall.statements.covered}/${report.overall.statements.total} sentencias cubiertas).`
+          });
+        }
+      });
 
-      if (report.untrackedFiles.length > 0) {
-        this.addViolation({
-          ruleId: 'test-coverage-untracked-files',
-          severity: 'warning',
-          file: report.untrackedFiles[0]!,
-          line: 1,
-          context: 'untracked files',
-          message: `Se detectaron ${report.untrackedFiles.length} archivo(s) en disco que nunca fueron ejecutados por los tests (ej: ${report.untrackedFiles.slice(0, 3).join(', ')}).`
-        });
-      }
+      this.runSubAuditorSync('test-coverage-untracked-files', () => {
+        if (report.untrackedFiles.length > 0) {
+          this.addViolation({
+            ruleId: 'test-coverage-untracked-files',
+            severity: 'warning',
+            file: report.untrackedFiles[0]!,
+            line: 1,
+            context: 'untracked files',
+            message: `Se detectaron ${report.untrackedFiles.length} archivo(s) en disco que nunca fueron ejecutados por los tests (ej: ${report.untrackedFiles.slice(0, 3).join(', ')}).`
+          });
+        }
+      });
     } catch (err: unknown) {
       this.addViolation({
         ruleId: 'test-coverage-missing-report',

@@ -12,7 +12,7 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
@@ -186,7 +186,9 @@ export function detectLibraryDomainTypeDuplicates(files, libraryTypes) {
     if (libraryTypes.size === 0)
         return findings;
     const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+    // redos-ok: deterministic token parsing regex with pipe delimiters
     const P_TYPE_UNION_DECL = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*|\|\s*)?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])/g;
+    // redos-ok: deterministic token parsing regex with pipe delimiters
     const P_PROP_UNION_DECL = /\b(\w+)\??:\s*(?:\(\s*|\|\s*)?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])/g;
     const reportIfLibraryDuplicate = (sigKey, file, lineNum, col, snippet, messageBuilder) => {
         if (!sigKey)
@@ -224,6 +226,7 @@ export function extractProjectCanonicalDomains(files, projectRoot) {
     const list = [];
     const collisions = [];
     const P_CANONICAL_ARRAY = /\bexport\s+const\s+(\w+)\s*(?::[^=]+)?=\s*\[\s*['"`]([\s\S]*?)\]\s+as\s+const/g;
+    // redos-ok: deterministic token parsing regex with pipe delimiters
     const P_CANONICAL_TYPE = /\bexport\s+type\s+(\w+)\s*=\s*\(?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])\)?/g;
     const config = getAuditConfig(projectRoot);
     const typesRoots = config.paths.typesRoots ?? ['src/types'];
@@ -298,6 +301,7 @@ export function extractProjectCanonicalDomains(files, projectRoot) {
     return { bySignature, list, collisions };
 }
 const P_ANY_LITERAL_ARRAY = /\b(?:(?:export\s+)?const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+// redos-ok: deterministic token parsing regex with pipe delimiters
 const P_ANY_TYPE_UNION = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
 function parseDomainCandidate(m, rawContent, fileLines, targetFile, bySignature) {
     const { lineNum, col, line } = getMatchCoordinates(rawContent, m.index, fileLines);
@@ -405,7 +409,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = options.roots ?? (config.paths.srcRoots ?? ['src']);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -415,7 +419,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_canonical_domains',
             name: 'Canonical Domain Catalogs & SSoT Validator',
             description: 'Colisiones de catálogos y uniones de dominio repetidas',
@@ -447,13 +451,12 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
             this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
             return;
         }
-        for (const r of CANONICAL_DOMAIN_RULES) {
-            this.markRuleEvaluated(r);
-        }
         const filePaths = this.context.collectFiles(this.roots, this.allowedExtensions);
         if (filePaths.length === 0) {
             for (const r of CANONICAL_DOMAIN_RULES) {
-                this.markRuleNotApplicable(r, 'No se encontraron archivos de código candidatos');
+                this.runSubAuditorSync(r, () => {
+                    this.markRuleNotApplicable(r, 'No se encontraron archivos de código candidatos');
+                });
             }
             return;
         }
@@ -473,20 +476,33 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
         }
         const allFindings = [];
         // 1. Repeated unions across files
-        const repeatedUnions = detectRepeatedStringUnions(scannedFiles);
-        for (const [, occurrences] of repeatedUnions) {
-            allFindings.push(...occurrences);
-        }
+        this.runSubAuditorSync('canonical-domain-repeated-union', () => {
+            const repeatedUnions = detectRepeatedStringUnions(scannedFiles);
+            for (const [, occurrences] of repeatedUnions) {
+                allFindings.push(...occurrences);
+            }
+        });
         // 2. Library domain duplicates
-        const libraryTypes = await extractLibraryDomainTypes(this.projectRoot);
-        const libDuplicates = detectLibraryDomainTypeDuplicates(scannedFiles, libraryTypes);
-        allFindings.push(...libDuplicates);
+        await this.runSubAuditor('canonical-domain-library-duplicate', async () => {
+            const libraryTypes = await extractLibraryDomainTypes(this.projectRoot);
+            const libDuplicates = detectLibraryDomainTypeDuplicates(scannedFiles, libraryTypes);
+            allFindings.push(...libDuplicates);
+        });
         // 3. Project canonical domain collisions
-        const { bySignature, list, collisions } = extractProjectCanonicalDomains(scannedFiles, this.projectRoot);
-        allFindings.push(...collisions);
+        let domainData = {
+            bySignature: new Map(),
+            list: [],
+            collisions: []
+        };
+        this.runSubAuditorSync('canonical-domain-collision', () => {
+            domainData = extractProjectCanonicalDomains(scannedFiles, this.projectRoot);
+            allFindings.push(...domainData.collisions);
+        });
         // 4. Subsets and duplicates
-        const subsets = detectProjectDomainDuplicatesAndSubsets(scannedFiles, { bySignature, list });
-        allFindings.push(...subsets);
+        this.runSubAuditorSync('canonical-domain-subset-mismatch', () => {
+            const subsets = detectProjectDomainDuplicatesAndSubsets(scannedFiles, { bySignature: domainData.bySignature, list: domainData.list });
+            allFindings.push(...subsets);
+        });
         for (const finding of allFindings) {
             this.addViolation({
                 ruleId: finding.ruleId,

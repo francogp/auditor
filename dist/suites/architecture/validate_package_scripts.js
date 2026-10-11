@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { loadAuditConfig, buildRatchetConfig } from "../../core/auditConfig.js";
 import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
 import { resolveGitCommit, describeBaselineDefect } from "../../cli/auditRatchet.js";
@@ -41,7 +41,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
         const resolvedRoot = scriptOpts.projectRoot ?? process.cwd();
         super({
             projectRoot: resolvedRoot,
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(PACKAGE_SCRIPTS_RULES, {
                 fix: true,
                 fixPriority: true,
                 lint: true,
@@ -51,7 +51,12 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [
+                'package-scripts-removed-commit-gate',
+                'package-scripts-build-missing-audit',
+                'package-scripts-missing-recommended',
+                'package-scripts-obsolete'
+            ]),
             fixableRuleIds: [
                 'package-scripts-removed-commit-gate',
                 'package-scripts-build-missing-audit',
@@ -84,39 +89,60 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
         });
     }
     async runAudit() {
-        for (const r of PACKAGE_SCRIPTS_RULES) {
-            this.markRuleEvaluated(r);
-        }
         const config = await loadAuditConfig(this.projectRoot);
         if (config.packageScripts?.enabled === false) {
             this.markSkipped('Desactivado en config (packageScripts.enabled = false)');
             return;
         }
-        const pkgPath = path.resolve(this.projectRoot, 'package.json');
-        if (fs.existsSync(pkgPath)) {
-            this.recordScanned('package.json');
-        }
-        const pkg = this.loadPackageJson(pkgPath);
-        if (!pkg)
+        let pkg = null;
+        this.runSubAuditorSync('package-scripts-missing-file', () => {
+            const pkgPath = path.resolve(this.projectRoot, 'package.json');
+            if (fs.existsSync(pkgPath)) {
+                this.recordScanned('package.json');
+            }
+            pkg = this.loadPackageJson(pkgPath);
+        });
+        if (!pkg) {
+            for (const r of PACKAGE_SCRIPTS_RULES) {
+                if (r !== 'package-scripts-missing-file') {
+                    this.runSubAuditorSync(r, () => {
+                        this.markRuleNotApplicable(r, 'package.json no disponible o inválido');
+                    });
+                }
+            }
             return;
-        let modified = false;
-        if (pkg.scripts) {
-            if (this.verifyRemovedCommitGate(pkg.scripts))
-                modified = true;
-            if (this.verifyLintScript(pkg.scripts))
-                modified = true;
-            if (this.pruneObsoleteAuditorScripts(pkg.scripts))
-                modified = true;
         }
-        if (this.verifyBuildScript(pkg, config))
-            modified = true;
-        if (await this.verifyRecommendedScripts(pkg, config))
-            modified = true;
+        let modified = false;
+        this.runSubAuditorSync('package-scripts-removed-commit-gate', () => {
+            if (pkg.scripts && this.verifyRemovedCommitGate(pkg.scripts))
+                modified = true;
+        });
+        this.runSubAuditorSync('package-scripts-obsolete', () => {
+            if (pkg.scripts) {
+                if (this.verifyLintScript(pkg.scripts))
+                    modified = true;
+                if (this.pruneObsoleteAuditorScripts(pkg.scripts))
+                    modified = true;
+            }
+        });
+        this.runSubAuditorSync('package-scripts-build-missing-audit', () => {
+            if (this.verifyBuildScript(pkg, config))
+                modified = true;
+        });
+        await this.runSubAuditor('package-scripts-missing-recommended', async () => {
+            if (await this.verifyRecommendedScripts(pkg, config))
+                modified = true;
+        });
         if (modified) {
+            const pkgPath = path.resolve(this.projectRoot, 'package.json');
             fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
         }
-        this.verifyProductionRef(config);
-        this.verifyRatchetBaseline(config);
+        this.runSubAuditorSync('package-scripts-invalid-production-ref', () => {
+            this.verifyProductionRef(config);
+        });
+        this.runSubAuditorSync('package-scripts-invalid-ratchet-baseline', () => {
+            this.verifyRatchetBaseline(config);
+        });
     }
     loadPackageJson(pkgPath) {
         if (!fs.existsSync(pkgPath)) {

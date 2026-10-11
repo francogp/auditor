@@ -20,7 +20,7 @@
  *   npm run validate:markdown-syntax
  */
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 enableCompileCache();
 export const MARKDOWN_SYNTAX_RULES = [
     'npm-script-exclusivity-in-docs',
@@ -39,7 +39,7 @@ function isTablePrecededProperly(prevLine) {
 export class MarkdownSyntaxAuditor extends FileScanAuditor {
     constructor(roots = ['.'], projectRoot) {
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(MARKDOWN_SYNTAX_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -49,7 +49,7 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_markdown_syntax',
             name: 'Markdown Syntax & NPM Script SSoT Validator',
             description: 'Comandos no autorizados o tablas mal formateadas en docs',
@@ -117,10 +117,14 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor {
             if (this.isLineIgnored(line, ['doc-ok', 'npm-ok', 'table-ok', 'markdown-ok']))
                 continue;
             if (inFencedCodeBlock) {
-                this.checkNpmScriptViolation(line, trimmed, i + 1, relPath);
+                this.runSubAuditorSync('npm-script-exclusivity-in-docs', () => {
+                    this.checkNpmScriptViolation(line, trimmed, i + 1, relPath);
+                });
             }
             else {
-                this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath);
+                this.runSubAuditorSync('markdown-table-preceding-blank-line', () => {
+                    this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath);
+                });
             }
         }
     }

@@ -35,7 +35,10 @@ export declare class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleI
     protected scanFile(relPath: string, content: string): void;
     runAudit(astContext?: SharedAstContext): Promise<void>;
     private scanIntegrationMocks;
-    private scanE2eSimulations;
+    private scanLineRegexRule;
+    private scanPlaywrightLocators;
+    private scanPlaywrightForceClick;
+    private scanPlaywrightPollingWaits;
     private scanTimeoutInflation;
 }
 //# sourceMappingURL=validate_test_hygiene.d.ts.map

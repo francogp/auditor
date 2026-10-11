@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
@@ -238,7 +238,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       : ESLINT_CONFIG_REQUIREMENT;
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(ESLINT_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
         lint: true,
@@ -248,7 +248,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, ['eslint-config-missing']),
       fixableRuleIds: ['eslint-config-missing'],
       configFiles: [configRequirement],
       fix: options.fix,
@@ -283,7 +283,10 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
     }
 
     const requirement = this.configFiles[0] ?? ESLINT_CONFIG_REQUIREMENT;
-    const ensured = await this.ensureConfigFile(requirement);
+    const ensured = await this.runSubAuditor('eslint-config-missing', async () => {
+      return await this.ensureConfigFile(requirement);
+    });
+
     if (!ensured) {
       this.markRuleNotApplicable('eslint-config-any-allowed', 'Archivo de configuración no encontrado');
       this.markRuleNotApplicable('eslint-config-double-cast-allowed', 'Archivo de configuración no encontrado');
@@ -293,12 +296,8 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
     }
 
     const resolvedPath = ensured.resolvedPath;
-
     const relFileName = toPosixRelative(this.projectRoot, resolvedPath);
     this.recordScanned(relFileName);
-    for (const r of ESLINT_CONFIG_RULES) {
-      this.markRuleEvaluated(r);
-    }
 
     let content = fs.readFileSync(resolvedPath, 'utf-8');
     if (this.isFixActive()) {
@@ -309,22 +308,79 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       }
     }
 
-    const findings = auditEslintConfigContent(content, relFileName);
+    this.runSubAuditorSync('eslint-config-any-allowed', () => {
+      const hasExplicitAnyError =
+        /['"]@typescript-eslint\/no-explicit-any['"]\s*:\s*['"]error['"]/i.test(content) ||
+        /['"]@typescript-eslint\/no-explicit-any['"]\s*:\s*\[\s*['"]error['"]/i.test(content);
+      const hasExplicitAnyOffOrWarn =
+        /['"]@typescript-eslint\/no-explicit-any['"]\s*:\s*['"](?:off|warn|0|1)['"]/i.test(content) ||
+        /['"]@typescript-eslint\/no-explicit-any['"]\s*:\s*\[\s*['"](?:off|warn|0|1)['"]/i.test(content);
+      if (!hasExplicitAnyError || hasExplicitAnyOffOrWarn) {
+        this.addViolation({
+          ruleId: 'eslint-config-any-allowed',
+          severity: 'error',
+          file: relFileName,
+          line: 1,
+          context: '@typescript-eslint/no-explicit-any',
+          message: `La regla '@typescript-eslint/no-explicit-any' debe estar configurada en 'error' para cumplir con /domain-type-first.`
+        });
+      }
+    });
 
-    for (const finding of findings) {
-      this.addViolation({
-        ruleId: (finding.ruleId as EslintConfigRuleId) ?? 'eslint-config-any-allowed',
-        severity: finding.severity,
-        file: finding.file ?? relFileName,
-        line: finding.line ?? 1,
-        col: finding.col,
-        context: finding.context ?? relFileName,
-        message: finding.message
-      });
-    }
+    this.runSubAuditorSync('eslint-config-ts-ignore-allowed', () => {
+      const hasBanTsCommentError =
+        /['"]@typescript-eslint\/ban-ts-comment['"]\s*:\s*['"]error['"]/i.test(content) ||
+        /['"]@typescript-eslint\/ban-ts-comment['"]\s*:\s*\[\s*['"]error['"]/i.test(content);
+      const hasBanTsCommentOffOrWarn =
+        /['"]@typescript-eslint\/ban-ts-comment['"]\s*:\s*['"](?:off|warn|0|1)['"]/i.test(content) ||
+        /['"]@typescript-eslint\/ban-ts-comment['"]\s*:\s*\[\s*['"](?:off|warn|0|1)['"]/i.test(content);
+      if (!hasBanTsCommentError || hasBanTsCommentOffOrWarn) {
+        this.addViolation({
+          ruleId: 'eslint-config-ts-ignore-allowed',
+          severity: 'error',
+          file: relFileName,
+          line: 1,
+          context: '@typescript-eslint/ban-ts-comment',
+          message: `La regla '@typescript-eslint/ban-ts-comment' debe estar configurada en 'error' para prohibir supresiones (@ts-ignore) en tipos de dominio.`
+        });
+      }
+    });
+
+    this.runSubAuditorSync('eslint-config-double-cast-allowed', () => {
+      const hasDoubleCastBanned =
+        /TSAsExpression\[typeAnnotation\.type=["']TSUnknownKeyword["']\]/i.test(content);
+      if (!hasDoubleCastBanned) {
+        this.addViolation({
+          ruleId: 'eslint-config-double-cast-allowed',
+          severity: 'error',
+          file: relFileName,
+          line: 1,
+          context: 'TSUnknownKeyword',
+          message: `Falta la regla 'no-restricted-syntax' prohibiendo el doble casteo ('as ` + `unknown as') con el selector TSAsExpression[typeAnnotation.type="TSUnknownKeyword"].` // type-ok: Sub-auditor diagnostic message
+        });
+      }
+    });
+
+    this.runSubAuditorSync('eslint-config-legacy-date-allowed', () => {
+      const hasDateConstructorBanned =
+        /NewExpression\[callee\.name=["']Date["']\]/i.test(content);
+      const hasDateNowBanned =
+        /CallExpression\[callee\.object\.name=["']Date["']\]\[callee\.property\.name=["']now["']\]/i.test(content);
+      if (!hasDateConstructorBanned || !hasDateNowBanned) {
+        this.addViolation({
+          ruleId: 'eslint-config-legacy-date-allowed',
+          severity: 'error',
+          file: relFileName,
+          line: 1,
+          context: 'Date',
+          message: `Falta la regla 'no-restricted-syntax' prohibiendo 'new ` + `Date()' y 'Date.` + `now()'. Usa Temporal API (Temporal.Now.instant()).`
+        });
+      }
+    });
 
     this.context.setMetric('ESLint Config Checked', relFileName);
-    this.context.setMetric('ESLint Violations', findings.length);
+    const totalViolations = Array.from(this.countsByRule.values()).reduce((a, b) => a + b, 0);
+    this.context.setMetric('ESLint Violations', totalViolations);
   }
 }
 

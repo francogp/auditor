@@ -8,7 +8,7 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, deriveCanonicalAuditorScript } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, deriveCanonicalAuditorScript } from './auditContract.ts';
 export { deriveCanonicalAuditorScript };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
@@ -95,6 +95,20 @@ export declare function setupAuditor(config: AuditorConfig): AuditorContext;
 export declare const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities;
 export declare const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export declare const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
+/**
+ * Derives aggregate suite-level capabilities from the logical union of all its sub-auditor ruleCapabilities.
+ */
+export declare function deriveSuiteCapabilities(ruleCapabilities: Readonly<Record<string, AuditorCapabilities>> | undefined): AuditorCapabilities;
+/**
+ * Creates individual rule capabilities for suites, automatically adjusting
+ * the `fix` capability per rule based on declared fixableRuleIds.
+ */
+export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], baseCapabilities: AuditorCapabilities, fixableRuleIds?: readonly TRuleId[]): Record<TRuleId, AuditorCapabilities>;
+/**
+ * Creates uniform rule capabilities for suites where every declared rule
+ * shares the same operational capabilities.
+ */
+export declare function createUniformRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], capabilities: AuditorCapabilities): Record<TRuleId, AuditorCapabilities>;
 export interface AuditorOptions<TRuleId extends string = string> {
     readonly id: string;
     readonly name: string;
@@ -102,7 +116,8 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly family: AuditFamily;
     readonly packageName: string;
     readonly icon: string;
-    readonly capabilities: AuditorCapabilities;
+    readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
+    readonly capabilities?: never;
     readonly fixableRuleIds?: readonly TRuleId[];
     readonly fix?: boolean;
     readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
@@ -155,6 +170,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly packageName: string;
     readonly icon: string;
     readonly capabilities: AuditorCapabilities;
+    readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
     readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
     readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
     readonly scripts: readonly AuditorPackageScriptRequirement[];
@@ -172,6 +188,10 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly defaultConfig: Readonly<Record<string, unknown>>;
     readonly criticalConfig: AuditorCriticalConfig;
     protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
+    protected readonly durationsByRule: Map<TRuleId, number>;
+    protected auditExecutionDurationMs?: number;
+    protected readonly instanceStartTime: number;
+    protected readonly declaredSubAuditors: Map<TRuleId, () => Promise<void> | void>;
     protected readonly context: AuditorContext;
     protected readonly countsByRule: Map<TRuleId, number>;
     protected readonly errorsByRule: Map<TRuleId, number>;
@@ -184,6 +204,54 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     protected isSkipped: boolean;
     protected skipReason?: string;
     getFixableRuleIds(): readonly TRuleId[];
+    recordRuleDuration(ruleId: TRuleId, durationMs: number): void;
+    /**
+     * Allows an external subprogram with its own telemetry (such as Fallow elapsed_ms)
+     * or extension to report or override its net internally measured execution time.
+     */
+    reportRuleDuration(ruleId: TRuleId, durationMs: number): void;
+    /**
+     * Formally declares a sub-tool or sub-auditor bound to a declared rule.
+     * The superclass automatically orchestrates its execution and empirically measures
+     * its execution runtime homogeneously and transparently.
+     */
+    declareSubAuditor(ruleId: TRuleId, action: () => Promise<void> | void): void;
+    /**
+     * Executes a sub-auditor or rule block empirically measuring its start and end
+     * completely transparently.
+     */
+    runSubAuditor<T = void>(ruleId: TRuleId, action: () => Promise<T> | T): Promise<T>;
+    runSubAuditorSync<T = void>(ruleId: TRuleId, action: () => T): T;
+    /**
+     * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
+     * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
+     */
+    runSubAuditorsBatch(ruleIds: readonly TRuleId[], _action: () => Promise<void> | void): Promise<void>;
+    /**
+     * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
+     * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
+     */
+    runSubAuditorsBatchSync(ruleIds: readonly TRuleId[], _action: () => void): void;
+    getRuleDuration(ruleId: TRuleId): number | undefined;
+    getDurationsByRule(): ReadonlyMap<TRuleId, number>;
+    private readonly executedCommandTiers;
+    /**
+     * Returns the active execution tier ('lint', 'md', 'fix', or 'full').
+     */
+    getExecutionTier(): AuditorExecutionTier;
+    /**
+     * Returns true when the active run is a fast/lightweight preset (lint or md).
+     */
+    isFastMode(): boolean;
+    /**
+     * Checks whether a specific declared ruleId is active for the current execution tier.
+     */
+    isRuleActiveForCurrentRun(ruleId: TRuleId): boolean;
+    /**
+     * Resolves arguments for a dual command profile (fast for lint/md, heavy for full audit),
+     * enforcing the Anti-Repetition Invariant: a command cannot be resolved in multiple tiers in the same run.
+     */
+    resolveCommandArgs<TArgs = readonly string[]>(profile: DualCommandProfile<TArgs>): TArgs;
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
     protected get filesScannedCount(): number;
     protected set filesScannedCount(count: number);
@@ -225,7 +293,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
      */
     protected recordRuleEvaluation(ruleId: string): never;
     /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
-    protected markRuleNotApplicable(ruleId: TRuleId, reason: string): void;
+    markRuleNotApplicable(ruleId: TRuleId, reason: string): void;
     /**
      * Evaluates suite gating against configuration and marks rules not applicable and suite skipped if disabled.
      * Returns true if the suite is disabled, allowing an immediate clean early return.
@@ -241,7 +309,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     logSubAudit(stepNumber: number, totalSteps: number, name: string, result: number | 'passed' | 'warning' | 'failed' | string, detail?: string, counts?: {
         errors?: number;
         warnings?: number;
-    }): void;
+    }, durationMs?: number): void;
     getCountsByRule(): ReadonlyMap<TRuleId, number>;
     getErrorsByRule(): ReadonlyMap<TRuleId, number>;
     getWarningsByRule(): ReadonlyMap<TRuleId, number>;
@@ -289,8 +357,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string) => void): void;
     setProgressLogger(logger: (msg: string) => void): void;
     /**
-     * Genera el DTO canónico AuditorManifestDTO para introspección limpia y tipada,
-     * permitiendo a herramientas externas y agentes consultar dinámicamente qué hace y cómo opera.
+     * Generates the canonical AuditorManifestDTO for clean and typed introspection,
+     * allowing external tools and AI agents to dynamically inspect capabilities and rules.
      */
     toManifest(): AuditorManifestDTO;
     private static isExecutingCli;
@@ -302,11 +370,35 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
+    protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>>;
     /**
      * Primary file scanning entry point receiving an immutable AuditedDocument.
-     * By default, delegates to scanFile(relPath, content, sourceFile, doc).
+     * Automatically executes declared file sub-auditors measuring their runtimes
+     * before delegating to scanFile(relPath, content, sourceFile, doc).
      */
     protected scanDocument(doc: AuditedDocument): void | Promise<void>;
+    /**
+     * Helper for in-memory testing of file scanning logic without touching the filesystem.
+     */
+    testScanFile(relPath: string, content: string, _sourceFile?: ts.SourceFile): void | Promise<void>;
+    /**
+     * Declares a file-scoped sub-auditor tied to a declared rule.
+     * The superclass executes the handler for each audited file and empirically accumulates duration.
+     */
+    declareFileSubAuditor(ruleId: TRuleId, handler: (doc: AuditedDocument) => void | Promise<void>): void;
+    /**
+     * Declares a regex pattern sub-auditor tied to a declared rule.
+     * Scans safe patterns skipping comments and strings automatically.
+     */
+    declarePatternSubAuditor(ruleId: TRuleId, options: {
+        regex: RegExp;
+        message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+        severity?: FindingSeverity;
+        skipComments?: boolean;
+        skipStrings?: boolean;
+        fixable?: boolean;
+        onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void;
+    }): void;
     /**
      * Overridable file scanning method for sub-auditors.
      */
@@ -339,6 +431,12 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
         skipStrings?: boolean;
         fixable?: boolean;
     }, onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void): void;
+    /**
+     * Superclass pattern scanner that executes a regex search over content or file lines,
+     * skips comments, evaluates filters, records violations, and automatically measures
+     * and records the empirical rule duration in the superclass.
+     */
+    scanPattern(content: string, lines: readonly string[], file: string, regex: RegExp, ruleId: TRuleId, filter?: (match: RegExpExecArray, line: string) => boolean, message?: string | ((match: RegExpExecArray, line: string) => string), severity?: FindingSeverity): void;
     private resolveEffectiveAst;
     private scanSingleDiscoveredFile;
     runAudit(astContext?: SharedAstContext): Promise<void>;

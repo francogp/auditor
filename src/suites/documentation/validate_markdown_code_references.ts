@@ -26,7 +26,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import type { FindingSeverity } from '../../core/auditContract.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
@@ -52,6 +53,18 @@ export interface MarkdownCodeViolation {
   readonly ruleId: MarkdownCodeReferenceRuleId;
   readonly message: string;
   readonly context: string;
+}
+
+interface ViolationEmitter {
+  addViolation(violation: {
+    ruleId: MarkdownCodeReferenceRuleId;
+    severity: FindingSeverity;
+    message: string;
+    file?: string;
+    line?: number;
+    column?: number;
+    context?: string;
+  }): void;
 }
 
 export const DEFAULT_SCAN_DIRECTORIES = [
@@ -295,7 +308,7 @@ function checkHardcodedRuntimeVersions(
   line: string,
   lineNum: number,
   relPath: string,
-  auditor: MarkdownCodeReferencesAuditor
+  auditor: ViolationEmitter
 ): number {
   const versionMatch = HARDCODED_RUNTIME_VERSION_REGEX.exec(line);
   if (!versionMatch) return 0;
@@ -316,7 +329,7 @@ function checkSkillReferences(
   lineNum: number,
   relPath: string,
   allSkills: ReadonlySet<string>,
-  auditor: MarkdownCodeReferencesAuditor
+  auditor: ViolationEmitter
 ): number {
   let checked = 0;
   const skillRefRegex = /@\/([\w-]+)/g;
@@ -367,7 +380,7 @@ function validateSingleSourceRef(
   rootDir: string,
   gitIgnoreMatcher: GitIgnoreMatcher,
   knownValidAbstractPaths: ReadonlySet<string>,
-  auditor: MarkdownCodeReferencesAuditor
+  auditor: ViolationEmitter
 ): void {
   if (isCandidateAbstractPattern(candidate) || knownValidAbstractPaths.has(candidate)) {
     return;
@@ -418,7 +431,7 @@ function checkSourcePathReferences(
   rootDir: string,
   gitIgnoreMatcher: GitIgnoreMatcher,
   knownValidAbstractPaths: ReadonlySet<string>,
-  auditor: MarkdownCodeReferencesAuditor
+  auditor: ViolationEmitter
 ): number {
   let checked = 0;
   const pathRegex = /(?:^|[`'"\s[\]()])(src\/[\w./#-]+|scripts\/[\w./#-]+|tests\/[\w./#-]+|supabase\/[\w./#-]+|scratch\/[\w./#-]+|packages\/[\w./#-]+)(?:$|[`'"\s[\]().,:;])/g;
@@ -442,7 +455,7 @@ function checkAgentsMdBulletDeclaration(
   rootDir: string,
   gitIgnoreMatcher: GitIgnoreMatcher,
   seenViolations: Set<string>,
-  auditor: MarkdownCodeReferencesAuditor
+  auditor: ViolationEmitter
 ): number {
   const bulletFileRegex = /^\s*-\s*`([\w.-]+\.(?:ts|vue|json|sql|scss|css))`[:\s-]/;
   const bm = bulletFileRegex.exec(line);
@@ -488,7 +501,7 @@ function checkAgentsMdInlineTokens(
   dirEntries: readonly string[],
   gitIgnoreMatcher: GitIgnoreMatcher,
   seenViolations: Set<string>,
-  auditor: MarkdownCodeReferencesAuditor
+  auditor: ViolationEmitter
 ): number {
   let checked = 0;
   const inlineTokenRegex = /`([\w.-]+\.(?:ts|vue|json|sql|scss|css))`(?:[:\s\-)]|$)/g;
@@ -517,8 +530,17 @@ function checkAgentsMdInlineTokens(
   }
   return checked;
 }
+interface ParsedMarkdownDoc {
+  filePath: string;
+  relPath: string;
+  lines: readonly string[];
+  isSkillDoc: boolean;
+  fileDir: string;
+  dirEntries: string[];
+}
 
 export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeReferenceRuleId> {
+
 private readonly rootDir: string;
   private readonly scanRoots: readonly string[];
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
@@ -527,7 +549,7 @@ private readonly rootDir: string;
     const effectiveRoot = rootDir || process.cwd();
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -537,7 +559,7 @@ private readonly rootDir: string;
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_markdown_code_references',
       name: 'Markdown Code References Validator',
       description: 'Valida rutas, scripts, casing y skills en markdown',
@@ -572,48 +594,63 @@ private readonly rootDir: string;
     this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
   }
 
-  private scanMarkdownFile(
-    filePath: string,
-    allSkills: ReadonlySet<string>,
-    knownValidAbstractPaths: ReadonlySet<string>,
-    seenViolations: Set<string>
+  private scanMarkdownDocReferences(
+    docs: readonly ParsedMarkdownDoc[],
+    targetRuleId: 'markdown-broken-source-ref' | 'markdown-case-mismatch',
+    knownValidAbstractPaths: ReadonlySet<string>
   ): number {
-    const relPath = toPosixRelative(this.rootDir, filePath);
-    const rawContent = fs.readFileSync(filePath, 'utf8');
-    const cleanContent = stripCodeBlocks(rawContent);
-    const lines = cleanContent.split('\n');
-    const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
-
-    const fileDir = path.dirname(filePath);
-    let dirEntries: string[] = [];
-    if (relPath.endsWith('AGENTS.md')) {
-      try {
-        dirEntries = fs.readdirSync(fileDir);
-      } catch {
-        // catch-ok: unreadable directory
-        dirEntries = [];
+    let count = 0;
+    const sink: ViolationEmitter = {
+      addViolation: (v) => {
+        if (v.ruleId === targetRuleId) {
+          this.addViolation(v);
+        }
+      }
+    };
+    const seenViolations = new Set<string>();
+    for (const doc of docs) {
+      for (let i = 0; i < doc.lines.length; i++) {
+        const line = doc.lines[i]!;
+        const lineNum = i + 1;
+        if (!doc.isSkillDoc) {
+          count += checkSourcePathReferences(
+            line,
+            lineNum,
+            doc.relPath,
+            doc.filePath,
+            this.rootDir,
+            this.gitIgnoreMatcher,
+            knownValidAbstractPaths,
+            sink
+          );
+        }
+        if (doc.relPath.endsWith('AGENTS.md')) {
+          count += checkAgentsMdBulletDeclaration(
+            line,
+            lineNum,
+            doc.relPath,
+            doc.fileDir,
+            this.rootDir,
+            this.gitIgnoreMatcher,
+            seenViolations,
+            sink
+          );
+          count += checkAgentsMdInlineTokens(
+            line,
+            lineNum,
+            doc.relPath,
+            doc.fileDir,
+            doc.dirEntries,
+            this.gitIgnoreMatcher,
+            seenViolations,
+            sink
+          );
+        }
       }
     }
-
-    let checked = 0;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const lineNum = i + 1;
-
-      if (!isSkillDoc) {
-        checked += checkSourcePathReferences(line, lineNum, relPath, filePath, this.rootDir, this.gitIgnoreMatcher, knownValidAbstractPaths, this);
-      }
-
-      checked += checkHardcodedRuntimeVersions(line, lineNum, relPath, this);
-      checked += checkSkillReferences(line, lineNum, relPath, allSkills, this);
-
-      if (relPath.endsWith('AGENTS.md')) {
-        checked += checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, this.rootDir, this.gitIgnoreMatcher, seenViolations, this);
-        checked += checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, this.gitIgnoreMatcher, seenViolations, this);
-      }
-    }
-    return checked;
+    return count;
   }
+
 
   public override async runAudit(): Promise<void> {
     const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
@@ -629,20 +666,56 @@ private readonly rootDir: string;
     }
 
     let referencesChecked = 0;
-    const seenViolations = new Set<string>();
 
+    const docs: ParsedMarkdownDoc[] = [];
     for (const filePath of mdFiles) {
       this.recordScanned(filePath);
-      for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
-        this.markRuleEvaluated(r);
+      const relPath = toPosixRelative(this.rootDir, filePath);
+      const rawContent = fs.readFileSync(filePath, 'utf8');
+      const cleanContent = stripCodeBlocks(rawContent);
+      const lines = cleanContent.split('\n');
+      const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
+      const fileDir = path.dirname(filePath);
+      let dirEntries: string[] = [];
+      if (relPath.endsWith('AGENTS.md')) {
+        try {
+          dirEntries = fs.readdirSync(fileDir);
+        } catch {
+          // catch-ok
+          dirEntries = [];
+        }
       }
-      referencesChecked += this.scanMarkdownFile(
-        filePath,
-        allSkills,
-        knownValidAbstractPaths,
-        seenViolations
-      );
+      docs.push({ filePath, relPath, lines, isSkillDoc, fileDir, dirEntries });
     }
+
+    // 1. markdown-broken-source-ref
+    this.runSubAuditorSync('markdown-broken-source-ref', () => {
+      referencesChecked += this.scanMarkdownDocReferences(docs, 'markdown-broken-source-ref', knownValidAbstractPaths);
+    });
+
+    // 2. markdown-hardcoded-runtime-version
+    this.runSubAuditorSync('markdown-hardcoded-runtime-version', () => {
+      for (const doc of docs) {
+        for (let i = 0; i < doc.lines.length; i++) {
+          referencesChecked += checkHardcodedRuntimeVersions(doc.lines[i]!, i + 1, doc.relPath, this);
+        }
+      }
+    });
+
+    // 3. markdown-broken-skill-ref
+    this.runSubAuditorSync('markdown-broken-skill-ref', () => {
+      for (const doc of docs) {
+        for (let i = 0; i < doc.lines.length; i++) {
+          referencesChecked += checkSkillReferences(doc.lines[i]!, i + 1, doc.relPath, allSkills, this);
+        }
+      }
+    });
+
+    // 4. markdown-case-mismatch
+    this.runSubAuditorSync('markdown-case-mismatch', () => {
+      this.scanMarkdownDocReferences(docs, 'markdown-case-mismatch', knownValidAbstractPaths);
+    });
+
 
     this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);
     this.context.setMetric('Referencias de código analizadas', referencesChecked);

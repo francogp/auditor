@@ -16,7 +16,7 @@
  */
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const REACTIVE_PURITY_RULES = [
@@ -59,7 +59,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             ...(config.paths.composablesRoots ?? ['src/composables'])
         ];
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -69,7 +69,7 @@ export class ReactivePurityAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_reactive_purity',
             name: 'Reactive Computed Purity Auditor',
             description: 'Verifica pureza reactiva y ausencia de efectos en computeds',
@@ -102,17 +102,30 @@ export class ReactivePurityAuditor extends FileScanAuditor {
             this.inspectGetterBody(getterBody, sf, relPath, content);
         }
     }
+    activeTargetRule;
     scanFile(relPath, content, sourceFile) {
         if (!content.includes('computed'))
             return;
         const sf = sourceFile ?? this.context.getAst(relPath, content);
         if (!sf.text.trim())
             return;
-        const visit = (node) => {
-            this.checkComputedCall(node, sf, relPath, content);
-            ts.forEachChild(node, visit);
-        };
-        visit(sf);
+        this.runSubAuditorSync('computed-state-mutation', () => {
+            this.activeTargetRule = 'computed-state-mutation';
+            const visit = (node) => {
+                this.checkComputedCall(node, sf, relPath, content);
+                ts.forEachChild(node, visit);
+            };
+            visit(sf);
+        });
+        this.runSubAuditorSync('computed-side-effect', () => {
+            this.activeTargetRule = 'computed-side-effect';
+            const visit = (node) => {
+                this.checkComputedCall(node, sf, relPath, content);
+                ts.forEachChild(node, visit);
+            };
+            visit(sf);
+            this.activeTargetRule = undefined;
+        });
     }
     reportComputedViolation(node, sourceFile, relPath, fullContent, ruleId, message) {
         const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
@@ -131,26 +144,30 @@ export class ReactivePurityAuditor extends FileScanAuditor {
     inspectGetterBody(bodyNode, sourceFile, relPath, fullContent) {
         const walk = (child) => {
             // Check for state mutations (=, +=, -=, etc.)
-            if (ts.isBinaryExpression(child)) {
-                const op = child.operatorToken.kind;
-                const isAssignment = op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment;
-                if (isAssignment) {
-                    const leftText = child.left.getText(sourceFile);
-                    const isReactiveMutation = leftText.includes('.value') ||
-                        leftText.startsWith('state.') ||
-                        leftText.startsWith('this.') ||
-                        leftText.includes('Store.');
-                    if (isReactiveMutation) {
-                        this.reportComputedViolation(child, sourceFile, relPath, fullContent, 'computed-state-mutation', `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`);
+            if (!this.activeTargetRule || this.activeTargetRule === 'computed-state-mutation') {
+                if (ts.isBinaryExpression(child)) {
+                    const op = child.operatorToken.kind;
+                    const isAssignment = op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment;
+                    if (isAssignment) {
+                        const leftText = child.left.getText(sourceFile);
+                        const isReactiveMutation = leftText.includes('.value') ||
+                            leftText.startsWith('state.') ||
+                            leftText.startsWith('this.') ||
+                            leftText.includes('Store.');
+                        if (isReactiveMutation) {
+                            this.reportComputedViolation(child, sourceFile, relPath, fullContent, 'computed-state-mutation', `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`);
+                        }
                     }
                 }
             }
             // Check for impure side-effect calls (.scheduleSave(), etc.)
-            if (ts.isCallExpression(child)) {
-                const callText = child.expression.getText(sourceFile);
-                const isImpureCall = IMPURE_CALL_PATTERNS.some(pat => callText.includes(pat));
-                if (isImpureCall) {
-                    this.reportComputedViolation(child, sourceFile, relPath, fullContent, 'computed-side-effect', `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`);
+            if (!this.activeTargetRule || this.activeTargetRule === 'computed-side-effect') {
+                if (ts.isCallExpression(child)) {
+                    const callText = child.expression.getText(sourceFile);
+                    const isImpureCall = IMPURE_CALL_PATTERNS.some(pat => callText.includes(pat));
+                    if (isImpureCall) {
+                        this.reportComputedViolation(child, sourceFile, relPath, fullContent, 'computed-side-effect', `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`);
+                    }
                 }
             }
             ts.forEachChild(child, walk);

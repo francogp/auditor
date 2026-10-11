@@ -35,25 +35,25 @@ export function runSetup(args: string[] = process.argv.slice(2), targetDir: stri
       cwd: targetDir
     });
     return proc.status ?? 0;
-  } else {
-    const targetScript = isUpdate ? 'update-linux.sh' : 'setup-linux.sh';
-    let scriptPath = path.resolve(targetDir, targetScript);
-    if (!fs.existsSync(scriptPath)) {
-      scriptPath = path.resolve(targetDir, 'setup-linux.sh');
-      if (isUpdate && !forwardedArgs.includes('--update-version')) {
-        forwardedArgs.unshift('--update-version');
-      }
-    }
-    if (!fs.existsSync(scriptPath)) {
-      console.error(`[auditor-setup-env] Script no encontrado: ${scriptPath}`);
-      return 1;
-    }
-    const proc = spawnSync('bash', [scriptPath, ...forwardedArgs], {
-      stdio: 'inherit',
-      cwd: targetDir
-    });
-    return proc.status ?? 0;
   }
+
+  const targetScript = isUpdate ? 'update-linux.sh' : 'setup-linux.sh';
+  let scriptPath = path.resolve(targetDir, targetScript);
+  if (!fs.existsSync(scriptPath)) {
+    scriptPath = path.resolve(targetDir, 'setup-linux.sh');
+    if (isUpdate && !forwardedArgs.includes('--update-version')) {
+      forwardedArgs.unshift('--update-version');
+    }
+  }
+  if (!fs.existsSync(scriptPath)) {
+    console.error(`[auditor-setup-env] Script no encontrado: ${scriptPath}`);
+    return 1;
+  }
+  const proc = spawnSync('bash', [scriptPath, ...forwardedArgs], {
+    stdio: 'inherit',
+    cwd: targetDir
+  });
+  return proc.status ?? 0;
 }
 
 // CLI entrypoint

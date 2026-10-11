@@ -2,7 +2,7 @@
 /**
  * src/cli/report_flags.ts
  *
- * CLI TOOL: GOBERNANZA DE FEATURE FLAGS (Fallow Flags)
+ * CLI TOOL: FEATURE FLAGS GOVERNANCE (Fallow Flags)
  *
  * Analyzes feature flag usage patterns, branches, single-read sites,
  * and identifies retirement candidates.

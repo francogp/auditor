@@ -15,7 +15,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { getAuditConfig, resolveZLayersScssPath, getEffectiveZLayers, AUDIT_CONFIG_FILE, Z_LAYERS, isExemptFile, isTestPath } from "../../core/auditConfig.js";
 import { resolveZLayer } from "../../analyzers/zIndexRules.js";
@@ -91,7 +91,7 @@ export class ZIndexAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? (scssPath ? [path.dirname(scssPath)] : config.paths.srcRoots);
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(Z_INDEX_RULES, {
                 fix: true,
                 fixPriority: false,
                 lint: false,
@@ -101,7 +101,11 @@ export class ZIndexAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [
+                'z-index-missing-var',
+                'z-index-mismatch',
+                'z-index-hardcoded-literal'
+            ]),
             fixableRuleIds: [
                 'z-index-missing-var',
                 'z-index-mismatch',
@@ -136,65 +140,79 @@ export class ZIndexAuditor extends FileScanAuditor {
             this.scssPath = resolveZLayersScssPath(this.projectRoot);
             this.isExplicit = !!(config.styles?.zLayersScssFile ?? config.styles?.baseScssFile);
         }
-    }
-    scanFile(relPath, content) {
-        const norm = normalizePosixPath(relPath).toLowerCase();
-        const isTest = isTestPath(relPath);
-        const isExempt = isExemptFile(relPath);
-        if (isTest || isExempt)
-            return;
-        // 1. Detección de z-index hardcodeado numérico
-        HARDCODED_Z_INDEX_REGEX.lastIndex = 0;
-        let m;
-        while ((m = HARDCODED_Z_INDEX_REGEX.exec(content)) !== null) {
-            const numMatch = m[0].match(/-?\d+/);
-            const val = numMatch ? parseInt(numMatch[0], 10) : 0;
-            const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
-            let msg;
-            if (exactKey && cssVarExpr) {
-                msg = `Z-Index hardcodeado detectado: '${m[0]}'. Corresponde a Z_LAYERS.${exactKey}. Usa '${cssVarExpr}'.`;
+        // 1. Declaración canónica de sub-auditor para literales numéricos hardcodeados
+        this.declareFileSubAuditor('z-index-hardcoded-literal', (doc) => {
+            const isTest = isTestPath(doc.relPath);
+            const isExempt = isExemptFile(doc.relPath);
+            if (isTest || isExempt)
+                return;
+            HARDCODED_Z_INDEX_REGEX.lastIndex = 0;
+            let m;
+            while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
+                if (doc.isInsideComment(m.index))
+                    continue;
+                const pos = doc.getLineAndColumn(m.index);
+                if (doc.hasEscapeHatch(pos.line, 'z-index-hardcoded-literal'))
+                    continue;
+                const numMatch = m[0].match(/-?\d+/);
+                const val = numMatch ? parseInt(numMatch[0], 10) : 0;
+                const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
+                let msg;
+                if (exactKey && cssVarExpr) {
+                    msg = `Z-Index hardcodeado detectado: '${m[0]}'. Corresponde a Z_LAYERS.${exactKey}. Usa '${cssVarExpr}'.`;
+                }
+                else if (nearestKey && cssVarExpr) {
+                    msg = `Z-Index relativo detectado: '${m[0]}'. Cerca de Z_LAYERS.${nearestKey}. Usa '${cssVarExpr}'.`;
+                }
+                else {
+                    msg = `Z-Index hardcodeado fuera de estándar: '${m[0]}'. Registra la capa en Z_LAYERS o usa una existente.`;
+                }
+                this.addViolation({
+                    ruleId: 'z-index-hardcoded-literal',
+                    severity: 'error',
+                    filePath: doc.relPath,
+                    line: pos.line,
+                    column: pos.column,
+                    message: msg,
+                    context: m[0],
+                    fixable: false
+                });
             }
-            else if (nearestKey && cssVarExpr) {
-                msg = `Z-Index relativo detectado: '${m[0]}'. Cerca de Z_LAYERS.${nearestKey}. Usa '${cssVarExpr}'.`;
-            }
-            else {
-                msg = `Z-Index hardcodeado fuera de estándar: '${m[0]}'. Registra la capa en Z_LAYERS o usa una existente.`;
-            }
-            this.addViolationAtMatch({
-                ruleId: 'z-index-hardcoded-literal',
-                filePath: relPath,
-                content,
-                matchIndex: m.index,
-                message: msg,
-                context: m[0],
-                fixable: false
-            });
-        }
-        // 2. Detección de declaraciones de constantes Z_INDEX aisladas fuera de Z_LAYERS
-        if (norm.endsWith('.ts') || norm.endsWith('.tsx') || norm.endsWith('.vue')) {
-            const config = getAuditConfig(this.projectRoot);
-            const zFile = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
-            const isZLayersDeclFile = zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, '').toLowerCase());
-            if (!isZLayersDeclFile && !norm.includes('node_modules')) {
-                ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;
-                let cMatch;
-                while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(content)) !== null) {
-                    const preceding = content.slice(0, cMatch.index);
-                    const line = preceding.split('\n').length;
-                    const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
-                    this.addViolation({
-                        ruleId: 'z-index-isolated-constant',
-                        severity: 'error',
-                        filePath: relPath,
-                        line,
-                        column,
-                        message: `Declaración de constante de Z-Index aislada detectada: '${cMatch[0]}'. Está PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`,
-                        context: cMatch[0],
-                        fixable: false
-                    });
+        });
+        // 2. Declaración canónica de sub-auditor para constantes aisladas fuera de Z_LAYERS
+        this.declareFileSubAuditor('z-index-isolated-constant', (doc) => {
+            const norm = normalizePosixPath(doc.relPath).toLowerCase();
+            const isTest = isTestPath(doc.relPath);
+            const isExempt = isExemptFile(doc.relPath);
+            if (isTest || isExempt)
+                return;
+            if (norm.endsWith('.ts') || norm.endsWith('.tsx') || norm.endsWith('.vue')) {
+                const auditConfig = getAuditConfig(this.projectRoot);
+                const zFile = auditConfig.styles?.zLayersTsFile ?? auditConfig.domain?.zLayersFile;
+                const isZLayersDeclFile = zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, '').toLowerCase());
+                if (!isZLayersDeclFile && !norm.includes('node_modules')) {
+                    ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;
+                    let cMatch;
+                    while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(doc.rawContent)) !== null) {
+                        if (doc.isInsideComment(cMatch.index))
+                            continue;
+                        const pos = doc.getLineAndColumn(cMatch.index);
+                        if (doc.hasEscapeHatch(pos.line, 'z-index-isolated-constant'))
+                            continue;
+                        this.addViolation({
+                            ruleId: 'z-index-isolated-constant',
+                            severity: 'error',
+                            filePath: doc.relPath,
+                            line: pos.line,
+                            column: pos.column,
+                            message: `Declaración de constante de Z-Index aislada detectada: '${cMatch[0]}'. Está PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`,
+                            context: cMatch[0],
+                            fixable: false
+                        });
+                    }
                 }
             }
-        }
+        });
     }
     async runAudit() {
         if (!this.isExplicit && this.isSuiteGatingDisabled('Z-Layers desactivado en config')) {
@@ -202,19 +220,21 @@ export class ZIndexAuditor extends FileScanAuditor {
         }
         // Si el proyecto explícitamente no tiene SCSS configurado
         if (!this.scssPath) {
-            this.markRuleEvaluated('z-index-read-error');
-            this.markRuleNotApplicable('z-index-missing-var', 'No se encontró archivo SCSS de capas Z');
-            this.markRuleNotApplicable('z-index-mismatch', 'No se encontró archivo SCSS de capas Z');
-            this.markRuleNotApplicable('z-index-hardcoded-literal', 'Z-Layers no configurado en proyecto');
-            this.markRuleNotApplicable('z-index-isolated-constant', 'Z-Layers no configurado en proyecto');
-            this.addViolation({
-                ruleId: 'z-index-read-error',
-                severity: 'error',
-                file: AUDIT_CONFIG_FILE,
-                line: 1,
-                message: "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
-                context: AUDIT_CONFIG_FILE
+            this.runSubAuditorSync('z-index-read-error', () => {
+                this.addViolation({
+                    ruleId: 'z-index-read-error',
+                    severity: 'error',
+                    file: AUDIT_CONFIG_FILE,
+                    line: 1,
+                    message: "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
+                    context: AUDIT_CONFIG_FILE
+                });
             });
+            for (const r of ['z-index-missing-var', 'z-index-mismatch', 'z-index-hardcoded-literal', 'z-index-isolated-constant']) {
+                this.runSubAuditorSync(r, () => {
+                    this.markRuleNotApplicable(r, 'Z-Layers no configurado en proyecto');
+                });
+            }
             return;
         }
         const relTarget = path.relative(this.projectRoot, this.scssPath).split(path.sep).join(path.posix.sep);
@@ -224,44 +244,73 @@ export class ZIndexAuditor extends FileScanAuditor {
             source: 'runtime'
         });
         const isFixMode = this.isFixModeRequested();
-        let scssContent;
+        let scssContent = null;
+        let readErr = null;
         try {
             scssContent = await fs.readFile(this.scssPath, 'utf-8');
             this.recordScanned(this.scssPath);
-            this.markRuleEvaluated('z-index-missing-var');
-            this.markRuleEvaluated('z-index-mismatch');
-            this.markRuleEvaluated('z-index-read-error');
         }
         catch (err) {
-            this.addViolation({
-                ruleId: 'z-index-read-error',
-                severity: 'error',
-                file: this.scssPath,
-                line: 1,
-                message: `Error leyendo _base.scss: ${err.message || String(err)}`,
-                context: this.scssPath
+            readErr = err;
+        }
+        this.runSubAuditorSync('z-index-read-error', () => {
+            if (readErr) {
+                this.addViolation({
+                    ruleId: 'z-index-read-error',
+                    severity: 'error',
+                    file: this.scssPath,
+                    line: 1,
+                    message: `Error leyendo _base.scss: ${readErr.message || String(readErr)}`,
+                    context: this.scssPath
+                });
+            }
+        });
+        if (scssContent !== null) {
+            const effectiveLayers = getEffectiveZLayers(this.projectRoot);
+            const result = auditZIndexParity(scssContent, isFixMode, effectiveLayers);
+            this.runSubAuditorSync('z-index-missing-var', () => {
+                const missingVars = result.violations.filter(v => v.ruleId === 'z-index-missing-var');
+                for (const v of missingVars) {
+                    this.addViolation({
+                        ruleId: 'z-index-missing-var',
+                        severity: 'error',
+                        file: this.scssPath,
+                        line: 1,
+                        message: v.message,
+                        context: v.context,
+                        fixable: true
+                    });
+                }
             });
-            return;
+            this.runSubAuditorSync('z-index-mismatch', () => {
+                const mismatches = result.violations.filter(v => v.ruleId === 'z-index-mismatch');
+                for (const v of mismatches) {
+                    this.addViolation({
+                        ruleId: 'z-index-mismatch',
+                        severity: 'error',
+                        file: this.scssPath,
+                        line: 1,
+                        message: v.message,
+                        context: v.context,
+                        fixable: true
+                    });
+                }
+            });
+            if (isFixMode && result.modified) {
+                await fs.writeFile(this.scssPath, result.scssContent, 'utf-8');
+            }
+            this.context.setMetric('Total Layers Checked', Object.keys(Z_LAYERS).length);
+            this.context.setMetric('Status', result.modified ? 'Auto-fixed' : 'Synced');
         }
-        const effectiveLayers = getEffectiveZLayers(this.projectRoot);
-        const result = auditZIndexParity(scssContent, isFixMode, effectiveLayers);
-        for (const v of result.violations) {
-            this.addViolation({
-                ruleId: v.ruleId,
-                severity: 'error',
-                file: this.scssPath,
-                line: 1,
-                message: v.message,
-                context: v.context,
-                fixable: true
+        else {
+            this.runSubAuditorSync('z-index-missing-var', () => {
+                this.markRuleNotApplicable('z-index-missing-var', 'Archivo SCSS no legible');
+            });
+            this.runSubAuditorSync('z-index-mismatch', () => {
+                this.markRuleNotApplicable('z-index-mismatch', 'Archivo SCSS no legible');
             });
         }
-        if (isFixMode && result.modified) {
-            await fs.writeFile(this.scssPath, result.scssContent, 'utf-8');
-        }
-        this.context.setMetric('Total Layers Checked', Object.keys(Z_LAYERS).length);
-        this.context.setMetric('Status', result.modified ? 'Auto-fixed' : 'Synced');
-        // Escanear los archivos de código y estilos para literales hardcodeados y constantes
+        // Escanear los archivos de código y estilos mediante las sub-herramientas declaradas
         await super.runAudit();
     }
 }

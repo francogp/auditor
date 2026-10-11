@@ -18,6 +18,8 @@ export const BUILTIN_AUDIT_FAMILIES = [
   'architecture',
   'domain_data',
   'persistence',
+  'performance',
+  'security',
   'documentation'
 ] as const;
 
@@ -54,10 +56,24 @@ export const FAMILY_METADATA: Record<string, FamilyMetadata> = {
     icon: '💾',
     description: 'Integridad sintáctica de migraciones PostgreSQL/Supabase/SQLite y políticas RLS.'
   },
+  performance: {
+    key: 'performance',
+    title: 'RENDIMIENTO WEB, LATENCIA Y BASE DE DATOS',
+    order: 4,
+    icon: '⚡',
+    description: 'Core Web Vitals, optimización de consultas SQL e impacto en renderizado.'
+  },
+  security: {
+    key: 'security',
+    title: 'SEGURIDAD, ENDURECIMIENTO Y CONTROL DE ACCESO',
+    order: 5,
+    icon: '🛡️',
+    description: 'Vulnerabilidades OWASP Top 10, prevención de SSRF, inyecciones y ReDoS.'
+  },
   documentation: {
     key: 'documentation',
     title: 'DOCUMENTACIÓN Y ESTRUCTURA DOX',
-    order: 4,
+    order: 6,
     icon: '📚',
     description: 'Integridad de enlaces relativos en markdown e índices DOX (AGENTS.md).'
   }
@@ -113,11 +129,48 @@ export interface AuditFinding {
 
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'] as const;
 export type AuditExecutionStatus = (typeof AUDIT_STATUSES)[number];
+export interface AuditorCapabilities {
+  /** Whether the sub-auditor implements automated repairs when invoked with --fix */
+  readonly fix: boolean;
+  /** Whether the sub-auditor bootstraps environment or auditor configuration and must run FIRST in fix mode */
+  readonly fixPriority: boolean;
+  /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
+  readonly lint: boolean;
+  /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */
+  readonly md: boolean;
+  /** Whether the sub-auditor requires the shared in-memory TypeScript AST context */
+  readonly ast: boolean;
+  /** Whether the sub-auditor supports incremental git diff scoping via --changed-since */
+  readonly changedSince: boolean;
+  /** Whether the sub-auditor is computationally heavy or resource-intensive (e.g. vector ML, type check) */
+  readonly heavy: boolean;
+  /** Whether the sub-auditor requires pre-compiled production artifacts in dist/ */
+  readonly requiresBuild: boolean;
+  /** Whether the sub-auditor must run AFTER every other suite of the run (e.g. coverage verification over their ledgers) */
+  readonly postRun: boolean;
+}
+
+export type AuditorExecutionTier = 'lint' | 'full' | 'fix' | 'md' | 'build';
+
+/**
+ * Standard contract for commands that have both a fast/efficient version for lint
+ * and a heavy/exhaustive version for full audit passes, guaranteed to never repeat in the same run.
+ */
+export interface DualCommandProfile<TArgs = readonly string[]> {
+  /** Canonical command identifier or binary name */
+  readonly command: string;
+  /** Arguments for the fast/lint execution tier */
+  readonly fastArgs: TArgs;
+  /** Arguments for the heavy/audit execution tier */
+  readonly heavyArgs: TArgs;
+}
 
 export interface SubAuditorStep {
   readonly id: string;
   readonly name: string;
   readonly description?: string;
+  readonly capabilities?: AuditorCapabilities;
+  readonly durationMs?: number;
 }
 
 export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'] as const;
@@ -130,7 +183,9 @@ export interface SubAuditorReport {
   readonly count: number;
   readonly errorsCount?: number;
   readonly warningsCount?: number;
+  readonly durationMs?: number;
   readonly detail?: string;
+  readonly capabilities?: AuditorCapabilities;
 }
 
 export interface ICompositeAuditor {
@@ -158,27 +213,6 @@ export interface StandardAuditResult {
   isBuiltin?: boolean;
   icon?: string;
   packageName?: string;
-}
-
-export interface AuditorCapabilities {
-  /** Whether the sub-auditor implements automated repairs when invoked with --fix */
-  readonly fix: boolean;
-  /** Whether the sub-auditor bootstraps environment or auditor configuration and must run FIRST in fix mode */
-  readonly fixPriority: boolean;
-  /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
-  readonly lint: boolean;
-  /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */
-  readonly md: boolean;
-  /** Whether the sub-auditor requires the shared in-memory TypeScript AST context */
-  readonly ast: boolean;
-  /** Whether the sub-auditor supports incremental git diff scoping via --changed-since */
-  readonly changedSince: boolean;
-  /** Whether the sub-auditor is computationally heavy or resource-intensive (e.g. vector ML, type check) */
-  readonly heavy: boolean;
-  /** Whether the sub-auditor requires pre-compiled production artifacts in dist/ */
-  readonly requiresBuild: boolean;
-  /** Whether the sub-auditor must run AFTER every other suite of the run (e.g. coverage verification over their ledgers) */
-  readonly postRun: boolean;
 }
 
 export const COVERAGE_SOURCES = ['runtime', 'declared-only'] as const;
@@ -277,25 +311,25 @@ export interface AuditorConfigFileRequirement<TRuleId extends string = string> {
 }
 
 /**
- * DTO Canónico del Manifiesto de un Sub-Auditor.
- * Contrato inmutable mínimo y estructurado para que herramientas,
- * CLIs y agentes de IA conozcan el propósito y ejecución del auditor.
+ * Canonical Auditor Manifest DTO.
+ * Minimal and structured immutable contract for tools,
+ * CLIs, and AI agents to understand auditor purpose and execution.
  */
 export interface AuditorManifestDTO {
-  /** Identificador único de la suite (ej: 'validate_accessibility') */
+  /** Unique suite identifier (e.g. 'validate_accessibility') */
   readonly id: string;
-  /** Nombre formal legible (ej: 'Web & Vue Accessibility Standards') */
+  /** Formal human-readable name (e.g. 'Web & Vue Accessibility Standards') */
   readonly name: string;
-  /** Familia canónica del auditor ('architecture', 'domain_data', 'persistence', 'documentation', etc.) */
+  /** Canonical auditor family ('architecture', 'domain_data', 'persistence', 'documentation', etc.) */
   readonly family: string;
-  /** Emoji temático obligatorio */
+  /** Mandatory thematic emoji */
   readonly icon: string;
   /**
-   * Resumen conciso y obligatorio de para qué sirve y qué valida (máx 60 caracteres).
-   * Obligatorio, directo y sin paredes de texto.
+   * Concise and mandatory summary of purpose and validations (max 60 characters).
+   * Mandatory, direct, no walls of text.
    */
   readonly description: string;
-  /** Flags / capacidades de ejecución soportadas */
+  /** Supported execution flags / capabilities */
   readonly capabilities: {
     readonly fix: boolean;
     readonly lint: boolean;
@@ -306,21 +340,23 @@ export interface AuditorManifestDTO {
     readonly requiresBuild: boolean;
     readonly postRun: boolean;
   };
-  /** Catálogo de reglas evaluadas con su descripción concisa en español */
+  /** Catalog of evaluated rules with concise description */
   readonly rules: Readonly<Record<string, string>>;
-  /** Lista de ruleIds que esta suite puede reparar mecánicamente de forma automática */
+  /** Individual capabilities declared by each sub-auditor / rule */
+  readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
+  /** List of ruleIds that this suite can mechanically repair automatically */
   readonly fixableRules: readonly string[];
   /**
-   * Clave o sección de configuración en .auditor/audit.config.ts si la utiliza de forma específica.
-   * Conciso (ej: 'styles.baseScssFile', 'fallow.security', 'testCoverage.thresholds', 'paths', 'core').
+   * Configuration key or section in .auditor/audit.config.ts if specifically used.
+   * Concise (e.g. 'styles.baseScssFile', 'fallow.security', 'testCoverage.thresholds', 'paths', 'core').
    */
   readonly configKey: string;
   /**
-   * Configuración por defecto obligatoria declarada por el auditor para su inyección dinámica en audit.config.ts.
+   * Mandatory default configuration declared by the auditor for dynamic injection into audit.config.ts.
    */
   readonly defaultConfig: Readonly<Record<string, unknown>>;
   /**
-   * Configuración crítica e invariantes inmutables declaradas por el auditor (obligatorio por contrato, puede ser objeto vacío {}).
+   * Critical configuration and immutable invariants declared by the auditor (mandatory by contract, can be empty object {}).
    */
   readonly criticalConfig: {
     readonly rationale?: string;
@@ -328,43 +364,43 @@ export interface AuditorManifestDTO {
     readonly forbiddenOverrides?: Readonly<Record<string, readonly unknown[]>>;
   };
   /**
-   * Contrato obligatorio de comandos de ejecución y scripts en package.json expuestos por este auditor.
+   * Mandatory contract of package.json execution commands and scripts exposed by this auditor.
    */
   readonly scripts: readonly AuditorPackageScriptRequirement[];
 }
 
 /**
- * Contrato de configuración crítica e invariantes inmutables de un auditor.
+ * Contract of critical configuration and immutable invariants for an auditor.
  */
 export interface AuditorCriticalConfig<TConfig = unknown> {
   /**
-   * Justificación técnica y arquitectónica que explica por qué este piso mínimo es obligatorio y no negociable.
-   * Obligatorio cuando se definen restricciones críticas.
+   * Technical and architectural rationale explaining why this minimum baseline is mandatory and non-negotiable.
+   * Mandatory when critical constraints are defined.
    */
   readonly rationale?: string;
 
   /**
-   * Diccionario de propiedades o listas que actúan como piso mínimo obligatorio.
-   * El proyecto anfitrión puede agregar más elementos (aditivo), pero si omite alguno de estos, falla.
-   * Ejemplo: { 'strictProperties': ['/color$/', 'font-size', 'z-index'] }
+   * Dictionary of properties or lists acting as mandatory minimum baseline.
+   * Host project may add more items (additive), but omitting any of these fails.
+   * Example: { 'strictProperties': ['/color$/', 'font-size', 'z-index'] }
    */
   readonly requiredMinimums?: Readonly<Record<string, readonly (string | number)[]>>;
 
   /**
-   * Valores o anulaciones estrictamente prohibidas.
-   * Mapea rutas de propiedades a los valores desautorizados (e.g. false, 'off', 0, null).
-   * Ejemplo: { 'enabled': [false], 'rules.@typescript-eslint/no-explicit-any': ['off', 0] }
+   * Strictly forbidden values or overrides.
+   * Maps property paths to unauthorized values (e.g. false, 'off', 0, null).
+   * Example: { 'enabled': [false], 'rules.@typescript-eslint/no-explicit-any': ['off', 0] }
    */
   readonly forbiddenOverrides?: Readonly<Record<string, readonly unknown[]>>;
 
   /**
-   * Validador semántico personalizado para invariantes complejas o multidimensionales.
-   * Retorna un string con el motivo de violación si no cumple, o null/undefined si es válido.
+   * Custom semantic validator for complex or multi-dimensional invariants.
+   * Returns violation reason string if invalid, or null/undefined if valid.
    */
   readonly validate?: (config: TConfig, projectRoot: string) => string | null | undefined;
 
   /**
-   * Generador opcional de reparación mecánica para re-inyectar los mínimos en el archivo correspondiente.
+   * Optional mechanical repair generator to re-inject minimums into the corresponding file.
    */
   readonly repair?: (currentConfig: TConfig, projectRoot: string) => TConfig | Promise<TConfig>;
 }
@@ -403,6 +439,7 @@ export interface AuditTaskDefinition {
   isBuiltin?: boolean;
   icon?: string;
   capabilities?: AuditorCapabilities;
+  ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
   gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   configFiles?: readonly AuditorConfigFileRequirement<string>[];
   scripts?: readonly AuditorPackageScriptRequirement[];

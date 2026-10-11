@@ -13,9 +13,10 @@ export interface SemverVersion {
 }
 export declare function parseSemver(v: string): SemverVersion;
 export declare function compareVersions(current: SemverVersion, required: SemverVersion): boolean;
-export declare function getAuditorEngines(): {
-    node: string;
-    npm: string;
-};
+export interface AuditorEngineSpecs {
+    readonly node: string;
+    readonly npm: string;
+}
+export declare function getAuditorEngines(): AuditorEngineSpecs;
 export declare function checkEnvironment(targetDir?: string, autoRemediate?: boolean): boolean;
 //# sourceMappingURL=check_environment.d.ts.map

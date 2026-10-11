@@ -35,6 +35,7 @@ export const CLI_BUMP_TYPES = ['major', 'minor', 'patch', 'build', 'auto'] as co
 export type CliBumpType = (typeof CLI_BUMP_TYPES)[number];
 const CLI_BUMP_TYPE_SET: ReadonlySet<string> = new Set<string>(CLI_BUMP_TYPES);
 
+// wrapper-ok: type guard predicate for CliBumpType
 export function isCliBumpType(val: string): val is CliBumpType {
   return CLI_BUMP_TYPE_SET.has(val);
 }

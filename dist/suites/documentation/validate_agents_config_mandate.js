@@ -11,7 +11,7 @@
 import fsSync from 'node:fs';
 import path from 'node:path';
 import { extractContractSections, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage, findLocalContractsHeaderLine } from "../../analyzers/agentsMandateAnalyzer.js";
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 export const AGENTS_CONFIG_MANDATE_RULES = [
     'agents-missing-config-mandate',
@@ -195,7 +195,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
     constructor(rootDir, options) {
         const projectRoot = rootDir || process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
                 fix: true,
                 fixPriority: true,
                 lint: false,
@@ -205,7 +205,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, [...AGENTS_CONFIG_MANDATE_RULES]),
             fixableRuleIds: [...AGENTS_CONFIG_MANDATE_RULES],
             fix: options?.fix,
             id: 'validate_agents_config_mandate',
@@ -234,19 +234,18 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
         this.chatLanguageOption = options?.chatLanguage;
     }
     async runAudit() {
-        for (const rule of AGENTS_CONFIG_MANDATE_RULES) {
-            this.markRuleEvaluated(rule);
-        }
         const agentsMdPath = path.resolve(this.rootDir, 'AGENTS.md');
         this.recordScanned('AGENTS.md');
         if (!fsSync.existsSync(agentsMdPath)) {
             for (const rule of AGENTS_CONFIG_MANDATE_RULES) {
-                this.addViolation({
-                    ruleId: rule,
-                    severity: 'error',
-                    file: 'AGENTS.md',
-                    line: 1,
-                    message: 'No se encontró el archivo AGENTS.md en la raíz del proyecto para validar los mandatos de arquitectura.'
+                this.runSubAuditorSync(rule, () => {
+                    this.addViolation({
+                        ruleId: rule,
+                        severity: 'error',
+                        file: 'AGENTS.md',
+                        line: 1,
+                        message: 'No se encontró el archivo AGENTS.md en la raíz del proyecto para validar los mandatos de arquitectura.'
+                    });
                 });
             }
             return;
@@ -263,7 +262,9 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
         const targetLanguage = this.languageOption ?? config.documentation?.language ?? 'en';
         const chatLanguage = this.chatLanguageOption ?? config.documentation?.chatLanguage ?? 'es';
         for (const mandate of MANDATE_DEFINITIONS) {
-            content = this.auditSingleMandate(mandate, content, targetLanguage, chatLanguage, agentsMdPath);
+            this.runSubAuditorSync(mandate.ruleId, () => {
+                content = this.auditSingleMandate(mandate, content, targetLanguage, chatLanguage, agentsMdPath);
+            });
         }
     }
     auditSingleMandate(mandate, currentContent, targetLanguage, chatLanguage, agentsMdPath) {

@@ -157,12 +157,14 @@ async function checkIsCrossImported(constName, uniqueFiles, fileContentCache) {
     }
     return false;
 }
-function createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir) {
+function createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir, filter) {
     const normalizedValueA = decls[0].valueStr.replace(/\s+/g, '');
     const hasIdenticalValues = decls.every(d => d.valueStr.replace(/\s+/g, '') === normalizedValueA);
     const fileList = uniqueFiles.map(f => path.relative(process.cwd(), f)).join(', ');
     const violations = [];
     if (hasIdenticalValues) {
+        if (filter === 'divergent')
+            return violations;
         for (const decl of decls) {
             violations.push({
                 file: decl.file,
@@ -175,6 +177,8 @@ function createConstantViolations(constName, decls, uniqueFiles, targetConstants
         }
     }
     else {
+        if (filter === 'identical')
+            return violations;
         for (const decl of decls) {
             violations.push({
                 file: decl.file,
@@ -188,7 +192,7 @@ function createConstantViolations(constName, decls, uniqueFiles, targetConstants
     }
     return violations;
 }
-export async function detectDuplicateConstants(files, astContext, projectRoot = process.cwd()) {
+export async function detectDuplicateConstants(files, astContext, projectRoot = process.cwd(), filter) {
     const declarations = new Map();
     const astEngine = astContext ?? new SharedAstContext();
     const config = getAuditConfig(projectRoot);
@@ -207,7 +211,7 @@ export async function detectDuplicateConstants(files, astContext, projectRoot = 
             continue;
         const isCrossImported = await checkIsCrossImported(constName, uniqueFiles, fileContentCache);
         if (!isCrossImported) {
-            violations.push(...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir));
+            violations.push(...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir, filter));
         }
     }
     return violations;

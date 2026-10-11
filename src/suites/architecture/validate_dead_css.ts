@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
@@ -226,7 +226,7 @@ constructor(projectRoot: string = process.cwd()) {
     ];
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -236,7 +236,7 @@ constructor(projectRoot: string = process.cwd()) {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_dead_css',
       name: 'Scoped Dead CSS Auditor',
       description: 'Detecta clases CSS scoped huérfanas en componentes Vue',
@@ -274,29 +274,33 @@ constructor(projectRoot: string = process.cwd()) {
     const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
 
     if (componentFiles.length === 0) {
-      this.markRuleNotApplicable('dead-scoped-css', 'No se encontraron componentes .vue en el proyecto');
+      this.runSubAuditorSync('dead-scoped-css', () => {
+        this.markRuleNotApplicable('dead-scoped-css', 'No se encontraron componentes .vue en el proyecto');
+      });
+      return;
     }
 
     let scopedClassesChecked = 0;
 
-    for (const relPath of componentFiles) {
-      if (isTestPath(relPath)) continue;
-      const fullPath = path.resolve(this.projectRoot, relPath);
-      const relFile = toPosixRelative(this.projectRoot, fullPath);
-      this.recordScanned(relFile);
-      this.markRuleEvaluated('dead-scoped-css');
-      const rawContent = fs.readFileSync(fullPath, 'utf-8');
-      const scopedRules = extractScopedRulesFromVueContent(rawContent);
+    this.runSubAuditorSync('dead-scoped-css', () => {
+      for (const relPath of componentFiles) {
+        if (isTestPath(relPath)) continue;
+        const fullPath = path.resolve(this.projectRoot, relPath);
+        const relFile = toPosixRelative(this.projectRoot, fullPath);
+        this.recordScanned(relFile);
+        const rawContent = fs.readFileSync(fullPath, 'utf-8');
+        const scopedRules = extractScopedRulesFromVueContent(rawContent);
 
-      scopedClassesChecked += auditComponentScopedCss({
-        rawContent,
-        relFile,
-        scopedRules,
-        globalTokens,
-        globalUtilityClasses,
-        auditor: this
-      });
-    }
+        scopedClassesChecked += auditComponentScopedCss({
+          rawContent,
+          relFile,
+          scopedRules,
+          globalTokens,
+          globalUtilityClasses,
+          auditor: this
+        });
+      }
+    });
 
     this.context.setMetric('Components Scanned', this.filesScannedCount);
     this.context.setMetric('Scoped Classes', scopedClassesChecked);

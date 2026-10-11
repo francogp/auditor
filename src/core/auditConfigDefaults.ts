@@ -278,6 +278,23 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     exemptGlobs: [],
     acknowledgedDegradations: []
   },
+  webPerformance: {
+    enabled: true
+  },
+  queryPerformance: {
+    enabled: true
+  },
+  securityHardening: {
+    enabled: true
+  },
+  codeSimplification: {
+    enabled: true,
+    maxNestingDepth: 4
+  },
+  scssArchitecture: {
+    enabled: true,
+    maxNestingDepth: 3
+  },
   ratchet: {
     enabled: true,
     productionRef: 'origin/main',
@@ -336,7 +353,12 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'documentation',
     'gitIgnore',
     'coverage',
-    'animation'
+    'animation',
+    'webPerformance',
+    'queryPerformance',
+    'securityHardening',
+    'codeSimplification',
+    'scssArchitecture'
   ] as const;
   for (const k of keys) {
     if (config[k] !== undefined) declared.add(k);

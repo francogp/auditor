@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "6.12.2-build.20261010-154156",
+  "version": "7.0.0-build.20261011-150527",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,6 +21,7 @@
     ".agents/skills",
     "rules",
     "plugin.json",
+    "skills-lock.json",
     "setup-linux.sh",
     "setup-windows.ps1",
     "update-linux.sh",
@@ -213,7 +214,12 @@
     "auditor:auditor-hygiene": "auditor task=validate_auditor_hygiene",
     "auditor:script-extensions": "auditor task=validate_script_extensions",
     "auditor:magic-numbers": "auditor task=validate_magic_numbers",
-    "auditor:stylelint-config": "auditor task=validate_stylelint_config"
+    "auditor:stylelint-config": "auditor task=validate_stylelint_config",
+    "auditor:code-simplification": "auditor task=validate_code_simplification",
+    "auditor:scss-architecture": "auditor task=validate_scss_architecture",
+    "auditor:query-performance": "auditor task=validate_query_performance",
+    "auditor:web-performance": "auditor task=validate_web_performance",
+    "auditor:security-hardening": "auditor task=validate_security_hardening"
   },
   "dependencies": {
     "@arethetypeswrong/core": "^0.18.5",

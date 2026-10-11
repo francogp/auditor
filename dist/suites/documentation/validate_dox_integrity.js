@@ -16,7 +16,7 @@
  */
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveIgnoreDirs } from "../../core/auditorBase.js";
+import { BaseAuditor, getEffectiveIgnoreDirs, createRuleCapabilities } from "../../core/auditorBase.js";
 import { loadAuditConfig } from "../../core/auditConfig.js";
 import { checkDoxIntegrity } from "../../analyzers/doxAnalyzer.js";
 enableCompileCache();
@@ -33,7 +33,7 @@ export class DoxIntegrityAuditor extends BaseAuditor {
     constructor(rootDir) {
         const projectRoot = rootDir || process.cwd();
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(DOX_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: false,
@@ -43,7 +43,7 @@ export class DoxIntegrityAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_dox_integrity',
             name: 'DOX & AGENTS.md Integrity Validator',
             description: 'Valida jerarquía, estructura e integridad de AGENTS.md',
@@ -71,9 +71,6 @@ export class DoxIntegrityAuditor extends BaseAuditor {
     }
     async runAudit() {
         await loadAuditConfig(this.rootDir);
-        for (const r of DOX_RULES) {
-            this.markRuleEvaluated(r);
-        }
         const agentsFiles = await this.context.collectFiles(['.'], new Set(['.md']));
         for (const f of agentsFiles) {
             if (path.basename(f) === 'AGENTS.md') {
@@ -84,15 +81,19 @@ export class DoxIntegrityAuditor extends BaseAuditor {
             this.recordScanned('AGENTS.md');
         }
         const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
-        for (const v of rawViolations) {
-            const ruleId = v.ruleId || 'dox-missing-agents-md';
-            this.addViolation({
-                ruleId,
-                severity: v.severity || 'error',
-                file: v.file,
-                line: v.line || 1,
-                message: v.message,
-                context: v.context
+        for (const ruleId of DOX_RULES) {
+            this.runSubAuditorSync(ruleId, () => {
+                const ruleViolations = rawViolations.filter(v => (v.ruleId || 'dox-missing-agents-md') === ruleId);
+                for (const v of ruleViolations) {
+                    this.addViolation({
+                        ruleId,
+                        severity: v.severity || 'error',
+                        file: v.file,
+                        line: v.line || 1,
+                        message: v.message,
+                        context: v.context
+                    });
+                }
             });
         }
         this.context.setMetric('Total Violations Found', rawViolations.length);

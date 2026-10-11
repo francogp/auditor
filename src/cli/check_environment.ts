@@ -37,7 +37,12 @@ export function compareVersions(current: SemverVersion, required: SemverVersion)
   return current.patch >= required.patch;
 }
 
-export function getAuditorEngines(): { node: string; npm: string } {
+export interface AuditorEngineSpecs {
+  readonly node: string;
+  readonly npm: string;
+}
+
+export function getAuditorEngines(): AuditorEngineSpecs {
   const currentFilePath = fileURLToPath(import.meta.url);
   let dir = path.dirname(currentFilePath);
   const auditorPackageJsonPath = path.resolve(dir, '../../package.json');
@@ -173,7 +178,7 @@ export function checkEnvironment(targetDir: string = process.cwd(), autoRemediat
     return true;
   }
 
-  // Auto-remediación automática ejecutando el script de setup si está disponible en el proyecto
+  // Automatic remediation executing setup script if available in the host project
   const isWindows = process.platform === 'win32';
   const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
   const setupScriptPath = path.resolve(targetDir, setupScriptName);
@@ -201,7 +206,7 @@ export function checkEnvironment(targetDir: string = process.cwd(), autoRemediat
 }
 
 
-// Ejecución directa si se invoca como CLI / preinstall
+// Direct execution when invoked as CLI / preinstall
 if (isMainModule(import.meta.url)) {
   const success = checkEnvironment();
   if (!success) {

@@ -7,6 +7,7 @@
 import { styleText } from 'node:util';
 import path from 'node:path';
 import { padVisual } from "./terminalVisuals.js";
+import { formatNumber } from "./durationFormatter.js";
 const DEFAULT_MAX_FINDINGS_PREVIEW = 30;
 const DEFAULT_MAX_FILES_TREE = 10;
 export function groupFindingsByFile(findings) {
@@ -38,7 +39,7 @@ export function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_P
     for (const [file, items] of byFile) {
         if (shown >= maxLimit)
             break;
-        lines.push(`\n  📄 ${styleText('bold', file)} (🐛 ${items.length}):`);
+        lines.push(`\n  📄 ${styleText('bold', file)} (🐛 ${formatNumber(items.length)}):`);
         for (const item of items) {
             if (shown >= maxLimit)
                 break;
@@ -47,15 +48,15 @@ export function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_P
         }
     }
     if (findings.length > maxLimit) {
-        lines.push(styleText('cyan', `\n  ... y 🐛 ${findings.length - maxLimit} más. Usa --output=<archivo> para volcado completo.`));
+        lines.push(styleText('cyan', `\n  ... y 🐛 ${formatNumber(findings.length - maxLimit)} más. Usa --output=<archivo> para volcado completo.`));
     }
     return lines.join('\n');
 }
 function formatFileHeaderLine(fs) {
-    const errorBadge = fs.errors > 0 ? styleText('red', `${fs.errors} error${fs.errors > 1 ? 'es' : ''}`) : '';
-    const warnBadge = fs.warnings > 0 ? styleText('yellow', `${fs.warnings} advertencia${fs.warnings > 1 ? 's' : ''}`) : '';
+    const errorBadge = fs.errors > 0 ? styleText('red', `${formatNumber(fs.errors)} error${fs.errors > 1 ? 'es' : ''}`) : '';
+    const warnBadge = fs.warnings > 0 ? styleText('yellow', `${formatNumber(fs.warnings)} advertencia${fs.warnings > 1 ? 's' : ''}`) : '';
     const badges = [errorBadge, warnBadge].filter(Boolean).join(', ');
-    const badgeText = badges ? ` (${badges})` : ` (${fs.findings.length} incidencia${fs.findings.length > 1 ? 's' : ''})`;
+    const badgeText = badges ? ` (${badges})` : ` (${formatNumber(fs.findings.length)} incidencia${fs.findings.length > 1 ? 's' : ''})`;
     return `\n  📄 ${styleText('bold', fs.file)}${badgeText}`;
 }
 function formatFindingBranchLine(item, isLast) {
@@ -81,7 +82,7 @@ function renderSingleFileFindingsLines(fs, maxFindingsPerFile) {
         lines.push(formatFindingBranchLine(item, isLast));
     }
     if (fs.findings.length > displayedFindings.length) {
-        lines.push(`     ${styleText('dim', '└── ')}... y ${fs.findings.length - displayedFindings.length} incidencia(s) más en este archivo.`);
+        lines.push(`     ${styleText('dim', '└── ')}... y ${formatNumber(fs.findings.length - displayedFindings.length)} incidencia(s) más en este archivo.`);
     }
     return lines;
 }
@@ -101,7 +102,7 @@ export function renderFindingsByFileTree(fileSummaries, options = {}) {
         lines.push(...renderSingleFileFindingsLines(fs, options.maxFindingsPerFile));
     }
     if (fileSummaries.length > displayedFiles.length) {
-        lines.push(styleText('dim', `\n  ... y ${fileSummaries.length - displayedFiles.length} archivo(s) más con incidencias. Usa top=all o filtra con file=<patron>.`));
+        lines.push(styleText('dim', `\n  ... y ${formatNumber(fileSummaries.length - displayedFiles.length)} archivo(s) más con incidencias. Usa top=all o filtra con file=<patron>.`));
     }
     return lines.join('\n');
 }
@@ -111,17 +112,17 @@ export function formatSampleErrorLine(err, index) {
     const relPosixFile = relPath.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || fileInfo;
     const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
     const contextStr = err.context ? ` ("${err.context}")` : '';
-    return `    ${index + 1}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
+    return `    ${formatNumber(index + 1)}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
 }
 export function renderSampleErrors(errorFindings) {
     const lines = [];
     const sampleErrors = errorFindings.slice(0, 5);
-    lines.push(styleText('bold', `\n  ❌ Muestra de errores detectados (primeros ${sampleErrors.length}):`));
+    lines.push(styleText('bold', `\n  ❌ Muestra de errores detectados (primeros ${formatNumber(sampleErrors.length)}):`));
     for (let i = 0; i < sampleErrors.length; i++) {
         lines.push(formatSampleErrorLine(sampleErrors[i], i));
     }
     if (errorFindings.length > 5) {
-        lines.push(styleText('dim', `    ... y ${errorFindings.length - 5} error(es) más (ver reporte JSON completo).`));
+        lines.push(styleText('dim', `    ... y ${formatNumber(errorFindings.length - 5)} error(es) más (ver reporte JSON completo).`));
     }
     return lines;
 }

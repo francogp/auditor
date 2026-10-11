@@ -32,7 +32,7 @@ import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
   BaseAuditor
-} from '../../core/auditorBase.ts';
+, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { SharedAstContext } from '../../core/astContext.ts';
 
@@ -75,7 +75,7 @@ constructor() {
     ];
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -85,7 +85,7 @@ constructor() {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
 id: 'validate_test_hygiene',
       name: 'Test Hygiene & Simulation Integrity Validator',
       description: 'Audita higiene en tests, mocks y locators de Playwright',
@@ -115,21 +115,30 @@ id: 'validate_test_hygiene',
 
     // 1. Tautological mocks (integration only)
     if (isIntegration) {
-      this.markRuleEvaluated('no-tautological-integration-mocks');
-      this.scanIntegrationMocks(relPath, content);
+      this.runSubAuditorSync('no-tautological-integration-mocks', () => {
+        this.scanIntegrationMocks(relPath, content);
+      });
     }
 
     // 2. Playwright E2E simulation rules
     if (isE2e) {
-      this.markRuleEvaluated('playwright-id-locators-only');
-      this.markRuleEvaluated('no-playwright-force-click');
-      this.markRuleEvaluated('no-playwright-polling-waits');
-      this.scanE2eSimulations(relPath, content);
+      this.runSubAuditorSync('playwright-id-locators-only', () => {
+        this.scanPlaywrightLocators(relPath, content);
+      });
+
+      this.runSubAuditorSync('no-playwright-force-click', () => {
+        this.scanPlaywrightForceClick(relPath, content);
+      });
+
+      this.runSubAuditorSync('no-playwright-polling-waits', () => {
+        this.scanPlaywrightPollingWaits(relPath, content);
+      });
     }
 
     // 3. Timeout inflation (all test suites)
-    this.markRuleEvaluated('no-test-timeout-inflation');
-    this.scanTimeoutInflation(relPath, content);
+    this.runSubAuditorSync('no-test-timeout-inflation', () => {
+      this.scanTimeoutInflation(relPath, content);
+    });
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
@@ -178,70 +187,81 @@ id: 'validate_test_hygiene',
     }
   }
 
-  private scanE2eSimulations(relPath: string, content: string): void {
-    const config = getAuditConfig();
-    const shouldCheckIdLocatorsOnly = config.e2e?.idLocatorsOnly === true;
+  private scanLineRegexRule(
+    relPath: string,
+    content: string,
+    ruleId: TestHygieneRuleId,
+    regex: RegExp,
+    ignoreTags: string[],
+    messageFn: (line: string, match: RegExpExecArray) => string
+  ): void {
     const lines = content.split('\n');
-
     for (let i = 0; i < lines.length; i++) {
       const lineContent = lines[i];
-      if (!lineContent) continue;
-
-      if (shouldCheckIdLocatorsOnly && PLAYWRIGHT_TEXT_LOCATOR_REGEX.test(lineContent) && !this.isLineIgnored(lineContent, ['locator-ok'])) {
+      if (!lineContent || this.isLineIgnored(lineContent, ignoreTags)) continue;
+      const match = regex.exec(lineContent);
+      if (match) {
         this.addViolation({
-          ruleId: 'playwright-id-locators-only',
+          ruleId,
           severity: 'error',
           file: relPath,
           line: i + 1,
-          message: `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`,
-          context: lineContent.trim()
-        });
-      }
-
-      if (FORCE_CLICK_REGEX.test(lineContent) && !this.isLineIgnored(lineContent, ['force-ok'])) {
-        this.addViolation({
-          ruleId: 'no-playwright-force-click',
-          severity: 'error',
-          file: relPath,
-          line: i + 1,
-          message: `Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.`,
-          context: lineContent.trim()
-        });
-      }
-
-      if (WAIT_FOR_TIMEOUT_REGEX.test(lineContent) && !this.isLineIgnored(lineContent, ['wait-ok'])) {
-        this.addViolation({
-          ruleId: 'no-playwright-polling-waits',
-          severity: 'error',
-          file: relPath,
-          line: i + 1,
-          message: `Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.`,
+          message: messageFn(lineContent, match),
           context: lineContent.trim()
         });
       }
     }
+  }
+
+  private scanPlaywrightLocators(relPath: string, content: string): void {
+    const config = getAuditConfig();
+    if (config.e2e?.idLocatorsOnly !== true) return;
+    this.scanLineRegexRule(
+      relPath,
+      content,
+      'playwright-id-locators-only',
+      PLAYWRIGHT_TEXT_LOCATOR_REGEX,
+      ['locator-ok'],
+      () => `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`
+    );
+  }
+
+  private scanPlaywrightForceClick(relPath: string, content: string): void {
+    this.scanLineRegexRule(
+      relPath,
+      content,
+      'no-playwright-force-click',
+      FORCE_CLICK_REGEX,
+      ['force-ok'],
+      () => `Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.`
+    );
+  }
+
+  private scanPlaywrightPollingWaits(relPath: string, content: string): void {
+    this.scanLineRegexRule(
+      relPath,
+      content,
+      'no-playwright-polling-waits',
+      WAIT_FOR_TIMEOUT_REGEX,
+      ['wait-ok'],
+      () => `Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.`
+    );
   }
 
   private scanTimeoutInflation(relPath: string, content: string): void {
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const lineContent = lines[i];
-      if (!lineContent || this.isLineIgnored(lineContent, ['timeout-ok'])) continue;
-
-      const match = TIMEOUT_INFLATION_REGEX.exec(lineContent);
-      if (match) {
+    this.scanLineRegexRule(
+      relPath,
+      content,
+      'no-test-timeout-inflation',
+      TIMEOUT_INFLATION_REGEX,
+      ['timeout-ok'],
+      (_line, match) => {
         const timeoutMs = match[1] || match[2] || 'unknown';
-        this.addViolation({
-          ruleId: 'no-test-timeout-inflation',
-          severity: 'error',
-          file: relPath,
-          line: i + 1,
-          message: `Test timeout inflation detected (${timeoutMs}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`,
-          context: lineContent.trim()
-        });
+        return `Test timeout inflation detected (${timeoutMs}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`;
       }
-    }
+    );
   }
+
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

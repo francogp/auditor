@@ -93,16 +93,29 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         configKey: 'paths',
         defaultConfig: {},
         criticalConfig: {},
-        capabilities: {
-          fix: isFix,
-          fixPriority: false,
-          lint: true,
-          md: false,
-          ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
+        ruleCapabilities: {
+          'custom-config-missing': {
+            fix: isFix,
+            fixPriority: false,
+            lint: true,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          },
+          'custom-content-valid': {
+            fix: false,
+            fixPriority: false,
+            lint: true,
+            md: false,
+            ast: false,
+            changedSince: false,
+            heavy: false,
+            requiresBuild: false,
+            postRun: false
+          }
         },
         fixableRuleIds: isFix ? ['custom-config-missing'] : undefined,
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
@@ -198,16 +211,18 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: true,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+          ruleCapabilities: {
+            'optional-config-missing': {
+              fix: false,
+              fixPriority: false,
+              lint: true,
+              md: false,
+              ast: false,
+              changedSince: false,
+              heavy: false,
+              requiresBuild: false,
+              postRun: false
+            }
           },
           ruleIds: ['optional-config-missing'],
           ruleDescriptions: {

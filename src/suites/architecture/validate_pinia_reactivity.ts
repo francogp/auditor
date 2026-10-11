@@ -20,7 +20,7 @@
 
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
@@ -75,7 +75,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     super({
       roots: piniaRoots,
       projectRoot,
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(PINIA_REACTIVITY_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -85,7 +85,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',
       description: 'Protege reactividad e integridad de stores de Pinia',
@@ -203,16 +203,25 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
 
     const storeVariables = new Set<string>();
 
-    const visit = (node: ts.Node) => {
-      if (ts.isVariableDeclaration(node)) {
-        this.checkStoreVariableDeclaration(node, sf, content, relPath, storeVariables, isStoreFile);
-      } else {
-        this.checkStateMutation(node, sf, content, relPath, storeVariables, isAuthorized);
-      }
-      ts.forEachChild(node, visit);
-    };
+    this.runSubAuditorSync('no-store-destructuring-without-storetorefs', () => {
+      const visitDestructuring = (node: ts.Node) => {
+        if (ts.isVariableDeclaration(node)) {
+          this.checkStoreVariableDeclaration(node, sf, content, relPath, storeVariables, isStoreFile);
+        }
+        ts.forEachChild(node, visitDestructuring);
+      };
+      visitDestructuring(sf);
+    });
 
-    visit(sf);
+    this.runSubAuditorSync('no-direct-state-mutation-outside-actions', () => {
+      const visitMutations = (node: ts.Node) => {
+        if (!ts.isVariableDeclaration(node)) {
+          this.checkStateMutation(node, sf, content, relPath, storeVariables, isAuthorized);
+        }
+        ts.forEachChild(node, visitMutations);
+      };
+      visitMutations(sf);
+    });
   }
 }
 

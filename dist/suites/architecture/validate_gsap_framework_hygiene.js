@@ -16,7 +16,7 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_gsap_framework_hygiene.ts
  */
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from "../../core/auditConfig.js";
 import { normalizePosixPath as normalizeFilePath } from "../../core/safePath.js";
 import { scanBalancedParens } from "../../core/scannerUtils.js";
@@ -59,7 +59,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(GSAP_FRAMEWORK_HYGIENE_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -69,7 +69,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.jsx']),
             ruleIds: GSAP_FRAMEWORK_HYGIENE_RULES,
@@ -83,21 +83,35 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
     }
     scanFile(relPath, content) {
         const norm = normalizeFilePath(relPath);
-        const isCodeFile = norm.endsWith('.ts') || norm.endsWith('.vue') || norm.endsWith('.tsx') || norm.endsWith('.jsx');
-        if (!isCodeFile || isExemptFile(relPath))
+        if (!this.isCodeFile(norm) || isExemptFile(relPath))
             return;
+        this.runSubAuditorSync('gsap-unscoped-component-selectors', () => {
+            if (this.isUiComponent(norm) && isInCodeRoots(relPath)) {
+                this.scanUnscopedSelectors(relPath, content);
+            }
+        });
+        this.runSubAuditorSync('gsap-missing-context-revert', () => {
+            if (this.isUiComponent(norm) && isInCodeRoots(relPath)) {
+                this.scanContextRevert(relPath, content);
+            }
+        });
+        this.runSubAuditorSync('gsap-missing-plugin-registration', () => {
+            this.scanPluginRegistration(relPath, content);
+        });
+        this.runSubAuditorSync('gsap-banned-devtools-production', () => {
+            this.scanDevtoolsProduction(relPath, content);
+        });
+    }
+    isCodeFile(norm) {
+        return norm.endsWith('.ts') || norm.endsWith('.vue') || norm.endsWith('.tsx') || norm.endsWith('.jsx');
+    }
+    isUiComponent(norm) {
         const config = getAuditConfig(this.projectRoot);
         const uiRoots = [
             ...(config.paths.componentsRoots ?? ['src/components']),
             ...(config.paths.viewsRoots ?? ['src/views'])
         ];
-        const isUiComponent = norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
-        if (isUiComponent && isInCodeRoots(relPath)) {
-            this.scanUnscopedSelectors(relPath, content);
-            this.scanContextRevert(relPath, content);
-        }
-        this.scanPluginRegistration(relPath, content);
-        this.scanDevtoolsProduction(relPath, content);
+        return norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
     }
     scanUnscopedSelectors(relPath, content) {
         const scopeRanges = findGsapScopeRanges(content);

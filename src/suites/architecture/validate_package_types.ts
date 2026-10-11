@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { checkPackage, Package, type Problem } from '@arethetypeswrong/core';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
@@ -201,7 +201,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
   constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(PACKAGE_TYPES_RULES, {
         fix: false,
         fixPriority: false,
         lint: false,
@@ -211,7 +211,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
         heavy: false,
         requiresBuild: true,
         postRun: false
-      },
+      }),
       id: 'validate_package_types',
       name: 'Package Types Resolution Validator',
       description: 'Valida resolución de tipos .d.ts en dist con ATTW',
@@ -239,7 +239,6 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
       return;
     }
 
-    PACKAGE_TYPES_RULES.forEach((r) => this.markRuleEvaluated(r));
     this.recordScanned('package.json');
 
     const pkgJsonPath = path.resolve(this.projectRoot, 'package.json');
@@ -261,17 +260,22 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
     const pkg = createPackageFromDirectory(this.projectRoot);
     const checkResult = await checkPackage(pkg);
     const problems = checkResult.types ? checkResult.problems : [];
-
     const findings = parseAttwProblems(problems, pkgJson);
-    for (const f of findings) {
-      const finalSeverity = configuredLevel === 'warning' ? 'warning' : f.severity;
-      this.addViolation({
-        ruleId: f.ruleId as PackageTypesRuleId,
-        severity: finalSeverity,
-        file: f.file,
-        line: f.line,
-        context: f.context,
-        message: f.message
+
+    for (const ruleId of PACKAGE_TYPES_RULES) {
+      this.runSubAuditorSync(ruleId, () => {
+        const ruleFindings = findings.filter(f => f.ruleId === ruleId);
+        for (const f of ruleFindings) {
+          const finalSeverity = configuredLevel === 'warning' ? 'warning' : f.severity;
+          this.addViolation({
+            ruleId,
+            severity: finalSeverity,
+            file: f.file,
+            line: f.line,
+            context: f.context,
+            message: f.message
+          });
+        }
       });
     }
   }

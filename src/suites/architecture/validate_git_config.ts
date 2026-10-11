@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, type AuditorOptions } from '../../core/auditorBase.ts';
+import { BaseAuditor, type AuditorOptions , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 
 enableCompileCache();
@@ -71,17 +71,17 @@ export function setLocalGitConfig(key: string, value: string, projectRoot: strin
 export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
   constructor(options: Partial<AuditorOptions<GitConfigRuleId>> = {}) {
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
-        lint: true,
+        lint: false,
         md: false,
         ast: false,
         changedSince: false,
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, [...GIT_CONFIG_RULES]),
       fixableRuleIds: [...GIT_CONFIG_RULES],
       id: 'validate_git_config',
       name: 'Git Configuration Validator',
@@ -120,27 +120,27 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
     }
 
     for (const item of REQUIRED_GIT_CONFIGS) {
-      let currentVal = getLocalGitConfig(item.key, this.projectRoot);
+      this.runSubAuditorSync(item.ruleId, () => {
+        let currentVal = getLocalGitConfig(item.key, this.projectRoot);
 
-      if (currentVal !== item.expected && this.isFixActive()) {
-        const ok = setLocalGitConfig(item.key, item.expected, this.projectRoot);
-        if (ok) {
-          currentVal = getLocalGitConfig(item.key, this.projectRoot);
+        if (currentVal !== item.expected && this.isFixActive()) {
+          const ok = setLocalGitConfig(item.key, item.expected, this.projectRoot);
+          if (ok) {
+            currentVal = getLocalGitConfig(item.key, this.projectRoot);
+          }
         }
-      }
 
-      if (currentVal !== item.expected) {
-        this.addViolation({
-          ruleId: item.ruleId,
-          file: '.git/config',
-          line: 1,
-          message: `${item.key} debe ser "${item.expected}" en el repositorio local (detectado: "${currentVal ?? 'no configurado'}").`,
-          severity: 'error',
-          context: `${item.key} = ${currentVal ?? 'unset'}`
-        });
-      }
-
-      this.markRuleEvaluated(item.ruleId);
+        if (currentVal !== item.expected) {
+          this.addViolation({
+            ruleId: item.ruleId,
+            file: '.git/config',
+            line: 1,
+            message: `${item.key} debe ser "${item.expected}" en el repositorio local (detectado: "${currentVal ?? 'no configurado'}").`,
+            severity: 'error',
+            context: `${item.key} = ${currentVal ?? 'unset'}`
+          });
+        }
+      });
     }
   }
 }

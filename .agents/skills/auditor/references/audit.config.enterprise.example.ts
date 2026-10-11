@@ -284,6 +284,41 @@ export default defineAuditConfig({
     enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires audit:build)
   },
 
+  webPerformance: {
+    enabled: true, // Frontend web performance hygiene and Core Web Vitals optimization
+    maxDomDepth: 32, // Maximum DOM tree nesting depth before triggering complexity warnings
+    maxInlineSvgBytes: 4096, // Maximum byte size for inline SVG strings before mandating external sprite/file
+    maxUncompressedVideoBytes: 10485760 // Maximum uncompressed video asset size (10 MB)
+  },
+
+  queryPerformance: {
+    enabled: true, // Database query performance and anti-pattern static analysis
+    enforceSelectStar: true, // Prohibits unbounded SELECT * queries in data access layers
+    enforcePagination: true, // Requires explicit limit/pagination on collection queries
+    enforceNPlusOneDetection: true // Statically detects N+1 query patterns inside array loops
+  },
+
+  securityHardening: {
+    enabled: true, // Static security hygiene and OWASP Top 10 hardening guardrails
+    enforceInsecureRandom: true, // Prohibits Math.random() for security-sensitive operations in favor of crypto.getRandomValues()
+    enforceVulnerableRegex: true, // Statically detects polynomial/exponential regular expressions vulnerable to ReDoS
+    enforceEvalDetection: true // Prohibits eval(), new Function(), and dangerous dynamic code evaluation
+  },
+
+  codeSimplification: {
+    enabled: true, // Pragmatic code complexity and anti-pattern static governance
+    maxNestingDepth: 4, // Maximum nested control-flow depth (if/for/while) allowed before mandating guard clauses
+    maxBooleanParams: 2, // Maximum consecutive boolean parameters in function signatures to avoid boolean traps
+    maxSwitchCases: 10 // Maximum cases per switch statement before mandating polymorphic dispatch
+  },
+
+  scssArchitecture: {
+    enabled: true, // SCSS modular styling architecture and token hygiene
+    maxNestingDepth: 4, // Maximum selector nesting depth allowed in SCSS and Vue SFC <style> blocks
+    enforceThemeTokens: true, // Mandates using design system theme tokens and SCSS variables for styling values
+    bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc'] // Obsolete print/physical units strictly prohibited in web stylesheets
+  },
+
   domain: {
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions

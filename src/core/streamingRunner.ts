@@ -11,6 +11,7 @@
 
 import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
+import { formatDurationMs } from './unifiedTheme.ts';
 import { type AuditTaskDefinition, type SubAuditorReport } from './auditContract.ts';
 
 export interface TaskStreamProgressParams {
@@ -107,7 +108,7 @@ export class TaskStreamCoordinator {
 
     const taskIcon = params.icon ?? (params.isBuiltin === false ? '🧩' : '⚙️');
 
-    console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
+    console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', formatDurationMs(params.durationMs))}`);
 
     const subIndent = `${this.indent}   `;
     for (const line of params.subLines) {

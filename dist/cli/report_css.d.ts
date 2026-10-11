@@ -2,7 +2,7 @@
 /**
  * packages/auditor/src/cli/report_css.ts
  *
- * CLI TOOL: REPORTE DE CALIDAD, DUPLICACIÓN Y PATRONES CSS (STYLELINT ENGINE)
+ * CLI TOOL: CSS QUALITY, DUPLICATION AND PATTERNS REPORT (STYLELINT ENGINE)
  *
  * Generates an 80-column Box-Drawing report or structured JSON output of CSS issues:
  * duplicate selectors, duplicate properties, empty blocks, order, and SCSS syntax.

@@ -17,7 +17,7 @@ import {
 } from '../src/suites/architecture/validate_error_suppression.ts';
 
 class TestableErrorSuppressionAuditor extends ErrorSuppressionAuditor {
-  public testScanFile(relPath: string, content: string): void {
+  public override testScanFile(relPath: string, content: string): void {
     this.scanFile(relPath, content);
   }
 }

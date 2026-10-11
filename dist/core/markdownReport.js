@@ -5,6 +5,7 @@
  */
 import path from 'node:path';
 import { FAMILY_METADATA, groupResultsByFamily } from "./auditContract.js";
+import { formatDurationMs, formatNumber } from "./durationFormatter.js";
 function getTaskStatusIcon(t) {
     if (t.status === 'skipped')
         return '⏭️ Skip';
@@ -17,12 +18,13 @@ function getTaskPrimaryMetric(t) {
     if (metricEntries.length === 0)
         return '-';
     const [firstKey, firstVal] = metricEntries[0];
-    return `${firstVal} ${firstKey}`;
+    const valStr = typeof firstVal === 'number' ? formatNumber(firstVal) : firstVal;
+    return `${valStr} ${firstKey}`;
 }
 function renderMarkdownFamilyRow(t) {
     const icon = getTaskStatusIcon(t);
     const metricStr = getTaskPrimaryMetric(t);
-    return `| ${icon} | **${t.name}** | \`${t.durationMs}ms\` | ${metricStr} | ${t.summary.errors} | ${t.summary.warnings} |\n`;
+    return `| ${icon} | **${t.name}** | \`${formatDurationMs(t.durationMs)}\` | ${metricStr} | ${formatNumber(t.summary.errors)} | ${formatNumber(t.summary.warnings)} |\n`;
 }
 function renderSingleFamilySection(familyKey, tasks) {
     const meta = FAMILY_METADATA[familyKey];
@@ -56,7 +58,7 @@ function renderMarkdownFindingsTable(allFindings) {
         md += `| ${sevIcon} | ${filePath} | ${lineStr} | ${ruleStr} | ${f.message.replace(/\|/g, '\\|')} |\n`;
     }
     if (allFindings.length > 100) {
-        md += `\n*... y 🐛 ${allFindings.length - 100} más truncadas por longitud.*\n`;
+        md += `\n*... y 🐛 ${formatNumber(allFindings.length - 100)} más truncadas por longitud.*\n`;
     }
     return md;
 }
@@ -66,9 +68,9 @@ export function renderMarkdownReport(results, suitesPassed, totalDurationMs) {
     const isPassed = totalErrors === 0;
     let md = `# 🛡️ Reporte Consolidado de Auditoría Global\n\n`;
     md += `**Estado**: ${isPassed ? '✅ Aprobado' : '❌ Fallido'}\n`;
-    md += `**Duración Total**: \`${totalDurationMs}ms\`\n`;
-    md += `**Suites**: \`${suitesPassed} / ${results.length} Aprobadas\`\n`;
-    md += `**Errores**: \`${totalErrors}\` | **Advertencias**: \`${totalWarnings}\`\n\n`;
+    md += `**Duración Total**: \`${formatDurationMs(totalDurationMs)}\`\n`;
+    md += `**Suites**: \`${formatNumber(suitesPassed)} / ${formatNumber(results.length)} Aprobadas\`\n`;
+    md += `**Errores**: \`${formatNumber(totalErrors)}\` | **Advertencias**: \`${formatNumber(totalWarnings)}\`\n\n`;
     const byFamily = groupResultsByFamily(results);
     md += renderMarkdownFamilyTables(byFamily);
     md += renderMarkdownFindingsTable(results.flatMap(r => r.findings));

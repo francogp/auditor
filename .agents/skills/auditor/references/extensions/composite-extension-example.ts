@@ -55,10 +55,11 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       family: 'domain_data',
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
-      configKey: 'domain.enabled',
-      capabilities: {
-        fix: true,
-        fixPriority: true
+      ruleCapabilities: {
+        'host-catalog-sync': { fix: false, fixPriority: false, lint: true, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+        'host-schema-invariants': { fix: false, fixPriority: false, lint: true, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+        'host-state-consistency': { fix: false, fixPriority: false, lint: true, md: false, ast: true, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
+        'host-missing-config': { fix: true, fixPriority: true, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
       },
       defaultConfig: {
         enabled: true
@@ -80,19 +81,16 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    // 1. Mark all rules evaluated for audit coverage ledger
-    for (const rule of HOST_DOMAIN_RULES) {
-      this.markRuleEvaluated(rule);
-    }
-
-    // 2. Load shared domain resources once (zero redundant disk I/O)
+    // 1. Load shared domain resources once (zero redundant disk I/O)
     const domainFiles = this.context.collectFiles(['src/domain'], new Set(['.ts', '.json']));
     for (const f of domainFiles) {
       this.recordScanned(f);
     }
 
-    // 3. Declarative config verification & auto-creation in --fix mode
-    const missingConfigs = await this.verifyAndFixConfigFiles();
+    // 2. Declarative config verification & auto-creation in --fix mode (timed individually with generic return value)
+    const missingConfigs = await this.runSubAuditor('host-missing-config', async () => {
+      return await this.verifyAndFixConfigFiles();
+    });
     for (const missing of missingConfigs) {
       this.addViolation({
         ruleId: 'host-missing-config',
@@ -105,19 +103,20 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       });
     }
 
-    // 4. Sub-auditor 1: Catalog Synchronization
-    await this.runCatalogSyncSubAuditor(domainFiles);
+    // 3. Sub-auditor 1: Catalog Synchronization (timed individually)
+    await this.runSubAuditor('host-catalog-sync', async () => {
+      await this.runCatalogSyncSubAuditor(domainFiles);
+    });
 
-    // 5. Sub-auditor 2: Schema Invariants
-    await this.runSchemaInvariantsSubAuditor(domainFiles);
+    // 4. Sub-auditor 2: Schema Invariants (timed individually)
+    await this.runSubAuditor('host-schema-invariants', async () => {
+      await this.runSchemaInvariantsSubAuditor(domainFiles);
+    });
 
-    // 6. Sub-auditor 3: State Consistency
-    await this.runStateConsistencySubAuditor(domainFiles);
-
-    // 7. ATOMIC CONSOLE REPORTING:
-    // All sub-auditors have completed. BaseAuditor will automatically emit
-    // the progress lines (│  🔍 [1/3] ...) atomically, preventing terminal interleaving.
-    this.ensureSubAuditorsLogged();
+    // 5. Sub-auditor 3: State Consistency (timed individually)
+    await this.runSubAuditor('host-state-consistency', async () => {
+      await this.runStateConsistencySubAuditor(domainFiles);
+    });
   }
 
   private async runCatalogSyncSubAuditor(_files: readonly string[]): Promise<void> {

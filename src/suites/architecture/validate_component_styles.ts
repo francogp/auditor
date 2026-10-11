@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
@@ -188,56 +188,7 @@ function seedRootScssGraph(
   }
 }
 
-function auditStyleLinkage(
-  file: string,
-  relPath: string,
-  content: string,
-  srcDir: string,
-  trackScssFile: (p: string) => void,
-  auditor: ComponentStylesAuditor
-): void {
-  const scssMatches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']|src=["']([^"']+\.scss)["']/g);
-  for (const m of scssMatches) {
-    const importTarget = m[1] || m[2];
-    if (importTarget) {
-      const resolved = resolveSassPath(importTarget, file, srcDir);
-      if (resolved) trackScssFile(resolved);
-    }
-  }
 
-  const parsed = parseVueSfc(content);
-  for (const style of parsed.styles) {
-    const srcPath = typeof style.attributes['src'] === 'string' ? style.attributes['src'] : undefined;
-    if (srcPath) {
-      const resolved = resolveSassPath(srcPath, file, srcDir);
-      if (!resolved) {
-        auditor.recordViolation(
-          {
-            file: relPath,
-            type: 'broken_style_link',
-            message: `Style src points to non-existent file: ${srcPath}`
-          },
-          'broken-style-link',
-          style.rawBlock
-        );
-      } else {
-        trackScssFile(resolved);
-      }
-    }
-  }
-
-  if (content.includes('style-inherited')) {
-    auditor.recordViolation(
-      {
-        file: relPath,
-        type: 'banned_style_inherited',
-        message: `Directiva ilegal '// ' + 'style-inherited' detectada. Los estilos scoped en Vue 3 no penetran a componentes hijos; cada SFC debe declarar o enlazar explícitamente sus propios estilos.`
-      },
-      'banned-style-inherited',
-      'style-inherited'
-    );
-  }
-}
 
 function checkButtonStyleOverrides(
   relPath: string,
@@ -469,16 +420,66 @@ function auditVueComponent(
   const content = fs.readFileSync(file, 'utf-8');
   const relPath = toPosixRelative(projectRoot, file);
 
-  auditStyleLinkage(file, relPath, content, srcDir, trackScssFile, auditor);
+  const scssMatches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']|src=["']([^"']+\.scss)["']/g);
+  for (const m of scssMatches) {
+    const importTarget = m[1] || m[2];
+    if (importTarget) {
+      const resolved = resolveSassPath(importTarget, file, srcDir);
+      if (resolved) trackScssFile(resolved);
+    }
+  }
+
+  auditor.runSubAuditorSync('broken-style-link', () => {
+    const parsed = parseVueSfc(content);
+    for (const style of parsed.styles) {
+      const srcPath = typeof style.attributes['src'] === 'string' ? style.attributes['src'] : undefined;
+      if (srcPath) {
+        const resolved = resolveSassPath(srcPath, file, srcDir);
+        if (!resolved) {
+          auditor.recordViolation(
+            {
+              file: relPath,
+              type: 'broken_style_link',
+              message: `Style src points to non-existent file: ${srcPath}`
+            },
+            'broken-style-link',
+            style.rawBlock
+          );
+        } else {
+          trackScssFile(resolved);
+        }
+      }
+    }
+  });
+
+  auditor.runSubAuditorSync('banned-style-inherited', () => {
+    if (content.includes('style-inherited')) {
+      auditor.recordViolation(
+        {
+          file: relPath,
+          type: 'banned_style_inherited',
+          message: `Directiva ilegal '// ' + 'style-inherited' detectada. Los estilos scoped en Vue 3 no penetran a componentes hijos; cada SFC debe declarar o enlazar explícitamente sus propios estilos.`
+        },
+        'banned-style-inherited',
+        'style-inherited'
+      );
+    }
+  });
 
   const sfc = parseVueSfc(content);
-  auditButtonGovernance(relPath, content, sfc.styles, config, auditor);
+  auditor.runSubAuditorSync('ad-hoc-button-styles', () => {
+    auditButtonGovernance(relPath, content, sfc.styles, config, auditor);
+  });
 
-  const hasValidStyle = checkHasValidStyle(sfc.styles);
-  auditMissingStyleTag(relPath, content, hasValidStyle, auditor);
+  auditor.runSubAuditorSync('missing-style-tag', () => {
+    const hasValidStyle = checkHasValidStyle(sfc.styles);
+    auditMissingStyleTag(relPath, content, hasValidStyle, auditor);
+  });
 
   if (enforceScss) {
-    auditScssEnforcement(file, relPath, content, sfc.styles, auditor);
+    auditor.runSubAuditorSync('banned-plain-css-style', () => {
+      auditScssEnforcement(file, relPath, content, sfc.styles, auditor);
+    });
   }
 }
 
@@ -526,7 +527,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     ]));
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(COMPONENT_STYLE_RULES, {
         fix: true,
         fixPriority: false,
         lint: true,
@@ -536,7 +537,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, ['banned-plain-css-style']),
       fixableRuleIds: ['banned-plain-css-style'],
       fix: options.fix,
       id: 'validate_component_styles',
@@ -639,11 +640,12 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     }
 
     if (enforceScss) {
-      this.markRuleEvaluated('banned-raw-css-file');
-      for (const file of cssFiles) {
-        this.recordScanned(file);
-      }
-      auditRawCssFiles(cssFiles, this.projectRoot, exemptCssFiles, this);
+      this.runSubAuditorSync('banned-raw-css-file', () => {
+        for (const file of cssFiles) {
+          this.recordScanned(file);
+        }
+        auditRawCssFiles(cssFiles, this.projectRoot, exemptCssFiles, this);
+      });
     }
 
     const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
@@ -652,30 +654,16 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
 
     for (const file of vueFiles) {
       this.recordScanned(file);
-      this.markRuleEvaluated('broken-style-link');
-      this.markRuleEvaluated('missing-style-tag');
-      this.markRuleEvaluated('banned-style-inherited');
-      this.markRuleEvaluated('ad-hoc-button-styles');
-      if (enforceScss) {
-        this.markRuleEvaluated('banned-plain-css-style');
-      }
       auditVueComponent(file, this.projectRoot, srcDir, trackScssFile, config, this, enforceScss);
     }
 
     for (const file of scssFiles) {
       this.recordScanned(file);
-      this.markRuleEvaluated('orphaned-scss');
     }
 
-    auditOrphanedScss(stylesRoots, scssFiles, importedScssFiles, this.projectRoot, this);
-
-    const subAuditors = this.getSubAuditors();
-    const totalSteps = subAuditors.length;
-    for (let i = 0; i < subAuditors.length; i++) {
-      const sub = subAuditors[i]!;
-      const count = this.countsByRule.get(sub.id as ComponentStyleRuleId) ?? 0;
-      this.logSubAudit(i + 1, totalSteps, sub.name, count);
-    }
+    this.runSubAuditorSync('orphaned-scss', () => {
+      auditOrphanedScss(stylesRoots, scssFiles, importedScssFiles, this.projectRoot, this);
+    });
   }
 }
 

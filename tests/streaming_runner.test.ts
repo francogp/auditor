@@ -64,7 +64,7 @@ describe('streamingRunner Core Utility', () => {
       expect(headerLine).toContain('01/02');
       expect(headerLine).toContain('50%');
       expect(headerLine).toContain('✅');
-      expect(headerLine).toContain('45ms');
+      expect(headerLine).toContain('45 ms');
 
       const subLine1 = outputCalls.find((line: string) => line.includes('Checking snake_case'));
       expect(subLine1).toBeDefined();

@@ -10,6 +10,7 @@
  */
 import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
+import { formatDurationMs } from "./unifiedTheme.js";
 export const STREAM_LINE_SEVERITY_COLORS = ['red', 'yellow', 'dim'];
 function getColorFromSubAuditor(line, subAuditors) {
     if (!subAuditors)
@@ -80,7 +81,7 @@ export class TaskStreamCoordinator {
                 ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
                 : styleText('red', '❌');
         const taskIcon = params.icon ?? (params.isBuiltin === false ? '🧩' : '⚙️');
-        console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', `${params.durationMs}ms`)}`);
+        console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', formatDurationMs(params.durationMs))}`);
         const subIndent = `${this.indent}   `;
         for (const line of params.subLines) {
             const coloredLine = colorizeStreamSubLine(line, params);

@@ -17,18 +17,22 @@ import {
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
 
 export type DocumentationLanguageRuleId =
   | 'docs-unauthorized-language'
-  | 'docs-missing-language-mandate';
+  | 'docs-missing-language-mandate'
+  | 'code-comment-unauthorized-language';
 
 export const DOCUMENTATION_LANGUAGE_RULES: readonly DocumentationLanguageRuleId[] = [
   'docs-unauthorized-language',
-  'docs-missing-language-mandate'
+  'docs-missing-language-mandate',
+  'code-comment-unauthorized-language'
 ] as const;
 
 export const CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN =
@@ -210,6 +214,177 @@ export function evaluateParagraphLanguage(
   return { isUnauthorized: false, detectedLang };
 }
 
+export interface ExtractedCodeComment {
+  readonly startLine: number;
+  readonly text: string;
+}
+
+function skipStringLiteral(source: string, index: number, quote: string, len: number): { nextIndex: number; newlines: number } {
+  let i = index + 1;
+  let newlines = 0;
+  while (i < len) {
+    if (source[i] === '\n') newlines++;
+    if (source[i] === '\\') {
+      if (source[i + 1] === '\n') newlines++;
+      i += 2;
+      continue;
+    }
+    if (source[i] === quote) {
+      i++;
+      break;
+    }
+    i++;
+  }
+  return { nextIndex: i, newlines };
+}
+
+function parseLineComment(source: string, index: number, len: number, currentLine: number): { comment: ExtractedCodeComment; nextIndex: number } {
+  const startIdx = index + 2;
+  let i = startIdx;
+  while (i < len && source[i] !== '\n') {
+    i++;
+  }
+  return {
+    comment: { startLine: currentLine, text: source.slice(startIdx, i).trim() },
+    nextIndex: i
+  };
+}
+
+function parseBlockComment(source: string, index: number, len: number, currentLine: number): { comment: ExtractedCodeComment; nextIndex: number; newlines: number } {
+  const startIdx = index + 2;
+  let i = startIdx;
+  let newlines = 0;
+  while (i < len && !(source[i] === '*' && source[i + 1] === '/')) {
+    if (source[i] === '\n') newlines++;
+    i++;
+  }
+  const rawText = source.slice(startIdx, i).trim();
+  return {
+    comment: { startLine: currentLine, text: rawText },
+    nextIndex: Math.min(len, i + 2),
+    newlines
+  };
+}
+
+function prepareSourceForCommentExtraction(content: string, ext: string): string {
+  if (ext !== '.vue') return content;
+  const sfc = parseVueSfcBlocks(content);
+  const scriptParts: string[] = [];
+  for (const s of sfc.scripts) {
+    const offset = s.contentStartIndex;
+    const newlinesBefore = (content.slice(0, offset).match(/\n/g) || []).length;
+    scriptParts.push('\n'.repeat(newlinesBefore) + s.content);
+  }
+  return scriptParts.length > 0 ? scriptParts.join('\n') : content;
+}
+
+export function extractCommentsFromSource(content: string, ext: string): ExtractedCodeComment[] {
+  const sourceToScan = prepareSourceForCommentExtraction(content, ext);
+  const comments: ExtractedCodeComment[] = [];
+  const len = sourceToScan.length;
+  let i = 0;
+  let currentLine = 1;
+
+  while (i < len) {
+    const ch = sourceToScan[i];
+    if (ch === '\n') {
+      currentLine++;
+      i++;
+      continue;
+    }
+
+    if (ch === "'" || ch === '"' || ch === '`') {
+      const { nextIndex, newlines } = skipStringLiteral(sourceToScan, i, ch, len);
+      i = nextIndex;
+      currentLine += newlines;
+      continue;
+    }
+
+    if (ch === '/' && sourceToScan[i + 1] === '/') {
+      const { comment, nextIndex } = parseLineComment(sourceToScan, i, len, currentLine);
+      comments.push(comment);
+      i = nextIndex;
+      continue;
+    }
+
+    if (ch === '/' && sourceToScan[i + 1] === '*') {
+      const { comment, nextIndex, newlines } = parseBlockComment(sourceToScan, i, len, currentLine);
+      comments.push(comment);
+      i = nextIndex;
+      currentLine += newlines;
+      continue;
+    }
+
+    i++;
+  }
+
+  return comments;
+}
+
+export function extractProseFromComments(rawComments: readonly ExtractedCodeComment[]): ProseParagraph[] {
+  const paragraphs: ProseParagraph[] = [];
+
+  for (const c of rawComments) {
+    const lines = c.text.split(/\r?\n/);
+    let currentLines: string[] = [];
+    let paraStartLine = c.startLine;
+
+    for (let idx = 0; idx < lines.length; idx++) {
+      const raw = lines[idx]!.trim();
+      const line = raw.replace(/^\*+\s?/, '').trim();
+      if (!line) {
+        if (currentLines.length > 0) {
+          paragraphs.push({ startLine: paraStartLine, text: currentLines.join(' ') });
+          currentLines = [];
+        }
+        paraStartLine = c.startLine + idx + 1;
+        continue;
+      }
+
+      if (
+        line.startsWith('@') ||
+        line.startsWith('eslint-') ||
+        line.startsWith('stylelint-') ||
+        line.startsWith('ts-') ||
+        line.startsWith('cspell:') ||
+        line.startsWith('prettier-') ||
+        line.includes('-ok:') ||
+        line.startsWith('import ') ||
+        line.startsWith('export ') ||
+        line.startsWith('const ') ||
+        line.startsWith('let ') ||
+        line.startsWith('var ') ||
+        line.startsWith('function ') ||
+        line.startsWith('http://') ||
+        line.startsWith('https://') ||
+        line.startsWith('file://') ||
+        /^\w+:\/\//.test(line)
+      ) {
+        continue;
+      }
+
+      const cleaned = line
+        .replace(/`[^`]+`/g, ' ')
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .trim();
+
+      if (cleaned.length > 0) {
+        if (currentLines.length === 0) {
+          paraStartLine = c.startLine + idx;
+        }
+        currentLines.push(cleaned);
+      }
+    }
+
+    if (currentLines.length > 0) {
+      paragraphs.push({ startLine: paraStartLine, text: currentLines.join(' ') });
+    }
+  }
+
+  return paragraphs;
+}
+
 export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLanguageRuleId> {
   private readonly rootDir: string;
   private readonly options?: DocumentationLanguageOptions;
@@ -217,7 +392,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
   constructor(rootDir?: string, options?: DocumentationLanguageOptions) {
     const projectRoot = rootDir || process.cwd();
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
         fix: true,
         fixPriority: true,
         lint: false,
@@ -227,7 +402,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, ['docs-missing-language-mandate']),
       fixableRuleIds: ['docs-missing-language-mandate'],
       fix: options?.fix,
       id: 'validate_documentation_language',
@@ -242,10 +417,11 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       ruleIds: DOCUMENTATION_LANGUAGE_RULES,
       ruleDescriptions: {
         'docs-unauthorized-language': 'Texto en idioma no autorizado',
-        'docs-missing-language-mandate': 'Falta mandato de idioma en AGENTS.md'
+        'docs-missing-language-mandate': 'Falta mandato de idioma en AGENTS.md',
+        'code-comment-unauthorized-language': 'Comentario en idioma no autorizado'
       },
       coverage: {
-        include: ['**/*.md']
+        include: ['**/*.md', 'src/**/*.{ts,tsx,vue,js}']
       },
       unignoreDirs: ['.agents', 'skills', 'docs'],
       projectRoot
@@ -254,21 +430,40 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     this.options = options;
   }
 
-  private auditParagraph(para: ProseParagraph, relFile: string, targetLanguage: DocumentationLanguage): void {
-    const { isUnauthorized, detectedLang } = evaluateParagraphLanguage(para, targetLanguage);
-    if (!isUnauthorized) return;
-
+  private reportUnauthorizedLanguageViolation(
+    ruleId: 'docs-unauthorized-language' | 'code-comment-unauthorized-language',
+    entityLabel: string,
+    targetScope: string,
+    para: ProseParagraph,
+    relFile: string,
+    targetLanguage: DocumentationLanguage,
+    detectedLang: string
+  ): void {
     const preview = para.text.length > 70 ? `${para.text.slice(0, 67)}...` : para.text;
     const langName = targetLanguage === 'en' ? 'español' : 'inglés';
     const targetName = targetLanguage === 'en' ? 'inglés' : 'español';
     this.addViolation({
-      ruleId: 'docs-unauthorized-language',
+      ruleId,
       severity: 'error',
       file: relFile,
       line: para.startLine,
-      message: `Párrafo en ${langName} detectado en documentación configurada para ${targetName} (detectado: ${detectedLang}).`,
+      message: `${entityLabel} en ${langName} detectado en ${targetScope} para ${targetName} (detectado: ${detectedLang}).`,
       context: preview
     });
+  }
+
+  private auditParagraph(para: ProseParagraph, relFile: string, targetLanguage: DocumentationLanguage): void {
+    const { isUnauthorized, detectedLang } = evaluateParagraphLanguage(para, targetLanguage);
+    if (!isUnauthorized) return;
+    this.reportUnauthorizedLanguageViolation(
+      'docs-unauthorized-language',
+      'Párrafo',
+      'documentación configurada',
+      para,
+      relFile,
+      targetLanguage,
+      detectedLang
+    );
   }
 
   private auditMarkdownFile(relFile: string, exemptions: readonly string[], targetLanguage: DocumentationLanguage): void {
@@ -354,26 +549,65 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     }
   }
 
-  public override async runAudit(): Promise<void> {
-    for (const rule of DOCUMENTATION_LANGUAGE_RULES) {
-      this.markRuleEvaluated(rule);
+  private auditCodeFileComments(relFile: string, exemptions: readonly string[], targetLanguage: DocumentationLanguage): void {
+    if (isLanguageExemptPath(relFile, exemptions)) return;
+    this.recordScanned(relFile);
+
+    const fullPath = path.resolve(this.rootDir, relFile);
+    let content: string;
+    try {
+      content = fsSync.readFileSync(fullPath, 'utf8');
+    } catch {
+      return;
     }
 
+    const ext = path.extname(relFile);
+    const rawComments = extractCommentsFromSource(content, ext);
+    const paragraphs = extractProseFromComments(rawComments);
+
+    for (const para of paragraphs) {
+      const { isUnauthorized, detectedLang } = evaluateParagraphLanguage(para, targetLanguage);
+      if (!isUnauthorized) continue;
+      this.reportUnauthorizedLanguageViolation(
+        'code-comment-unauthorized-language',
+        'Comentario',
+        'código fuente configurado',
+        para,
+        relFile,
+        targetLanguage,
+        detectedLang
+      );
+    }
+  }
+
+  public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.rootDir);
     const targetLanguage: DocumentationLanguage =
       this.options?.language ?? config.documentation?.language ?? 'en';
-
-    this.auditRootAgentsMandate(targetLanguage);
 
     const configuredExemptions = config.documentation?.languageExemptions ?? [];
     const passedExemptions = this.options?.exemptions ?? [];
     const exemptions = [...configuredExemptions, ...passedExemptions];
 
-    const markdownFiles = await this.context.collectFiles(['.'], new Set(['.md']));
+    await this.runSubAuditor('docs-missing-language-mandate', () => {
+      this.auditRootAgentsMandate(targetLanguage);
+    });
 
-    for (const relFile of markdownFiles) {
-      this.auditMarkdownFile(relFile, exemptions, targetLanguage);
-    }
+    await this.runSubAuditor('docs-unauthorized-language', async () => {
+      const markdownFiles = await this.context.collectFiles(['.'], new Set(['.md']));
+      for (const relFile of markdownFiles) {
+        this.auditMarkdownFile(relFile, exemptions, targetLanguage);
+      }
+    });
+
+    await this.runSubAuditor('code-comment-unauthorized-language', async () => {
+      const srcRoots = config.paths.srcRoots ?? ['src'];
+      const codeFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']));
+      for (const relFile of codeFiles) {
+        if (relFile.endsWith('.d.ts') || isTestPath(relFile)) continue;
+        this.auditCodeFileComments(relFile, exemptions, targetLanguage);
+      }
+    });
   }
 }
 

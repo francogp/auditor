@@ -30,7 +30,7 @@
 
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, type AuditedDocument } from '../../core/auditorBase.ts';
+import { FileScanAuditor, type AuditedDocument , createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isInCodeRoots, isDataPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
@@ -227,7 +227,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
     const effectiveRoots = rawRoots.map(r => toPosixRelative(projectRoot, r));
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -237,7 +237,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
       id: 'validate_magic_numbers',
       name: 'Magic Numbers Validator',
       description: 'Gobernanza de números mágicos desnudos en lógica',

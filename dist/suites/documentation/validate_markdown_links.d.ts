@@ -31,6 +31,17 @@ export interface BrokenMarkdownLink {
     readonly ruleId?: MarkdownLinkRuleId;
     readonly line?: number;
 }
+export interface MarkdownLinkItem {
+    readonly linkText: string;
+    readonly rawUrl: string;
+    readonly line: number;
+}
+export interface ParsedMarkdownDoc {
+    readonly file: string;
+    readonly relSourceFile: string;
+    readonly lines: readonly string[];
+    readonly links: readonly MarkdownLinkItem[];
+}
 export interface MarkdownLinkAuditResult {
     readonly filesScanned: number;
     readonly linksChecked: number;
@@ -54,6 +65,10 @@ export declare function clearGitIgnoredPathsCache(): void;
  * Collects all relevant markdown files (.md) recursively.
  */
 export declare function collectMarkdownFiles(targetPath: string, rootDir: string, extraIgnorePatterns?: readonly string[]): string[];
+/**
+ * Extracts all markdown links from markdown content outside code blocks.
+ */
+export declare function extractMarkdownLinks(content: string): MarkdownLinkItem[];
 /**
  * Parses all markdown links in a file and returns broken references or illegal paths.
  */

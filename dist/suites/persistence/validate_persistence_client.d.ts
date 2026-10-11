@@ -23,15 +23,23 @@ export interface ValidatePersistenceClientOptions {
     authorizedSaveFiles?: readonly string[];
     saveKeyPrefixes?: readonly string[];
 }
+export interface StorageAccessContext {
+    readonly rawKeyArg: string;
+    readonly matchIndex: number;
+    readonly isWrite: boolean;
+    readonly line: string;
+    readonly mutationLabel: string;
+}
 export declare class ValidatePersistenceClientAuditor extends FileScanAuditor<PersistenceClientRuleId> {
     private readonly authorizedSaveFiles;
     private readonly saveKeyPrefixes;
     constructor(options?: string | ValidatePersistenceClientOptions);
     protected scanFile(file: string, content: string): void;
-    private scanMethodCalls;
-    private scanIndexedAccesses;
+    private forEachStorageAccess;
+    private scanUncoordinatedSave;
+    private scanUntypedKey;
+    private scanQuotaError;
     private isIgnoredLine;
-    private validateStorageAccess;
     private isAuthorizedSaveFile;
     private hasStorageEscapeHatch;
     private isInsideTryCatch;

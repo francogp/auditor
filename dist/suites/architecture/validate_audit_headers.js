@@ -18,7 +18,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns, getEffectiveScannableRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns, getEffectiveScannableRoots, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 enableCompileCache();
 export const MAX_HEADER_LINES_CHECK = 10;
@@ -168,7 +168,7 @@ export class AuditHeadersAuditor extends FileScanAuditor {
         super({
             roots: headerRoots,
             projectRoot,
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(HEADER_RULES, {
                 fix: false,
                 fixPriority: false,
                 lint: true,
@@ -178,7 +178,7 @@ export class AuditHeadersAuditor extends FileScanAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }),
             id: 'validate_audit_headers',
             name: 'Audit Headers & Suppression Validator',
             description: 'Prohíbe supresiones a nivel de archivo e ignores globales',
@@ -204,21 +204,136 @@ export class AuditHeadersAuditor extends FileScanAuditor {
         return this.collectedViolations;
     }
     scanFile(relPath, content) {
-        const violations = scanFileForIllegalHeaders(relPath, content);
-        for (const r of HEADER_RULES) {
-            this.markRuleEvaluated(r);
-        }
-        for (const v of violations) {
-            this.collectedViolations.push(v);
-            this.addViolation({
-                ruleId: v.ruleId,
-                severity: v.severity,
-                file: v.file,
-                line: v.line,
-                message: v.message,
-                context: v.context
-            });
-        }
+        const lines = content.split(/\r?\n/);
+        // 1. fallow-ignore-file
+        this.runSubAuditorSync('file-level-fallow-ignore', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (FALLOW_IGNORE_FILE_REGEX.test(line)) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'file-level-fallow-ignore',
+                        message: `Cabecera ilegal 'fallow-ignore-file' detectada. Está ESTRICTAMENTE PROHIBIDO silenciar auditorías para archivos completos. Resuelve el problema en el código o excluye el directorio a nivel de configuración global.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
+        // 2. banned-ts-suppression
+        this.runSubAuditorSync('banned-ts-suppression', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (TS_SUPPRESSION_REGEX.test(line)) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'banned-ts-suppression',
+                        message: `Supresión de TypeScript detectada ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibido por la política 'Zero-Ignore'.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
+        // 3. file-level-eslint-disable
+        this.runSubAuditorSync('file-level-eslint-disable', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (ESLINT_DISABLE_BLOCK_REGEX.test(line)) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'file-level-eslint-disable',
+                        message: `Bloque '/* eslint-disable */' a nivel de archivo detectado. Usa 'eslint-disable-next-line' acotado a la línea específica únicamente cuando esté estrictamente justificado.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
+        // 4. banned-magic-suppression
+        this.runSubAuditorSync('banned-magic-suppression', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (BANNED_MAGIC_SUPPRESSION_REGEX.test(line)) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'banned-magic-suppression',
+                        message: `Supresión de número mágico desaconsejada detectada ('/' + '/ no-magic', '/' + '/ magic-ok', '/' + '/ number-ok'). Centraliza los números en constantes de dominio con 'as const' o tipado explícito.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
+        // 5. banned-style-suppression
+        this.runSubAuditorSync('banned-style-suppression', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (BANNED_STYLE_SUPPRESSION_REGEX.test(line)) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'banned-style-suppression',
+                        message: `Supresión de estilos prohibida detectada ('/' + '/ style-inherited', '/' + '/ style-ok'). Todos los componentes .vue DEBEN incluir su propio bloque <style lang="scss"> según la gobernanza de arquitectura.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
+        // 6. header-auditor-escape
+        this.runSubAuditorSync('header-auditor-escape', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (STANDALONE_ESCAPE_HATCHES_REGEX.test(line)) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'header-auditor-escape',
+                        message: `Escape hatch huérfano o mal ubicado detectado ('${line.trim()}'). Los escapes deben ubicarse en la misma línea del statement o inmediatamente precediéndolo con ':' y el motivo técnico.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
+        // 7. unjustified-escape-hatch
+        this.runSubAuditorSync('unjustified-escape-hatch', () => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const unjustifiedMatch = line.match(UNJUSTIFIED_ESCAPE_HATCH_REGEX);
+                if (unjustifiedMatch) {
+                    const v = {
+                        file: relPath,
+                        line: i + 1,
+                        ruleId: 'unjustified-escape-hatch',
+                        message: `[GUÍA DE ESCAPE HATCHES / IGNORES JUSTIFICADOS] Escape hatch '// ${unjustifiedMatch[1]}' sin justificación técnica obligatoria.
+    📚 FORMATO CANÓNICO REQUERIDO: '// ${unjustifiedMatch[1]}: <motivo técnico detallado>'
+    ⚠️ PROHIBICIÓN: Nunca uses ignores genéricos ni los uses para ocultar errores de tipado en entidades del sistema.`,
+                        context: line.trim(),
+                        severity: 'error'
+                    };
+                    this.collectedViolations.push(v);
+                    this.addViolation(v);
+                }
+            }
+        });
     }
 }
 /**

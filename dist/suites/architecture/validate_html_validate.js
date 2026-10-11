@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { parseLintResultsToFindings, extractJsonReportFilePaths } from "../../core/reportUtils.js";
 enableCompileCache();
@@ -113,7 +113,7 @@ export function readAndParseHtmlValidateOutput(reportFile, combinedOutput, proje
 export class HtmlValidateAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
-            capabilities: {
+            ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
                 fix: true,
                 fixPriority: false,
                 lint: true,
@@ -123,7 +123,7 @@ export class HtmlValidateAuditor extends BaseAuditor {
                 heavy: false,
                 requiresBuild: false,
                 postRun: false
-            },
+            }, ['html-validate-issue']),
             fixableRuleIds: ['html-validate-issue'],
             id: 'validate_html_validate',
             name: 'HTML5 Standards & Markup Hygiene Validator',

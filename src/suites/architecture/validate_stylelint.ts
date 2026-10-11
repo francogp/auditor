@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
-import { BaseAuditor, CANONICAL_IGNORE_DIRS } from '../../core/auditorBase.ts';
+import { BaseAuditor, CANONICAL_IGNORE_DIRS , createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -331,7 +331,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     ]));
 
     super({
-      capabilities: {
+      ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
         fix: true,
         fixPriority: false,
         lint: true,
@@ -341,7 +341,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }, [...STYLELINT_RULES]),
       fixableRuleIds: [...STYLELINT_RULES],
       gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
       id: options?.id || 'validate_stylelint',
@@ -383,7 +383,6 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    const startTime = performance.now();
     if (this.isSuiteGatingDisabled('Stylelint desactivado en config')) return;
 
     const config = getAuditConfig(this.projectRoot);
@@ -417,7 +416,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const ignoreGlobs = buildStylelintIgnoreGlobs(config.paths.ignoreGlobs, stylelintConfig?.ignoreGlobs);
     const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
 
-    let linterResult: LinterResult;
+    let linterResult: LinterResult | undefined;
     try {
       linterResult = await stylelint.lint({
         files: filesGlobs,
@@ -442,13 +441,15 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         message: `Fallo al ejecutar Stylelint: ${errorMsg}`,
         context: 'stylelint-engine-error'
       });
+      for (const r of STYLELINT_RULES) {
+        if (r !== 'stylelint-issue') this.markRuleEvaluated(r);
+      }
       return;
     }
 
+    if (!linterResult) return;
+
     this.lastLinterResult = linterResult;
-    for (const r of STYLELINT_RULES) {
-      this.markRuleEvaluated(r);
-    }
     for (const fileResult of linterResult.results) {
       if (fileResult.source) {
         this.recordScanned(fileResult.source);
@@ -456,8 +457,14 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     }
 
     const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot);
-    for (const v of violations) {
-      this.addViolation(v);
+    for (const ruleId of STYLELINT_RULES) {
+      this.runSubAuditorSync(ruleId, () => {
+        for (const v of violations) {
+          if (v.ruleId === ruleId) {
+            this.addViolation(v);
+          }
+        }
+      });
     }
 
     persistStylelintReport(
@@ -466,7 +473,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       this.filesScannedCount,
       { totalErrors, totalWarnings },
       linterResult.results,
-      Math.round(performance.now() - startTime)
+      Math.round(this.durationsByRule.get('stylelint-issue') ?? 0)
     );
 
     this.context.setMetric('Archivos Escaneados', this.filesScannedCount);

@@ -11,6 +11,8 @@ export const BUILTIN_AUDIT_FAMILIES = [
     'architecture',
     'domain_data',
     'persistence',
+    'performance',
+    'security',
     'documentation'
 ];
 export const FAMILY_METADATA = {
@@ -35,10 +37,24 @@ export const FAMILY_METADATA = {
         icon: '💾',
         description: 'Integridad sintáctica de migraciones PostgreSQL/Supabase/SQLite y políticas RLS.'
     },
+    performance: {
+        key: 'performance',
+        title: 'RENDIMIENTO WEB, LATENCIA Y BASE DE DATOS',
+        order: 4,
+        icon: '⚡',
+        description: 'Core Web Vitals, optimización de consultas SQL e impacto en renderizado.'
+    },
+    security: {
+        key: 'security',
+        title: 'SEGURIDAD, ENDURECIMIENTO Y CONTROL DE ACCESO',
+        order: 5,
+        icon: '🛡️',
+        description: 'Vulnerabilidades OWASP Top 10, prevención de SSRF, inyecciones y ReDoS.'
+    },
     documentation: {
         key: 'documentation',
         title: 'DOCUMENTACIÓN Y ESTRUCTURA DOX',
-        order: 4,
+        order: 6,
         icon: '📚',
         description: 'Integridad de enlaces relativos en markdown e índices DOX (AGENTS.md).'
     }
