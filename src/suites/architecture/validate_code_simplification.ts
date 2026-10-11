@@ -1,5 +1,6 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 
 enableCompileCache();
@@ -19,7 +20,7 @@ const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 
 export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const effectiveRoot = options.projectRoot ?? process.cwd();
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     super({
       id: 'validate_code_simplification',
       name: 'Code Complexity & Readability Simplifier Validator',
@@ -30,7 +31,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       configKey: 'codeSimplification.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: options.roots ?? ['src'],
+      roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: CODE_SIMPLIFICATION_RULES,
       ruleDescriptions: {
@@ -41,43 +42,33 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         'premature-abstraction-wrapper': 'Wrapper innecesario sin lógica',
         'massive-switch-branching': 'Switch masivo con más de 10 casos'
       },
-      ruleCapabilities: createRuleCapabilities(CODE_SIMPLIFICATION_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
-      }),
+      ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: { include: ['src/**/*.{ts,js,vue}'] }
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
     });
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    const lines = content.split('\n');
-    const isTest = isTestPath(relPath);
+    const sourceLines = content.split('\n');
+    const isTestFile = isTestPath(relPath);
 
     this.runSubAuditorSync('dead-code-accumulation', () => {
-      if (!isTest && !content.includes('dead-code-ok')) this.auditDeadCodeAccumulation(relPath, lines);
+      if (!isTestFile && !content.includes('dead-code-ok')) this.auditDeadCodeAccumulation(relPath, sourceLines);
     });
     this.runSubAuditorSync('boolean-trap-parameters', () => {
-      if (!isTest && !content.includes('boolean-trap-ok')) this.auditBooleanTrapParameters(relPath, content, lines);
+      if (!isTestFile && !content.includes('boolean-trap-ok')) this.auditBooleanTrapParameters(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('deep-nesting-control-flow', () => {
-      if (!isTest && !content.includes('nesting-ok')) this.auditDeepNestingControlFlow(relPath, content, lines);
+      if (!isTestFile && !content.includes('nesting-ok')) this.auditDeepNestingControlFlow(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('redundant-else-after-return', () => {
-      if (!isTest && !content.includes('redundant-else-ok')) this.auditRedundantElseAfterReturn(relPath, content, lines);
+      if (!isTestFile && !content.includes('redundant-else-ok')) this.auditRedundantElseAfterReturn(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('premature-abstraction-wrapper', () => {
-      if (!isTest && !content.includes('wrapper-ok')) this.auditPrematureAbstractionWrapper(relPath, content, lines);
+      if (!isTestFile && !content.includes('wrapper-ok')) this.auditPrematureAbstractionWrapper(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('massive-switch-branching', () => {
-      if (!isTest && !content.includes('switch-ok')) this.auditMassiveSwitchBranching(relPath, content, lines);
+      if (!isTestFile && !content.includes('switch-ok')) this.auditMassiveSwitchBranching(relPath, content, sourceLines);
     });
   }
 

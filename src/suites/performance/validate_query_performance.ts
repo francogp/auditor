@@ -1,5 +1,6 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -20,6 +21,14 @@ const SCANNABLE_EXTS = new Set(['.ts', '.js', '.sql']);
 export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerformanceRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const migrationRoots = [config.paths?.migrationsDir, 'migrations', 'supabase/migrations'].filter(
+      (r): r is string => typeof r === 'string' && r.length > 0
+    );
+    const targetRoots = options.roots ?? [
+      ...(config.paths?.srcRoots ?? ['src']),
+      ...migrationRoots
+    ];
     super({
       id: 'validate_query_performance',
       name: 'Database Query & Index Performance Validator',
@@ -30,7 +39,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
       configKey: 'queryPerformance.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: options.roots ?? ['src', 'migrations', 'supabase/migrations'],
+      roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: QUERY_PERFORMANCE_RULES,
       ruleDescriptions: {
@@ -41,19 +50,9 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
         'heavy-count-queries': 'SELECT COUNT(*) sin filtro en tabla',
         'unindexed-order-by': 'Paginación con OFFSET alto'
       },
-      ruleCapabilities: createRuleCapabilities(QUERY_PERFORMANCE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
-      }),
+      ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: { include: ['src/**/*.{ts,js,sql}', 'migrations/**/*.sql', 'supabase/migrations/**/*.sql'] }
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
     });
   }
 

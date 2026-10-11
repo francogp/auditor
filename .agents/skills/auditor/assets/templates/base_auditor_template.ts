@@ -10,7 +10,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
-  createUniformRuleCapabilities,
+  createRuleCapabilities,
   type AuditorConfigFileRequirement,
   type AuditorPackageScriptRequirement,
   type GitIgnoreRequirement
@@ -57,11 +57,22 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
   constructor(options: MyCompositeAuditorOptions = {}) {
     super({
-      ruleCapabilities: {
-        'composite-missing-entry': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false },
-        'composite-parity-mismatch': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false },
-        'composite-missing-config': { fix: true, fixPriority: true, lint: true, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
-      },
+      // Explicit rule capabilities for all 9 boolean flags with fixable rule overrides:
+      ruleCapabilities: createRuleCapabilities(
+        MY_COMPOSITE_RULES,
+        {
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        },
+        ['composite-missing-config']
+      ),
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
       // Optional declarative configuration files verified and auto-created with --fix:

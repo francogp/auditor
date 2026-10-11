@@ -9,7 +9,14 @@
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext, createUniformRuleCapabilities } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  SharedAstContext,
+  createUniformRuleCapabilities,
+  resolveFileScanRoots,
+  deriveCoverageFromRoots,
+  getAuditConfig
+} from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -28,11 +35,29 @@ export interface MyAstAuditorOptions {
 }
 
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
+  private readonly targetRoots: readonly string[];
+
   constructor(options: MyAstAuditorOptions = {}) {
+    const config = getAuditConfig(options.projectRoot);
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots({
+      projectRoot: options.projectRoot,
+      roots: options.roots,
+      configRoots: config.paths?.srcRoots
+    });
+    const allowedExtensions = new Set(['.ts', '.vue']);
+
     super({
+      // Mandatory: Explicit rule capabilities for all 9 boolean flags (Zero Fallbacks Mandate)
       ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
         ast: true,
-        lint: true
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       id: 'validate_my_ast',
       name: 'My AST Validator',
@@ -55,19 +80,22 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
         'my-ast-missing-contract': 'Declaración requerida faltante'
       },
       requiresAst: true,
-      roots: options.roots ?? ['src'],
-      allowedExtensions: new Set(['.ts', '.vue']),
-      projectRoot: options.projectRoot
+      roots: targetRoots,
+      allowedExtensions,
+      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      projectRoot: effectiveRoot
     });
+
+    this.targetRoots = targetRoots;
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
     this.context.logStep(1, 1, 'Inspeccionando nodos AST en archivos del proyecto...');
 
     // Guarantee AST engine availability (injected by orchestrator or fallback)
-    const astEngine = astContext ?? new SharedAstContext();
+    const astEngine = astContext ?? new SharedAstContext(this.projectRoot);
 
-    const relFiles = this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
+    const relFiles = await this.context.collectFiles(this.targetRoots, new Set(['.ts', '.vue']));
     const targetFiles = relFiles.filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'));
 
     for (const relFile of targetFiles) {

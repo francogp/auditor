@@ -1,5 +1,6 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 enableCompileCache();
 export const SECURITY_HARDENING_RULES = [
@@ -15,7 +16,7 @@ export const SECURITY_HARDENING_RULES = [
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue', '.html']);
 export class ValidateSecurityHardeningAuditor extends FileScanAuditor {
     constructor(options = {}) {
-        const effectiveRoot = options.projectRoot ?? process.cwd();
+        const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
         super({
             id: 'validate_security_hardening',
             name: 'Security Hardening & Threat Boundary Auditor',
@@ -26,7 +27,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor {
             configKey: 'securityHardening.enabled',
             defaultConfig: { enabled: true },
             criticalConfig: {},
-            roots: options.roots ?? ['src'],
+            roots: targetRoots,
             allowedExtensions: SCANNABLE_EXTS,
             ruleIds: SECURITY_HARDENING_RULES,
             ruleDescriptions: {
@@ -39,19 +40,9 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor {
                 'permissive-cors': "CORS permisivo con origen '*'",
                 'unvalidated-redirect': 'Redirección abierta sin validar ruta'
             },
-            ruleCapabilities: createRuleCapabilities(SECURITY_HARDENING_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-            }),
+            ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LINT_RULE_CAPABILITIES),
             projectRoot: effectiveRoot,
-            coverage: { include: ['src/**/*.{ts,js,vue,html}'] }
+            coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
         });
     }
     scanFile(relPath, content) {

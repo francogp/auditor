@@ -22,7 +22,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, getAuditConfig } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, getAuditConfig, normalizePosixPath } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -89,7 +89,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    const normalizedPath = relPath.replace(/\\/g, '/');
+    const normalizedPath = normalizePosixPath(relPath);
     const config = getAuditConfig();
     const heavyPaths = config.styles?.heavyEffectPaths ?? [];
     const isWeatherStyle =

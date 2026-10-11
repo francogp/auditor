@@ -80,7 +80,15 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       allowedExtensions: new Set(['.ts', '.vue']),
       ruleIds: MY_RULES,
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
-        lint: true
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       ruleDescriptions: {
         'my-rule-id': 'Regla de invariant personalizado'
@@ -238,7 +246,15 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
       allowedExtensions: new Set(['.ts', '.vue']),
       ruleIds: GAME_DESIGN_RULES,
       ruleCapabilities: createUniformRuleCapabilities(GAME_DESIGN_RULES, {
-        lint: true
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       ruleDescriptions: {
         'game-banned-magic-speed': 'Velocidad mágica sin constante',
@@ -351,7 +367,15 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       allowedExtensions: new Set(['.vue', '.scss']),
       ruleIds: UI_COLOR_RULES,
       ruleCapabilities: createUniformRuleCapabilities(UI_COLOR_RULES, {
-        lint: true
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       ruleDescriptions: {
         'ui-banned-raw-hex-color': 'Color hexadecimal directo prohibido'
@@ -408,8 +432,15 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       requiresAst: true, // Enables automatic TypeScript AST provision
       ruleIds: SERVICE_RETURN_RULES,
       ruleCapabilities: createUniformRuleCapabilities(SERVICE_RETURN_RULES, {
+        fix: false,
+        fixPriority: false,
         lint: true,
-        ast: true
+        md: false,
+        ast: true,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       ruleDescriptions: {
         'service-missing-explicit-return-type': 'Falta tipo de retorno explícito'
@@ -661,8 +692,15 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       id: 'validate_my_rules',
       ruleIds: MY_RULES,
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
+        fix: false,
+        fixPriority: false,
         lint: true,
-        ast: false
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       ...
     });
@@ -672,7 +710,7 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
 
 #### If rules have differing capabilities (e.g., some have auto-fix)
 
-Use `createRuleCapabilities(RULES, baseOverrides, ruleSpecificOverrides)`:
+Use `createRuleCapabilities(RULES, baseCapabilities, fixableRuleIds)`:
 
 ```typescript
 import { BaseAuditor, createRuleCapabilities } from '@francogp/auditor';
@@ -687,10 +725,18 @@ export class MyAuditor extends BaseAuditor<MyRuleId> {
       ruleIds: MY_RULES,
       ruleCapabilities: createRuleCapabilities(
         MY_RULES,
-        { lint: true, fix: false }, // Base capabilities for all rules
         {
-          'my-auto-fixable': { fix: true, fixPriority: true } // Rule-specific override
-        }
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        },
+        ['my-auto-fixable'] // List of rule IDs that support --fix
       ),
       ...
     });

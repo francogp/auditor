@@ -522,7 +522,7 @@ export function setupAuditor(config) {
                 process.exit(1);
             }
         },
-        finish: async (finalMetrics) => {
+        finish: async (finalMetrics, extra) => {
             if (finalMetrics) {
                 Object.assign(metrics, finalMetrics);
             }
@@ -546,7 +546,8 @@ export function setupAuditor(config) {
                     info: infoCount,
                     fixableErrors,
                     fixableWarnings
-                }
+                },
+                ...extra
             };
             const targetJsonPath = await persistAuditJsonReport(result, config, values.output);
             if (!isSubprocess) {
@@ -616,6 +617,30 @@ export function createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds
  */
 export function createUniformRuleCapabilities(ruleIds, capabilities) {
     return createRuleCapabilities(ruleIds, capabilities);
+}
+/**
+ * Canonical capability template for standard lint-only rules (lint: true, all other capabilities false).
+ */
+export const LINT_RULE_CAPABILITIES = Object.freeze({
+    ...DEFAULT_AUDITOR_CAPABILITIES,
+    lint: true
+});
+/**
+ * Canonical capability template for rules requiring TypeScript AST context (lint: true, ast: true).
+ */
+export const AST_RULE_CAPABILITIES = Object.freeze({
+    ...DEFAULT_AUDITOR_CAPABILITIES,
+    lint: true,
+    ast: true
+});
+/**
+ * Resolves effective roots for file scan auditors, dynamically consulting configured srcRoots.
+ */
+export function resolveFileScanRoots(options, defaultRoots) {
+    const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const targetRoots = options.roots ?? config.paths?.srcRoots ?? defaultRoots ?? ['src'];
+    return { effectiveRoot, targetRoots };
 }
 /**
  * Base Object-Oriented Auditor class validation helpers.
@@ -1589,29 +1614,27 @@ export class BaseAuditor {
             if (this.skipReason) {
                 this.context.setMetric('Skip-Reason', this.skipReason);
             }
-            const result = await this.context.finish({
+            return this.context.finish({
                 'Files Scanned': 0
+            }, {
+                status: 'skipped',
+                icon: this.icon,
+                subAuditors: [{
+                        id: `${this.id}_skipped`,
+                        name: skipMessage,
+                        status: 'passed',
+                        count: 0,
+                        detail: 'skipped'
+                    }]
             });
-            result.status = 'skipped';
-            result.icon = this.icon;
-            result.subAuditors = [{
-                    id: `${this.id}_skipped`,
-                    name: skipMessage,
-                    status: 'passed',
-                    count: 0,
-                    detail: 'skipped'
-                }];
-            return result;
         }
         this.ensureSubAuditorsLogged();
-        const result = await this.context.finish({
+        return this.context.finish({
             'Files Scanned': this.filesScannedCount
+        }, {
+            icon: this.icon,
+            subAuditors: this.subAuditorReports.length > 0 ? [...this.subAuditorReports] : undefined
         });
-        result.icon = this.icon;
-        if (this.subAuditorReports.length > 0) {
-            result.subAuditors = [...this.subAuditorReports];
-        }
-        return result;
     }
     ensureSubAuditorsLogged() {
         if (this.subAuditorReports.length > 0)
@@ -1743,8 +1766,20 @@ export class FileScanAuditor extends BaseAuditor {
                 throw err;
             }
         }
+        const singleRuleId = (this.declaredFileSubAuditors.size === 0 && this.ruleIds.length === 1) ? this.ruleIds[0] : undefined;
+        const startScan = singleRuleId ? performance.now() : 0;
         const scanFileRes = this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : undefined, doc);
-        if (scanFileRes instanceof Promise) {
+        if (singleRuleId) {
+            if (scanFileRes instanceof Promise) {
+                pending.push(scanFileRes.finally(() => {
+                    this.recordRuleDuration(singleRuleId, performance.now() - startScan);
+                }));
+            }
+            else {
+                this.recordRuleDuration(singleRuleId, performance.now() - startScan);
+            }
+        }
+        else if (scanFileRes instanceof Promise) {
             pending.push(scanFileRes);
         }
         if (pending.length > 0) {
@@ -1964,7 +1999,6 @@ export class FileScanAuditor extends BaseAuditor {
         for (const file of files) {
             await this.scanSingleDiscoveredFile(file, effectiveAst, catalog);
         }
-        this.ensureSubAuditorsLogged();
     }
 }
 //# sourceMappingURL=auditorBase.js.map

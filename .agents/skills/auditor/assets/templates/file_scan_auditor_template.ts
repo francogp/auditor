@@ -8,7 +8,16 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, hasLineSuppression, createUniformRuleCapabilities, type GitIgnoreRequirement } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  hasLineSuppression,
+  createUniformRuleCapabilities,
+  resolveFileScanRoots,
+  deriveCoverageFromRoots,
+  getAuditConfig,
+  type GitIgnoreRequirement
+} from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -31,9 +40,26 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [];
 
   constructor(options: MyFeatureAuditorOptions = {}) {
+    const config = getAuditConfig(options.projectRoot);
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots({
+      projectRoot: options.projectRoot,
+      roots: options.roots,
+      configRoots: config.paths?.srcRoots
+    });
+    const allowedExtensions = new Set(['.vue', '.ts']);
+
     super({
+      // Mandatory: Explicit rule capabilities for all 9 boolean flags (Zero Fallbacks Mandate)
       ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
-        lint: true
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
       }),
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyFeatureAuditor.gitIgnoreEntries,
@@ -44,11 +70,16 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
-      // Mandatory: SSoT configuration key inspected by the dynamic suite gating engine:
-      configKey: 'paths.srcRoots',
-      // Mandatory: Default configuration object dynamically collected for .auditor/audit.config.ts:
+      // Configuration Governance:
+      // Case 1 (Standalone feature): Declare dedicated section in .auditor/audit.config.ts:
+      //   configKey: 'myFeature',
+      //   defaultConfig: { enabled: true }
+      // Case 2 (General scanner): Reuses core paths with no dedicated config section:
+      //   configKey: 'paths',
+      //   defaultConfig: {}
+      configKey: 'myFeature',
       defaultConfig: {
-        srcRoots: ['src']
+        enabled: true
       },
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
@@ -57,9 +88,10 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
       },
-      roots: options.roots ?? ['src'],
-      allowedExtensions: new Set(['.vue', '.ts']),
-      projectRoot: options.projectRoot
+      roots: targetRoots,
+      allowedExtensions,
+      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      projectRoot: effectiveRoot
     });
 
     // ARCHITECTURAL NOTE: FileScanAuditor supports two canonical authoring patterns:

@@ -248,3 +248,13 @@ if (Get-Command mkcert -ErrorAction SilentlyContinue) {
    - In Bash: `set -euo pipefail` at the header.
    - In PowerShell: `$ErrorActionPreference = 'Stop'` at the header.
 4. **Node.js 26+ Permission Compliance**: When `env:post-setup` is a TypeScript/Node.js script, it must execute strictly under Node.js 26+ native permission guards (`node --permission ...`).
+
+---
+
+## 5. Master Environment Scripts & Update Wrappers Governance
+
+The environment lifecycle scripts belong canonically to `@francogp/auditor`:
+
+- **Core Scripts (`setup-linux.sh` & `setup-windows.ps1`)**: The common operational core. By default (`UPDATE_TO_LATEST=false`), they install and lock the declared versions specified in `.nvmrc` and `package.json`. In both setup and update flows, they execute `npm ci` unconditionally.
+- **Update Wrappers (`update-linux.sh` & `update-windows.ps1`)**: Parameterless entrypoints that delegate directly to the core script with `--update-version` / `-UpdateVersion`. They allow developers to run `./update-linux.sh` or `.\update-windows.ps1` without remembering CLI flags.
+- **SSoT parities and `syncEnvScripts`**: `.nvmrc` and `package.json` (`engines.node`) MUST maintain exact version synchrony. During `auditor fix`, `validate_environment_engines` synchronizes scripts via `syncEnvScripts` without spawning in-process shell scripts.

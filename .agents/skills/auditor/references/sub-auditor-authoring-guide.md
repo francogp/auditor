@@ -1031,7 +1031,17 @@ The master orchestrator does not maintain hardcoded lists of enabled suites. Eve
 Suites that validate compiled distribution artifacts (such as bundle budgets, export maps, or TypeScript `.d.ts` declaration maps) declare:
 
 ```typescript
-ruleCapabilities: createUniformRuleCapabilities(RULES, { requiresBuild: true })
+ruleCapabilities: createUniformRuleCapabilities(RULES, {
+  fix: false,
+  fixPriority: false,
+  lint: false,
+  md: false,
+  ast: false,
+  changedSince: false,
+  heavy: false,
+  requiresBuild: true,
+  postRun: false
+})
 ```
 
 1. **Pre-Build Exclusion**: `npm run auditor` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.

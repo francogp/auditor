@@ -12,6 +12,7 @@ import path from 'node:path';
 import { franc } from 'franc-min';
 import { extractContractSections, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage, findLocalContractsHeaderLine } from "../../analyzers/agentsMandateAnalyzer.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { normalizePosixPath } from "../../core/safePath.js";
 import { parseVueSfcBlocks } from "../../core/vueSfcParser.js";
@@ -316,6 +317,9 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
     options;
     constructor(rootDir, options) {
         const projectRoot = rootDir || process.cwd();
+        const config = getAuditConfig(projectRoot);
+        const srcRoots = config.paths?.srcRoots ?? ['src'];
+        const dynamicCodeCoverage = deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), projectRoot).include;
         super({
             ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
                 fix: true,
@@ -346,7 +350,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
                 'code-comment-unauthorized-language': 'Comentario en idioma no autorizado'
             },
             coverage: {
-                include: ['**/*.md', 'src/**/*.{ts,tsx,vue,js}']
+                include: ['**/*.md', ...dynamicCodeCoverage]
             },
             unignoreDirs: ['.agents', 'skills', 'docs'],
             projectRoot
@@ -473,6 +477,10 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
         const configuredExemptions = config.documentation?.languageExemptions ?? [];
         const passedExemptions = this.options?.exemptions ?? [];
         const exemptions = [...configuredExemptions, ...passedExemptions];
+        const srcRoots = config.paths.srcRoots ?? ['src'];
+        this.redeclareCoverage({
+            include: ['**/*.md', ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir).include]
+        });
         await this.runSubAuditor('docs-missing-language-mandate', () => {
             this.auditRootAgentsMandate(targetLanguage);
         });

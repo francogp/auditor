@@ -1,5 +1,6 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 
 enableCompileCache();
 
@@ -17,7 +18,7 @@ const SCANNABLE_EXTS = new Set(['.scss', '.vue', '.css']);
 
 export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchitectureRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const effectiveRoot = options.projectRoot ?? process.cwd();
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     super({
       id: 'validate_scss_architecture',
       name: 'SCSS Architecture & Distinctive Design Validator',
@@ -28,7 +29,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       configKey: 'scssArchitecture.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: options.roots ?? ['src'],
+      roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SCSS_ARCHITECTURE_RULES,
       ruleDescriptions: {
@@ -38,19 +39,9 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         'missing-theme-token-usage': 'Color hardcodeado sin token de tema',
         'excessive-scss-nesting': 'Anidamiento SCSS superior a 3 niveles'
       },
-      ruleCapabilities: createRuleCapabilities(SCSS_ARCHITECTURE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
-      }),
+      ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: { include: ['src/**/*.{scss,vue}'] }
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
     });
   }
 

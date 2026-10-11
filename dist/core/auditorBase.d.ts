@@ -86,7 +86,7 @@ export interface AuditorContext {
     setMetric: (key: string, value: number | string) => void;
     getAst: (relPath: string, content?: string) => ts.SourceFile;
     checkFiles: () => Promise<void>;
-    finish: (finalMetrics?: Record<string, number | string>) => Promise<StandardAuditResult>;
+    finish: (finalMetrics?: Record<string, number | string>, extra?: Partial<StandardAuditResult>) => Promise<StandardAuditResult>;
     getFindings: () => readonly AuditFinding[];
     setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
     setProgressLogger?: (logger: (msg: string) => void) => void;
@@ -109,6 +109,25 @@ export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: 
  * shares the same operational capabilities.
  */
 export declare function createUniformRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], capabilities: AuditorCapabilities): Record<TRuleId, AuditorCapabilities>;
+/**
+ * Canonical capability template for standard lint-only rules (lint: true, all other capabilities false).
+ */
+export declare const LINT_RULE_CAPABILITIES: Readonly<AuditorCapabilities>;
+/**
+ * Canonical capability template for rules requiring TypeScript AST context (lint: true, ast: true).
+ */
+export declare const AST_RULE_CAPABILITIES: Readonly<AuditorCapabilities>;
+export interface FileScanRootsOptions {
+    readonly projectRoot?: string;
+    readonly roots?: readonly string[];
+}
+/**
+ * Resolves effective roots for file scan auditors, dynamically consulting configured srcRoots.
+ */
+export declare function resolveFileScanRoots(options: FileScanRootsOptions, defaultRoots?: readonly string[]): {
+    effectiveRoot: string;
+    targetRoots: readonly string[];
+};
 export interface AuditorOptions<TRuleId extends string = string> {
     readonly id: string;
     readonly name: string;

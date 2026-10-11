@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 
 enableCompileCache();
 
@@ -21,7 +22,7 @@ const MAX_RECOMMENDED_DOM_DEPTH = 16;
 
 export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanceRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const effectiveRoot = options.projectRoot ?? process.cwd();
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     super({
       id: 'validate_web_performance',
       name: 'Web Performance & Core Web Vitals Auditor',
@@ -32,7 +33,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       configKey: 'webPerformance.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: options.roots ?? ['src'],
+      roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: WEB_PERFORMANCE_RULES,
       ruleDescriptions: {
@@ -44,19 +45,9 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         'layout-shift-dimensions': 'img o video sin width o height explícito',
         'uncompressed-video': 'video sin preload none o formato webm'
       },
-      ruleCapabilities: createRuleCapabilities(WEB_PERFORMANCE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
-      }),
+      ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: { include: ['src/**/*.{vue,html,htm,jsx,tsx,css,scss}'] }
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
     });
   }
 

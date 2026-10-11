@@ -35,6 +35,6 @@ export const manualTimingDetector = createLineDetector({
       return null;
     }
 
-    return "Medición manual de tiempos o llamada casera a 'performance.now()' / 'recordRuleDuration' en subauditor o extensión. Prohibido medir tiempos ad-hoc. Declara las sub-herramientas con 'declareSubAuditor()', 'declareFileSubAuditor()' o 'declarePatternSubAuditor()', o usa 'runSubAuditorsBatch()' para comandos en lote.";
+    return "Medición manual de tiempos o llamada casera a 'performance.now()' / 'recordRuleDuration' en subauditor o extensión. Prohibido medir tiempos ad-hoc. Declara las sub-herramientas con 'declareSubAuditor()', 'declareFileSubAuditor()' o 'declarePatternSubAuditor()', o usa 'runSubAuditorSync()' para medir cada regla individualmente.";
   }
 });

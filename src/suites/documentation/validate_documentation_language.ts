@@ -18,6 +18,7 @@ import {
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
 import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
@@ -391,6 +392,9 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
 
   constructor(rootDir?: string, options?: DocumentationLanguageOptions) {
     const projectRoot = rootDir || process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const srcRoots = config.paths?.srcRoots ?? ['src'];
+    const dynamicCodeCoverage = deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), projectRoot).include;
     super({
       ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
         fix: true,
@@ -421,7 +425,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         'code-comment-unauthorized-language': 'Comentario en idioma no autorizado'
       },
       coverage: {
-        include: ['**/*.md', 'src/**/*.{ts,tsx,vue,js}']
+        include: ['**/*.md', ...dynamicCodeCoverage]
       },
       unignoreDirs: ['.agents', 'skills', 'docs'],
       projectRoot
@@ -588,6 +592,11 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     const configuredExemptions = config.documentation?.languageExemptions ?? [];
     const passedExemptions = this.options?.exemptions ?? [];
     const exemptions = [...configuredExemptions, ...passedExemptions];
+
+    const srcRoots = config.paths.srcRoots ?? ['src'];
+    this.redeclareCoverage({
+      include: ['**/*.md', ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir).include]
+    });
 
     await this.runSubAuditor('docs-missing-language-mandate', () => {
       this.auditRootAgentsMandate(targetLanguage);
