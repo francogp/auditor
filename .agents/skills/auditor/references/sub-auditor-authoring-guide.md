@@ -43,7 +43,7 @@ flowchart LR
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, hasLineSuppression } from '@francogp/auditor';
+import { BaseAuditor, FileScanAuditor, hasLineSuppression, createUniformRuleCapabilities } from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -69,6 +69,17 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       description: 'Valida tokens prohibidos y atributos en src/',
       icon: '🔍', // Mandatory thematic emoji
       family: 'architecture',
+      ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }),
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
       configKey: 'paths.srcRoots',
@@ -146,7 +157,7 @@ Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, 
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '@francogp/auditor';
+import { BaseAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
 import { MY_DATA } from '../../../src/data/myData.ts';
 
 enableCompileCache();
@@ -170,6 +181,17 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       description: 'Valida integridad y campos obligatorios en base de datos',
       icon: '📊', // Mandatory thematic emoji
       family: 'domain_data',
+      ruleCapabilities: createUniformRuleCapabilities(MY_DATA_RULES, {
+        fix: false,
+        fixPriority: false,
+        lint: true,
+        md: false,
+        ast: false,
+        changedSince: false,
+        heavy: false,
+        requiresBuild: false,
+        postRun: false
+      }),
       ruleIds: MY_DATA_RULES,
       packageName: 'Datos',
       configKey: 'paths.dataRoots',
@@ -655,15 +677,19 @@ export interface AuditorCapabilities {
 
 ### Mandatory Capabilities Contract & 100% Complete Initialization
 
-`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST explicitly declare all 9 boolean capabilities** (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`) as booleans (`true` or `false`). Omitting capabilities or relying on fallback objects is strictly prohibited and fails loudly:
+`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST declare ruleCapabilities** (using `createUniformRuleCapabilities(ruleIds, capabilities)` or `createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds)`), explicitly declaring all 9 boolean capabilities (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`) as booleans (`true` or `false`).
+
+> [!CAUTION]
+> **V6 → V7 BREAKING CHANGE: PROHIBITION ON PASSING `capabilities` DIRECTLY**
+> In v7.0.0+, suite-level `capabilities` must **NEVER** be passed directly to constructor options (`capabilities?: never`). Passing `capabilities: { ... }` throws an immediate, loud `[Auditor Contract Violation]` error. Always use `ruleCapabilities: createRuleCapabilities(...)` or `createUniformRuleCapabilities(...)`. The superclass automatically derives suite-level capabilities from the registered rules!
 
 ```typescript
-// Standard sub-auditor: explicitly initialize all 9 capabilities
+// Standard sub-auditor: initialize ruleCapabilities using createUniformRuleCapabilities
 export class MyValidator extends BaseAuditor<MyRuleId> {
   constructor() {
     super({
       id: 'validate_my_validator',
-      capabilities: {
+      ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         fix: false,
         fixPriority: false,
         lint: true,
@@ -673,29 +699,34 @@ export class MyValidator extends BaseAuditor<MyRuleId> {
         heavy: false,
         requiresBuild: false,
         postRun: false
-      },
+      }),
+      ruleIds: MY_RULES,
       ...
     });
   }
 }
 
-// Auto-repair capable sub-auditor: declare fix: true, fixableRuleIds, and all other 8 flags explicitly
+// Auto-repair capable sub-auditor: declare fixableRuleIds via createRuleCapabilities
 export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
   constructor() {
     super({
       id: 'validate_my_auto_fix',
-      capabilities: {
-        fix: true,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
-      },
-      fixableRuleIds: ['my-fixable-rule'],
+      ruleCapabilities: createRuleCapabilities(
+        MY_RULES,
+        {
+          fix: false,
+          fixPriority: false,
+          lint: true,
+          md: false,
+          ast: false,
+          changedSince: false,
+          heavy: false,
+          requiresBuild: false,
+          postRun: false
+        },
+        ['my-fixable-rule'] // fixableRuleIds
+      ),
+      ruleIds: MY_RULES,
       ...
     });
   }
@@ -1000,7 +1031,7 @@ The master orchestrator does not maintain hardcoded lists of enabled suites. Eve
 Suites that validate compiled distribution artifacts (such as bundle budgets, export maps, or TypeScript `.d.ts` declaration maps) declare:
 
 ```typescript
-capabilities: { requiresBuild: true }
+ruleCapabilities: createUniformRuleCapabilities(RULES, { requiresBuild: true })
 ```
 
 1. **Pre-Build Exclusion**: `npm run auditor` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.

@@ -61,9 +61,12 @@ await this.runSubAuditor('my-async-rule', async () => {
 Specialized base class for scanning individual files. Handles automatic directory collection, gitignore filtering, test file exemptions, AST context resolution, and coverage ledger tracking.
 
 ```typescript
-import { FileScanAuditor } from '@francogp/auditor';
+import { FileScanAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
 
-export class MyAuditor extends FileScanAuditor<'my-rule-id'> {
+export const MY_RULES = ['my-rule-id'] as const;
+export type MyRuleId = (typeof MY_RULES)[number];
+
+export class MyAuditor extends FileScanAuditor<MyRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     super({
       id: 'validate_my_rules',
@@ -75,7 +78,10 @@ export class MyAuditor extends FileScanAuditor<'my-rule-id'> {
       configKey: 'paths',
       roots: roots ?? ['src'],
       allowedExtensions: new Set(['.ts', '.vue']),
-      ruleIds: ['my-rule-id'],
+      ruleIds: MY_RULES,
+      ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
+        lint: true
+      }),
       ruleDescriptions: {
         'my-rule-id': 'Regla de invariant personalizado'
       }
@@ -207,7 +213,7 @@ export const customExtension = defineAuditorExtension({
 Create `scripts/auditors/validate_game_design.ts`:
 
 ```typescript
-import { FileScanAuditor, BaseAuditor } from '@francogp/auditor';
+import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
 import { getAuditConfig, isExemptFile } from '@francogp/auditor';
 
 export type GameDesignRuleId = 'game-banned-magic-speed' | 'game-missing-layer-tag';
@@ -231,6 +237,9 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
       roots: roots ?? config.paths.srcRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
       ruleIds: GAME_DESIGN_RULES,
+      ruleCapabilities: createUniformRuleCapabilities(GAME_DESIGN_RULES, {
+        lint: true
+      }),
       ruleDescriptions: {
         'game-banned-magic-speed': 'Velocidad mágica sin constante',
         'game-missing-layer-tag': 'Falta tag de capa en entidad'
@@ -323,9 +332,10 @@ npm run auditor:fix
 Enforces color palette governance and prohibits raw hex colors in UI component templates:
 
 ```typescript
-import { FileScanAuditor, BaseAuditor, isExemptFile } from '@francogp/auditor';
+import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile } from '@francogp/auditor';
 
-export type UiColorRuleId = 'ui-banned-raw-hex-color';
+export const UI_COLOR_RULES = ['ui-banned-raw-hex-color'] as const;
+export type UiColorRuleId = (typeof UI_COLOR_RULES)[number];
 
 export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
@@ -339,7 +349,10 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       configKey: 'paths',
       roots: roots ?? ['src/components'],
       allowedExtensions: new Set(['.vue', '.scss']),
-      ruleIds: ['ui-banned-raw-hex-color'],
+      ruleIds: UI_COLOR_RULES,
+      ruleCapabilities: createUniformRuleCapabilities(UI_COLOR_RULES, {
+        lint: true
+      }),
       ruleDescriptions: {
         'ui-banned-raw-hex-color': 'Color hexadecimal directo prohibido'
       }
@@ -375,9 +388,10 @@ Verifies that all exported functions in domain services have explicit return typ
 
 ```typescript
 import ts from 'typescript';
-import { FileScanAuditor, BaseAuditor, isExemptFile } from '@francogp/auditor';
+import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile } from '@francogp/auditor';
 
-export type ServiceReturnRuleId = 'service-missing-explicit-return-type';
+export const SERVICE_RETURN_RULES = ['service-missing-explicit-return-type'] as const;
+export type ServiceReturnRuleId = (typeof SERVICE_RETURN_RULES)[number];
 
 export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
@@ -392,7 +406,11 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       roots: roots ?? ['src/services'],
       allowedExtensions: new Set(['.ts']),
       requiresAst: true, // Enables automatic TypeScript AST provision
-      ruleIds: ['service-missing-explicit-return-type'],
+      ruleIds: SERVICE_RETURN_RULES,
+      ruleCapabilities: createUniformRuleCapabilities(SERVICE_RETURN_RULES, {
+        lint: true,
+        ast: true
+      }),
       ruleDescriptions: {
         'service-missing-explicit-return-type': 'Falta tipo de retorno explícito'
       }
@@ -597,3 +615,97 @@ npm run auditor -- project="../mi-juego"
 ```
 
 The master runner resolves the host's `.auditor/audit.config.ts`, executes extensions in their host workspace context (`process.chdir`), and renders standard Box-Drawing tables.
+
+---
+
+## 7. Migration Guide: Host Extensions from v6 to v7
+
+When upgrading a host repository from `@francogp/auditor` v6.x to v7.0.0+, all host extensions in `scripts/auditors/` must be migrated to the modern **Per-Rule Capabilities Contract**.
+
+### Breaking Change: Suite-Level `capabilities` Removed
+
+In v6.x, sub-auditors and extensions configured aggregate suite-level capabilities directly:
+
+```typescript
+// ❌ Deprecated in v6.x — Throws [Auditor Contract Violation] in v7.0.0+:
+super({
+  id: 'validate_my_extension',
+  capabilities: { fix: false, lint: true, ast: true }, // 💥 FORBIDDEN!
+  ...
+});
+```
+
+In v7.0.0+, `capabilities?: never` is enforced at the TypeScript type level and at runtime:
+
+```text
+[Auditor Contract Violation] Suite 'validate_my_extension' passed deprecated suite-level 'capabilities' to constructor options. In v7+, capabilities are derived automatically from individual ruleCapabilities.
+```
+
+### Canonical v7 Pattern: `ruleCapabilities`
+
+In v7.0.0+, capabilities are declared on each rule individually, and the `BaseAuditor` superclass aggregates them automatically for the suite.
+
+#### If all rules share identical capabilities
+
+Use `createUniformRuleCapabilities(RULES, capabilities)`:
+
+```typescript
+import { FileScanAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
+
+export const MY_RULES = ['my-rule-one', 'my-rule-two'] as const;
+export type MyRuleId = (typeof MY_RULES)[number];
+
+export class MyAuditor extends FileScanAuditor<MyRuleId> {
+  constructor() {
+    super({
+      id: 'validate_my_rules',
+      ruleIds: MY_RULES,
+      ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
+        lint: true,
+        ast: false
+      }),
+      ...
+    });
+  }
+}
+```
+
+#### If rules have differing capabilities (e.g., some have auto-fix)
+
+Use `createRuleCapabilities(RULES, baseOverrides, ruleSpecificOverrides)`:
+
+```typescript
+import { BaseAuditor, createRuleCapabilities } from '@francogp/auditor';
+
+export const MY_RULES = ['my-lint-only', 'my-auto-fixable'] as const;
+export type MyRuleId = (typeof MY_RULES)[number];
+
+export class MyAuditor extends BaseAuditor<MyRuleId> {
+  constructor() {
+    super({
+      id: 'validate_my_rules',
+      ruleIds: MY_RULES,
+      ruleCapabilities: createRuleCapabilities(
+        MY_RULES,
+        { lint: true, fix: false }, // Base capabilities for all rules
+        {
+          'my-auto-fixable': { fix: true, fixPriority: true } // Rule-specific override
+        }
+      ),
+      ...
+    });
+  }
+}
+```
+
+### Post-Migration Verification
+
+Run the test suite or execute the remote runner to verify:
+
+```bash
+# 1. Run extension unit tests:
+npm test tests/validate_my_rules.test.ts
+
+# 2. Verify coverage ledgers flush cleanly with zero missing ledger warnings:
+npm run auditor -- --suite=validate_my_rules
+```
