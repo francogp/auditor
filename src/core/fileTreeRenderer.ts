@@ -43,7 +43,7 @@ export function renderFindingsDetail(findings: AuditFinding[], maxLimit: number 
   let shown = 0;
   for (const [file, items] of byFile) {
     if (shown >= maxLimit) break;
-    lines.push(`\n  📄 ${styleText('bold', file)} (🐛 ${formatNumber(items.length)}):`);
+    lines.push(`\n  📄 ${styleText('bold', file)} [🐛 ${formatNumber(items.length)}]:`);
 
     for (const item of items) {
       if (shown >= maxLimit) break;

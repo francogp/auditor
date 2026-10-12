@@ -183,6 +183,41 @@ describe('update_package CLI', () => {
       expect(result.error).toContain('Network error ETIMEDOUT');
     });
 
+    it('handles childProcess spawnSync error (e.g. EINVAL on Windows) cleanly', () => {
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({
+          name: 'host-einval-consumer',
+          dependencies: {
+            '@francogp/auditor': 'github:francogp/auditor'
+          }
+        })
+      );
+
+      let passedOptions: childProcess.SpawnSyncOptions | undefined;
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((_cmd, _args, opts) => {
+        passedOptions = opts as childProcess.SpawnSyncOptions;
+        return {
+          status: null,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 0,
+          signal: null,
+          error: new Error('spawnSync npm.cmd EINVAL')
+        };
+      });
+
+      const result = updateAuditorPackage({ cwd: sandboxDir, silent: true });
+      spy.mockRestore();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('spawnSync npm.cmd EINVAL');
+      if (process.platform === 'win32') {
+        expect(passedOptions?.shell).toBe(true);
+      }
+    });
+
     it('handles malformed package.json cleanly', () => {
       fs.writeFileSync(path.join(sandboxDir, 'package.json'), 'not valid json');
 

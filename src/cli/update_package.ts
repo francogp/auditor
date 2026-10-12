@@ -111,15 +111,17 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     console.log(styleText('cyan', '📦 Ejecutando actualización nativa vía npm update @francogp/auditor...\n'));
   }
 
-  const npmBinary = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const isWindows = process.platform === 'win32';
+  const npmBinary = isWindows ? 'npm.cmd' : 'npm';
   const proc = childProcess.spawnSync(npmBinary, ['update', '@francogp/auditor'], {
     cwd: projectRoot,
     stdio: options.silent ? 'pipe' : 'inherit',
-    encoding: 'utf-8'
+    encoding: 'utf-8',
+    shell: isWindows
   });
 
-  if (proc.status !== 0) {
-    const errorMsg = proc.stderr?.toString() || `npm update falló con código de salida ${proc.status}`;
+  if (proc.error || proc.status !== 0) {
+    const errorMsg = proc.error?.message || proc.stderr?.toString() || `npm update falló con código de salida ${proc.status}`;
     return {
       success: false,
       projectRoot,
@@ -175,10 +177,12 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
       ];
     }
 
+    const isWindows = process.platform === 'win32';
     const proc = childProcess.spawnSync(cmd, args, {
       cwd: projectRoot,
       stdio: silent ? 'pipe' : 'inherit',
-      encoding: 'utf-8'
+      encoding: 'utf-8',
+      shell: cmd === 'npm.cmd' && isWindows
     });
 
     return proc.status === 0;

@@ -381,12 +381,12 @@ When you inherit from `FileScanAuditor`, every rule declared in `this.ruleIds` i
 Upon completing the file scan, `ensureSubAuditorsLogged()` automatically logs each sub-auditor step:
 
 ```text
-🔍 [1/2] MiModulo: Token prohibido en archivo fuente
-🔍 [2/2] MiModulo: Atributo obligatorio faltante (🐛 2)
+🔍 [1/2] MiModulo: Token prohibido en archivo fuente ⚡ (12,4 ms)
+🔍 [2/2] MiModulo: Atributo obligatorio faltante [🐛 2] ⚡ (5,1 ms)
 ```
 
 - **Zero Findings**: Silent and clean, with no badges or verbose text like `(0 encontradas)`.
-- **With Findings**: Displays `(🐛 <count>)` prominently.
+- **With Findings**: Displays `[🐛 <count>]` prominently in square brackets, with execution duration strictly enclosed in parentheses `(X ms)`.
 - **Description Length Cap**: The composed string `${packageName}: ${ruleDescription}` MUST remain `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) and contain zero newlines. If a rule description exceeds 50 characters, `BaseAuditor` throws an explicit runtime `Error` during instantiation.
 Zero manual logging code is required.
 

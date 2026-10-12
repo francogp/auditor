@@ -13,12 +13,14 @@ import { isMainModule } from "./cliUtils.js";
 import "../core/permissionGuard.js";
 export function runBuildProd(extraArgs = []) {
     process.env.AUDITOR_ENV = 'production';
-    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const isWindows = process.platform === 'win32';
+    const npmCmd = isWindows ? 'npm.cmd' : 'npm';
     const args = ['run', 'build', ...extraArgs];
     const result = spawnSync(npmCmd, args, {
         stdio: 'inherit',
         cwd: process.cwd(),
-        env: process.env
+        env: process.env,
+        shell: isWindows
     });
     return result.status ?? 0;
 }

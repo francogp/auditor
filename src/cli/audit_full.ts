@@ -1029,7 +1029,7 @@ function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: 
     const total = result.subAuditors.length;
     for (let i = 0; i < total; i++) {
       const s = result.subAuditors[i]!;
-      const badge = s.count > 0 ? ` (🐛 ${formatNumber(s.count)})` : '';
+      const badge = s.count > 0 ? ` [🐛 ${formatNumber(s.count)}]` : '';
       const speedEmoji = s.speed === 'fast' ? ' ⚡' : s.speed === 'heavy' ? ' 🐢' : '';
       const durationBadge = s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
       subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}${speedEmoji}${durationBadge}`);

@@ -1656,9 +1656,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   private formatSubAuditorBadge(result: number | 'passed' | 'warning' | 'failed' | string): string {
     if (typeof result === 'number') {
-      return result > 0 ? ` (🐛 ${result})` : '';
+      return result > 0 ? ` [🐛 ${result}]` : '';
     }
-    return result !== 'passed' ? ` (${result})` : '';
+    return result !== 'passed' ? ` [${result}]` : '';
   }
 
   public logSubAudit(
@@ -1682,7 +1682,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const warningsCount = counts?.warnings ?? 0;
     const badge = this.formatSubAuditorBadge(result);
     const speedBadge = speed === 'fast' ? ' ⚡' : ' 🐢';
-    const extra = detail ? (badge ? ` - ${detail}` : ` (${detail})`) : '';
+    const extra = detail ? ` (${detail})` : '';
     this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`);
     const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
     this.subAuditorReports.push({

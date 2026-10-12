@@ -24,7 +24,7 @@ describe('colorizeStreamSubLine', () => {
       }
     ];
 
-    const line = '🔍 [01/01] Reglas de Arquitectura: Funciones Anidadas (🐛 5)';
+    const line = '🔍 [01/01] Reglas de Arquitectura: Funciones Anidadas [🐛 5]';
     const colored = colorizeStreamSubLine(line, {
       isSuccess: false,
       hasWarnings: false,
@@ -33,7 +33,7 @@ describe('colorizeStreamSubLine', () => {
 
     // Contains ANSI red escape code (\u001b[31m)
     expect(colored).toContain('\u001b[31m');
-    expect(colored).toContain('(🐛 5)');
+    expect(colored).toContain('[🐛 5]');
   });
 
   it('colors line yellow when subAuditor has only warnings', () => {
@@ -49,7 +49,7 @@ describe('colorizeStreamSubLine', () => {
       }
     ];
 
-    const line = '🔍 [01/01] Reglas de Estilo: Mixins (🐛 2)';
+    const line = '🔍 [01/01] Reglas de Estilo: Mixins [🐛 2]';
     const colored = colorizeStreamSubLine(line, {
       isSuccess: true,
       hasWarnings: true,
@@ -58,7 +58,7 @@ describe('colorizeStreamSubLine', () => {
 
     // Contains ANSI yellow escape code (\u001b[33m)
     expect(colored).toContain('\u001b[33m');
-    expect(colored).toContain('(🐛 2)');
+    expect(colored).toContain('[🐛 2]');
   });
 
   it('colors line dim when subAuditor passed cleanly with 0 findings', () => {
@@ -88,7 +88,7 @@ describe('colorizeStreamSubLine', () => {
   });
 
   it('falls back to heuristics when subAuditors is not provided', () => {
-    const errorLine = 'Regla X (🐛 3)';
+    const errorLine = 'Regla X [🐛 3]';
     const coloredError = colorizeStreamSubLine(errorLine, {
       isSuccess: false
     });
@@ -114,7 +114,7 @@ describe('TaskStreamCoordinator', () => {
       isSuccess: false,
       hasWarnings: false,
       durationMs: 15,
-      subLines: ['🔍 [01/01] Regla Fallida (🐛 2)'],
+      subLines: ['🔍 [01/01] Regla Fallida [🐛 2]'],
       subAuditors: [
         {
           id: 'rule_1',
@@ -149,7 +149,7 @@ describe('TaskStreamCoordinator', () => {
       isSuccess: true,
       hasWarnings: true,
       durationMs: 20,
-      subLines: ['🔍 [01/01] Regla Warning (🐛 1)'],
+      subLines: ['🔍 [01/01] Regla Warning [🐛 1]'],
       subAuditors: [
         {
           id: 'rule_warn',
