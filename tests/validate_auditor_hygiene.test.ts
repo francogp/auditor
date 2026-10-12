@@ -63,6 +63,9 @@ describe('AuditorHygieneAuditor', () => {
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-homebrew-predicates');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-rule-timing');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-hardcoded-config');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-step-logging');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-unmeasured-rule');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-redundant-rule-evaluated');
     });
 
     it('enforces composed rule descriptions <= 50 characters', () => {
@@ -422,5 +425,374 @@ describe('AuditorHygieneAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+  });
+});
+
+/**
+ * Regression corpus extracted from the PokeBorrador extension migration
+ * (conversation "Activar Auditoría en Test Aventura"). Every fixture below is a
+ * pre-migration (legacy v6-style) extension body that the hygiene auditor MUST reject,
+ * paired with the post-migration form it MUST accept. Fixtures concatenate banned
+ * API names so whole-project scanners never mistake them for real workspace violations.
+ */
+describe('AuditorHygieneAuditor — extension migration regression corpus', () => {
+  let tempDir: string;
+  let auditorsDir: string;
+
+  const STEP_LOG = 'this.context.log' + 'Step';
+  const MARK_EVALUATED = 'this.mark' + 'RuleEvaluated';
+
+  beforeEach(async () => {
+    process.env.AUDIT_SUBPROCESS = 'true';
+    resetAuditConfig();
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-hygiene-migration-'));
+    auditorsDir = path.join(tempDir, 'scripts', 'auditors');
+    await fs.mkdir(auditorsDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    delete process.env.AUDIT_SUBPROCESS;
+    resetAuditConfig();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function audit(fileName: string, lines: readonly string[]) {
+    await fs.writeFile(path.join(auditorsDir, fileName), lines.join('\n'), 'utf8');
+    const auditor = new AuditorHygieneAuditor(tempDir);
+    return auditor.execute();
+  }
+
+  function findingsFor(
+    result: Awaited<ReturnType<typeof audit>>,
+    ruleId: AuditorHomebrewRuleId
+  ) {
+    return result.findings.filter(f => f.ruleId === ruleId);
+  }
+
+  describe('auditor-manual-step-logging', () => {
+    it('rejects legacy manual step logging (validate_fsm_diagrams / validate_schema_parity style)', async () => {
+      const result = await audit('legacy_steps.ts', [
+        "export class LegacyStepsAuditor extends BaseAuditor<'fsm-state-missing'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${STEP_LOG}(1, 2, 'Comparando estados Mermaid del manual contra constantes JS...');`,
+        "    this.runSubAuditorSync('fsm-state-missing', () => {});",
+        `    ${STEP_LOG}(2, 2, 'Auditando transiciones Mermaid...');`,
+        '  }',
+        '}'
+      ]);
+
+      const stepFindings = findingsFor(result, 'auditor-manual-step-logging');
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(stepFindings).toHaveLength(2);
+      expect(stepFindings.every(f => f.severity === 'error')).toBe(true);
+    });
+
+    it('rejects dynamic step logging with template literals and loop counters', async () => {
+      const result = await audit('legacy_dynamic_steps.ts', [
+        "export class DynamicStepsAuditor extends BaseAuditor<'sql-migration-drift'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${STEP_LOG}(1, 2, \`Validating timestamps across \${files.length} migrations...\`);`,
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-manual-step-logging')).toHaveLength(1);
+    });
+
+    it('accepts the migrated form without any manual step logging', async () => {
+      const result = await audit('migrated_steps.ts', [
+        "export class MigratedStepsAuditor extends BaseAuditor<'fsm-state-missing'> {",
+        '  public override async runAudit(): Promise<void> {',
+        "    this.runSubAuditorSync('fsm-state-missing', () => {});",
+        '  }',
+        '}'
+      ]);
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+      expect(result.findings).toHaveLength(0);
+    });
+
+    it('respects inline // homebrew-ok: exemption on a step log line', async () => {
+      const result = await audit('exempt_step.ts', [
+        "export class ExemptStepAuditor extends BaseAuditor<'fsm-state-missing'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${STEP_LOG}(1, 1, 'x'); // homebrew-ok: legacy migration pending`,
+        "    this.runSubAuditorSync('fsm-state-missing', () => {});",
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-manual-step-logging')).toHaveLength(0);
+    });
+  });
+
+  describe('auditor-unmeasured-rule', () => {
+    it('rejects validate_sprites pre-migration: mark + violations emitted outside any timing wrapper', async () => {
+      const result = await audit('legacy_sprites.ts', [
+        "export class LegacySpritesAuditor extends BaseAuditor<'sprite-missing-asset'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${MARK_EVALUATED}('sprite-missing-asset');`,
+        '    const itemsToValidate = this.collectItemsToValidate();',
+        '    let missingCount = 0;',
+        '    for (const item of itemsToValidate) {',
+        '      const isValid = await this.validateSingleSpriteSet(item);',
+        '      if (!isValid) missingCount++;',
+        '    }',
+        "    this.context.setMetric('Incomplete sprite sets', missingCount);",
+        '  }',
+        '',
+        '  private async validateSingleSpriteSet(item: string): Promise<boolean> {',
+        "    this.addViolation({ ruleId: 'sprite-missing-asset', severity: 'error', file: item, line: 1, message: 'missing', context: item });",
+        '    return false;',
+        '  }',
+        '}'
+      ]);
+
+      const unmeasured = findingsFor(result, 'auditor-unmeasured-rule');
+      expect(result.status).toBe('failed');
+      expect(unmeasured).toHaveLength(1);
+      expect(unmeasured[0]!.context).toBe('sprite-missing-asset');
+    });
+
+    it('rejects validate_combat_invariants pre-migration: helper rule invoked directly from scanFile', async () => {
+      const result = await audit('legacy_combat.ts', [
+        "export class LegacyCombatAuditor extends FileScanAuditor<'showdown-healthy-status-null-prohibition' | 'battle-multi-seat-hardcoding'> {",
+        '  protected override scanFile(relPath: string, content: string): void {',
+        "    this.runSubAuditorSync('showdown-healthy-status-null-prohibition', () => {",
+        '      this.auditStatusNull(relPath, content);',
+        '    });',
+        '',
+        '    this.auditBinarySeats(relPath, content);',
+        '  }',
+        '',
+        '  private auditStatusNull(relPath: string, content: string): void {',
+        "    this.addViolation({ ruleId: 'showdown-healthy-status-null-prohibition', severity: 'error', file: relPath, line: 1, message: 'null status', context: content });",
+        '  }',
+        '',
+        '  private auditBinarySeats(relPath: string, content: string): void {',
+        "    this.addViolation({ ruleId: 'battle-multi-seat-hardcoding', severity: 'error', file: relPath, line: 1, message: 'seats', context: content });",
+        '  }',
+        '}'
+      ]);
+
+      const unmeasured = findingsFor(result, 'auditor-unmeasured-rule');
+      expect(unmeasured).toHaveLength(1);
+      expect(unmeasured[0]!.context).toBe('battle-multi-seat-hardcoding');
+    });
+
+    it('rejects validate_showdown_parity pre-migration: mark + loop violations without wrapper', async () => {
+      const result = await audit('legacy_showdown.ts', [
+        "export class LegacyShowdownAuditor extends BaseAuditor<'missing-protocol-token'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${MARK_EVALUATED}('missing-protocol-token');`,
+        '    let totalTokensAudited = 0;',
+        '    for (const [category, tokens] of Object.entries(CANONICAL_TOKENS)) {',
+        '      for (const token of tokens) {',
+        '        totalTokensAudited++;',
+        '        if (!handledTokens.has(token)) {',
+        "          this.addViolation({ ruleId: 'missing-protocol-token', severity: 'error', file: 'bridge.ts', line: 1, message: category, context: token });",
+        '        }',
+        '      }',
+        '    }',
+        "    this.context.setMetric('Tokens Audited', totalTokensAudited);",
+        '  }',
+        '}'
+      ]);
+
+      const unmeasured = findingsFor(result, 'auditor-unmeasured-rule');
+      expect(unmeasured).toHaveLength(1);
+      expect(unmeasured[0]!.context).toBe('missing-protocol-token');
+    });
+
+    it('reports each unmeasured rule once even with several violation sites', async () => {
+      const result = await audit('legacy_many_sites.ts', [
+        "export class ManySitesAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        "    this.addViolation({ ruleId: 'rule-a', severity: 'error', file: 'a.ts', line: 1, message: 'a' });",
+        "    this.addViolation({ ruleId: 'rule-a', severity: 'error', file: 'b.ts', line: 2, message: 'b' });",
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-unmeasured-rule')).toHaveLength(1);
+    });
+
+    it('accepts validate_fsm_flow_parity post-migration: async wrapper encloses all violations', async () => {
+      const result = await audit('migrated_flow.ts', [
+        "export class MigratedFlowAuditor extends BaseAuditor<'fsm-flow-sequence-missing'> {",
+        '  public override async runAudit(): Promise<void> {',
+        "    await this.runSubAuditor('fsm-flow-sequence-missing', async () => {",
+        '      const manual = await readManual();',
+        '      if (manual.length === 0) {',
+        "        this.addViolation({ ruleId: 'fsm-flow-sequence-missing', severity: 'error', file: 'manual.md', line: 1, message: 'm' });",
+        '      }',
+        '    });',
+        '  }',
+        '}'
+      ]);
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+      expect(result.findings).toHaveLength(0);
+    });
+
+    it('accepts post-migration helper violations when the call site wraps the same rule literal', async () => {
+      const result = await audit('migrated_combat.ts', [
+        "export class MigratedCombatAuditor extends FileScanAuditor<'battle-multi-seat-hardcoding'> {",
+        '  protected override scanFile(relPath: string, content: string): void {',
+        "    this.runSubAuditorSync('battle-multi-seat-hardcoding', () => {",
+        '      this.auditBinarySeats(relPath, content);',
+        '    });',
+        '  }',
+        '',
+        '  private auditBinarySeats(relPath: string, content: string): void {',
+        "    this.addViolation({ ruleId: 'battle-multi-seat-hardcoding', severity: 'error', file: relPath, line: 1, message: 's', context: content });",
+        '  }',
+        '}'
+      ]);
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('accepts external-tool pattern: mark + reportRuleDuration provide measurement', async () => {
+      const result = await audit('external_tool.ts', [
+        "export class ExternalToolAuditor extends BaseAuditor<'tool-issue'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${MARK_EVALUATED}('tool-issue');`,
+        "    this.reportRuleDuration('tool-issue', 12);",
+        "    this.addViolation({ ruleId: 'tool-issue', severity: 'error', file: 'a.ts', line: 1, message: 'm' });",
+        '  }',
+        '}'
+      ]);
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('does not guess when rule ids are measured dynamically (no false positives)', async () => {
+      const result = await audit('dynamic_wrapper.ts', [
+        "export class DynamicWrapperAuditor extends BaseAuditor<'rule-a' | 'rule-b'> {",
+        '  public override async runAudit(): Promise<void> {',
+        '    for (const r of this.ruleIds) {',
+        '      this.runSubAuditorSync(r, () => {',
+        "        this.addViolation({ ruleId: 'rule-a', severity: 'error', file: 'a.ts', line: 1, message: 'm' });",
+        '      });',
+        '    }',
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-unmeasured-rule')).toHaveLength(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('ignores violations whose ruleId is not a string literal', async () => {
+      const result = await audit('dynamic_violation.ts', [
+        "export class DynamicViolationAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        '    for (const finding of findings) {',
+        '      this.addViolation({ ruleId: finding.ruleId, severity: finding.severity, file: finding.file, line: 1, message: finding.message });',
+        '    }',
+        '  }',
+        '}'
+      ]);
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('respects inline // homebrew-ok: exemption on the violation line', async () => {
+      const result = await audit('exempt_unmeasured.ts', [
+        "export class ExemptUnmeasuredAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        "    this.addViolation({ ruleId: 'rule-a', severity: 'error', file: 'a.ts', line: 1, message: 'm' }); // homebrew-ok: measured by parent",
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-unmeasured-rule')).toHaveLength(0);
+    });
+  });
+
+  describe('auditor-redundant-rule-evaluated', () => {
+    it('rejects explicit mark immediately redundant with a measuring wrapper for the same rule', async () => {
+      const result = await audit('redundant_mark.ts', [
+        "export class RedundantMarkAuditor extends BaseAuditor<'my-rule'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${MARK_EVALUATED}('my-rule');`,
+        "    this.runSubAuditorSync('my-rule', () => {});",
+        '  }',
+        '}'
+      ]);
+
+      const redundant = findingsFor(result, 'auditor-redundant-rule-evaluated');
+      expect(result.status).toBe('failed');
+      expect(redundant).toHaveLength(1);
+      expect(redundant[0]!.context).toBe('my-rule');
+    });
+
+    it('rejects redundant mark in front of async and declared wrappers', async () => {
+      const result = await audit('redundant_async.ts', [
+        "export class RedundantAsyncAuditor extends BaseAuditor<'rule-a' | 'rule-b'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${MARK_EVALUATED}('rule-a');`,
+        `    ${MARK_EVALUATED}('rule-b');`,
+        "    await this.runSubAuditor('rule-a', async () => {});",
+        "    this.declareFileSubAuditor('rule-b', () => {});",
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-redundant-rule-evaluated')).toHaveLength(2);
+    });
+
+    it('accepts a mark for a rule that is not wrapped (explicit external evaluation)', async () => {
+      const result = await audit('single_mark.ts', [
+        "export class SingleMarkAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        `    ${MARK_EVALUATED}('rule-a');`,
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-redundant-rule-evaluated')).toHaveLength(0);
+    });
+
+    it('accepts markRuleNotApplicable alongside the measuring wrapper', async () => {
+      const result = await audit('not_applicable.ts', [
+        "export class NotApplicableAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        "    this.runSubAuditorSync('rule-a', () => {",
+        "      this.markRuleNotApplicable('rule-a', 'vite.config.ts no existe');",
+        '    });',
+        '  }',
+        '}'
+      ]);
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+  });
+
+  it('flags a full pre-migration extension with every legacy defect at once', async () => {
+    const result = await audit('legacy_everything.ts', [
+      "export class LegacyEverythingAuditor extends BaseAuditor<'rule-a' | 'rule-b'> {",
+      '  public override async runAudit(): Promise<void> {',
+      `    ${STEP_LOG}(1, 2, 'Loading...');`,
+      `    ${MARK_EVALUATED}('rule-a');`,
+      "    this.runSubAuditorSync('rule-a', () => {});",
+      `    ${STEP_LOG}(2, 2, 'Validating...');`,
+      "    this.addViolation({ ruleId: 'rule-b', severity: 'error', file: 'a.ts', line: 1, message: 'm' });",
+      '  }',
+      '}'
+    ]);
+
+    expect(result.status).toBe('failed');
+    expect(findingsFor(result, 'auditor-manual-step-logging')).toHaveLength(2);
+    expect(findingsFor(result, 'auditor-redundant-rule-evaluated')).toHaveLength(1);
+    expect(findingsFor(result, 'auditor-unmeasured-rule')).toHaveLength(1);
   });
 });

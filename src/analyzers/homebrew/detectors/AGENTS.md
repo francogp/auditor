@@ -26,6 +26,10 @@ Architecture & Tooling Engineers.
 - [`predicatesDetector.ts`](./predicatesDetector.ts): Detects homebrew test/path predicates (`auditor-homebrew-predicates`).
 - [`manualTimingDetector.ts`](./manualTimingDetector.ts): Detects manual rule duration measurements (`auditor-manual-rule-timing`).
 - [`hardcodedConfigDetector.ts`](./hardcodedConfigDetector.ts): Detects hardcoded candidate paths, arrays or ignores (`auditor-hardcoded-config`).
+- [`manualStepLoggingDetector.ts`](./manualStepLoggingDetector.ts): Detects manual step logging calls (`auditor-manual-step-logging`).
+- [`unmeasuredRuleDetector.ts`](./unmeasuredRuleDetector.ts): Detects violations emitted outside timing wrappers (`auditor-unmeasured-rule`).
+- [`redundantRuleEvaluatedDetector.ts`](./redundantRuleEvaluatedDetector.ts): Detects redundant markRuleEvaluated calls before wrappers (`auditor-redundant-rule-evaluated`).
+- [`ruleMeasurementScan.ts`](./ruleMeasurementScan.ts): Shared AST scanner cross-referencing violation sites, wrappers and measurements.
 
 ## Work Guidance
 

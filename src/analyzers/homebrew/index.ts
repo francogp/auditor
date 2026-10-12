@@ -17,6 +17,9 @@ import { fileWalkerDetector } from './detectors/fileWalkerDetector.ts';
 import { predicatesDetector } from './detectors/predicatesDetector.ts';
 import { manualTimingDetector } from './detectors/manualTimingDetector.ts';
 import { hardcodedConfigDetector } from './detectors/hardcodedConfigDetector.ts';
+import { manualStepLoggingDetector } from './detectors/manualStepLoggingDetector.ts';
+import { unmeasuredRuleDetector } from './detectors/unmeasuredRuleDetector.ts';
+import { redundantRuleEvaluatedDetector } from './detectors/redundantRuleEvaluatedDetector.ts';
 
 // Auto-register canonical built-in detectors
 HomebrewDetectorRegistry.register(packageJsonDetector);
@@ -31,6 +34,9 @@ HomebrewDetectorRegistry.register(fileWalkerDetector);
 HomebrewDetectorRegistry.register(predicatesDetector);
 HomebrewDetectorRegistry.register(manualTimingDetector);
 HomebrewDetectorRegistry.register(hardcodedConfigDetector);
+HomebrewDetectorRegistry.register(manualStepLoggingDetector);
+HomebrewDetectorRegistry.register(unmeasuredRuleDetector);
+HomebrewDetectorRegistry.register(redundantRuleEvaluatedDetector);
 
 export * from './homebrewTypes.ts';
 export * from './homebrewRegistry.ts';
@@ -46,5 +52,8 @@ export {
   fileWalkerDetector,
   predicatesDetector,
   manualTimingDetector,
-  hardcodedConfigDetector
+  hardcodedConfigDetector,
+  manualStepLoggingDetector,
+  unmeasuredRuleDetector,
+  redundantRuleEvaluatedDetector
 };

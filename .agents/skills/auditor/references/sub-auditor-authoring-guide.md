@@ -219,8 +219,6 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
     const dataFilePath = path.resolve(this.projectRoot, 'src/data/myData.ts');
     this.recordScanned(dataFilePath);
 
-    this.context.logStep(1, 2, 'Validating my data keys...');
-
     // Rule 1: Missing key check (timed empirically)
     this.runSubAuditorSync('my-data-key-missing', () => {
       for (const [key, value] of Object.entries(MY_DATA)) {
@@ -830,7 +828,27 @@ The orchestrator and `validate_audit_config` will:
 
 ---
 
-## 11. Mandatory Hermetic Unit Testing
+## 11. Forbidden Anti-Patterns & Hygiene Contracts
+
+When authoring sub-auditors or host extensions, `validate_auditor_hygiene` strictly enforces three execution invariants:
+
+1. **NO Manual Step Logging (`auditor-manual-step-logging`)**:
+   Never invoke `this.context.logStep(...)`. The framework runner automatically streams rule lines (`🔍 [n/m]`) with real-time empirical durations.
+
+2. **Always Wrap Violations in Measurement Wrappers (`auditor-unmeasured-rule`)**:
+   Never invoke `this.addViolation(...)` in top-level code or helper methods without enclosing it in a measurement wrapper:
+   - Synchronous rules: `this.runSubAuditorSync('rule-id', () => { ... })`
+   - Asynchronous rules: `await this.runSubAuditor('rule-id', async () => { ... })`
+   - File scanners: `this.declareFileSubAuditor('rule-id', (doc) => { ... })`
+   - External tools: `this.recordRuleDuration('rule-id', elapsedMs)`
+   Emitting violations outside wrappers produces fake `(0 ms)` badges and triggers `auditor-unmeasured-rule`. (Single-rule `FileScanAuditor` classes automatically measure `scanFile` per file).
+
+3. **NO Redundant `markRuleEvaluated` (`auditor-redundant-rule-evaluated`)**:
+   Do NOT call `this.markRuleEvaluated('rule-id')` right before `this.runSubAuditorSync('rule-id', ...)` or `declareFileSubAuditor`. Measurement wrappers already mark rules evaluated internally.
+
+---
+
+## 12. Mandatory Hermetic Unit Testing
 
 Every sub-auditor MUST have a companion unit test file in `tests/<suite_name>.test.ts` (or `tests/node/auditors/` for host extensions) adhering to:
 
@@ -1247,3 +1265,15 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
 12. **Zero Hardcoded Paths or Configuration Candidates (`auditor-hardcoded-config`)**:
     - ❌ **Prohibited**: Hardcoded arrays of candidate files (e.g. `['visuals.ts', 'constants.ts']`), local directory ignores, or fallback path lists in sub-auditors or extensions.
     - ✅ **Canonical**: Dynamic resolution from `config.<section>`, `getAuditConfig()`, and `options.exemptPaths` / `isPathExempt`.
+
+13. **Zero Manual Step Logging (`auditor-manual-step-logging`)**:
+    - ❌ **Prohibited**: Calling `this.context.logStep(...)` inside sub-auditors or scan loops.
+    - ✅ **Canonical**: Let the streaming runner and `BaseAuditor` report per-rule streaming lines (`🔍 [n/m]`) automatically.
+
+14. **Zero Unmeasured Rules (`auditor-unmeasured-rule`)**:
+    - ❌ **Prohibited**: Calling `this.addViolation(...)` outside a timing wrapper or relying on bare `markRuleEvaluated` without measurement.
+    - ✅ **Canonical**: Wrap evaluation in `this.runSubAuditorSync(ruleId, ...)`, `await this.runSubAuditor(ruleId, ...)`, or `this.declareFileSubAuditor(ruleId, ...)`.
+
+15. **Zero Redundant Rule Marking (`auditor-redundant-rule-evaluated`)**:
+    - ❌ **Prohibited**: Calling `this.markRuleEvaluated(ruleId)` immediately before a measuring wrapper for the same rule.
+    - ✅ **Canonical**: Omit the manual mark; all timing wrappers mark rules evaluated internally.

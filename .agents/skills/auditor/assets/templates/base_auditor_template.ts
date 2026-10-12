@@ -107,8 +107,6 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    this.context.logStep(1, 2, 'Loading and indexing canonical datasets...');
-
     // Option A: Inspect centralized files and record scanned telemetry
     const files = await this.context.collectFiles(['src/data'], new Set(['.ts', '.json']));
     for (const file of files) {
@@ -116,8 +114,6 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
     }
 
     // Option B: Validate data structures or relationships with individual empirical timing
-    this.context.logStep(2, 2, 'Verifying cross-entity parity...');
-
     // Rule 1: Missing entry check (measured individually)
     this.runSubAuditorSync('composite-missing-entry', () => {
       // In real code: check if all required entries exist in registry

@@ -90,8 +90,6 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
-    this.context.logStep(1, 1, 'Inspeccionando nodos AST en archivos del proyecto...');
-
     // Guarantee AST engine availability (injected by orchestrator or fallback)
     const astEngine = astContext ?? new SharedAstContext(this.projectRoot);
 

@@ -320,7 +320,6 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
 
     const astEngine = astContext ?? new SharedAstContext();
     for (let i = 0; i < targets.length; i++) {
-      this.context.logStep(i + 1, targets.length, `Analizando objetivo Valibot '${targets[i]!.id}'...`);
       this.auditSingleTarget(targets[i]!, astEngine);
     }
     this.context.setMetric('Objetivos Auditados', targets.length);
