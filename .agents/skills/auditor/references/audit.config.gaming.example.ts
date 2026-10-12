@@ -301,14 +301,17 @@ export default defineAuditConfig({
     enabled: true, // Frontend web performance hygiene and Core Web Vitals optimization
     maxDomDepth: 32, // Maximum DOM tree nesting depth before triggering complexity warnings
     maxInlineSvgBytes: 4096, // Maximum byte size for inline SVG strings before mandating external sprite/file
-    maxUncompressedVideoBytes: 10485760 // Maximum uncompressed video asset size (10 MB)
+    maxUncompressedVideoBytes: 10485760, // Maximum uncompressed video asset size (10 MB)
+    exemptImgClasses: ['pixel-sprite', 'game-avatar'], // Image classes exempt from layout dimensions (e.g. dynamic canvas sprites)
+    exemptSvgPaths: ['src/assets/svg/ui-badges'] // Paths with complex SVG illustrations exempt from inline bloat check
   },
 
   queryPerformance: {
     enabled: true, // Database query performance and anti-pattern static analysis
     enforceSelectStar: true, // Prohibits unbounded SELECT * queries in data access layers
     enforcePagination: true, // Requires explicit limit/pagination on collection queries
-    enforceNPlusOneDetection: true // Statically detects N+1 query patterns inside array loops
+    enforceNPlusOneDetection: true, // Statically detects N+1 query patterns inside array loops
+    exemptSelectStarPaths: ['src/persistence/views/game_state_dump.sql'] // Views or ETL scripts exempt from SELECT * checks
   },
 
   securityHardening: {
@@ -322,14 +325,19 @@ export default defineAuditConfig({
     enabled: true, // Pragmatic code complexity and anti-pattern static governance
     maxNestingDepth: 4, // Maximum nested control-flow depth (if/for/while) allowed before mandating guard clauses
     maxBooleanParams: 2, // Maximum consecutive boolean parameters in function signatures to avoid boolean traps
-    maxSwitchCases: 10 // Maximum cases per switch statement before mandating polymorphic dispatch
+    maxSwitchCases: 10, // Maximum cases per switch statement before mandating polymorphic dispatch
+    allowMatrixLoops: true // Permits nested 2D/3D matrix loops in grid map simulation and pathfinding algorithms
   },
 
   scssArchitecture: {
     enabled: true, // SCSS modular styling architecture and token hygiene
     maxNestingDepth: 4, // Maximum selector nesting depth allowed in SCSS and Vue SFC <style> blocks
     enforceThemeTokens: true, // Mandates using design system theme tokens and SCSS variables for styling values
-    bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc'] // Obsolete print/physical units strictly prohibited in web stylesheets
+    bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc'], // Obsolete print/physical units strictly prohibited in web stylesheets
+    scopedMaxNestingDepth: {
+      'src/components/battle': 5 // Accommodates deeper scoped nesting in complex battle arena scenes
+    },
+    allowPixelArtSpacing: true // Allows odd 1px/2px margins and paddings for authentic retro pixel-art grid alignment
   },
 
   domain: {

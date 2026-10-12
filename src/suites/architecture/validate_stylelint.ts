@@ -326,8 +326,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const projectRoot = options?.projectRoot;
     const config = getAuditConfig(projectRoot);
     const roots = Array.from(new Set([
-      ...(config.paths.srcRoots ?? ['src']),
-      ...(config.paths.stylesRoots ?? ['src/styles'])
+      ...(config.paths.srcRoots ?? []),
+      ...(config.paths.stylesRoots ?? [])
     ]));
 
     super({

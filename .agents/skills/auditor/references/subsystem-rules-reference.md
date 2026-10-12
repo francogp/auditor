@@ -15,6 +15,7 @@ This reference documents the detailed technical specifications, edge-case handli
 7. [Local Git Repository Configuration Governance](#7-local-git-repository-configuration-governance)
 8. [Zero False-Fix Mandate & Grounded Fixability Contract](#8-zero-false-fix-mandate--grounded-fixability-contract)
 9. [Script Extensions Governance & Automated TypeScript Migration](#9-script-extensions-governance--automated-typescript-migration)
+10. [Dynamic Exemption Architecture & Anti-Hardcoding Invariant (`isPathExempt`, `auditor-hardcoded-config`)](#10-dynamic-exemption-architecture--anti-hardcoding-invariant-ispathexempt-auditor-hardcoded-config)
 
 ---
 
@@ -131,3 +132,20 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
 - **Legacy Module Prohibition (`banned-mjs-extension`, `banned-cjs-extension`)**: Standalone `.mjs` and CommonJS `.cjs` files are prohibited anywhere in the repository (`severity: 'error'`).
 - **Untyped Script Prohibition (`banned-raw-js-script`)**: Standalone `.js` scripts in `scriptsRoots` and `cliRoots` must be TypeScript (`.ts`). Standard configuration files (`eslint.config.js`, `postcss.config.js`, `vite.config.js`) are exempt.
 - **Automated `--fix` Migration**: `auditor fix` renames files to `.ts` on disk, rewrites relative import references across project code files, and updates package scripts in `package.json`.
+
+---
+
+## 10. Dynamic Exemption Architecture & Anti-Hardcoding Invariant (`isPathExempt`, `auditor-hardcoded-config`)
+
+- **Zero Hardcoded Paths Invariant**: Sub-auditors and extensions are strictly prohibited from declaring hardcoded candidate file arrays (e.g. `['visuals.ts', 'constants.ts']`), local directory ignore lists, or arbitrary fallback filenames. All file targets, search roots, migration paths, and exclusion patterns MUST resolve dynamically from `.auditor/audit.config.ts`.
+- **Auditor Hygiene Detector (`auditor-hardcoded-config`)**: Enforced at build and audit time by `validate_auditor_hygiene` via `hardcodedConfigDetector.ts`. It statically scans all sub-auditors and extensions in `src/suites/**/*.ts` and `scripts/auditors/**/*.ts`, flagging any hardcoded candidate arrays or ignore lists with `severity: 'error'`.
+- **`FileScanAuditor` Native Exemption (`options.exemptPaths`)**:
+  - `FileScanAuditor` accepts `exemptPaths?: readonly (string | RegExp)[]` in its constructor options.
+  - Subclasses pass `config.<section>?.exemptPaths` directly to `super({ ... })`.
+  - The base class automatically invokes `isPathExempt(doc.relPath, this.exemptPaths)` before dispatching to `scanDocument` or `scanFile`, eliminating manual loop boilerplate and duplicate code across suites.
+- **Configurable Suite Exemptions**:
+  - `webPerformance`: `exemptPaths`, `exemptSvgPaths`, `exemptImgClasses`
+  - `queryPerformance`: `exemptPaths`, `exemptSelectStarPaths`
+  - `securityHardening`: `exemptPaths` (and natively allows empty string `.innerHTML = ''`)
+  - `codeSimplification`: `exemptPaths`, `allowMatrixLoops`
+  - `scssArchitecture`: `exemptPaths`, `scopedMaxNestingDepth`, `allowPixelArtSpacing`, `allowedSpacingUnits`, `allowScopedColors`

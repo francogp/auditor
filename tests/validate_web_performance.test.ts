@@ -287,6 +287,98 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('does not falsely count TypeScript generics or comparisons in <script> as DOM depth', async () => {
+      const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      const snippet = [
+        '<template>',
+        '  <div class="container">',
+        '    <span>Hello</span>',
+        '  </div>',
+        '</template>',
+        '<script setup lang="ts">',
+        'const items: Array<Record<string, Array<number>>> = [];',
+        'for (let i = 0; i < 100; i++) {',
+        '  if (i < 50) {',
+        '    console.log(i);',
+        '  }',
+        '}',
+        '</script>'
+      ].join('\n');
+
+      auditor.testScanFile('src/views/GenericsView.vue', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('honors exemptSvgPaths for interactive SVG canvas/overlay components', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          webPerformance: {
+            exemptSvgPaths: ['src/components/NetworkOverlay.vue']
+          }
+        })
+      );
+
+      const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      const largeSvg = '<svg viewBox="0 0 1000 1000">' + '<path d="M0,0 L10,10" />'.repeat(50) + '</svg>';
+      const snippet = `<template><div>${largeSvg}</div></template>`;
+
+      auditor.testScanFile('src/components/NetworkOverlay.vue', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('honors exemptImgClasses for pixelated and sprite classes', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          webPerformance: {
+            exemptImgClasses: ['pixelated', 'tile-sprite']
+          }
+        })
+      );
+
+      const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      const snippet = '<template><img src="/tiles.webp" class="pixelated" alt="tile" decoding="async" /></template>';
+
+      auditor.testScanFile('src/components/Tile.vue', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('honors exemptPaths dynamically configured in audit.config.json', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          webPerformance: {
+            exemptPaths: ['src/legacy/**']
+          }
+        })
+      );
+
+      const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      const snippet = '<img src="/legacy.png" alt="legacy" />';
+
+      auditor.testScanFile('src/legacy/LegacyImg.vue', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 
   describe('Point 4 & 5: Warning Path & 100% Rule Coverage', () => {

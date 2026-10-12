@@ -17,6 +17,7 @@ describe('colorizeStreamSubLine', () => {
         id: 'rule_1',
         name: 'Reglas de Arquitectura: Funciones Anidadas',
         status: 'failed',
+        speed: 'fast',
         count: 5,
         errorsCount: 5,
         warningsCount: 0
@@ -41,6 +42,7 @@ describe('colorizeStreamSubLine', () => {
         id: 'rule_1',
         name: 'Reglas de Estilo: Mixins',
         status: 'warning',
+        speed: 'fast',
         count: 2,
         errorsCount: 0,
         warningsCount: 2
@@ -65,6 +67,7 @@ describe('colorizeStreamSubLine', () => {
         id: 'rule_1',
         name: 'Reglas de Arquitectura: Inyección de Dependencias',
         status: 'passed',
+        speed: 'fast',
         count: 0,
         errorsCount: 0,
         warningsCount: 0
@@ -117,6 +120,7 @@ describe('TaskStreamCoordinator', () => {
           id: 'rule_1',
           name: 'Regla Fallida',
           status: 'failed',
+          speed: 'fast',
           count: 2,
           errorsCount: 2,
           warningsCount: 0
@@ -151,6 +155,7 @@ describe('TaskStreamCoordinator', () => {
           id: 'rule_warn',
           name: 'Regla Warning',
           status: 'warning',
+          speed: 'fast',
           count: 1,
           errorsCount: 0,
           warningsCount: 1
@@ -185,6 +190,7 @@ describe('TaskStreamCoordinator', () => {
           id: 'rule_clean',
           name: 'Regla Limpia',
           status: 'passed',
+          speed: 'fast',
           count: 0,
           errorsCount: 0,
           warningsCount: 0

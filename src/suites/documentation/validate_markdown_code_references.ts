@@ -101,13 +101,13 @@ function extractTopLevelRoots(dirs: readonly string[]): string[] {
 }
 
 function resolveConfiguredPathCandidates(paths?: AuditEngineConfig['paths']): string[] {
-  if (!paths) return ['src', 'tests', 'scripts'];
+  if (!paths) return [];
   const declared = [
-    ...(paths.srcRoots ?? ['src']),
-    ...(paths.testRoots ?? ['tests']),
+    ...(paths.srcRoots ?? []),
+    ...(paths.testRoots ?? []),
     ...(paths.e2eRoots ?? []),
     ...(paths.integrationRoots ?? []),
-    ...(paths.scriptsRoots ?? ['scripts'])
+    ...(paths.scriptsRoots ?? [])
   ];
   return [
     ...declared,

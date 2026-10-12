@@ -67,6 +67,26 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
       expect(result.status).toBe('passed');
       expect(result.findings).toHaveLength(0);
     });
+
+    it('ignores SELECT * in immutable migration files to prevent false positives', async () => {
+      const auditor = new ValidateQueryPerformanceAuditor({ projectRoot: tempDir });
+      const migrationSql = [
+        '-- Data migration backfill',
+        'DO $$',
+        'BEGIN',
+        '  FOR r IN SELECT * FROM legacy_players LOOP',
+        '    INSERT INTO players (id) VALUES (r.id);',
+        '  END LOOP;',
+        'END $$;'
+      ].join('\n');
+
+      auditor.testScanFile('supabase/migrations/20260101_backfill.sql', migrationSql);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+      expect(result.findings).toHaveLength(0);
+    });
   });
 
   describe('Point 3: Violation Detection Path for All 6 Rules', () => {

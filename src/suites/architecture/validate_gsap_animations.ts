@@ -520,8 +520,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   ): void {
     const config = getAuditConfig(this.projectRoot);
     const uiRoots = [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
     ];
     const isUiFile = norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
 

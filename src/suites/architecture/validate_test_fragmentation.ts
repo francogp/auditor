@@ -79,7 +79,7 @@ private readonly minTestLines: number;
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
-      ...(config.paths.testRoots ?? ['tests']),
+      ...(config.paths.testRoots ?? []),
       ...(config.paths.integrationRoots ?? []),
       ...(config.paths.e2eRoots ?? [])
     ];

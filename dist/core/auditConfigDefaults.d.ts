@@ -3,7 +3,7 @@
  *
  * Canonical default configuration, builders, and defineAuditConfig coordinator.
  */
-import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditEnvironmentConfig, type AuditAuditorHygieneConfig, type AuditScriptExtensionsConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditSecretLeaksConfig, type AuditDependencyVulnerabilitiesConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig, type AuditValibotConfig } from './auditConfigTypes.ts';
+import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditEnvironmentConfig, type AuditAuditorHygieneConfig, type AuditScriptExtensionsConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditSecretLeaksConfig, type AuditDependencyVulnerabilitiesConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig, type AuditValibotConfig, type AuditWebPerformanceConfig, type AuditQueryPerformanceConfig, type AuditSecurityHardeningConfig, type AuditCodeSimplificationConfig, type AuditScssArchitectureConfig } from './auditConfigTypes.ts';
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export declare const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export declare const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
@@ -45,6 +45,11 @@ export declare function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeak
 export declare function buildDependencyVulnerabilitiesConfig(raw?: DeepPartial<AuditDependencyVulnerabilitiesConfig>): AuditDependencyVulnerabilitiesConfig;
 export declare function buildCoverageConfig(raw: DeepPartial<AuditCoverageConfig> | undefined, paths: AuditEngineConfig['paths']): AuditCoverageConfig;
 export declare function buildValibotConfig(raw: DeepPartial<AuditValibotConfig> | undefined): AuditValibotConfig;
+export declare function buildWebPerformanceConfig(raw?: DeepPartial<AuditWebPerformanceConfig>): AuditWebPerformanceConfig;
+export declare function buildQueryPerformanceConfig(raw?: DeepPartial<AuditQueryPerformanceConfig>): AuditQueryPerformanceConfig;
+export declare function buildSecurityHardeningConfig(raw?: DeepPartial<AuditSecurityHardeningConfig>): AuditSecurityHardeningConfig;
+export declare function buildCodeSimplificationConfig(raw?: DeepPartial<AuditCodeSimplificationConfig>): AuditCodeSimplificationConfig;
+export declare function buildScssArchitectureConfig(raw?: DeepPartial<AuditScssArchitectureConfig>): AuditScssArchitectureConfig;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
     name: string;
 }): AuditEngineConfig;

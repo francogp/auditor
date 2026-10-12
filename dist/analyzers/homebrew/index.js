@@ -15,6 +15,7 @@ import { pathContainmentDetector } from "./detectors/pathContainmentDetector.js"
 import { fileWalkerDetector } from "./detectors/fileWalkerDetector.js";
 import { predicatesDetector } from "./detectors/predicatesDetector.js";
 import { manualTimingDetector } from "./detectors/manualTimingDetector.js";
+import { hardcodedConfigDetector } from "./detectors/hardcodedConfigDetector.js";
 // Auto-register canonical built-in detectors
 HomebrewDetectorRegistry.register(packageJsonDetector);
 HomebrewDetectorRegistry.register(vueSfcRegexDetector);
@@ -27,7 +28,8 @@ HomebrewDetectorRegistry.register(pathContainmentDetector);
 HomebrewDetectorRegistry.register(fileWalkerDetector);
 HomebrewDetectorRegistry.register(predicatesDetector);
 HomebrewDetectorRegistry.register(manualTimingDetector);
+HomebrewDetectorRegistry.register(hardcodedConfigDetector);
 export * from "./homebrewTypes.js";
 export * from "./homebrewRegistry.js";
-export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector };
+export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector };
 //# sourceMappingURL=index.js.map

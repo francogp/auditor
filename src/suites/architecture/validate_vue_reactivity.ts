@@ -55,10 +55,10 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views']),
-      'src/composables',
-      'src/stores'
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? []),
+      ...(config.paths.composablesRoots ?? []),
+      ...(config.paths.storesRoots ?? [])
     ];
 
     super({

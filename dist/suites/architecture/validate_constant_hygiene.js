@@ -39,7 +39,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
             : undefined;
         const effectiveProjectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
         const config = getAuditConfig(effectiveProjectRoot);
-        const rawRoots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? ['src']));
+        const rawRoots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? []));
         const effectiveRoots = rawRoots.map(r => toPosixRelative(effectiveProjectRoot, r));
         super({
             ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {

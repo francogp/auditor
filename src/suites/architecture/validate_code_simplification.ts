@@ -1,7 +1,16 @@
+import ts from 'typescript';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  resolveFileScanRoots
+} from '../../core/auditorBase.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -16,11 +25,24 @@ export const CODE_SIMPLIFICATION_RULES = [
 
 export type CodeSimplificationRuleId = (typeof CODE_SIMPLIFICATION_RULES)[number];
 
+export const CODE_SIMPLIFICATION_CAPABILITIES = {
+  fix: false,
+  fixPriority: false,
+  lint: true,
+  md: false,
+  ast: true,
+  changedSince: false,
+  heavy: false,
+  requiresBuild: false,
+  postRun: false
+} as const;
+
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 
 export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
+    const config = getAuditConfig(effectiveRoot);
     super({
       id: 'validate_code_simplification',
       name: 'Code Complexity & Readability Simplifier Validator',
@@ -42,13 +64,19 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         'premature-abstraction-wrapper': 'Wrapper innecesario sin lógica',
         'massive-switch-branching': 'Switch masivo con más de 10 casos'
       },
-      ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, LINT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, CODE_SIMPLIFICATION_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
+      exemptPaths: config.codeSimplification?.exemptPaths
     });
   }
 
-  protected override scanFile(relPath: string, content: string): void {
+  protected override scanFile(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile,
+    doc?: AuditedDocument
+  ): void {
     const sourceLines = content.split('\n');
     const isTestFile = isTestPath(relPath);
 
@@ -59,7 +87,13 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       if (!isTestFile && !content.includes('boolean-trap-ok')) this.auditBooleanTrapParameters(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('deep-nesting-control-flow', () => {
-      if (!isTestFile && !content.includes('nesting-ok')) this.auditDeepNestingControlFlow(relPath, content, sourceLines);
+      if (!isTestFile && !content.includes('nesting-ok')) {
+        const document = doc ?? new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
+        const sf = sourceFile ?? document.getAst();
+        if (sf) {
+          this.auditDeepNestingControlFlow(relPath, sf, document, sourceLines);
+        }
+      }
     });
     this.runSubAuditorSync('redundant-else-after-return', () => {
       if (!isTestFile && !content.includes('redundant-else-ok')) this.auditRedundantElseAfterReturn(relPath, content, sourceLines);
@@ -146,33 +180,122 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     }
   }
 
-  private auditDeepNestingControlFlow(relPath: string, _content: string, lines: readonly string[]): void {
-    let depth = 0;
-    const blockStartRegex = /\b(?:if|for|while|switch)\s*\([^)]*\)\s*\{/;
+  private computeNestingDepth(
+    node: ts.Node,
+    currentDepth: number,
+    parentIsLoop: boolean,
+    allowMatrixLoops: boolean
+  ): number {
+    const isElseIf =
+      ts.isIfStatement(node) &&
+      node.parent !== undefined &&
+      ts.isIfStatement(node.parent) &&
+      node.parent.elseStatement === node;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      if (blockStartRegex.test(line)) {
-        depth++;
-        if (depth > 4) {
-          const lineText = line;
-          const prevLineText = i > 0 ? (lines[i - 1] ?? '') : '';
-          if (lineText.includes('nesting-ok') || prevLineText.includes('nesting-ok')) continue;
+    const isLoop = this.isLoopAstNode(node);
+    const isMatrixChildLoop = allowMatrixLoops && isLoop && parentIsLoop;
+    return isElseIf || isMatrixChildLoop ? currentDepth : currentDepth + 1;
+  }
 
-          this.addViolation({
-            ruleId: 'deep-nesting-control-flow',
-            severity: 'error',
-            message: `Control de flujo con anidamiento profundo (${depth} niveles > 4); aplicar early return`,
-            file: relPath,
-            line: i + 1
-          });
-        }
-      }
-      const closeCount = (line.match(/\}/g) ?? []).length;
-      if (closeCount > 0) {
-        depth = Math.max(0, depth - closeCount);
-      }
+  private isLoopAstNode(node: ts.Node): boolean {
+    return (
+      ts.isForStatement(node) ||
+      ts.isForInStatement(node) ||
+      ts.isForOfStatement(node) ||
+      ts.isWhileStatement(node) ||
+      ts.isDoStatement(node)
+    );
+  }
+
+  private isControlFlowAstNode(node: ts.Node): boolean {
+    return (
+      ts.isIfStatement(node) ||
+      ts.isForStatement(node) ||
+      ts.isForInStatement(node) ||
+      ts.isForOfStatement(node) ||
+      ts.isWhileStatement(node) ||
+      ts.isDoStatement(node) ||
+      ts.isSwitchStatement(node)
+    );
+  }
+
+  private isFunctionBoundaryAstNode(node: ts.Node): boolean {
+    return (
+      ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isArrowFunction(node) ||
+      ts.isMethodDeclaration(node) ||
+      ts.isGetAccessor(node) ||
+      ts.isSetAccessor(node) ||
+      ts.isConstructorDeclaration(node)
+    );
+  }
+
+  private checkDeepNestingViolation(
+    relPath: string,
+    node: ts.Node,
+    sourceFile: ts.SourceFile,
+    doc: AuditedDocument | undefined,
+    lines: readonly string[],
+    depth: number,
+    maxDepth: number,
+    reportedLines: Set<number>
+  ): void {
+    if (depth <= maxDepth) return;
+    const { line } = doc
+      ? doc.getNodeLineAndColumn(node, sourceFile)
+      : { line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1 };
+
+    if (reportedLines.has(line)) return;
+    reportedLines.add(line);
+
+    const lineText = lines[line - 1] ?? '';
+    const prevLineText = line > 1 ? (lines[line - 2] ?? '') : '';
+    const hasHatch =
+      lineText.includes('nesting-ok') ||
+      prevLineText.includes('nesting-ok') ||
+      (doc ? doc.hasEscapeHatch(line, 'deep-nesting-control-flow') : false);
+
+    if (!hasHatch) {
+      this.addViolation({
+        ruleId: 'deep-nesting-control-flow',
+        severity: 'error',
+        message: `Control de flujo con anidamiento profundo (${depth} niveles > ${maxDepth}); aplicar early return`,
+        file: relPath,
+        line
+      });
     }
+  }
+
+  private auditDeepNestingControlFlow(
+    relPath: string,
+    sourceFile: ts.SourceFile,
+    doc: AuditedDocument | undefined,
+    lines: readonly string[]
+  ): void {
+    const config = getAuditConfig(this.projectRoot);
+    const maxNestingDepth = config.codeSimplification?.maxNestingDepth ?? 4;
+    const allowMatrixLoops = config.codeSimplification?.allowMatrixLoops ?? false;
+    const reportedLines = new Set<number>();
+
+    const visit = (node: ts.Node, currentDepth: number, parentIsLoop: boolean): void => {
+      if (this.isFunctionBoundaryAstNode(node)) {
+        ts.forEachChild(node, child => visit(child, 0, false));
+        return;
+      }
+
+      if (this.isControlFlowAstNode(node)) {
+        const nextDepth = this.computeNestingDepth(node, currentDepth, parentIsLoop, allowMatrixLoops);
+        this.checkDeepNestingViolation(relPath, node, sourceFile, doc, lines, nextDepth, maxNestingDepth, reportedLines);
+        const isLoop = this.isLoopAstNode(node);
+        ts.forEachChild(node, child => visit(child, nextDepth, isLoop));
+        return;
+      }
+
+      ts.forEachChild(node, child => visit(child, currentDepth, parentIsLoop));
+    };
+
+    visit(sourceFile, 0, false);
   }
 
   private auditRedundantElseAfterReturn(relPath: string, content: string, lines: readonly string[]): void {

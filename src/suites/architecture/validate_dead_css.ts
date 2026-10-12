@@ -221,8 +221,8 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
 constructor(projectRoot: string = process.cwd()) {
     const config = getAuditConfig(projectRoot);
     const compRoots = [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
     ];
 
     super({
@@ -260,13 +260,13 @@ constructor(projectRoot: string = process.cwd()) {
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     const globalUtilityClasses = getEffectiveGlobalUtilityClasses(this.projectRoot);
-    const srcRoots = config.paths.srcRoots ?? ['src'];
+    const srcRoots = config.paths.srcRoots ?? [];
     const allSrcFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.json']));
     const globalTokens = collectGlobalCodeTokens(this.projectRoot, allSrcFiles);
 
     const compRoots = [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
     ];
     this.redeclareCoverage({
       include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), this.projectRoot).include

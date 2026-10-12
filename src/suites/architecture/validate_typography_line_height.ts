@@ -126,7 +126,7 @@ private totalRulesChecked = 0;
 
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths?.srcRoots ?? ['src'];
+    const effectiveRoots = roots ?? config.paths?.srcRoots ?? [];
     super({
       ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
         fix: false,

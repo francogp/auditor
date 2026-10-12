@@ -116,6 +116,28 @@ export function normalizePosixPath(filePath: string, cwd: string = process.cwd()
 }
 
 /**
+ * Evaluates whether a relative file path matches any configured exemption pattern or prefix.
+ * Supports exact matches, sub-directory prefixes, and glob wildcards (e.g. '/**' or '/*').
+ */
+export function isPathExempt(relPath: string, exemptPaths?: readonly string[]): boolean {
+  if (!exemptPaths || exemptPaths.length === 0) return false;
+  const norm = normalizePosixPath(relPath);
+  for (const p of exemptPaths) {
+    let cleanPrefix = normalizePosixPath(p);
+    if (cleanPrefix.endsWith('/**')) cleanPrefix = cleanPrefix.slice(0, -3);
+    else if (cleanPrefix.endsWith('/*')) cleanPrefix = cleanPrefix.slice(0, -2);
+    if (
+      norm === cleanPrefix ||
+      norm.startsWith(`${cleanPrefix}/`) ||
+      norm.includes(cleanPrefix)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Parses raw JSON output containing an object, handling stdout strings or execSync error objects.
  */
 export function parseJsonObjectOutput<T = Record<string, unknown>>(input: unknown): T | null {

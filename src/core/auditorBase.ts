@@ -68,8 +68,9 @@ import type { SharedAstContext } from './astContext.ts';
 import ts from 'typescript';
 import { formatDurationMs } from './durationFormatter.ts';
 import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
+import { isPathExempt } from './reportUtils.ts';
 
-export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
+export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, isPathExempt };
 
 enableCompileCache();
 
@@ -881,6 +882,8 @@ export interface AuditorOptions<TRuleId extends string = string> {
    * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
    */
   readonly coverage?: AuditorCoverageDeclaration;
+  /** Relative POSIX path globs or paths exempt from being analyzed by this suite. */
+  readonly exemptPaths?: readonly string[];
 }
 
 export interface ViolationInput<TRuleId extends string = string> {
@@ -2227,6 +2230,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
  */
 export abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
   protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>> = new Map();
+  protected readonly exemptPaths: readonly string[];
 
   /**
    * Primary file scanning entry point receiving an immutable AuditedDocument.
@@ -2234,6 +2238,9 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
    * before delegating to scanFile(relPath, content, sourceFile, doc).
    */
   protected scanDocument(doc: AuditedDocument): void | Promise<void> {
+    if (isPathExempt(doc.relPath, this.exemptPaths)) {
+      return;
+    }
     const pending: Promise<void>[] = [];
     for (const [ruleId, handler] of this.declaredFileSubAuditors.entries()) {
       this.markRuleEvaluated(ruleId);
@@ -2355,6 +2362,14 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
       ? options
       : { ...options, roots: getEffectiveScannableRoots() }
     );
+    this.exemptPaths = options.exemptPaths ?? [];
+  }
+
+  /**
+   * Checks whether the given relative path is exempt according to suite options.
+   */
+  protected isCurrentPathExempt(relPath: string): boolean {
+    return isPathExempt(relPath, this.exemptPaths);
   }
 
   /**

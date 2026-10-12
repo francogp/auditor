@@ -182,6 +182,90 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
+
+    it('does not falsely trigger deep-nesting-control-flow on deeply nested object literals', async () => {
+      const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
+      const snippet = [
+        'export const deeplyNestedConfig = {',
+        '  level1: {',
+        '    level2: {',
+        '      level3: {',
+        '        level4: {',
+        '          level5: {',
+        '            key: "value"',
+        '          }',
+        '        }',
+        '      }',
+        '    }',
+        '  }',
+        '};'
+      ].join('\n');
+
+      auditor.testScanFile('src/config/deepObject.ts', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('allows 2D matrix loops when allowMatrixLoops is configured', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          codeSimplification: {
+            allowMatrixLoops: true,
+            maxNestingDepth: 4
+          }
+        })
+      );
+
+      const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
+      const matrixLoopSnippet = [
+        'export function renderGrid(width: number, height: number): void {',
+        '  for (let y = 0; y < height; y++) {',
+        '    for (let x = 0; x < width; x++) {',
+        '      if (x > 0) {',
+        '        if (y > 0) {',
+        '          console.log(x, y);',
+        '        }',
+        '      }',
+        '    }',
+        '  }',
+        '}'
+      ].join('\n');
+
+      auditor.testScanFile('src/game/grid.ts', matrixLoopSnippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('honors exemptPaths dynamically configured in audit.config.json', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          codeSimplification: {
+            exemptPaths: ['src/generated/**']
+          }
+        })
+      );
+
+      const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
+      const overNestedSnippet = [
+        'if (a) { if (b) { if (c) { if (d) { if (e) { console.log(1); } } } } }'
+      ].join('\n');
+
+      auditor.testScanFile('src/generated/bundle.ts', overNestedSnippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 
   describe('Point 4 & 5: Duration Invariants & 100% Rule Coverage', () => {

@@ -2,6 +2,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -23,6 +24,7 @@ const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue', '.html']);
 export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHardeningRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
+    const config = getAuditConfig(effectiveRoot);
     super({
       id: 'validate_security_hardening',
       name: 'Security Hardening & Threat Boundary Auditor',
@@ -48,7 +50,8 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       },
       ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
+      exemptPaths: config.securityHardening?.exemptPaths
     });
   }
 
@@ -184,7 +187,10 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       'raw-html-injection',
       'Asignación directa a innerHTML sin sanitizar mediante DOMPurify (riesgo de XSS)',
       m => {
-        const assigned = m[1] ?? '';
+        const assigned = (m[1] ?? '').trim();
+        // Safe container reset: empty string or empty template literal
+        if (assigned === "''" || assigned === '""' || assigned === '``') return false;
+        if (/^['"][\s]*['"]$/.test(assigned)) return false;
         return !assigned.includes('DOMPurify.sanitize') && !assigned.includes('sanitizeHtml');
       }
     );

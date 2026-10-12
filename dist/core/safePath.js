@@ -101,7 +101,8 @@ export function safeDevUrl(endpoint, params = {}, baseOrigin = 'http://localhost
 }
 import { toPosixRelative } from "./auditCoverage.js";
 export { toPosixRelative };
-export { normalizePosixPath } from "./reportUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
+export { normalizePosixPath };
 /**
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
  * relative to baseDir. Strips redundant leading `./`.
@@ -167,4 +168,5 @@ export function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
     walk(rootDir);
     return index;
 }
+export { isPathExempt } from "./reportUtils.js";
 //# sourceMappingURL=safePath.js.map

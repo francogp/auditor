@@ -160,6 +160,126 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
+
+    it('handles @media queries symmetrically without brace count desynchronization', async () => {
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const snippet = [
+        '.container {',
+        '  color: var(--primary);',
+        '  @media (min-width: 600px) {',
+        '    .inner {',
+        '      color: var(--secondary);',
+        '    }',
+        '  }',
+        '  .sibling {',
+        '    color: var(--accent);',
+        '  }',
+        '}'
+      ].join('\n');
+
+      auditor.testScanFile('src/styles/responsive.scss', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('allows up to 4 nesting levels in scoped SFC styles (scopedMaxNestingDepth: 4)', async () => {
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const snippet = [
+        '<template><div /></template>',
+        '<style lang="scss" scoped>',
+        '.root {',
+        '  .section {',
+        '    .item {',
+        '      .badge {',
+        '        color: var(--badge-color);',
+        '      }',
+        '    }',
+        '  }',
+        '}',
+        '</style>'
+      ].join('\n');
+
+      auditor.testScanFile('src/components/ScopedCard.vue', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('permits retro/pixel-art odd spacing units when allowPixelArtSpacing is enabled', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          scssArchitecture: {
+            allowPixelArtSpacing: true
+          }
+        })
+      );
+
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const snippet = '.retro-sprite { margin: 11px; padding: 13px; gap: 7px; }';
+
+      auditor.testScanFile('src/styles/retro.scss', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('permits component-scoped colors when allowScopedColors is enabled in scoped SFC', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          scssArchitecture: {
+            allowScopedColors: true
+          }
+        })
+      );
+
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const snippet = [
+        '<template><div /></template>',
+        '<style lang="scss" scoped>',
+        '.custom-widget {',
+        '  color: #ff3366;',
+        '}',
+        '</style>'
+      ].join('\n');
+
+      auditor.testScanFile('src/components/CustomWidget.vue', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('honors exemptPaths dynamically configured in audit.config.json', async () => {
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.json'),
+        JSON.stringify({
+          scssArchitecture: {
+            exemptPaths: ['src/legacy/**']
+          }
+        })
+      );
+
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const snippet = '.legacy { margin: 13px; background-color: #ff0000; }';
+
+      auditor.testScanFile('src/legacy/old.scss', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 
   describe('Point 4 & 5: Duration Invariants & 100% Rule Coverage', () => {

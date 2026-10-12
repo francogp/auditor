@@ -2,6 +2,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { normalizePosixPath, isPathExempt } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -19,14 +20,18 @@ export type QueryPerformanceRuleId = (typeof QUERY_PERFORMANCE_RULES)[number];
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.sql']);
 
 export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerformanceRuleId> {
+  private readonly exemptSelectStarPaths: readonly string[];
+  private readonly migrationsDir?: string;
+  private readonly excludeMigrationsDir: boolean;
+
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
-    const migrationRoots = [config.paths?.migrationsDir, 'migrations', 'supabase/migrations'].filter(
-      (r): r is string => typeof r === 'string' && r.length > 0
-    );
+    const excludeMigrations = config.queryPerformance?.excludeMigrationsDir !== false;
+    const migrationsDir = config.paths?.migrationsDir;
+    const migrationRoots = (!excludeMigrations && migrationsDir) ? [migrationsDir] : [];
     const targetRoots = options.roots ?? [
-      ...(config.paths?.srcRoots ?? ['src']),
+      ...(config.paths?.srcRoots ?? []),
       ...migrationRoots
     ];
     super({
@@ -52,8 +57,12 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
       },
       ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
+      exemptPaths: config.queryPerformance?.exemptPaths
     });
+    this.exemptSelectStarPaths = config.queryPerformance?.exemptSelectStarPaths ?? [];
+    this.migrationsDir = migrationsDir ? normalizePosixPath(migrationsDir) : undefined;
+    this.excludeMigrationsDir = excludeMigrations;
   }
 
   public override async runAudit(): Promise<void> {
@@ -76,6 +85,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   protected override scanFile(relPath: string, content: string): void {
+
     this.runSubAuditorSync('unindexed-foreign-keys', () => {
       this.auditUnindexedForeignKeys(relPath, content);
     });
@@ -122,6 +132,11 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
 
   private auditSelectStarInQueries(relPath: string, content: string): void {
     if (content.includes('select-star-ok')) return;
+    if (isPathExempt(relPath, this.exemptSelectStarPaths)) return;
+    if (this.excludeMigrationsDir && this.migrationsDir) {
+      const norm = normalizePosixPath(relPath);
+      if (norm === this.migrationsDir || norm.startsWith(`${this.migrationsDir}/`)) return;
+    }
 
     if (relPath.endsWith('.sql')) {
       const sqlSelectStarRegex = /\bSELECT\s+\*\s+FROM\b/gi;

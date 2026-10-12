@@ -26,6 +26,11 @@ export declare function parseJsonArrayOutput<T = unknown>(input: string | unknow
  */
 export declare function normalizePosixPath(filePath: string, cwd?: string): string;
 /**
+ * Evaluates whether a relative file path matches any configured exemption pattern or prefix.
+ * Supports exact matches, sub-directory prefixes, and glob wildcards (e.g. '/**' or '/*').
+ */
+export declare function isPathExempt(relPath: string, exemptPaths?: readonly string[]): boolean;
+/**
  * Parses raw JSON output containing an object, handling stdout strings or execSync error objects.
  */
 export declare function parseJsonObjectOutput<T = Record<string, unknown>>(input: unknown): T | null;

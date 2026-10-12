@@ -26,7 +26,8 @@ import { evaluateSuiteStatus } from "./suiteGating.js";
 import ts from 'typescript';
 import { formatDurationMs } from "./durationFormatter.js";
 import { AuditedDocument } from "./auditedDocument.js";
-export { AuditedDocument };
+import { isPathExempt } from "./reportUtils.js";
+export { AuditedDocument, isPathExempt };
 enableCompileCache();
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
 export const ALWAYS_IGNORE_DIRS = new Set([
@@ -1759,12 +1760,16 @@ export class BaseAuditor {
  */
 export class FileScanAuditor extends BaseAuditor {
     declaredFileSubAuditors = new Map();
+    exemptPaths;
     /**
      * Primary file scanning entry point receiving an immutable AuditedDocument.
      * Automatically executes declared file sub-auditors measuring their runtimes
      * before delegating to scanFile(relPath, content, sourceFile, doc).
      */
     scanDocument(doc) {
+        if (isPathExempt(doc.relPath, this.exemptPaths)) {
+            return;
+        }
         const pending = [];
         for (const [ruleId, handler] of this.declaredFileSubAuditors.entries()) {
             this.markRuleEvaluated(ruleId);
@@ -1863,6 +1868,13 @@ export class FileScanAuditor extends BaseAuditor {
         super(options.coverage || options.roots !== undefined
             ? options
             : { ...options, roots: getEffectiveScannableRoots() });
+        this.exemptPaths = options.exemptPaths ?? [];
+    }
+    /**
+     * Checks whether the given relative path is exempt according to suite options.
+     */
+    isCurrentPathExempt(relPath) {
+        return isPathExempt(relPath, this.exemptPaths);
     }
     /**
      * Adds a violation calculating 1-indexed line and column numbers from a string offset.

@@ -191,7 +191,7 @@ export class BundleBudgetAuditor extends BaseAuditor {
     ];
     constructor(projectRoot = process.cwd()) {
         const config = getAuditConfig(projectRoot);
-        const srcRoots = config.paths.srcRoots ?? ['src'];
+        const srcRoots = config.paths.srcRoots ?? [];
         const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : 'dist';
         super({
             ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
@@ -237,7 +237,7 @@ export class BundleBudgetAuditor extends BaseAuditor {
             return;
         }
         const config = getAuditConfig(this.projectRoot);
-        const srcRoots = config.paths.srcRoots ?? ['src'];
+        const srcRoots = config.paths.srcRoots ?? [];
         const distDirRel = config.bundle?.distDir ? toPosixRelative(this.projectRoot, config.bundle.distDir) : 'dist';
         this.redeclareCoverage({
             include: [
@@ -246,13 +246,13 @@ export class BundleBudgetAuditor extends BaseAuditor {
             ]
         });
         const effectiveUiDirs = [
-            ...(config.paths.componentsRoots ?? ['src/components']),
-            ...(config.paths.viewsRoots ?? ['src/views']),
-            ...(config.paths.storesRoots ?? ['src/stores'])
+            ...(config.paths.componentsRoots ?? []),
+            ...(config.paths.viewsRoots ?? []),
+            ...(config.paths.storesRoots ?? [])
         ];
         const forbiddenSegments = [
-            ...(config.paths.testRoots?.map(r => `/${r}/`) ?? ['/tests/']),
-            ...(config.paths.scriptsRoots?.map(r => `/${r}/`) ?? ['/scripts/'])
+            ...(config.paths.testRoots?.map(r => `/${r}/`) ?? []),
+            ...(config.paths.scriptsRoots?.map(r => `/${r}/`) ?? [])
         ];
         const effectiveForbiddenUiImports = getForbiddenValueImportsUI(this.projectRoot);
         const allFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));

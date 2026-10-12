@@ -112,9 +112,10 @@ graph TD
 - `ruleDescriptions`: Pure Spanish explanation for each rule ID. Composed `${packageName}: ${ruleDescription}` MUST be `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) without newlines.
 - Positive health phrasing for active checks (e.g. `'Salud del motor similar-code'`), reserving error phrasing for violation messages.
 
-### 13. Single Source of Truth Directory Ignores (`isPathIgnored`)
+### 13. Single Source of Truth Directory Ignores & Dynamic Path Exemptions (`isPathIgnored`, `isPathExempt`)
 
-- Sub-auditors MUST NEVER declare local ignore arrays. Use `isPathIgnored(relPath)` unifying `CANONICAL_IGNORE_DIRS` + `config.paths.ignoredDirs` + `ignoredPatterns` + `ignoreGlobs`.
+- Sub-auditors MUST NEVER declare local ignore arrays or hardcoded candidate paths. Use `isPathIgnored(relPath)` unifying `CANONICAL_IGNORE_DIRS` + `config.paths.ignoredDirs` + `ignoredPatterns` + `ignoreGlobs`.
+- `FileScanAuditor` natively accepts `exemptPaths` in constructor options and evaluates `isPathExempt(relPath, this.exemptPaths)`, cleanly ignoring configured files or patterns.
 
 ### 14. Universal Ephemeral Scratch (`scratch/`) & Build Output (`dist/`) Isolation
 
@@ -125,9 +126,11 @@ graph TD
 
 - Generic suites in `src/suites/<family>/` and host extensions in `.auditor/audit.config.ts` are discovered dynamically. Never hardcode static suite arrays.
 
-### 16. Pure Configuration-Driven Resolution & Zero Bespoke Host Logic
+### 16. Pure Configuration-Driven Resolution & Anti-Hardcoding Mandate (`auditor-hardcoded-config`)
 
-- `@francogp/auditor` MUST remain 100% domain-agnostic. No hardcoded host directories, domain entity IDs, or business rules in the core package. Host-specific rules belong in extension plugins (`scripts/auditors/`).
+- `@francogp/auditor` MUST remain 100% domain-agnostic. No hardcoded host directories, domain entity IDs, fallback filenames (e.g. `['visuals.ts', 'constants.ts']`), or business rules in core suites or host extensions.
+- All candidate paths, target directories, and exemption patterns MUST resolve dynamically from `.auditor/audit.config.ts`.
+- Enforced at build and audit time by `validate_auditor_hygiene` (`auditor-hardcoded-config`), which flags hardcoded candidate arrays and fallback path lists with `severity: 'error'`.
 
 ### 17. Active by Default Subsystem Mandate ("All Defaults ON")
 
@@ -199,7 +202,7 @@ graph TD
 
 ### 29. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
-- Enforces 11 strict hygiene rules eradicating homebrew utilities:
+- Enforces 12 strict hygiene rules eradicating homebrew utilities and hardcoded configurations:
   1. `auditor-manual-package-json` (`getPackageJson()`)
   2. `auditor-manual-vue-sfc-regex` (`parseVueSfc()`)
   3. `auditor-isolated-ts-ast` (`SharedAstContext`)
@@ -211,6 +214,7 @@ graph TD
   9. `auditor-manual-dir-walk` (`collectFiles` / `collectRepositoryFiles`)
   10. `auditor-manual-path-predicate` (`isTestPath` / `isTestFileForCodeAudit`)
   11. `auditor-manual-timing` (`runSubAuditorSync` / `runSubAuditor`)
+  12. `auditor-hardcoded-config` (`hardcodedConfigDetector.ts` - prohibits hardcoded candidate paths, fallback filenames, or local ignore arrays)
 
 ### 30. Grounded Fixability Contract (`fixable: boolean`)
 

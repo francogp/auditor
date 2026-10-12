@@ -71,13 +71,13 @@ function extractTopLevelRoots(dirs) {
 }
 function resolveConfiguredPathCandidates(paths) {
     if (!paths)
-        return ['src', 'tests', 'scripts'];
+        return [];
     const declared = [
-        ...(paths.srcRoots ?? ['src']),
-        ...(paths.testRoots ?? ['tests']),
+        ...(paths.srcRoots ?? []),
+        ...(paths.testRoots ?? []),
         ...(paths.e2eRoots ?? []),
         ...(paths.integrationRoots ?? []),
-        ...(paths.scriptsRoots ?? ['scripts'])
+        ...(paths.scriptsRoots ?? [])
     ];
     return [
         ...declared,

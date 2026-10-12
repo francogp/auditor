@@ -45,8 +45,8 @@ export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
 export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
   const config = getAuditConfig(projectRoot);
   const globs: string[] = [];
-  const compRoots = config.paths.componentsRoots ?? ['src/components'];
-  const viewRoots = config.paths.viewsRoots ?? ['src/views'];
+  const compRoots = config.paths.componentsRoots ?? [];
+  const viewRoots = config.paths.viewsRoots ?? [];
   for (const c of compRoots) {
     globs.push(`${c}/**/*.vue`, `${c}/**`);
   }
@@ -56,12 +56,7 @@ export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
   return globs;
 }
 
-export const BANNED_ENTRY_GLOBS = [
-  'src/components/**/*.vue',
-  'src/views/**/*.vue',
-  'src/components/**',
-  'src/views/**'
-] as const;
+export const BANNED_ENTRY_GLOBS: readonly string[] = getBannedEntryGlobs();
 
 export const escapeRegExp = RegExp.escape;
 

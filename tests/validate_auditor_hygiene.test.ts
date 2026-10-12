@@ -50,7 +50,7 @@ describe('AuditorHygieneAuditor', () => {
       validateAuditorConstruction(auditor);
     });
 
-    it('declares all 10 canonical rules in AUDITOR_HOMEBREW_RULES', () => {
+    it('declares all canonical rules in AUDITOR_HOMEBREW_RULES', () => {
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-package-json');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-vue-sfc-regex');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-ts-ast');
@@ -61,6 +61,8 @@ describe('AuditorHygieneAuditor', () => {
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-path-containment');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-file-walker');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-homebrew-predicates');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-rule-timing');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-hardcoded-config');
     });
 
     it('enforces composed rule descriptions <= 50 characters', () => {
@@ -295,6 +297,21 @@ describe('AuditorHygieneAuditor', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(f => f.ruleId === ('auditor-manual-rule-timing' as AuditorHomebrewRuleId));
+      expect(finding).toBeDefined();
+    });
+
+    it('detects auditor-hardcoded-config when hardcoding candidate path arrays or ignores', async () => {
+      const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
+      await fs.mkdir(auditorsDir, { recursive: true });
+
+      const snippet = "const dirs = ['migra" + "tions', 'supabase/migrations'];";
+      await fs.writeFile(path.join(auditorsDir, 'bad_config.ts'), snippet, 'utf8');
+
+      const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBeGreaterThan(0);
+      const finding = result.findings.find(f => f.ruleId === ('auditor-hardcoded-config' as AuditorHomebrewRuleId));
       expect(finding).toBeDefined();
     });
 

@@ -61,7 +61,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
   constructor(options?: string | ValidatePersistenceClientOptions) {
     const rootPath = typeof options === 'string' ? options : options?.projectRoot;
     const cfg = getAuditConfig(rootPath);
-    const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? ['src']);
+    const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
     const customAuthorized = typeof options === 'object' && options?.authorizedSaveFiles ? options.authorizedSaveFiles : cfg.persistence?.authorizedSaveFiles ?? [];
     const customPrefixes = typeof options === 'object' && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
 

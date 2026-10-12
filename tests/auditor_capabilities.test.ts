@@ -117,6 +117,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const EXPECTED_AST_SUITES = [
       'audit_project',
       'validate_bundle_budget',
+      'validate_code_simplification',
       'validate_constant_hygiene',
       'validate_magic_numbers',
       'validate_pinia_reactivity',

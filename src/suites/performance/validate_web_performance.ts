@@ -2,6 +2,9 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { isPathExempt } from '../../core/safePath.ts';
+import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -21,8 +24,11 @@ const SCANNABLE_EXTS = new Set(['.vue', '.html', '.htm', '.jsx', '.tsx', '.css',
 const MAX_RECOMMENDED_DOM_DEPTH = 16;
 
 export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanceRuleId> {
+  private readonly exemptSvgPaths: readonly string[];
+
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
+    const config = getAuditConfig(effectiveRoot);
     super({
       id: 'validate_web_performance',
       name: 'Web Performance & Core Web Vitals Auditor',
@@ -47,11 +53,14 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       },
       ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
+      exemptPaths: config.webPerformance?.exemptPaths
     });
+    this.exemptSvgPaths = config.webPerformance?.exemptSvgPaths ?? [];
   }
 
   protected override scanFile(relPath: string, content: string): void {
+
     this.runSubAuditorSync('unoptimized-images', () => {
       this.auditUnoptimizedImages(relPath, content);
     });
@@ -122,17 +131,21 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
 
   private auditInlineSvgBloat(relPath: string, content: string): void {
     if (content.includes('svg-bloat-ok')) return;
+    if (isPathExempt(relPath, this.exemptSvgPaths)) return;
+    const config = getAuditConfig(this.projectRoot);
+    const maxSvgSize = config.webPerformance?.maxInlineSvgSize ?? 2048;
+
     const svgRegex = /<svg[\s>][\s\S]*?<\/svg>/gi;
     let match: RegExpExecArray | null;
     while ((match = svgRegex.exec(content)) !== null) {
       const svgContent = match[0];
-      const isBloated = svgContent.length > 2048 || (svgContent.match(/<path[\s>]/gi) ?? []).length > 30;
+      const isBloated = svgContent.length > maxSvgSize || (svgContent.match(/<path[\s>]/gi) ?? []).length > 30;
       if (isBloated) {
         const line = this.getLineNumber(content, match.index);
         this.addViolation({
           ruleId: 'inline-svg-bloat',
           severity: 'error',
-          message: `SVG inline excesivo (${svgContent.length} caracteres) superando el límite de 2KB; extraer como asset`,
+          message: `SVG inline excesivo (${svgContent.length} caracteres) superando el límite de ${maxSvgSize} bytes; extraer como asset`,
           file: relPath,
           line
         });
@@ -189,16 +202,36 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
     const ext = path.extname(relPath).toLowerCase();
     if (ext !== '.html' && ext !== '.htm' && ext !== '.vue') return;
 
+    let targetContent = content;
+    let lineOffset = 1;
+
+    if (ext === '.vue') {
+      const sfc = parseVueSfc(content);
+      if (sfc.template) {
+        lineOffset = sfc.template.contentStartLine;
+        targetContent = sfc.template.content;
+      } else {
+        // In fragments without <template> tag, strip script/style blocks from content
+        targetContent = content;
+        for (const block of [...sfc.scripts, ...sfc.styles]) {
+          targetContent = targetContent.slice(0, block.startIndex) + ' '.repeat(block.endIndex - block.startIndex) + targetContent.slice(block.endIndex);
+        }
+      }
+    }
+
+    const config = getAuditConfig(this.projectRoot);
+    const maxAllowedDepth = config.webPerformance?.maxDomDepth ?? MAX_RECOMMENDED_DOM_DEPTH;
+
     let maxDepth = 0;
     let currentDepth = 0;
     let maxDepthIndex = 0;
 
     const tagRegex = /<\/?([\w-]+)(?:\s[^>]*)?\/?>/g;
     let match: RegExpExecArray | null;
-    while ((match = tagRegex.exec(content)) !== null) {
+    while ((match = tagRegex.exec(targetContent)) !== null) {
       const fullTag = match[0];
       const tagName = match[1]!.toLowerCase();
-      if (['img', 'input', 'br', 'hr', 'meta', 'link', 'source', 'path', 'circle', 'rect'].includes(tagName)) {
+      if (['img', 'input', 'br', 'hr', 'meta', 'link', 'source', 'path', 'circle', 'rect', 'line', 'polygon', 'polyline'].includes(tagName)) {
         continue;
       }
       const isClosing = fullTag.startsWith('</');
@@ -215,12 +248,12 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       }
     }
 
-    if (maxDepth > MAX_RECOMMENDED_DOM_DEPTH) {
-      const line = this.getLineNumber(content, maxDepthIndex);
+    if (maxDepth > maxAllowedDepth) {
+      const line = lineOffset + this.getLineNumber(targetContent, maxDepthIndex) - 1;
       this.addViolation({
         ruleId: 'excessive-dom-depth',
         severity: 'error',
-        message: `Anidamiento DOM excesivo (${maxDepth} niveles > ${MAX_RECOMMENDED_DOM_DEPTH}) provocando sobrecarga de layout`,
+        message: `Anidamiento DOM excesivo (${maxDepth} niveles > ${maxAllowedDepth}) provocando sobrecarga de layout`,
         file: relPath,
         line
       });
@@ -229,11 +262,26 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
 
   private auditLayoutShiftDimensions(relPath: string, content: string): void {
     if (content.includes('layout-dimensions-ok')) return;
+    const config = getAuditConfig(this.projectRoot);
+    const exemptClasses = config.webPerformance?.exemptImgClasses ?? [];
+
     const mediaRegex = /<(img|video)\s+([^>]*)>/gi;
     let match: RegExpExecArray | null;
     while ((match = mediaRegex.exec(content)) !== null) {
       const tag = match[1]!.toLowerCase();
       const attrs = match[2] ?? '';
+
+      // Check if class contains any of exemptImgClasses
+      if (exemptClasses.length > 0) {
+        const classMatch = /class=["']([^"']+)["']/i.exec(attrs);
+        if (classMatch) {
+          const classes = classMatch[1]!.split(/\s+/);
+          if (classes.some(c => exemptClasses.includes(c))) {
+            continue;
+          }
+        }
+      }
+
       const hasWidth = /(?:\b|:)width=["']?[^"'\s>]+/i.test(attrs) || /style=["'][^"']*width/i.test(attrs);
       const hasHeight = /(?:\b|:)height=["']?[^"'\s>]+/i.test(attrs) || /style=["'][^"']*height/i.test(attrs);
       const hasAspectRatio = /aspect-ratio/i.test(attrs) || /aspectRatio/i.test(attrs);

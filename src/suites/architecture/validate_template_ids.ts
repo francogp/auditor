@@ -174,8 +174,8 @@ private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   constructor(roots?: readonly string[], options?: { requireInputIds?: boolean }, projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
     ];
     super({
       ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {

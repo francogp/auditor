@@ -47,7 +47,7 @@ function isStoreDestructuring(initializer, sf, storeVariables) {
     return ts.isIdentifier(initializer) && storeVariables.has(initializer.text);
 }
 function resolvePiniaAuditRoots(roots, projectRoot) {
-    return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? ['src'];
+    return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
 }
 export class PiniaReactivityAuditor extends FileScanAuditor {
     storesRoots;
@@ -86,7 +86,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor {
             allowedExtensions: new Set(['.vue', '.ts']),
             requiresAst: true
         });
-        this.storesRoots = config.paths.storesRoots ?? ['src/stores'];
+        this.storesRoots = config.paths.storesRoots ?? [];
         this.authorizedStateMutationFiles = getAuthorizedStateMutationFiles(projectRoot);
     }
     reportPiniaViolation(node, sf, content, relPath, ruleId, message) {

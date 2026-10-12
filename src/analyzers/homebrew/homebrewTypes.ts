@@ -17,7 +17,8 @@ export const AUDITOR_HOMEBREW_RULES = [
   'auditor-manual-path-containment',
   'auditor-manual-file-walker',
   'auditor-homebrew-predicates',
-  'auditor-manual-rule-timing'
+  'auditor-manual-rule-timing',
+  'auditor-hardcoded-config'
 ] as const;
 
 export type AuditorHomebrewRuleId = (typeof AUDITOR_HOMEBREW_RULES)[number];

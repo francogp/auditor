@@ -15,7 +15,8 @@ import { type AuditEngineConfig } from './auditConfig.ts';
 import type { SharedAstContext } from './astContext.ts';
 import ts from 'typescript';
 import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
-export { AuditedDocument, type DocumentReplacement, type LineColumnPosition };
+import { isPathExempt } from './reportUtils.ts';
+export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, isPathExempt };
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
 export declare const ALWAYS_IGNORE_DIRS: ReadonlySet<string>;
 /** Additional directories ignored during code scanning (documentation/skills and static assets) */
@@ -166,6 +167,8 @@ export interface AuditorOptions<TRuleId extends string = string> {
      * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
      */
     readonly coverage?: AuditorCoverageDeclaration;
+    /** Relative POSIX path globs or paths exempt from being analyzed by this suite. */
+    readonly exemptPaths?: readonly string[];
 }
 export interface ViolationInput<TRuleId extends string = string> {
     readonly ruleId: TRuleId;
@@ -390,6 +393,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
     protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>>;
+    protected readonly exemptPaths: readonly string[];
     /**
      * Primary file scanning entry point receiving an immutable AuditedDocument.
      * Automatically executes declared file sub-auditors measuring their runtimes
@@ -423,6 +427,10 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
      */
     protected scanFile(_relPath: string, _content: string, _sourceFile?: ts.SourceFile, _doc?: AuditedDocument): void | Promise<void>;
     constructor(options: AuditorOptions<TRuleId>);
+    /**
+     * Checks whether the given relative path is exempt according to suite options.
+     */
+    protected isCurrentPathExempt(relPath: string): boolean;
     /**
      * Adds a violation calculating 1-indexed line and column numbers from a string offset.
      */

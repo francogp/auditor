@@ -47,7 +47,7 @@ function getExemptLoggingFiles(projectRoot?: string): ReadonlySet<string> {
 }
 
 function resolveConsoleCleanlinessRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
-  return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? ['src'];
+  return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
 }
 
 export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlinessRuleId> {

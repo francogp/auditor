@@ -116,7 +116,8 @@ export function safeDevUrl(endpoint: string, params: Record<string, string> = {}
 
 import { toPosixRelative } from './auditCoverage.ts';
 export { toPosixRelative };
-export { normalizePosixPath } from './reportUtils.ts';
+import { normalizePosixPath } from './reportUtils.ts';
+export { normalizePosixPath };
 
 /**
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
@@ -200,3 +201,5 @@ export function buildRepositoryFileIndex(
   walk(rootDir);
   return index;
 }
+
+export { isPathExempt } from './reportUtils.ts';

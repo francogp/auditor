@@ -227,21 +227,37 @@ export const DEFAULT_AUDIT_CONFIG = {
         acknowledgedDegradations: []
     },
     webPerformance: {
-        enabled: true
+        enabled: true,
+        maxDomDepth: 16,
+        maxInlineSvgSize: 2048,
+        exemptSvgPaths: [],
+        exemptImgClasses: [],
+        exemptPaths: []
     },
     queryPerformance: {
-        enabled: true
+        enabled: true,
+        excludeMigrationsDir: true,
+        exemptSelectStarPaths: [],
+        exemptPaths: []
     },
     securityHardening: {
-        enabled: true
+        enabled: true,
+        exemptPaths: []
     },
     codeSimplification: {
         enabled: true,
-        maxNestingDepth: 4
+        maxNestingDepth: 4,
+        allowMatrixLoops: false,
+        exemptPaths: []
     },
     scssArchitecture: {
         enabled: true,
-        maxNestingDepth: 3
+        maxNestingDepth: 3,
+        scopedMaxNestingDepth: 4,
+        allowPixelArtSpacing: false,
+        allowedSpacingUnits: [],
+        allowScopedColors: false,
+        exemptPaths: []
     },
     ratchet: {
         enabled: true,
@@ -771,6 +787,59 @@ export function buildValibotConfig(raw) {
         targets: v.targets ? v.targets : []
     };
 }
+export function buildWebPerformanceConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.webPerformance;
+    const w = raw ?? {};
+    return {
+        enabled: w.enabled ?? def.enabled,
+        maxDomDepth: w.maxDomDepth ?? def.maxDomDepth,
+        maxInlineSvgSize: w.maxInlineSvgSize ?? def.maxInlineSvgSize,
+        exemptSvgPaths: w.exemptSvgPaths ? [...w.exemptSvgPaths] : def.exemptSvgPaths,
+        exemptImgClasses: w.exemptImgClasses ? [...w.exemptImgClasses] : def.exemptImgClasses,
+        exemptPaths: w.exemptPaths ? [...w.exemptPaths] : def.exemptPaths
+    };
+}
+export function buildQueryPerformanceConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.queryPerformance;
+    const q = raw ?? {};
+    return {
+        enabled: q.enabled ?? def.enabled,
+        excludeMigrationsDir: q.excludeMigrationsDir ?? def.excludeMigrationsDir,
+        exemptSelectStarPaths: q.exemptSelectStarPaths ? [...q.exemptSelectStarPaths] : def.exemptSelectStarPaths,
+        exemptPaths: q.exemptPaths ? [...q.exemptPaths] : def.exemptPaths
+    };
+}
+export function buildSecurityHardeningConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.securityHardening;
+    const s = raw ?? {};
+    return {
+        enabled: s.enabled ?? def.enabled,
+        exemptPaths: s.exemptPaths ? [...s.exemptPaths] : def.exemptPaths
+    };
+}
+export function buildCodeSimplificationConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.codeSimplification;
+    const c = raw ?? {};
+    return {
+        enabled: c.enabled ?? def.enabled,
+        maxNestingDepth: c.maxNestingDepth ?? def.maxNestingDepth,
+        allowMatrixLoops: c.allowMatrixLoops ?? def.allowMatrixLoops,
+        exemptPaths: c.exemptPaths ? [...c.exemptPaths] : def.exemptPaths
+    };
+}
+export function buildScssArchitectureConfig(raw) {
+    const def = DEFAULT_AUDIT_CONFIG.scssArchitecture;
+    const s = raw ?? {};
+    return {
+        enabled: s.enabled ?? def.enabled,
+        maxNestingDepth: s.maxNestingDepth ?? def.maxNestingDepth,
+        scopedMaxNestingDepth: s.scopedMaxNestingDepth ?? def.scopedMaxNestingDepth,
+        allowPixelArtSpacing: s.allowPixelArtSpacing ?? def.allowPixelArtSpacing,
+        allowedSpacingUnits: s.allowedSpacingUnits ? [...s.allowedSpacingUnits] : def.allowedSpacingUnits,
+        allowScopedColors: s.allowScopedColors ?? def.allowScopedColors,
+        exemptPaths: s.exemptPaths ? [...s.exemptPaths] : def.exemptPaths
+    };
+}
 export function defineAuditConfig(config) {
     const declared = collectDeclaredSubsystems(config);
     const agentAndSecurity = buildAgentAndSecurityConfig(config);
@@ -819,6 +888,11 @@ export function defineAuditConfig(config) {
         secretLeaks: buildSecretLeaksConfig(config.secretLeaks),
         dependencyVulnerabilities: buildDependencyVulnerabilitiesConfig(config.dependencyVulnerabilities),
         coverage: buildCoverageConfig(config.coverage, paths),
+        webPerformance: buildWebPerformanceConfig(config.webPerformance),
+        queryPerformance: buildQueryPerformanceConfig(config.queryPerformance),
+        securityHardening: buildSecurityHardeningConfig(config.securityHardening),
+        codeSimplification: buildCodeSimplificationConfig(config.codeSimplification),
+        scssArchitecture: buildScssArchitectureConfig(config.scssArchitecture),
         ...agentAndSecurity,
         ...constantsAndDoc,
         customFamilies: config.customFamilies ?? [],

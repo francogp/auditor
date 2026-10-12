@@ -33,6 +33,7 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
 export interface MyFeatureAuditorOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
+  readonly exemptPaths?: readonly (string | RegExp)[];
 }
 
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
@@ -90,6 +91,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       },
       roots: targetRoots,
       allowedExtensions,
+      // Dynamic Exemption Architecture: automatically skips documents matching strings or RegExps.
+      // Prohibits hardcoding ignores or candidate file arrays in code.
+      exemptPaths: options.exemptPaths,
       coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
       projectRoot: effectiveRoot
     });

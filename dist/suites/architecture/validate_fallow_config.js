@@ -30,8 +30,8 @@ export const FALLOW_CONFIG_RULES = [
 export function getBannedEntryGlobs(projectRoot) {
     const config = getAuditConfig(projectRoot);
     const globs = [];
-    const compRoots = config.paths.componentsRoots ?? ['src/components'];
-    const viewRoots = config.paths.viewsRoots ?? ['src/views'];
+    const compRoots = config.paths.componentsRoots ?? [];
+    const viewRoots = config.paths.viewsRoots ?? [];
     for (const c of compRoots) {
         globs.push(`${c}/**/*.vue`, `${c}/**`);
     }
@@ -40,12 +40,7 @@ export function getBannedEntryGlobs(projectRoot) {
     }
     return globs;
 }
-export const BANNED_ENTRY_GLOBS = [
-    'src/components/**/*.vue',
-    'src/views/**/*.vue',
-    'src/components/**',
-    'src/views/**'
-];
+export const BANNED_ENTRY_GLOBS = getBannedEntryGlobs();
 export const escapeRegExp = RegExp.escape;
 /**
  * Checks whether a symbol is exported from file content.

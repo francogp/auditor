@@ -181,7 +181,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
     const tasks = await scanAllAuditorTasks(this.projectRoot);
 
     const config = getAuditConfig(this.projectRoot);
-    const testRoots = config.paths.testRoots ?? ['tests'];
+    const testRoots = config.paths.testRoots ?? [];
 
     interface TaskTestContext {
       task: AuditTaskDefinition;

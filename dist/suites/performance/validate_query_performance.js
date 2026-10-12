@@ -2,6 +2,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES } from "../../core/auditorBase.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
+import { normalizePosixPath, isPathExempt } from "../../core/safePath.js";
 enableCompileCache();
 export const QUERY_PERFORMANCE_RULES = [
     'unindexed-foreign-keys',
@@ -13,12 +14,17 @@ export const QUERY_PERFORMANCE_RULES = [
 ];
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.sql']);
 export class ValidateQueryPerformanceAuditor extends FileScanAuditor {
+    exemptSelectStarPaths;
+    migrationsDir;
+    excludeMigrationsDir;
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         const config = getAuditConfig(effectiveRoot);
-        const migrationRoots = [config.paths?.migrationsDir, 'migrations', 'supabase/migrations'].filter((r) => typeof r === 'string' && r.length > 0);
+        const excludeMigrations = config.queryPerformance?.excludeMigrationsDir !== false;
+        const migrationsDir = config.paths?.migrationsDir;
+        const migrationRoots = (!excludeMigrations && migrationsDir) ? [migrationsDir] : [];
         const targetRoots = options.roots ?? [
-            ...(config.paths?.srcRoots ?? ['src']),
+            ...(config.paths?.srcRoots ?? []),
             ...migrationRoots
         ];
         super({
@@ -44,8 +50,12 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor {
             },
             ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
             projectRoot: effectiveRoot,
-            coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
+            coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
+            exemptPaths: config.queryPerformance?.exemptPaths
         });
+        this.exemptSelectStarPaths = config.queryPerformance?.exemptSelectStarPaths ?? [];
+        this.migrationsDir = migrationsDir ? normalizePosixPath(migrationsDir) : undefined;
+        this.excludeMigrationsDir = excludeMigrations;
     }
     async runAudit() {
         if (this.isSuiteGatingDisabled('Rendimiento de consultas desactivado en config')) {
@@ -110,6 +120,13 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor {
     auditSelectStarInQueries(relPath, content) {
         if (content.includes('select-star-ok'))
             return;
+        if (isPathExempt(relPath, this.exemptSelectStarPaths))
+            return;
+        if (this.excludeMigrationsDir && this.migrationsDir) {
+            const norm = normalizePosixPath(relPath);
+            if (norm === this.migrationsDir || norm.startsWith(`${this.migrationsDir}/`))
+                return;
+        }
         if (relPath.endsWith('.sql')) {
             const sqlSelectStarRegex = /\bSELECT\s+\*\s+FROM\b/gi;
             let match;

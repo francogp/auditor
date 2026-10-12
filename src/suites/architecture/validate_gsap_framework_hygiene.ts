@@ -131,8 +131,8 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
   private isUiComponent(norm: string): boolean {
     const config = getAuditConfig(this.projectRoot);
     const uiRoots = [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views'])
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
     ];
     return norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
   }

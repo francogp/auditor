@@ -389,20 +389,36 @@ export interface AuditScriptExtensionsConfig {
 }
 export interface AuditWebPerformanceConfig {
     readonly enabled?: boolean;
+    readonly maxDomDepth?: number;
+    readonly maxInlineSvgSize?: number;
+    readonly exemptSvgPaths?: readonly string[];
+    readonly exemptImgClasses?: readonly string[];
+    readonly exemptPaths?: readonly string[];
 }
 export interface AuditQueryPerformanceConfig {
     readonly enabled?: boolean;
+    readonly excludeMigrationsDir?: boolean;
+    readonly exemptSelectStarPaths?: readonly string[];
+    readonly exemptPaths?: readonly string[];
 }
 export interface AuditSecurityHardeningConfig {
     readonly enabled?: boolean;
+    readonly exemptPaths?: readonly string[];
 }
 export interface AuditCodeSimplificationConfig {
     readonly enabled?: boolean;
     readonly maxNestingDepth?: number;
+    readonly allowMatrixLoops?: boolean;
+    readonly exemptPaths?: readonly string[];
 }
 export interface AuditScssArchitectureConfig {
     readonly enabled?: boolean;
     readonly maxNestingDepth?: number;
+    readonly scopedMaxNestingDepth?: number;
+    readonly allowPixelArtSpacing?: boolean;
+    readonly allowedSpacingUnits?: readonly string[];
+    readonly allowScopedColors?: boolean;
+    readonly exemptPaths?: readonly string[];
 }
 export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P];

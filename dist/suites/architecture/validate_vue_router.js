@@ -37,9 +37,13 @@ const VUE_ROUTER_EXTENSIONS = new Set(['.vue', '.ts', '.js']);
 export class ValidateVueRouterAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {
         const config = getAuditConfig(projectRoot);
-        const effectiveRoots = roots ?? (config.paths.componentsRoots || config.paths.viewsRoots
-            ? [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? []), 'src/router', 'src/composables']
-            : ['src/components', 'src/views', 'src/router', 'src/composables']);
+        const effectiveRoots = roots ?? ((config.paths.componentsRoots?.length || config.paths.viewsRoots?.length || config.paths.composablesRoots?.length)
+            ? Array.from(new Set([
+                ...(config.paths.componentsRoots ?? []),
+                ...(config.paths.viewsRoots ?? []),
+                ...(config.paths.composablesRoots ?? [])
+            ]))
+            : (config.paths.srcRoots ?? []));
         super({
             id: 'validate_vue_router',
             name: 'Vue Router 4 Architecture & Navigation Auditor',

@@ -363,7 +363,7 @@ function checkTypeScriptRuleMatch(content, match, filePath, extraBypasses = []) 
     if (!filePath)
         return false;
     const norm = normalizeFilePath(filePath);
-    const codeRoots = getAuditConfig()?.paths?.codeRoots ?? ['src', 'scripts'];
+    const codeRoots = getAuditConfig()?.paths?.codeRoots ?? [];
     const isInCodeRoots = codeRoots.some(root => norm.includes(root.replace(/^\/+|\/+$/g, '')));
     if (!isInCodeRoots)
         return false;

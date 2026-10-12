@@ -194,7 +194,7 @@ export function scanFileForO1Issues(
 export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
 constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.codeRoots ?? ['src'];
+    const effectiveRoots = roots ?? config.paths.codeRoots ?? [];
     super({
       ruleCapabilities: createRuleCapabilities(O1_RULES, {
         fix: false,

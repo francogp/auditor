@@ -1,6 +1,8 @@
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { stripCommentsAndStrings } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -19,6 +21,7 @@ const SCANNABLE_EXTS = new Set(['.scss', '.vue', '.css']);
 export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchitectureRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
+    const config = getAuditConfig(effectiveRoot);
     super({
       id: 'validate_scss_architecture',
       name: 'SCSS Architecture & Distinctive Design Validator',
@@ -41,7 +44,8 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       },
       ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LINT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot)
+      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
+      exemptPaths: config.scssArchitecture?.exemptPaths
     });
   }
 
@@ -66,10 +70,10 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
           this.auditNonStandardSpacingUnit(relPath, block.content, block.startLine);
         });
         this.runSubAuditorSync('missing-theme-token-usage', () => {
-          this.auditMissingThemeTokenUsage(relPath, block.content, block.startLine);
+          this.auditMissingThemeTokenUsage(relPath, block.content, block.startLine, block.scoped);
         });
         this.runSubAuditorSync('excessive-scss-nesting', () => {
-          this.auditExcessiveScssNesting(relPath, block.content, block.startLine);
+          this.auditExcessiveScssNesting(relPath, block.content, block.startLine, block.scoped);
         });
       }
     } else if (isScssFile || isCssFile) {
@@ -80,22 +84,24 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         this.auditNonStandardSpacingUnit(relPath, content, 1);
       });
       this.runSubAuditorSync('missing-theme-token-usage', () => {
-        this.auditMissingThemeTokenUsage(relPath, content, 1);
+        this.auditMissingThemeTokenUsage(relPath, content, 1, false);
       });
       this.runSubAuditorSync('excessive-scss-nesting', () => {
-        this.auditExcessiveScssNesting(relPath, content, 1);
+        this.auditExcessiveScssNesting(relPath, content, 1, false);
       });
     }
   }
 
-  private extractStyleBlocks(content: string): Array<{ content: string; startLine: number }> {
-    const blocks: Array<{ content: string; startLine: number }> = [];
-    const styleRegex = /<style\b[^>]*>([\s\S]*?)<\/style>/gi;
+  private extractStyleBlocks(content: string): Array<{ content: string; startLine: number; scoped: boolean }> {
+    const blocks: Array<{ content: string; startLine: number; scoped: boolean }> = [];
+    const styleRegex = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi;
     let match: RegExpExecArray | null;
     while ((match = styleRegex.exec(content)) !== null) {
+      const attrs = match[1] ?? '';
+      const scoped = /\bscoped\b/i.test(attrs);
       const before = content.slice(0, match.index);
       const startLine = before.split('\n').length;
-      blocks.push({ content: match[1] ?? '', startLine });
+      blocks.push({ content: match[2] ?? '', startLine, scoped });
     }
     return blocks;
   }
@@ -161,25 +167,34 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
 
   private auditNonStandardSpacingUnit(relPath: string, content: string, lineOffset: number = 1): void {
     if (content.includes('spacing-unit-ok')) return;
+    const config = getAuditConfig(this.projectRoot);
+    if (config.scssArchitecture?.allowPixelArtSpacing) return;
+
+    const allowedUnits = new Set(config.scssArchitecture?.allowedSpacingUnits ?? []);
 
     // Detect arbitrary odd pixel values like 11px, 13px, 15px, 17px, 19px, 21px, 23px, 27px in spacing
     const arbitrarySpacingRegex = /(?:margin(?:-(?:top|bottom|left|right|inline|block))?|padding(?:-(?:top|bottom|left|right|inline|block))?|gap|row-gap|column-gap)\s*:[^;]*?\b(1[13579]|2[13579]|3[13579]|7|9|13|17|23|27)px\b/gi;
     let match: RegExpExecArray | null;
     while ((match = arbitrarySpacingRegex.exec(content)) !== null) {
-      const line = lineOffset + this.getLineNumber(content, match.index) - 1;
       const val = match[1]!;
+      const unitStr = `${val}px`;
+      if (allowedUnits.has(unitStr) || allowedUnits.has(val)) continue;
+
+      const line = lineOffset + this.getLineNumber(content, match.index) - 1;
       this.addViolation({
         ruleId: 'non-standard-spacing-unit',
         severity: 'error',
-        message: `Valor de espaciado arbitrario (${val}px) fuera de escala estándar o sin token de diseño`,
+        message: `Valor de espaciado arbitrario (${unitStr}) fuera de escala estándar o sin token de diseño`,
         file: relPath,
         line
       });
     }
   }
 
-  private auditMissingThemeTokenUsage(relPath: string, content: string, lineOffset: number = 1): void {
+  private auditMissingThemeTokenUsage(relPath: string, content: string, lineOffset: number = 1, isScoped: boolean = false): void {
     if (content.includes('theme-token-ok')) return;
+    const config = getAuditConfig(this.projectRoot);
+    if (isScoped && config.scssArchitecture?.allowScopedColors) return;
 
     // Detect hardcoded hex colors or rgb(...) in color properties without var(--...)
     const hardcodedColorRegex = /(?:color|background-color|background|border-color|fill|stroke)\s*:\s*([^;{}]*)/gi;
@@ -204,38 +219,62 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private auditExcessiveScssNesting(relPath: string, content: string, lineOffset: number = 1): void {
-    if (content.includes('scss-nesting-ok')) return;
+  private isLineNestingExempt(rawLines: readonly string[], index: number): boolean {
+    const rawLine = rawLines[index] ?? '';
+    const prevRawLine = index > 0 ? (rawLines[index - 1] ?? '') : '';
+    return rawLine.includes('scss-nesting-ok') || prevRawLine.includes('scss-nesting-ok');
+  }
 
-    const lines = content.split('\n');
-    let depth = 0;
+  private processScssLineBraces(
+    line: string,
+    blockStack: Array<'selector' | 'atrule'>,
+    maxAllowedDepth: number,
+    onViolation: (depth: number) => void
+  ): void {
+    for (let c = 0; c < line.length; c++) {
+      const char = line[c];
+      if (char === '{') {
+        const preceding = line.slice(0, c).trim();
+        const isAtRule = preceding.startsWith('@');
+        blockStack.push(isAtRule ? 'atrule' : 'selector');
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const trimmed = line.trim();
-
-      // Check for opening brace in selector rule (exclude at-rules like @media, @include, @keyframes, @supports, etc.)
-      const openMatches = trimmed.match(/\{/g) ?? [];
-      const closeMatches = trimmed.match(/\}/g) ?? [];
-
-      for (const _ of openMatches) {
-        if (!trimmed.startsWith('@')) {
-          depth++;
-          if (depth > 3) {
-            this.addViolation({
-              ruleId: 'excessive-scss-nesting',
-              severity: 'error',
-              message: `Anidamiento SCSS excesivo (${depth} niveles > 3); aplanar selectores con BEM o clases semánticas`,
-              file: relPath,
-              line: lineOffset + i
-            });
+        if (!isAtRule) {
+          const selectorDepth = blockStack.filter(b => b === 'selector').length;
+          if (selectorDepth > maxAllowedDepth) {
+            onViolation(selectorDepth);
           }
         }
+      } else if (char === '}') {
+        blockStack.pop();
       }
+    }
+  }
 
-      for (const _ of closeMatches) {
-        depth = Math.max(0, depth - 1);
-      }
+  private auditExcessiveScssNesting(relPath: string, content: string, lineOffset: number = 1, isScoped: boolean = false): void {
+    if (content.includes('scss-nesting-ok')) return;
+
+    const config = getAuditConfig(this.projectRoot);
+    const maxAllowedDepth = isScoped
+      ? (config.scssArchitecture?.scopedMaxNestingDepth ?? 4)
+      : (config.scssArchitecture?.maxNestingDepth ?? 3);
+
+    const cleanContent = stripCommentsAndStrings(content);
+    const lines = cleanContent.split('\n');
+    const rawLines = content.split('\n');
+    const blockStack: Array<'selector' | 'atrule'> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (this.isLineNestingExempt(rawLines, i)) continue;
+
+      this.processScssLineBraces(lines[i]!, blockStack, maxAllowedDepth, (depth) => {
+        this.addViolation({
+          ruleId: 'excessive-scss-nesting',
+          severity: 'error',
+          message: `Anidamiento SCSS excesivo (${depth} niveles > ${maxAllowedDepth}); aplanar selectores con BEM o clases semánticas`,
+          file: relPath,
+          line: lineOffset + i
+        });
+      });
     }
   }
 }

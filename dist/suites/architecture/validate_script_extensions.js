@@ -65,7 +65,7 @@ export function isExemptScriptFile(relPath, exemptList) {
     return false;
 }
 export function resolveScriptAndCliDirs(config) {
-    const scriptsRoots = (config.paths?.scriptsRoots ?? ['scripts']).map(r => normalizePosixPath(r));
+    const scriptsRoots = (config.paths?.scriptsRoots ?? []).map(r => normalizePosixPath(r));
     const cliRoots = (config.paths?.cliRoots ?? []).map(r => normalizePosixPath(r));
     return Array.from(new Set([...scriptsRoots, ...cliRoots])); // no-domain: Non-domain utility collection or data structure
 }

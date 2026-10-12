@@ -66,8 +66,8 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
 constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
-      ...(config.paths.storesRoots ?? ['src/stores']),
-      ...(config.paths.composablesRoots ?? ['src/composables'])
+      ...(config.paths.storesRoots ?? []),
+      ...(config.paths.composablesRoots ?? [])
     ];
     super({
       ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {

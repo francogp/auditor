@@ -212,7 +212,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
             : undefined;
         const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
         const config = getAuditConfig(projectRoot);
-        const rawRoots = optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? ['src', 'scripts']));
+        const rawRoots = optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? []));
         const effectiveRoots = rawRoots.map(r => toPosixRelative(projectRoot, r));
         super({
             ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {

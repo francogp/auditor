@@ -288,14 +288,17 @@ export default defineAuditConfig({
     enabled: true, // Frontend web performance hygiene and Core Web Vitals optimization
     maxDomDepth: 32, // Maximum DOM tree nesting depth before triggering complexity warnings
     maxInlineSvgBytes: 4096, // Maximum byte size for inline SVG strings before mandating external sprite/file
-    maxUncompressedVideoBytes: 10485760 // Maximum uncompressed video asset size (10 MB)
+    maxUncompressedVideoBytes: 10485760, // Maximum uncompressed video asset size (10 MB)
+    exemptImgClasses: ['corporate-logo'], // Image classes exempt from layout dimensions
+    exemptSvgPaths: ['src/assets/branding'] // Paths exempt from inline SVG size checks
   },
 
   queryPerformance: {
     enabled: true, // Database query performance and anti-pattern static analysis
     enforceSelectStar: true, // Prohibits unbounded SELECT * queries in data access layers
     enforcePagination: true, // Requires explicit limit/pagination on collection queries
-    enforceNPlusOneDetection: true // Statically detects N+1 query patterns inside array loops
+    enforceNPlusOneDetection: true, // Statically detects N+1 query patterns inside array loops
+    exemptSelectStarPaths: ['src/persistence/views/billing_ledger_export.sql'] // Views exempt from SELECT * checks
   },
 
   securityHardening: {

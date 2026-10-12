@@ -33,6 +33,7 @@ flowchart TD
 3. **Description Length Ceiling**: The composite description (`${packageName}: ${ruleDescription}`) MUST NOT exceed 50 characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) and contain zero newlines.
 4. **Zero Homebrew Helpers & Extension Hygiene (`validate_auditor_hygiene`)**: Re-inventing path sanitizers (`.replace(/\\/g, '/')`), handcrafted Vue SFC regexes (`/<template[\s\S]*<\/template>/`), isolated `ts.createSourceFile()` calls, ad-hoc comment strippers, or reading `package.json` with `fs.readFileSync` is strictly forbidden and actively blocked by `validate_auditor_hygiene`. Host extensions must import official helpers from `@francogp/auditor`.
 5. **Universal Empirical Individual Timing Mandate**: Extensions MUST measure 100% of declared rules individually using `this.runSubAuditorSync(ruleId, () => ...)` or `await this.runSubAuditor(ruleId, async () => ...)`. Duplicate batch duration stamping across rules, synthetic time divisions, and fake `(0 ms)` badges are strictly prohibited. Redundant calls to `this.markRuleEvaluated(ruleId)` are forbidden because `runSubAuditorSync` marks the rule evaluated automatically. Transparent inapplicability (`this.markRuleNotApplicable`) MUST also be wrapped inside `runSubAuditorSync` to record `<0,1 ms` badges.
+6. **Zero Hardcoded Candidate Paths & Dynamic Exemption (`auditor-hardcoded-config`)**: Host extensions must never hardcode candidate arrays (e.g. `['visuals.ts', 'constants.ts']`), ignore directories, or fallback path lists. Dynamic paths and file exemptions must be resolved via `.auditor/audit.config.ts`, `getAuditConfig()`, and `options.exemptPaths` / `isPathExempt(relPath, exemptPaths)`.
 
 ---
 
@@ -67,7 +68,7 @@ export const MY_RULES = ['my-rule-id'] as const;
 export type MyRuleId = (typeof MY_RULES)[number];
 
 export class MyAuditor extends FileScanAuditor<MyRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string, exemptPaths?: readonly (string | RegExp)[]) {
     super({
       id: 'validate_my_rules',
       name: 'My Custom Invariants',
@@ -78,6 +79,8 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       configKey: 'paths',
       roots: roots ?? ['src'],
       allowedExtensions: new Set(['.ts', '.vue']),
+      // Dynamic Exemption: automatically bypasses configured files or patterns
+      exemptPaths,
       ruleIds: MY_RULES,
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         fix: false,

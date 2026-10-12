@@ -83,7 +83,7 @@ function resolveVueSfcScanRoots(roots, projectRoot) {
     if (roots)
         return roots;
     const cfg = getAuditConfig(projectRoot);
-    return [...(cfg.paths.componentsRoots ?? ['src/components']), ...(cfg.paths.viewsRoots ?? ['src/views'])];
+    return [...(cfg.paths.componentsRoots ?? []), ...(cfg.paths.viewsRoots ?? [])];
 }
 export class VueSfcHygieneAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {

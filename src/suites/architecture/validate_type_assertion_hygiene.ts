@@ -49,7 +49,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
   constructor(options?: string | ValidateTypeAssertionHygieneOptions) {
     const rootPath = typeof options === 'string' ? options : options?.projectRoot;
     const cfg = getAuditConfig(rootPath);
-    const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? ['src', 'scripts']);
+    const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
 
     super({
       ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {

@@ -59,6 +59,7 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
 export interface MyFeatureAuditorOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
+  readonly exemptPaths?: readonly (string | RegExp)[];
 }
 
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
@@ -93,6 +94,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       },
       roots: options.roots ?? ['src'],
       allowedExtensions: new Set(['.vue', '.ts']),
+      // Dynamic Exemption Architecture: automatically skips documents matching strings or RegExps.
+      // Prohibits hardcoding ignores or candidate file arrays in code.
+      exemptPaths: options.exemptPaths,
       projectRoot: options.projectRoot
     });
   }
@@ -1194,7 +1198,7 @@ When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` d
 
 ## 23. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
-All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly evaluated by `validate_auditor_hygiene`. To guarantee performance, cross-platform stability, and architectural cleanliness, all sub-auditors and extensions MUST follow these 10 invariants:
+All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly evaluated by `validate_auditor_hygiene`. To guarantee performance, cross-platform stability, and architectural cleanliness, all sub-auditors and extensions MUST follow these 12 invariants:
 
 1. **Zero Manual `package.json` Reading (`auditor-manual-package-json`)**:
    - ❌ **Prohibited**: `fs.readFileSync(path.join(root, 'package.json'))` + `JSON.parse`.
@@ -1235,3 +1239,11 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
 10. **Zero Ad-Hoc Test File Predicates (`auditor-homebrew-predicates`)**:
     - ❌ **Prohibited**: Ad-hoc regexes like `/\.(test|spec)\.ts$/`.
     - ✅ **Canonical**: `isTestPath(filePath)` or `isTestFileForCodeAudit(filePath)`.
+
+11. **Zero Manual Execution Timing (`auditor-manual-timing`)**:
+    - ❌ **Prohibited**: Handcrafted `const start = performance.now()` with manual delta calculation.
+    - ✅ **Canonical**: `this.runSubAuditorSync(ruleId, () => ...)` or `await this.runSubAuditor(ruleId, async () => ...)`.
+
+12. **Zero Hardcoded Paths or Configuration Candidates (`auditor-hardcoded-config`)**:
+    - ❌ **Prohibited**: Hardcoded arrays of candidate files (e.g. `['visuals.ts', 'constants.ts']`), local directory ignores, or fallback path lists in sub-auditors or extensions.
+    - ✅ **Canonical**: Dynamic resolution from `config.<section>`, `getAuditConfig()`, and `options.exemptPaths` / `isPathExempt`.

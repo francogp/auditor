@@ -128,8 +128,8 @@ function isTestFile(file: string): boolean {
 function isContractFile(file: string): boolean {
   const config = getAuditConfig();
   const contractRoots = [
-    ...(config.paths.typesRoots ?? ['src/types']),
-    ...(config.paths.dataRoots ?? ['src/data'])
+    ...(config.paths.typesRoots ?? []),
+    ...(config.paths.dataRoots ?? [])
   ];
   return contractRoots.some(r => file.includes(r.replace(/^\.?\//, ''))) || file.includes('/types/') || file.includes('/data/') || file.endsWith('.d.ts');
 }
@@ -462,8 +462,8 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? (
       config.paths.includeTestsInCodeAudit
-        ? [...(config.paths.codeRoots ?? ['src', 'scripts']), ...(config.paths.testRoots ?? ['tests'])]
-        : (config.paths.codeRoots ?? ['src', 'scripts'])
+        ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
+        : (config.paths.codeRoots ?? [])
     );
     super({
       ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {

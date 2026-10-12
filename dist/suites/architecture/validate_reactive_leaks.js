@@ -43,9 +43,9 @@ function resolveReactiveRoots(config, customRoots) {
     if (customRoots && customRoots.length > 0)
         return customRoots;
     return [
-        ...(config.paths.componentsRoots ?? ['src/components']),
-        ...(config.paths.viewsRoots ?? ['src/views']),
-        ...(config.paths.composablesRoots ?? ['src/composables'])
+        ...(config.paths.componentsRoots ?? []),
+        ...(config.paths.viewsRoots ?? []),
+        ...(config.paths.composablesRoots ?? [])
     ];
 }
 export class ReactiveLeaksAuditor extends FileScanAuditor {

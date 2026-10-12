@@ -25,6 +25,7 @@ Architecture & Tooling Engineers.
 - [`fileWalkerDetector.ts`](./fileWalkerDetector.ts): Detects manual recursive fs directory traversal (`auditor-manual-file-walker`).
 - [`predicatesDetector.ts`](./predicatesDetector.ts): Detects homebrew test/path predicates (`auditor-homebrew-predicates`).
 - [`manualTimingDetector.ts`](./manualTimingDetector.ts): Detects manual rule duration measurements (`auditor-manual-rule-timing`).
+- [`hardcodedConfigDetector.ts`](./hardcodedConfigDetector.ts): Detects hardcoded candidate paths, arrays or ignores (`auditor-hardcoded-config`).
 
 ## Work Guidance
 

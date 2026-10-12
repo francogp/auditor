@@ -132,7 +132,7 @@ export function scanFileForO1Issues(filePath, content, catalogPatterns = getReso
 export class O1DataStructuresAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {
         const config = getAuditConfig(projectRoot);
-        const effectiveRoots = roots ?? config.paths.codeRoots ?? ['src'];
+        const effectiveRoots = roots ?? config.paths.codeRoots ?? [];
         super({
             ruleCapabilities: createRuleCapabilities(O1_RULES, {
                 fix: false,

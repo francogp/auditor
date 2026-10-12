@@ -38,7 +38,8 @@ export declare function safeFetch(rawUrl: string, options?: RequestInit, allowed
 export declare function safeDevUrl(endpoint: string, params?: Record<string, string>, baseOrigin?: string): string;
 import { toPosixRelative } from './auditCoverage.ts';
 export { toPosixRelative };
-export { normalizePosixPath } from './reportUtils.ts';
+import { normalizePosixPath } from './reportUtils.ts';
+export { normalizePosixPath };
 /**
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
  * relative to baseDir. Strips redundant leading `./`.
@@ -55,4 +56,5 @@ export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, i
  * Ignores common build/temporary directories.
  */
 export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (fullPath: string) => boolean): Map<string, string[]>;
+export { isPathExempt } from './reportUtils.ts';
 //# sourceMappingURL=safePath.d.ts.map

@@ -416,7 +416,7 @@ export const forbiddenTypeCasts: AuditRule = {
 function checkTypeScriptRuleMatch(content: string, match: RegExpExecArray, filePath?: string, extraBypasses: string[] = []): boolean {
   if (!filePath) return false;
   const norm = normalizeFilePath(filePath);
-  const codeRoots = getAuditConfig()?.paths?.codeRoots ?? ['src', 'scripts'];
+  const codeRoots = getAuditConfig()?.paths?.codeRoots ?? [];
   const isInCodeRoots = codeRoots.some(root => norm.includes(root.replace(/^\/+|\/+$/g, '')));
   if (!isInCodeRoots) return false;
 

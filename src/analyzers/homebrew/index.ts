@@ -16,6 +16,7 @@ import { pathContainmentDetector } from './detectors/pathContainmentDetector.ts'
 import { fileWalkerDetector } from './detectors/fileWalkerDetector.ts';
 import { predicatesDetector } from './detectors/predicatesDetector.ts';
 import { manualTimingDetector } from './detectors/manualTimingDetector.ts';
+import { hardcodedConfigDetector } from './detectors/hardcodedConfigDetector.ts';
 
 // Auto-register canonical built-in detectors
 HomebrewDetectorRegistry.register(packageJsonDetector);
@@ -29,6 +30,7 @@ HomebrewDetectorRegistry.register(pathContainmentDetector);
 HomebrewDetectorRegistry.register(fileWalkerDetector);
 HomebrewDetectorRegistry.register(predicatesDetector);
 HomebrewDetectorRegistry.register(manualTimingDetector);
+HomebrewDetectorRegistry.register(hardcodedConfigDetector);
 
 export * from './homebrewTypes.ts';
 export * from './homebrewRegistry.ts';
@@ -43,5 +45,6 @@ export {
   pathContainmentDetector,
   fileWalkerDetector,
   predicatesDetector,
-  manualTimingDetector
+  manualTimingDetector,
+  hardcodedConfigDetector
 };

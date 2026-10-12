@@ -318,7 +318,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
     constructor(rootDir, options) {
         const projectRoot = rootDir || process.cwd();
         const config = getAuditConfig(projectRoot);
-        const srcRoots = config.paths?.srcRoots ?? ['src'];
+        const srcRoots = config.paths?.srcRoots ?? [];
         const dynamicCodeCoverage = deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), projectRoot).include;
         super({
             ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
@@ -477,7 +477,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
         const configuredExemptions = config.documentation?.languageExemptions ?? [];
         const passedExemptions = this.options?.exemptions ?? [];
         const exemptions = [...configuredExemptions, ...passedExemptions];
-        const srcRoots = config.paths.srcRoots ?? ['src'];
+        const srcRoots = config.paths.srcRoots ?? [];
         this.redeclareCoverage({
             include: ['**/*.md', ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir).include]
         });
@@ -491,7 +491,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
             }
         });
         await this.runSubAuditor('code-comment-unauthorized-language', async () => {
-            const srcRoots = config.paths.srcRoots ?? ['src'];
+            const srcRoots = config.paths.srcRoots ?? [];
             const codeFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']));
             for (const relFile of codeFiles) {
                 if (relFile.endsWith('.d.ts') || isTestPath(relFile))

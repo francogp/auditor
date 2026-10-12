@@ -229,9 +229,9 @@ export function extractProjectCanonicalDomains(files, projectRoot) {
     // redos-ok: deterministic token parsing regex with pipe delimiters
     const P_CANONICAL_TYPE = /\bexport\s+type\s+(\w+)\s*=\s*\(?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])\)?/g;
     const config = getAuditConfig(projectRoot);
-    const typesRoots = config.paths.typesRoots ?? ['src/types'];
-    const dataRoots = config.paths.dataRoots ?? ['src/data'];
-    const logicRoots = config.paths.logicRoots ?? ['src/logic'];
+    const typesRoots = config.paths.typesRoots ?? [];
+    const dataRoots = config.paths.dataRoots ?? [];
+    const logicRoots = config.paths.logicRoots ?? [];
     const getFileScore = (file) => {
         if (typesRoots.some(r => file.startsWith(r)))
             return 3;
@@ -407,7 +407,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
             : (optionsOrTarget ?? {});
         const projectRoot = options.projectRoot || process.cwd();
         const config = getAuditConfig(projectRoot);
-        const effectiveRoots = options.roots ?? (config.paths.srcRoots ?? ['src']);
+        const effectiveRoots = options.roots ?? (config.paths.srcRoots ?? []);
         super({
             ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
                 fix: false,

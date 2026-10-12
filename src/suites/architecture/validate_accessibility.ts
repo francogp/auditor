@@ -99,9 +99,9 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
 
     const config = getAuditConfig(this.projectRoot);
     const scannableRoots = [
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views']),
-      ...(config.paths.srcRoots ?? ['src'])
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? []),
+      ...(config.paths.srcRoots ?? [])
     ];
     this.redeclareCoverage({
       include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include]

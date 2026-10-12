@@ -37,7 +37,7 @@ function getExemptLoggingFiles(projectRoot) {
     return new Set(custom);
 }
 function resolveConsoleCleanlinessRoots(roots, projectRoot) {
-    return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? ['src'];
+    return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
 }
 export class ConsoleCleanlinessAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {

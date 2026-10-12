@@ -51,9 +51,13 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? (
-      config.paths.componentsRoots || config.paths.viewsRoots
-        ? [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? []), 'src/router', 'src/composables']
-        : ['src/components', 'src/views', 'src/router', 'src/composables']
+      (config.paths.componentsRoots?.length || config.paths.viewsRoots?.length || config.paths.composablesRoots?.length)
+        ? Array.from(new Set([
+            ...(config.paths.componentsRoots ?? []),
+            ...(config.paths.viewsRoots ?? []),
+            ...(config.paths.composablesRoots ?? [])
+          ]))
+        : (config.paths.srcRoots ?? [])
     );
 
     super({

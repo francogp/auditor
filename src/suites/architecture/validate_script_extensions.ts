@@ -86,7 +86,7 @@ export function isExemptScriptFile(relPath: string, exemptList?: readonly string
 }
 
 export function resolveScriptAndCliDirs(config: AuditEngineConfig): string[] {
-  const scriptsRoots = (config.paths?.scriptsRoots ?? ['scripts']).map(r => normalizePosixPath(r));
+  const scriptsRoots = (config.paths?.scriptsRoots ?? []).map(r => normalizePosixPath(r));
   const cliRoots = (config.paths?.cliRoots ?? []).map(r => normalizePosixPath(r));
   return Array.from(new Set([...scriptsRoots, ...cliRoots])); // no-domain: Non-domain utility collection or data structure
 }

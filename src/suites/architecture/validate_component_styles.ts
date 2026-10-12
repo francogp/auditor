@@ -520,10 +520,10 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const effectiveRoots = options.roots ?? Array.from(new Set([
-      ...(config.paths.srcRoots ?? ['src']),
-      ...(config.paths.componentsRoots ?? ['src/components']),
-      ...(config.paths.viewsRoots ?? ['src/views']),
-      ...(config.paths.stylesRoots ?? ['src/styles'])
+      ...(config.paths.srcRoots ?? []),
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? []),
+      ...(config.paths.stylesRoots ?? [])
     ]));
 
     super({
@@ -607,7 +607,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     this.redeclareCoverage({
       include: deriveCoverageFromRoots(this.roots, new Set(['.vue', '.scss', '.css']), this.projectRoot).include
     });
-    const srcRoots = config.paths.srcRoots ?? ['src'];
+    const srcRoots = config.paths.srcRoots ?? [];
     const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
     const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));
     const scssFiles = this.context.collectFiles(this.roots, new Set(['.scss']));
@@ -649,7 +649,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     }
 
     const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
-    const stylesRoots = config.paths.stylesRoots ?? ['src/styles'];
+    const stylesRoots = config.paths.stylesRoots ?? [];
     seedRootScssGraph(stylesRoots, this.projectRoot, trackScssFile);
 
     for (const file of vueFiles) {

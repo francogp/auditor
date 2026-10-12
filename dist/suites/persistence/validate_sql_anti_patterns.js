@@ -201,7 +201,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         }
         const databaseDir = path.resolve(this.projectRoot, 'database');
         if (fs.existsSync(databaseDir)) {
-            const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? ['migrations', 'schemas'];
+            const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
             for (const sub of allowedDbDirs) {
                 const subPath = path.join(databaseDir, sub);
                 if (fs.existsSync(subPath)) {

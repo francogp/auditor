@@ -128,6 +128,20 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
       expect(finding?.severity).toBe('error');
     });
 
+    it('detects raw-html-injection when innerHTML receives unsanitized dynamic markup', async () => {
+      const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
+      const snippet = 'const node = document.createElement("div"); node.innerHTML = userControlledContent;';
+
+      auditor.testScanFile('src/components/Renderer.ts', snippet);
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(f => f.ruleId === 'raw-html-injection');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('error');
+    });
+
     it('detects missing-csrf-token when form POST lacks CSRF protection', async () => {
       const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
       const snippet = '<form action="/transfer" method="post"><button type="submit">Send</button></form>';

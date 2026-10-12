@@ -54,7 +54,7 @@ export class TestFragmentationAuditor extends FileScanAuditor {
     constructor(roots, projectRoot) {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? [
-            ...(config.paths.testRoots ?? ['tests']),
+            ...(config.paths.testRoots ?? []),
             ...(config.paths.integrationRoots ?? []),
             ...(config.paths.e2eRoots ?? [])
         ];

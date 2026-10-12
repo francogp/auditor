@@ -138,8 +138,8 @@ export class TemplateIdAuditor extends FileScanAuditor {
     constructor(roots, options, projectRoot) {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? [
-            ...(config.paths.componentsRoots ?? ['src/components']),
-            ...(config.paths.viewsRoots ?? ['src/views'])
+            ...(config.paths.componentsRoots ?? []),
+            ...(config.paths.viewsRoots ?? [])
         ];
         super({
             ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
