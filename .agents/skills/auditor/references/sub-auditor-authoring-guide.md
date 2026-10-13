@@ -1090,6 +1090,8 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
 | `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
 | `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
+| `usesThirdPartyTool` | `boolean` | `true` or `false` | Mandatory boolean explicitly declaring whether the suite delegates to external binaries or CLI tools (e.g. ESLint, Stylelint, HTML-Validate, Fallow, Docker). Omission throws runtime Error. |
+| `thirdPartyToolPolicy` | `ThirdPartyToolFailurePolicy` | Mandatory if `usesThirdPartyTool: true` | Policy object defining `{ toolName: string, fallbackBehavior: 'throw' \| 'violation', fallbackRuleId?: TRuleId }`. Prohibited if `usesThirdPartyTool: false`. |
 
 If any of these fields are missing or invalid, `BaseAuditor` throws an immediate runtime `Error` during instantiation.
 
