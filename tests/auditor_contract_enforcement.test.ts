@@ -317,8 +317,8 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
 
       // Verifies that both built-in and user extension configs are dynamically embedded
       expect(configContent).toContain("name: 'TestApp'");
-      expect(configContent).toContain('secretLeaks: {\n    "enabled": true,\n    "maskSecrets": true\n  }');
-      expect(configContent).toContain('customExtension: {\n    "enabled": true,\n    "maxRetries": 5\n  }');
+      expect(configContent).toContain('secretLeaks: {\n    enabled: true,\n    maskSecrets: true\n  }');
+      expect(configContent).toContain('customExtension: {\n    enabled: true,\n    maxRetries: 5\n  }');
     });
   });
 

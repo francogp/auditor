@@ -425,6 +425,7 @@ export type DeepPartial<T> = {
 };
 export interface AuditEngineConfig {
     readonly name: string;
+    readonly auditorVersion?: string;
     readonly ratchet?: AuditRatchetConfig;
     readonly testCoverage?: AuditTestCoverageConfig;
     readonly valibot?: AuditValibotConfig;

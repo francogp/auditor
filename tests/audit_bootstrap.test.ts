@@ -91,6 +91,10 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
     expect(fs.existsSync(gitignorePath)).toBe(true);
     const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
     expect(gitignoreContent).toContain('scratch/');
+
+    // Ensure no orphaned commas on standalone lines
+    expect(content).not.toMatch(/\}\s*\r?\n\s*,/);
+    expect(content).not.toMatch(/^\s*,\s*$/m);
   });
 
   it('injects missing sections into existing partial/old audit.config.ts without altering prior settings', async () => {
@@ -139,6 +143,10 @@ export default defineAuditConfig({
     expect(updatedContent).toContain('webPerformance:');
     expect(updatedContent).toContain('queryPerformance:');
     expect(updatedContent).toContain('codeSimplification:');
+
+    // Ensure no orphaned commas on standalone lines
+    expect(updatedContent).not.toMatch(/\}\s*\r?\n\s*,/);
+    expect(updatedContent).not.toMatch(/^\s*,\s*$/m);
   });
 
   it('is completely idempotent when run multiple times on an up-to-date configuration', async () => {
@@ -198,5 +206,222 @@ export default defineAuditConfig({
     expect(updated.webPerformance).toBeDefined();
     expect(updated.queryPerformance).toBeDefined();
     expect(updated.securityHardening).toBeDefined();
+    expect(updated.auditorVersion).toBeDefined();
+  });
+
+  it('scaffolds complete .auditor/audit.config.ts including auditorVersion matching current running build', async () => {
+    const pkg = { name: 'version-sample-app', version: '1.0.0', type: 'module' };
+    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+
+    const result = await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+
+    expect(result.configCreated).toBe(true);
+    expect(result.versionUpdated).toBe(true);
+    expect(result.currentVersion).toMatch(/^\d+\.\d+\.\d+-build\./);
+
+    const generatedConfigFile = path.join(tempDir, AUDIT_CONFIG_FILE);
+    const content = fs.readFileSync(generatedConfigFile, 'utf-8');
+    expect(content).toContain(`auditorVersion: '${result.currentVersion}'`);
+  });
+
+  it('detects diverged or missing auditorVersion in existing config, synchronizes it and returns versionUpdated: true', async () => {
+    const pkg = { name: 'diverged-version-app', version: '1.0.0', type: 'module' };
+    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+
+    const auditorDir = path.join(tempDir, '.auditor');
+    fs.mkdirSync(auditorDir, { recursive: true });
+    const initialConfig = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'diverged-version-app',
+  auditorVersion: '7.0.0-build.legacy',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'en'
+  }
+});
+`;
+    fs.writeFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), initialConfig, 'utf-8');
+
+    const result = await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+
+    expect(result.configCreated).toBe(false);
+    expect(result.versionUpdated).toBe(true);
+    expect(result.previousVersion).toBe('7.0.0-build.legacy');
+    expect(result.currentVersion).not.toBe('7.0.0-build.legacy');
+
+    const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
+    expect(updatedContent).toContain(`auditorVersion: '${result.currentVersion}'`);
+    expect(updatedContent).not.toContain('7.0.0-build.legacy');
+  });
+
+  it('preserves existing non-violating user configurations while enforcing mandatory subauditor minimums', async () => {
+    const pkg = { name: 'preserve-config-app', version: '1.0.0', type: 'module' };
+    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+
+    const auditorDir = path.join(tempDir, '.auditor');
+    fs.mkdirSync(auditorDir, { recursive: true });
+    const initialConfig = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'preserve-config-app',
+  auditorVersion: '7.0.0-build.prev',
+  paths: {
+    srcRoots: ['custom-src'],
+    testRoots: ['custom-tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'es'
+  },
+  webPerformance: {
+    enabled: true,
+    maxDomDepth: 64
+  }
+});
+`;
+    fs.writeFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), initialConfig, 'utf-8');
+
+    const result = await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+
+    expect(result.versionUpdated).toBe(true);
+
+    const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
+    // Non-violating user customizations MUST be preserved
+    expect(updatedContent).toContain("language: 'es'");
+    expect(updatedContent).toContain("maxDomDepth: 64");
+    expect(updatedContent).toContain("srcRoots: ['custom-src']");
+    expect(updatedContent).toContain("testRoots: ['custom-tests']");
+
+    // Version updated
+    expect(updatedContent).toContain(`auditorVersion: '${result.currentVersion}'`);
+
+    // Missing sections injected
+    expect(updatedContent).toContain('queryPerformance:');
+    expect(updatedContent).toContain('securityHardening:');
+  });
+
+  it('detects diverged build ID even when major.minor.patch matches and synchronizes it', async () => {
+    const pkg = { name: 'diverged-build-app', version: '1.0.0', type: 'module' };
+    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+
+    const auditorDir = path.join(tempDir, '.auditor');
+    fs.mkdirSync(auditorDir, { recursive: true });
+    // Same semver but older build timestamp
+    const initialConfig = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'diverged-build-app',
+  auditorVersion: '7.1.1-build.20261001-000000',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'en'
+  }
+});
+`;
+    fs.writeFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), initialConfig, 'utf-8');
+
+    const result = await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+
+    expect(result.versionUpdated).toBe(true);
+    expect(result.previousVersion).toBe('7.1.1-build.20261001-000000');
+    expect(result.currentVersion).not.toBe('7.1.1-build.20261001-000000');
+
+    const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
+    expect(updatedContent).toContain(`auditorVersion: '${result.currentVersion}'`);
+    expect(updatedContent).not.toContain('7.1.1-build.20261001-000000');
+  });
+
+  it('detects completely missing auditorVersion in legacy config and injects it cleanly', async () => {
+    const pkg = { name: 'missing-version-app', version: '1.0.0', type: 'module' };
+    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+
+    const auditorDir = path.join(tempDir, '.auditor');
+    fs.mkdirSync(auditorDir, { recursive: true });
+    const legacyConfig = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'missing-version-app',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'en'
+  }
+});
+`;
+    fs.writeFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), legacyConfig, 'utf-8');
+
+    const result = await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+
+    expect(result.versionUpdated).toBe(true);
+    expect(result.previousVersion).toBeUndefined();
+
+    const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
+    expect(updatedContent).toContain(`auditorVersion: '${result.currentVersion}'`);
+  });
+
+  it('generates 100% syntactically valid TypeScript with zero parse diagnostics and zero orphaned commas', async () => {
+    const pkg = { name: 'syntax-integrity-app', version: '1.0.0', type: 'module' };
+    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+
+    // 1. Virgin scaffold
+    await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+    const virginContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
+
+    const ts = await import('typescript');
+    const virginSource = ts.default.createSourceFile(
+      'audit.config.ts',
+      virginContent,
+      ts.default.ScriptTarget.Latest,
+      true,
+      ts.default.ScriptKind.TS
+    );
+    expect(virginSource.parseDiagnostics.length).toBe(0);
+    expect(virginContent).not.toMatch(/\}\s*\r?\n\s*,/);
+    expect(virginContent).not.toMatch(/^\s*,\s*$/m);
+
+    // 2. Incremental section injection on existing file without trailing commas
+    const dirtyConfig = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'syntax-integrity-app',
+  auditorVersion: '7.0.0-build.000',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'en'
+  }
+});
+`;
+    fs.writeFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), dirtyConfig, 'utf-8');
+
+    await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
+    const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
+
+    const updatedSource = ts.default.createSourceFile(
+      'audit.config.ts',
+      updatedContent,
+      ts.default.ScriptTarget.Latest,
+      true,
+      ts.default.ScriptKind.TS
+    );
+    expect(updatedSource.parseDiagnostics.length).toBe(0);
+    expect(updatedContent).not.toMatch(/\}\s*\r?\n\s*,/);
+    expect(updatedContent).not.toMatch(/^\s*,\s*$/m);
   });
 });
+

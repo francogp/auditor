@@ -16,6 +16,7 @@ import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from "../../
 import { discoverAuditors, collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import { getPackageJson } from "../../core/packageJson.js";
+import { AUDITOR_VERSION } from "../../core/version.js";
 import ts from 'typescript';
 enableCompileCache();
 export function formatSectionObjectLiteral(value) {
@@ -99,19 +100,37 @@ function appendMissingSectionsFallback(configFilePath, code, sectionsToInsert //
     const lastBrace = code.lastIndexOf('}');
     if (lastBrace === -1)
         return;
-    let snippet = '';
+    const beforeClose = code.slice(0, lastBrace).trimEnd();
+    const needsComma = !beforeClose.endsWith(',');
+    const commaPos = beforeClose.length;
+    const sectionLines = [];
     for (const [key, val] of Object.entries(sectionsToInsert)) {
-        snippet += `,\n  ${key}: ${formatSectionObjectLiteral(val)}`;
+        sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
     }
-    snippet += '\n';
-    const updated = code.slice(0, lastBrace) + snippet + code.slice(lastBrace);
+    const base = needsComma
+        ? code.slice(0, commaPos) + ',' + code.slice(commaPos, lastBrace)
+        : code.slice(0, lastBrace);
+    const snippet = '\n' + sectionLines.join('\n') + '\n';
+    const updated = base + snippet + code.slice(lastBrace);
     fs.writeFileSync(configFilePath, updated, 'utf8');
+}
+function parseAuditConfigFileAst(configFilePath) {
+    try {
+        const code = fs.readFileSync(configFilePath, 'utf8');
+        const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS); // homebrew-ok: in-place AST configuration rewrite
+        const configObj = findConfigObjectLiteral(source);
+        return { code, source, configObj };
+    }
+    catch {
+        return null;
+    }
 }
 function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
 ) {
-    const code = fs.readFileSync(configFilePath, 'utf8');
-    const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS); // homebrew-ok: in-place AST configuration rewrite
-    const configObj = findConfigObjectLiteral(source);
+    const parsed = parseAuditConfigFileAst(configFilePath);
+    if (!parsed)
+        return;
+    const { code, configObj } = parsed;
     if (!configObj) {
         appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
         return;
@@ -128,15 +147,20 @@ function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert // open-
     const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
     if (closeBracePos === -1)
         return;
-    let snippet = '';
-    let needsLeadingComma = !hasTrailingComma && properties.length > 0;
-    for (const [key, val] of Object.entries(sectionsToInsert)) {
-        const prefix = needsLeadingComma ? ',' : '';
-        snippet += `${prefix}\n  ${key}: ${formatSectionObjectLiteral(val)}`;
-        needsLeadingComma = true;
+    let baseCode = code;
+    let effectiveCloseBracePos = closeBracePos;
+    if (!hasTrailingComma && properties.length > 0) {
+        const lastProp = properties[properties.length - 1];
+        const endOfLastProp = lastProp.getEnd();
+        baseCode = code.slice(0, endOfLastProp) + ',' + code.slice(endOfLastProp);
+        effectiveCloseBracePos += 1;
     }
-    snippet += '\n';
-    const updated = code.slice(0, closeBracePos) + snippet + code.slice(closeBracePos);
+    const sectionLines = [];
+    for (const [key, val] of Object.entries(sectionsToInsert)) {
+        sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
+    }
+    const snippet = '\n' + sectionLines.join('\n') + '\n';
+    const updated = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
     fs.writeFileSync(configFilePath, updated, 'utf8');
 }
 export function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
@@ -168,15 +192,81 @@ export function collectConfigSectionsFromTasks(tasks) {
     return sections;
 }
 function renderConfigSectionsCode(sections) {
-    let customSectionsCode = '';
-    for (const [key, value] of Object.entries(sections)) {
-        const lines = JSON.stringify(value, null, 2)
-            .split('\n')
-            .map((line, idx) => (idx === 0 ? line : `  ${line}`))
-            .join('\n');
-        customSectionsCode += `,\n  ${key}: ${lines}`;
+    const entries = Object.entries(sections);
+    if (entries.length === 0)
+        return '';
+    const lines = [];
+    for (const [key, value] of entries) {
+        lines.push(`  ${key}: ${formatSectionObjectLiteral(value)},`);
     }
-    return customSectionsCode;
+    return ',\n' + lines.join('\n');
+}
+export function syncAuditorVersionInConfigFile(configFilePath, version) {
+    if (!fs.existsSync(configFilePath))
+        return false;
+    if (configFilePath.endsWith('.json')) {
+        try {
+            const content = fs.readFileSync(configFilePath, 'utf8');
+            const json = JSON.parse(content);
+            if (json.auditorVersion === version)
+                return false;
+            json.auditorVersion = version;
+            fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    const parsed = parseAuditConfigFileAst(configFilePath);
+    if (!parsed || !parsed.configObj)
+        return false;
+    const { code, source, configObj } = parsed;
+    try {
+        const versionProp = configObj.properties.find(p => {
+            if (!ts.isPropertyAssignment(p))
+                return false;
+            const name = p.name.getText(source);
+            return name === 'auditorVersion' || name === "'auditorVersion'" || name === '"auditorVersion"';
+        });
+        if (versionProp) {
+            const currentVal = versionProp.initializer.getText(source);
+            if (currentVal === `'${version}'` || currentVal === `"${version}"`) {
+                return false;
+            }
+            const updated = code.slice(0, versionProp.initializer.getStart(source)) +
+                `'${version}'` +
+                code.slice(versionProp.initializer.getEnd());
+            fs.writeFileSync(configFilePath, updated, 'utf8');
+            return true;
+        }
+        const nameProp = configObj.properties.find(p => {
+            if (!ts.isPropertyAssignment(p))
+                return false;
+            const name = p.name.getText(source);
+            return name === 'name' || name === "'name'" || name === '"name"';
+        });
+        if (nameProp) {
+            const insertPos = nameProp.getEnd();
+            const commaOffset = code.indexOf(',', insertPos);
+            const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
+            const actualPos = hasComma ? commaOffset + 1 : insertPos;
+            const commaPrefix = hasComma ? '' : ',';
+            const snippet = `${commaPrefix}\n  auditorVersion: '${version}',`;
+            const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
+            fs.writeFileSync(configFilePath, updated, 'utf8');
+            return true;
+        }
+        const openBracePos = code.indexOf('{', configObj.getStart(source));
+        if (openBracePos === -1)
+            return false;
+        const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: '${version}',` + code.slice(openBracePos + 1);
+        fs.writeFileSync(configFilePath, updated, 'utf8');
+        return true;
+    }
+    catch {
+        return false;
+    }
 }
 export function createDefaultAuditConfigContent(packageName = 'Project', tasks = []) {
     const sections = collectConfigSectionsFromTasks(tasks);
@@ -185,6 +275,7 @@ export function createDefaultAuditConfigContent(packageName = 'Project', tasks =
 
 export default defineAuditConfig({
   name: '${packageName}',
+  auditorVersion: '${AUDITOR_VERSION}',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -776,6 +867,17 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 this.checkPathExists(ext, 'audit-config-invalid-extension', 'extension file or directory');
             }
         }
+    }
+}
+export async function enforceCriticalConfigurations(projectRoot, tasks) {
+    try {
+        const auditor = new ValidateAuditConfigAuditor({ projectRoot, fix: true });
+        const config = await loadAuditConfig(projectRoot);
+        await auditor.verifyCriticalConfigurations(config, tasks);
+        return true;
+    }
+    catch {
+        return false;
     }
 }
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

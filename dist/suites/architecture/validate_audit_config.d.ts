@@ -13,6 +13,7 @@ import type { AuditorConfigFileRequirement, AuditTaskDefinition } from '../../co
 export declare function formatSectionObjectLiteral(value: unknown): string;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
+export declare function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
 export interface MissingSectionEntry {
     tasks: AuditTaskDefinition[];
@@ -44,7 +45,7 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
     private verifyTaskForbiddenOverrides;
     private verifyTaskCustomValidation;
     private verifyTaskCriticalConfig;
-    protected verifyCriticalConfigurations(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void>;
+    verifyCriticalConfigurations(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void>;
     private handleMissingGitIgnoreFile;
     private appendMissingGitIgnoreEntries;
     private verifyGitIgnore;
@@ -56,4 +57,5 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
     private verifyDomainAndStylePaths;
     private verifyExtensionPaths;
 }
+export declare function enforceCriticalConfigurations(projectRoot: string, tasks: readonly AuditTaskDefinition[]): Promise<boolean>;
 //# sourceMappingURL=validate_audit_config.d.ts.map

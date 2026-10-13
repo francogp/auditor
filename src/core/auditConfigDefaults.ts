@@ -61,6 +61,7 @@ import {
   getExemptRootsForPolicy,
   filterOutExemptRoots
 } from './auditConfigAntiAbuse.ts';
+import { AUDITOR_VERSION } from './version.ts';
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
@@ -68,6 +69,7 @@ export const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 
 export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   name: 'Generic Project',
+  auditorVersion: AUDITOR_VERSION,
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],

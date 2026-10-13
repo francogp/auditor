@@ -6,11 +6,13 @@
 import path from 'node:path';
 import { DEFAULT_MAX_AUDIT_STALENESS_MINUTES, ACKNOWLEDGEABLE_EXEMPTION_POLICIES, AUDITOR_DIR } from "./auditConfigTypes.js";
 import { assertNarrowCoverageGlob, assertCoverageReason, getExemptRootsForPolicy, filterOutExemptRoots } from "./auditConfigAntiAbuse.js";
+import { AUDITOR_VERSION } from "./version.js";
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 export const DEFAULT_AUDIT_CONFIG = {
     name: 'Generic Project',
+    auditorVersion: AUDITOR_VERSION,
     paths: {
         srcRoots: ['src'],
         testRoots: ['tests'],

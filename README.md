@@ -166,7 +166,7 @@ auditor fix
 
 In fix mode, `@francogp/auditor` deterministically executes **Environment & Configuration suites FIRST**:
 
-1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing, injects required subsystem sections (`eslint`, `htmlValidate`, `valibot`, etc.), and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`) while chaining `npm run auditor` into `build`.
+1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing (including `auditorVersion` matching current engine and build), injects required subsystem sections (`eslint`, `htmlValidate`, `valibot`, etc.), synchronizes diverged engine versions, preserves existing custom user configurations while enforcing critical mandatory minimums, and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`) while chaining `npm run auditor` into `build`.
 2. `validate_git_config`: Enforces and auto-repairs local Git repository configuration (`core.filemode false`, `core.autocrlf input`, `core.eol lf`).
 3. `validate_eslint_config`: Enforces and repairs `eslint.config.js` with strict type safety.
 4. `validate_fallow_config`: Synchronizes `.fallowrc.json` configuration.

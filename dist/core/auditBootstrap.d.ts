@@ -18,6 +18,9 @@
 export interface BootstrapResult {
     readonly configCreated: boolean;
     readonly configUpdated: boolean;
+    readonly versionUpdated: boolean;
+    readonly previousVersion?: string;
+    readonly currentVersion: string;
     readonly agentsRegistered: boolean;
     readonly gitIgnoreUpdated: boolean;
     readonly sectionsInjected: readonly string[];

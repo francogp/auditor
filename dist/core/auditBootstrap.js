@@ -20,13 +20,16 @@ import path from 'node:path';
 import { AUDIT_CONFIG_FILE, AUDIT_CONFIG_JSON_FILE, LEGACY_ROOT_CONFIG_FILES, loadAuditConfig, resetAuditConfig, isSelfProviderProject } from "./auditConfig.js";
 import { discoverAuditors, collectAllGitIgnoreRequirements } from "../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../cli/migrateAuditConfig.js";
-import { createDefaultAuditConfigContent, collectMissingSections, appendMissingSectionsToConfigFile } from "../suites/architecture/validate_audit_config.js";
+import { createDefaultAuditConfigContent, collectMissingSections, appendMissingSectionsToConfigFile, syncAuditorVersionInConfigFile, enforceCriticalConfigurations } from "../suites/architecture/validate_audit_config.js";
 import { initAgentSkill } from "../cli/init_agent.js";
 import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from "./gitignoreMatcher.js";
 import { getPackageJson } from "./packageJson.js";
+import { AUDITOR_VERSION } from "./version.js";
 const EMPTY_BOOTSTRAP_RESULT = {
     configCreated: false,
     configUpdated: false,
+    versionUpdated: false,
+    currentVersion: AUDITOR_VERSION,
     agentsRegistered: false,
     gitIgnoreUpdated: false,
     sectionsInjected: []
@@ -141,21 +144,47 @@ export async function ensureProjectBootstrapped(options = {}) {
     handleLegacyConfigMigration(projectRoot);
     const configPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
     const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
+    const targetConfigPath = fs.existsSync(configPath) ? configPath : jsonConfigPath;
     const hasExistingConfig = fs.existsSync(configPath) || fs.existsSync(jsonConfigPath);
     const tasks = await safeDiscoverAuditors(projectRoot);
     let configCreated = false;
+    let versionUpdated = false;
+    let previousVersion;
     let sectionsInjected = []; // no-domain: Injected configuration sections
     if (!hasExistingConfig) {
         configCreated = ensureVirginConfigScaffolded(projectRoot, tasks);
+        versionUpdated = true;
     }
     else {
+        let activeConfig;
+        try {
+            activeConfig = await loadAuditConfig(projectRoot);
+        }
+        catch {
+            // catch-ok: non-fatal if partial config fails loading
+        }
+        const rawConfig = (activeConfig?._rawConfig ?? {});
+        previousVersion = typeof rawConfig.auditorVersion === 'string' ? rawConfig.auditorVersion : undefined;
+        const versionDiverged = previousVersion !== AUDITOR_VERSION;
         sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
+        // Enforce critical mandatory configurations without altering non-violating existing settings
+        await enforceCriticalConfigurations(projectRoot, tasks);
+        if (versionDiverged) {
+            const versionSynced = syncAuditorVersionInConfigFile(targetConfigPath, AUDITOR_VERSION);
+            if (versionSynced) {
+                versionUpdated = true;
+                resetAuditConfig();
+            }
+        }
     }
     const agentsRegistered = ensureAgentSkillRegistered(projectRoot);
     const gitIgnoreUpdated = await ensureGitIgnoreSynchronized(projectRoot);
     return {
         configCreated,
-        configUpdated: sectionsInjected.length > 0,
+        configUpdated: sectionsInjected.length > 0 || versionUpdated,
+        versionUpdated,
+        previousVersion,
+        currentVersion: AUDITOR_VERSION,
         agentsRegistered,
         gitIgnoreUpdated,
         sectionsInjected
