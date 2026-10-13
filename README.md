@@ -78,15 +78,17 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 ### Direct Installation from GitHub via npm
 
 ```bash
-npm install -D github:francogp/auditor
+npm install -D github:francogp/auditor#semver:* --allow-git=all
 ```
+
+The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so `npm install` and `npm update` work without flags. Alternatively, create `.npmrc` with `allow-git=all` before installing.
 
 Or declare it directly in `package.json`:
 
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor"
+    "@francogp/auditor": "github:francogp/auditor#semver:*"
   }
 }
 ```
@@ -105,7 +107,8 @@ In **npm 12+**, lifecycle installation scripts (`preinstall`, `postinstall`) are
 2. **Existing / Older Projects**: Detects newly added sub-auditors or missing configuration sections, automatically injecting them via TypeScript Compiler AST (`appendMissingSectionsToConfigFile`) without altering any existing user settings.
 3. **Antigravity AI Agent Discovery**: Automatically registers `.agents/plugins.json` and `.agents/skills.json` so Antigravity AI agents instantly discover all 52+ skills without duplicating files.
 4. **Git Hygiene**: Automatically synchronizes required `.gitignore` tool cache entries (`scratch/`, etc.).
-5. **CI/CD Safety**: In automated CI environments (`process.env.CI = 'true'`), auto-mutation is cleanly inhibited to ensure deterministic and immutable build gates.
+5. **npm 12+ git dependencies**: Ensures `.npmrc` contains `allow-git=all` (idempotent, preserves other lines) so plain `npm update` resolves `#semver:*` without flags.
+6. **CI/CD Safety**: In automated CI environments (`process.env.CI = 'true'`), auto-mutation is cleanly inhibited to ensure deterministic and immutable build gates.
 
 ### Updating from GitHub (`auditor-update`)
 
@@ -120,8 +123,20 @@ auditor-update
 Or manually update via npm:
 
 ```bash
-npm install -D github:francogp/auditor
+npm install -D github:francogp/auditor#semver:* --allow-git=all
 ```
+
+**Required for plain `npm update` (npm 12+):** npm 12 blocks git dependencies by default (`allow-git=none`, error `EALLOWGIT`). The host project MUST contain a `.npmrc` with `allow-git=all`; `auditor-update` writes it automatically. With it, `npm install` and `npm update` (no flags) resolve the latest tag.
+
+`#semver:*` resolves the highest SemVer git tag. Every release MUST therefore be tagged `vX.Y.Z` (e.g. `v7.1.2`) without the `-build.*` suffix, since npm excludes prereleases from `*`. Untagged commits are never installed.
+
+### Mandatory Minimum Library Versions (`validate_dependency_minimums`)
+
+The auditor exposes a conditional version floor for shared libraries (`typescript`, `eslint`, `@eslint/js`, `typescript-eslint`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `vitest`, `vite`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, no hardcoded versions).
+
+- If your project declares one of these libraries (`dependencies`, `devDependencies`, `optionalDependencies`), both the declared range and the version locked in `package-lock.json` must be at least the auditor floor; otherwise the audit fails with the exact command (e.g. `npm install -D eslint@^10.12.0`).
+- Libraries you do not use are never required (peers are optional, so npm does not install them).
+- To raise a floor for every consumer, edit the auditor `peerDependencies` and release a new tag.
 
 ### 3.2. Auditor Configuration Architecture & SSoT (`.auditor/audit.config.ts`)
 
@@ -190,7 +205,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` (`"github:francogp/auditor"` or local file link).
+Add `@francogp/auditor` to `devDependencies` in `package.json` (`"github:francogp/auditor#semver:*"`).
 
 #### Step 2: Bootstrap the Environment
 

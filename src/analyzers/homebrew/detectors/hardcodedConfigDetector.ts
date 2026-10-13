@@ -21,7 +21,7 @@ export const hardcodedConfigDetector = createLineDetector({
     }
 
     // 2. Hardcoded fallback directory arrays in nullish coalescing or unshift: e.g. unshift('supabase/migrations') or ?? ['migrations']
-    const hasCandidatePush = /(?:\.push|\.unshift|\?\?)\s*\(?\s*['"`](?:supabase\/migrations|database\/migrations)['"`]/i.test(trimmed);
+    const hasCandidatePush = /(?:\.push|\.unshift|\?\?)\s*(?:\(\s*)?['"`](?:supabase\/migrations|database\/migrations)['"`]/i.test(trimmed);
     if (hasCandidatePush) {
       return "Ruta de directorio fallback hardcodeada detectada. Usa únicamente la ruta configurada en 'config.paths.migrationsDir'.";
     }

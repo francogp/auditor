@@ -80,7 +80,9 @@ Architecture & Tooling Engineers.
 ## Key Files
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
+- [`npmrcAllowGit.ts`](./npmrcAllowGit.ts): Idempotent `.npmrc` `allow-git=all` writer (npm 12+ blocks git dependencies by default); used by `auditBootstrap.ts` and `auditor-update`.
 - [`auditBootstrap.ts`](./auditBootstrap.ts): Pre-flight zero-setup auto-bootstrap engine initializing configurations, skills, and hygiene defaults.
+- [`auditorMinimums.ts`](./auditorMinimums.ts): SSoT reader of mandatory minimum library versions from the auditor `peerDependencies`.
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).
 - [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
 - [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and `defineAuditConfig` builder.

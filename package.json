@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "7.1.3-build.20261012-235037",
+  "version": "7.1.4-build.20261013-075416",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -222,7 +222,8 @@
     "auditor:scss-architecture": "auditor task=validate_scss_architecture",
     "auditor:query-performance": "auditor task=validate_query_performance",
     "auditor:web-performance": "auditor task=validate_web_performance",
-    "auditor:security-hardening": "auditor task=validate_security_hardening"
+    "auditor:security-hardening": "auditor task=validate_security_hardening",
+    "auditor:dependency-minimums": "auditor task=validate_dependency_minimums"
   },
   "dependencies": {
     "@arethetypeswrong/core": "^0.18.5",
@@ -244,6 +245,7 @@
     "postcss-value-parser": "^4.2.0",
     "publint": "^0.3.25",
     "rollup-plugin-visualizer": "^7.1.1",
+    "semver": "^7.8.5",
     "string-width": "^8.3.0",
     "stylelint": "^17.16.0",
     "stylelint-config-standard": "^40.0.0",
@@ -260,12 +262,81 @@
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
+    "@types/semver": "^7.8.0",
     "@vitest/coverage-v8": "^5.0.3",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.13.0",
     "jsdom": "^30.1.1",
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"
+  },
+  "peerDependencies": {
+    "typescript": "^6.0.3",
+    "eslint": "^10.12.0",
+    "@eslint/js": "^10.0.1",
+    "typescript-eslint": "^8.71.0",
+    "vue": "^3.5.43",
+    "vue-router": "^5.3.1",
+    "pinia": "^4.0.3",
+    "gsap": "^3.15.0",
+    "valibot": "^1.5.0",
+    "sass": "^1.104.1",
+    "vitest": "^5.0.3",
+    "vite": "^8.3.0",
+    "html-validate": "^11.16.2",
+    "markdownlint-cli": "^0.49.1",
+    "fallow": "^3.33.1",
+    "@playwright/test": "^1.63.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    },
+    "eslint": {
+      "optional": true
+    },
+    "@eslint/js": {
+      "optional": true
+    },
+    "typescript-eslint": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "vue-router": {
+      "optional": true
+    },
+    "pinia": {
+      "optional": true
+    },
+    "gsap": {
+      "optional": true
+    },
+    "valibot": {
+      "optional": true
+    },
+    "sass": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "html-validate": {
+      "optional": true
+    },
+    "markdownlint-cli": {
+      "optional": true
+    },
+    "fallow": {
+      "optional": true
+    },
+    "@playwright/test": {
+      "optional": true
+    }
   },
   "overrides": {
     "js-yaml": "^5.4.2",

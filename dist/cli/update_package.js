@@ -11,6 +11,7 @@ import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";
 import { isSelfProviderProject } from "../core/auditConfig.js";
 import { initAgentSkill } from "./init_agent.js";
 import { syncEnvScripts } from "./sync_env_scripts.js";
@@ -85,7 +86,8 @@ export function updateAuditorPackage(options = {}) {
             error: 'El paquete @francogp/auditor no está declarado en dependencies ni devDependencies.'
         };
     }
-    const npmArgs = ['install', '-D', 'github:francogp/auditor'];
+    const npmArgs = ['install', '-D', 'github:francogp/auditor#semver:*'];
+    ensureNpmrcAllowGit(projectRoot);
     const previousVersion = readInstalledAuditorVersion(projectRoot);
     if (!options.silent) {
         console.log(renderBanner('@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE', `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`));

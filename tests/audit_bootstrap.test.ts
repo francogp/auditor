@@ -59,6 +59,7 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
 
     expect(result.configCreated).toBe(true);
     expect(result.agentsRegistered).toBe(true);
+    expect(fs.readFileSync(path.join(tempDir, '.npmrc'), 'utf-8')).toContain('allow-git=all');
 
     const generatedConfigFile = path.join(tempDir, AUDIT_CONFIG_FILE);
     expect(fs.existsSync(generatedConfigFile)).toBe(true);

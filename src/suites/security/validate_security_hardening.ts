@@ -190,7 +190,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
         const assigned = (m[1] ?? '').trim();
         // Safe container reset: empty string or empty template literal
         if (assigned === "''" || assigned === '""' || assigned === '``') return false;
-        if (/^['"][\s]*['"]$/.test(assigned)) return false;
+        if (/^['"]\s*['"]$/.test(assigned)) return false;
         return !assigned.includes('DOMPurify.sanitize') && !assigned.includes('sanitizeHtml');
       }
     );

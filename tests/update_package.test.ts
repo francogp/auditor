@@ -19,6 +19,7 @@ import {
   runAuditorFixAutoRemediation,
   runCli
 } from '../src/cli/update_package.ts';
+import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
 
 describe('update_package CLI', () => {
   const sandboxDir = path.resolve(process.cwd(), 'scratch/test_update_package_' + crypto.randomUUID());
@@ -124,13 +125,13 @@ describe('update_package CLI', () => {
       spy.mockRestore();
 
       expect(result.success).toBe(true);
-      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor']);
+      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor#semver:*']);
       expect(result.previousVersion).toBe('1.2.0-build.20261002-152514');
       expect(result.newVersion).toBe('1.2.0-build.20261002-152514');
       expect(result.updated).toBe(false);
     });
 
-    it('executes npm install -D github:francogp/auditor when declared in devDependencies', () => {
+    it('executes npm install -D github:francogp/auditor#semver:* when declared in devDependencies', () => {
       fs.writeFileSync(
         path.join(sandboxDir, 'package.json'),
         JSON.stringify({
@@ -158,7 +159,7 @@ describe('update_package CLI', () => {
       spy.mockRestore();
 
       expect(result.success).toBe(true);
-      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor']);
+      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor#semver:*']);
     });
 
     it('handles npm update command failure cleanly', () => {
@@ -167,7 +168,7 @@ describe('update_package CLI', () => {
         JSON.stringify({
           name: 'host-failing-consumer',
           dependencies: {
-            '@francogp/auditor': 'github:francogp/auditor'
+            '@francogp/auditor': 'github:francogp/auditor#semver:*'
           }
         })
       );
@@ -196,7 +197,7 @@ describe('update_package CLI', () => {
         JSON.stringify({
           name: 'host-einval-consumer',
           dependencies: {
-            '@francogp/auditor': 'github:francogp/auditor'
+            '@francogp/auditor': 'github:francogp/auditor#semver:*'
           }
         })
       );
@@ -290,5 +291,29 @@ describe('update_package CLI', () => {
       exitSpy.mockRestore();
       errSpy.mockRestore();
     });
+  });
+});
+
+describe('ensureNpmrcAllowGit', () => {
+  const dir = path.resolve(process.cwd(), 'scratch/test_npmrc_' + crypto.randomUUID());
+
+  beforeEach(() => fs.mkdirSync(dir, { recursive: true }));
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('creates .npmrc with allow-git=all when missing', () => {
+    expect(ensureNpmrcAllowGit(dir)).toBe(true);
+    expect(fs.readFileSync(path.join(dir, '.npmrc'), 'utf-8')).toBe('allow-git=all\n');
+  });
+
+  it('replaces a restrictive allow-git and preserves other lines', () => {
+    fs.writeFileSync(path.join(dir, '.npmrc'), 'registry=https://example.org\nallow-git=none\n');
+    expect(ensureNpmrcAllowGit(dir)).toBe(true);
+    expect(fs.readFileSync(path.join(dir, '.npmrc'), 'utf-8')).toBe('registry=https://example.org\nallow-git=all\n');
+  });
+
+  it('is idempotent when allow-git=all already exists', () => {
+    fs.writeFileSync(path.join(dir, '.npmrc'), 'allow-git=all\n');
+    expect(ensureNpmrcAllowGit(dir)).toBe(false);
+    expect(fs.readFileSync(path.join(dir, '.npmrc'), 'utf-8')).toBe('allow-git=all\n');
   });
 });

@@ -12,6 +12,7 @@ import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { ensureNpmrcAllowGit } from '../core/npmrcAllowGit.ts';
 import { isSelfProviderProject } from '../core/auditConfig.ts';
 import { initAgentSkill } from './init_agent.ts';
 import { syncEnvScripts } from './sync_env_scripts.ts';
@@ -105,7 +106,8 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
-  const npmArgs = ['install', '-D', 'github:francogp/auditor'];
+  const npmArgs = ['install', '-D', 'github:francogp/auditor#semver:*'];
+  ensureNpmrcAllowGit(projectRoot);
 
   const previousVersion = readInstalledAuditorVersion(projectRoot);
 

@@ -9,12 +9,12 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install github:francogp/auditor
+npm install -D github:francogp/auditor#semver:* --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
 - **Pre-Compiled Artifacts in Git**: The `dist/` directory is pre-compiled and tracked directly in the repository with executable permissions (`100755`), ensuring immediate availability in `node_modules/.bin/` without requiring local compilation or install hooks.
-- **npm 12+ Zero-Setup Pre-Flight Auto-Bootstrap**: In npm 12+, dependency lifecycle scripts (`postinstall`) are disabled by default. `@francogp/auditor` features an automated pre-flight bootstrap engine (`ensureProjectBootstrapped`) that executes transparently whenever `auditor` or `npm run auditor` is called. It scaffolds `.auditor/audit.config.ts` on virgin projects, automatically injects missing configuration sections via AST on older projects, registers `.agents/skills.json` and `.agents/plugins.json`, and synchronizes `.gitignore` entries.
+- **npm 12+ Zero-Setup Pre-Flight Auto-Bootstrap**: In npm 12+, dependency lifecycle scripts (`postinstall`) are disabled by default. `@francogp/auditor` features an automated pre-flight bootstrap engine (`ensureProjectBootstrapped`) that executes transparently whenever `auditor` or `npm run auditor` is called. It scaffolds `.auditor/audit.config.ts` on virgin projects, automatically injects missing configuration sections via AST on older projects, registers `.agents/skills.json` and `.agents/plugins.json`, and synchronizes `.gitignore` entries. It also persists `allow-git=all` in the host `.npmrc` (`ensureNpmrcAllowGit`), required by npm 12+ for plain `npm update` to resolve `github:francogp/auditor#semver:*`.
 - **Antigravity Skills & Plugin Registration**: Generated automatically during pre-flight bootstrap (or manually via `auditor-init-agent`), declaring:
 
   ```json
@@ -268,3 +268,11 @@ npm run auditor:findings -- project="../PokeBorrador"
 - **Dynamic Extension Discovery**: Discovers both upstream suites and the host's bespoke extensions in `scripts/auditors/`.
 - **Zero Pollution**: Output reports and cache are saved strictly in `host/scratch/audits/`.
 - **Zero Premature Modifications**: Allows verifying that upstream changes do not introduce false positives on consumer code before releasing upstream versions.
+
+## Conditional Minimum Library Versions (`validate_dependency_minimums`)
+
+- **Single Source of Truth**: the mandatory floors live in the optional `peerDependencies` (with `peerDependenciesMeta.<name>.optional: true`) of `@francogp/auditor/package.json`. `getAuditorMinimumVersions()` (`src/core/auditorMinimums.ts`) reads them dynamically and throws if the list is missing or empty. Hardcoding versions in `.ts` code is prohibited.
+- **Conditional enforcement**: if the host declares a listed library in `dependencies`, `devDependencies` or `optionalDependencies`, then (a) the floor of its declared range (`dependency-below-minimum-range`) and (b) its version in `package-lock.json` (`dependency-below-minimum-installed`) MUST be >= the auditor floor. Libraries not declared by the host are ignored; non-registry specs (`github:`, `file:`, `workspace:`) are not comparable and skipped.
+- **Remediation**: the finding message carries the exact command (e.g. `npm install -D eslint@^10.12.0`). The suite is lint-only and never mutates host files.
+- **Raising a floor**: edit the auditor `peerDependencies`, run the build, and publish a new `vX.Y.Z` tag so hosts pick it up through `npm update`.
+- **Range parsing**: uses the `semver` package (`minVersion`, `validRange`, `lt`), never homemade regexes.
