@@ -59,7 +59,7 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
       ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
         fix: true,
         fixPriority: true,
-        lint: false,
+        lint: true,
         md: false,
         ast: false,
         changedSince: false,

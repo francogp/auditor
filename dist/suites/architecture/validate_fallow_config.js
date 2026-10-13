@@ -297,7 +297,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
             ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
                 fix: true,
                 fixPriority: true,
-                lint: false,
+                lint: true,
                 md: false,
                 ast: false,
                 changedSince: false,

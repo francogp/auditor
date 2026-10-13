@@ -91,7 +91,7 @@ export class AuditorTestsAuditor extends BaseAuditor {
             ruleCapabilities: createRuleCapabilities(AUDITOR_TEST_RULES, {
                 fix: false,
                 fixPriority: false,
-                lint: false,
+                lint: true,
                 md: false,
                 ast: false,
                 changedSince: false,

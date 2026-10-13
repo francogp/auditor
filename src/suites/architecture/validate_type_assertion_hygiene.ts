@@ -59,7 +59,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
         md: false,
         ast: false,
         changedSince: false,
-        heavy: true,
+        heavy: false,
         requiresBuild: false,
         postRun: false
       }),

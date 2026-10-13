@@ -42,7 +42,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor {
             ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
                 fix: false,
                 fixPriority: false,
-                lint: false,
+                lint: true,
                 md: false,
                 ast: false,
                 changedSince: false,

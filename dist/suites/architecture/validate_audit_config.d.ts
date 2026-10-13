@@ -32,6 +32,7 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
     constructor(targetPathOrOptions?: string | ValidateAuditConfigOptions);
     runAudit(): Promise<void>;
     private verifyUnknownFields;
+    private verifyUnknownBundleFields;
     private verifyUnknownTopLevelSections;
     private verifyUnknownPathsFields;
     private verifyUnknownConstantsFields;

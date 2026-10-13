@@ -235,29 +235,12 @@ export function buildProjectStrictValueConfig(config?: ReturnType<typeof getAudi
 
 export const CANONICAL_STRICT_VALUE_CONFIG = buildProjectStrictValueConfig();
 
+export const AUDITOR_STYLELINT_EXTENDS_PATH = './node_modules/@francogp/auditor/.stylelintrc.json';
+
 export const CANONICAL_STYLELINT_CONFIG_CONTENT = JSON.stringify(
   {
     $schema: 'https://json.schemastore.org/stylelintrc',
-    extends: ['stylelint-config-standard'],
-    plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
-    overrides: [
-      {
-        files: ['**/*.scss'],
-        extends: ['stylelint-config-standard-scss']
-      },
-      {
-        files: ['**/*.vue'],
-        extends: ['stylelint-config-standard-scss', 'stylelint-config-standard-vue/scss']
-      }
-    ],
-    rules: {
-      [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG,
-      [REQUIRED_ORDER_RULE]: CANONICAL_ORDER_CONFIG,
-      'no-duplicate-selectors': true,
-      'declaration-block-no-duplicate-properties': true,
-      'block-no-empty': true,
-      'no-empty-source': true
-    }
+    extends: [AUDITOR_STYLELINT_EXTENDS_PATH]
   },
   null,
   2

@@ -33,6 +33,7 @@ export declare function getMergedIgnoreValues(config?: ReturnType<typeof getAudi
 export declare function getMergedIgnoreAtRules(config?: ReturnType<typeof getAuditConfig>): readonly string[];
 export declare function buildProjectStrictValueConfig(config?: ReturnType<typeof getAuditConfig>): unknown[];
 export declare const CANONICAL_STRICT_VALUE_CONFIG: unknown[];
+export declare const AUDITOR_STYLELINT_EXTENDS_PATH = "./node_modules/@francogp/auditor/.stylelintrc.json";
 export declare const CANONICAL_STYLELINT_CONFIG_CONTENT: string;
 export declare const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<StylelintConfigRuleId>;
 export declare function extendsAuditorConfig(parsedConfig: Record<string, unknown>): boolean;

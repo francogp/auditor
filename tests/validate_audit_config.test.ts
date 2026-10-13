@@ -719,6 +719,34 @@ export default defineAuditConfig({
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('Unknown or legacy field "constants.exemptGlobs"');
   });
+
+  it('detects unknown fields in bundle.budgets and reports audit-config-unknown-field', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  bundle: {
+    enabled: true,
+    budgets: [
+      { pattern: 'index', maxBytes: 1200 * 1024 }
+    ]
+  },
+  ${BASE_TEST_CONFIG_SECTIONS.replace(/bundle:\s*\{[^}]*\},/g, '')}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'bundle.budgets.pattern');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain('Unknown field "bundle.budgets[0].pattern"');
+  });
 });
 
 describe('migrateLegacyAuditConfig', () => {

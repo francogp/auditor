@@ -198,7 +198,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
             ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
                 fix: true,
                 fixPriority: true,
-                lint: false,
+                lint: true,
                 md: true,
                 ast: false,
                 changedSince: false,

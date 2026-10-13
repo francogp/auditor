@@ -1277,3 +1277,48 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
 15. **Zero Redundant Rule Marking (`auditor-redundant-rule-evaluated`)**:
     - ❌ **Prohibited**: Calling `this.markRuleEvaluated(ruleId)` immediately before a measuring wrapper for the same rule.
     - ✅ **Canonical**: Omit the manual mark; all timing wrappers mark rules evaluated internally.
+
+---
+
+## 16. Host Extension Migration Quick Guide (v7+ Modernization)
+
+When upgrading `@francogp/auditor` in a host project with local extensions in `scripts/auditors/`, adapt legacy constructors to v7+ standards:
+
+### 1. Error: `passed redundant 'capabilities' to constructor options`
+
+- ❌ **Legacy Pattern**: Passing `capabilities: { ... }` directly to `super({ ... })`.
+- ✅ **Canonical Pattern**: Pass `ruleCapabilities: createUniformRuleCapabilities(RULES, { ... })` (or `LINT_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
+
+```typescript
+// Legacy:
+super({
+  id: 'my_extension',
+  capabilities: { lint: true, fix: false, ... },
+  ...
+});
+
+// Modern v7+:
+import { createUniformRuleCapabilities } from '@francogp/auditor';
+
+super({
+  id: 'my_extension',
+  ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
+    fix: false,
+    fixPriority: false,
+    lint: true,
+    md: false,
+    ast: false,
+    changedSince: false,
+    heavy: false,
+    requiresBuild: false,
+    postRun: false
+  }),
+  coverage: { include: ['src/**'] },
+  ...
+});
+```
+
+### 2. Error: `auditor-manual-step-logging`
+
+- ❌ **Legacy Pattern**: Calling `this.context.logStep('Scanned...')` inside `runAudit` or scanner loops.
+- ✅ **Canonical Pattern**: Remove all `logStep` calls. Per-rule progress (`🔍 [n/m]`) is measured and emitted automatically by `runSubAuditorSync` / `declareFileSubAuditor`.

@@ -501,6 +501,56 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         this.verifyUnknownTopLevelSections(rawConfig, tasks);
         this.verifyUnknownPathsFields(rawConfig);
         this.verifyUnknownConstantsFields(rawConfig);
+        this.verifyUnknownBundleFields(rawConfig);
+    }
+    verifyUnknownBundleFields(rawConfig) {
+        const rawBundle = rawConfig.bundle;
+        if (typeof rawBundle !== 'object' || rawBundle === null)
+            return;
+        const validBundleKeys = new Set([
+            'enabled',
+            'statsFile',
+            'distDir',
+            'exemptChunkPrefixes',
+            'maxClientChunkWarnBytes',
+            'maxClientChunkErrorBytes',
+            'budgets',
+            'duplicateModuleThresholdBytes',
+            'topModulesLimit',
+            'forbiddenUiImports'
+        ]);
+        for (const key of Object.keys(rawBundle)) {
+            if (!validBundleKeys.has(key)) {
+                this.addViolation({
+                    ruleId: 'audit-config-unknown-field',
+                    severity: 'error',
+                    file: AUDIT_CONFIG_FILE,
+                    line: 1,
+                    message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "bundle.${key}". This field is not supported. Please remove it.`,
+                    context: `bundle.${key}`
+                });
+            }
+        }
+        const budgets = rawBundle.budgets;
+        if (Array.isArray(budgets)) {
+            const validBudgetKeys = new Set(['name', 'prefix', 'matcher', 'limitBytes']);
+            budgets.forEach((budgetEntry, idx) => {
+                if (typeof budgetEntry !== 'object' || budgetEntry === null)
+                    return;
+                for (const bKey of Object.keys(budgetEntry)) {
+                    if (!validBudgetKeys.has(bKey)) {
+                        this.addViolation({
+                            ruleId: 'audit-config-unknown-field',
+                            severity: 'error',
+                            file: AUDIT_CONFIG_FILE,
+                            line: 1,
+                            message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown field "bundle.budgets[${idx}].${bKey}". Canonical fields for ChunkBudgetConfig are 'name', 'prefix', 'matcher', and 'limitBytes'.`,
+                            context: `bundle.budgets.${bKey}`
+                        });
+                    }
+                }
+            });
+        }
     }
     verifyUnknownTopLevelSections(rawConfig, tasks) {
         const validTopLevelKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG).filter(k => !k.startsWith('_')));

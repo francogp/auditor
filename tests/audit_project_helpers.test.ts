@@ -76,7 +76,7 @@ describe('Project Architecture Helpers', () => {
       expect(auditor.packageName).toBe('Arquitectura');
       expect(auditor.capabilities.fix).toBe(true);
       expect(auditor.capabilities.ast).toBe(true);
-      expect(auditor.capabilities.heavy).toBe(true);
+      expect(auditor.capabilities.heavy).toBe(false);
     });
   });
 });

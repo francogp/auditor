@@ -20,6 +20,7 @@ import {
   CANONICAL_IGNORE_VALUES,
   CANONICAL_STRICT_VALUE_CONFIG,
   CANONICAL_ORDER_CONFIG,
+  AUDITOR_STYLELINT_EXTENDS_PATH,
   validateOrderHasBlockPartitioning
 } from '../src/suites/architecture/validate_stylelint_config.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
@@ -371,7 +372,7 @@ describe('ValidateStylelintConfigAuditor', () => {
   });
 
   describe('Auto-Fix Mode (--fix)', () => {
-    it('automatically scaffolds .stylelintrc.json with all 13 canonical properties when missing in fix mode', async () => {
+    it('automatically scaffolds .stylelintrc.json extending canonical auditor config when missing in fix mode', async () => {
       const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
       const result = await fixAuditor.execute();
 
@@ -381,11 +382,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(exists).toBe(true);
 
       const content = JSON.parse(await fs.readFile(createdFile, 'utf-8'));
-      expect(content.plugins).toContain(REQUIRED_STYLELINT_PLUGIN);
-      const strictRule = content.rules[REQUIRED_STRICT_VALUE_RULE];
-      expect(strictRule).toBeDefined();
-      expect(strictRule[0]).toHaveLength(13);
-      expect(strictRule[0]).toEqual(EXPECTED_CANONICAL_13_PROPERTIES);
+      expect(content.extends).toContain(AUDITOR_STYLELINT_EXTENDS_PATH);
     });
 
     it('automatically re-injects all 13 canonical properties when repairing an incomplete .stylelintrc.json', async () => {

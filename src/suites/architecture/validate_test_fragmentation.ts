@@ -87,7 +87,7 @@ private readonly minTestLines: number;
       ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
         fix: false,
         fixPriority: false,
-        lint: false,
+        lint: true,
         md: false,
         ast: false,
         changedSince: false,

@@ -61,7 +61,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       expect(auditor.icon).toBe('🌿');
       expect(auditor.capabilities.fixPriority).toBe(true);
       expect(auditor.capabilities.fix).toBe(true);
-      expect(auditor.capabilities.lint).toBe(false);
+      expect(auditor.capabilities.lint).toBe(true);
       expect(auditor.description.length).toBeLessThanOrEqual(60);
 
       for (const ruleId of GIT_CONFIG_RULES) {

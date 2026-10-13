@@ -276,3 +276,27 @@ npm run auditor:findings -- project="../PokeBorrador"
 - **Remediation**: the finding message carries the exact command (e.g. `npm install -D eslint@^10.12.0`). The suite is lint-only and never mutates host files.
 - **Raising a floor**: edit the auditor `peerDependencies`, run the build, and publish a new `vX.Y.Z` tag so hosts pick it up through `npm update`.
 - **Range parsing**: uses the `semver` package (`minVersion`, `validRange`, `lt`), never homemade regexes.
+
+---
+
+## 13. Mass Migration Recipes for Host Upgrades
+
+### 1. Massive `scss-strict-values` & Design Token Waves
+
+When upgrading an older host project that triggers hundreds or thousands of `scss-strict-values` / `missing-theme-token-usage` findings:
+
+1. **Inherit Canonical Stylelint Config First**:
+   Ensure `.stylelintrc.json` extends `./node_modules/@francogp/auditor/.stylelintrc.json`. This immediately resolves false-positive `selector-class-pattern` warnings on third-party icon classes (e.g. `.svg-inline--fa`) and prevents SVG keyword case collisions.
+2. **Calibrate Layout Nesting**:
+   If the host maintains deep component views, adjust `maxNestingDepth: 5` and `scopedMaxNestingDepth: 5` in `.auditor/audit.config.ts` under `scssArchitecture` (canonical threshold used in production apps like PokeBorrador and facturacion2).
+3. **Execute via Isolated Worktree & AST Codemod**:
+   - Create an isolated git worktree (`scratch/wt-migration`) so `main` remains pristine during experimentation.
+   - Map unique color hexes and literal values into token custom properties (`var(--slate-500)`, etc.) defined in `:root`.
+   - Run a targeted PostCSS-SCSS script to replace literals with CSS variable tokens.
+
+### 2. Projections for `select-star-in-queries` (`validate_sql_anti_patterns`)
+
+The rule `select-star-in-queries` targets Supabase and ORM queries across frontend code in `src/` (not database migration scripts).
+
+- ❌ **Prohibited**: `.select('*')` or omitting columns.
+- ✅ **Canonical**: Explicit column projection `.select('id, name, created_at, ...')` to avoid overfetching, breaking schema contracts, and runtime payload bloat.

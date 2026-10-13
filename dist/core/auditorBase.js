@@ -1299,7 +1299,7 @@ export class BaseAuditor {
         const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
         const warningsCount = counts?.warnings ?? 0;
         const badge = this.formatSubAuditorBadge(result);
-        const speedBadge = speed === 'fast' ? ' ⚡' : ' 🐢';
+        const speedBadge = speed === 'fast' ? ' 🐇' : ' 🐢';
         const extra = detail ? ` (${detail})` : '';
         this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`);
         const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
