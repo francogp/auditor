@@ -93,6 +93,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         configKey: 'paths',
         defaultConfig: {},
         criticalConfig: {},
+      usesThirdPartyTool: false,
         ruleCapabilities: {
           'custom-config-missing': {
             fix: isFix,
@@ -122,6 +123,10 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         ruleDescriptions: {
           'custom-config-missing': 'Configuración ausente',
           'custom-content-valid': 'Contenido válido'
+        },
+        ruleRemediations: {
+          'custom-config-missing': 'Crea el archivo custom.config.json.',
+          'custom-content-valid': 'Asegura contenido válido en custom.config.json.'
         },
         configFiles: [requirement],
         fix: isFix,
@@ -211,6 +216,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
+      usesThirdPartyTool: false,
           ruleCapabilities: {
             'optional-config-missing': {
               fix: false,
@@ -227,6 +233,9 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           ruleIds: ['optional-config-missing'],
           ruleDescriptions: {
             'optional-config-missing': 'Configuración condicional ausente'
+          },
+          ruleRemediations: {
+            'optional-config-missing': 'Guía para optional-config-missing.'
           },
           configFiles: [optionalReq],
           coverage: {

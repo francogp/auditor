@@ -75,9 +75,22 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-ast-forbidden-pattern': 'Patrón sintáctico prohibido en AST',
         'my-ast-missing-contract': 'Declaración requerida faltante'
+      },
+      // Mandatory diagnostic and remediation guide for 100% of declared rules:
+      ruleRemediations: {
+        'my-ast-forbidden-pattern':
+          'Se detectó una construcción de AST prohibida por las políticas del proyecto.\n' +
+          '1. Inspecciona el archivo y localiza el nodo AST infractor.\n' +
+          '2. Refactoriza el código utilizando los métodos o estructuras canónicas.\n' +
+          '3. Ejecuta "npm run auditor" para verificar que el árbol de sintaxis sea limpio.',
+        'my-ast-missing-contract':
+          'El archivo analizado carece de una declaración o contrato mandatorio.\n' +
+          '1. Implementa la interfaz o añade la exportación exigida por la arquitectura.\n' +
+          '2. Revisa las directrices del módulo para conocer el contrato exacto.'
       },
       requiresAst: true,
       roots: targetRoots,

@@ -46,6 +46,7 @@ function isPluginRegisteredInAgents(projectRoot) {
 export class AgentPluginAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
                 fix: true,
                 fixPriority: true,
@@ -70,6 +71,9 @@ export class AgentPluginAuditor extends BaseAuditor {
             icon: '🤖',
             ruleDescriptions: {
                 'missing-agent-plugin-registration': 'Plugin/skills no registrados en .agents'
+            },
+            ruleRemediations: {
+                'missing-agent-plugin-registration': 'Guía de diagnóstico y remediación para missing-agent-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: { include: [...AGENT_REGISTRY_FILES] },
             ...options

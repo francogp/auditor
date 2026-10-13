@@ -396,6 +396,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     const srcRoots = config.paths?.srcRoots ?? [];
     const dynamicCodeCoverage = deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), projectRoot).include;
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
         fix: true,
         fixPriority: true,
@@ -423,6 +424,11 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         'docs-unauthorized-language': 'Texto en idioma no autorizado',
         'docs-missing-language-mandate': 'Falta mandato de idioma en AGENTS.md',
         'code-comment-unauthorized-language': 'Comentario en idioma no autorizado'
+      },
+      ruleRemediations: {
+        'docs-unauthorized-language': 'Guía de diagnóstico y remediación para docs-unauthorized-language. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'docs-missing-language-mandate': 'Guía de diagnóstico y remediación para docs-missing-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'code-comment-unauthorized-language': 'Guía de diagnóstico y remediación para code-comment-unauthorized-language. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['**/*.md', ...dynamicCodeCoverage]

@@ -246,6 +246,12 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
+            usesThirdPartyTool: true,
+            thirdPartyToolPolicy: {
+                toolName: 'knip',
+                fallbackBehavior: 'violation',
+                fallbackRuleId: 'package-unlisted-dependency'
+            },
             ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
                 fix: true,
                 fixPriority: false,
@@ -274,6 +280,12 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
                 'package-unlisted-dependency': 'Dependencia fantasma no declarada',
                 'package-unused-binary': 'Binario o script no referenciado',
                 'package-lockfile-integrity': 'Lockfile corrupto o inseguro'
+            },
+            ruleRemediations: {
+                'package-unused-dependency': 'Guía de diagnóstico y remediación para package-unused-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'package-unlisted-dependency': 'Guía de diagnóstico y remediación para package-unlisted-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'package-unused-binary': 'Guía de diagnóstico y remediación para package-unused-binary. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'package-lockfile-integrity': 'Guía de diagnóstico y remediación para package-lockfile-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: ['package.json', 'package-lock.json']

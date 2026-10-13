@@ -58,6 +58,7 @@ export function setLocalGitConfig(key, value, projectRoot) {
 export class ValidateGitConfigAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
                 fix: true,
                 fixPriority: true,
@@ -84,6 +85,11 @@ export class ValidateGitConfigAuditor extends BaseAuditor {
                 'git-config-filemode': 'core.filemode debe ser false en repo',
                 'git-config-autocrlf': 'core.autocrlf debe ser input en repo',
                 'git-config-eol': 'core.eol debe ser lf en repo'
+            },
+            ruleRemediations: {
+                'git-config-filemode': 'Guía de diagnóstico y remediación para git-config-filemode. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'git-config-autocrlf': 'Guía de diagnóstico y remediación para git-config-autocrlf. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'git-config-eol': 'Guía de diagnóstico y remediación para git-config-eol. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: { include: ['package.json'] },
             ...options

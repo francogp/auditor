@@ -56,6 +56,19 @@ export const FALLOW_RULE_DESCRIPTIONS = {
     'fallow-workspace-diagnostic': 'Diagnóstico de workspace',
     'fallow-security-cwe': 'Vulnerabilidad CWE detectada'
 };
+export const FALLOW_RULE_REMEDIATIONS = {
+    'fallow-refactoring-targets': 'Refactoriza el módulo modularizando responsabilidades y reduciendo acoplamiento o complejidad ciclomática.',
+    'fallow-duplicate-code': 'Extrae la lógica duplicada a funciones puras o composables compartidos.',
+    'fallow-triplicate-code': 'Extrae la lógica triplicada urgentemente a utilidades comunes para evitar divergencia de comportamiento.',
+    'fallow-unused-exports': 'Remueve exports no utilizados o elimina el código muerto si no tiene otros consumidores.',
+    'fallow-unused-files': 'Elimina el archivo muerto del repositorio o conéctalo si faltó su importación legítima.',
+    'fallow-unused-dependencies': 'Remueve la dependencia no utilizada de package.json ejecutando npm rm <pkg>.',
+    'fallow-circular-dependencies': 'Rompe el ciclo de importación extrayendo tipos o interfaces a un archivo compartido común.',
+    'fallow-boundary-violations': 'Respeta los límites de arquitectura definidos en .fallowrc.json; no importes módulos internos prohibidos.',
+    'fallow-stale-suppressions': 'Remueve la directiva de supresión obsoleta ya que el problema subyacente ya no existe.',
+    'fallow-workspace-diagnostic': 'Corrige la configuración de TypeScript o Fallow para resolver diagnósticos del espacio de trabajo.',
+    'fallow-security-cwe': 'Revisa el candidato de seguridad CWE detectado y aplica sanitización, validación con Valibot o escape de entrada.'
+};
 export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 export const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
 export const FALLOW_MEDIUM_PRIORITY_THRESHOLD = 10;
@@ -274,6 +287,12 @@ function tryParseFallowJson(raw) {
 export class FallowArchitectureAuditor extends BaseAuditor {
     constructor(projectRoot = process.cwd()) {
         super({
+            usesThirdPartyTool: true,
+            thirdPartyToolPolicy: {
+                toolName: "Fallow",
+                fallbackBehavior: "violation",
+                fallbackRuleId: "fallow-workspace-diagnostic"
+            },
             ruleCapabilities: FALLOW_RULE_CAPABILITIES,
             id: 'validate_fallow',
             name: 'Fallow Architecture & Refactoring Targets',
@@ -298,6 +317,7 @@ export class FallowArchitectureAuditor extends BaseAuditor {
             icon: '🌾',
             ruleIds: FALLOW_RULES,
             ruleDescriptions: FALLOW_RULE_DESCRIPTIONS,
+            ruleRemediations: FALLOW_RULE_REMEDIATIONS,
             coverage: {
                 include: ['src/**/*.{ts,js,vue}'],
                 source: 'declared-only'
@@ -327,6 +347,16 @@ export class FallowArchitectureAuditor extends BaseAuditor {
                     reportedElapsed = parsed.elapsed_ms;
                 }
                 return mapFallowJson(command, parsed, this.projectRoot);
+            }
+            if (stdout && stdout.trim().length > 0) {
+                this.addViolation({
+                    ruleId: 'fallow-workspace-diagnostic',
+                    severity: 'error',
+                    file: 'fallow',
+                    line: 1,
+                    message: `Salida inesperada no JSON de fallow ${command}: ${stdout.trim().slice(0, 300)}`,
+                    context: `fallow ${command}`
+                });
             }
         }
         catch (e) {

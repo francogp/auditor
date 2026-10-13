@@ -52,8 +52,15 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
         baseScssFile: 'src/styles/base.scss'
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'overscroll-behavior-lock': 'Falta overscroll-behavior en hoja base'
+      },
+      ruleRemediations: {
+        'overscroll-behavior-lock':
+          'Falta declarar overscroll-behavior: none o contain en la hoja de estilos base.\n' +
+          '1. Abre la hoja de estilos base o raíz (e.g. src/styles/base.scss).\n' +
+          '2. Agrega "overscroll-behavior: none;" en el selector html o body para evitar el rebote no deseado en dispositivos móviles.'
       },
       roots: ['src/styles'],
       allowedExtensions: new Set(['.scss', '.css']),

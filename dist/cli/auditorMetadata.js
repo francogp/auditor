@@ -94,12 +94,14 @@ function extractMetadataFromAuditorInstance(val, result) {
             result.manifest = manifest;
             result.description = manifest.description;
             result.ruleDescriptions = manifest.rules;
+            result.ruleRemediations = manifest.remediations ?? instance.ruleRemediations;
             result.configKey = manifest.configKey;
             result.defaultConfig = manifest.defaultConfig;
         }
         else if (instance?.description) {
             result.description = instance.description;
             result.ruleDescriptions = instance.ruleDescriptions;
+            result.ruleRemediations = instance.ruleRemediations;
             result.configKey = instance.configKey;
             result.defaultConfig = instance.defaultConfig;
         }

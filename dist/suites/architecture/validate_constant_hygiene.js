@@ -42,6 +42,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
         const rawRoots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? []));
         const effectiveRoots = rawRoots.map(r => toPosixRelative(effectiveProjectRoot, r));
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -72,6 +73,13 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
                 'constant-bad-names': 'Nombre con sufijo de valor',
                 'constant-no-alias': 'Alias redundante de constante',
                 'constant-no-literal-suffix': 'Sufijo numérico en constante'
+            },
+            ruleRemediations: {
+                'duplicate-constant-identical': 'Guía de diagnóstico y remediación para duplicate-constant-identical. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'duplicate-constant-divergent': 'Guía de diagnóstico y remediación para duplicate-constant-divergent. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'constant-bad-names': 'Guía de diagnóstico y remediación para constant-bad-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'constant-no-alias': 'Guía de diagnóstico y remediación para constant-no-alias. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'constant-no-literal-suffix': 'Guía de diagnóstico y remediación para constant-no-literal-suffix. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             projectRoot: effectiveProjectRoot
         });

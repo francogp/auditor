@@ -188,8 +188,54 @@ export function validateAuditorConstruction(auditor, taskId = auditor.id) {
     validateAuditorCriticalConfigContract(auditor, taskId, errors);
     validateAuditorCapabilitiesContract(auditor, taskId, errors);
     validateAuditorRuleCapabilitiesContract(auditor, taskId, errors);
+    validateAuditorRuleRemediationsContract(auditor, taskId, errors);
+    validateAuditorThirdPartyToolContract(auditor, taskId, errors);
     validateAuditorScriptsContract(auditor, taskId, errors);
     return errors;
+}
+function validateAuditorThirdPartyToolContract(auditor, taskId, errors) {
+    if (typeof auditor.usesThirdPartyTool !== 'boolean') {
+        errors.push(`Auditor [${taskId}] no define 'usesThirdPartyTool' como un booleano obligatorio.`);
+        return;
+    }
+    if (auditor.usesThirdPartyTool) {
+        if (!auditor.thirdPartyToolPolicy || typeof auditor.thirdPartyToolPolicy !== 'object') {
+            errors.push(`Auditor [${taskId}] declaró usesThirdPartyTool: true pero omitió 'thirdPartyToolPolicy'.`);
+            return;
+        }
+        const policy = auditor.thirdPartyToolPolicy;
+        if (!policy.toolName || typeof policy.toolName !== 'string' || policy.toolName.trim() === '') {
+            errors.push(`Auditor [${taskId}] 'thirdPartyToolPolicy.toolName' debe ser un string no vacío.`);
+        }
+        if (policy.fallbackBehavior !== 'throw' && policy.fallbackBehavior !== 'violation') {
+            errors.push(`Auditor [${taskId}] 'thirdPartyToolPolicy.fallbackBehavior' debe ser 'throw' o 'violation'.`);
+        }
+        if (policy.fallbackBehavior === 'violation') {
+            if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== 'string') {
+                errors.push(`Auditor [${taskId}] declaró fallbackBehavior: 'violation' pero omitió 'fallbackRuleId'.`);
+            }
+            else if (!auditor.ruleIds.includes(policy.fallbackRuleId)) {
+                errors.push(`Auditor [${taskId}] fallbackRuleId '${policy.fallbackRuleId}' no pertenece a 'ruleIds'.`);
+            }
+        }
+    }
+    else {
+        if (auditor.thirdPartyToolPolicy !== undefined) {
+            errors.push(`Auditor [${taskId}] declaró usesThirdPartyTool: false pero proveyó 'thirdPartyToolPolicy'.`);
+        }
+    }
+}
+function validateAuditorRuleRemediationsContract(auditor, taskId, errors) {
+    if (!auditor.ruleRemediations || typeof auditor.ruleRemediations !== 'object') {
+        errors.push(`Auditor [${taskId}] no define el mapa obligatorio de 'ruleRemediations'.`);
+        return;
+    }
+    for (const ruleId of auditor.ruleIds) {
+        const guide = auditor.getRuleRemediation(ruleId);
+        if (!guide || typeof guide !== 'string' || guide.trim() === '') {
+            errors.push(`Auditor [${taskId}] no define 'ruleRemediations' obligatoria para la regla '${ruleId}'.`);
+        }
+    }
 }
 function validateAuditorRuleCapabilitiesContract(auditor, taskId, errors) {
     if (!auditor.ruleCapabilities || typeof auditor.ruleCapabilities !== 'object') {

@@ -136,6 +136,11 @@ export function parseNpmAuditReport(
 export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<DependencyVulnerabilitiesRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: "npm audit",
+        fallbackBehavior: "throw"
+      },
       projectRoot: options.projectRoot,
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
         fix: false,
@@ -159,6 +164,11 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
         'dependency-cve-critical': 'Vulnerabilidad crítica en paquete',
         'dependency-cve-high': 'Vulnerabilidad de severidad alta',
         'dependency-cve-moderate': 'Vulnerabilidad moderada detectada'
+      },
+      ruleRemediations: {
+        'dependency-cve-critical': 'Guía de diagnóstico y remediación para dependency-cve-critical. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-cve-high': 'Guía de diagnóstico y remediación para dependency-cve-high. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-cve-moderate': 'Guía de diagnóstico y remediación para dependency-cve-moderate. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['package.json', 'package-lock.json']
@@ -204,13 +214,10 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     try {
       report = JSON.parse(stdout);
     } catch {
-      // catch-ok: Malformed stdout payload
-      for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
-        this.runSubAuditorSync(ruleId, () => {
-          this.markRuleNotApplicable(ruleId, 'Reporte de npm audit inválido');
-        });
-      }
-      return;
+      throw new Error(
+        `[validate_dependency_vulnerabilities] Error al interpretar la salida JSON de 'npm audit'. ` +
+        `Salida recibida: ${stdout.trim().slice(0, 300)}`
+      );
     }
 
     const findings = parseNpmAuditReport(report, allowList, failOn);

@@ -121,6 +121,11 @@ function resolveTaskRuleDescriptions(metadata) {
         return metadata.ruleDescriptions;
     return metadata.manifest?.rules;
 }
+function resolveTaskRuleRemediations(metadata) {
+    if (metadata.ruleRemediations)
+        return metadata.ruleRemediations;
+    return metadata.manifest?.remediations;
+}
 function resolveTaskDescription(metadata) {
     if (metadata.description)
         return metadata.description;
@@ -173,7 +178,8 @@ export async function createAuditTaskDefinition(fullPath, filename, family, conf
         configKey: resolveTaskConfigKey(metadata, id),
         defaultConfig: resolveTaskDefaultConfig(metadata, id),
         criticalConfig: metadata.criticalConfig,
-        ruleDescriptions: resolveTaskRuleDescriptions(metadata)
+        ruleDescriptions: resolveTaskRuleDescriptions(metadata),
+        ruleRemediations: resolveTaskRuleRemediations(metadata)
     };
 }
 //# sourceMappingURL=auditTaskFactory.js.map

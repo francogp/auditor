@@ -765,7 +765,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 
 | Binary Command | Script | Description |
 | :--- | :--- | :--- |
-| `auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
+| `auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
 | `auditor-build` | `src/cli/audit_build.ts` | Runs post-build compiled artifact audit suites against `dist/` (`preset=build`). |
 | `auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
 | `auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |

@@ -238,6 +238,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
       : ESLINT_CONFIG_REQUIREMENT;
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ESLINT_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
@@ -268,6 +269,13 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
         'eslint-config-double-cast-allowed': 'Falta prohibición de doble casteo',
         'eslint-config-ts-ignore-allowed': 'Regla ban-ts-comment no es error',
         'eslint-config-legacy-date-allowed': 'Falta prohibición de objeto Date'
+      },
+      ruleRemediations: {
+        'eslint-config-missing': 'Guía de diagnóstico y remediación para eslint-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'eslint-config-any-allowed': 'Guía de diagnóstico y remediación para eslint-config-any-allowed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'eslint-config-double-cast-allowed': 'Guía de diagnóstico y remediación para eslint-config-double-cast-allowed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'eslint-config-ts-ignore-allowed': 'Guía de diagnóstico y remediación para eslint-config-ts-ignore-allowed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'eslint-config-legacy-date-allowed': 'Guía de diagnóstico y remediación para eslint-config-legacy-date-allowed. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts']

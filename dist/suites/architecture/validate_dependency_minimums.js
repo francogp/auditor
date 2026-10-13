@@ -39,6 +39,7 @@ name) {
 export class ValidateDependencyMinimumsAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -63,6 +64,10 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor {
             ruleDescriptions: {
                 'dependency-below-minimum-range': 'Rango declarado inferior al mínimo',
                 'dependency-below-minimum-installed': 'Versión instalada inferior al mínimo'
+            },
+            ruleRemediations: {
+                'dependency-below-minimum-range': 'Guía de diagnóstico y remediación para dependency-below-minimum-range. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'dependency-below-minimum-installed': 'Guía de diagnóstico y remediación para dependency-below-minimum-installed. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: { include: ['package.json', 'package-lock.json'] },
             ...options

@@ -181,6 +181,7 @@ export class DeadCssAuditor extends BaseAuditor {
             ...(config.paths.viewsRoots ?? [])
         ];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -204,6 +205,9 @@ export class DeadCssAuditor extends BaseAuditor {
             icon: '💀',
             ruleDescriptions: {
                 'dead-scoped-css': 'Clase scoped huérfana sin uso'
+            },
+            ruleRemediations: {
+                'dead-scoped-css': 'Guía de diagnóstico y remediación para dead-scoped-css. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), projectRoot).include

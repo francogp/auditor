@@ -105,7 +105,52 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       }
     });
   });
+
+  describe('Violation Detection (real compiler run, anti false-pass)', () => {
+    const createBrokenSandbox = async (): Promise<{ sandbox: string; cleanup: () => void }> => {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const os = await import('node:os');
+      const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-typecheck-broken-'));
+      fs.writeFileSync(path.join(sandbox, 'package.json'), JSON.stringify({ type: 'module' }));
+      fs.writeFileSync(path.join(sandbox, 'tsconfig.json'), JSON.stringify({
+        compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true },
+        include: ['src/**/*.ts', 'tests/**/*.ts']
+      }));
+      fs.mkdirSync(path.join(sandbox, 'tests'), { recursive: true });
+      fs.writeFileSync(path.join(sandbox, 'tests/broken.test.ts'), 'export const x: number = ' + '"a";\n');
+      return { sandbox, cleanup: () => fs.rmSync(sandbox, { recursive: true, force: true }) };
+    };
+
+    it('detects type errors inside tests/ and fails', async () => {
+      const { sandbox, cleanup } = await createBrokenSandbox();
+      try {
+        const result = await new TypeCheckAuditor(sandbox).execute();
+        expect(result.summary.errors).toBeGreaterThan(0);
+        expect(result.status).toBe('failed');
+        expect(result.findings.some(f => f.ruleId === 'ts-compiler-error' && f.severity === 'error' && f.file === 'tests/broken.test.ts')).toBe(true);
+      } finally {
+        cleanup();
+      }
+    });
+
+    it('still detects errors when the environment forces ANSI colors (FORCE_COLOR)', async () => {
+      const { sandbox, cleanup } = await createBrokenSandbox();
+      const previous = process.env.FORCE_COLOR;
+      process.env.FORCE_COLOR = '1';
+      try {
+        const result = await new TypeCheckAuditor(sandbox).execute();
+        expect(result.summary.errors).toBeGreaterThan(0);
+        expect(result.status).toBe('failed');
+      } finally {
+        if (previous === undefined) delete process.env.FORCE_COLOR;
+        else process.env.FORCE_COLOR = previous;
+        cleanup();
+      }
+    });
+  });
 });
+
 
 
 

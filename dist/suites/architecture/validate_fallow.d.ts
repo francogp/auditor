@@ -16,6 +16,7 @@ export declare const FALLOW_RULES: readonly ["fallow-refactoring-targets", "fall
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 export declare const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>;
 export declare const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string>;
+export declare const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string>;
 export declare const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 export declare const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
 export declare const FALLOW_MEDIUM_PRIORITY_THRESHOLD = 10;

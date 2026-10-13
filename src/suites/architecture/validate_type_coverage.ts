@@ -89,6 +89,12 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
   constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: "type-coverage",
+        fallbackBehavior: "violation",
+        fallbackRuleId: "type-coverage-below-threshold"
+      },
       ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
         fix: false,
         fixPriority: false,
@@ -113,6 +119,10 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       ruleDescriptions: {
         'type-coverage-below-threshold': 'Cobertura de tipos bajo el umbral',
         'type-coverage-untyped-identifier': 'Identificador untyped any detectado'
+      },
+      ruleRemediations: {
+        'type-coverage-below-threshold': 'Guía de diagnóstico y remediación para type-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-coverage-untyped-identifier': 'Guía de diagnóstico y remediación para type-coverage-untyped-identifier. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],

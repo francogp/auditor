@@ -45,6 +45,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor {
             ]))
             : (config.paths.srcRoots ?? []));
         super({
+            usesThirdPartyTool: false,
             id: 'validate_vue_router',
             name: 'Vue Router 4 Architecture & Navigation Auditor',
             packageName: 'Router',
@@ -67,6 +68,11 @@ export class ValidateVueRouterAuditor extends FileScanAuditor {
                 'no-deprecated-router-next': 'Uso de next() obsoleto en navigation guard',
                 'no-define-async-component-in-router': 'defineAsyncComponent en ruta de router',
                 'no-window-location-navigation': 'Navegación con window.location en SPA'
+            },
+            ruleRemediations: {
+                'no-deprecated-router-next': 'Guía de diagnóstico y remediación para no-deprecated-router-next. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-define-async-component-in-router': 'Guía de diagnóstico y remediación para no-define-async-component-in-router. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-window-location-navigation': 'Guía de diagnóstico y remediación para no-window-location-navigation. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             configKey: 'paths',
             defaultConfig: {},

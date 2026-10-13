@@ -453,15 +453,19 @@ function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): strin
   return capList;
 }
 
+export const themeStyles = {
+  boldWhite: (s: string) => styleText(['bold', 'white'], s),
+  boldYellow: (s: string) => styleText(['bold', 'yellow'], s),
+  boldCyan: (s: string) => styleText(['bold', 'cyan'], s),
+  dim: (s: string) => styleText('dim', s),
+  white: (s: string) => styleText('white', s)
+};
+
 /**
  * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
  */
 export function renderAuditorDetailCard(task: AuditTaskDefinition): string {
-  const boldWhite = (s: string) => styleText(['bold', 'white'], s);
-  const boldYellow = (s: string) => styleText(['bold', 'yellow'], s);
-  const dim = (s: string) => styleText('dim', s);
-  const white = (s: string) => styleText('white', s);
-
+  const { boldWhite, boldYellow, dim, white } = themeStyles;
   const sections: string[][] = [];
 
   const icon = task.icon ?? '🏛️';
@@ -535,8 +539,9 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   lines.push('  --list --enabled             Lista exclusivamente las suites activas/encendidas en config.');
   lines.push('  --list --disabled            Lista exclusivamente las suites apagadas/desactivadas en config.');
   lines.push('  --list --json                Emite el catálogo completo en formato JSON estructurado.');
-  lines.push('  --info=<suiteId>             Muestra la ficha técnica, reglas y configuración de una suite.');
-  lines.push('  -h, --help                   Muestra este mensaje de ayuda.\n');
+  lines.push('  --info=<id>, info <id>       Muestra la ficha técnica, reglas y configuración de una suite.');
+  lines.push('  --guide=<id>, guide <id>     Muestra la guía de remediación y soluciones para una regla o suite.');
+  lines.push('  -h, --help, help             Muestra este mensaje de ayuda.\n');
 
   lines.push(boldYellow('MODOS Y PRESETS DE EJECUCIÓN:'));
   lines.push('  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.');

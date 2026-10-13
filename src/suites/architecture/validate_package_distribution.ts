@@ -81,6 +81,7 @@ export function parsePublintMessages(
 export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistributionRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     super({
+      usesThirdPartyTool: false,
       projectRoot: options.projectRoot,
       ruleCapabilities: createRuleCapabilities(PACKAGE_DISTRIBUTION_RULES, {
         fix: false,
@@ -104,6 +105,11 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         'pkg-distribution-invalid-exports': 'Export map de package.json inválido',
         'pkg-distribution-missing-types': 'Falta .d.ts para entrypoint público',
         'pkg-distribution-dual-package-hazard': 'Incompatibilidad dual ESM y CJS'
+      },
+      ruleRemediations: {
+        'pkg-distribution-invalid-exports': 'Guía de diagnóstico y remediación para pkg-distribution-invalid-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-distribution-missing-types': 'Guía de diagnóstico y remediación para pkg-distribution-missing-types. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-distribution-dual-package-hazard': 'Guía de diagnóstico y remediación para pkg-distribution-dual-package-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['package.json', 'dist/**']

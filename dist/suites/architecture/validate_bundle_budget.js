@@ -194,6 +194,7 @@ export class BundleBudgetAuditor extends BaseAuditor {
         const srcRoots = config.paths.srcRoots ?? [];
         const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : 'dist';
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -226,6 +227,11 @@ export class BundleBudgetAuditor extends BaseAuditor {
                 'bundle-runtime-leak': 'Fuga de test/script en producción',
                 'bundle-heavy-import': 'Librería pesada en capas de UI',
                 'bundle-chunk-size': 'Chunk excede límite de tamaño'
+            },
+            ruleRemediations: {
+                'bundle-runtime-leak': 'Guía de diagnóstico y remediación para bundle-runtime-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'bundle-heavy-import': 'Guía de diagnóstico y remediación para bundle-heavy-import. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'bundle-chunk-size': 'Guía de diagnóstico y remediación para bundle-chunk-size. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             requiresAst: true,
             projectRoot

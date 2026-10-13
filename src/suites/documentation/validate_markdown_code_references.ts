@@ -549,6 +549,7 @@ private readonly rootDir: string;
     const effectiveRoot = rootDir || process.cwd();
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
         fix: false,
         fixPriority: false,
@@ -575,6 +576,12 @@ private readonly rootDir: string;
         'markdown-hardcoded-runtime-version': 'Versión Node/npm hardcodeada',
         'markdown-broken-skill-ref': 'Referencia a skill inexistente',
         'markdown-case-mismatch': 'Casing incorrecto en ruta'
+      },
+      ruleRemediations: {
+        'markdown-broken-source-ref': 'Guía de diagnóstico y remediación para markdown-broken-source-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-hardcoded-runtime-version': 'Guía de diagnóstico y remediación para markdown-hardcoded-runtime-version. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-broken-skill-ref': 'Guía de diagnóstico y remediación para markdown-broken-skill-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-case-mismatch': 'Guía de diagnóstico y remediación para markdown-case-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['**/*.md']

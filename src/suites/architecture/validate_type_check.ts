@@ -127,6 +127,11 @@ function resolveTypeCheckBinary(projectRoot: string): { cmd: string; args: strin
 export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
   constructor(projectRoot?: string) {
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: "TypeScript",
+        fallbackBehavior: "throw"
+      },
       ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
         fix: false,
         fixPriority: false,
@@ -150,6 +155,9 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
       ruleIds: TYPE_CHECK_RULES,
       ruleDescriptions: {
         'ts-compiler-error': 'Error de compilación o tipo'
+      },
+      ruleRemediations: {
+        'ts-compiler-error': 'Guía de diagnóstico y remediación para ts-compiler-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts', 'tests/**/*.ts', 'tsconfig*.json'],
@@ -176,8 +184,8 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
     const resolvedArgs = this.resolveCommandArgs<string[]>({
       command: 'tsc-type-check',
-      fastArgs: [...baseArgs, '--incremental', '--tsBuildInfoFile', tsBuildInfoPath],
-      heavyArgs: baseArgs
+      fastArgs: [...baseArgs, '--pretty', 'false', '--incremental', '--tsBuildInfoFile', tsBuildInfoPath],
+      heavyArgs: [...baseArgs, '--pretty', 'false']
     });
 
     const proc = spawnSync(cmd, resolvedArgs, {
@@ -189,6 +197,13 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
     const combinedOutput = `${proc.stdout || ''}\n${proc.stderr || ''}`;
     const findings = parseTypeScriptDiagnostics(combinedOutput, this.projectRoot);
+
+    if (findings.length === 0 && (proc.error || proc.status !== 0)) {
+      throw new Error(
+        `[validate_type_check] El compilador terminó con estado ${String(proc.status)} pero no se pudo interpretar ningún diagnóstico (falso verde evitado). ` +
+        `Salida: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ''}`
+      );
+    }
 
     this.importAuditFindings(findings, 'ts-compiler-error', 'TS');
     this.recordExternalScanCount(1); // Project-level whole AST compilation

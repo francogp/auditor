@@ -142,6 +142,7 @@ export class TemplateIdAuditor extends FileScanAuditor {
             ...(config.paths.viewsRoots ?? [])
         ];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -167,6 +168,11 @@ export class TemplateIdAuditor extends FileScanAuditor {
                 'template-duplicate-static-id': 'ID estático duplicado',
                 'template-shared-static-id': 'ID compartido entre componentes',
                 'template-missing-input-id': 'Control sin ID único'
+            },
+            ruleRemediations: {
+                'template-duplicate-static-id': 'Guía de diagnóstico y remediación para template-duplicate-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'template-shared-static-id': 'Guía de diagnóstico y remediación para template-shared-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'template-missing-input-id': 'Guía de diagnóstico y remediación para template-missing-input-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.vue']),

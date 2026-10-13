@@ -44,10 +44,15 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
   configKey: 'contractProbe.enabled',
   defaultConfig: { enabled: true, mode: 'strict' },
   criticalConfig: {},
+  usesThirdPartyTool: false,
   ruleIds: ['sample-rule-a', 'sample-rule-b'],
   ruleDescriptions: {
     'sample-rule-a': 'Primera regla obligatoria',
     'sample-rule-b': 'Segunda regla obligatoria'
+  },
+  ruleRemediations: {
+    'sample-rule-a': 'Guía para solucionar sample-rule-a.',
+    'sample-rule-b': 'Guía para solucionar sample-rule-b.'
   },
   coverage: {
     include: ['src/**/*.ts']

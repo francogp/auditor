@@ -10,7 +10,7 @@ Every sub-auditor and host extension MUST be covered by a dedicated Vitest unit 
 
 1. **Instantiation & Metadata Verification**:
    - Verify construction through `validateAuditorConstruction(auditor)`.
-   - Validate that `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig` are explicitly defined and non-empty.
+   - Validate that `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig` are explicitly defined and non-empty. Omission of `ruleRemediations` throws an immediate, loud contract violation error.
 
 2. **Clean Workspace / Negative Verification**:
    - Every test suite MUST include a test asserting that valid, compliant code produces **zero errors and passed status**:

@@ -85,6 +85,7 @@ export function syncNvmrc(projectRoot: string, targetNodeEngine: string): boolea
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
   constructor(options: Partial<AuditorOptions<EnvironmentEnginesRuleId>> = {}) {
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
         fix: false,
         fixPriority: false,
@@ -110,6 +111,11 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         'environment-engines-missing': 'Falta engines en package.json',
         'environment-engines-below-floor': 'Motores inferiores al piso auditor',
         'environment-runtime-mismatch': 'Versión activa no coincide con engines'
+      },
+      ruleRemediations: {
+        'environment-engines-missing': 'Guía de diagnóstico y remediación para environment-engines-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'environment-engines-below-floor': 'Guía de diagnóstico y remediación para environment-engines-below-floor. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'environment-runtime-mismatch': 'Guía de diagnóstico y remediación para environment-runtime-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: { include: ['package.json'] },
       ...options

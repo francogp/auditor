@@ -223,6 +223,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
             ...(t.initialStateFile ? [t.initialStateFile] : [])
         ]);
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -254,6 +255,14 @@ export class ValidateValibotParityAuditor extends BaseAuditor {
                 'valibot-nested-missing-field': 'Campo faltante en anidado',
                 'valibot-domain-type-violation': 'unknown() prohibido en schema',
                 'valibot-redundant-nullability': 'optional(nullable) redundante'
+            },
+            ruleRemediations: {
+                'valibot-schema-missing-field': 'Guía de diagnóstico y remediación para valibot-schema-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'valibot-serializer-missing-field': 'Guía de diagnóstico y remediación para valibot-serializer-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'valibot-initial-state-missing-field': 'Guía de diagnóstico y remediación para valibot-initial-state-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'valibot-nested-missing-field': 'Guía de diagnóstico y remediación para valibot-nested-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'valibot-domain-type-violation': 'Guía de diagnóstico y remediación para valibot-domain-type-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'valibot-redundant-nullability': 'Guía de diagnóstico y remediación para valibot-redundant-nullability. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: targetFiles.length > 0 ? targetFiles : ['src/types/**/*.ts', 'src/logic/**/*.ts', 'src/stores/**/*.ts']

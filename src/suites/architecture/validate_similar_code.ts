@@ -258,6 +258,12 @@ constructor(targetPath?: string) {
     const projectRoot = targetPath || process.cwd();
 
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: "Fallow",
+        fallbackBehavior: "violation",
+        fallbackRuleId: "fallow-similar-code-failed"
+      },
       ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
       fixableRuleIds: ['fallow-similar-code-failed'],
       id: 'validate_similar_code',
@@ -273,6 +279,10 @@ constructor(targetPath?: string) {
       ruleDescriptions: {
         'fallow-similar-code': 'Duplicado semántico',
         'fallow-similar-code-failed': 'Salud del motor similar-code'
+      },
+      ruleRemediations: {
+        'fallow-similar-code': 'Guía de diagnóstico y remediación para fallow-similar-code. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-similar-code-failed': 'Guía de diagnóstico y remediación para fallow-similar-code-failed. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -367,13 +377,35 @@ constructor(targetPath?: string) {
     const fileContent = fs.readFileSync(rawOutputFile, 'utf8');
     const jsonStart = fileContent.indexOf('{');
     if (jsonStart !== -1) {
-      const parsed = JSON.parse(fileContent.substring(jsonStart)) as SimilarCodeOutput;
-      const totalCandidates = parsed.candidates?.length ?? 0;
-      const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
+      try {
+        const parsed = JSON.parse(fileContent.substring(jsonStart)) as SimilarCodeOutput;
+        const totalCandidates = parsed.candidates?.length ?? 0;
+        const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
 
-      this.context.setMetric('Candidatos Totales', totalCandidates);
-      this.context.setMetric('Pares Reportados', reported);
+        this.context.setMetric('Candidatos Totales', totalCandidates);
+        this.context.setMetric('Pares Reportados', reported);
+        return;
+      } catch (err) {
+        this.addViolation({
+          ruleId: 'fallow-similar-code-failed',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: 1,
+          message: `El archivo de salida de fallow similar-code contiene JSON malformado: ${(err as Error).message}`,
+          context: 'malformed-json'
+        });
+        return;
+      }
     }
+
+    this.addViolation({
+      ruleId: 'fallow-similar-code-failed',
+      severity: 'error',
+      file: '.fallowrc.json',
+      line: 1,
+      message: 'fallow similar-code no generó contenido JSON en el archivo de salida.',
+      context: 'empty-or-non-json'
+    });
   }
 
   public override async runAudit(): Promise<void> {

@@ -517,6 +517,7 @@ private readonly scanRoots: readonly string[];
     const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
     const config = getAuditConfig(projectRoot);
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(MARKDOWN_LINK_RULES, {
         fix: false,
         fixPriority: false,
@@ -544,6 +545,13 @@ private readonly scanRoots: readonly string[];
         'markdown-stale-environment-path': 'Referencia a entorno obsoleto',
         'markdown-gitignored-target': 'Enlace a ruta ignorada en git',
         'markdown-broken-workspace-package': 'Workspace package inexistente',
+      },
+      ruleRemediations: {
+        'markdown-broken-relative-link': 'Guía de diagnóstico y remediación para markdown-broken-relative-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-absolute-path': 'Guía de diagnóstico y remediación para markdown-absolute-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-stale-environment-path': 'Guía de diagnóstico y remediación para markdown-stale-environment-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-gitignored-target': 'Guía de diagnóstico y remediación para markdown-gitignored-target. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-broken-workspace-package': 'Guía de diagnóstico y remediación para markdown-broken-workspace-package. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['**/*.md']

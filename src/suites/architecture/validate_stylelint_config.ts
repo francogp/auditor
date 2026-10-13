@@ -271,6 +271,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(STYLELINT_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
@@ -311,6 +312,12 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
         'stylelint-config-missing-plugin': 'Falta plugin stylelint',
         'stylelint-config-missing-strict-value': 'Falta regla strict-value',
         'stylelint-config-missing-order': 'Falta regla order/order'
+      },
+      ruleRemediations: {
+        'stylelint-config-missing': 'Guía de diagnóstico y remediación para stylelint-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing-plugin': 'Guía de diagnóstico y remediación para stylelint-config-missing-plugin. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing-strict-value': 'Guía de diagnóstico y remediación para stylelint-config-missing-strict-value. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing-order': 'Guía de diagnóstico y remediación para stylelint-config-missing-order. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['.stylelintrc*']

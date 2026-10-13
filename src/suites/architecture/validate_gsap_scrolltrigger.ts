@@ -44,6 +44,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
     const effectiveRoots = roots ?? config.paths.srcRoots;
 
     super({
+      usesThirdPartyTool: false,
       id: 'validate_gsap_scrolltrigger',
       name: 'GSAP ScrollTrigger Hygiene',
       description: 'Gobernanza de sincronización y anclajes en ScrollTrigger',
@@ -73,7 +74,14 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         'gsap-scrolltrigger-markers-production': 'markers: true en código productivo',
         'gsap-scrolltrigger-animating-pinned-element': 'Animación en elemento fijado pin',
         'gsap-scrolltrigger-container-animation-ease': 'Falta ease: none en contenedor'
-      }
+      },
+      ruleRemediations: {
+        'gsap-scrolltrigger-in-timeline-child': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-in-timeline-child. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-scrub-and-toggle': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-scrub-and-toggle. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-markers-production': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-markers-production. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-animating-pinned-element': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-animating-pinned-element. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-container-animation-ease': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-container-animation-ease. Revisa la incidencia detectada y ajusta el código correspondiente.',
+      },
     });
   }
 

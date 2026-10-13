@@ -50,6 +50,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths.srcRoots;
         super({
+            usesThirdPartyTool: false,
             id: 'validate_gsap_framework_hygiene',
             name: 'GSAP Framework Hygiene',
             description: 'Gobernanza de ciclo de vida UI, scope y plugins GSAP',
@@ -78,7 +79,13 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor {
                 'gsap-missing-context-revert': 'Falta revert o cleanup en unmount',
                 'gsap-missing-plugin-registration': 'Plugin GSAP usado sin registrar',
                 'gsap-banned-devtools-production': 'Herramienta devtools en producción'
-            }
+            },
+            ruleRemediations: {
+                'gsap-unscoped-component-selectors': 'Guía de diagnóstico y remediación para gsap-unscoped-component-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-missing-context-revert': 'Guía de diagnóstico y remediación para gsap-missing-context-revert. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-missing-plugin-registration': 'Guía de diagnóstico y remediación para gsap-missing-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-banned-devtools-production': 'Guía de diagnóstico y remediación para gsap-banned-devtools-production. Revisa la incidencia detectada y ajusta el código correspondiente.',
+            },
         });
     }
     scanFile(relPath, content) {

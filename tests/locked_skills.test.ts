@@ -250,6 +250,7 @@ describe('Official Locked Skills Isolation', () => {
         configKey: 'core',
         defaultConfig: {},
         criticalConfig: {},
+        usesThirdPartyTool: false,
         ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
           fix: false,
           fixPriority: false,
@@ -264,6 +265,7 @@ describe('Official Locked Skills Isolation', () => {
         coverage: { include: ['**/*'] },
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
+        ruleRemediations: { 'test-rule': 'Soluciona la regla de prueba.' },
         projectRoot: tempDir
       });
 
@@ -310,6 +312,7 @@ describe('Official Locked Skills Isolation', () => {
         configKey: 'core',
         defaultConfig: {},
         criticalConfig: {},
+        usesThirdPartyTool: false,
         ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
           fix: false,
           fixPriority: false,
@@ -324,6 +327,7 @@ describe('Official Locked Skills Isolation', () => {
         coverage: { include: ['**/*'] },
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
+        ruleRemediations: { 'test-rule': 'Soluciona la regla de prueba.' },
         projectRoot: tempDir
       });
 

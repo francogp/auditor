@@ -70,6 +70,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
       ...(config.paths.composablesRoots ?? [])
     ];
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
         fix: false,
         fixPriority: false,
@@ -94,6 +95,10 @@ id: 'validate_reactive_purity',
       ruleDescriptions: {
         'computed-state-mutation': 'Mutación de estado prohibida',
         'computed-side-effect': 'Efecto secundario prohibido'
+      },
+      ruleRemediations: {
+        'computed-state-mutation': 'Guía de diagnóstico y remediación para computed-state-mutation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'computed-side-effect': 'Guía de diagnóstico y remediación para computed-side-effect. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),

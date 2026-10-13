@@ -19,6 +19,7 @@ import { hardcodedConfigDetector } from "./detectors/hardcodedConfigDetector.js"
 import { manualStepLoggingDetector } from "./detectors/manualStepLoggingDetector.js";
 import { unmeasuredRuleDetector } from "./detectors/unmeasuredRuleDetector.js";
 import { redundantRuleEvaluatedDetector } from "./detectors/redundantRuleEvaluatedDetector.js";
+import { thirdPartyToolContractDetector } from "./detectors/thirdPartyToolContractDetector.js";
 // Auto-register canonical built-in detectors
 HomebrewDetectorRegistry.register(packageJsonDetector);
 HomebrewDetectorRegistry.register(vueSfcRegexDetector);
@@ -35,7 +36,8 @@ HomebrewDetectorRegistry.register(hardcodedConfigDetector);
 HomebrewDetectorRegistry.register(manualStepLoggingDetector);
 HomebrewDetectorRegistry.register(unmeasuredRuleDetector);
 HomebrewDetectorRegistry.register(redundantRuleEvaluatedDetector);
+HomebrewDetectorRegistry.register(thirdPartyToolContractDetector);
 export * from "./homebrewTypes.js";
 export * from "./homebrewRegistry.js";
-export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector, manualStepLoggingDetector, unmeasuredRuleDetector, redundantRuleEvaluatedDetector };
+export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector, manualStepLoggingDetector, unmeasuredRuleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector };
 //# sourceMappingURL=index.js.map

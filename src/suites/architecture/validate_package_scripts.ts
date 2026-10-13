@@ -57,6 +57,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     const resolvedRoot = scriptOpts.projectRoot ?? process.cwd();
 
     super({
+      usesThirdPartyTool: false,
       projectRoot: resolvedRoot,
       ruleCapabilities: createRuleCapabilities(PACKAGE_SCRIPTS_RULES, {
         fix: true,
@@ -99,6 +100,15 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
         'package-scripts-invalid-ratchet-baseline': 'Línea base del ratchet inválida',
         'package-scripts-missing-recommended': 'Falta script recomendado en package',
         'package-scripts-obsolete': 'Script legado u obsoleto en package.json'
+      },
+      ruleRemediations: {
+        'package-scripts-missing-file': 'Guía de diagnóstico y remediación para package-scripts-missing-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-scripts-build-missing-audit': 'Guía de diagnóstico y remediación para package-scripts-build-missing-audit. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-scripts-removed-commit-gate': 'Guía de diagnóstico y remediación para package-scripts-removed-commit-gate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-scripts-invalid-production-ref': 'Guía de diagnóstico y remediación para package-scripts-invalid-production-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-scripts-invalid-ratchet-baseline': 'Guía de diagnóstico y remediación para package-scripts-invalid-ratchet-baseline. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-scripts-missing-recommended': 'Guía de diagnóstico y remediación para package-scripts-missing-recommended. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-scripts-obsolete': 'Guía de diagnóstico y remediación para package-scripts-obsolete. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['package.json', '.auditor/audit-baseline.json']

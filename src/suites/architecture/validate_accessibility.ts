@@ -56,6 +56,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
         fix: true,
         fixPriority: false,
@@ -86,6 +87,14 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         'a11y-anchor-has-content': 'Enlace o botón sin texto o label',
         'a11y-aria-role-invalid': 'Rol o atributo ARIA no conforme',
         'a11y-viewport-zoom-lock': 'Bloqueo de zoom en viewport HTML'
+      },
+      ruleRemediations: {
+        'a11y-img-alt': 'Guía de diagnóstico y remediación para a11y-img-alt. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'a11y-form-control-has-label': 'Guía de diagnóstico y remediación para a11y-form-control-has-label. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'a11y-interactive-supports-focus': 'Guía de diagnóstico y remediación para a11y-interactive-supports-focus. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'a11y-anchor-has-content': 'Guía de diagnóstico y remediación para a11y-anchor-has-content. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'a11y-aria-role-invalid': 'Guía de diagnóstico y remediación para a11y-aria-role-invalid. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'a11y-viewport-zoom-lock': 'Guía de diagnóstico y remediación para a11y-viewport-zoom-lock. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       projectRoot: effectiveRoot,
       coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }

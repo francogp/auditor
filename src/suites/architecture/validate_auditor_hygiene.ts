@@ -31,6 +31,7 @@ export { AUDITOR_HOMEBREW_RULES, type AuditorHomebrewRuleId };
 export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
   constructor(projectRoot: string = process.cwd()) {
     super({
+      usesThirdPartyTool: false,
       id: 'validate_auditor_hygiene',
       name: 'Auditor Architecture & Homebrew Hygiene Validator',
       description: 'Valida higiene y uso de APIs canónicas en auditores',
@@ -39,6 +40,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       packageName: 'Auditor',
       icon: '🧹',
       ruleDescriptions: HomebrewDetectorRegistry.getRuleDescriptions(),
+      ruleRemediations: HomebrewDetectorRegistry.getRuleRemediations(),
       configKey: 'auditorHygiene',
       defaultConfig: {
         enabled: true

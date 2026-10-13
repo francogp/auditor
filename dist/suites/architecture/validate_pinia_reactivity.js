@@ -56,6 +56,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor {
         const piniaRoots = resolvePiniaAuditRoots(roots, projectRoot);
         const config = getAuditConfig(projectRoot);
         super({
+            usesThirdPartyTool: false,
             roots: piniaRoots,
             projectRoot,
             ruleCapabilities: createRuleCapabilities(PINIA_REACTIVITY_RULES, {
@@ -82,6 +83,10 @@ export class PiniaReactivityAuditor extends FileScanAuditor {
             ruleDescriptions: {
                 'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',
                 'no-direct-state-mutation-outside-actions': 'Mutación directa de $state'
+            },
+            ruleRemediations: {
+                'no-store-destructuring-without-storetorefs': 'Guía de diagnóstico y remediación para no-store-destructuring-without-storetorefs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-direct-state-mutation-outside-actions': 'Guía de diagnóstico y remediación para no-direct-state-mutation-outside-actions. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             allowedExtensions: new Set(['.vue', '.ts']),
             requiresAst: true

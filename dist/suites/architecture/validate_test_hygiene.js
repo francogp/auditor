@@ -57,6 +57,7 @@ export class TestHygieneAuditor extends FileScanAuditor {
             ...config.paths.testRoots
         ];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -84,6 +85,13 @@ export class TestHygieneAuditor extends FileScanAuditor {
                 'no-playwright-force-click': 'Click forzado force:true',
                 'no-test-timeout-inflation': 'Timeout inflado artificialmente',
                 'no-playwright-polling-waits': 'Uso de page.waitForTimeout()'
+            },
+            ruleRemediations: {
+                'no-tautological-integration-mocks': 'Guía de diagnóstico y remediación para no-tautological-integration-mocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'playwright-id-locators-only': 'Guía de diagnóstico y remediación para playwright-id-locators-only. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-playwright-force-click': 'Guía de diagnóstico y remediación para no-playwright-force-click. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-test-timeout-inflation': 'Guía de diagnóstico y remediación para no-test-timeout-inflation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-playwright-polling-waits': 'Guía de diagnóstico y remediación para no-playwright-polling-waits. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: testRoots.length > 0 ? testRoots : ['tests'],
             allowedExtensions: new Set(['.ts', '.js'])

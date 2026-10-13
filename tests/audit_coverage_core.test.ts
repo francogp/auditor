@@ -35,6 +35,9 @@ const BASE_OPTIONS = {
   configKey: 'core',
   defaultConfig: {},
   criticalConfig: {},
+  usesThirdPartyTool: false,
+  ruleDescriptions: { 'probe-rule': 'Regla sonda' },
+  ruleRemediations: { 'probe-rule': 'Soluciona probe-rule ajustando la sonda.' },
   ruleCapabilities: {
     'probe-rule': {
       fix: false,

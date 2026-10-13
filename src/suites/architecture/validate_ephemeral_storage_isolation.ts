@@ -118,6 +118,7 @@ private readonly allowedDatabaseDirs: ReadonlySet<string>;
     const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
         fix: false,
         fixPriority: false,
@@ -143,6 +144,11 @@ id: 'validate_ephemeral_storage_isolation',
         'ephemeral-no-source-temp-dirs': 'Carpeta temporal en código',
         'ephemeral-no-gitignore-source-temp': 'Entrada temporal en .gitignore',
         'ephemeral-no-source-temp-references': 'Referencia a carpeta temporal'
+      },
+      ruleRemediations: {
+        'ephemeral-no-source-temp-dirs': 'Guía de diagnóstico y remediación para ephemeral-no-source-temp-dirs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ephemeral-no-gitignore-source-temp': 'Guía de diagnóstico y remediación para ephemeral-no-gitignore-source-temp. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ephemeral-no-source-temp-references': 'Guía de diagnóstico y remediación para ephemeral-no-source-temp-references. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: [

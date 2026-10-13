@@ -38,8 +38,9 @@ graph TD
 2. **Symmetric OOP Model**: Both official suites and host extensions inherit from `BaseAuditor` or `FileScanAuditor`, implementing identical interfaces, capability declarations, and error handling.
 3. **Resource Sharing (`SharedAstContext`)**: Multi-rule sub-auditors share cached resources (filesystem reads, preheated ASTs, external tool passes) to maximize performance.
 4. **Atomic Console Mandate**: Multi-rule suites MUST wait for all sub-checks to finish before rendering step reports (`│  🔍 [X/Y] ...`), preventing mixed output across concurrent workers.
-5. **Mandatory Construction Contract**: `AuditorOptions` strictly requires: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig`. Omitting any field throws a loud runtime error.
-6. **Compiled Artifact Verification (`npm run auditor:build`)**: Suites declaring `capabilities: { requiresBuild: true }` are excluded from pre-build source audit and execute post-build against `dist/`.
+5. **Mandatory Construction Contract (`ruleRemediations`)**: `AuditorOptions` strictly requires: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig`. Omitting any field or lacking a remediation guide for any declared rule ID throws a loud runtime error.
+6. **On-Demand Diagnostic Guides (`auditor guide`)**: Any diagnostic and remediation manual can be rendered on-demand in the terminal via `npm run auditor guide <ruleId>`, `auditor guide suite=<suiteId>`, or `auditor guide family=<family>` with zero truncation and Box-Drawing formatting.
+7. **Compiled Artifact Verification (`npm run auditor:build`)**: Suites declaring `capabilities: { requiresBuild: true }` are excluded from pre-build source audit and execute post-build against `dist/`.
 
 ---
 
@@ -341,6 +342,7 @@ Root environment lifecycle scripts belong canonically to `@francogp/auditor`:
 
 | Reference Guide | Description |
 |---|---|
+| [`references/error-triage-guide.md`](./references/error-triage-guide.md) | Catálogo maestro de triaje y remediación de errores, causas raíz y uso de `auditor guide`. |
 | [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md) | Complete sub-auditor authoring guide with boilerplate implementations. |
 | [`references/extension-helpers-guide.md`](./references/extension-helpers-guide.md) | Standard framework helpers, base methods, and migration guide for host extensions. |
 | [`references/subsystem-rules-reference.md`](./references/subsystem-rules-reference.md) | Detailed technical specifications for Dart Sass casing, sentinels, by-file grouping, and more. |

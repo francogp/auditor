@@ -220,6 +220,7 @@ private readonly collectedViolations: HeaderViolation[] = [];
   constructor(roots?: readonly string[], projectRoot?: string) {
     const headerRoots = roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
     super({
+      usesThirdPartyTool: false,
       roots: headerRoots,
       projectRoot,
       ruleCapabilities: createRuleCapabilities(HEADER_RULES, {
@@ -251,7 +252,16 @@ private readonly collectedViolations: HeaderViolation[] = [];
         'banned-style-suppression': 'Escape de estilos prohibido',
         'header-auditor-escape': 'Escape hatch mal ubicado',
         'unjustified-escape-hatch': 'Escape hatch sin justificación'
-      }
+      },
+      ruleRemediations: {
+        'file-level-fallow-ignore': 'Guía de diagnóstico y remediación para file-level-fallow-ignore. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'file-level-eslint-disable': 'Guía de diagnóstico y remediación para file-level-eslint-disable. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-ts-suppression': 'Guía de diagnóstico y remediación para banned-ts-suppression. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-magic-suppression': 'Guía de diagnóstico y remediación para banned-magic-suppression. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-style-suppression': 'Guía de diagnóstico y remediación para banned-style-suppression. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'header-auditor-escape': 'Guía de diagnóstico y remediación para header-auditor-escape. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unjustified-escape-hatch': 'Guía de diagnóstico y remediación para unjustified-escape-hatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+      },
     });
   }
 

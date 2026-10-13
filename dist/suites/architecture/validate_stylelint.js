@@ -275,6 +275,12 @@ export class StylelintAuditor extends BaseAuditor {
             ...(config.paths.stylesRoots ?? [])
         ]));
         super({
+            usesThirdPartyTool: true,
+            thirdPartyToolPolicy: {
+                toolName: "Stylelint",
+                fallbackBehavior: "violation",
+                fallbackRuleId: "stylelint-issue"
+            },
             ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
                 fix: true,
                 fixPriority: false,
@@ -307,6 +313,16 @@ export class StylelintAuditor extends BaseAuditor {
                 'scss-syntax-issue': 'Sintaxis SCSS inválida o desconocida',
                 'scss-sass-collision-casing': 'Función CSS colisiona con Sass',
                 'scss-strict-values': 'Valores no estrictos en SCSS'
+            },
+            ruleRemediations: {
+                'stylelint-issue': 'Guía de diagnóstico y remediación para stylelint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'css-duplicate-selectors': 'Guía de diagnóstico y remediación para css-duplicate-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'css-duplicate-properties': 'Guía de diagnóstico y remediación para css-duplicate-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'css-empty-blocks': 'Guía de diagnóstico y remediación para css-empty-blocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'css-order-violation': 'Guía de diagnóstico y remediación para css-order-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'scss-syntax-issue': 'Guía de diagnóstico y remediación para scss-syntax-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'scss-sass-collision-casing': 'Guía de diagnóstico y remediación para scss-sass-collision-casing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'scss-strict-values': 'Guía de diagnóstico y remediación para scss-strict-values. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: [

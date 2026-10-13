@@ -65,6 +65,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(SECRET_LEAKS_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -86,6 +87,10 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor {
             ruleDescriptions: {
                 'secret-leak-detected': 'Token, secreto o credencial expuesta',
                 'secret-leak-private-key': 'Clave criptográfica privada expuesta'
+            },
+            ruleRemediations: {
+                'secret-leak-detected': 'Guía de diagnóstico y remediación para secret-leak-detected. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'secret-leak-private-key': 'Guía de diagnóstico y remediación para secret-leak-private-key. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: options.roots,
             allowedExtensions: SECRET_SCAN_EXTENSIONS,

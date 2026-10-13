@@ -81,6 +81,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
         const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'migrations';
         const srcRoots = config.paths.srcRoots || ['src'];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -107,6 +108,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor {
                 'sql-plpgsql-declared-variables': 'Variable PL/pgSQL sin declarar',
                 'sql-rls-policy-grant-integrity': 'Permiso GRANT faltante en RLS',
                 'db-payload-snake-case': 'Propiedad sin snake_case en BD'
+            },
+            ruleRemediations: {
+                'sql-no-positional-arrays': 'Guía de diagnóstico y remediación para sql-no-positional-arrays. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'sql-plpgsql-declared-variables': 'Guía de diagnóstico y remediación para sql-plpgsql-declared-variables. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'sql-rls-policy-grant-integrity': 'Guía de diagnóstico y remediación para sql-rls-policy-grant-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'db-payload-snake-case': 'Guía de diagnóstico y remediación para db-payload-snake-case. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: [

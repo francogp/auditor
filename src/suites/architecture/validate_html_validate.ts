@@ -141,6 +141,12 @@ export function readAndParseHtmlValidateOutput(
 export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: "html-validate",
+        fallbackBehavior: "violation",
+        fallbackRuleId: "html-validate-issue"
+      },
       ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
         fix: true,
         fixPriority: false,
@@ -165,6 +171,9 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       ruleIds: HTML_VALIDATE_RULES,
       ruleDescriptions: {
         'html-validate-issue': 'Violación de estándar HTML5'
+      },
+      ruleRemediations: {
+        'html-validate-issue': 'Guía de diagnóstico y remediación para html-validate-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['src/**/*.{html,vue}', 'ui-demo/**/*.{html,vue}', '*.html', '.htmlvalidate.json'],

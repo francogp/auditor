@@ -28,6 +28,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor {
             ...migrationRoots
         ];
         super({
+            usesThirdPartyTool: false,
             id: 'validate_query_performance',
             name: 'Database Query & Index Performance Validator',
             description: 'Rendimiento de consultas SQL, índices y paginación',
@@ -47,6 +48,14 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor {
                 'n-plus-one-patterns': 'Consulta a base de datos en bucle',
                 'heavy-count-queries': 'SELECT COUNT(*) sin filtro en tabla',
                 'unindexed-order-by': 'Paginación con OFFSET alto'
+            },
+            ruleRemediations: {
+                'unindexed-foreign-keys': 'Guía de diagnóstico y remediación para unindexed-foreign-keys. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'select-star-in-queries': 'Guía de diagnóstico y remediación para select-star-in-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'unpaginated-queries': 'Guía de diagnóstico y remediación para unpaginated-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'n-plus-one-patterns': 'Guía de diagnóstico y remediación para n-plus-one-patterns. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'heavy-count-queries': 'Guía de diagnóstico y remediación para heavy-count-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'unindexed-order-by': 'Guía de diagnóstico y remediación para unindexed-order-by. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
             projectRoot: effectiveRoot,

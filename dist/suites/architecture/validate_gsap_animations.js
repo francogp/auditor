@@ -231,6 +231,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths.srcRoots;
         super({
+            usesThirdPartyTool: false,
             id: 'validate_gsap_animations',
             name: 'GSAP Animation & UI Timing Hygiene',
             description: 'Gobernanza estricta de animaciones GSAP y timers UI',
@@ -269,7 +270,23 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
                 'gsap-simultaneous-origin-conflict': 'Conflicto svgOrigin y transform',
                 'gsap-legacy-ease-names': 'Nombre de ease legado de GSAP v2',
                 'gsap-high-frequency-tween-creation': 'Tween en listener continuo'
-            }
+            },
+            ruleRemediations: {
+                'gsap-banned-css-animations': 'Guía de diagnóstico y remediación para gsap-banned-css-animations. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-banned-ui-timers': 'Guía de diagnóstico y remediación para gsap-banned-ui-timers. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-no-layout-properties': 'Guía de diagnóstico y remediación para gsap-no-layout-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-named-timer-constants': 'Guía de diagnóstico y remediación para gsap-named-timer-constants. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-empty-vue-transitions': 'Guía de diagnóstico y remediación para gsap-empty-vue-transitions. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-no-important-transforms': 'Guía de diagnóstico y remediación para gsap-no-important-transforms. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-no-important-filters': 'Guía de diagnóstico y remediación para gsap-no-important-filters. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-gpu-layer-promotion': 'Guía de diagnóstico y remediación para gsap-gpu-layer-promotion. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-timeline-constructor-duration': 'Guía de diagnóstico y remediación para gsap-timeline-constructor-duration. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-kebab-case-properties': 'Guía de diagnóstico y remediación para gsap-kebab-case-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-raw-transform-string': 'Guía de diagnóstico y remediación para gsap-raw-transform-string. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-simultaneous-origin-conflict': 'Guía de diagnóstico y remediación para gsap-simultaneous-origin-conflict. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-legacy-ease-names': 'Guía de diagnóstico y remediación para gsap-legacy-ease-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'gsap-high-frequency-tween-creation': 'Guía de diagnóstico y remediación para gsap-high-frequency-tween-creation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+            },
         });
         this.declareFileSubAuditor('gsap-banned-css-animations', (doc) => {
             const norm = normalizeFilePath(doc.relPath);

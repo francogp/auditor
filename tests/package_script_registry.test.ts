@@ -22,6 +22,7 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       configKey: 'core',
       defaultConfig: { enabled: true },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleCapabilities: {
         'dummy-rule': {
           fix: false,
@@ -39,6 +40,9 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       ruleIds: ['dummy-rule'],
       ruleDescriptions: {
         'dummy-rule': 'Regla de prueba'
+      },
+      ruleRemediations: {
+        'dummy-rule': 'Soluciona la regla dummy.'
       },
       projectRoot
     });
@@ -61,6 +65,7 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       configKey: 'core',
       defaultConfig: { enabled: true },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleCapabilities: {
         'custom-rule': {
           fix: false,
@@ -78,6 +83,9 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       ruleIds: ['custom-rule'],
       ruleDescriptions: {
         'custom-rule': 'Regla personalizada'
+      },
+      ruleRemediations: {
+        'custom-rule': 'Soluciona la regla custom.'
       },
       scripts: [
         {
@@ -198,6 +206,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             configKey: 'core',
             defaultConfig: { enabled: true },
             criticalConfig: {},
+      usesThirdPartyTool: false,
             ruleCapabilities: {
               'rule-1': {
                 fix: false,
@@ -214,6 +223,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],
             ruleDescriptions: { 'rule-1': 'Desc' },
+            ruleRemediations: { 'rule-1': 'Guía para rule-1.' },
             scripts: [
               {
                 name: 'auditor:fix',

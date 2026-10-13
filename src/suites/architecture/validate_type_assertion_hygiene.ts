@@ -52,6 +52,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
         fix: false,
         fixPriority: false,
@@ -79,6 +80,13 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
         'type-assertion-boolean-literal': 'Prohibición de anotación literal true/false',
         'type-assertion-floating-promise': 'Prohibición de promesa flotante sin await',
         'type-assertion-loose-array': 'Prohibición de casteo a string[] o readonly'
+      },
+      ruleRemediations: {
+        'type-assertion-zero-any': 'Guía de diagnóstico y remediación para type-assertion-zero-any. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-double-cast': 'Guía de diagnóstico y remediación para type-assertion-double-cast. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-boolean-literal': 'Guía de diagnóstico y remediación para type-assertion-boolean-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-floating-promise': 'Guía de diagnóstico y remediación para type-assertion-floating-promise. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-loose-array': 'Guía de diagnóstico y remediación para type-assertion-loose-array. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,

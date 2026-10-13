@@ -527,6 +527,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     ]));
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(COMPONENT_STYLE_RULES, {
         fix: true,
         fixPriority: false,
@@ -558,6 +559,15 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         'ad-hoc-button-styles': 'Clase de botón fuera de estándar',
         'banned-plain-css-style': 'Bloque <style> sin lang="scss"',
         'banned-raw-css-file': 'Archivo CSS plano sin SCSS'
+      },
+      ruleRemediations: {
+        'broken-style-link': 'Guía de diagnóstico y remediación para broken-style-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'missing-style-tag': 'Guía de diagnóstico y remediación para missing-style-tag. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-style-inherited': 'Guía de diagnóstico y remediación para banned-style-inherited. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'orphaned-scss': 'Guía de diagnóstico y remediación para orphaned-scss. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ad-hoc-button-styles': 'Guía de diagnóstico y remediación para ad-hoc-button-styles. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-plain-css-style': 'Guía de diagnóstico y remediación para banned-plain-css-style. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-raw-css-file': 'Guía de diagnóstico y remediación para banned-raw-css-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: deriveCoverageFromRoots(effectiveRoots, new Set(['.vue', '.scss', '.css']), effectiveRoot).include

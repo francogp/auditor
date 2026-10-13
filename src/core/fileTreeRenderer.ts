@@ -137,7 +137,12 @@ export function formatSampleErrorLine(err: AuditFinding, index: number): string 
   const relPosixFile = relPath.split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, '') || fileInfo;
   const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
   const contextStr = err.context ? ` ("${err.context}")` : '';
-  return `    ${formatNumber(index + 1)}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
+  const mainLine = `    ${formatNumber(index + 1)}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
+  if (err.ruleId) {
+    const guideLine = styleText('dim', `       👉 Guía: auditor guide ${err.ruleId}`);
+    return `${mainLine}\n${guideLine}`;
+  }
+  return mainLine;
 }
 
 export function renderSampleErrors(errorFindings: readonly AuditFinding[]): string[] {

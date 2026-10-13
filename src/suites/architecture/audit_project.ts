@@ -908,15 +908,39 @@ export function getProjectArchitectureRuleDescriptions(): Record<string, string>
   return descriptions;
 }
 
+export function getProjectArchitectureRuleRemediations(): Record<string, string> {
+  const remediations: Record<string, string> = {
+    viewport: 'Configura o respeta las etiquetas de viewport estándar y responsive.',
+    hardcodedTimezone: 'Evita zonas horarias hardcodeadas; utiliza la configuración regional canónica.',
+    nodePrefix: 'Usa el prefijo "node:" al importar módulos nativos (ej. "node:fs", "node:path").',
+    esmExtensions: 'Asegura extensiones explícitas (.ts, .js) en imports relativos bajo ESM.',
+    timersPromises: 'Usa "node:timers/promises" (setTimeout) en lugar de callbacks para esperas asíncronas.',
+    explicitResource: 'Gestiona recursos y handles explícitamente cerrando descriptores de archivo o conexiones.',
+    zeroTimerLogic: 'Evita setTimeout(..., 0) en lógica de UI; usa la API de animación o nextTick() canónico.',
+    jsonStringifyInWatch: 'Evita JSON.stringify en watchers reactivos de Vue para no degradar el rendimiento.',
+    intersectionObserverRoot: 'Provee un contenedor raíz explícito en observadores de intersección.',
+    functionCallsInTemplates: 'Evita invocar funciones pesadas directamente en plantillas de Vue; usa computeds.',
+    forbiddenFallbacks: 'Elimina fallbacks no autorizados y propaga errores de forma determinista.',
+    noDomainIdFallbacks: 'No asignes IDs ficticios o fallbacks vacíos a entidades del dominio.',
+    noInlineTypeImports: 'Usa "import type { ... }" a nivel de declaración en lugar de imports inline mezclados.',
+    noRawJsonImportsOutsideData: 'Centraliza la carga de JSON en capas de datos autorizadas en lugar de componentes.',
+    noSassAtImport: 'Migra directivas @import obsoletas a @use o @forward en hojas de estilo SCSS/Sass.'
+  };
+
+  return remediations;
+}
+
 export class ProjectArchitectureAuditor extends BaseAuditor<string> {
   constructor() {
     const ruleDescriptions = getProjectArchitectureRuleDescriptions();
+    const ruleRemediations = getProjectArchitectureRuleRemediations();
     const ruleIds = Object.keys(ruleDescriptions);
     const fixableRuleIds = Object.entries(config)
       .filter(([_, rule]) => typeof (rule as AuditRule).fix === 'function' || (rule as AuditRule).fixable === true)
       .map(([key, rule]) => (rule as AuditRule).id || key);
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ruleIds, {
         fix: true,
         fixPriority: false,
@@ -931,6 +955,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       fixableRuleIds,
       ruleIds,
       ruleDescriptions,
+      ruleRemediations,
       id: 'audit_project',
       name: 'Project Architecture & Style Rules',
       description: 'Audita reglas de arquitectura, TypeScript y estilo',

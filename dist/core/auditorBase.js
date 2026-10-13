@@ -814,6 +814,25 @@ function validateAuditorRules(options) {
         }
     }
 }
+function validateAuditorRuleRemediations(options) {
+    if (!options.ruleRemediations || typeof options.ruleRemediations !== 'object' || Object.keys(options.ruleRemediations).length === 0) {
+        throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'ruleRemediations' covering all its declared rules. ` +
+            `Every sub-auditor and host extension is strictly required to expose on-demand diagnostic and remediation guides.`);
+    }
+    const remediations = options.ruleRemediations;
+    for (const ruleId of options.ruleIds) {
+        const guide = remediations[ruleId];
+        if (!guide || typeof guide !== 'string' || guide.trim() === '') {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] is missing a mandatory remediation guide in 'ruleRemediations' for declared rule '${ruleId}'. ` +
+                `Every rule must provide actionable guidance on root cause and steps to resolve.`);
+        }
+    }
+    for (const ruleId of Object.keys(options.ruleRemediations)) {
+        if (!options.ruleIds.includes(ruleId)) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] defines remediation guide for rule '${ruleId}' in 'ruleRemediations' that is not declared in 'ruleIds'.`);
+        }
+    }
+}
 function validateAuditorScripts(options) {
     if (!Array.isArray(options.scripts) || options.scripts.length === 0) {
         throw new Error(`Auditor [${options.id}] must define a mandatory 'scripts' contract (array of AuditorPackageScriptRequirement). ` +
@@ -831,14 +850,49 @@ function validateAuditorScripts(options) {
         }
     }
 }
+function validateAuditorThirdPartyToolContract(options) {
+    if (typeof options.usesThirdPartyTool !== 'boolean') {
+        throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'usesThirdPartyTool' as a boolean (true or false). ` +
+            `Every sub-auditor and host extension must explicitly declare whether it delegates to third-party tools or binaries.`);
+    }
+    if (options.usesThirdPartyTool) {
+        if (!options.thirdPartyToolPolicy || typeof options.thirdPartyToolPolicy !== 'object') {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: true but failed to provide mandatory 'thirdPartyToolPolicy'. ` +
+                `Every suite using third-party tools must declare what happens on failure or when output cannot be parsed.`);
+        }
+        const policy = options.thirdPartyToolPolicy;
+        if (!policy.toolName || typeof policy.toolName !== 'string' || policy.toolName.trim() === '') {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] 'thirdPartyToolPolicy.toolName' must be a non-empty string naming the external tool.`);
+        }
+        if (policy.fallbackBehavior !== 'throw' && policy.fallbackBehavior !== 'violation') {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] 'thirdPartyToolPolicy.fallbackBehavior' must be either 'throw' or 'violation'.`);
+        }
+        if (policy.fallbackBehavior === 'violation') {
+            if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== 'string') {
+                throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared fallbackBehavior: 'violation' but omitted mandatory 'fallbackRuleId'.`);
+            }
+            if (!options.ruleIds.includes(policy.fallbackRuleId)) {
+                throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] designated fallbackRuleId '${policy.fallbackRuleId}' which is not in declared 'ruleIds'.`);
+            }
+        }
+    }
+    else {
+        if (options.thirdPartyToolPolicy !== undefined) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. ` +
+                `Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`);
+        }
+    }
+}
 function validateAuditorOptions(options, effectiveCapabilities) {
     validateAuditorIdentity(options);
     validateAuditorConfigKey(options);
     validateAuditorDefaultConfig(options);
     validateAuditorCriticalConfig(options);
+    validateAuditorThirdPartyToolContract(options);
     validateAuditorRules(options);
     validateAuditorRuleCapabilities(options);
     validateAuditorFixContract(options, effectiveCapabilities);
+    validateAuditorRuleRemediations(options);
     validateAuditorScripts(options);
     if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
         throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
@@ -875,6 +929,7 @@ export class BaseAuditor {
     scripts;
     ruleIds;
     ruleDescriptions;
+    ruleRemediations;
     explicitSubAuditors;
     roots;
     allowedExtensions;
@@ -886,6 +941,8 @@ export class BaseAuditor {
     configKey;
     defaultConfig;
     criticalConfig;
+    usesThirdPartyTool;
+    thirdPartyToolPolicy;
     fixableRuleIds;
     durationsByRule = new Map();
     auditExecutionDurationMs;
@@ -1113,6 +1170,8 @@ export class BaseAuditor {
         this.configKey = options.configKey;
         this.defaultConfig = options.defaultConfig;
         this.criticalConfig = options.criticalConfig;
+        this.usesThirdPartyTool = options.usesThirdPartyTool;
+        this.thirdPartyToolPolicy = options.thirdPartyToolPolicy;
         this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
         this.configFiles = options.configFiles ?? [];
         this.scripts = effectiveScripts;
@@ -1120,6 +1179,7 @@ export class BaseAuditor {
         this.fixMode = Boolean(options.fix);
         this.ruleIds = options.ruleIds;
         this.ruleDescriptions = options.ruleDescriptions;
+        this.ruleRemediations = options.ruleRemediations;
         this.explicitSubAuditors = options.subAuditors;
         this.roots = options.roots ?? getEffectiveScannableRoots();
         this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
@@ -1150,6 +1210,10 @@ export class BaseAuditor {
         if (this.ruleIds.length > 0)
             return this.ruleIds;
         return Object.keys(this.ruleDescriptions ?? {});
+    }
+    /** Returns the on-demand diagnostic and remediation guide for a declared rule. */
+    getRuleRemediation(ruleId) {
+        return this.ruleRemediations?.[ruleId];
     }
     /** Records a file that this suite actually analyzed (absolute or project-relative path). */
     recordScanned(filePath) {
@@ -1395,6 +1459,7 @@ export class BaseAuditor {
                 : targetFile.replace(/\\/g, '/'))
             : targetFile;
         const targetCol = v.col ?? v.column;
+        const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
         if (v.severity === 'error') {
             this.context.addFinding({
                 severity: 'error',
@@ -1407,7 +1472,8 @@ export class BaseAuditor {
                 ruleDescription: ruleDesc,
                 suiteId: this.id,
                 suiteName: this.name,
-                fixable: isFixable
+                fixable: isFixable,
+                remediation: effectiveRemediation
             });
         }
         else {
@@ -1423,7 +1489,8 @@ export class BaseAuditor {
                     ruleDescription: ruleDesc,
                     suiteId: this.id,
                     suiteName: this.name,
-                    fixable: isFixable
+                    fixable: isFixable,
+                    remediation: effectiveRemediation
                 });
             }
         }
@@ -1724,6 +1791,7 @@ export class BaseAuditor {
                 postRun: this.capabilities.postRun
             },
             rules: rulesRecord,
+            remediations: this.ruleRemediations ? { ...this.ruleRemediations } : undefined,
             fixableRules: this.getFixableRuleIds().map(r => String(r)),
             configKey: this.configKey,
             defaultConfig: { ...this.defaultConfig },
@@ -1732,6 +1800,8 @@ export class BaseAuditor {
                 ...(this.criticalConfig.requiredMinimums ? { requiredMinimums: this.criticalConfig.requiredMinimums } : {}),
                 ...(this.criticalConfig.forbiddenOverrides ? { forbiddenOverrides: this.criticalConfig.forbiddenOverrides } : {})
             },
+            usesThirdPartyTool: this.usesThirdPartyTool,
+            thirdPartyToolPolicy: this.thirdPartyToolPolicy ? { ...this.thirdPartyToolPolicy } : undefined,
             scripts: [...this.scripts]
         };
     }
@@ -1750,7 +1820,11 @@ export class BaseAuditor {
     }
     static async runCliIfMain(metaUrl, auditor) {
         if (isMainModule(metaUrl)) {
-            await BaseAuditor.runCli(auditor);
+            // Decouple CLI execution from synchronous ESM evaluation graph
+            // prevents unsettled top-level await deadlock cycles in Node.js 26+
+            setImmediate(async () => {
+                await BaseAuditor.runCli(auditor);
+            });
         }
     }
 }

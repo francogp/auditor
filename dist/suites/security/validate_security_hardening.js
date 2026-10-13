@@ -20,6 +20,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor {
         const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
         const config = getAuditConfig(effectiveRoot);
         super({
+            usesThirdPartyTool: false,
             id: 'validate_security_hardening',
             name: 'Security Hardening & Threat Boundary Auditor',
             description: 'Endurecimiento de seguridad, OWASP Top 10 y SSRF',
@@ -41,6 +42,16 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor {
                 'eval-or-function-constructor': 'Uso de eval() o new Function() dinámico',
                 'permissive-cors': "CORS permisivo con origen '*'",
                 'unvalidated-redirect': 'Redirección abierta sin validar ruta'
+            },
+            ruleRemediations: {
+                'hardcoded-secrets': 'Guía de diagnóstico y remediación para hardcoded-secrets. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'insecure-random': 'Guía de diagnóstico y remediación para insecure-random. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'vulnerable-regex-redos': 'Guía de diagnóstico y remediación para vulnerable-regex-redos. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'raw-html-injection': 'Guía de diagnóstico y remediación para raw-html-injection. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'missing-csrf-token': 'Guía de diagnóstico y remediación para missing-csrf-token. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'eval-or-function-constructor': 'Guía de diagnóstico y remediación para eval-or-function-constructor. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'permissive-cors': 'Guía de diagnóstico y remediación para permissive-cors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'unvalidated-redirect': 'Guía de diagnóstico y remediación para unvalidated-redirect. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LINT_RULE_CAPABILITIES),
             projectRoot: effectiveRoot,

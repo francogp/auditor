@@ -95,6 +95,12 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       }),
       ruleDescriptions: {
         'my-rule-id': 'Regla de invariant personalizado'
+      },
+      ruleRemediations: {
+        'my-rule-id':
+          'Se violó el invariante personalizado del proyecto.\n' +
+          '1. Abre el archivo y línea reportados.\n' +
+          '2. Ajusta el código para cumplir el invariante documentado.'
       }
     });
   }
@@ -262,6 +268,16 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
       ruleDescriptions: {
         'game-banned-magic-speed': 'Velocidad mágica sin constante',
         'game-missing-layer-tag': 'Falta tag de capa en entidad'
+      },
+      ruleRemediations: {
+        'game-banned-magic-speed':
+          'Se usó un número literal como velocidad de entidad.\n' +
+          '1. Extrae el valor a una constante nombrada en el módulo de balance del juego.\n' +
+          '2. Referencia la constante en lugar del literal.',
+        'game-missing-layer-tag':
+          'La entidad no declara a qué capa de render pertenece.\n' +
+          '1. Agrega el tag de capa requerido en la definición de la entidad.\n' +
+          '2. Consulta las capas válidas en la configuración de capas del proyecto.'
       }
     });
   }
@@ -382,6 +398,12 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       }),
       ruleDescriptions: {
         'ui-banned-raw-hex-color': 'Color hexadecimal directo prohibido'
+      },
+      ruleRemediations: {
+        'ui-banned-raw-hex-color':
+          'Se usó un color hexadecimal literal en lugar de un token de diseño.\n' +
+          '1. Reemplaza el valor hex por la variable/token de color del sistema de diseño.\n' +
+          '2. Si el color no existe, agrégalo primero a la hoja de tokens.'
       }
     });
   }
@@ -447,6 +469,12 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       }),
       ruleDescriptions: {
         'service-missing-explicit-return-type': 'Falta tipo de retorno explícito'
+      },
+      ruleRemediations: {
+        'service-missing-explicit-return-type':
+          'Una función exportada de servicio no declara su tipo de retorno.\n' +
+          '1. Agrega la anotación de tipo de retorno explícita a la función indicada.\n' +
+          '2. Prefiere tipos de dominio canónicos en lugar de inferencia implícita.'
       }
     });
   }
@@ -517,6 +545,12 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
       ruleIds: ASSET_INTEGRITY_RULES,
       ruleDescriptions: {
         'asset-missing-atlas-manifest': 'Falta manifiesto JSON de atlas'
+      },
+      ruleRemediations: {
+        'asset-missing-atlas-manifest':
+          'Falta el manifiesto JSON que acompaña al atlas de sprites.\n' +
+          '1. Verifica que cada atlas en public/assets/sprites tenga su archivo .json hermano.\n' +
+          '2. Regenera el atlas con la herramienta de empaquetado del proyecto.'
       },
       projectRoot
     });

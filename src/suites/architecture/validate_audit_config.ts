@@ -469,6 +469,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     const projectRoot = options.projectRoot || process.cwd();
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
@@ -511,6 +512,43 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-section': 'Falta sección en audit.config',
         'audit-config-unknown-field': 'Campo no reconocido en config',
         'audit-config-critical-violation': 'Violación a configuración crítica'
+      },
+      ruleRemediations: {
+        'audit-config-missing-path':
+          'Una de las rutas declaradas en config.paths no existe en el sistema de archivos del proyecto.\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Si el directorio fue renombrado o movido, actualiza la ruta correspondiente en .auditor/audit.config.ts.\n' +
+          '2. Si el directorio es opcional o aún no se ha creado, crea la carpeta vacía o remuévela de la configuración si no corresponde a este proyecto.',
+        'audit-config-missing-file':
+          'No se encontró el archivo principal de configuración .auditor/audit.config.ts (o audit.config.json).\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Ejecuta "auditor fix" o "npm run auditor:fix" para generar automáticamente la configuración canónica con sus valores por defecto.\n' +
+          '2. Si existe en la raíz como audit.config.ts, muévelo dentro de .auditor/.',
+        'audit-config-invalid-extension':
+          'Se declaró una extensión o plugin en config.extensions que no pudo resolverse en disco o no exporta un auditor válido.\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Verifica la ruta relativa declarada en extensions: [...] dentro de .auditor/audit.config.ts.\n' +
+          '2. Asegúrate de que el archivo termine en .ts o .js y exporte una subclase de BaseAuditor.',
+        'audit-config-missing-gitignore-entry':
+          'Faltan entradas obligatorias gobernadas por el auditor en el archivo .gitignore del repositorio (ej. scratch/, coverage/).\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Ejecuta "auditor fix" para inyectar automáticamente las entradas requeridas en .gitignore.\n' +
+          '2. O agrega manualmente las entradas indicadas en el reporte a tu archivo .gitignore.',
+        'audit-config-missing-section':
+          'Uno de los sub-auditores activos requiere una sección de configuración específica en .auditor/audit.config.ts que no está presente.\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Ejecuta "auditor fix" para que el motor de AST de TypeScript inyecte automáticamente la sección faltante con sus valores canónicos.\n' +
+          '2. O agrega manualmente la sección declarada por el sub-auditor en tu archivo .auditor/audit.config.ts.',
+        'audit-config-unknown-field':
+          'Se encontró una clave o propiedad en .auditor/audit.config.ts que no es reconocida por el esquema del auditor (clave obsoleta o mal tipada).\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Revisa el nombre del campo en .auditor/audit.config.ts por posibles errores tipográficos.\n' +
+          '2. Si era una clave de una versión anterior del auditor, elimínala o migra al nombre canónico actual.',
+        'audit-config-critical-violation':
+          'La configuración viola una política crítica e inmutable del framework (ej. omisión de reglas estrictas obligatorias o valores prohibidos).\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Revisa la justificación técnica mostrada en el mensaje del error.\n' +
+          '2. Ejecuta "auditor fix" para restablecer automáticamente la línea base mínima obligatoria requerida por el sub-auditor.'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']

@@ -21,6 +21,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         const effectiveRoot = options.projectRoot ?? process.cwd();
         super({
+            usesThirdPartyTool: false,
             id: 'validate_test_coverage',
             name: 'Test Execution Coverage Auditor',
             description: 'Gobernanza de cobertura real de pruebas unitarias',
@@ -35,6 +36,11 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
                 'test-coverage-below-threshold': 'Cobertura de tests bajo umbral',
                 'test-coverage-missing-report': 'Falta archivo de cobertura',
                 'test-coverage-untracked-files': 'Archivos en disco sin testear'
+            },
+            ruleRemediations: {
+                'test-coverage-below-threshold': 'Guía de diagnóstico y remediación para test-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'test-coverage-missing-report': 'Guía de diagnóstico y remediación para test-coverage-missing-report. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'test-coverage-untracked-files': 'Guía de diagnóstico y remediación para test-coverage-untracked-files. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],

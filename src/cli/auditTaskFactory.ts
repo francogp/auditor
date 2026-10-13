@@ -164,6 +164,11 @@ function resolveTaskRuleDescriptions(metadata: Awaited<ReturnType<typeof extract
   return metadata.manifest?.rules;
 }
 
+function resolveTaskRuleRemediations(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Record<string, string> | undefined {
+  if (metadata.ruleRemediations) return metadata.ruleRemediations;
+  return metadata.manifest?.remediations;
+}
+
 function resolveTaskDescription(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): string | undefined {
   if (metadata.description) return metadata.description;
   return metadata.manifest?.description;
@@ -229,6 +234,7 @@ export async function createAuditTaskDefinition(
     configKey: resolveTaskConfigKey(metadata, id),
     defaultConfig: resolveTaskDefaultConfig(metadata, id),
     criticalConfig: metadata.criticalConfig,
-    ruleDescriptions: resolveTaskRuleDescriptions(metadata)
+    ruleDescriptions: resolveTaskRuleDescriptions(metadata),
+    ruleRemediations: resolveTaskRuleRemediations(metadata)
   };
 }

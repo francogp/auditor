@@ -88,9 +88,20 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         srcRoots: ['src']
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
+      },
+      ruleRemediations: {
+        'my-feature-forbidden-token':
+          'Se detectó un token prohibido en el archivo fuente.\n' +
+          '1. Reemplázalo por la función o constante canónica correspondiente.\n' +
+          '2. Si es una excepción legítima, agrega el comentario "// my-feature-ok".',
+        'my-feature-missing-attribute':
+          'Falta un atributo obligatorio en el elemento analizado.\n' +
+          '1. Agrega el atributo requerido en el archivo señalado.\n' +
+          '2. Consulta la documentación del componente.'
       },
       roots: options.roots ?? ['src'],
       allowedExtensions: new Set(['.vue', '.ts']),
@@ -203,9 +214,20 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
         dataRoots: ['src/data']
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-data-key-missing': 'Clave faltante en registro de datos',
         'my-data-value-invalid': 'Valor no válido en propiedad requerida'
+      },
+      ruleRemediations: {
+        'my-data-key-missing':
+          'Falta una clave obligatoria en el registro de datos.\n' +
+          '1. Abre src/data/myData.ts y localiza el objeto infractor.\n' +
+          '2. Agrega la propiedad requerida con su valor canónico.',
+        'my-data-value-invalid':
+          'El valor asignado a la propiedad de datos es inválido o de tipo incorrecto.\n' +
+          '1. Corrige el tipo de dato asignado para cumplir con el esquema tipado.\n' +
+          '2. Revalida ejecutando la suite de auditoría.'
       },
       coverage: {
         include: ['src/data/myData.ts'],
@@ -299,8 +321,15 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
         srcRoots: ['src']
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
+      },
+      ruleRemediations: {
+        'my-ast-forbidden-call':
+          'Se detectó una llamada prohibida por la arquitectura en el código TypeScript.\n' +
+          '1. Localiza la invocación infractora reportada.\n' +
+          '2. Reemplázala por la alternativa canónica recomendada.'
       },
       ruleCapabilities: createRuleCapabilities(MY_AST_RULES, {
         fix: false,
@@ -871,7 +900,8 @@ super({
   family: 'fsm',
   ruleIds: COMBAT_INVARIANTS_RULES,
   packageName: 'Combate',
-  ruleDescriptions: COMBAT_INVARIANTS_DESCRIPTIONS
+  ruleDescriptions: COMBAT_INVARIANTS_DESCRIPTIONS,
+  ruleRemediations: COMBAT_INVARIANTS_REMEDIATIONS // MANDATORY: step-by-step guide per rule
 });
 ```
 
@@ -1009,8 +1039,10 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
         enabled: true
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       configFiles: MyToolAuditor.configFiles,
-      ruleDescriptions: MY_TOOL_DESCRIPTIONS
+      ruleDescriptions: MY_TOOL_DESCRIPTIONS,
+      ruleRemediations: MY_TOOL_REMEDIATIONS
     });
   }
 
@@ -1054,6 +1086,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
 | `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
 | `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
+| `ruleRemediations` | `Record<TRuleId, string>` | 100% of rules, non-empty | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction. |
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
 | `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
 | `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
@@ -1322,3 +1355,27 @@ super({
 
 - ❌ **Legacy Pattern**: Calling `this.context.logStep('Scanned...')` inside `runAudit` or scanner loops.
 - ✅ **Canonical Pattern**: Remove all `logStep` calls. Per-rule progress (`🔍 [n/m]`) is measured and emitted automatically by `runSubAuditorSync` / `declareFileSubAuditor`.
+
+### 3. Error: `[Auditor Contract Violation] Auditor [...] must define mandatory 'ruleRemediations'`
+
+- ❌ **Legacy Pattern**: Omitting `ruleRemediations` in the extension constructor.
+- ✅ **Canonical Pattern**: Mandatorily declare `ruleRemediations: Record<TRuleId, string>` covering 100% of declared rules in `ruleIds`. Omitting `ruleRemediations` or leaving any rule without a guide causes `BaseAuditor` and `validate_auditor_tests` to fail loudly (`throw new Error(...)`).
+
+```typescript
+super({
+  id: 'my_extension',
+  ruleIds: MY_RULES,
+  ruleDescriptions: {
+    'my-rule-id': 'Concise rule description'
+  },
+  // MANDATORY: Step-by-step remediation guide required by contract for every declared rule:
+  ruleRemediations: {
+    'my-rule-id':
+      'Explanation of why the defect occurs.\n' +
+      '1. Inspect the reported file and line number.\n' +
+      '2. Apply the canonical solution pattern.\n' +
+      '3. Revalidate by running npm run auditor.'
+  },
+  // ...
+});
+```

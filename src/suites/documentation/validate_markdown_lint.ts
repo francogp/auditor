@@ -137,6 +137,12 @@ export function parseMarkdownLintIssues(input: string | object[], cwd: string = 
 export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
   constructor(projectRoot?: string) {
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: 'markdownlint',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'markdownlint-issue'
+      },
       ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
         fix: true,
         fixPriority: false,
@@ -161,6 +167,9 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       ruleIds: MARKDOWN_LINT_RULES,
       ruleDescriptions: {
         'markdownlint-issue': 'Formato o estilo inválido'
+      },
+      ruleRemediations: {
+        'markdownlint-issue': 'Guía de diagnóstico y remediación para markdownlint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       unignoreDirs: getEffectiveUnignoreDirs(projectRoot),
       coverage: {

@@ -66,6 +66,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
     const customPrefixes = typeof options === 'object' && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
 
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
         fix: false,
         fixPriority: false,
@@ -91,6 +92,11 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
         'persistence-client-uncoordinated-save': 'Escritura no coordinada en storage',
         'persistence-client-untyped-key': 'Clave de storage no tipada',
         'persistence-client-unhandled-quota-error': 'SetItem sin captura de cuota'
+      },
+      ruleRemediations: {
+        'persistence-client-uncoordinated-save': 'Guía de diagnóstico y remediación para persistence-client-uncoordinated-save. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'persistence-client-untyped-key': 'Guía de diagnóstico y remediación para persistence-client-untyped-key. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'persistence-client-unhandled-quota-error': 'Guía de diagnóstico y remediación para persistence-client-unhandled-quota-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,

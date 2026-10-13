@@ -58,10 +58,25 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
         enabled: true
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'ad-hoc-button-styles': 'Sobreescritura ad-hoc de botón',
         'button-border-clipping': 'Borde inferior recortado en botón',
         'button-inset-cutoff': 'Sombra inset negativa en botón'
+      },
+      ruleRemediations: {
+        'ad-hoc-button-styles':
+          'Se detectó un estilo ad-hoc sobreescribiendo una clase de botón en un componente.\n' +
+          '1. Utiliza las variantes estándar de botón (ej. btn-primary, btn-secondary, etc.).\n' +
+          '2. Mueve las modificaciones globales a _buttons.scss si es una variante legítima del sistema de diseño.',
+        'button-border-clipping':
+          'El botón tiene un borde recortado o asimétrico en border-bottom-color.\n' +
+          '1. Define bordes perimetrales de 360 grados usando variables del sistema de diseño.\n' +
+          '2. Evita sobrescribir border-bottom-color individualmente en botones.',
+        'button-inset-cutoff':
+          'Se detectó una sombra inset negativa que corta el renderizado del botón.\n' +
+          '1. Utiliza sombras inset canónicas con desplazamientos positivos o simétricos.\n' +
+          '2. Ajusta el box-shadow según el manual de diseño de botones.'
       },
       roots: ['src/components', 'src/views', 'src/styles'],
       allowedExtensions: new Set(['.vue', '.scss']),

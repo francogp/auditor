@@ -65,12 +65,31 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
         enabled: true
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       configFiles: HostDomainCompositeAuditor.configFiles,
       ruleDescriptions: {
         'host-catalog-sync': 'Desincronización en catálogo canónico',
         'host-schema-invariants': 'Violación de invariante en esquema',
         'host-state-consistency': 'Inconsistencia en máquina de estados',
         'host-missing-config': 'Archivo de configuración faltante'
+      },
+      ruleRemediations: {
+        'host-catalog-sync':
+          'El catálogo local no coincide con el registro maestro.\n' +
+          '1. Compara las claves entre el catálogo y la definición canónica.\n' +
+          '2. Sincroniza las entradas faltantes o extra.',
+        'host-schema-invariants':
+          'Se detectó un esquema de datos que incumple las invariantes de validación.\n' +
+          '1. Inspecciona los tipos y restricciones en el esquema.\n' +
+          '2. Corrige las discrepancias con Valibot o los tipos canónicos.',
+        'host-state-consistency':
+          'Una máquina de estados o transición presenta una ruta inválida o no alcanzable.\n' +
+          '1. Verifica las transiciones definidas en la máquina.\n' +
+          '2. Añade los estados o manejadores faltantes.',
+        'host-missing-config':
+          'Falta un archivo de configuración requerido para el dominio.\n' +
+          '1. Ejecuta "auditor fix" para auto-generarlo si está registrado.\n' +
+          '2. O créalo manualmente según la especificación del dominio.'
       },
       coverage: {
         include: ['src/domain/**/*.{ts,json}'],

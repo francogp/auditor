@@ -54,6 +54,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
   constructor(roots?: readonly string[], projectRoot?: string) {
     const scannableRoots = resolveConsoleCleanlinessRoots(roots, projectRoot);
     super({
+      usesThirdPartyTool: false,
       roots: scannableRoots,
       projectRoot,
       ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
@@ -80,6 +81,10 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       ruleDescriptions: {
         'no-debugger-statement': 'Instrucciones debugger en src/',
         'no-console-log-in-src': 'Llamadas directas a console.log()'
+      },
+      ruleRemediations: {
+        'no-debugger-statement': 'Guía de diagnóstico y remediación para no-debugger-statement. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-console-log-in-src': 'Guía de diagnóstico y remediación para no-console-log-in-src. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       allowedExtensions: new Set(['.ts', '.vue', '.js'])
     });

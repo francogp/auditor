@@ -4,7 +4,7 @@
  * Types and interfaces for the dynamic auditor and extension homebrew code detection engine.
  */
 import type { FindingSeverity } from '../../core/auditContract.ts';
-export declare const AUDITOR_HOMEBREW_RULES: readonly ["auditor-manual-package-json", "auditor-manual-vue-sfc-regex", "auditor-manual-ts-ast", "auditor-manual-path-normalize", "auditor-raw-console", "auditor-manual-comment-stripping", "auditor-manual-brace-counting", "auditor-manual-path-containment", "auditor-manual-file-walker", "auditor-homebrew-predicates", "auditor-manual-rule-timing", "auditor-hardcoded-config", "auditor-manual-step-logging", "auditor-unmeasured-rule", "auditor-redundant-rule-evaluated"];
+export declare const AUDITOR_HOMEBREW_RULES: readonly ["auditor-manual-package-json", "auditor-manual-vue-sfc-regex", "auditor-manual-ts-ast", "auditor-manual-path-normalize", "auditor-raw-console", "auditor-manual-comment-stripping", "auditor-manual-brace-counting", "auditor-manual-path-containment", "auditor-manual-file-walker", "auditor-homebrew-predicates", "auditor-manual-rule-timing", "auditor-hardcoded-config", "auditor-manual-step-logging", "auditor-unmeasured-rule", "auditor-redundant-rule-evaluated", "auditor-third-party-tool-contract"];
 export type AuditorHomebrewRuleId = (typeof AUDITOR_HOMEBREW_RULES)[number];
 export interface HomebrewInspectionContext {
     readonly filePath: string;

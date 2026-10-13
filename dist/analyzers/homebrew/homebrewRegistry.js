@@ -34,6 +34,27 @@ export class HomebrewDetectorRegistry {
         }
         return descriptions;
     }
+    static getRuleRemediations() {
+        const remediations = {
+            'auditor-manual-package-json': 'Usa la utilidad canónica getPackageJson(projectRoot) de src/core/packageJson.ts en lugar de leer o parsear package.json manualmente.',
+            'auditor-manual-vue-sfc-regex': 'Usa AuditedDocument o parseVueSfc() de core para analizar bloques SFC de Vue en lugar de expresiones regulares manuales frágiles.',
+            'auditor-manual-ts-ast': 'Usa SharedAstContext o getAstContext(projectRoot) para reutilizar el AST de TypeScript en lugar de compilar o parsear archivos manualmente.',
+            'auditor-manual-path-normalize': 'Usa normalizePosixPath() de src/core/safePath.ts para estandarizar rutas POSIX entre plataformas de forma canónica.',
+            'auditor-raw-console': 'Reemplaza llamadas directas a console.log/error/warn con this.addViolation(), this.renderTable() o printTerminal() autorizado.',
+            'auditor-manual-comment-stripping': 'Usa las utilidades canónicas stripComments() de src/core/ o el AST de TypeScript en vez de regexes manuales para eliminar comentarios.',
+            'auditor-manual-brace-counting': 'Usa el parser canónico de AST o extractBlocks() para balancear llaves en lugar de contadores manuales propensos a errores.',
+            'auditor-manual-path-containment': 'Valida contención de rutas usando path.resolve() y path.relative() comprobando startsWith("..") en vez de regexes manuales.',
+            'auditor-manual-file-walker': 'Hereda de FileScanAuditor o usa this.context.collectFiles() en lugar de recorrer el sistema de archivos con walkers manuales.',
+            'auditor-homebrew-predicates': 'Importa predicados canónicos desde src/core/auditTestPredicates.ts o src/core/auditConfig.ts en vez de reimplementar chequeos de tests.',
+            'auditor-manual-rule-timing': 'Envuelve la ejecución de reglas en this.runRuleMeasured(ruleId, () => ...) para registrar tiempos en lugar de timers manuales.',
+            'auditor-hardcoded-config': 'Resuelve rutas, directorios y configuraciones dinámicamente desde audit.config.ts sin nombres de archivo ni constantes hardcodeadas.',
+            'auditor-manual-step-logging': 'Elimina logs de pasos secuenciales ([1/6], [2/6]) dentro de subauditores; el streaming runner gestiona el ciclo de vida y estado visual.',
+            'auditor-unmeasured-rule': 'Envuelve la evaluación de la regla con this.runRuleMeasured() o reportRuleDuration() para garantizar medición y telemetría de rendimiento.',
+            'auditor-redundant-rule-evaluated': 'Elimina llamadas redundantes a markRuleEvaluated() cuando la regla ya se mide automáticamente con runRuleMeasured().',
+            'auditor-third-party-tool-contract': 'Declara usesThirdPartyTool: true con thirdPartyToolPolicy ({ toolName, fallbackBehavior, fallbackRuleId }) en el constructor si ejecutas herramientas externas, o usesThirdPartyTool: false si es un analizador nativo.'
+        };
+        return remediations;
+    }
     static run(context, disabledDetectors = [], onDetectorDuration) {
         // Whole file exemption check
         if (context.content.includes('// homebrew-ok: all') ||

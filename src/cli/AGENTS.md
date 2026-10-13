@@ -39,6 +39,7 @@ Architecture & Tooling Engineers.
 - [`bump_version.ts`](./bump_version.ts): CLI for `auditor-version` (`analyze`, `bump`, `-v`, `--json`, `--help`, `--type=`, `--target-version=`).
 - [`check_environment.ts`](./check_environment.ts): Runtime and tooling environment validator.
 - [`cliUtils.ts`](./cliUtils.ts): Shared utilities for CLI tools and entrypoint detection.
+- [`guideRenderer.ts`](./guideRenderer.ts): Box-drawing terminal renderer for on-demand diagnostic and remediation guides (`auditor guide <id>`).
 - [`init_agent.ts`](./init_agent.ts): Antigravity agent plugin and skills registrator (`.agents/skills.json` and `.agents/plugins.json`).
 - [`make_executable.ts`](./make_executable.ts): Cross-platform utility applying executable permissions (`0o755`) to compiled CLI binaries in `dist/cli/` and purging orphaned compiled files in `dist/`.
 - [`report_complexity.ts`](./report_complexity.ts): Cyclomatic and cognitive complexity reporter.

@@ -13,6 +13,7 @@ export declare class HomebrewDetectorRegistry {
     static clear(): void;
     static getRuleIds(): readonly AuditorHomebrewRuleId[];
     static getRuleDescriptions(): Record<AuditorHomebrewRuleId, string>;
+    static getRuleRemediations(): Record<AuditorHomebrewRuleId, string>;
     static run(context: HomebrewInspectionContext, disabledDetectors?: readonly string[], onDetectorDuration?: (ruleId: AuditorHomebrewRuleId, durationMs: number) => void): HomebrewFinding[];
 }
 //# sourceMappingURL=homebrewRegistry.d.ts.map

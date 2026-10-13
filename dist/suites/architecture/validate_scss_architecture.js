@@ -17,6 +17,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor {
         const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
         const config = getAuditConfig(effectiveRoot);
         super({
+            usesThirdPartyTool: false,
             id: 'validate_scss_architecture',
             name: 'SCSS Architecture & Distinctive Design Validator',
             description: 'Arquitectura SCSS, tokenización y diseño distintivo',
@@ -35,6 +36,13 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor {
                 'non-standard-spacing-unit': 'Espaciado arbitrario sin escala',
                 'missing-theme-token-usage': 'Color hardcodeado sin token de tema',
                 'excessive-scss-nesting': 'Anidamiento SCSS superior a 3 niveles'
+            },
+            ruleRemediations: {
+                'raw-css-in-sfc': 'Guía de diagnóstico y remediación para raw-css-in-sfc. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'scss-deep-selector-abuse': 'Guía de diagnóstico y remediación para scss-deep-selector-abuse. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'non-standard-spacing-unit': 'Guía de diagnóstico y remediación para non-standard-spacing-unit. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'missing-theme-token-usage': 'Guía de diagnóstico y remediación para missing-theme-token-usage. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'excessive-scss-nesting': 'Guía de diagnóstico y remediación para excessive-scss-nesting. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LINT_RULE_CAPABILITIES),
             projectRoot: effectiveRoot,

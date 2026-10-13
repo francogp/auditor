@@ -8,7 +8,7 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditExecutionSpeed, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, deriveCanonicalAuditorScript } from './auditContract.ts';
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditExecutionSpeed, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, type ThirdPartyToolFailurePolicy, deriveCanonicalAuditorScript } from './auditContract.ts';
 export { deriveCanonicalAuditorScript };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
@@ -145,6 +145,11 @@ export interface AuditorOptions<TRuleId extends string = string> {
     readonly scripts?: readonly AuditorPackageScriptRequirement[];
     readonly ruleIds: readonly TRuleId[];
     readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
+    /**
+     * Mandatory on-demand diagnostic and remediation guide for every declared rule.
+     * Explains root causes, what code patterns trigger the violation, and step-by-step resolution.
+     */
+    readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
     readonly subAuditors?: readonly SubAuditorStep[];
     readonly roots?: readonly string[];
     readonly allowedExtensions?: ReadonlySet<string>;
@@ -162,6 +167,16 @@ export interface AuditorOptions<TRuleId extends string = string> {
      * Mandatory by contract for all sub-auditors and host extensions (can be empty object {} if no critical constraints).
      */
     readonly criticalConfig: AuditorCriticalConfig;
+    /**
+     * Whether this suite relies on third-party binary/tool execution.
+     * Mandatory boolean across all sub-auditors and extensions.
+     */
+    readonly usesThirdPartyTool: boolean;
+    /**
+     * Mandatory failure policy when usesThirdPartyTool is true.
+     * Prohibited when usesThirdPartyTool is false.
+     */
+    readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
     /**
      * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
      * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
@@ -182,6 +197,7 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly message: string;
     readonly context?: string;
     readonly fixable?: boolean;
+    readonly remediation?: string;
 }
 export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["fix", "fixPriority", "lint", "md", "ast", "changedSince", "heavy", "requiresBuild", "postRun"];
 export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
@@ -198,6 +214,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly scripts: readonly AuditorPackageScriptRequirement[];
     readonly ruleIds: readonly TRuleId[];
     readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
+    readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
     readonly explicitSubAuditors?: readonly SubAuditorStep[];
     readonly roots: readonly string[];
     readonly allowedExtensions: ReadonlySet<string>;
@@ -209,6 +226,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     readonly configKey: string;
     readonly defaultConfig: Readonly<Record<string, unknown>>;
     readonly criticalConfig: AuditorCriticalConfig;
+    readonly usesThirdPartyTool: boolean;
+    readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
     protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
     protected readonly durationsByRule: Map<TRuleId, number>;
     protected auditExecutionDurationMs?: number;
@@ -285,6 +304,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     constructor(options: AuditorOptions<TRuleId>);
     /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
     getRuleCatalog(): readonly TRuleId[];
+    /** Returns the on-demand diagnostic and remediation guide for a declared rule. */
+    getRuleRemediation(ruleId: TRuleId): string | undefined;
     /** Records a file that this suite actually analyzed (absolute or project-relative path). */
     protected recordScanned(filePath: string): void;
     protected unrecordScanned(filePath: string): void;

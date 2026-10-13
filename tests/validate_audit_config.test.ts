@@ -607,6 +607,8 @@ export class CustomExtAuditor extends BaseAuditor {
         }
       },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
+      ruleRemediations: { 'custom-rule': 'Soluciona la regla custom-rule ajustando la configuración.' },
+      usesThirdPartyTool: false,
       projectRoot: opts?.projectRoot
     });
   }

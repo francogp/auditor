@@ -92,6 +92,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths?.srcRoots ?? [];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -115,6 +116,9 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
             icon: '🔤',
             ruleDescriptions: {
                 'line-height-overlap': 'Colisión de line-height'
+            },
+            ruleRemediations: {
+                'line-height-overlap': 'Guía de diagnóstico y remediación para line-height-overlap. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.vue', '.scss', '.css']),

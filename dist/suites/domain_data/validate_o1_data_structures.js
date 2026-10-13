@@ -134,6 +134,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? config.paths.codeRoots ?? [];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(O1_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -161,6 +162,13 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
                 'o1-object-scan': 'Escaneo en Object.keys/values',
                 'o1-json-clone': 'Clonado con JSON.parse(stringify)',
                 'o1-redundant-spread-return': 'Retorno redundante con spread'
+            },
+            ruleRemediations: {
+                'o1-catalog-lookup': 'Guía de diagnóstico y remediación para o1-catalog-lookup. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'o1-linear-membership': 'Guía de diagnóstico y remediación para o1-linear-membership. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'o1-object-scan': 'Guía de diagnóstico y remediación para o1-object-scan. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'o1-json-clone': 'Guía de diagnóstico y remediación para o1-json-clone. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'o1-redundant-spread-return': 'Guía de diagnóstico y remediación para o1-redundant-spread-return. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.vue']),

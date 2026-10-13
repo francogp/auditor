@@ -184,7 +184,8 @@ function analyzeMissingLedgers(input, ledgers) {
             findings.push({
                 ruleId: 'coverage-missing-ledger',
                 file: '',
-                message: `La suite '${suiteId}' se ejecutó pero no dejó ledger de cobertura (falló, o no hereda de BaseAuditor): su resultado no es verificable`,
+                message: `La suite '${suiteId}' se planificó pero su subproceso terminó sin emitir su ledger en scratch/audits/coverage/${suiteId}.json ` +
+                    `(abortó con error, excepción no capturada o fallo de ciclo ESM). Ejecuta 'npm run auditor suite=${suiteId}' para ver la traza directa.`,
                 context: suiteId
             });
         }
@@ -221,6 +222,7 @@ export function listTrackedFiles(projectRoot) {
 export class AuditCoverageAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -250,6 +252,38 @@ export class AuditCoverageAuditor extends BaseAuditor {
                 'coverage-dormant-rule': 'Regla dormida: 0 evaluaciones',
                 'coverage-invalid-exemption': 'Exención sin archivos que la usen',
                 'coverage-missing-ledger': 'Suite sin ledger de cobertura'
+            },
+            ruleRemediations: {
+                'coverage-uncovered-file': 'El archivo versionado no es cubierto por ninguna suite de auditoría activa. ' +
+                    'Posibles causas y soluciones:\n' +
+                    '1. Si es un archivo de código fuente (.ts, .js, .vue, .scss), asócialo al include de la suite correspondiente o amplía sus raíces de escaneo.\n' +
+                    '2. Si es un artefacto generado, temporal o de fixture, agrégalo a .gitignore o a coverage.exemptGlobs en .auditor/audit.config.ts indicando el motivo.',
+                'coverage-degraded-file': 'El archivo contiene reglas de auditoría o linters silenciadas mediante configuración local o excepciones no declaradas. ' +
+                    'Posibles causas y soluciones:\n' +
+                    '1. Elimina la excepción y corrige el código fuente subyacente para cumplir los estándares de higiene.\n' +
+                    '2. Si la degradación es legítima y está autorizada, documéntala en coverage.acknowledgedDegradations en .auditor/audit.config.ts.',
+                'coverage-declared-not-scanned': 'La suite declaró en su coverage.include que analizaría este archivo, pero durante la corrida nunca lo escaneó. ' +
+                    'Posibles causas y soluciones:\n' +
+                    '1. Ajusta la declaración coverage.include o exclude de la suite para reflejar únicamente los archivos que realmente procesa.\n' +
+                    '2. Si la suite omitió el archivo por un filtro prematuro o un return temprano, revisa la lógica de escaneo para que procese todos los archivos que declaró.',
+                'coverage-scanned-undeclared': 'La suite escaneó un archivo que no formaba parte de su coverage.include declarado. ' +
+                    'Posibles causas y soluciones:\n' +
+                    '1. Agrega el patrón del archivo al coverage.include de la suite para hacer explícita su responsabilidad.\n' +
+                    '2. O bien, excluye el archivo del escaneo interno si pertenece a otra familia o subsistema.',
+                'coverage-dormant-rule': 'La regla fue declarada por la suite pero se evaluó 0 veces durante toda la auditoría. ' +
+                    'Un resultado limpio con 0 evaluaciones es un falso positivo peligroso porque la verificación nunca se ejecutó. ' +
+                    'Posibles causas y soluciones:\n' +
+                    '1. Instrumenta la regla llamando a this.runSubAuditorSync(ruleId, () => ...) o this.markRuleEvaluated(ruleId) dentro del flujo de auditoría.\n' +
+                    '2. Si la regla no aplica en este proyecto (por ejemplo, falta una tecnología o carpeta), márcala explícitamente como no aplicable usando this.markRuleNotApplicable(ruleId, "Motivo").',
+                'coverage-invalid-exemption': 'Se declaró una exención en coverage.exemptGlobs o coverage.acknowledgedDegradations en .auditor/audit.config.ts que ya no coincide con ningún archivo del repositorio. ' +
+                    'Posibles causas y soluciones:\n' +
+                    '1. El archivo exento fue renombrado, movido o eliminado. Remueve la exención muerta de .auditor/audit.config.ts para mantener limpia la configuración.',
+                'coverage-missing-ledger': 'La suite fue planificada y ejecutada por el orquestador, pero su proceso terminó sin emitir el archivo de ledger en scratch/audits/coverage/<suiteId>.json. ' +
+                    'Esto ocurre cuando el subproceso del sub-auditor crashea, aborta con código de salida no-cero o sufre un bloqueo asíncrono (como un ciclo de top-level await en ESM). ' +
+                    'Pasos para diagnosticar y solucionar:\n' +
+                    '1. Ejecuta la suite de forma aislada en tu terminal: npm run auditor suite=<nombre_suite>\n' +
+                    '2. Observa la salida y traza de error completa del proceso en la consola.\n' +
+                    '3. Verifica que la clase del sub-auditor herede correctamente de BaseAuditor o FileScanAuditor y finalice con await BaseAuditor.runCliIfMain(import.meta.url, new TuAuditor()).'
             },
             coverage: { include: [AUDIT_CONFIG_FILE] },
             projectRoot: options.projectRoot

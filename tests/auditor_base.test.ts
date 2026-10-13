@@ -152,6 +152,7 @@ describe('auditorBase infrastructure', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
+      usesThirdPartyTool: false,
             ruleIds: ['test-rule'],
             ruleCapabilities: {
               'test-rule': {
@@ -168,6 +169,9 @@ describe('auditorBase infrastructure', () => {
             },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
+            },
+            ruleRemediations: {
+              'test-rule': 'Guía de remediación para test-rule'
             },
             coverage: { include: ['src/**/*.ts'] },
             roots: ['src'],
@@ -216,6 +220,8 @@ describe('auditorBase infrastructure', () => {
       criticalConfig: {},
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
+      ruleRemediations: { dummy: 'Guía de remediación para dummy' },
+      usesThirdPartyTool: false,
       coverage: { include: ['src/**/*.ts'] },
       ruleCapabilities: {
         dummy: {
@@ -392,6 +398,7 @@ describe('auditorBase infrastructure', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
+      usesThirdPartyTool: false,
           ruleCapabilities: {
             'rule-a': {
               fix: false,
@@ -420,6 +427,10 @@ describe('auditorBase infrastructure', () => {
           ruleDescriptions: {
             'rule-a': 'Regla de asercion A',
             'rule-b': 'Regla de asercion B'
+          },
+          ruleRemediations: {
+            'rule-a': 'Remediacion de asercion A',
+            'rule-b': 'Remediacion de asercion B'
           },
           coverage: { include: ['src/**/*.ts'] },
           projectRoot
@@ -509,9 +520,13 @@ describe('auditorBase infrastructure', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
+      usesThirdPartyTool: false,
             ruleIds: ['only-rule'],
             ruleDescriptions: {
               'only-rule': 'Regla única'
+            },
+            ruleRemediations: {
+              'only-rule': 'Remediacion regla única'
             },
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: {

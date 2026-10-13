@@ -67,6 +67,12 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
   constructor(projectRoot?: string) {
     const effectiveRoot = projectRoot || process.cwd();
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: "ESLint",
+        fallbackBehavior: "violation",
+        fallbackRuleId: "eslint-violation"
+      },
       ruleCapabilities: createRuleCapabilities(ESLINT_RULES, {
         fix: true,
         fixPriority: false,
@@ -92,6 +98,9 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       ruleIds: ESLINT_RULES,
       ruleDescriptions: {
         'eslint-violation': 'Error de sintaxis o regla'
+      },
+      ruleRemediations: {
+        'eslint-violation': 'Guía de diagnóstico y remediación para eslint-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['**/*.{js,ts,mjs,cjs,vue}'],

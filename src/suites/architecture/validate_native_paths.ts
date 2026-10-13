@@ -525,6 +525,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(NATIVE_PATH_RULES, {
         fix: false,
         fixPriority: false,
@@ -552,6 +553,13 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
         'untrusted-url-fetch': 'Llamada HTTP sin sanitizar',
         'hardcoded-slash-path': 'Separador de ruta hardcodeado',
         'homebrew-path-manipulation': 'Manipulación casera de rutas'
+      },
+      ruleRemediations: {
+        'unsafe-path-concat': 'Guía de diagnóstico y remediación para unsafe-path-concat. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unsanitized-env-argv-path': 'Guía de diagnóstico y remediación para unsanitized-env-argv-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'untrusted-url-fetch': 'Guía de diagnóstico y remediación para untrusted-url-fetch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'hardcoded-slash-path': 'Guía de diagnóstico y remediación para hardcoded-slash-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'homebrew-path-manipulation': 'Guía de diagnóstico y remediación para homebrew-path-manipulation. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       roots: effectiveRoots,
       projectRoot

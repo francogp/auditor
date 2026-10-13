@@ -309,14 +309,18 @@ function formatCapabilityList(caps) {
         capList.push(styleText('white', '✔ AST TypeScript in-memory (ast)'));
     return capList;
 }
+export const themeStyles = {
+    boldWhite: (s) => styleText(['bold', 'white'], s),
+    boldYellow: (s) => styleText(['bold', 'yellow'], s),
+    boldCyan: (s) => styleText(['bold', 'cyan'], s),
+    dim: (s) => styleText('dim', s),
+    white: (s) => styleText('white', s)
+};
 /**
  * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
  */
 export function renderAuditorDetailCard(task) {
-    const boldWhite = (s) => styleText(['bold', 'white'], s);
-    const boldYellow = (s) => styleText(['bold', 'yellow'], s);
-    const dim = (s) => styleText('dim', s);
-    const white = (s) => styleText('white', s);
+    const { boldWhite, boldYellow, dim, white } = themeStyles;
     const sections = [];
     const icon = task.icon ?? '🏛️';
     const title = `${icon} ${task.name} [${task.id}]`;
@@ -375,8 +379,9 @@ export function renderCliHelp(activeFamilies) {
     lines.push('  --list --enabled             Lista exclusivamente las suites activas/encendidas en config.');
     lines.push('  --list --disabled            Lista exclusivamente las suites apagadas/desactivadas en config.');
     lines.push('  --list --json                Emite el catálogo completo en formato JSON estructurado.');
-    lines.push('  --info=<suiteId>             Muestra la ficha técnica, reglas y configuración de una suite.');
-    lines.push('  -h, --help                   Muestra este mensaje de ayuda.\n');
+    lines.push('  --info=<id>, info <id>       Muestra la ficha técnica, reglas y configuración de una suite.');
+    lines.push('  --guide=<id>, guide <id>     Muestra la guía de remediación y soluciones para una regla o suite.');
+    lines.push('  -h, --help, help             Muestra este mensaje de ayuda.\n');
     lines.push(boldYellow('MODOS Y PRESETS DE EJECUCIÓN:'));
     lines.push('  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.');
     lines.push('  preset=lint                  Preset rápido de linting (ESLint, Stylelint, etc.).');

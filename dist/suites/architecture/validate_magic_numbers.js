@@ -215,6 +215,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
         const rawRoots = optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? []));
         const effectiveRoots = rawRoots.map(r => toPosixRelative(projectRoot, r));
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -241,6 +242,9 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
             ruleIds: MAGIC_NUMBERS_RULES,
             ruleDescriptions: {
                 'magic-number-naked': 'Número mágico no en constante'
+            },
+            ruleRemediations: {
+                'magic-number-naked': 'Guía de diagnóstico y remediación para magic-number-naked. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             projectRoot
         });

@@ -46,6 +46,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
             ? config.paths.codeRoots
             : ['src', 'scripts']);
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -72,6 +73,12 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
                 'no-silent-promise-catch': 'Promesa con .catch() silencioso',
                 'no-silent-mock-fallbacks': 'Uso prohibido de v.fallback',
                 'strict-catch-narrowing': 'Catch sin instanceof Error'
+            },
+            ruleRemediations: {
+                'no-empty-catch': 'Guía de diagnóstico y remediación para no-empty-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-silent-promise-catch': 'Guía de diagnóstico y remediación para no-silent-promise-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-silent-mock-fallbacks': 'Guía de diagnóstico y remediación para no-silent-mock-fallbacks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'strict-catch-narrowing': 'Guía de diagnóstico y remediación para strict-catch-narrowing. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: codeRoots,
             allowedExtensions: new Set(['.ts', '.vue']),

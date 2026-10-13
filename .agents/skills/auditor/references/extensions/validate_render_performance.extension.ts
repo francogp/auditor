@@ -81,7 +81,26 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
         heavyEffectPaths: []
       },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
+      ruleRemediations: {
+        'render-banned-mix-blend-mode':
+          'Se detectó uso de mix-blend-mode no permitido en capas de renderizado pesado.\n' +
+          '1. Sustituye mix-blend-mode por opacidades precalculadas o capas PNG/SVG optimizadas.\n' +
+          '2. Revisa la lista de excepciones en audit.config.ts si es un efecto atmosférico autorizado.',
+        'render-banned-filter-in-weather':
+          'Se detectó un filtro CSS costoso (blur, drop-shadow) en elementos animados recurrentes.\n' +
+          '1. Aplica pre-renderizado en texturas o sprites.\n' +
+          '2. Utiliza transforms de GPU en lugar de filtros de rasterización continua.',
+        'render-excessive-atmospheric-inset':
+          'El valor de inset negativo supera el umbral seguro de 128px provocando sobregiro de viewport.\n' +
+          '1. Reduce el margen o inset negativo a valores dentro de los límites seguros.\n' +
+          '2. Emplea transform: translate(...) en su lugar.',
+        'render-gsap-cpu-modifier':
+          'Se detectó un modificador GSAP que fuerza cálculos continuos en la CPU por frame.\n' +
+          '1. Migra la animación a transforms nativos de GPU (x, y, scale).\n' +
+          '2. Evita modifiers o onUpdate pesados en loops de alta frecuencia.'
+      },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.scss', '.css', '.vue', '.ts']),
       projectRoot: options.projectRoot

@@ -354,6 +354,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
   constructor(options: { projectRoot?: string } = {}) {
     const root = options.projectRoot || process.cwd();
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DOCUMENTED_COMMANDS_RULES, {
         fix: false,
         fixPriority: false,
@@ -379,6 +380,11 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         'documented-cmd-unregistered-npm': 'Script npm run no registrado',
         'documented-cmd-invalid-npm-syntax': 'Comando npm directo no válido',
         'documented-cmd-unregistered-npx': 'Binario npx no registrado'
+      },
+      ruleRemediations: {
+        'documented-cmd-unregistered-npm': 'Guía de diagnóstico y remediación para documented-cmd-unregistered-npm. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'documented-cmd-invalid-npm-syntax': 'Guía de diagnóstico y remediación para documented-cmd-invalid-npm-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'documented-cmd-unregistered-npx': 'Guía de diagnóstico y remediación para documented-cmd-unregistered-npx. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['**/*.md']

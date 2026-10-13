@@ -409,6 +409,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = options.roots ?? (config.paths.srcRoots ?? []);
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -435,6 +436,12 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
                 'canonical-domain-repeated-union': 'Unión repetida sin alias canónico',
                 'canonical-domain-library-duplicate': 'Unión duplica tipo de librería',
                 'canonical-domain-subset-mismatch': 'Subconjunto de catálogo canónico'
+            },
+            ruleRemediations: {
+                'canonical-domain-collision': 'Guía de diagnóstico y remediación para canonical-domain-collision. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'canonical-domain-repeated-union': 'Guía de diagnóstico y remediación para canonical-domain-repeated-union. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'canonical-domain-library-duplicate': 'Guía de diagnóstico y remediación para canonical-domain-library-duplicate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'canonical-domain-subset-mismatch': 'Guía de diagnóstico y remediación para canonical-domain-subset-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,

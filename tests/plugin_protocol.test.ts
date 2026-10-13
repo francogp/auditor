@@ -44,6 +44,7 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
+      usesThirdPartyTool: false,
           ruleCapabilities: {
             'dummy-rule': {
               fix: false,
@@ -60,6 +61,9 @@ describe('Auditor Plugin Protocol', () => {
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
             'dummy-rule': 'Regla de prueba de extensión'
+          },
+          ruleRemediations: {
+            'dummy-rule': 'Remediacion para dummy-rule'
           }
         });
       }
@@ -96,6 +100,7 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
+      usesThirdPartyTool: false,
           ruleCapabilities: {
             'registered-rule': {
               fix: false,
@@ -115,6 +120,9 @@ describe('Auditor Plugin Protocol', () => {
           },
           ruleDescriptions: {
             'registered-rule': 'Regla registrada oficial'
+          },
+          ruleRemediations: {
+            'registered-rule': 'Guía para solucionar registered-rule.'
           }
         });
       }
@@ -145,6 +153,7 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
+      usesThirdPartyTool: false,
           ruleCapabilities: {
             'step-one': {
               fix: false,
@@ -176,6 +185,10 @@ describe('Auditor Plugin Protocol', () => {
           ruleDescriptions: {
             'step-one': 'Sub-auditor paso 1',
             'step-two': 'Sub-auditor paso 2'
+          },
+          ruleRemediations: {
+            'step-one': 'Guía para solucionar step-one.',
+            'step-two': 'Guía para solucionar step-two.'
           }
         });
       }

@@ -91,6 +91,7 @@ export class ZIndexAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = roots ?? (scssPath ? [path.dirname(scssPath)] : config.paths.srcRoots);
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(Z_INDEX_RULES, {
                 fix: true,
                 fixPriority: false,
@@ -129,6 +130,13 @@ export class ZIndexAuditor extends FileScanAuditor {
                 'z-index-read-error': 'Error al leer estilos base',
                 'z-index-hardcoded-literal': 'Valor hardcodeado sin variable',
                 'z-index-isolated-constant': 'Constante aislada fuera de Z_LAYERS'
+            },
+            ruleRemediations: {
+                'z-index-missing-var': 'Guía de diagnóstico y remediación para z-index-missing-var. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'z-index-mismatch': 'Guía de diagnóstico y remediación para z-index-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'z-index-read-error': 'Guía de diagnóstico y remediación para z-index-read-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'z-index-hardcoded-literal': 'Guía de diagnóstico y remediación para z-index-hardcoded-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'z-index-isolated-constant': 'Guía de diagnóstico y remediación para z-index-isolated-constant. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             projectRoot
         });

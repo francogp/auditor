@@ -41,6 +41,7 @@ export declare function buildProjectTopFiles(fileGroups: Record<string, Violatio
 }[];
 export declare function main(cliArgs?: string[]): Promise<Violation[]>;
 export declare function getProjectArchitectureRuleDescriptions(): Record<string, string>;
+export declare function getProjectArchitectureRuleRemediations(): Record<string, string>;
 export declare class ProjectArchitectureAuditor extends BaseAuditor<string> {
     constructor();
     runAudit(): Promise<void>;

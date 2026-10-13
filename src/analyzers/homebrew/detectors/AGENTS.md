@@ -29,6 +29,7 @@ Architecture & Tooling Engineers.
 - [`manualStepLoggingDetector.ts`](./manualStepLoggingDetector.ts): Detects manual step logging calls (`auditor-manual-step-logging`).
 - [`unmeasuredRuleDetector.ts`](./unmeasuredRuleDetector.ts): Detects violations emitted outside timing wrappers (`auditor-unmeasured-rule`).
 - [`redundantRuleEvaluatedDetector.ts`](./redundantRuleEvaluatedDetector.ts): Detects redundant markRuleEvaluated calls before wrappers (`auditor-redundant-rule-evaluated`).
+- [`thirdPartyToolContractDetector.ts`](./thirdPartyToolContractDetector.ts): Detects discrepancies between third-party tool execution and constructor contract (`auditor-third-party-tool-contract`).
 - [`ruleMeasurementScan.ts`](./ruleMeasurementScan.ts): Shared AST scanner cross-referencing violation sites, wrappers and measurements.
 
 ## Work Guidance

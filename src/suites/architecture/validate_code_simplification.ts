@@ -44,6 +44,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     const config = getAuditConfig(effectiveRoot);
     super({
+      usesThirdPartyTool: false,
       id: 'validate_code_simplification',
       name: 'Code Complexity & Readability Simplifier Validator',
       description: 'Simplificación de código, nesting y claridad sintáctica',
@@ -63,6 +64,14 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         'redundant-else-after-return': 'Cláusula else tras return o throw',
         'premature-abstraction-wrapper': 'Wrapper innecesario sin lógica',
         'massive-switch-branching': 'Switch masivo con más de 10 casos'
+      },
+      ruleRemediations: {
+        'dead-code-accumulation': 'Guía de diagnóstico y remediación para dead-code-accumulation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'boolean-trap-parameters': 'Guía de diagnóstico y remediación para boolean-trap-parameters. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'deep-nesting-control-flow': 'Guía de diagnóstico y remediación para deep-nesting-control-flow. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'redundant-else-after-return': 'Guía de diagnóstico y remediación para redundant-else-after-return. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'premature-abstraction-wrapper': 'Guía de diagnóstico y remediación para premature-abstraction-wrapper. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'massive-switch-branching': 'Guía de diagnóstico y remediación para massive-switch-branching. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, CODE_SIMPLIFICATION_CAPABILITIES),
       projectRoot: effectiveRoot,

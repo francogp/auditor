@@ -28,6 +28,7 @@ import { runWarningRatchet, initWarningBaseline } from "./auditRatchet.js";
 import { migrateLegacyAuditConfig } from "./migrateAuditConfig.js";
 import { COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV } from "../core/auditCoverage.js";
 import { getVisualWidth, renderBanner, renderConsolidatedFooter, renderMarkdownReport, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner, renderAutoFixNoticeBanner, renderAuditorsRegistryTable, renderAuditorDetailCard, renderCliHelp, formatDurationMs, formatNumber } from "../core/unifiedTheme.js";
+import { renderRuleGuideCard, renderSuiteGuideCards, renderFamilyGuideIndex, renderGlobalGuideIndex, findRuleGuide } from "./guideRenderer.js";
 import { discoverAuditors } from "./auditScanner.js";
 import { executeAuditorStreaming, isNodeInternalWarning, TaskStreamCoordinator } from "../core/streamingRunner.js";
 import { SharedAstContext } from "../core/astContext.js";
@@ -124,6 +125,8 @@ export function parseAuditFullCliArgs(activeFamilies, rawArgs = process.argv.sli
             task: { type: 'string' },
             tasks: { type: 'string' },
             suites: { type: 'string' },
+            suite: { type: 'string' },
+            guide: { type: 'string' },
             preset: { type: 'string' },
             concurrency: { type: 'string' },
             output: { type: 'string', short: 'o' },
@@ -668,9 +671,80 @@ function handleInfoCommand(targetUid, allAvailableTasks) {
     console.log(renderAuditorDetailCard(task));
     process.exit(0);
 }
+function handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies) {
+    // 1. Resolver el target consultado:
+    // - Flag explícito: --guide=<target>
+    // - Posicional tras 'guide': auditor guide <ruleId|suiteId|family>
+    // - O argumentos clave-valor: rule=<id>, suite=<id>, family=<id>
+    let target = typeof cliOptions.values.guide === 'string' && cliOptions.values.guide.trim() !== ''
+        ? cliOptions.values.guide.trim()
+        : undefined;
+    if (!target) {
+        const guideIdx = cliOptions.positionals.indexOf('guide');
+        if (guideIdx !== -1 && cliOptions.positionals.length > guideIdx + 1) {
+            target = cliOptions.positionals[guideIdx + 1]?.trim();
+        }
+    }
+    // Si se pasó suite=<suiteId> o --suite=<suiteId>
+    const suiteParam = typeof cliOptions.values.suite === 'string'
+        ? cliOptions.values.suite.trim()
+        : (typeof cliOptions.values.task === 'string' ? cliOptions.values.task.trim() : undefined);
+    if (suiteParam) {
+        const task = findTaskByUidOrName(allAvailableTasks, suiteParam);
+        if (!task) {
+            console.error(styleText('red', `\n❌ Suite no encontrada: '${suiteParam}'. Ejecuta 'auditor --list' para ver las suites disponibles.\n`));
+            process.exit(1);
+        }
+        console.log(renderSuiteGuideCards(task));
+        process.exit(0);
+    }
+    // Si se pasó family=<family> o --family=<family>
+    if (cliOptions.values.family && typeof cliOptions.values.family === 'string') {
+        const fam = cliOptions.values.family.trim();
+        const tasksInFam = allAvailableTasks.filter(t => t.family === fam);
+        if (tasksInFam.length === 0) {
+            console.error(styleText('red', `\n❌ Familia no encontrada o sin suites: '${fam}'. Familias válidas: ${activeFamilies.join(', ')}\n`));
+            process.exit(1);
+        }
+        console.log(renderFamilyGuideIndex(fam, tasksInFam));
+        process.exit(0);
+    }
+    // Si no hay target explícito, mostrar índice interactivo global
+    if (!target) {
+        console.log(renderGlobalGuideIndex(allAvailableTasks));
+        process.exit(0);
+    }
+    // 2. If target is an architectural family
+    if (activeFamilies.includes(target)) {
+        const tasksInFam = allAvailableTasks.filter(t => t.family === target);
+        console.log(renderFamilyGuideIndex(target, tasksInFam));
+        process.exit(0);
+    }
+    // 3. If target is a declared rule (high priority)
+    const ruleMatch = findRuleGuide(allAvailableTasks, target);
+    if (ruleMatch) {
+        console.log(renderRuleGuideCard(ruleMatch));
+        process.exit(0);
+    }
+    // 4. If target is an existing suite
+    const taskMatch = findTaskByUidOrName(allAvailableTasks, target);
+    if (taskMatch) {
+        console.log(renderSuiteGuideCards(taskMatch));
+        process.exit(0);
+    }
+    // 5. Target not found as rule, suite or family
+    console.error(styleText('red', `\n❌ No se encontró ninguna regla, suite ni familia con el identificador '${target}'.`));
+    console.error(styleText('dim', `   Ejecuta 'auditor guide' para ver el manual de uso y ejemplos de reglas.\n`));
+    process.exit(1);
+}
 function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config) {
     if (cliOptions.values.help || cliOptions.positionals.includes('help')) {
         handleHelpCommand(cliOptions, allAvailableTasks, activeFamilies);
+    }
+    const isGuideCommand = Boolean(cliOptions.values.guide !== undefined ||
+        cliOptions.positionals.includes('guide'));
+    if (isGuideCommand) {
+        handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies);
     }
     const isListCommand = Boolean(cliOptions.values.list ||
         cliOptions.positionals.includes('list') ||

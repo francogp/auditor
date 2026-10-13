@@ -403,6 +403,12 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     };
 
     super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: 'Fallow',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'fallow-config-workspace-diagnostic'
+      },
       ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
         fix: true,
         fixPriority: true,
@@ -436,6 +442,16 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-empty-export-list': 'Entrada vacía en ignoreExports',
         'fallow-duplicate-entry': 'Entrada o export duplicado',
         'fallow-config-workspace-diagnostic': 'Diagnóstico de workspace'
+      },
+      ruleRemediations: {
+        'fallow-config-missing': 'Guía de diagnóstico y remediación para fallow-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-config-syntax': 'Guía de diagnóstico y remediación para fallow-config-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-banned-entry-glob': 'Guía de diagnóstico y remediación para fallow-banned-entry-glob. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-stale-file': 'Guía de diagnóstico y remediación para fallow-stale-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-stale-export': 'Guía de diagnóstico y remediación para fallow-stale-export. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-empty-export-list': 'Guía de diagnóstico y remediación para fallow-empty-export-list. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-duplicate-entry': 'Guía de diagnóstico y remediación para fallow-duplicate-entry. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-config-workspace-diagnostic': 'Guía de diagnóstico y remediación para fallow-config-workspace-diagnostic. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['.fallowrc.json']

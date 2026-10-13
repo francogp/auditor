@@ -66,6 +66,7 @@ describe('AuditorHygieneAuditor', () => {
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-step-logging');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-unmeasured-rule');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-redundant-rule-evaluated');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-third-party-tool-contract');
     });
 
     it('enforces composed rule descriptions <= 50 characters', () => {
@@ -316,6 +317,34 @@ describe('AuditorHygieneAuditor', () => {
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(f => f.ruleId === ('auditor-hardcoded-config' as AuditorHomebrewRuleId));
       expect(finding).toBeDefined();
+    });
+
+    it('detects auditor-third-party-tool-contract when external tools are invoked without declaring policy', async () => {
+      const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
+      await fs.mkdir(auditorsDir, { recursive: true });
+
+      const snippet = `
+import { BaseAuditor } from '@francogp/auditor';
+export class MissingPolicyAuditor extends BaseAuditor {
+  constructor() {
+    super({
+      usesThirdPartyTool: false
+    });
+  }
+  public override async runAudit(): Promise<void> {
+    executeNodeCli('some-bin', []);
+  }
+}
+      `;
+      await fs.writeFile(path.join(auditorsDir, 'bad_third_party.ts'), snippet, 'utf8');
+
+      const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBeGreaterThan(0);
+      const finding = result.findings.find(f => f.ruleId === ('auditor-third-party-tool-contract' as AuditorHomebrewRuleId));
+      expect(finding).toBeDefined();
+      expect(finding?.context).toBe('missing-third-party-tool-policy');
     });
 
     it('respects inline // homebrew-ok: exemption annotations', async () => {

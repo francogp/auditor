@@ -93,10 +93,30 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
       criticalConfig: {},
+      // Mandatory: Whether this auditor delegates to third-party tools/binaries (true or false).
+      // If true, thirdPartyToolPolicy ({ toolName, fallbackBehavior: 'throw' | 'violation', fallbackRuleId }) is mandatory.
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'composite-missing-entry': 'Entrada faltante en registro canónico',
         'composite-parity-mismatch': 'Desincronización entre datasets',
         'composite-missing-config': 'Archivo de configuración faltante'
+      },
+      // Mandatory diagnostic and remediation guide for 100% of declared rules:
+      ruleRemediations: {
+        'composite-missing-entry':
+          'Una entrada requerida no se encuentra en el registro canónico de datos.\n' +
+          '1. Abre el archivo de dataset objetivo en src/data/.\n' +
+          '2. Verifica que todas las claves requeridas estén declaradas y no contengan valores nulos/indefinidos.\n' +
+          '3. Ejecuta "npm run auditor" para validar la consistencia.',
+        'composite-parity-mismatch':
+          'Existe una discrepancia de paridad entre los datasets comparados.\n' +
+          '1. Revisa los registros dispares reportados en el hallazgo.\n' +
+          '2. Sincroniza las claves y estructuras para que concuerden 1 a 1.\n' +
+          '3. Vuelve a ejecutar la suite.',
+        'composite-missing-config':
+          'El archivo de configuración requerido no existe.\n' +
+          '1. Ejecuta "npm run auditor:fix" o "auditor fix" para crearlo automáticamente si es auto-reparable.\n' +
+          '2. O créalo manualmente con la estructura canónica declarada en configFiles.'
       },
       coverage: {
         include: ['src/data/**/*.{ts,json}'],

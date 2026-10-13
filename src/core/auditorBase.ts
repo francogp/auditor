@@ -36,6 +36,7 @@ import {
   type FixableViolationsSummary,
   type AuditorExecutionTier,
   type DualCommandProfile,
+  type ThirdPartyToolFailurePolicy,
   deriveCanonicalAuditorScript,
   countFixableFindings,
   computeResultsFixableViolations
@@ -860,6 +861,11 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly scripts?: readonly AuditorPackageScriptRequirement[];
   readonly ruleIds: readonly TRuleId[];
   readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
+  /**
+   * Mandatory on-demand diagnostic and remediation guide for every declared rule.
+   * Explains root causes, what code patterns trigger the violation, and step-by-step resolution.
+   */
+  readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
   readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
   readonly allowedExtensions?: ReadonlySet<string>;
@@ -877,6 +883,16 @@ export interface AuditorOptions<TRuleId extends string = string> {
    * Mandatory by contract for all sub-auditors and host extensions (can be empty object {} if no critical constraints).
    */
   readonly criticalConfig: AuditorCriticalConfig;
+  /**
+   * Whether this suite relies on third-party binary/tool execution.
+   * Mandatory boolean across all sub-auditors and extensions.
+   */
+  readonly usesThirdPartyTool: boolean;
+  /**
+   * Mandatory failure policy when usesThirdPartyTool is true.
+   * Prohibited when usesThirdPartyTool is false.
+   */
+  readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
   /**
    * Files this suite is responsible for. Mandatory for direct BaseAuditor subclasses;
    * FileScanAuditor derives it from `roots` + `allowedExtensions` when omitted.
@@ -898,6 +914,7 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly message: string;
   readonly context?: string;
   readonly fixable?: boolean;
+  readonly remediation?: string;
 }
 
 /**
@@ -1113,6 +1130,32 @@ function validateAuditorRules<TRuleId extends string>(options: AuditorOptions<TR
   }
 }
 
+function validateAuditorRuleRemediations<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (!options.ruleRemediations || typeof options.ruleRemediations !== 'object' || Object.keys(options.ruleRemediations).length === 0) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'ruleRemediations' covering all its declared rules. ` +
+      `Every sub-auditor and host extension is strictly required to expose on-demand diagnostic and remediation guides.`
+    );
+  }
+  const remediations = options.ruleRemediations as Record<string, string | undefined>;
+  for (const ruleId of options.ruleIds) {
+    const guide = remediations[ruleId];
+    if (!guide || typeof guide !== 'string' || guide.trim() === '') {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] is missing a mandatory remediation guide in 'ruleRemediations' for declared rule '${ruleId}'. ` +
+        `Every rule must provide actionable guidance on root cause and steps to resolve.`
+      );
+    }
+  }
+  for (const ruleId of Object.keys(options.ruleRemediations)) {
+    if (!options.ruleIds.includes(ruleId as TRuleId)) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] defines remediation guide for rule '${ruleId}' in 'ruleRemediations' that is not declared in 'ruleIds'.`
+      );
+    }
+  }
+}
+
 function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
   if (!Array.isArray(options.scripts) || options.scripts.length === 0) {
     throw new Error(
@@ -1133,14 +1176,64 @@ function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<
   }
 }
 
+function validateAuditorThirdPartyToolContract<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+  if (typeof options.usesThirdPartyTool !== 'boolean') {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'usesThirdPartyTool' as a boolean (true or false). ` +
+      `Every sub-auditor and host extension must explicitly declare whether it delegates to third-party tools or binaries.`
+    );
+  }
+
+  if (options.usesThirdPartyTool) {
+    if (!options.thirdPartyToolPolicy || typeof options.thirdPartyToolPolicy !== 'object') {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: true but failed to provide mandatory 'thirdPartyToolPolicy'. ` +
+        `Every suite using third-party tools must declare what happens on failure or when output cannot be parsed.`
+      );
+    }
+    const policy = options.thirdPartyToolPolicy;
+    if (!policy.toolName || typeof policy.toolName !== 'string' || policy.toolName.trim() === '') {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] 'thirdPartyToolPolicy.toolName' must be a non-empty string naming the external tool.`
+      );
+    }
+    if (policy.fallbackBehavior !== 'throw' && policy.fallbackBehavior !== 'violation') {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] 'thirdPartyToolPolicy.fallbackBehavior' must be either 'throw' or 'violation'.`
+      );
+    }
+    if (policy.fallbackBehavior === 'violation') {
+      if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== 'string') {
+        throw new Error(
+          `[Auditor Contract Violation] Auditor [${options.id}] declared fallbackBehavior: 'violation' but omitted mandatory 'fallbackRuleId'.`
+        );
+      }
+      if (!options.ruleIds.includes(policy.fallbackRuleId as TRuleId)) {
+        throw new Error(
+          `[Auditor Contract Violation] Auditor [${options.id}] designated fallbackRuleId '${policy.fallbackRuleId}' which is not in declared 'ruleIds'.`
+        );
+      }
+    }
+  } else {
+    if (options.thirdPartyToolPolicy !== undefined) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. ` +
+        `Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`
+      );
+    }
+  }
+}
+
 function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>, effectiveCapabilities: AuditorCapabilities): void {
   validateAuditorIdentity(options);
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
   validateAuditorCriticalConfig(options);
+  validateAuditorThirdPartyToolContract(options);
   validateAuditorRules(options);
   validateAuditorRuleCapabilities(options);
   validateAuditorFixContract(options, effectiveCapabilities);
+  validateAuditorRuleRemediations(options);
   validateAuditorScripts(options);
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
     throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
@@ -1184,6 +1277,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly scripts: readonly AuditorPackageScriptRequirement[];
   public readonly ruleIds: readonly TRuleId[];
   public readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
+  public readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
   public readonly explicitSubAuditors?: readonly SubAuditorStep[];
   public readonly roots: readonly string[];
   public readonly allowedExtensions: ReadonlySet<string>;
@@ -1195,6 +1289,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly configKey: string;
   public readonly defaultConfig: Readonly<Record<string, unknown>>;
   public readonly criticalConfig: AuditorCriticalConfig;
+  public readonly usesThirdPartyTool: boolean;
+  public readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
   protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
   protected readonly durationsByRule: Map<TRuleId, number> = new Map();
   protected auditExecutionDurationMs?: number;
@@ -1450,6 +1546,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.configKey = options.configKey;
     this.defaultConfig = options.defaultConfig;
     this.criticalConfig = options.criticalConfig;
+    this.usesThirdPartyTool = options.usesThirdPartyTool;
+    this.thirdPartyToolPolicy = options.thirdPartyToolPolicy;
     this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
     this.configFiles = options.configFiles ?? [];
     this.scripts = effectiveScripts;
@@ -1457,6 +1555,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.fixMode = Boolean(options.fix);
     this.ruleIds = options.ruleIds;
     this.ruleDescriptions = options.ruleDescriptions;
+    this.ruleRemediations = options.ruleRemediations;
     this.explicitSubAuditors = options.subAuditors;
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
@@ -1492,6 +1591,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public getRuleCatalog(): readonly TRuleId[] {
     if (this.ruleIds.length > 0) return this.ruleIds;
     return Object.keys(this.ruleDescriptions ?? {}) as TRuleId[];
+  }
+
+  /** Returns the on-demand diagnostic and remediation guide for a declared rule. */
+  public getRuleRemediation(ruleId: TRuleId): string | undefined {
+    return this.ruleRemediations?.[ruleId];
   }
 
   /** Records a file that this suite actually analyzed (absolute or project-relative path). */
@@ -1802,6 +1906,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     const targetCol = v.col ?? v.column;
 
+    const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
+
     if (v.severity === 'error') {
       this.context.addFinding({
         severity: 'error',
@@ -1814,7 +1920,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         ruleDescription: ruleDesc,
         suiteId: this.id,
         suiteName: this.name,
-        fixable: isFixable
+        fixable: isFixable,
+        remediation: effectiveRemediation
       });
     } else {
       if (!this.context.values['errors-only']) {
@@ -1829,7 +1936,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
           ruleDescription: ruleDesc,
           suiteId: this.id,
           suiteName: this.name,
-          fixable: isFixable
+          fixable: isFixable,
+          remediation: effectiveRemediation
         });
       }
     }
@@ -2192,6 +2300,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         postRun: this.capabilities.postRun
       },
       rules: rulesRecord,
+      remediations: this.ruleRemediations ? { ...this.ruleRemediations } : undefined,
       fixableRules: this.getFixableRuleIds().map(r => String(r)),
       configKey: this.configKey,
       defaultConfig: { ...this.defaultConfig },
@@ -2200,6 +2309,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         ...(this.criticalConfig.requiredMinimums ? { requiredMinimums: this.criticalConfig.requiredMinimums } : {}),
         ...(this.criticalConfig.forbiddenOverrides ? { forbiddenOverrides: this.criticalConfig.forbiddenOverrides } : {})
       },
+      usesThirdPartyTool: this.usesThirdPartyTool,
+      thirdPartyToolPolicy: this.thirdPartyToolPolicy ? { ...this.thirdPartyToolPolicy } : undefined,
       scripts: [...this.scripts]
     };
   }
@@ -2219,7 +2330,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   public static async runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void> {
     if (isMainModule(metaUrl)) {
-      await BaseAuditor.runCli(auditor);
+      // Decouple CLI execution from synchronous ESM evaluation graph
+      // prevents unsettled top-level await deadlock cycles in Node.js 26+
+      setImmediate(async () => {
+        await BaseAuditor.runCli(auditor);
+      });
     }
   }
 }

@@ -289,6 +289,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
   constructor(rootDir?: string, options?: AgentsConfigMandateOptions) {
     const projectRoot = rootDir || process.cwd();
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
         fix: true,
         fixPriority: true,
@@ -317,6 +318,12 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-backward-compat-mandate': 'Falta mandato no retrocompatible',
         'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso',
         'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat'
+      },
+      ruleRemediations: {
+        'agents-missing-config-mandate': 'Guía de diagnóstico y remediación para agents-missing-config-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-backward-compat-mandate': 'Guía de diagnóstico y remediación para agents-missing-backward-compat-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-fake-pass-mandate': 'Guía de diagnóstico y remediación para agents-missing-fake-pass-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-chat-language-mandate': 'Guía de diagnóstico y remediación para agents-missing-chat-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['AGENTS.md']

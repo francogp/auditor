@@ -43,9 +43,13 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
           enabled: [false]
         }
       },
+      usesThirdPartyTool: false,
       ruleIds: ['sample-rule'],
       ruleDescriptions: {
         'sample-rule': 'Regla de muestra para validación'
+      },
+      ruleRemediations: {
+        'sample-rule': 'Soluciona la regla sample-rule ajustando la configuración crítica.'
       },
       ruleCapabilities: {
         'sample-rule': {
@@ -85,9 +89,13 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
       configKey: 'sample',
       defaultConfig: { enabled: true },
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleIds: ['sample-rule'],
       ruleDescriptions: {
         'sample-rule': 'Regla de muestra para validación'
+      },
+      ruleRemediations: {
+        'sample-rule': 'Soluciona la regla sample-rule ajustando la sonda.'
       },
       ruleCapabilities: {
         'sample-rule': {

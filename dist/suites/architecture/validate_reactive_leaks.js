@@ -53,6 +53,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
         const config = getAuditConfig(projectRoot);
         const effectiveRoots = resolveReactiveRoots(config, roots);
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -77,6 +78,10 @@ export class ReactiveLeaksAuditor extends FileScanAuditor {
             ruleDescriptions: {
                 'dom-event-leak': 'addEventListener sin limpiar',
                 'interval-leak': 'setInterval sin limpiar'
+            },
+            ruleRemediations: {
+                'dom-event-leak': 'Guía de diagnóstico y remediación para dom-event-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'interval-leak': 'Guía de diagnóstico y remediación para interval-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.vue']),

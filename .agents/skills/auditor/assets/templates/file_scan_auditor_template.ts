@@ -85,9 +85,22 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
       criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
+      },
+      // Mandatory diagnostic and remediation guide for 100% of declared rules:
+      ruleRemediations: {
+        'my-feature-forbidden-pattern':
+          'Se detectó un token o patrón prohibido por las normas arquitecturales.\n' +
+          '1. Abre el archivo y línea señalados.\n' +
+          '2. Reemplaza el token prohibido por la alternativa canónica del proyecto.\n' +
+          '3. Si es una excepción legítima documentada, utiliza el comentario de escape "// my-feature-ok".',
+        'my-feature-missing-attribute':
+          'Falta un atributo obligatorio requerido por las normas del componente o marcado.\n' +
+          '1. Agrega el atributo requerido en el elemento indicado.\n' +
+          '2. Verifica la documentación del componente para conocer los valores válidos.'
       },
       roots: targetRoots,
       allowedExtensions,

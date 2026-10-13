@@ -125,6 +125,7 @@ export interface AuditFinding {
   suiteName?: string;
   context?: string;
   fixable?: boolean;
+  remediation?: string;
 }
 
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'] as const;
@@ -346,6 +347,8 @@ export interface AuditorManifestDTO {
   };
   /** Catalog of evaluated rules with concise description */
   readonly rules: Readonly<Record<string, string>>;
+  /** Catalog of on-demand diagnostic and remediation guides for each rule */
+  readonly remediations?: Readonly<Record<string, string>>;
   /** Individual capabilities declared by each sub-auditor / rule */
   readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
   /** List of ruleIds that this suite can mechanically repair automatically */
@@ -367,6 +370,14 @@ export interface AuditorManifestDTO {
     readonly requiredMinimums?: Readonly<Record<string, readonly (string | number)[]>>;
     readonly forbiddenOverrides?: Readonly<Record<string, readonly unknown[]>>;
   };
+  /**
+   * Whether this suite relies on third-party binary/tool execution.
+   */
+  readonly usesThirdPartyTool?: boolean;
+  /**
+   * Declared failure policy when a third-party tool errors or its output cannot be parsed.
+   */
+  readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy;
   /**
    * Mandatory contract of package.json execution commands and scripts exposed by this auditor.
    */
@@ -407,6 +418,25 @@ export interface AuditorCriticalConfig<TConfig = unknown> {
    * Optional mechanical repair generator to re-inject minimums into the corresponding file.
    */
   readonly repair?: (currentConfig: TConfig, projectRoot: string) => TConfig | Promise<TConfig>;
+}
+
+/**
+ * Declared failure policy when a sub-auditor or extension delegates to third-party tools or binaries.
+ */
+export interface ThirdPartyToolFailurePolicy<TRuleId extends string = string> {
+  /** Canonical name of the third-party binary/tool (e.g. 'ESLint', 'Stylelint', 'html-validate', 'Fallow', 'TypeScript', 'knip') */
+  readonly toolName: string;
+  /**
+   * Action to execute when the tool crashes, returns non-zero unexpectedly, or produces unparseable output:
+   * - 'throw': Immediately throws a loud Error halting the suite (fail-loud).
+   * - 'violation': Adds a canonical AuditFinding with severity 'error' under fallbackRuleId.
+   */
+  readonly fallbackBehavior: 'throw' | 'violation';
+  /**
+   * Designated ruleId to assign the failure finding when fallbackBehavior is 'violation'.
+   * Mandatory when fallbackBehavior === 'violation'. Must be in the suite's ruleIds catalog.
+   */
+  readonly fallbackRuleId?: TRuleId;
 }
 
 /**
@@ -452,6 +482,7 @@ export interface AuditTaskDefinition {
   defaultConfig?: Readonly<Record<string, unknown>>;
   criticalConfig?: AuditorCriticalConfig;
   ruleDescriptions?: Readonly<Record<string, string>>;
+  ruleRemediations?: Readonly<Record<string, string>>;
 }
 
 export interface AuditTaskDescriptor {

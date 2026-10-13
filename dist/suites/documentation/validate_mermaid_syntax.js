@@ -71,6 +71,7 @@ const UNQUOTED_BRACE_NODE_REGEX = /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor {
     constructor(roots = ['.'], projectRoot) {
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
                 fix: true,
                 fixPriority: false,
@@ -96,6 +97,10 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor {
             ruleDescriptions: {
                 'mermaid-syntax-error': 'Error sintáctico en diagrama Mermaid',
                 'mermaid-unquoted-special-chars': 'Caracter especial sin comillas en Mermaid'
+            },
+            ruleRemediations: {
+                'mermaid-syntax-error': 'Guía de diagnóstico y remediación para mermaid-syntax-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'mermaid-unquoted-special-chars': 'Guía de diagnóstico y remediación para mermaid-unquoted-special-chars. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots,
             allowedExtensions: new Set(['.md']),

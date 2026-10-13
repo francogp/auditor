@@ -70,9 +70,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
+      usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'],
-              ruleDescriptions: { 'rule-1': 'Desc' }
+              ruleDescriptions: { 'rule-1': 'Desc' },
+              ruleRemediations: { 'rule-1': 'Remediacion' }
             });
           }
           public override async runAudit() {}
@@ -94,9 +96,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
+      usesThirdPartyTool: false,
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],
-            ruleDescriptions: { 'rule-1': 'Desc' }
+            ruleDescriptions: { 'rule-1': 'Desc' },
+            ruleRemediations: { 'rule-1': 'Remediacion' }
           });
         }
         public override async runAudit() {}
@@ -122,9 +126,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
+      usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1', 'rule-2'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              ruleRemediations: { 'rule-1': 'Remediacion', 'rule-2': 'Remediacion 2' } as never,
               scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
             });
           }
@@ -147,6 +153,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
+      usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
@@ -173,9 +180,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
+      usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
               scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
             });
           }
@@ -199,9 +208,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
+      usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
               scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_fix_missing', description: 'Mock' }]
             });
           }
@@ -226,9 +237,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
+      usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
               scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_fix_invalid', description: 'Mock' }]
             });
           }
@@ -255,11 +268,16 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
+      usesThirdPartyTool: false,
           coverage: { include: ['src/**'] },
           ruleIds: ['test-rule-alpha', 'test-rule-beta'],
           ruleDescriptions: {
             'test-rule-alpha': 'Desc alpha',
             'test-rule-beta': 'Desc beta'
+          },
+          ruleRemediations: {
+            'test-rule-alpha': 'Remediacion alpha',
+            'test-rule-beta': 'Remediacion beta'
           },
           scripts: [
             {

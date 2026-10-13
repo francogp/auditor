@@ -46,6 +46,7 @@ private readonly rootDir: string;
   constructor(rootDir?: string) {
     const projectRoot = rootDir || process.cwd();
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DOX_RULES, {
         fix: false,
         fixPriority: false,
@@ -74,6 +75,14 @@ private readonly rootDir: string;
         'dox-missing-section': 'Sección obligatoria ausente en AGENTS.md',
         'dox-section-order': 'Orden incorrecto de secciones en AGENTS.md',
         'dox-empty-section': 'Sección vacía o con contenido basura'
+      },
+      ruleRemediations: {
+        'dox-missing-agents-md': 'Guía de diagnóstico y remediación para dox-missing-agents-md. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-unregistered-child': 'Guía de diagnóstico y remediación para dox-unregistered-child. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-unindexed-file': 'Guía de diagnóstico y remediación para dox-unindexed-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-missing-section': 'Guía de diagnóstico y remediación para dox-missing-section. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-section-order': 'Guía de diagnóstico y remediación para dox-section-order. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-empty-section': 'Guía de diagnóstico y remediación para dox-empty-section. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['**/AGENTS.md']

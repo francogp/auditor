@@ -59,8 +59,12 @@ describe('Auditor Manifest & Introspection Registry', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
+      usesThirdPartyTool: false,
           ruleDescriptions: {
             'test-rule': 'Regla de prueba'
+          },
+          ruleRemediations: {
+            'test-rule': 'Remediacion para test-rule'
           }
         });
       }

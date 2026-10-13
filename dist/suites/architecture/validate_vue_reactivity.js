@@ -47,6 +47,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
             ...(config.paths.storesRoots ?? [])
         ];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -73,6 +74,12 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor {
                 'watch-reactive-property-getter': 'Propiedad observada sin getter en watch',
                 'no-async-in-computed': 'Función asíncrona dentro de computed',
                 'no-destructured-reactive': 'Desestructuración de reactive() sin toRefs'
+            },
+            ruleRemediations: {
+                'no-side-effects-in-computed': 'Guía de diagnóstico y remediación para no-side-effects-in-computed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'watch-reactive-property-getter': 'Guía de diagnóstico y remediación para watch-reactive-property-getter. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-async-in-computed': 'Guía de diagnóstico y remediación para no-async-in-computed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'no-destructured-reactive': 'Guía de diagnóstico y remediación para no-destructured-reactive. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.vue', '.ts', '.js']),

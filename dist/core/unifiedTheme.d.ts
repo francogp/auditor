@@ -52,6 +52,13 @@ export interface AuditorsRegistryTableOptions {
     readonly disabledReasons?: ReadonlyMap<string, string>;
 }
 export declare function renderAuditorsRegistryTable(tasks: readonly AuditTaskDefinition[], activeFamilies: readonly string[], options?: AuditorsRegistryTableOptions): string;
+export declare const themeStyles: {
+    boldWhite: (s: string) => string;
+    boldYellow: (s: string) => string;
+    boldCyan: (s: string) => string;
+    dim: (s: string) => string;
+    white: (s: string) => string;
+};
 /**
  * Renders a detailed inspection card for a single auditor suite (≤ 80 cols).
  */

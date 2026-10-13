@@ -23,6 +23,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor {
         const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
         const config = getAuditConfig(effectiveRoot);
         super({
+            usesThirdPartyTool: false,
             id: 'validate_web_performance',
             name: 'Web Performance & Core Web Vitals Auditor',
             description: 'Rendimiento web, Core Web Vitals y optimización frontend',
@@ -43,6 +44,15 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor {
                 'excessive-dom-depth': 'Anidamiento DOM excesivo > 16 niveles',
                 'layout-shift-dimensions': 'img o video sin width o height explícito',
                 'uncompressed-video': 'video sin preload none o formato webm'
+            },
+            ruleRemediations: {
+                'unoptimized-images': 'Guía de diagnóstico y remediación para unoptimized-images. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'font-display-missing': 'Guía de diagnóstico y remediación para font-display-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'inline-svg-bloat': 'Guía de diagnóstico y remediación para inline-svg-bloat. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'css-render-blocking': 'Guía de diagnóstico y remediación para css-render-blocking. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'excessive-dom-depth': 'Guía de diagnóstico y remediación para excessive-dom-depth. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'layout-shift-dimensions': 'Guía de diagnóstico y remediación para layout-shift-dimensions. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'uncompressed-video': 'Guía de diagnóstico y remediación para uncompressed-video. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
             projectRoot: effectiveRoot,

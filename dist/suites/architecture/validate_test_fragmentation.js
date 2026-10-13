@@ -59,6 +59,7 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             ...(config.paths.e2eRoots ?? [])
         ];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -83,6 +84,10 @@ export class TestFragmentationAuditor extends FileScanAuditor {
             ruleDescriptions: {
                 'no-fragmented-tests': 'Archivo fragmentado (<60 líneas)',
                 'unnecessary-jsdom': 'JSDOM innecesario sin Vue/DOM'
+            },
+            ruleRemediations: {
+                'no-fragmented-tests': 'Guía de diagnóstico y remediación para no-fragmented-tests. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'unnecessary-jsdom': 'Guía de diagnóstico y remediación para unnecessary-jsdom. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.js']),

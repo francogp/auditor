@@ -245,6 +245,7 @@ export class DomainTypesAuditor extends BaseAuditor {
             ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
             : (config.paths.codeRoots ?? []));
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
                 fix: false,
                 fixPriority: false,
@@ -271,6 +272,12 @@ export class DomainTypesAuditor extends BaseAuditor {
                 'domain-untyped-collection': 'Set, Map o Array sin as const',
                 'domain-ambiguous-union': 'Unión con empty-string y null',
                 'domain-unbranded-id': 'Alias de ID sin Brand nominal'
+            },
+            ruleRemediations: {
+                'domain-naked-string-primitive': 'Guía de diagnóstico y remediación para domain-naked-string-primitive. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'domain-untyped-collection': 'Guía de diagnóstico y remediación para domain-untyped-collection. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'domain-ambiguous-union': 'Guía de diagnóstico y remediación para domain-ambiguous-union. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'domain-unbranded-id': 'Guía de diagnóstico y remediación para domain-unbranded-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,

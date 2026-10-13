@@ -13,6 +13,7 @@ export interface ExtractedAuditorMetadata {
     readonly manifest?: AuditorManifestDTO;
     readonly description?: string;
     readonly ruleDescriptions?: Readonly<Record<string, string>>;
+    readonly ruleRemediations?: Readonly<Record<string, string>>;
     readonly configKey?: string;
     readonly defaultConfig?: Readonly<Record<string, unknown>>;
     readonly criticalConfig?: AuditorCriticalConfig;

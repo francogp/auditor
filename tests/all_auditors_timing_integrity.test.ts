@@ -80,6 +80,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
+      usesThirdPartyTool: false,
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: createRuleCapabilities(['rule-a', 'rule-b'], {
               fix: false,
@@ -95,6 +96,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             ruleDescriptions: {
               'rule-a': 'Rule A description',
               'rule-b': 'Rule B description'
+            },
+            ruleRemediations: {
+              'rule-a': 'Guía para solucionar rule-a.',
+              'rule-b': 'Guía para solucionar rule-b.'
             }
           });
         }
@@ -138,6 +143,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
+      usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(['scan-rule-1', 'scan-rule-2'], {
               fix: false,
               fixPriority: false,
@@ -152,6 +158,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             ruleDescriptions: {
               'scan-rule-1': 'Scan Rule 1',
               'scan-rule-2': 'Scan Rule 2'
+            },
+            ruleRemediations: {
+              'scan-rule-1': 'Guía para solucionar scan-rule-1.',
+              'scan-rule-2': 'Guía para solucionar scan-rule-2.'
             }
           });
 
@@ -222,6 +232,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
+      usesThirdPartyTool: false,
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: createRuleCapabilities(['batch-1', 'batch-2'], {
               fix: false,
@@ -237,6 +248,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             ruleDescriptions: {
               'batch-1': 'Batch 1',
               'batch-2': 'Batch 2'
+            },
+            ruleRemediations: {
+              'batch-1': 'Guía para solucionar batch-1.',
+              'batch-2': 'Guía para solucionar batch-2.'
             }
           });
         }

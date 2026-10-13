@@ -79,6 +79,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
             ...scriptAndCliDirs.map(d => `${d}/**/*.js`)
         ];
         super({
+            usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
                 fix: true,
                 fixPriority: true,
@@ -112,6 +113,11 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
                 'banned-mjs-extension': 'Archivo .mjs prohibido en TS',
                 'banned-cjs-extension': 'Archivo .cjs prohibido en ESM',
                 'banned-raw-js-script': 'Script .js sin tipar en scripts'
+            },
+            ruleRemediations: {
+                'banned-mjs-extension': 'Guía de diagnóstico y remediación para banned-mjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'banned-cjs-extension': 'Guía de diagnóstico y remediación para banned-cjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'banned-raw-js-script': 'Guía de diagnóstico y remediación para banned-raw-js-script. Revisa la incidencia detectada y ajusta el código correspondiente.',
             },
             coverage: {
                 include: coverageInclude

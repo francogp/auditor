@@ -106,6 +106,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const sfcRoots = resolveVueSfcScanRoots(roots, projectRoot);
     super({
+      usesThirdPartyTool: false,
       roots: sfcRoots,
       projectRoot,
       ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
@@ -135,6 +136,13 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         'vue-template-quote-escaping': 'Comillas sin escapar en template',
         'no-data-provider-in-template': 'Data provider en template',
         'vue-template-magic-calculation': 'Cálculo mágico en template Vue'
+      },
+      ruleRemediations: {
+        'script-setup-required': 'Guía de diagnóstico y remediación para script-setup-required. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-script-setup-exports': 'Guía de diagnóstico y remediación para no-script-setup-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'vue-template-quote-escaping': 'Guía de diagnóstico y remediación para vue-template-quote-escaping. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-data-provider-in-template': 'Guía de diagnóstico y remediación para no-data-provider-in-template. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'vue-template-magic-calculation': 'Guía de diagnóstico y remediación para vue-template-magic-calculation. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       allowedExtensions: new Set(['.vue'])
     });

@@ -201,6 +201,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
   constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
+      usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(PACKAGE_TYPES_RULES, {
         fix: false,
         fixPriority: false,
@@ -223,6 +224,11 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
         'pkg-types-resolution': 'Resolución de tipos inválida',
         'pkg-types-dual-hazard': 'Incompatibilidad dual ESM y CJS',
         'pkg-types-missing-dts': 'Entrypoint sin tipos declarados'
+      },
+      ruleRemediations: {
+        'pkg-types-resolution': 'Guía de diagnóstico y remediación para pkg-types-resolution. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-types-dual-hazard': 'Guía de diagnóstico y remediación para pkg-types-dual-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-types-missing-dts': 'Guía de diagnóstico y remediación para pkg-types-missing-dts. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
       coverage: {
         include: ['package.json', 'dist/**']
