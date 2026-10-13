@@ -205,13 +205,13 @@ export function renderBanner(title: string, subtitle?: string, borderColor?: Not
   });
 }
 
-interface NoticeBoxOptions {
+export interface NoticeBoxOptions {
   borderColor?: NoticeBoxColor;
   title: string;
   lines: string[];
 }
 
-function buildNoticeBox(options: NoticeBoxOptions): string {
+export function buildNoticeBox(options: NoticeBoxOptions): string {
   const color = options.borderColor || 'yellow';
   const header = styleText(['bold', color], options.title);
   const content = [header, ...options.lines].join('\n');

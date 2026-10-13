@@ -91,8 +91,8 @@ describe('validate_dependency_minimums', () => {
   });
 
   it('findDeclaredDependency locates libraries across sections', () => {
-    expect(findDeclaredDependency({ dependencies: { a: '^1.0.0' } }, 'a')).toEqual({ range: '^1.0.0', isProduction: true });
-    expect(findDeclaredDependency({ devDependencies: { a: '^1.0.0' } }, 'a')).toEqual({ range: '^1.0.0', isProduction: false });
+    expect(findDeclaredDependency({ dependencies: { a: '^1.0.0' } }, 'a')).toEqual({ range: '^1.0.0', isProduction: true, section: 'dependencies' });
+    expect(findDeclaredDependency({ devDependencies: { a: '^1.0.0' } }, 'a')).toEqual({ range: '^1.0.0', isProduction: false, section: 'devDependencies' });
     expect(findDeclaredDependency({}, 'a')).toBeNull();
   });
 });

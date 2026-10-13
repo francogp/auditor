@@ -30,6 +30,12 @@ export declare function renderSampleFindings(findings: readonly AuditFinding[], 
 export declare const NOTICE_BOX_COLORS: readonly ["yellow", "cyan", "red", "green", "magenta", "blue"];
 export type NoticeBoxColor = (typeof NOTICE_BOX_COLORS)[number];
 export declare function renderBanner(title: string, subtitle?: string, borderColor?: NoticeBoxColor): string;
+export interface NoticeBoxOptions {
+    borderColor?: NoticeBoxColor;
+    title: string;
+    lines: string[];
+}
+export declare function buildNoticeBox(options: NoticeBoxOptions): string;
 /**
  * Renders a prominent 80-column Box-Drawing warning banner when the automatic
  * installation of Fallow's vector embedding model fails, notifying both human

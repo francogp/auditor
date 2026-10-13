@@ -882,12 +882,21 @@ async function executeSingleAuditTask(task, ctx, taskIndex) {
     });
     return result;
 }
-function checkEarlyCliCommands() {
+async function checkEarlyCliCommands() {
     if (process.argv.includes('-v') || process.argv.includes('--version') || process.argv.includes('version')) {
         console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
         const exit = process.exit;
         exit(0);
         return;
+    }
+    const rawArgs = process.argv.slice(2);
+    if (rawArgs.some(a => a === 'dependencies' || a === 'deps' || a === '--dependencies')) {
+        const { runDependenciesReport, parseCliArgs } = await import("./report_dependencies.js");
+        const filtered = rawArgs.filter(a => a !== 'dependencies' && a !== 'deps' && a !== '--dependencies');
+        const options = parseCliArgs(filtered);
+        const report = runDependenciesReport(process.cwd(), options);
+        const exitCode = report.outdatedCount > 0 && !options.noFail && !options.commandsOnly && !options.json ? 1 : 0;
+        process.exit(exitCode);
     }
     process.env.AUDIT_SUBPROCESS = 'true';
     if (process.argv.slice(2).some(a => a === 'fix' || a === '--fix')) {
@@ -967,7 +976,7 @@ async function executeAllAuditTasks(workerTasks, postRunTasks, taskCtx, concurre
 }
 export async function runMasterAudit() {
     const bootstrapInfo = bootstrapCliProject();
-    checkEarlyCliCommands();
+    await checkEarlyCliCommands();
     await ensureProjectBootstrapped({ projectRoot: bootstrapInfo.projectRoot });
     const startTime = performance.now();
     const config = await loadAuditConfig(bootstrapInfo.projectRoot);

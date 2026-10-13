@@ -140,7 +140,7 @@ export function renderBanner(title, subtitle, borderColor) {
         padding: { top: 0, bottom: 0, left: 1, right: 1 }
     });
 }
-function buildNoticeBox(options) {
+export function buildNoticeBox(options) {
     const color = options.borderColor || 'yellow';
     const header = styleText(['bold', color], options.title);
     const content = [header, ...options.lines].join('\n');

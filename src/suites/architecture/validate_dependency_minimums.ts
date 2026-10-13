@@ -13,9 +13,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import semver from 'semver';
-import type { DependencyLocation } from 'fallow/types';
 import { BaseAuditor, type AuditorOptions, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditorMinimumVersions } from '../../core/auditorMinimums.ts';
+import { getAuditorMinimumVersions, findDeclaredDependency, type DeclaredDependency } from '../../core/auditorMinimums.ts';
+export { findDeclaredDependency, type DeclaredDependency } from '../../core/auditorMinimums.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 
 enableCompileCache();
@@ -29,31 +29,6 @@ export type DependencyMinimumsRuleId = (typeof DEPENDENCY_MINIMUMS_RULES)[number
 
 interface LockfileShape {
   readonly packages?: Readonly<Record<string, { readonly version?: string }>>; // open-record: lockfile v2/v3 package entries
-}
-
-interface DeclaredDependency {
-  readonly range: string;
-  readonly isProduction: boolean;
-}
-
-const DECLARATION_SECTIONS: Record<DependencyLocation, { readonly isProduction: boolean }> = {
-  dependencies: { isProduction: true },
-  devDependencies: { isProduction: false },
-  optionalDependencies: { isProduction: true }
-};
-
-export function findDeclaredDependency(
-  pkg: Readonly<Record<string, unknown>>, // open-record: parsed package.json
-  name: string
-): DeclaredDependency | null {
-  for (const [section, { isProduction }] of Object.entries(DECLARATION_SECTIONS)) {
-    const entries = pkg[section] as Record<string, string> | undefined; // open-record: dependency dictionary
-    const range = entries?.[name];
-    if (typeof range === 'string') {
-      return { range, isProduction };
-    }
-  }
-  return null;
 }
 
 export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMinimumsRuleId> {

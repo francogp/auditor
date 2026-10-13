@@ -138,6 +138,26 @@ The auditor exposes a conditional version floor for shared libraries (`typescrip
 - Libraries you do not use are never required (peers are optional, so npm does not install them).
 - To raise a floor for every consumer, edit the auditor `peerDependencies` and release a new tag.
 
+#### Inspecting Minimum Dependencies CLI (`auditor-dependencies`)
+
+To inspect governed dependencies, verify compliance against the current auditor floors, and obtain exact install commands:
+
+```bash
+npm run auditor:dependencies
+# or directly:
+auditor-dependencies
+# or via sub-command:
+auditor dependencies
+```
+
+Supported options:
+
+- `--json`: Emit structured JSON output (`ProjectDependenciesReport`) for scripts and AI agents.
+- `--outdated`: Filter table to display only dependencies whose declared range or installed version is below the mandatory floor.
+- `--undeclared`: Display only auditor-governed libraries not currently declared in the host project.
+- `--strict`: Exit with code 1 if any declared dependency is outdated (ideal for CI pipelines).
+- `--project=<path>`: Inspect dependencies of a specific host project directory.
+
 ### 3.2. Auditor Configuration Architecture & SSoT (`.auditor/audit.config.ts`)
 
 Every host project is governed by a Single Source of Truth configuration file located strictly at `.auditor/audit.config.ts` (or `.auditor/audit.config.json`):

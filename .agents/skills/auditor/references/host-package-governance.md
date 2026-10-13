@@ -106,6 +106,7 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 - `auditor-sync-env` (environment script synchronizer `sync_env_scripts.ts`)
 - `auditor-setup-env` (environment setup runner `setup_env.ts`)
 - `auditor-check-env` (runtime environment validator `check_environment.ts`)
+- `auditor-dependencies` (mandatory library version floor inspector `report_dependencies.ts`)
 
 ### Dynamic Script Injection via `auditor fix`
 
@@ -269,11 +270,35 @@ npm run auditor:findings -- project="../PokeBorrador"
 - **Zero Pollution**: Output reports and cache are saved strictly in `host/scratch/audits/`.
 - **Zero Premature Modifications**: Allows verifying that upstream changes do not introduce false positives on consumer code before releasing upstream versions.
 
-## Conditional Minimum Library Versions (`validate_dependency_minimums`)
+## Conditional Minimum Library Versions (`auditor-dependencies` / `validate_dependency_minimums`)
 
 - **Single Source of Truth**: the mandatory floors live in the optional `peerDependencies` (with `peerDependenciesMeta.<name>.optional: true`) of `@francogp/auditor/package.json`. `getAuditorMinimumVersions()` (`src/core/auditorMinimums.ts`) reads them dynamically and throws if the list is missing or empty. Hardcoding versions in `.ts` code is prohibited.
+- **Dedicated Inspection CLI (`auditor-dependencies`)**: host projects and AI agents can inspect, diagnose, and copy update commands without running whole-project audits or loading host extensions:
+
+  ```bash
+  # Render Box-Drawing diagnostic table:
+  auditor-dependencies
+  # or
+  npm run auditor:dependencies
+  # or
+  auditor dependencies
+
+  # Output only ready-to-run grouped install commands:
+  auditor-dependencies --commands
+
+  # Inspect a remote host repository:
+  auditor-dependencies --project="../PokeBorrador"
+
+  # Include undeclared governed libraries:
+  auditor-dependencies --all
+
+  # Output structured JSON for automation:
+  auditor-dependencies --json
+  ```
+
 - **Conditional enforcement**: if the host declares a listed library in `dependencies`, `devDependencies` or `optionalDependencies`, then (a) the floor of its declared range (`dependency-below-minimum-range`) and (b) its version in `package-lock.json` (`dependency-below-minimum-installed`) MUST be >= the auditor floor. Libraries not declared by the host are ignored; non-registry specs (`github:`, `file:`, `workspace:`) are not comparable and skipped.
 - **Remediation**: the finding message carries the exact command (e.g. `npm install -D eslint@^10.12.0`). The suite is lint-only and never mutates host files.
+- **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED. Always use `auditor-dependencies`.
 - **Raising a floor**: edit the auditor `peerDependencies`, run the build, and publish a new `vX.Y.Z` tag so hosts pick it up through `npm update`.
 - **Range parsing**: uses the `semver` package (`minVersion`, `validRange`, `lt`), never homemade regexes.
 

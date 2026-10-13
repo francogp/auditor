@@ -76,13 +76,14 @@ Architecture & Tooling Engineers.
 - **Remote Project Execution Environment (`AUDITOR_HOME_DIR`, `AUDIT_PROJECT_ROOT`)**: When the CLI triggers remote project execution via `bootstrapCliProject()` (`--project`, `project=`, `-p`), `AUDITOR_HOME_DIR` preserves the canonical absolute path of the `@francogp/auditor` installation, while `AUDIT_PROJECT_ROOT` identifies the host workspace target. Core modules and path containment checks (`safeResolve`) align with `process.cwd()` pointing to the host project root, while package binary lookups and worker scripts resolve against `AUDITOR_HOME_DIR`.
 - **npm 12+ Zero-Setup Pre-Flight Auto-Bootstrap Contract (`ensureProjectBootstrapped`)**: Due to npm 12+ blocking dependency lifecycle scripts (`preinstall`, `postinstall`), all host repository configuration scaffolding, AST section injection, and Antigravity skill registrations are executed transparently during pre-flight before audit suites run, completely eliminating reliance on package install hooks while strictly inhibiting file mutations during CI runs (`process.env.CI = 'true'`).
 - **Headless CLI Tool Execution Mandate (`--no-open`)**: Internal CLI tools, reporters, and linters (such as `reportViz` calling `fallow viz`) MUST strictly execute in headless, non-interactive mode with `--no-open`, outputting artifacts directly to `scratch/`. Spawning desktop browser windows or GUI sessions during test runs, background tasks, or automated CI execution is strictly prohibited.
+- **Conditional Minimum Library Versions Evaluation Contract (`auditorMinimums.ts`, `evaluateProjectDependencies`)**: `src/core/auditorMinimums.ts` provides the single source of truth for reading mandatory minimum library versions from the optional `peerDependencies` of `@francogp/auditor/package.json` (`getAuditorMinimumVersions()`), and evaluating target project dependencies (`evaluateProjectDependencies()`). Hardcoded version fallbacks are strictly prohibited.
 
 ## Key Files
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
 - [`npmrcAllowGit.ts`](./npmrcAllowGit.ts): Idempotent `.npmrc` `allow-git=all` writer (npm 12+ blocks git dependencies by default); used by `auditBootstrap.ts` and `auditor-update`.
 - [`auditBootstrap.ts`](./auditBootstrap.ts): Pre-flight zero-setup auto-bootstrap engine initializing configurations, skills, and hygiene defaults.
-- [`auditorMinimums.ts`](./auditorMinimums.ts): SSoT reader of mandatory minimum library versions from the auditor `peerDependencies`.
+- [`auditorMinimums.ts`](./auditorMinimums.ts): SSoT reader of mandatory minimum library versions (`peerDependencies`) and project dependency evaluation engine (`evaluateProjectDependencies`).
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).
 - [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
 - [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and `defineAuditConfig` builder.

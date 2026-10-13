@@ -13,29 +13,14 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import semver from 'semver';
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
-import { getAuditorMinimumVersions } from "../../core/auditorMinimums.js";
+import { getAuditorMinimumVersions, findDeclaredDependency } from "../../core/auditorMinimums.js";
+export { findDeclaredDependency } from "../../core/auditorMinimums.js";
 import { getPackageJson } from "../../core/packageJson.js";
 enableCompileCache();
 export const DEPENDENCY_MINIMUMS_RULES = [
     'dependency-below-minimum-range',
     'dependency-below-minimum-installed'
 ];
-const DECLARATION_SECTIONS = {
-    dependencies: { isProduction: true },
-    devDependencies: { isProduction: false },
-    optionalDependencies: { isProduction: true }
-};
-export function findDeclaredDependency(pkg, // open-record: parsed package.json
-name) {
-    for (const [section, { isProduction }] of Object.entries(DECLARATION_SECTIONS)) {
-        const entries = pkg[section]; // open-record: dependency dictionary
-        const range = entries?.[name];
-        if (typeof range === 'string') {
-            return { range, isProduction };
-        }
-    }
-    return null;
-}
 export class ValidateDependencyMinimumsAuditor extends BaseAuditor {
     constructor(options = {}) {
         super({
