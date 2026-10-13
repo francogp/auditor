@@ -64,6 +64,7 @@ import { BaseAuditor } from '../core/auditorBase.ts';
 import { evaluateSuiteStatus } from '../core/suiteGating.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
 import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import { ensureProjectBootstrapped } from '../core/auditBootstrap.ts';
 import '../core/permissionGuard.ts';
 
 enableCompileCache();
@@ -1166,10 +1167,11 @@ async function executeAllAuditTasks(
 }
 
 export async function runMasterAudit(): Promise<void> {
-  bootstrapCliProject();
+  const bootstrapInfo = bootstrapCliProject();
   checkEarlyCliCommands();
+  await ensureProjectBootstrapped({ projectRoot: bootstrapInfo.projectRoot });
   const startTime = performance.now();
-  const config = await loadAuditConfig();
+  const config = await loadAuditConfig(bootstrapInfo.projectRoot);
   assertAuditConfigComplete(config);
   const activeFamilies = getActiveFamilies(config.customFamilies);
   const cliOptions = parseAuditFullCliArgs(activeFamilies);

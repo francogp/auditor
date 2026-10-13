@@ -14,7 +14,8 @@ npm install github:francogp/auditor
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
 - **Pre-Compiled Artifacts in Git**: The `dist/` directory is pre-compiled and tracked directly in the repository with executable permissions (`100755`), ensuring immediate availability in `node_modules/.bin/` without requiring local compilation or install hooks.
-- **Antigravity Skills & Plugin Registration**: Ensure `.agents/skills.json` and `.agents/plugins.json` in the host project root declare:
+- **npm 12+ Zero-Setup Pre-Flight Auto-Bootstrap**: In npm 12+, dependency lifecycle scripts (`postinstall`) are disabled by default. `@francogp/auditor` features an automated pre-flight bootstrap engine (`ensureProjectBootstrapped`) that executes transparently whenever `auditor` or `npm run auditor` is called. It scaffolds `.auditor/audit.config.ts` on virgin projects, automatically injects missing configuration sections via AST on older projects, registers `.agents/skills.json` and `.agents/plugins.json`, and synchronizes `.gitignore` entries.
+- **Antigravity Skills & Plugin Registration**: Generated automatically during pre-flight bootstrap (or manually via `auditor-init-agent`), declaring:
 
   ```json
   // .agents/skills.json
@@ -38,7 +39,7 @@ npm install github:francogp/auditor
   }
   ```
 
-  This is committed once in the host repository (or generated automatically via `auditor-init-agent`). It allows Antigravity to dynamically discover all official skills (`.agents/skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree or using fragile symlinks.
+  This allows Antigravity AI agents to dynamically discover all official skills (`.agents/skills/*`) and rules (`AGENTS.md`) directly from `node_modules/@francogp/auditor` without duplicating files in-tree or using fragile symlinks.
 
 ---
 

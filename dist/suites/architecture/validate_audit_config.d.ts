@@ -12,7 +12,13 @@ import { type AuditEngineConfig } from '../../core/auditConfig.ts';
 import type { AuditorConfigFileRequirement, AuditTaskDefinition } from '../../core/auditContract.ts';
 export declare function formatSectionObjectLiteral(value: unknown): string;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
+export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
+export interface MissingSectionEntry {
+    tasks: AuditTaskDefinition[];
+    defaultConfig: Record<string, unknown>;
+}
+export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown): Map<string, MissingSectionEntry>;
 export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];

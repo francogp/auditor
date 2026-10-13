@@ -908,7 +908,7 @@ function reportViz(json: boolean): void {
   }
 
   try {
-    const cmd = `node "${fallowBin}" viz`;
+    const cmd = `node "${fallowBin}" viz --no-open --out "${targetHtml}"`;
     const stdout = execSync(cmd, {
       cwd: process.cwd(),
       encoding: 'utf8',
@@ -917,7 +917,9 @@ function reportViz(json: boolean): void {
     });
 
     if (fs.existsSync(defaultHtml)) {
-      fs.copyFileSync(defaultHtml, targetHtml);
+      if (!fs.existsSync(targetHtml)) {
+        fs.copyFileSync(defaultHtml, targetHtml);
+      }
       fs.unlinkSync(defaultHtml);
     }
 

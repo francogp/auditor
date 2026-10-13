@@ -30,6 +30,7 @@ export * from "./cli/init_agent.js";
 export * from "./cli/sync_env_scripts.js";
 export * from "./cli/cliUtils.js";
 export * from "./core/version.js";
+export * from "./core/auditBootstrap.js";
 export * from "./core/auditorContractConformance.js";
 export * from "./plugin/defineAuditorExtension.js";
 export { VUE_SFC_BLOCK_TAGS, parseVueSfc, parseVueSfcBlocks } from "./core/vueSfcParser.js";

@@ -21,7 +21,7 @@ import {
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
 import type { GitIgnoreRequirement, AuditorConfigFileRequirement, AuditTaskDefinition, AuditorCriticalConfig } from '../../core/auditContract.ts';
-import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
+import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from '../../core/gitignoreMatcher.ts';
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
@@ -191,7 +191,7 @@ function appendTaskDefaultConfig(
   };
 }
 
-function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>> {
+export function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>> {
   const sections: Record<string, Record<string, unknown>> = {};
   for (const task of tasks) {
     appendTaskDefaultConfig(sections, task);
@@ -234,7 +234,7 @@ export default defineAuditConfig({
 `;
 }
 
-interface MissingSectionEntry {
+export interface MissingSectionEntry {
   tasks: AuditTaskDefinition[];
   defaultConfig: Record<string, unknown>; // open-record: Default section configuration mapping
 }
@@ -253,8 +253,8 @@ function isSectionConfigured(rootKey: string, rawConfig: unknown): boolean {
   return Reflect.get(rawConfig, rootKey) !== undefined;
 }
 
-function collectMissingSections(
-  tasks: AuditTaskDefinition[],
+export function collectMissingSections(
+  tasks: readonly AuditTaskDefinition[],
   rawConfig: unknown
 ): Map<string, MissingSectionEntry> {
   const missingByRootKey = new Map<string, MissingSectionEntry>();
@@ -770,16 +770,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   }
 
   private appendMissingGitIgnoreEntries(gitignorePath: string, missing: readonly GitIgnoreRequirement[]): void {
-    let existingContent = fs.readFileSync(gitignorePath, 'utf8');
-    if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
-      existingContent += '\n';
-    }
-    const additionLines = [
-      '# Auditor tool caches (Added by @francogp/auditor)',
-      ...missing.map(e => e.pattern),
-      ''
-    ];
-    fs.writeFileSync(gitignorePath, existingContent + (existingContent.endsWith('\n\n') ? '' : '\n') + additionLines.join('\n'), 'utf8');
+    appendGitIgnoreEntries(gitignorePath, missing.map(e => e.pattern));
   }
 
   private async verifyGitIgnore(config: AuditEngineConfig): Promise<void> {
@@ -792,11 +783,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       return;
     }
 
-    const matcher = new GitIgnoreMatcher(this.projectRoot, gitignorePath);
-    const missing = applicable.filter(req => {
-      const probe = req.samplePath ?? (req.pattern.endsWith('/') ? `${req.pattern}probe.tmp` : req.pattern);
-      return !matcher.isIgnored(probe);
-    });
+    const missing = findMissingGitIgnoreRequirements(this.projectRoot, gitignorePath, applicable);
 
     if (missing.length === 0) return;
 

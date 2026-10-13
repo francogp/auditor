@@ -25,4 +25,15 @@ export declare class GitIgnoreMatcher {
      */
     isIgnored(targetPath: string): boolean;
 }
+/**
+ * Finds all gitignore requirements that are not currently covered by .gitignore.
+ */
+export declare function findMissingGitIgnoreRequirements<T extends {
+    pattern: string;
+    samplePath?: string;
+}>(projectRoot: string, gitignorePath: string, requirements: readonly T[]): T[];
+/**
+ * Appends missing gitignore entry patterns to the specified .gitignore file.
+ */
+export declare function appendGitIgnoreEntries(gitignorePath: string, patterns: readonly string[]): void;
 //# sourceMappingURL=gitignoreMatcher.d.ts.map

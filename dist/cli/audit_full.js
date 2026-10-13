@@ -35,6 +35,7 @@ import { BaseAuditor } from "../core/auditorBase.js";
 import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { AUDITOR_VERSION } from "../core/version.js";
 import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
+import { ensureProjectBootstrapped } from "../core/auditBootstrap.js";
 import "../core/permissionGuard.js";
 enableCompileCache();
 const CPU_CORE_DIVISOR = 2;
@@ -891,10 +892,11 @@ async function executeAllAuditTasks(workerTasks, postRunTasks, taskCtx, concurre
     return [...workerResults, ...postRunResults];
 }
 export async function runMasterAudit() {
-    bootstrapCliProject();
+    const bootstrapInfo = bootstrapCliProject();
     checkEarlyCliCommands();
+    await ensureProjectBootstrapped({ projectRoot: bootstrapInfo.projectRoot });
     const startTime = performance.now();
-    const config = await loadAuditConfig();
+    const config = await loadAuditConfig(bootstrapInfo.projectRoot);
     assertAuditConfigComplete(config);
     const activeFamilies = getActiveFamilies(config.customFamilies);
     const cliOptions = parseAuditFullCliArgs(activeFamilies);

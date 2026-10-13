@@ -645,7 +645,7 @@ function reportViz(json) {
         fs.mkdirSync(scratchDir, { recursive: true });
     }
     try {
-        const cmd = `node "${fallowBin}" viz`;
+        const cmd = `node "${fallowBin}" viz --no-open --out "${targetHtml}"`;
         const stdout = execSync(cmd, {
             cwd: process.cwd(),
             encoding: 'utf8',
@@ -653,7 +653,9 @@ function reportViz(json) {
             maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
         });
         if (fs.existsSync(defaultHtml)) {
-            fs.copyFileSync(defaultHtml, targetHtml);
+            if (!fs.existsSync(targetHtml)) {
+                fs.copyFileSync(defaultHtml, targetHtml);
+            }
             fs.unlinkSync(defaultHtml);
         }
         if (json) {

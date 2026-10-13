@@ -127,4 +127,31 @@ export class GitIgnoreMatcher {
         return ignored;
     }
 }
+/**
+ * Finds all gitignore requirements that are not currently covered by .gitignore.
+ */
+export function findMissingGitIgnoreRequirements(projectRoot, gitignorePath, requirements) {
+    const matcher = new GitIgnoreMatcher(projectRoot, gitignorePath);
+    return requirements.filter(req => {
+        const probe = req.samplePath ?? (req.pattern.endsWith('/') ? `${req.pattern}probe.tmp` : req.pattern);
+        return !matcher.isIgnored(probe);
+    });
+}
+/**
+ * Appends missing gitignore entry patterns to the specified .gitignore file.
+ */
+export function appendGitIgnoreEntries(gitignorePath, patterns) {
+    let existingContent = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf8') : '';
+    if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
+        existingContent += '\n';
+    }
+    // no-domain: Gitignore cache header lines
+    const additionLines = [
+        '# Auditor tool caches (Added by @francogp/auditor)',
+        ...patterns,
+        ''
+    ];
+    const separator = existingContent.length === 0 || existingContent.endsWith('\n\n') ? '' : '\n';
+    fs.writeFileSync(gitignorePath, existingContent + separator + additionLines.join('\n'), 'utf8');
+}
 //# sourceMappingURL=gitignoreMatcher.js.map

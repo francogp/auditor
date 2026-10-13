@@ -73,11 +73,15 @@ Upgrades Node.js, npm, project dependencies, and companion models to the latest 
 
 ## 3. Host Project Installation & Governance
 
-Install `@francogp/auditor` in any consumer project (Vue/React applications, backend APIs, libraries, or monorepos) as a development dependency:
+Install `@francogp/auditor` in any consumer project (Vue/React applications, backend APIs, libraries, or monorepos) as a development dependency directly from GitHub using npm:
 
-### Option A: Install from GitHub (Recommended for FrancoGP Projects & CI)
+### Direct Installation from GitHub via npm
 
-In your `package.json`:
+```bash
+npm install -D github:francogp/auditor
+```
+
+Or declare it directly in `package.json`:
 
 ```json
 {
@@ -93,15 +97,27 @@ Then install:
 npm install
 ```
 
-### Option B: Local File Link (Concurrent local development)
+### Zero-Setup Pre-Flight Auto-Bootstrap (npm 12+ Native Architecture)
 
-```json
-{
-  "devDependencies": {
-    "@francogp/auditor": "file:../auditor"
-  }
-}
+In **npm 12+**, lifecycle installation scripts (`preinstall`, `postinstall`) are blocked by default for security (`allowScripts: false`). Rather than relying on fragile install hooks, `@francogp/auditor` implements a transparent **Pre-Flight Zero-Setup Auto-Bootstrap engine** (`ensureProjectBootstrapped`) that executes automatically upon the very first run of `auditor` or `npm run auditor`:
+
+1. **Virgin Projects**: Automatically scaffolds `.auditor/audit.config.ts` with 100% of discovered sub-auditors and registered extensions initialized with their canonical default configurations.
+2. **Existing / Older Projects**: Detects newly added sub-auditors or missing configuration sections, automatically injecting them via TypeScript Compiler AST (`appendMissingSectionsToConfigFile`) without altering any existing user settings.
+3. **Antigravity AI Agent Discovery**: Automatically registers `.agents/plugins.json` and `.agents/skills.json` so Antigravity AI agents instantly discover all 52+ skills without duplicating files.
+4. **Git Hygiene**: Automatically synchronizes required `.gitignore` tool cache entries (`scratch/`, etc.).
+5. **CI/CD Safety**: In automated CI environments (`process.env.CI = 'true'`), auto-mutation is cleanly inhibited to ensure deterministic and immutable build gates.
+
+### Updating from GitHub (`auditor-update`)
+
+To pull the latest upstream updates, new architectural suites, and updated AI agent skills:
+
+```bash
+npm run auditor:update
+# or directly:
+auditor-update
 ```
+
+This runs `npm update @francogp/auditor` to resolve the latest GitHub commit, updates `package-lock.json`, verifies the installed build metadata (`auditor-version -v`), and synchronizes companion AI skills.
 
 ### Automated Package Scripts Setup (`auditor fix`)
 

@@ -30,6 +30,7 @@ export * from './cli/init_agent.ts';
 export * from './cli/sync_env_scripts.ts';
 export * from './cli/cliUtils.ts';
 export * from './core/version.ts';
+export * from './core/auditBootstrap.ts';
 export * from './core/auditorContractConformance.ts';
 export * from './plugin/defineAuditorExtension.ts';
 export { VUE_SFC_BLOCK_TAGS, type VueSfcBlockTag, type VueSfcBlock, parseVueSfc, parseVueSfcBlocks, type VueSfcBlocks as VueParsedSfcBlocks } from './core/vueSfcParser.ts';
