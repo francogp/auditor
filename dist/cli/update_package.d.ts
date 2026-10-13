@@ -15,6 +15,7 @@ export interface UpdateAuditorResult {
     projectRoot: string;
     previousVersion: string;
     newVersion: string;
+    updated: boolean;
     error?: string;
 }
 export declare function findHostProjectRoot(startDir?: string, stopAt?: string): string;

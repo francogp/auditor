@@ -109,7 +109,7 @@ In **npm 12+**, lifecycle installation scripts (`preinstall`, `postinstall`) are
 
 ### Updating from GitHub (`auditor-update`)
 
-To pull the latest upstream updates, new architectural suites, and updated AI agent skills:
+To update `@francogp/auditor` to the latest version across your project:
 
 ```bash
 npm run auditor:update
@@ -117,7 +117,49 @@ npm run auditor:update
 auditor-update
 ```
 
-This runs `npm update @francogp/auditor` to resolve the latest GitHub commit, updates `package-lock.json`, verifies the installed build metadata (`auditor-version -v`), and synchronizes companion AI skills.
+Or manually update via npm:
+
+```bash
+npm install -D github:francogp/auditor
+```
+
+### 3.2. Auditor Configuration Architecture & SSoT (`.auditor/audit.config.ts`)
+
+Every host project is governed by a Single Source of Truth configuration file located strictly at `.auditor/audit.config.ts` (or `.auditor/audit.config.json`):
+
+```typescript
+import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'MiProyecto',
+  // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
+  auditorVersion: '7.1.2-build.20261012-231518',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  documentation: {
+    language: 'en',      // Idioma del repositorio (código, docs, commits)
+    chatLanguage: 'es'   // Idioma de interacción y chat del agente de IA
+  },
+  testCoverage: {
+    enabled: true,
+    threshold: 82,
+    enforceInAudit: true
+  },
+  fallow: {
+    enforceTargets: true,
+    maxTargetPriority: 'high'
+  }
+});
+```
+
+#### Core Invariants of the Configuration Engine
+
+- **`auditorVersion` (Full SemVer + Build ID)**: Declares the exact running version and build timestamp. The pre-flight bootstrap engine (`ensureProjectBootstrapped`) dynamically detects missing or diverged versions and build IDs, synchronizing them immediately without manual intervention.
+- **Preservation vs. Critical Override Contract**: Existing user configurations (paths, thresholds, custom options) are **100% preserved**. Only properties that explicitly violate mandatory minimums or critical policies defined by sub-auditors (`criticalConfig`) are overridden or repaired.
+- **AST In-Place Injection**: When new sub-auditors or host extensions declare configuration sections (`configKey`), the engine injects missing sections via TypeScript Compiler AST using idiomatic formatting: trailing commas attached to closing braces (`},`), zero orphaned commas (`}\n,\n`), and unquoted object keys in `.ts` files.
 
 ### Automated Package Scripts Setup (`auditor fix`)
 

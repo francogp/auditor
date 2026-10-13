@@ -89,13 +89,13 @@ describe('update_package CLI', () => {
       expect(result.error).toContain('no está declarado en dependencies');
     });
 
-    it('executes npm update successfully when declared in dependencies', () => {
+    it('executes npm install with unpinned github repo when declared in dependencies', () => {
       fs.writeFileSync(
         path.join(sandboxDir, 'package.json'),
         JSON.stringify({
           name: 'host-consumer',
           dependencies: {
-            '@francogp/auditor': 'github:francogp/auditor'
+            '@francogp/auditor': 'github:francogp/auditor#v7.1.1'
           }
         })
       );
@@ -107,7 +107,9 @@ describe('update_package CLI', () => {
         JSON.stringify({ name: '@francogp/auditor', version: '1.2.0-build.20261002-152514' })
       );
 
-      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+      const spawnCalls: string[][] = [];
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((_cmd, args) => {
+        spawnCalls.push(args as string[]);
         return {
           status: 0,
           stdout: Buffer.from(''),
@@ -122,22 +124,26 @@ describe('update_package CLI', () => {
       spy.mockRestore();
 
       expect(result.success).toBe(true);
+      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor']);
       expect(result.previousVersion).toBe('1.2.0-build.20261002-152514');
       expect(result.newVersion).toBe('1.2.0-build.20261002-152514');
+      expect(result.updated).toBe(false);
     });
 
-    it('executes npm update successfully when declared in devDependencies', () => {
+    it('executes npm install -D github:francogp/auditor when declared in devDependencies', () => {
       fs.writeFileSync(
         path.join(sandboxDir, 'package.json'),
         JSON.stringify({
           name: 'host-dev-consumer',
           devDependencies: {
-            '@francogp/auditor': 'github:francogp/auditor'
+            '@francogp/auditor': 'github:francogp/auditor#v7.1.1'
           }
         })
       );
 
-      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+      const spawnCalls: string[][] = [];
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((_cmd, args) => {
+        spawnCalls.push(args as string[]);
         return {
           status: 0,
           stdout: Buffer.from(''),
@@ -152,6 +158,7 @@ describe('update_package CLI', () => {
       spy.mockRestore();
 
       expect(result.success).toBe(true);
+      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor']);
     });
 
     it('handles npm update command failure cleanly', () => {

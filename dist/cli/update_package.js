@@ -53,6 +53,7 @@ export function updateAuditorPackage(options = {}) {
             projectRoot,
             previousVersion: '(no disponible)',
             newVersion: '(no disponible)',
+            updated: false,
             error: `No se encontró package.json en ${projectRoot}`
         };
     }
@@ -67,45 +68,50 @@ export function updateAuditorPackage(options = {}) {
             projectRoot,
             previousVersion: '(no disponible)',
             newVersion: '(no disponible)',
+            updated: false,
             error: `Error al leer package.json: ${err.message}`
         };
     }
     const deps = (hostPkg.dependencies || {}); // open-record: Generic parsed package.json dependencies dictionary
     const devDeps = (hostPkg.devDependencies || {}); // open-record: Generic parsed package.json devDependencies dictionary
-    const isDeclared = Boolean(deps['@francogp/auditor'] || devDeps['@francogp/auditor']);
+    const isDeclared = Boolean(devDeps['@francogp/auditor'] || deps['@francogp/auditor']);
     if (!isDeclared) {
         return {
             success: false,
             projectRoot,
             previousVersion: '(no declarada)',
             newVersion: '(no declarada)',
+            updated: false,
             error: 'El paquete @francogp/auditor no está declarado en dependencies ni devDependencies.'
         };
     }
+    const npmArgs = ['install', '-D', 'github:francogp/auditor'];
     const previousVersion = readInstalledAuditorVersion(projectRoot);
     if (!options.silent) {
         console.log(renderBanner('@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE', `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`));
-        console.log(styleText('cyan', '📦 Ejecutando actualización nativa vía npm update @francogp/auditor...\n'));
+        console.log(styleText('cyan', `📦 Ejecutando actualización nativa vía npm ${npmArgs.join(' ')}...\n`));
     }
     const isWindows = process.platform === 'win32';
     const npmBinary = isWindows ? 'npm.cmd' : 'npm';
-    const proc = childProcess.spawnSync(npmBinary, ['update', '@francogp/auditor'], {
+    const proc = childProcess.spawnSync(npmBinary, npmArgs, {
         cwd: projectRoot,
         stdio: options.silent ? 'pipe' : 'inherit',
         encoding: 'utf-8',
         shell: isWindows
     });
     if (proc.error || proc.status !== 0) {
-        const errorMsg = proc.error?.message || proc.stderr?.toString() || `npm update falló con código de salida ${proc.status}`;
+        const errorMsg = proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} falló con código de salida ${proc.status}`;
         return {
             success: false,
             projectRoot,
             previousVersion,
             newVersion: previousVersion,
+            updated: false,
             error: errorMsg
         };
     }
     const newVersion = readInstalledAuditorVersion(projectRoot);
+    const updated = previousVersion !== newVersion;
     const agentInitResult = initAgentSkill({ targetDir: projectRoot });
     if (!options.silent && agentInitResult.created) {
         console.log(styleText('green', `🤖 ${agentInitResult.message}\n`));
@@ -119,7 +125,8 @@ export function updateAuditorPackage(options = {}) {
         success: true,
         projectRoot,
         previousVersion,
-        newVersion
+        newVersion,
+        updated
     };
 }
 export function runAuditorFixAutoRemediation(projectRoot, silent) {
@@ -166,14 +173,22 @@ export function runCli() {
         { header: 'PARÁMETRO', width: 26, render: (r) => r.param },
         { header: 'VALOR / ESTADO', width: 48, render: (r) => r.val }
     ];
+    const statusVal = result.updated
+        ? 'ACTUALIZADO EXITOSAMENTE ✅'
+        : 'YA EN LA ÚLTIMA VERSIÓN (SIN CAMBIOS) ℹ️';
     const rows = [
         { param: 'Paquete', val: '@francogp/auditor' },
         { param: 'Versión Anterior', val: result.previousVersion },
         { param: 'Versión Instalada', val: result.newVersion },
-        { param: 'Estado', val: 'ACTUALIZADO EXITOSAMENTE ✅' }
+        { param: 'Estado', val: statusVal }
     ];
     console.log('\n' + renderBoxTable(columns, rows));
-    console.log(styleText('green', `\n✔ @francogp/auditor se actualizó correctamente a v${result.newVersion}.\n`));
+    if (result.updated) {
+        console.log(styleText('green', `\n✔ @francogp/auditor se actualizó correctamente de v${result.previousVersion} a v${result.newVersion}.\n`));
+    }
+    else {
+        console.log(styleText('cyan', `\nℹ @francogp/auditor ya se encuentra en la última versión disponible (v${result.newVersion}).\n`));
+    }
     process.exit(0);
 }
 if (isMainModule(import.meta.url)) {

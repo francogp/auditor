@@ -380,14 +380,8 @@ export default defineAuditConfig({
     const virginContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
 
     const ts = await import('typescript');
-    const virginSource = ts.default.createSourceFile(
-      'audit.config.ts',
-      virginContent,
-      ts.default.ScriptTarget.Latest,
-      true,
-      ts.default.ScriptKind.TS
-    );
-    expect(virginSource.parseDiagnostics.length).toBe(0);
+    const virginTranspile = ts.default.transpileModule(virginContent, { reportDiagnostics: true });
+    expect(virginTranspile.diagnostics ?? []).toHaveLength(0);
     expect(virginContent).not.toMatch(/\}\s*\r?\n\s*,/);
     expect(virginContent).not.toMatch(/^\s*,\s*$/m);
 
@@ -412,14 +406,8 @@ export default defineAuditConfig({
     await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
     const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
 
-    const updatedSource = ts.default.createSourceFile(
-      'audit.config.ts',
-      updatedContent,
-      ts.default.ScriptTarget.Latest,
-      true,
-      ts.default.ScriptKind.TS
-    );
-    expect(updatedSource.parseDiagnostics.length).toBe(0);
+    const updatedTranspile = ts.default.transpileModule(updatedContent, { reportDiagnostics: true });
+    expect(updatedTranspile.diagnostics ?? []).toHaveLength(0);
     expect(updatedContent).not.toMatch(/\}\s*\r?\n\s*,/);
     expect(updatedContent).not.toMatch(/^\s*,\s*$/m);
   });
