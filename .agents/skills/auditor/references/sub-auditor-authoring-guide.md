@@ -1116,7 +1116,7 @@ ruleCapabilities: createUniformRuleCapabilities(RULES, {
 })
 ```
 
-1. **Pre-Build Exclusion**: `npm run auditor` and `npm run auditor:full` automatically filter out suites with `phase: 'post-build'` (`capabilities.requiresBuild === true`) so pre-build development checks never fail due to missing `dist/` folders.
+1. **Pre-Build Exclusion**: `npm run auditor` and `npm run auditor:full` automatically filter out suites with `phase: 'post-build'` (`capabilities.phase === 'post-build'`) so pre-build development checks never fail due to missing `dist/` folders.
 2. **Post-Build Chaining**: In `package.json`, the standard build script chains `auditor:full` pre-build and `auditor:post-build` post-compilation:
 
    ```json

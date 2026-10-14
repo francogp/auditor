@@ -97,7 +97,7 @@ Auto-repair analyzers (`agentsMandateAnalyzer.ts`, `validate_agents_config_manda
 
 ## 6. Mermaid Diagram Syntax & Quoted Character Governance
 
-`validate_mermaid_syntax` is active in fast lint presets (`capabilities: { md: true, lint: true }`):
+`validate_mermaid_syntax` is active in fast lint and doc presets (`speed: 'light', md: true`):
 
 - Enforces valid diagram syntax across all Markdown files.
 - Enforces strict double quotes on edge labels and node shapes containing special punctuation (`%`, `&`, `<`, `>`, `≠`, `≥`, `≤`, `(`, `)`, `/`, `?`, `!`, `+`, `:`, `=`, `#`, `*`, `~`) to prevent IDE and web renderer crashes.
@@ -106,7 +106,7 @@ Auto-repair analyzers (`agentsMandateAnalyzer.ts`, `validate_agents_config_manda
 
 ## 7. Local Git Repository Configuration Governance
 
-Governed by `validate_git_config` with `capabilities: { fix: true, fixPriority: true }`:
+Governed by `validate_git_config` declaring `fix: 'priority'`:
 
 - Enforces `core.filemode = false`, `core.autocrlf = input`, and `core.eol = lf` locally across all workspaces in `.git/config`.
 - Prevents cross-platform line ending corruption and phantom executable bit changes across Linux and Windows.
