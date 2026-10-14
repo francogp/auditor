@@ -30,6 +30,7 @@ import {
   type AuditPackageHygieneConfig,
   type AuditPackageDistributionConfig,
   type AuditPackageScriptsConfig,
+  type AuditScriptCommandsConfig,
   type AuditAccessibilityConfig,
   type AuditTypeCoverageConfig,
   type AuditGitIgnoreConfig,
@@ -237,6 +238,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     recommendedScripts: true,
     extraRequiredScripts: []
   },
+  scriptCommands: {
+    enabled: true,
+    exemptGlobs: [],
+    allowedNpxBinaries: []
+  },
   environment: {
     enabled: true
   },
@@ -365,6 +371,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'packageDistribution',
     'packageHygiene',
     'packageScripts',
+    'scriptCommands',
     'accessibility',
     'typeCoverage',
     'testCoverage',
@@ -738,6 +745,16 @@ export function buildPackageScriptsConfig(raw?: DeepPartial<AuditPackageScriptsC
   };
 }
 
+export function buildScriptCommandsConfig(raw?: DeepPartial<AuditScriptCommandsConfig>): AuditScriptCommandsConfig {
+  const def = DEFAULT_AUDIT_CONFIG.scriptCommands;
+  const p = raw ?? {};
+  return {
+    enabled: p.enabled ?? def?.enabled ?? true,
+    exemptGlobs: p.exemptGlobs ? [...p.exemptGlobs] : (def?.exemptGlobs ?? []),
+    allowedNpxBinaries: p.allowedNpxBinaries ? [...p.allowedNpxBinaries] : (def?.allowedNpxBinaries ?? [])
+  };
+}
+
 export function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Required<AuditRatchetConfig> {
   const r = raw ?? {};
   if (r.enabled !== undefined && typeof r.enabled !== 'boolean') {
@@ -1049,6 +1066,7 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     packageHygiene: buildPackageHygieneConfig(config.packageHygiene),
     packageDistribution: buildPackageDistributionConfig(config.packageDistribution),
     packageScripts: buildPackageScriptsConfig(config.packageScripts),
+    scriptCommands: buildScriptCommandsConfig(config.scriptCommands),
     environment: buildEnvironmentConfig(config.environment),
     auditorHygiene: buildAuditorHygieneConfig(config.auditorHygiene),
     scriptExtensions: buildScriptExtensionsConfig(config.scriptExtensions),

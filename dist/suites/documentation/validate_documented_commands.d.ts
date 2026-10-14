@@ -9,22 +9,11 @@
  * 3. Every `npx <bin>` references a binary installed in node_modules/.bin or declared in package.json.
  */
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { type ExtractedCommand, type NpmCommandValidationEnv } from '../../core/npmCommandUtils.ts';
+export { VALID_NPM_BUILTINS, loadPackageScriptsAndBins, type ExtractedCommand } from '../../core/npmCommandUtils.ts';
 export type DocumentedCommandsRuleId = 'documented-cmd-unregistered-npm' | 'documented-cmd-invalid-npm-syntax' | 'documented-cmd-unregistered-npx';
 export declare const DOCUMENTED_COMMANDS_RULES: readonly DocumentedCommandsRuleId[];
-export declare const VALID_NPM_BUILTINS: ReadonlySet<string>;
-export declare function loadPackageScriptsAndBins(rootDir: string): {
-    scripts: Set<string>;
-    declaredBins: Set<string>;
-    installedBins: Set<string>;
-};
-export declare const DOCUMENTED_COMMAND_TYPES: readonly ["npm-run", "npm-direct", "npx"];
-export type DocumentedCommandType = (typeof DOCUMENTED_COMMAND_TYPES)[number];
-export interface ExtractedCommand {
-    readonly lineNum: number;
-    readonly rawText: string;
-    readonly type: DocumentedCommandType;
-    readonly target: string;
-}
+export { COMMAND_INVOCATION_TYPES as DOCUMENTED_COMMAND_TYPES, type CommandInvocationType as DocumentedCommandType } from '../../core/npmCommandUtils.ts';
 export declare function extractDocumentedCommands(content: string): ExtractedCommand[];
 export interface DocumentedCommandViolation {
     readonly ruleId: DocumentedCommandsRuleId;
@@ -34,12 +23,7 @@ export interface DocumentedCommandViolation {
     readonly message: string;
     readonly context: string;
 }
-export declare function evaluateCommandViolation(cmd: ExtractedCommand, relPosix: string, env: {
-    scripts: ReadonlySet<string>;
-    declaredBins: ReadonlySet<string>;
-    installedBins: ReadonlySet<string>;
-    allowedNpx: ReadonlySet<string>;
-}): DocumentedCommandViolation | null;
+export declare function evaluateCommandViolation(cmd: ExtractedCommand, relPosix: string, env: NpmCommandValidationEnv): DocumentedCommandViolation | null;
 export declare class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCommandsRuleId> {
     private readonly rootDir;
     private readonly gitIgnoreMatcher;

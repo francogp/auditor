@@ -793,7 +793,7 @@ The framework enforces strict governance over execution speed across all suites 
 
 ### Mandatory Speed Selection in Multi-Speed Critical Suites
 
-If a suite or rule declares `critical: true` and `speed` has 2 or more declared speeds (e.g. `speed: ['light', 'full']`), the engine **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run validate:...`):
+If a suite or rule declares `critical: true` and `speed` has 2 or more declared speeds (e.g. `speed: ['light', 'full']`), the engine **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run <validate-script>`):
 
 - **Why**: Essential linters and type checkers (`validate_eslint`, `validate_type_check`, `validate_stylelint`, `validate_html_validate`, `validate_domain_types`) are indispensable for developer feedback. When invoked directly by a developer, they must run instantaneously using caching/incremental compilation (`--incremental`, `--cache`) rather than triggering an exhaustive full-tree recheck.
 - **Implementation in `BaseAuditor`**: `this.resolveRuleEffectiveSpeed(ruleId)` and `this.getExecutionTier()` inspect `caps.critical && !speedOpts.isSpeedSpecified`. When true, they select the minimum rank speed (`'light'`).

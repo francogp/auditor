@@ -44,6 +44,7 @@ Architecture & Tooling Engineers.
 - [`validate_package_distribution.test.ts`](./validate_package_distribution.test.ts): Tests for package export map and type distribution hygiene via Publint.
 - [`validate_package_hygiene.test.ts`](./validate_package_hygiene.test.ts): Tests for orphan dependency and unused script detection via Knip.
 - [`validate_package_types.test.ts`](./validate_package_types.test.ts): Tests for package types resolution and dual-package hazard checks via ATTW.
+- [`validate_script_commands.test.ts`](./validate_script_commands.test.ts): Tests for npm run, direct npm commands, and npx binary verification in scripts, Dockerfiles, and CI/CD pipelines.
 - [`validate_secret_leaks.test.ts`](./validate_secret_leaks.test.ts): Tests for high-entropy secret, API key, and token leak detection via Secretlint.
 - [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.
 - [`validate_stylelint.test.ts`](./validate_stylelint.test.ts): Tests for Stylelint CSS/SCSS hygiene, nesting, Vue 3 SFCs, and configuration overrides.

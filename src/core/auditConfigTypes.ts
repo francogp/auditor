@@ -325,6 +325,12 @@ export interface AuditPackageScriptsConfig {
   readonly extraRequiredScripts?: readonly string[];
 }
 
+export interface AuditScriptCommandsConfig {
+  readonly enabled?: boolean;
+  readonly exemptGlobs?: readonly string[];
+  readonly allowedNpxBinaries?: readonly string[];
+}
+
 export const VERSION_TARGET_TYPES = ['json', 'ts'] as const;
 export type VersionTargetType = (typeof VERSION_TARGET_TYPES)[number];
 
@@ -522,6 +528,7 @@ export interface AuditEngineConfig {
   readonly packageHygiene?: AuditPackageHygieneConfig;
   readonly packageDistribution?: AuditPackageDistributionConfig;
   readonly packageScripts?: AuditPackageScriptsConfig;
+  readonly scriptCommands?: AuditScriptCommandsConfig;
   readonly accessibility?: AuditAccessibilityConfig;
   readonly typeCoverage?: AuditTypeCoverageConfig;
   readonly version?: AuditVersionConfig;

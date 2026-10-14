@@ -15,7 +15,19 @@ import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
-import { getPackageJson } from '../../core/packageJson.ts';
+import {
+  loadPackageScriptsAndBins,
+  extractCommandsFromLine,
+  evaluateGenericCommandViolation,
+  type ExtractedCommand,
+  type NpmCommandValidationEnv
+} from '../../core/npmCommandUtils.ts';
+
+export {
+  VALID_NPM_BUILTINS,
+  loadPackageScriptsAndBins,
+  type ExtractedCommand
+} from '../../core/npmCommandUtils.ts';
 
 export type DocumentedCommandsRuleId =
   | 'documented-cmd-unregistered-npm'
@@ -28,112 +40,10 @@ export const DOCUMENTED_COMMANDS_RULES: readonly DocumentedCommandsRuleId[] = [
   'documented-cmd-unregistered-npx'
 ] as const;
 
-export const VALID_NPM_BUILTINS: ReadonlySet<string> = new Set([
-  'access', 'adduser', 'audit', 'bugs', 'cache', 'ci', 'completion',
-  'config', 'dedupe', 'deprecate', 'diff', 'dist-tag', 'docs', 'doctor',
-  'edit', 'empty', 'exec', 'explain', 'explore', 'find-dupes', 'fund',
-  'get', 'help', 'hook', 'init', 'install', 'install-ci-test', 'install-test',
-  'link', 'll', 'login', 'logout', 'ls', 'org', 'outdated', 'owner',
-  'pack', 'ping', 'pkg', 'prefix', 'profile', 'prune', 'publish', 'rebuild',
-  'repo', 'restart', 'root', 'run', 'run-script', 'search', 'set', 'set-script',
-  'shrinkwrap', 'star', 'stars', 'start', 'stop', 'team', 'test', 'token',
-  'uninstall', 'unpublish', 'unstar', 'update', 'version', 'view', 'whoami',
-  'info', 'show', 'why', 'query',
-  // short aliases:
-  'c', 'i', 'r', 'rb', 'rm', 's', 'se', 't', 'tst', 'up', 'v'
-]);
-
-function isPlaceholder(token: string): boolean {
-  if (!token) return true;
-  const t = token.trim();
-  return (
-    t.startsWith('<') ||
-    t.endsWith('>') ||
-    t.startsWith('[') ||
-    t.endsWith(']') ||
-    t.startsWith('{') ||
-    t.endsWith('}') ||
-    t.includes('...') ||
-    t.includes('${') ||
-    t.includes('*') ||
-    t === 'xxx' ||
-    t === 'target' ||
-    t === 'name' ||
-    t === 'script' ||
-    t === 'script-name' ||
-    t === 'command' ||
-    t === 'arg'
-  );
-}
-
-function addPackageDependenciesToBins(deps: Record<string, string> | undefined, declaredBins: Set<string>): void {
-  for (const dep of Object.keys(deps ?? {})) {
-    declaredBins.add(dep);
-    if (dep.startsWith('@')) {
-      const sub = dep.split('/')[1];
-      if (sub) declaredBins.add(sub);
-    }
-  }
-}
-
-function populateBinsFromPackageJson(rootDir: string, scripts: Set<string>, declaredBins: Set<string>): void {
-  const pkg = getPackageJson(rootDir);
-  if (!pkg) return;
-
-  if (pkg.scripts) {
-    for (const k of Object.keys(pkg.scripts)) scripts.add(k);
-  }
-  if (typeof pkg.bin === 'string' && pkg.name) {
-    const binName = pkg.name.startsWith('@') ? pkg.name.split('/')[1] : pkg.name;
-    if (binName) declaredBins.add(binName);
-  } else if (pkg.bin && typeof pkg.bin === 'object') {
-    for (const k of Object.keys(pkg.bin)) declaredBins.add(k);
-  }
-  addPackageDependenciesToBins(pkg.dependencies, declaredBins);
-  addPackageDependenciesToBins(pkg.devDependencies, declaredBins);
-}
-
-function populateInstalledBins(binDir: string, installedBins: Set<string>): void {
-  try {
-    if (fsSync.existsSync(binDir)) {
-      for (const entry of fsSync.readdirSync(binDir)) {
-        const cleanName = entry.replace(/\.(cmd|ps1|exe)$/i, '');
-        installedBins.add(cleanName);
-      }
-    }
-  } catch {
-    // catch-ok: Unreadable node_modules/.bin
-  }
-  installedBins.add('node');
-  installedBins.add('npm');
-  installedBins.add('npx');
-  installedBins.add('git');
-}
-
-export function loadPackageScriptsAndBins(rootDir: string): {
-  scripts: Set<string>;
-  declaredBins: Set<string>;
-  installedBins: Set<string>;
-} {
-  const scripts = new Set<string>();
-  const declaredBins = new Set<string>();
-  const installedBins = new Set<string>();
-
-  populateBinsFromPackageJson(rootDir, scripts, declaredBins);
-  populateInstalledBins(path.resolve(rootDir, 'node_modules/.bin'), installedBins);
-
-  return { scripts, declaredBins, installedBins };
-}
-
-export const DOCUMENTED_COMMAND_TYPES = ['npm-run', 'npm-direct', 'npx'] as const;
-export type DocumentedCommandType = (typeof DOCUMENTED_COMMAND_TYPES)[number];
-
-export interface ExtractedCommand {
-  readonly lineNum: number;
-  readonly rawText: string;
-  readonly type: DocumentedCommandType;
-  readonly target: string;
-}
+export {
+  COMMAND_INVOCATION_TYPES as DOCUMENTED_COMMAND_TYPES,
+  type CommandInvocationType as DocumentedCommandType
+} from '../../core/npmCommandUtils.ts';
 
 const SHELL_BLOCK_LANGS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
   'bash', 'sh', 'shell', 'zsh', 'cmd', 'powershell', 'ps1', 'terminal', 'console'
@@ -147,7 +57,7 @@ function parseBlockCommandLine(trimmed: string, isShellBlock: boolean, lineNum: 
 
   const segments = cleanLine.split(/&&|\|\||;/);
   for (const seg of segments) {
-    parseCommandLine(seg.trim(), lineNum, commands);
+    extractCommandsFromLine(seg.trim(), lineNum, commands);
   }
 }
 
@@ -155,7 +65,7 @@ function parseInlineCommands(rawLine: string, lineNum: number, commands: Extract
   const backtickRegex = /`([^`]+)`/g;
   let match: RegExpExecArray | null;
   while ((match = backtickRegex.exec(rawLine)) !== null) {
-    parseCommandLine(match[1]!.trim(), lineNum, commands);
+    extractCommandsFromLine(match[1]!.trim(), lineNum, commands);
   }
 }
 
@@ -186,45 +96,6 @@ export function extractDocumentedCommands(content: string): ExtractedCommand[] {
   return commands;
 }
 
-function parseCommandLine(text: string, lineNum: number, out: ExtractedCommand[]): void {
-  if (!text) return;
-
-  // 1. npm run <script>
-  const npmRunMatch = text.match(/\b(?:npm|pnpm|bun)\s+run\s+([^\s;&|]+)/);
-  if (npmRunMatch && npmRunMatch[1]) {
-    out.push({
-      lineNum,
-      rawText: text,
-      type: 'npm-run',
-      target: npmRunMatch[1]
-    });
-    return;
-  }
-
-  // 2. npm <cmd> (e.g. npm test, npm install, or invalid npm foo)
-  const npmDirectMatch = text.match(/\bnpm\s+([^\s;&|]+)/);
-  if (npmDirectMatch && npmDirectMatch[1]) {
-    out.push({
-      lineNum,
-      rawText: text,
-      type: 'npm-direct',
-      target: npmDirectMatch[1]
-    });
-    return;
-  }
-
-  // 3. npx <bin> (stripping CLI flags like -y, --yes, --no-install)
-  const npxMatch = text.match(/\b(?:npx|pnpm\s+dlx|yarn\s+dlx|bunx)\s+(?:-[\w-]+(?:=\S+)?\s+)*([^\s;&|]+)/);
-  if (npxMatch && npxMatch[1] && !npxMatch[1].startsWith('-')) {
-    out.push({
-      lineNum,
-      rawText: text,
-      type: 'npx',
-      target: npxMatch[1]
-    });
-  }
-}
-
 export interface DocumentedCommandViolation {
   readonly ruleId: DocumentedCommandsRuleId;
   readonly severity: 'error';
@@ -234,116 +105,38 @@ export interface DocumentedCommandViolation {
   readonly context: string;
 }
 
-function evaluateNpmRunViolation(
-  cmd: ExtractedCommand,
-  relPosix: string,
-  scripts: ReadonlySet<string>
-): DocumentedCommandViolation | null {
-  if (!scripts.has(cmd.target)) {
-    return {
-      ruleId: 'documented-cmd-unregistered-npm',
-      severity: 'error',
-      file: relPosix,
-      line: cmd.lineNum,
-      message: `El comando documentado 'npm run ${cmd.target}' no está registrado en package.json.scripts.`,
-      context: cmd.rawText
-    };
-  }
-  return null;
-}
-
-function evaluateNpmDirectViolation(
-  cmd: ExtractedCommand,
-  relPosix: string,
-  scripts: ReadonlySet<string>
-): DocumentedCommandViolation | null {
-  if (VALID_NPM_BUILTINS.has(cmd.target)) {
-    if (cmd.target === 'test' && !scripts.has('test')) {
-      return {
-        ruleId: 'documented-cmd-unregistered-npm',
-        severity: 'error',
-        file: relPosix,
-        line: cmd.lineNum,
-        message: `El comando documentado 'npm test' requiere un script 'test' en package.json.`,
-        context: cmd.rawText
-      };
-    }
-    return null;
-  }
-
-  if (scripts.has(cmd.target)) {
-    return {
-      ruleId: 'documented-cmd-invalid-npm-syntax',
-      severity: 'error',
-      file: relPosix,
-      line: cmd.lineNum,
-      message: `Sintaxis incorrecta: se documentó 'npm ${cmd.target}', pero debe ser 'npm run ${cmd.target}'.`,
-      context: cmd.rawText
-    };
-  }
-
-  return {
-    ruleId: 'documented-cmd-invalid-npm-syntax',
-    severity: 'error',
-    file: relPosix,
-    line: cmd.lineNum,
-    message: `'npm ${cmd.target}' no es un comando nativo de npm ni un script registrado.`,
-    context: cmd.rawText
-  };
-}
-
-function evaluateNpxViolation(
-  cmd: ExtractedCommand,
-  relPosix: string,
-  env: {
-    declaredBins: ReadonlySet<string>;
-    installedBins: ReadonlySet<string>;
-    allowedNpx: ReadonlySet<string>;
-  }
-): DocumentedCommandViolation | null {
-  const binName = cmd.target.startsWith('@') ? (cmd.target.split('/')[1] || cmd.target) : cmd.target;
-  const isKnownBin =
-    env.installedBins.has(binName) ||
-    env.declaredBins.has(cmd.target) ||
-    env.declaredBins.has(binName) ||
-    env.allowedNpx.has(cmd.target) ||
-    env.allowedNpx.has(binName);
-
-  if (!isKnownBin) {
-    return {
-      ruleId: 'documented-cmd-unregistered-npx',
-      severity: 'error',
-      file: relPosix,
-      line: cmd.lineNum,
-      message: `El binario documentado 'npx ${cmd.target}' no existe en node_modules/.bin ni está declarado en package.json ni en config.documentation.allowedNpxBinaries.`,
-      context: cmd.rawText
-    };
-  }
-  return null;
-}
-
 export function evaluateCommandViolation(
   cmd: ExtractedCommand,
   relPosix: string,
-  env: {
-    scripts: ReadonlySet<string>;
-    declaredBins: ReadonlySet<string>;
-    installedBins: ReadonlySet<string>;
-    allowedNpx: ReadonlySet<string>;
-  }
+  env: NpmCommandValidationEnv
 ): DocumentedCommandViolation | null {
-  if (isPlaceholder(cmd.target)) return null;
+  const genericViolation = evaluateGenericCommandViolation(cmd, env);
+  if (!genericViolation) return null;
 
-  if (cmd.type === 'npm-run') {
-    return evaluateNpmRunViolation(cmd, relPosix, env.scripts);
+  let ruleId: DocumentedCommandsRuleId;
+  let message: string;
+
+  if (genericViolation.kind === 'unregistered-npm') {
+    ruleId = 'documented-cmd-unregistered-npm';
+    message = cmd.type === 'npm-run'
+      ? `El comando documentado 'npm run ${cmd.target}' no está registrado en package.json.scripts.`
+      : `El comando documentado 'npm test' requiere un script 'test' en package.json.`;
+  } else if (genericViolation.kind === 'invalid-npm-syntax') {
+    ruleId = 'documented-cmd-invalid-npm-syntax';
+    message = genericViolation.message;
+  } else {
+    ruleId = 'documented-cmd-unregistered-npx';
+    message = `El binario documentado 'npx ${cmd.target}' no existe en node_modules/.bin ni está declarado en package.json ni en config.documentation.allowedNpxBinaries.`;
   }
-  if (cmd.type === 'npm-direct') {
-    return evaluateNpmDirectViolation(cmd, relPosix, env.scripts);
-  }
-  if (cmd.type === 'npx') {
-    return evaluateNpxViolation(cmd, relPosix, env);
-  }
-  return null;
+
+  return {
+    ruleId,
+    severity: 'error',
+    file: relPosix,
+    line: cmd.lineNum,
+    message,
+    context: cmd.rawText
+  };
 }
 
 export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCommandsRuleId> {
@@ -360,7 +153,8 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         fix: 'none',
         md: true,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_documented_commands',
       name: 'Documented Commands Validator',
@@ -405,7 +199,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
     const config = getAuditConfig(this.rootDir);
     const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map(e => e.glob);
     const allowedNpx = new Set(config.documentation?.allowedNpxBinaries ?? []);
-    const env = { scripts, declaredBins, installedBins, allowedNpx };
+    const env: NpmCommandValidationEnv = { scripts, declaredBins, installedBins, allowedNpx };
 
     interface ExtractedDocFile {
       relPosix: string;
