@@ -795,15 +795,17 @@ Every sub-auditor must be verified with negative (clean path) and positive (dirt
 
 1. **Zero Live Repository Scanning**: Never execute `auditor.execute()` on `process.cwd()` in unit tests. Use isolated synthetic snippets with `testScanFile` or temporary sandboxes via `projectRoot`.
 2. **Clean Path Verification Mandate**: Every suite must verify that clean code produces `0` errors and `passed` status (`expect(result.summary.errors).toBe(0)`, `expect(result.status).toBe('passed')`).
-3. **Dynamic 5-Point Conformance Testing (`runAuditorContractConformanceTests`)**: Host extensions can verify dynamic conformance across all their custom extension sub-auditors in 2 lines:
+3. **Dynamic 5-Point Conformance Testing (`runAuditorContractConformanceTests`)**: Host extensions can verify dynamic conformance across all their custom extension sub-auditors in 2 lines without introducing runtime test dependencies into consumer entrypoints:
 
 ```typescript
-import { describe } from 'vitest';
 import { runAuditorContractConformanceTests } from '@francogp/auditor';
 
-describe('All Auditors Dynamic Conformance', () => {
-  runAuditorContractConformanceTests();
-});
+// Detects Vitest global hooks automatically when globals: true
+runAuditorContractConformanceTests();
+
+// Or pass hooks explicitly when globals: false:
+// import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+// runAuditorContractConformanceTests({ vitest: { describe, it, expect, beforeAll, afterAll } });
 ```
 
 ---

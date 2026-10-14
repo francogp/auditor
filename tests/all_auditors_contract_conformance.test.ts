@@ -413,4 +413,44 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
       expect(checkViolationVerification('expect(a).toBe(1)')).toBe(false);
     });
   });
+
+  describe('runAuditorContractConformanceTests', () => {
+    it('executes synchronously when explicit vitest hooks are supplied', () => {
+      let describeCalled = false;
+      let itCalledCount = 0;
+      let beforeAllCalled = false;
+      let afterAllCalled = false;
+
+      const mockHooks = {
+        describe: (_name: string, fn: () => void) => {
+          describeCalled = true;
+          fn();
+        },
+        it: (_name: string, _fn: () => void | Promise<void>) => {
+          itCalledCount++;
+        },
+        expect: (_actual: unknown) => ({
+          toBeGreaterThan: () => {},
+          toHaveLength: () => {}
+        }),
+        beforeAll: (_fn: () => void | Promise<void>) => {
+          beforeAllCalled = true;
+        },
+        afterAll: (_fn: () => void | Promise<void>) => {
+          afterAllCalled = true;
+        }
+      };
+
+      const result = runAuditorContractConformanceTests({
+        projectRoot: tempDir,
+        vitest: mockHooks as never
+      });
+
+      expect(result).toBeUndefined();
+      expect(describeCalled).toBe(true);
+      expect(itCalledCount).toBe(2);
+      expect(beforeAllCalled).toBe(true);
+      expect(afterAllCalled).toBe(true);
+    });
+  });
 });

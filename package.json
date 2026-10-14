@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.2.0-build.20261014-134111",
+  "version": "8.2.1-build.20261014-194804",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -243,6 +243,7 @@
     "franc-min": "^6.2.0",
     "html-validate": "^11.16.2",
     "html-validate-vue": "^9.3.1",
+    "jsdom": "^30.1.1",
     "knip": "^6.41.0",
     "markdownlint-cli": "^0.49.1",
     "mermaid": "^12.2.0",
@@ -273,7 +274,6 @@
     "@vitest/coverage-v8": "^5.0.4",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.13.0",
-    "jsdom": "^30.1.1",
     "typescript-eslint": "^8.71.2",
     "vitest": "^5.0.4"
   },

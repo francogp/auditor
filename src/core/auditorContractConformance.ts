@@ -9,7 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from './auditorBase.ts';
 import { getAuditConfig } from './auditConfig.ts';
 import type {
@@ -605,21 +605,31 @@ async function evaluateTaskContract(
   return [...constructionErrors, ...testFileErrors];
 }
 
-/**
- * Universal Vitest runner registering dynamic conformance tests for all discovered sub-auditors and extensions.
- */
-export function runAuditorContractConformanceTests(options: { projectRoot?: string } = {}): void {
-  const projectRoot = options.projectRoot ?? process.cwd();
+export interface ConformanceVitestHooks {
+  readonly describe: typeof describe;
+  readonly it: typeof it;
+  readonly expect: typeof expect;
+  readonly beforeAll: typeof beforeAll;
+  readonly afterAll: typeof afterAll;
+}
+
+export interface AuditorContractConformanceOptions {
+  readonly projectRoot?: string;
+  readonly vitest?: ConformanceVitestHooks;
+}
+
+function registerConformanceSuite(hooks: ConformanceVitestHooks, projectRoot: string): void {
+  const { describe: describeFn, it: itFn, expect: expectFn, beforeAll: beforeAllFn, afterAll: afterAllFn } = hooks;
   let tempDir: string;
   let tasks: DiscoveredAuditorTask[] = [];
 
-  beforeAll(async () => {
+  beforeAllFn(async () => {
     process.env.AUDIT_SUBPROCESS = 'true';
     tempDir = fs.mkdtempSync(path.join(path.resolve(projectRoot, 'scratch'), 'auditor-conformance-'));
     tasks = await scanAllAuditorTasks(projectRoot);
   });
 
-  afterAll(() => {
+  afterAllFn(() => {
     delete process.env.AUDIT_SUBPROCESS;
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -628,13 +638,13 @@ export function runAuditorContractConformanceTests(options: { projectRoot?: stri
     }
   });
 
-  describe('Auditor Contract & Testing Conformance', () => {
-    it('discovers at least one auditor task to validate', () => {
-      expect(tasks.length).toBeGreaterThan(0);
+  describeFn('Auditor Contract & Testing Conformance', () => {
+    itFn('discovers at least one auditor task to validate', () => {
+      expectFn(tasks.length).toBeGreaterThan(0);
     });
 
     // Run tests for each discovered task
-    it('validates 100% of discovered sub-auditors and extensions against the strict 5-point contract', async () => {
+    itFn('validates 100% of discovered sub-auditors and extensions against the strict 5-point contract', async () => {
       const allFailures: { taskId: string; errors: string[] }[] = [];
       const config = getAuditConfig(projectRoot);
       const testRoots = config.paths?.testRoots ?? ['tests'];
@@ -653,7 +663,55 @@ export function runAuditorContractConformanceTests(options: { projectRoot?: stri
         throw new Error(`Se encontraron ${allFailures.length} sub-auditor(es) que no cumplen el contrato estricto de testing:\n\n${failureSummary}`);
       }
 
-      expect(allFailures).toHaveLength(0);
+      expectFn(allFailures).toHaveLength(0);
     });
   });
+}
+
+function resolveGlobalVitestHooks(): ConformanceVitestHooks | null {
+  const g = globalThis as Record<string, unknown>;
+  if (
+    typeof g.describe === 'function' &&
+    typeof g.it === 'function' &&
+    typeof g.expect === 'function' &&
+    typeof g.beforeAll === 'function' &&
+    typeof g.afterAll === 'function'
+  ) {
+    return {
+      describe: g.describe as typeof describe,
+      it: g.it as typeof it,
+      expect: g.expect as typeof expect,
+      beforeAll: g.beforeAll as typeof beforeAll,
+      afterAll: g.afterAll as typeof afterAll
+    };
+  }
+  return null;
+}
+
+/**
+ * Universal Vitest runner registering dynamic conformance tests for all discovered sub-auditors and extensions.
+ * Operates with zero top-level static Vitest runtime imports so consumer packages never crash when Vitest is absent.
+ */
+export function runAuditorContractConformanceTests(
+  options: AuditorContractConformanceOptions = {}
+): void | Promise<void> {
+  const projectRoot = options.projectRoot ?? process.cwd();
+  const syncHooks = options.vitest ?? resolveGlobalVitestHooks();
+  if (syncHooks) {
+    registerConformanceSuite(syncHooks, projectRoot);
+    return;
+  }
+
+  return (async () => {
+    try {
+      const vt = await import('vitest');
+      registerConformanceSuite(vt, projectRoot);
+    } catch {
+      throw new Error(
+        "runAuditorContractConformanceTests() requiere un entorno de prueba Vitest. " +
+        "Asegúrate de ejecutar tus tests con Vitest ('globals: true' en vitest.config.ts) " +
+        "o pasa las funciones de Vitest explícitamente: runAuditorContractConformanceTests({ vitest: { describe, it, expect, beforeAll, afterAll } })."
+      );
+    }
+  })();
 }

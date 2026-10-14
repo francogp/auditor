@@ -45,7 +45,10 @@ Every sub-auditor and host extension MUST be covered by a dedicated Vitest unit 
 
 - **Generic Suites (Core)**: `tests/<suite_filename>.test.ts` (e.g., `tests/validate_web_performance.test.ts`).
 - **Host Extension Plugins**: `tests/node/auditors/<suite_filename>.test.ts` or `tests/auditors/<suite_filename>.test.ts`.
-- **Meta-Conformance Test**: `tests/all_auditors_contract_conformance.test.ts` ensures that 100% of discovered suites have a matching test file.
+- **Meta-Conformance Test**: `tests/all_auditors_contract_conformance.test.ts` ensures that 100% of discovered suites have a matching test file. To verify dynamic conformance across extensions, call `runAuditorContractConformanceTests()`:
+  - **With globals (`globals: true`)**: `runAuditorContractConformanceTests();` (auto-detects hooks on `globalThis`).
+  - **With explicit hooks (`globals: false`)**: `runAuditorContractConformanceTests({ vitest: { describe, it, expect, beforeAll, afterAll } });`.
+  - Operates with zero top-level static Vitest runtime imports so consumer packages never crash when Vitest is absent.
 
 ---
 
