@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.1.0-build.20261014-124012",
+  "version": "8.2.0-build.20261014-134111",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "type": "module",
   "main": "./dist/index.js",
@@ -261,7 +261,9 @@
     "stylelint-scss": "^7.3.0",
     "type-coverage": "^2.30.3",
     "typescript": "^6.0.3",
-    "vue-eslint-parser": "^10.4.1"
+    "unbash": "^5.1.0",
+    "vue-eslint-parser": "^10.4.1",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

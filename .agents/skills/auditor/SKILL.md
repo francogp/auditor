@@ -199,29 +199,36 @@ graph TD
 
 - Every documented command in Markdown files and AI skills (`.agents/skills/**`) is validated against executable truth (`package.json.scripts`, `node_modules/.bin`).
 
-### 24. Single Source of Truth Configuration Layout (`.auditor/`)
+### 24. Executable Script & Pipeline Commands Governance (`validate_script_commands`)
+
+- Audits all executable scripts (`.sh`, `.bash`, `.zsh`, `.ps1`, `.bat`, `.cmd`), Dockerfiles, GitHub Actions workflows (`.github/workflows/*.yml`), and maintenance scripts (`scripts/**/*.{ts,js,mjs}`).
+- Uses AST parsers (`unbash` for Shell, `yaml` for CI workflows, TypeScript Compiler AST for maintenance scripts) rather than fragile regex line scanners.
+- Inspects both process runner calls (`execSync`, `spawn`, `execa`) and CLI diagnostic help guidance (`console.log`, `throw new Error(...)`), verifying scripts exist in `package.json.scripts` while ignoring generic syntax placeholders (`<comando>`, `[...]`, `$...`).
+- All rules enforce `severity: 'error'` and `fix: 'none'` with zero backwards-compatibility shims.
+
+### 25. Single Source of Truth Configuration Layout (`.auditor/`)
 
 - All auditor-owned configuration and warning baselines live in `.auditor/` (`audit.config.ts`, `audit-baseline.json`). Root-level `audit.config.ts` fails loudly.
 
-### 25. Warning Ratchet & Baseline Governance (`ratchet`)
+### 26. Warning Ratchet & Baseline Governance (`ratchet`)
 
 - Full audit (`npm run auditor` / `npm run auditor:full`) enforces **0 errors AND 0 new warnings** comparing fingerprints against `.auditor/audit-baseline.json`. Resolving existing warnings monotonically shrinks the baseline.
 
-### 26. Canonical DOX Hierarchy Governance (`validate_dox_integrity`)
+### 27. Canonical DOX Hierarchy Governance (`validate_dox_integrity`)
 
 - Every `AGENTS.md` MUST contain all 6 mandatory sections in order: `# Purpose` ➔ `## Ownership` ➔ `## Local Contracts` ➔ `## Work Guidance` ➔ `## Verification` ➔ `## Child DOX Index`.
 - Source code files in governed directories MUST be indexed under `## Key Files`.
 
-### 27. Test Execution Code Coverage Ratcheting (`validate_test_coverage`)
+### 28. Test Execution Code Coverage Ratcheting (`validate_test_coverage`)
 
 - Istanbul/C8 coverage (`coverage/coverage-final.json`) evaluated against `config.testCoverage.thresholds` (default 80%). Untested files detected as shadow code.
 
-### 28. Universal Dynamic Language Governance
+### 29. Universal Dynamic Language Governance
 
 - `config.documentation.language`: Governs repository documentation, Markdown files, DOX (`AGENTS.md`), code comments, commit messages, and release notes (default: `'en'`).
 - `config.documentation.chatLanguage`: Governs conversational chat communication and `ask_question` dialogs with the human programmer (default: `'es'`). Never conflate the two.
 
-### 29. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
+### 30. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
 - Enforces 17 strict hygiene rules eradicating homebrew utilities, hardcoded configurations, and inefficient I/O:
   1. `auditor-manual-package-json` (`getPackageJson()`)
@@ -242,12 +249,12 @@ graph TD
   16. `auditor-third-party-tool-contract` (enforces `usesThirdPartyTool` and `thirdPartyToolPolicy`)
   17. `auditor-inefficient-file-scan` (prohibits nested rule-over-files loops and blind wildcards; requires `scanFilesSinglePass` and `WorkspaceFileCache`)
 
-### 30. Grounded Fixability Contract (`fixable: boolean`)
+### 31. Grounded Fixability Contract (`fixable: boolean`)
 
 - A finding reports `fixable: true` ONLY when a programmatic automated fixer exists for that exact violation.
 - Aggregated via `BaseAuditor.countFixableFindings()` and `BaseAuditor.computeFixableViolations()`.
 
-### 31. Mandatory Safe-Commit Pipeline Protocol
+### 32. Mandatory Safe-Commit Pipeline Protocol
 
 - Manual `git commit`, `git tag`, or `git push` without running `/safe-commit` is strictly forbidden.
 

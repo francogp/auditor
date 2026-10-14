@@ -30,6 +30,7 @@ Architecture & Tooling Engineers.
 - [`report_coverage_map.test.ts`](./report_coverage_map.test.ts): Tests for audit coverage map CLI and reporting.
 - [`report_test_coverage.test.ts`](./report_test_coverage.test.ts): Tests for test execution coverage reporting CLI.
 - [`scanner_utils.test.ts`](./scanner_utils.test.ts): Tests for lexical scanner utilities, delimiter balancing, and multiline comment lookbacks.
+- [`script_command_extractors.test.ts`](./script_command_extractors.test.ts): Tests for AST and syntax-aware command extraction across Shell, YAML, Dockerfile, PowerShell, and TypeScript scripts.
 - [`streaming_runner.test.ts`](./streaming_runner.test.ts): Tests for out-of-order immediate console streaming and atomic print lock.
 - [`streaming_row_colorization.test.ts`](./streaming_row_colorization.test.ts): Tests for streaming row colorization based on error vs warning presence.
 - [`test_coverage_core.test.ts`](./test_coverage_core.test.ts): Tests for coverage metric calculation, unmapped file detection, and parsing.

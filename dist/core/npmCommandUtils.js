@@ -93,7 +93,7 @@ function populateInstalledBins(binDir, installedBins) {
         }
     }
     catch {
-        // catch-ok: Unreadable node_modules/.bin
+        // catch-ok: Unreadable node_modules/.bin directory
     }
     installedBins.add('node');
     installedBins.add('npm');
@@ -112,14 +112,15 @@ export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS = [
     'env:post-setup',
     'env:pre-setup'
 ];
-export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET = new Set(KNOWN_OPTIONAL_ENVIRONMENT_HOOKS);
+export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET = new Set(KNOWN_OPTIONAL_ENVIRONMENT_HOOKS); // runtime-set: Fast O(1) membership lookup set
 export function cleanTarget(raw) {
     let cleaned = raw.trim();
     cleaned = cleaned.replace(/^[([{<"'`]+/, '');
     cleaned = cleaned.replace(/[)\]}>"'`,.:;]+$/, '');
     return cleaned;
 }
-function extractMatchingCommands(regex, line, lineNum, type, out, filter) {
+function extractMatchingCommands(regex, line, lineNum, type, out, rawText, filter) {
+    regex.lastIndex = 0;
     let match;
     while ((match = regex.exec(line)) !== null) {
         const rawTarget = match[1];
@@ -132,25 +133,26 @@ function extractMatchingCommands(regex, line, lineNum, type, out, filter) {
             continue;
         out.push({
             lineNum,
-            rawText: line.trim(),
+            rawText,
             type,
             target
         });
     }
 }
-const NPM_RUN_REGEX = /\b(?:npm|pnpm|bun|yarn)\s+run\s+([^\s;&|'"`]+)/g;
-const NPM_DIRECT_REGEX = /\bnpm\s+([^\s;&|'"`]+)/g;
-const NPX_REGEX = /\b(?:npx|pnpm\s+dlx|yarn\s+dlx|bunx)\s+(?:-[\w-]+(?:=\S+)?\s+)*([^\s;&|'"`]+)/g;
+export const NPM_RUN_REGEX = /\b(?:npm|pnpm|bun|yarn)\s+run\s+([^\s;&|'"`]+)/g;
+export const NPM_DIRECT_REGEX = /\bnpm\s+([^\s;&|'"`]+)/g;
+export const NPX_REGEX = /\b(?:npx|pnpm\s+dlx|yarn\s+dlx|bunx)\s+(?:-[\w-]+(?:=\S+)?\s+)*([^\s;&|'"`]+)/g;
 /**
- * Extracts npm and npx invocations from a single line of text.
+ * Extracts npm and npx invocations from a single line of text (used in documentation code blocks).
  */
-export function extractCommandsFromLine(line, lineNum, out) {
+export function extractCommandsFromLine(line, lineNum, out, overrideRawText) {
     if (!line)
         return;
+    const rawText = overrideRawText ?? line.trim();
     // 1. Invocations of npm run / pnpm run / bun run / yarn run <target>
-    extractMatchingCommands(NPM_RUN_REGEX, line, lineNum, 'npm-run', out);
+    extractMatchingCommands(NPM_RUN_REGEX, line, lineNum, 'npm-run', out, rawText);
     // 2. Direct npm <cmd> (avoiding false matches when target is 'run' or flags)
-    extractMatchingCommands(NPM_DIRECT_REGEX, line, lineNum, 'npm-direct', out, (target, match) => {
+    extractMatchingCommands(NPM_DIRECT_REGEX, line, lineNum, 'npm-direct', out, rawText, (target, match) => {
         if (target === 'run')
             return false;
         if (/[=<>&|!]/.test(target))
@@ -159,65 +161,7 @@ export function extractCommandsFromLine(line, lineNum, out) {
         return !/run\s*$/i.test(prefix);
     });
     // 3. Invocations of npx <bin>
-    extractMatchingCommands(NPX_REGEX, line, lineNum, 'npx', out);
-}
-/**
- * Strips comments from an executable script line depending on file type.
- */
-function stripComments(line, ext) {
-    const lowerExt = ext.toLowerCase();
-    // Shell, PowerShell, Docker, YAML
-    if (lowerExt === '.sh' ||
-        lowerExt === '.bash' ||
-        lowerExt === '.zsh' ||
-        lowerExt === '.ps1' ||
-        lowerExt === '.yml' ||
-        lowerExt === '.yaml' ||
-        lowerExt.includes('dockerfile') ||
-        lowerExt === 'containerfile') {
-        const hashIndex = line.indexOf('#');
-        if (hashIndex !== -1) {
-            return line.slice(0, hashIndex);
-        }
-        return line;
-    }
-    // Windows Batch (.bat, .cmd)
-    if (lowerExt === '.bat' || lowerExt === '.cmd') {
-        const trimmed = line.trimStart();
-        if (/^(?:rem|::)\b/i.test(trimmed)) {
-            return '';
-        }
-        return line;
-    }
-    // TypeScript / JavaScript
-    if (lowerExt === '.ts' || lowerExt === '.js' || lowerExt === '.mjs' || lowerExt === '.cjs') {
-        const slashIndex = line.indexOf('//');
-        if (slashIndex !== -1) {
-            return line.slice(0, slashIndex);
-        }
-        const trimmed = line.trimStart();
-        if (trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-            return '';
-        }
-        return line;
-    }
-    return line;
-}
-/**
- * Extracts commands from an executable script, ignoring commented-out lines and inline comments.
- */
-export function extractScriptCommands(content, filePath) {
-    const commands = [];
-    const lines = content.split('\n');
-    const ext = path.extname(filePath) || path.basename(filePath);
-    for (let i = 0; i < lines.length; i++) {
-        const rawLine = lines[i];
-        const cleanLine = stripComments(rawLine, ext).trim();
-        if (!cleanLine)
-            continue;
-        extractCommandsFromLine(cleanLine, i + 1, commands);
-    }
-    return commands;
+    extractMatchingCommands(NPX_REGEX, line, lineNum, 'npx', out, rawText);
 }
 export function evaluateGenericCommandViolation(cmd, env) {
     if (isPlaceholder(cmd.target))

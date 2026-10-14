@@ -17,7 +17,8 @@ import path from 'node:path';
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
-import { loadPackageScriptsAndBins, extractScriptCommands, evaluateGenericCommandViolation } from "../../core/npmCommandUtils.js";
+import { loadPackageScriptsAndBins, evaluateGenericCommandViolation } from "../../core/npmCommandUtils.js";
+import { extractScriptCommands } from "../../core/scriptCommandExtractors.js";
 export const SCRIPT_COMMANDS_RULES = [
     'script-cmd-unregistered-npm',
     'script-cmd-invalid-npm-syntax',

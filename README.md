@@ -491,6 +491,8 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **`markdownlint-cli`** | `validate_markdown_lint` | Markdown style, table formatting, and document hygiene with `--fix`. |
 | **Mermaid Linter** | `validate_mermaid_syntax` | Mermaid diagram syntax and special character quoting validator (`speed=light`, `preset=md`). |
 | **`vue-tsc` / `tsc`** | `validate_type_check` | Strict compiler type checking without emitting files (`--noEmit`). |
+| **Script Commands (AST)** | `validate_script_commands` | AST-aware syntax verification for Shell (`unbash`), GitHub Actions (`yaml`), Dockerfiles, PowerShell, and TypeScript scripts (process runners & CLI help logs). |
+| **Documented Commands** | `validate_documented_commands` | Verifies that every documented `npm run <cmd>` in Markdown and AI skills exists in `package.json.scripts`. |
 
 ---
 

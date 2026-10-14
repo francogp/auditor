@@ -115,6 +115,7 @@ Architecture & Tooling Engineers.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
 - [`scannerUtils.ts`](./scannerUtils.ts): Lexical scanning utilities for advancing past string literals, comments, and multiline Vue SFC suppressions.
+- [`scriptCommandExtractors.ts`](./scriptCommandExtractors.ts): AST and syntax-aware command extractors for Shell, YAML workflows, Dockerfiles, PowerShell/Batch, and TypeScript scripts.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
 - [`suiteGating.ts`](./suiteGating.ts): Single Source of Truth for suite enablement evaluation and CLI list filter options.
 - [`terminalVisuals.ts`](./terminalVisuals.ts): Visual width calculation, text alignment, and ANSI color formatting helpers.

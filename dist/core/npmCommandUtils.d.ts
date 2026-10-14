@@ -30,14 +30,13 @@ export declare const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS: readonly ["env:post-setup
 export type KnownOptionalEnvironmentHook = (typeof KNOWN_OPTIONAL_ENVIRONMENT_HOOKS)[number];
 export declare const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET: ReadonlySet<string>;
 export declare function cleanTarget(raw: string): string;
+export declare const NPM_RUN_REGEX: RegExp;
+export declare const NPM_DIRECT_REGEX: RegExp;
+export declare const NPX_REGEX: RegExp;
 /**
- * Extracts npm and npx invocations from a single line of text.
+ * Extracts npm and npx invocations from a single line of text (used in documentation code blocks).
  */
-export declare function extractCommandsFromLine(line: string, lineNum: number, out: ExtractedCommand[]): void;
-/**
- * Extracts commands from an executable script, ignoring commented-out lines and inline comments.
- */
-export declare function extractScriptCommands(content: string, filePath: string): ExtractedCommand[];
+export declare function extractCommandsFromLine(line: string, lineNum: number, out: ExtractedCommand[], overrideRawText?: string): void;
 export type GenericCommandViolationKind = 'unregistered-npm' | 'invalid-npm-syntax' | 'unregistered-npx';
 export interface GenericCommandViolation {
     readonly kind: GenericCommandViolationKind;

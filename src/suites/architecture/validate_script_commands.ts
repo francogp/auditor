@@ -20,11 +20,11 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import {
   loadPackageScriptsAndBins,
-  extractScriptCommands,
   evaluateGenericCommandViolation,
   type ExtractedCommand,
   type NpmCommandValidationEnv
 } from '../../core/npmCommandUtils.ts';
+import { extractScriptCommands } from '../../core/scriptCommandExtractors.ts';
 
 export type ScriptCommandsRuleId =
   | 'script-cmd-unregistered-npm'

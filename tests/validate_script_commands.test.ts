@@ -311,4 +311,197 @@ describe('ValidateScriptCommandsAuditor', () => {
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
   });
+
+  it('ignores echo messages, loops, and variable assignments in shell scripts without false positives', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { build: 'tsc' }
+      }, null, 2)
+    );
+
+    const script = [
+      '#!/bin/bash',
+      'echo "Updating npm to latest version..."',
+      'echo "npm a cualquier cosa"',
+      'for bin in node npm npx corepack; do',
+      '  echo "Checking binary: $bin"',
+      'done',
+      'MSG="npm run fake"',
+      'npm run build'
+    ].join('\n');
+
+    await fs.writeFile(path.join(tempDir, 'build.sh'), script);
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('ignores workflow step names and only audits commands in run: blocks in YAML workflows', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { test: 'vitest' }
+      }, null, 2)
+    );
+
+    const workflowDir = path.join(tempDir, '.github', 'workflows');
+    await fs.mkdir(workflowDir, { recursive: true });
+
+    const workflow = [
+      'name: CI Workflow',
+      'jobs:',
+      '  build:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - name: Update npm to latest version',
+      '        run: npm ci',
+      '      - name: Run test suite with npm',
+      '        run: |',
+      '          echo "Running tests..."',
+      '          npm run test'
+    ].join('\n');
+
+    await fs.writeFile(path.join(workflowDir, 'deploy.yml'), workflow);
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('ignores Write-Host, Write-Error, and quoted strings in PowerShell scripts', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { 'env:post-setup': 'node post.js' }
+      }, null, 2)
+    );
+
+    const psScript = [
+      'Write-Host "npm a la versión más reciente"',
+      'Write-Warning "npm instalado con éxito"',
+      'Write-Error "npm sincronizada"',
+      '$msg = "npm run missing"',
+      'npm install -g npm@latest',
+      'npm ci',
+      'npm run env:post-setup'
+    ].join('\n');
+
+    await fs.writeFile(path.join(tempDir, 'setup-windows.ps1'), psScript);
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('inspects process runner calls and ignores console.log / line.includes in TypeScript scripts', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: {
+          test: 'vitest',
+          build: 'tsc'
+        },
+        devDependencies: {
+          playwright: '^1.40.0'
+        }
+      }, null, 2)
+    );
+
+    const scriptsDir = path.join(tempDir, 'scripts');
+    await fs.mkdir(scriptsDir, { recursive: true });
+
+    const tsScript = [
+      "import { execSync, spawnSync } from 'node:child_process';",
+      '',
+      '// Process runner calls (should be extracted and verified):',
+      "execSync('npm run build');",
+      "spawnSync('npx', ['playwright', 'test']);",
+      '',
+      '// Non-runner calls with npm keywords (should be completely ignored):',
+      "console.log('Use: npm run build to compile');",
+      "const line = 'some npm notice text';",
+      "if (line.includes('npm notice') || line.includes('npm warn')) {",
+      "  console.log('Ignored npm output');",
+      '}'
+    ].join('\n');
+
+    await fs.writeFile(path.join(scriptsDir, 'run_simulations.ts'), tsScript);
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
+
+  it('detects violations in process runner calls inside TypeScript scripts', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { build: 'tsc' }
+      }, null, 2)
+    );
+
+    const scriptsDir = path.join(tempDir, 'scripts');
+    await fs.mkdir(scriptsDir, { recursive: true });
+
+    const tsScript = [
+      "import { execSync } from 'node:child_process';",
+      "execSync('npm run non-existent-script');"
+    ].join('\n');
+
+    await fs.writeFile(path.join(scriptsDir, 'deploy.ts'), tsScript);
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBeGreaterThan(0);
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npm');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain('non-existent-script');
+  });
+
+  it('detects unregistered npm run in CLI help logs while ignoring syntax placeholders', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({
+        name: 'test-pkg',
+        scripts: { 'db:migrate': 'node run.js' }
+      }, null, 2)
+    );
+
+    const scriptsDir = path.join(tempDir, 'scripts');
+    await fs.mkdir(scriptsDir, { recursive: true });
+
+    const tsScript = [
+      "console.log('USO: npm run <comando>');",
+      "console.log('Ejemplo: npm run database:update');"
+    ].join('\n');
+
+    await fs.writeFile(path.join(scriptsDir, 'help.ts'), tsScript);
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(1);
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npm');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain('database:update');
+  });
 });
+
