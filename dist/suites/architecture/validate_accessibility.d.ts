@@ -11,11 +11,9 @@ export declare class ValidateAccessibilityAuditor extends BaseAuditor<Accessibil
         fix?: boolean;
     });
     runAudit(): Promise<void>;
-    private collectScannableVueFiles;
     private buildEffectiveRules;
     private executeEslintOnVueFiles;
     private processLintResults;
     private auditIndexViewport;
-    private collectVueFiles;
 }
 //# sourceMappingURL=validate_accessibility.d.ts.map

@@ -1,5 +1,5 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath, isPathExempt } from '../../core/safePath.ts';
@@ -64,7 +64,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
         'heavy-count-queries': 'Guía de diagnóstico y remediación para heavy-count-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
         'unindexed-order-by': 'Guía de diagnóstico y remediación para unindexed-order-by. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
-      ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.queryPerformance?.exemptPaths

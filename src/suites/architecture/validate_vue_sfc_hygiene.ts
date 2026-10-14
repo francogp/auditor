@@ -110,15 +110,12 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       roots: sfcRoots,
       projectRoot,
       ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',

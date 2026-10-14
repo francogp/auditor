@@ -30,7 +30,14 @@ export async function extractGitIgnoreRequirementsFromFile(fullPath) {
 }
 function resolveTargetSuiteIds(options, combinedPresets) {
     let targetSuiteIds = null;
-    if (options.preset && options.preset !== 'lint' && options.preset !== 'md' && options.preset in combinedPresets) {
+    if (options.preset &&
+        options.preset !== 'lint' &&
+        options.preset !== 'full' &&
+        options.preset !== 'precommit' &&
+        options.preset !== 'md' &&
+        options.preset !== 'post-build' &&
+        options.preset !== 'build' &&
+        options.preset in combinedPresets) {
         targetSuiteIds = new Set(combinedPresets[options.preset]);
     }
     if (options.suites && options.suites.length > 0) {

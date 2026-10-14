@@ -29,8 +29,22 @@ export const SIMILAR_CODE_RULES = [
     'fallow-similar-code-failed'
 ];
 export const SIMILAR_CODE_RULE_CAPABILITIES = {
-    'fallow-similar-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: true, requiresBuild: false, postRun: false },
-    'fallow-similar-code-failed': { fix: true, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: true, requiresBuild: false, postRun: false }
+    'fallow-similar-code': {
+        speed: 'heavy',
+        phase: 'normal',
+        fix: 'none',
+        md: false,
+        ast: false,
+        changedSince: false
+    },
+    'fallow-similar-code-failed': {
+        speed: 'heavy',
+        phase: 'normal',
+        fix: 'normal',
+        md: false,
+        ast: false,
+        changedSince: false
+    }
 };
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;

@@ -59,9 +59,9 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Git');
       expect(auditor.icon).toBe('🌿');
-      expect(auditor.capabilities.fixPriority).toBe(true);
-      expect(auditor.capabilities.fix).toBe(true);
-      expect(auditor.capabilities.lint).toBe(true);
+      expect(auditor.capabilities.fix).toBe('priority');
+      expect(auditor.capabilities.fix).not.toBe('none');
+      expect(auditor.capabilities.speed).toBe('light');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
 
       for (const ruleId of GIT_CONFIG_RULES) {

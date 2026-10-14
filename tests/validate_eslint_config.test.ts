@@ -25,8 +25,8 @@ describe('ValidateEslintConfigAuditor & auditEslintConfigContent', () => {
       const auditor = new ValidateEslintConfigAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_eslint_config');
       expect(auditor.ruleIds).toEqual(ESLINT_CONFIG_RULES);
-      expect(auditor.capabilities.lint).toBe(true);
-      expect(auditor.capabilities.fix).toBe(true);
+      expect(auditor.capabilities.speed).toBe('light');
+      expect(auditor.capabilities.fix).not.toBe('none');
     });
   });
 

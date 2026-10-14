@@ -942,15 +942,12 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ruleIds, {
-        fix: true,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'normal',
         md: true,
         ast: true,
-        changedSince: true,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: true
       }, fixableRuleIds),
       fixableRuleIds,
       ruleIds,

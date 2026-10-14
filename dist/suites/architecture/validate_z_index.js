@@ -93,15 +93,12 @@ export class ZIndexAuditor extends FileScanAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(Z_INDEX_RULES, {
-                fix: true,
-                fixPriority: false,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, [
                 'z-index-missing-var',
                 'z-index-mismatch',

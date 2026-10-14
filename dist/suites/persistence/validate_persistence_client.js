@@ -43,15 +43,12 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_persistence_client',
             name: 'Client-Side Web Storage & Persistence Hygiene',

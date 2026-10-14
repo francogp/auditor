@@ -20,6 +20,7 @@ export declare function resolveActiveCoverageRunId(): string | undefined;
 export declare function toPosixRelative(projectRoot: string, filePath: string): string;
 export declare function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean;
 export declare const DEFAULT_NON_AUDITABLE_GLOBS: readonly string[];
+export declare const FAST_NON_AUDITABLE_EXTENSIONS: ReadonlySet<string>;
 /** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
 export declare function isAuditableCodebaseFile(relPosixPath: string, customExemptGlobs?: readonly string[]): boolean;
 /** Whether a file falls inside the static coverage declaration of a suite. */

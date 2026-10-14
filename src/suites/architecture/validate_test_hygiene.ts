@@ -77,15 +77,12 @@ constructor() {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
 id: 'validate_test_hygiene',
       name: 'Test Hygiene & Simulation Integrity Validator',

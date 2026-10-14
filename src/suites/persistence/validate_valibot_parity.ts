@@ -268,15 +268,12 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_valibot_parity',
       name: 'Valibot Schema & Persistence Parity Auditor',

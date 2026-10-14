@@ -84,15 +84,12 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
       usesThirdPartyTool: false,
       projectRoot: options.projectRoot,
       ruleCapabilities: createRuleCapabilities(PACKAGE_DISTRIBUTION_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'post-build',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: true,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_package_distribution',
       name: 'Package Distribution & Exports Hygiene Auditor',

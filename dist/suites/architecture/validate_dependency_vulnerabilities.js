@@ -112,15 +112,12 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
             },
             projectRoot: options.projectRoot,
             ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: false,
+                speed: 'heavy',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: true,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_dependency_vulnerabilities',
             name: 'Dependency Vulnerabilities & CVE Auditor',

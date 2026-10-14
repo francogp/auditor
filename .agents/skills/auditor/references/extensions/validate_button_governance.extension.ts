@@ -41,15 +41,12 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
       icon: '🔘',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(BUTTON_GOVERNANCE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: true,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: true
       }),
       ruleIds: BUTTON_GOVERNANCE_RULES,
       packageName: 'Botones',

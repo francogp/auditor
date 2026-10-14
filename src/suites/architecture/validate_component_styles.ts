@@ -529,15 +529,12 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(COMPONENT_STYLE_RULES, {
-        fix: true,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }, ['banned-plain-css-style']),
       fixableRuleIds: ['banned-plain-css-style'],
       fix: options.fix,

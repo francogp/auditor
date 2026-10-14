@@ -41,9 +41,9 @@ flowchart TD
 
 ### 2.1 Base Classes & Execution Primitives (`@francogp/auditor`)
 
-#### `this.runSubAuditorSync(ruleId, fn)` & `this.runSubAuditor(ruleId, asyncFn)`
+#### `this.runSubAuditorSync(ruleId, fn)`, `this.runSubAuditor(ruleId, asyncFn)` & `this.scanFilesSinglePass(files, handlers)`
 
-Mandatory execution wrappers provided by `BaseAuditor`. Measures the exact microsecond runtime of `fn` using `performance.now()`, records the empirical duration in the superclass ledger (`durationsByRule`), and automatically marks `ruleId` as evaluated:
+Mandatory execution wrappers provided by `BaseAuditor`. Measures the exact microsecond runtime of `fn` using `performance.now()`, records the empirical duration in the superclass ledger (`durationsByRule`), and automatically marks `ruleId` as evaluated. For multi-rule suites scanning the same file list, `await this.scanFilesSinglePass(files, handlers)` reads each file once from the in-RAM `WorkspaceFileCache` and runs all rule handlers in a single pass (preventing `auditor-inefficient-file-scan`):
 
 ```typescript
 // Synchronous evaluation inside scanFile or runAudit:
@@ -55,6 +55,11 @@ this.runSubAuditorSync('my-rule-id', () => {
 await this.runSubAuditor('my-async-rule', async () => {
   // Async logic evaluating my-async-rule exclusively
 });
+
+// Single-pass multi-rule file scan backed by WorkspaceFileCache in RAM:
+await this.scanFilesSinglePass(files, [
+  { ruleId: 'my-rule-id', scan: (file, content, lines) => { /* ... */ } }
+]);
 ```
 
 #### `FileScanAuditor<TRuleId extends string>`
@@ -83,15 +88,12 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       exemptPaths,
       ruleIds: MY_RULES,
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleDescriptions: {
         'my-rule-id': 'Regla de invariant personalizado'
@@ -255,15 +257,12 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
       allowedExtensions: new Set(['.ts', '.vue']),
       ruleIds: GAME_DESIGN_RULES,
       ruleCapabilities: createUniformRuleCapabilities(GAME_DESIGN_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleDescriptions: {
         'game-banned-magic-speed': 'Velocidad mágica sin constante',
@@ -386,15 +385,12 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       allowedExtensions: new Set(['.vue', '.scss']),
       ruleIds: UI_COLOR_RULES,
       ruleCapabilities: createUniformRuleCapabilities(UI_COLOR_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleDescriptions: {
         'ui-banned-raw-hex-color': 'Color hexadecimal directo prohibido'
@@ -457,15 +453,12 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       requiresAst: true, // Enables automatic TypeScript AST provision
       ruleIds: SERVICE_RETURN_RULES,
       ruleCapabilities: createUniformRuleCapabilities(SERVICE_RETURN_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleDescriptions: {
         'service-missing-explicit-return-type': 'Falta tipo de retorno explícito'
@@ -532,15 +525,12 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
       configKey: 'paths',
       defaultConfig: {},
       ruleCapabilities: createRuleCapabilities(ASSET_INTEGRITY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleIds: ASSET_INTEGRITY_RULES,
       ruleDescriptions: {
@@ -686,11 +676,11 @@ The master runner resolves the host's `.auditor/audit.config.ts`, executes exten
 
 ---
 
-## 7. Migration Guide: Host Extensions from v6 to v7
+## 7. Migration Guide: Host Extensions from v6 to v7+
 
-When upgrading a host repository from `@francogp/auditor` v6.x to v7.0.0+, all host extensions in `scripts/auditors/` must be migrated to the modern **Per-Rule Capabilities Contract**.
+When upgrading a host repository from `@francogp/auditor` v6.x to v7.0.0+, all host extensions in `scripts/auditors/` must be migrated to the modern **Orthogonal 6-Field Per-Rule Capabilities Contract (`AuditorRuleCapabilities`)**.
 
-### Breaking Change: Suite-Level `capabilities` Removed
+### Breaking Change: Suite-Level `capabilities` & Legacy 10-Boolean Flags Removed
 
 In v6.x, sub-auditors and extensions configured aggregate suite-level capabilities directly:
 
@@ -703,13 +693,13 @@ super({
 });
 ```
 
-In v7.0.0+, `capabilities?: never` is enforced at the TypeScript type level and at runtime:
+In v7.0.0+, `capabilities?: never` is enforced at the TypeScript type level and at runtime, and rule capabilities use the 6 orthogonal fields (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`):
 
 ```text
 [Auditor Contract Violation] Suite 'validate_my_extension' passed deprecated suite-level 'capabilities' to constructor options. In v7+, capabilities are derived automatically from individual ruleCapabilities.
 ```
 
-### Canonical v7 Pattern: `ruleCapabilities`
+### Canonical v7+ Pattern: 6-Field `ruleCapabilities`
 
 In v7.0.0+, capabilities are declared on each rule individually, and the `BaseAuditor` superclass aggregates them automatically for the suite.
 
@@ -729,15 +719,12 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       id: 'validate_my_rules',
       ruleIds: MY_RULES,
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ...
     });
@@ -763,17 +750,14 @@ export class MyAuditor extends BaseAuditor<MyRuleId> {
       ruleCapabilities: createRuleCapabilities(
         MY_RULES,
         {
-          fix: false,
-          fixPriority: false,
-          lint: true,
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
           md: false,
           ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
+          changedSince: false
         },
-        ['my-auto-fixable'] // List of rule IDs that support --fix
+        ['my-auto-fixable'] // List of rule IDs that support --fix (upgraded to fix: 'normal')
       ),
       ...
     });

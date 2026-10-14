@@ -30,7 +30,7 @@ export const AUDIT_PRESETS: Record<string, readonly string[]> = {
   security: ['validate_security_hardening']
 };
 
-export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
+export type AuditPresetName = 'lint' | 'full' | 'precommit' | 'md' | 'post-build' | 'build' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
 
 export {
   type DiscoveryOptions,
@@ -68,7 +68,16 @@ function resolveTargetSuiteIds(
   combinedPresets: Record<string, readonly string[]>
 ): Set<string> | null {
   let targetSuiteIds: Set<string> | null = null;
-  if (options.preset && options.preset !== 'lint' && options.preset !== 'md' && options.preset in combinedPresets) {
+  if (
+    options.preset &&
+    options.preset !== 'lint' &&
+    options.preset !== 'full' &&
+    options.preset !== 'precommit' &&
+    options.preset !== 'md' &&
+    options.preset !== 'post-build' &&
+    options.preset !== 'build' &&
+    options.preset in combinedPresets
+  ) {
     targetSuiteIds = new Set(combinedPresets[options.preset]);
   }
   if (options.suites && options.suites.length > 0) {

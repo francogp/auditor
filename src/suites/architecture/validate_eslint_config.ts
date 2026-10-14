@@ -240,15 +240,12 @@ export class ValidateEslintConfigAuditor extends BaseAuditor<EslintConfigRuleId>
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ESLINT_CONFIG_RULES, {
-        fix: true,
-        fixPriority: true,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'priority',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }, ['eslint-config-missing']),
       fixableRuleIds: ['eslint-config-missing'],
       configFiles: [configRequirement],

@@ -129,15 +129,12 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       description: 'Valida existencia y cobertura de tests en auditores',
       family: 'architecture',
       ruleCapabilities: createRuleCapabilities(AUDITOR_TEST_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleIds: AUDITOR_TEST_RULES,
       packageName: 'Auditor',

@@ -43,15 +43,12 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
             usesThirdPartyTool: false,
             projectRoot: resolvedRoot,
             ruleCapabilities: createRuleCapabilities(PACKAGE_SCRIPTS_RULES, {
-                fix: true,
-                fixPriority: true,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, [
                 'package-scripts-removed-commit-gate',
                 'package-scripts-build-missing-audit',
@@ -86,15 +83,15 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
             },
             ruleRemediations: {
                 'package-scripts-missing-file': 'Guía de diagnóstico y remediación para package-scripts-missing-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'package-scripts-build-missing-audit': 'Guía de diagnóstico y remediación para package-scripts-build-missing-audit. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'package-scripts-build-missing-audit': 'Guía de diagnóstico y remediación para package-scripts-build-missing-audit. El script "build" debe encadenar "npm run auditor:full && <compilación> && npm run auditor:post-build". Ejecuta "auditor fix" para repararlo automáticamente.',
                 'package-scripts-removed-commit-gate': 'Guía de diagnóstico y remediación para package-scripts-removed-commit-gate. Revisa la incidencia detectada y ajusta el código correspondiente.',
                 'package-scripts-invalid-production-ref': 'Guía de diagnóstico y remediación para package-scripts-invalid-production-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
                 'package-scripts-invalid-ratchet-baseline': 'Guía de diagnóstico y remediación para package-scripts-invalid-ratchet-baseline. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'package-scripts-missing-recommended': 'Guía de diagnóstico y remediación para package-scripts-missing-recommended. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'package-scripts-obsolete': 'Guía de diagnóstico y remediación para package-scripts-obsolete. Revisa la incidencia detectada y ajusta el código correspondiente.',
+                'package-scripts-missing-recommended': 'Guía de diagnóstico y remediación para package-scripts-missing-recommended. Ejecuta "auditor fix" para inyectar automáticamente los comandos oficiales del auditor en package.json.',
+                'package-scripts-obsolete': 'Guía de diagnóstico y remediación para package-scripts-obsolete. Ejecuta "auditor fix" para eliminar o migrar automáticamente comandos obsoletos en package.json y .github/workflows.',
             },
             coverage: {
-                include: ['package.json', '.auditor/audit-baseline.json']
+                include: ['package.json', '.auditor/audit-baseline.json', '.github/workflows/**']
             }
         });
     }
@@ -134,6 +131,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
                 if (this.pruneObsoleteAuditorScripts(pkg.scripts))
                     modified = true;
             }
+            this.verifyCiWorkflows();
         });
         this.runSubAuditorSync('package-scripts-build-missing-audit', () => {
             if (this.verifyBuildScript(pkg, config))
@@ -184,13 +182,17 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
     checkBuildScriptChainsPreAudit(buildScript) {
         if (REMOVED_COMMIT_GATE_PATTERN.test(buildScript))
             return true;
-        return (/\bauditor(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
-            /\b(?:npm|pnpm|bun)\s+run\s+auditor(?:\s|$|[&;])/.test(buildScript));
+        if (/\bauditor:precommit\b|\bpreset=precommit\b/.test(buildScript))
+            return false;
+        return (/\bauditor(?:\.js|\.ts)?(?::full|\s+(?:speed=full|--speed=full|full)|\s|$|[&;])/.test(buildScript) ||
+            /\b(?:npm|pnpm|bun)\s+run\s+auditor(?::full|\s|$|[&;])/.test(buildScript));
     }
     checkBuildScriptChainsPostAudit(buildScript) {
-        return (/\b(?:npm|pnpm|bun)\s+run\s+auditor:build(?:\s|$|[&;])/.test(buildScript) ||
-            /\bauditor-build(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
-            /\bauditor\s+preset=build(?:\s|$|[&;])/.test(buildScript));
+        if (/\bauditor:build\b|\bpreset=build\b/.test(buildScript))
+            return false;
+        return (/\b(?:npm|pnpm|bun)\s+run\s+auditor:post-build(?:\s|$|[&;])/.test(buildScript) ||
+            /\bauditor-post-build(?:\.js|\.ts)?(?:\s|$|[&;])/.test(buildScript) ||
+            /\bauditor\s+(?:phase=post-build|--phase=post-build|post-build)(?:\s|$|[&;])/.test(buildScript));
     }
     verifyBuildScript(pkg, config) {
         if (config.packageScripts?.enforceBuildAudit === false)
@@ -199,7 +201,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
         if (!buildScript) {
             if (this.isFixActive()) {
                 pkg.scripts = pkg.scripts ?? {};
-                pkg.scripts.build = 'auditor && npm run auditor:build';
+                pkg.scripts.build = 'npm run auditor:full && npm run auditor:post-build';
                 return true;
             }
             this.addViolation({
@@ -207,24 +209,30 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
                 severity: 'error',
                 filePath: 'package.json',
                 line: 1,
-                message: 'Build script in package.json is missing or does not chain auditor before and after compilation. Expected "auditor && ... && npm run auditor:build".',
+                message: 'Build script in package.json is missing or does not chain auditor before and after compilation. Expected "npm run auditor:full && ... && npm run auditor:post-build".',
                 context: 'package.json:scripts.build'
             });
             return false;
         }
         if (this.isFixActive()) {
             let rewritten = buildScript;
-            if (/\b(?:npm|pnpm|bun)\s+run\s+audit:build\b/.test(rewritten)) {
-                rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit:build\b/g, '$1auditor:build');
+            if (/\b(?:npm|pnpm|bun)\s+run\s+(?:audit:build|auditor:build)\b/.test(rewritten)) {
+                rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)(?:audit:build|auditor:build)\b/g, '$1auditor:post-build');
             }
-            if (/\b(?:npm|pnpm|bun)\s+run\s+audit\b/.test(rewritten)) {
-                rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit\b/g, '$1auditor');
+            if (/\bauditor\s+preset=build\b/.test(rewritten)) {
+                rewritten = rewritten.replaceAll(/\bauditor\s+preset=build\b/g, 'auditor phase=post-build');
+            }
+            if (/\b(?:npm|pnpm|bun)\s+run\s+(?:audit:precommit|auditor:precommit|audit)\b/.test(rewritten)) {
+                rewritten = rewritten.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)(?:audit:precommit|auditor:precommit|audit)\b/g, '$1auditor:full');
+            }
+            if (/\bauditor\s+preset=precommit\b/.test(rewritten)) {
+                rewritten = rewritten.replaceAll(/\bauditor\s+preset=precommit\b/g, 'auditor speed=full');
             }
             if (!this.checkBuildScriptChainsPreAudit(rewritten)) {
-                rewritten = `auditor && ${rewritten}`;
+                rewritten = `npm run auditor:full && ${rewritten}`;
             }
             if (!this.checkBuildScriptChainsPostAudit(rewritten)) {
-                rewritten = `${rewritten} && npm run auditor:build`;
+                rewritten = `${rewritten} && npm run auditor:post-build`;
             }
             if (rewritten !== buildScript) {
                 pkg.scripts.build = rewritten;
@@ -235,14 +243,14 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
         const hasPost = this.checkBuildScriptChainsPostAudit(buildScript);
         if (!hasPre || !hasPost) {
             const missingPart = !hasPre && !hasPost
-                ? 'does not chain auditor before compilation nor post-build auditor after compilation'
-                : (!hasPre ? 'does not chain auditor before compilation' : 'does not chain post-build auditor after compilation');
+                ? 'does not chain auditor:full before compilation nor auditor:post-build after compilation'
+                : (!hasPre ? 'does not chain auditor:full before compilation' : 'does not chain auditor:post-build after compilation');
             this.addViolation({
                 ruleId: 'package-scripts-build-missing-audit',
                 severity: 'error',
                 filePath: 'package.json',
                 line: 1,
-                message: `Build script in package.json ${missingPart}. Expected "npm run auditor && ... && npm run auditor:build".`,
+                message: `Build script in package.json ${missingPart}. Expected "npm run auditor:full && ... && npm run auditor:post-build".`,
                 context: buildScript
             });
             return false;
@@ -266,7 +274,10 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
             name === 'env:setup' ||
             name === 'env:check' ||
             name === 'audit:family:documentation' ||
-            name === 'auditor:sync-env') {
+            name === 'auditor:sync-env' ||
+            name === 'auditor:precommit' ||
+            name === 'auditor:build' ||
+            name === 'build:prod') {
             return true;
         }
         if (name.startsWith('audit:')) {
@@ -300,10 +311,71 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
         }
         return modified;
     }
-    async getMissingRecommendedScripts(scripts, config) {
+    verifyCiWorkflows() {
+        const workflowsDir = path.resolve(this.projectRoot, '.github', 'workflows');
+        if (!fs.existsSync(workflowsDir))
+            return;
+        let entries;
+        try {
+            entries = fs.readdirSync(workflowsDir, { withFileTypes: true });
+        }
+        catch {
+            // catch-ok: Ignore unreadable workflows directory
+            return;
+        }
+        const LEGACY_WORKFLOW_TOKEN = /\b(?:build:prod|auditor-build-prod|auditor:build|auditor:precommit)\b/;
+        for (const entry of entries) {
+            if (!entry.isFile() || (!entry.name.endsWith('.yml') && !entry.name.endsWith('.yaml')))
+                continue;
+            const fullPath = path.join(workflowsDir, entry.name);
+            const relPath = path.posix.join('.github/workflows', entry.name);
+            this.recordScanned(relPath);
+            const content = fs.readFileSync(fullPath, 'utf8');
+            if (!LEGACY_WORKFLOW_TOKEN.test(content))
+                continue;
+            if (this.isFixActive()) {
+                const updated = content
+                    .replaceAll(/\bbuild:prod\b/g, 'build:deploy')
+                    .replaceAll(/\bauditor-build-prod\b/g, 'auditor-build-deploy')
+                    .replaceAll(/\bauditor:build\b/g, 'auditor:post-build')
+                    .replaceAll(/\bauditor:precommit\b/g, 'auditor:full');
+                if (updated !== content) {
+                    fs.writeFileSync(fullPath, updated, 'utf8');
+                }
+            }
+            else {
+                this.addViolation({
+                    ruleId: 'package-scripts-obsolete',
+                    severity: 'warning',
+                    filePath: relPath,
+                    line: 1,
+                    message: `Workflow CI/CD "${relPath}" utiliza comandos obsoletos (build:prod, auditor:build o auditor:precommit). Ejecuta "auditor fix" para migrarlos a build:deploy, auditor:post-build y auditor:full.`,
+                    context: relPath
+                });
+            }
+        }
+    }
+    resolveTargetScriptCommand(command, isSelfPackage) {
+        if (!isSelfPackage)
+            return command;
+        const SELF_RUNNER = 'node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts';
+        if (command === 'auditor')
+            return SELF_RUNNER;
+        if (command.startsWith('auditor ')) {
+            return `${SELF_RUNNER} ${command.slice('auditor '.length)}`;
+        }
+        if (command === 'auditor-build-deploy') {
+            return 'node --experimental-strip-types src/cli/build_deploy.ts';
+        }
+        return command;
+    }
+    isScriptCommandOutdated(existingCmd) {
+        return /\b(?:preset=lint|preset=precommit|preset=build|auditor-build-prod|build_prod\.ts|audit_build\.ts)\b/.test(existingCmd);
+    }
+    async getMissingOrOutdatedRecommendedScripts(scripts, config, isSelfPackage) {
         const allRequirements = await collectAllPackageScriptRequirements(this.projectRoot, config);
         const seenNames = new Set();
-        const missing = [];
+        const missingOrOutdated = [];
         for (const req of allRequirements) {
             if (seenNames.has(req.name))
                 continue;
@@ -311,35 +383,35 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor {
             if (typeof req.isApplicable === 'function' && !req.isApplicable(config, this.projectRoot)) {
                 continue;
             }
-            if (!scripts[req.name]) {
-                missing.push([req.name, req.command]);
+            const existing = scripts[req.name];
+            if (!existing || this.isScriptCommandOutdated(existing)) {
+                missingOrOutdated.push([req.name, this.resolveTargetScriptCommand(req.command, isSelfPackage)]);
             }
         }
-        return missing;
+        return missingOrOutdated;
     }
     async verifyRecommendedScripts(pkg, config) {
         if (config.packageScripts?.recommendedScripts === false)
             return false;
+        const isSelfPackage = pkg.name === '@francogp/auditor';
         const scripts = pkg.scripts ?? {};
-        const missing = await this.getMissingRecommendedScripts(scripts, config);
-        if (missing.length === 0)
+        const missingOrOutdated = await this.getMissingOrOutdatedRecommendedScripts(scripts, config, isSelfPackage);
+        if (missingOrOutdated.length === 0)
             return false;
         if (this.isFixActive()) {
             pkg.scripts = pkg.scripts ?? {};
-            for (const [scriptName, scriptCmd] of missing) {
-                if (!pkg.scripts[scriptName]) {
-                    pkg.scripts[scriptName] = scriptCmd;
-                }
+            for (const [scriptName, scriptCmd] of missingOrOutdated) {
+                pkg.scripts[scriptName] = scriptCmd;
             }
             return true;
         }
-        for (const [scriptName, scriptCmd] of missing) {
+        for (const [scriptName, scriptCmd] of missingOrOutdated) {
             this.addViolation({
                 ruleId: 'package-scripts-missing-recommended',
                 severity: 'warning',
                 filePath: 'package.json',
                 line: 1,
-                message: `Missing recommended auditor script "${scriptName}" in package.json (e.g. "${scriptName}": "${scriptCmd}"). Run "auditor fix" to add automatically.`,
+                message: `Missing or outdated recommended auditor script "${scriptName}" in package.json (expected "${scriptName}": "${scriptCmd}"). Run "auditor fix" to update automatically.`,
                 context: scriptName
             });
         }

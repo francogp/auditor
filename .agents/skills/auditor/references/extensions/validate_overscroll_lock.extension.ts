@@ -35,15 +35,12 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
       icon: '📱',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(OVERSCROLL_LOCK_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: true,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: true
       }),
       ruleIds: OVERSCROLL_LOCK_RULES,
       packageName: 'Móvil',

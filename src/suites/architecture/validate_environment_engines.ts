@@ -87,15 +87,12 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_environment_engines',
       name: 'Environment Engines & Runtime Validator',

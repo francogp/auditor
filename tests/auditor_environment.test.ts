@@ -1,13 +1,13 @@
 /**
  * tests/auditor_environment.test.ts
  *
- * Exhaustive unit tests for auditorEnvironment module and build_prod CLI.
+ * Exhaustive unit tests for auditorEnvironment module and build_deploy CLI.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as childProcess from 'node:child_process';
 import { isProductionEnvironment } from '../src/core/auditorEnvironment.ts';
-import { runBuildProd } from '../src/cli/build_prod.ts';
+import { runBuildDeploy } from '../src/cli/build_deploy.ts';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof childProcess>();
@@ -64,7 +64,7 @@ describe('auditorEnvironment', () => {
     });
   });
 
-  describe('runBuildProd CLI', () => {
+  describe('runBuildDeploy CLI', () => {
     it('sets AUDITOR_ENV to production and spawns npm run build with status 0', () => {
       vi.mocked(childProcess.spawnSync).mockReturnValue({
         status: 0,
@@ -75,7 +75,7 @@ describe('auditorEnvironment', () => {
         signal: null
       });
 
-      const exitCode = runBuildProd();
+      const exitCode = runBuildDeploy();
 
       expect(exitCode).toBe(0);
       expect(process.env.AUDITOR_ENV).toBe('production');
@@ -102,7 +102,7 @@ describe('auditorEnvironment', () => {
         signal: null
       });
 
-      const exitCode = runBuildProd(['--', '--mode', 'production']);
+      const exitCode = runBuildDeploy(['--', '--mode', 'production']);
 
       expect(exitCode).toBe(0);
       const [, args] = vi.mocked(childProcess.spawnSync).mock.calls[0]!;
@@ -119,7 +119,7 @@ describe('auditorEnvironment', () => {
         signal: null
       });
 
-      const exitCode = runBuildProd();
+      const exitCode = runBuildDeploy();
       expect(exitCode).toBe(1);
     });
 
@@ -133,7 +133,7 @@ describe('auditorEnvironment', () => {
         signal: null
       });
 
-      const exitCode = runBuildProd();
+      const exitCode = runBuildDeploy();
       expect(exitCode).toBe(0);
     });
   });

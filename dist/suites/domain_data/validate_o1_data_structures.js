@@ -136,15 +136,12 @@ export class O1DataStructuresAuditor extends FileScanAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(O1_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_o1_data_structures',
             name: 'O(1) Data Structure & Performance Auditor',

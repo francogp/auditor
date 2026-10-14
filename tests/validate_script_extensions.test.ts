@@ -35,8 +35,8 @@ describe('ValidateScriptExtensionsAuditor', () => {
       expect(auditor.description.length).toBeLessThanOrEqual(60);
       expect(auditor.ruleIds).toEqual(SCRIPT_EXTENSIONS_RULES);
       expect(auditor.packageName).toBe('Extensiones');
-      expect(auditor.capabilities.lint).toBe(true);
-      expect(auditor.capabilities.fix).toBe(true);
+      expect(auditor.capabilities.speed).toBe('light');
+      expect(auditor.capabilities.fix).not.toBe('none');
     });
 
     it('declares all mandatory rules with valid descriptions', () => {

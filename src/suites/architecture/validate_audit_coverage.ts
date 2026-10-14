@@ -53,6 +53,7 @@ export interface CoverageFinding {
 
 export interface CoverageAnalysisInput {
   readonly trackedFiles: readonly string[];
+  readonly auditableFiles?: readonly string[];
   readonly ledgers: readonly CoverageLedger[];
   readonly expectedSuites: readonly string[];
   readonly config: AuditEngineConfig;
@@ -127,18 +128,21 @@ function buildDegradedPolicyFindings(
   return findings;
 }
 
+function getAuditableCandidates(input: CoverageAnalysisInput): readonly string[] {
+  if (input.auditableFiles) return input.auditableFiles;
+  const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+  return input.trackedFiles.filter(f => !input.isGloballyIgnored(f) && isAuditableCodebaseFile(f, customExemptGlobs));
+}
+
 function analyzeUncoveredFiles(
   input: CoverageAnalysisInput,
   ledgers: readonly CoverageLedger[],
   scannedSets: ReadonlyMap<string, ReadonlySet<string>>
 ): CoverageFinding[] {
-  const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+  const candidates = getAuditableCandidates(input);
   const uncovered: string[] = []; // domain-ok: Non-domain relative file path strings collection
 
-  for (const file of input.trackedFiles) {
-    if (input.isGloballyIgnored(file) || !isAuditableCodebaseFile(file, customExemptGlobs)) {
-      continue;
-    }
+  for (const file of candidates) {
     if (!ledgers.some(l => isCoveredBy(file, l, scannedSets))) {
       uncovered.push(file);
     }
@@ -157,14 +161,11 @@ function analyzeDegradedFiles(
   ledgers: readonly CoverageLedger[],
   scannedSets: ReadonlyMap<string, ReadonlySet<string>>
 ): CoverageFinding[] {
-  const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+  const candidates = getAuditableCandidates(input);
   const acknowledged = input.config.coverage?.acknowledgedDegradations ?? [];
   const degradedByPolicy = new Map<string, string[]>();
 
-  for (const file of input.trackedFiles) {
-    if (input.isGloballyIgnored(file) || !isAuditableCodebaseFile(file, customExemptGlobs)) {
-      continue;
-    }
+  for (const file of candidates) {
     if (ledgers.some(l => isCoveredBy(file, l, scannedSets))) {
       recordDegradedPolicyViolations(file, input.config, acknowledged, degradedByPolicy);
     }
@@ -179,14 +180,13 @@ function analyzeDeclaredNotScanned(
   scannedSets: ReadonlyMap<string, ReadonlySet<string>>
 ): CoverageFinding[] {
   const findings: CoverageFinding[] = [];
-  const customExemptGlobs = (input.config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+  const candidates = getAuditableCandidates(input);
+
   for (const ledger of ledgers) {
     if (ledger.skipped || ledger.source !== 'runtime') continue;
     const scanned = scannedSets.get(ledger.suiteId)!;
-    const notScanned = input.trackedFiles.filter(f =>
+    const notScanned = candidates.filter(f =>
       !scanned.has(f) &&
-      !input.isGloballyIgnored(f) &&
-      isAuditableCodebaseFile(f, customExemptGlobs) &&
       isDeclaredByCoverage(f, ledger.declared)
     );
     findings.push(...directoryFindings(
@@ -318,15 +318,12 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'post-run',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: true
+        changedSince: false
       }),
       id: AUDIT_COVERAGE_SUITE_ID,
       name: 'Audit Coverage & Blind Spots',
@@ -415,8 +412,11 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
     const rawLedgers = await readCoverageLedgers(this.projectRoot, runId);
     const ledgers = rawLedgers.filter(l => l.suiteId !== AUDIT_COVERAGE_SUITE_ID);
     const scannedSets = new Map(ledgers.map(l => [l.suiteId, new Set(l.scanned)] as const));
+    const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+    const auditableFiles = trackedFiles.filter(f => !isPathIgnored(f) && isAuditableCodebaseFile(f, customExemptGlobs));
     const input: CoverageAnalysisInput = {
       trackedFiles,
+      auditableFiles,
       ledgers: rawLedgers,
       expectedSuites,
       config,

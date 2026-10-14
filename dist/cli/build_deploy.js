@@ -1,8 +1,8 @@
 #!/usr/bin/env -S node --experimental-strip-types
 /**
- * src/cli/build_prod.ts
+ * src/cli/build_deploy.ts
  *
- * PRODUCTION BUILD RUNNER CLI (Node.js 26+ Native)
+ * CI/CD DEPLOYMENT BUILD RUNNER CLI (Node.js 26+ Native)
  * Executes npm run build under AUDITOR_ENV=production, cleanly omitting
  * development-only suites (similar-code Candle ML embeddings, test coverage, and git config)
  * while maintaining strict 100% enforcement across all architectural, linting,
@@ -11,7 +11,7 @@
 import { spawnSync } from 'node:child_process';
 import { isMainModule } from "./cliUtils.js";
 import "../core/permissionGuard.js";
-export function runBuildProd(extraArgs = []) {
+export function runBuildDeploy(extraArgs = []) {
     process.env.AUDITOR_ENV = 'production';
     const isWindows = process.platform === 'win32';
     const npmCmd = isWindows ? 'npm.cmd' : 'npm';
@@ -25,7 +25,7 @@ export function runBuildProd(extraArgs = []) {
     return result.status ?? 0;
 }
 if (isMainModule(import.meta.url)) {
-    const exitCode = runBuildProd(process.argv.slice(2));
+    const exitCode = runBuildDeploy(process.argv.slice(2));
     process.exit(exitCode);
 }
-//# sourceMappingURL=build_prod.js.map
+//# sourceMappingURL=build_deploy.js.map

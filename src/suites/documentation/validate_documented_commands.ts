@@ -11,12 +11,11 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, ALWAYS_IGNORE_DIRS, matchesSinglePattern , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
-import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
 
 export type DocumentedCommandsRuleId =
   | 'documented-cmd-unregistered-npm'
@@ -356,15 +355,12 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DOCUMENTED_COMMANDS_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: true,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_documented_commands',
       name: 'Documented Commands Validator',
@@ -397,7 +393,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
 
   public override async runAudit(): Promise<void> {
     const { scripts, declaredBins, installedBins } = loadPackageScriptsAndBins(this.rootDir);
-    const mdFiles = this.collectAllMarkdownFiles(this.rootDir);
+    const mdFiles = this.context.collectFiles(['.'], new Set(['.md']));
 
     if (mdFiles.length === 0) {
       for (const rule of DOCUMENTED_COMMANDS_RULES) {
@@ -465,42 +461,6 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         }
       }
     });
-  }
-
-  private collectAllMarkdownFiles(dir: string): string[] {
-    const results: string[] = [];
-    const config = getAuditConfig(this.rootDir);
-    const configIgnoredDirs = (config.paths?.ignoredDirs ?? []).map(d => normalizePosixPath(d).toLowerCase().replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
-    const configGlobs = config.paths?.ignoreGlobs ?? [];
-
-    try {
-      const entries = fsSync.readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const full = path.join(dir, entry.name);
-        const nameLower = entry.name.toLowerCase();
-        if (ALWAYS_IGNORE_DIRS.has(nameLower)) {
-          continue;
-        }
-        const relPosix = toPosixRelative(this.projectRoot, full);
-        const relLower = relPosix.toLowerCase(); // no-domain: Non-domain utility collection or data structure
-        const segments = relLower.split('/');
-        if (segments.some(seg => ALWAYS_IGNORE_DIRS.has(seg) || configIgnoredDirs.includes(seg))) {
-          continue;
-        }
-        if (configGlobs.some(pattern => matchesSinglePattern(relLower, pattern))) {
-          continue;
-        }
-
-        if (entry.isDirectory()) {
-          results.push(...this.collectAllMarkdownFiles(full));
-        } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
-          results.push(full);
-        }
-      }
-    } catch {
-      // catch-ok: Unreadable directory
-    }
-    return results;
   }
 }
 

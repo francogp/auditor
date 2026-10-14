@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, collectRepositoryFiles } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { parseLintResultsToFindings, extractJsonReportFilePaths } from "../../core/reportUtils.js";
 enableCompileCache();
@@ -51,22 +51,10 @@ function resolveHtmlValidateConfig(projectRoot) {
 }
 function collectRootHtmlTargets(projectRoot, root, targets, filesToScan) {
     const fullRoot = path.resolve(projectRoot, root);
-    try {
-        const entries = fs.readdirSync(fullRoot, { recursive: true, withFileTypes: true });
-        let hasHtmlOrVue = false;
-        for (const entry of entries) {
-            if (entry.isFile() && (entry.name.endsWith('.html') || entry.name.endsWith('.vue'))) {
-                hasHtmlOrVue = true;
-                const parent = entry.parentPath ?? fullRoot;
-                filesToScan.push(path.join(parent, entry.name));
-            }
-        }
-        if (hasHtmlOrVue) {
-            targets.push(root);
-        }
-    }
-    catch {
-        // catch-ok: ignore missing/unreadable scan root
+    const found = collectRepositoryFiles(fullRoot, projectRoot, [], new Set(['.html', '.vue']));
+    if (found.length > 0) {
+        targets.push(root);
+        filesToScan.push(...found);
     }
 }
 function collectTopLevelHtmlTargets(projectRoot, targets, filesToScan) {
@@ -120,15 +108,12 @@ export class HtmlValidateAuditor extends BaseAuditor {
                 fallbackRuleId: "html-validate-issue"
             },
             ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
-                fix: true,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['html-validate-issue']),
             fixableRuleIds: ['html-validate-issue'],
             id: 'validate_html_validate',
@@ -189,7 +174,10 @@ export class HtmlValidateAuditor extends BaseAuditor {
         for (const f of filesToScan) {
             this.recordScanned(f);
         }
-        const args = ['-c', configFile, '--ext', 'html,vue', '-f', `json=${reportFile}`, ...targets];
+        const relFiles = filesToScan.map(f => path.relative(this.projectRoot, f).split(path.sep).join(path.posix.sep));
+        const totalChars = relFiles.reduce((acc, f) => acc + f.length + 1, 0);
+        const effectiveTargets = totalChars < 6000 && relFiles.length > 0 ? relFiles : targets;
+        const args = ['-c', configFile, '--ext', 'html,vue', '-f', `json=${reportFile}`, ...effectiveTargets];
         if (isFixMode) {
             args.push('--fix');
         }

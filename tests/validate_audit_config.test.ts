@@ -69,7 +69,7 @@ describe('ValidateAuditConfigAuditor', () => {
 
     // Baseline valid package.json with standard build and auditor scripts
     const baselineScripts: Record<string, string> = {
-      build: 'auditor && vite build && npm run auditor:build'
+      build: 'npm run auditor:full && vite build && npm run auditor:post-build'
     };
     const allReqs = await collectAllPackageScriptRequirements(tempDir);
     for (const req of allReqs) {
@@ -450,17 +450,7 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
-      capabilities: {
-        fix: false,
-        fixPriority: false,
-        lint: true,
-        md: false,
-        ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
-      },
+      capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
       ruleIds: ['custom-rule'],
       ruleDescriptions: { 'custom-rule': 'Desc' },
       coverage: { include: ['src/**'] },
@@ -594,17 +584,7 @@ export class CustomExtAuditor extends BaseAuditor {
       defaultConfig: { enabled: true, customOption: 'default_val' },
       criticalConfig: {},
       ruleCapabilities: {
-        'custom-rule': {
-          fix: false,
-          fixPriority: false,
-          lint: true,
-          md: false,
-          ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
-        }
+        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
       },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
       ruleRemediations: { 'custom-rule': 'Soluciona la regla custom-rule ajustando la configuración.' },

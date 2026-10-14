@@ -58,15 +58,12 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
-        fix: true,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }, [...ACCESSIBILITY_RULES]),
       fixableRuleIds: [...ACCESSIBILITY_RULES],
       fix: options.fix,
@@ -120,7 +117,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       this.auditIndexViewport();
     });
 
-    const vueFiles = this.collectScannableVueFiles(scannableRoots);
+    const vueFiles = this.context.collectFiles(scannableRoots, new Set(['.vue']));
     if (vueFiles.length === 0) {
       for (const ruleId of ESLINT_BACKED_RULES) {
         this.runSubAuditorSync(ruleId, () => {
@@ -133,18 +130,6 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     const effectiveRules = this.buildEffectiveRules(config.accessibility?.rules ?? {});
     const results = await this.executeEslintOnVueFiles(vueFiles, effectiveRules);
     this.processLintResults(results, effectiveRules);
-  }
-
-  private collectScannableVueFiles(scannableRoots: readonly string[]): string[] {
-    const vueFiles: string[] = [];
-    const seenFiles = new Set<string>();
-    for (const root of scannableRoots) {
-      const fullRoot = path.resolve(this.projectRoot, root);
-      if (fs.existsSync(fullRoot)) {
-        this.collectVueFiles(fullRoot, vueFiles, seenFiles);
-      }
-    }
-    return vueFiles;
   }
 
   private buildEffectiveRules(customRules: Record<string, boolean | undefined>): Record<string, 'error' | 'off'> {
@@ -264,22 +249,6 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         message: 'Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.',
         fixable: false
       });
-    }
-  }
-
-  private collectVueFiles(dir: string, collected: string[], seen: Set<string>): void {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.git') continue;
-        this.collectVueFiles(fullPath, collected, seen);
-      } else if (entry.isFile() && entry.name.endsWith('.vue')) {
-        if (!seen.has(fullPath)) {
-          seen.add(fullPath);
-          collected.push(fullPath);
-        }
-      }
     }
   }
 }

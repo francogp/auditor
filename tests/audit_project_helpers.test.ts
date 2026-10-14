@@ -74,9 +74,9 @@ describe('Project Architecture Helpers', () => {
       expect(auditor.id).toBe('audit_project');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Arquitectura');
-      expect(auditor.capabilities.fix).toBe(true);
+      expect(auditor.capabilities.fix).not.toBe('none');
       expect(auditor.capabilities.ast).toBe(true);
-      expect(auditor.capabilities.heavy).toBe(false);
+      expect(auditor.capabilities.speed).toBe('light');
     });
   });
 });

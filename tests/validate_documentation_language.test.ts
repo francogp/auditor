@@ -125,7 +125,7 @@ describe('DocumentationLanguageAuditor', () => {
     expect(manifest.rules['docs-unauthorized-language']).toBeDefined();
     expect(manifest.rules['docs-missing-language-mandate']).toBeDefined();
     expect(manifest.rules['code-comment-unauthorized-language']).toBeDefined();
-    expect(manifest.capabilities.fix).toBe(true);
+    expect(manifest.capabilities.fix).not.toBe('none');
   });
 
   it('detects language governance mandate across English and Spanish snippets', () => {

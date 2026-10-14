@@ -39,17 +39,7 @@ const BASE_OPTIONS = {
   ruleDescriptions: { 'probe-rule': 'Regla sonda' },
   ruleRemediations: { 'probe-rule': 'Soluciona probe-rule ajustando la sonda.' },
   ruleCapabilities: {
-    'probe-rule': {
-      fix: false,
-      fixPriority: false,
-      lint: false,
-      md: false,
-      ast: false,
-      changedSince: false,
-      heavy: false,
-      requiresBuild: false,
-      postRun: false
-    }
+    'probe-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
   }
 } as const;
 

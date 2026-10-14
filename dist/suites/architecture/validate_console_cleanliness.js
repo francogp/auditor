@@ -47,15 +47,12 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor {
             roots: scannableRoots,
             projectRoot,
             ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_console_cleanliness',
             name: 'Console & Debugger Cleanliness Auditor',

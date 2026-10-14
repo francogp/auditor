@@ -57,15 +57,12 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_constant_hygiene',
       name: 'Constant Hygiene & Duplicate Validator',

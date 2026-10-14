@@ -242,15 +242,12 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor {
             defaultConfig: {},
             criticalConfig: {},
             ruleCapabilities: createRuleCapabilities(GSAP_ANIMATION_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             roots: effectiveRoots,
             allowedExtensions: new Set(['.ts', '.vue', '.scss', '.css']),

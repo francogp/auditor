@@ -282,15 +282,12 @@ export class StylelintAuditor extends BaseAuditor {
                 fallbackRuleId: "stylelint-issue"
             },
             ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
-                fix: true,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, [...STYLELINT_RULES]),
             fixableRuleIds: [...STYLELINT_RULES],
             gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,

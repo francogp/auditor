@@ -16,15 +16,12 @@ export const CODE_SIMPLIFICATION_RULES = [
     'massive-switch-branching'
 ];
 export const CODE_SIMPLIFICATION_CAPABILITIES = {
-    fix: false,
-    fixPriority: false,
-    lint: true,
+    speed: 'light',
+    phase: 'normal',
+    fix: 'none',
     md: false,
     ast: true,
-    changedSince: false,
-    heavy: false,
-    requiresBuild: false,
-    postRun: false
+    changedSince: false
 };
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 export class ValidateCodeSimplificationAuditor extends FileScanAuditor {

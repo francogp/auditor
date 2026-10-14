@@ -19,12 +19,12 @@ Architecture & Tooling Engineers.
 
 - Ensure all sub-auditors implement `toManifest()` accurately with description `<= 60` characters.
 - Maintain pure Spanish `ruleDescriptions` composed as `${packageName}: ${ruleDescription}` under `<= 50` characters.
-- Use explicit capabilities (`fix`, `lint`, `md`, `ast`) and avoid repeating default false flags.
+- Use explicit 6-field orthogonal `ruleCapabilities` (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`) via `createUniformRuleCapabilities` or `createRuleCapabilities`, and use `this.scanFilesSinglePass(files, handlers)` backed by `WorkspaceFileCache` in multi-rule `BaseAuditor` suites.
 
 ## Verification
 
 - Run all family suites: `npm test -- tests/validate_*.test.ts`
-- Run lint preset suites: `node --experimental-strip-types src/cli/audit_full.ts preset=lint`
+- Run light speed suites: `node --experimental-strip-types src/cli/audit_full.ts speed=light`
 
 ## Child DOX Index
 

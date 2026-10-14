@@ -116,15 +116,12 @@ export class MarkdownLintAuditor extends BaseAuditor {
                 fallbackRuleId: 'markdownlint-issue'
             },
             ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
-                fix: true,
-                fixPriority: false,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'normal',
                 md: true,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['markdownlint-issue']),
             fixableRuleIds: ['markdownlint-issue'],
             id: 'validate_markdown_lint',
@@ -183,7 +180,10 @@ export class MarkdownLintAuditor extends BaseAuditor {
             this.repairMarkdownLintConfig(configPath);
         }
         const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
-        const args = ['**/*.md', '--dot']; // no-domain: Non-domain utility collection or data structure
+        const relMdFiles = mdFiles.map(f => toPosixRelative(this.projectRoot, f));
+        const totalChars = relMdFiles.reduce((acc, f) => acc + f.length + 1, 0);
+        const targetArgs = totalChars < 6000 && relMdFiles.length > 0 ? relMdFiles : ['**/*.md', '--dot'];
+        const args = [...targetArgs]; // no-domain: Non-domain utility collection or data structure
         for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
             args.push('--ignore', pattern);
         }

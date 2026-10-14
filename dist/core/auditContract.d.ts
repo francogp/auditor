@@ -39,50 +39,92 @@ export interface AuditFinding {
 }
 export declare const AUDIT_STATUSES: readonly ["passed", "failed", "skipped"];
 export type AuditExecutionStatus = (typeof AUDIT_STATUSES)[number];
-export interface AuditorCapabilities {
-    /** Whether the sub-auditor implements automated repairs when invoked with --fix */
-    readonly fix: boolean;
-    /** Whether the sub-auditor bootstraps environment or auditor configuration and must run FIRST in fix mode */
-    readonly fixPriority: boolean;
-    /** Whether the sub-auditor participates in the fast lint preset runs (preset=lint / npm run auditor:lint) */
-    readonly lint: boolean;
-    /** Whether the sub-auditor participates in the markdown/documentation preset runs (preset=md / npm run auditor:md) */
-    readonly md: boolean;
-    /** Whether the sub-auditor requires the shared in-memory TypeScript AST context */
-    readonly ast: boolean;
-    /** Whether the sub-auditor supports incremental git diff scoping via --changed-since */
-    readonly changedSince: boolean;
-    /** Whether the sub-auditor is computationally heavy or resource-intensive (e.g. vector ML, type check) */
-    readonly heavy: boolean;
-    /** Whether the sub-auditor requires pre-compiled production artifacts in dist/ */
-    readonly requiresBuild: boolean;
-    /** Whether the sub-auditor must run AFTER every other suite of the run (e.g. coverage verification over their ledgers) */
-    readonly postRun: boolean;
-}
-export type AuditorExecutionTier = 'lint' | 'full' | 'fix' | 'md' | 'build';
+export declare const AUDIT_EXECUTION_SPEEDS: readonly ["light", "heavy", "full"];
 /**
- * Standard contract for commands that have both a fast/efficient version for lint
- * and a heavy/exhaustive version for full audit passes, guaranteed to never repeat in the same run.
+ * Ordered execution speed / weight scale:
+ * - 'light' (🐇): Fast/instant checks (used in auditor:lint, auditor, and auditor:full).
+ * - 'heavy' (🐢): Medium/heavy checks (used in default auditor and auditor:full; skipped in auditor:lint).
+ * - 'full'  (🐘): Exhaustive pre-commit/release checks (used in auditor:full; skipped in auditor:lint and default auditor).
+ */
+export type AuditExecutionSpeed = (typeof AUDIT_EXECUTION_SPEEDS)[number];
+export declare const SPEED_RANK: Readonly<Record<AuditExecutionSpeed, number>>;
+export declare const AUDIT_EXECUTION_PHASES: readonly ["normal", "post-run", "post-build"];
+/**
+ * Mutually exclusive execution phase:
+ * - 'normal': Standard concurrent execution on source code.
+ * - 'post-run': Sequential execution after all other suites finish (e.g., validate_audit_coverage).
+ * - 'post-build': Exclusive execution on compiled artifacts in dist/ (auditor:post-build).
+ */
+export type AuditExecutionPhase = (typeof AUDIT_EXECUTION_PHASES)[number];
+export declare const AUDIT_FIX_CAPABILITIES: readonly ["none", "normal", "priority"];
+/**
+ * Mutually exclusive auto-fix capability:
+ * - 'none': No automated repair.
+ * - 'normal': Standard code/rule auto-repair.
+ * - 'priority': Phase-0 bootstrap auto-repair (environment, package.json, .gitignore, audit.config.ts).
+ */
+export type AuditFixCapability = (typeof AUDIT_FIX_CAPABILITIES)[number];
+/**
+ * Orthogonal 6-field rule capability contract eliminating overlapping boolean flags.
+ */
+export interface AuditorRuleCapabilities {
+    /** Execution speed level(s): 'light' (🐇), 'heavy' (🐢), or 'full' (🐘), or a tuple of supported levels e.g. ['light', 'full'] */
+    readonly speed: AuditExecutionSpeed | readonly AuditExecutionSpeed[];
+    /** Mutually exclusive execution phase: 'normal', 'post-run', or 'post-build' */
+    readonly phase: AuditExecutionPhase;
+    /** Mutually exclusive auto-fix capability: 'none', 'normal', or 'priority' */
+    readonly fix: AuditFixCapability;
+    /** Whether the rule participates in markdown/documentation runs (preset=md / npm run auditor:md) */
+    readonly md: boolean;
+    /** Whether the rule requires the shared in-memory TypeScript AST context */
+    readonly ast: boolean;
+    /** Whether the rule supports incremental git diff scoping via --changed-since */
+    readonly changedSince: boolean;
+}
+export type AuditorCapabilities = AuditorRuleCapabilities;
+export declare function normalizeSpeeds(speed: AuditExecutionSpeed | readonly AuditExecutionSpeed[] | undefined): readonly AuditExecutionSpeed[];
+/**
+ * Resolves the effective speed to run for a given capability under:
+ * - Ceiling mode (`maxSpeed`): picks the highest/slowest available speed <= maxSpeed. Returns null if none <= maxSpeed.
+ * - Exact mode (`onlySpeed`): returns onlySpeed if explicitly declared in `declaredSpeed`, else null.
+ */
+export declare function resolveEffectiveSpeed(declaredSpeed: AuditExecutionSpeed | readonly AuditExecutionSpeed[] | undefined, options?: {
+    maxSpeed?: AuditExecutionSpeed;
+    onlySpeed?: AuditExecutionSpeed;
+}): AuditExecutionSpeed | null;
+export type AuditorExecutionTier = AuditExecutionSpeed | 'fix' | 'md' | 'post-build';
+/**
+ * Multi-tier command profile contract allowing sub-auditors and extensions to define
+ * explicit arguments per execution speed ('light', 'heavy', 'full', 'fix', etc.).
+ */
+export interface TieredCommandProfile<TArgs = readonly string[]> {
+    /** Canonical command identifier or binary name */
+    readonly command: string;
+    /** Specific argument profiles per execution speed or tier */
+    readonly profiles: Partial<Record<AuditorExecutionTier, TArgs>>;
+    /** Fallback arguments if the active tier is not explicitly declared in profiles */
+    readonly defaultArgs: TArgs;
+}
+/**
+ * Standard contract for commands with fast/light and heavy profiles.
  */
 export interface DualCommandProfile<TArgs = readonly string[]> {
     /** Canonical command identifier or binary name */
     readonly command: string;
-    /** Arguments for the fast/lint execution tier */
+    /** Arguments for the light/lint execution tier */
     readonly fastArgs: TArgs;
-    /** Arguments for the heavy/audit execution tier */
+    /** Arguments for the heavy/full execution tier */
     readonly heavyArgs: TArgs;
 }
 export interface SubAuditorStep {
     readonly id: string;
     readonly name: string;
     readonly description?: string;
-    readonly capabilities?: AuditorCapabilities;
+    readonly capabilities?: AuditorRuleCapabilities;
     readonly durationMs?: number;
 }
 export declare const SUB_AUDITOR_STATUSES: readonly ["passed", "warning", "failed"];
 export type SubAuditorStatus = (typeof SUB_AUDITOR_STATUSES)[number];
-export declare const AUDIT_EXECUTION_SPEEDS: readonly ["fast", "heavy"];
-export type AuditExecutionSpeed = (typeof AUDIT_EXECUTION_SPEEDS)[number];
 export interface SubAuditorReport {
     readonly id: string;
     readonly name: string;
@@ -92,7 +134,7 @@ export interface SubAuditorReport {
     readonly warningsCount?: number;
     readonly durationMs?: number;
     readonly detail?: string;
-    readonly capabilities?: AuditorCapabilities;
+    readonly capabilities?: AuditorRuleCapabilities;
     readonly speed: AuditExecutionSpeed;
 }
 export interface ICompositeAuditor {
@@ -227,23 +269,14 @@ export interface AuditorManifestDTO {
      * Mandatory, direct, no walls of text.
      */
     readonly description: string;
-    /** Supported execution flags / capabilities */
-    readonly capabilities: {
-        readonly fix: boolean;
-        readonly lint: boolean;
-        readonly md: boolean;
-        readonly ast: boolean;
-        readonly changedSince: boolean;
-        readonly heavy: boolean;
-        readonly requiresBuild: boolean;
-        readonly postRun: boolean;
-    };
+    /** Supported execution capabilities */
+    readonly capabilities: AuditorRuleCapabilities;
     /** Catalog of evaluated rules with concise description */
     readonly rules: Readonly<Record<string, string>>;
     /** Catalog of on-demand diagnostic and remediation guides for each rule */
     readonly remediations?: Readonly<Record<string, string>>;
     /** Individual capabilities declared by each sub-auditor / rule */
-    readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
+    readonly ruleCapabilities?: Readonly<Record<string, AuditorRuleCapabilities>>;
     /** List of ruleIds that this suite can mechanically repair automatically */
     readonly fixableRules: readonly string[];
     /**

@@ -5,13 +5,13 @@
  * Validates TypeScript declaration (.d.ts) resolution and dual ESM/CJS compatibility
  * for compiled packages in dist/ via @arethetypeswrong/core (ATTW).
  *
- * Capabilities: requiresBuild (executed exclusively post-build via preset=build).
+ * Capabilities: phase: 'post-build' (executed exclusively post-build via phase=post-build).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { checkPackage, Package } from '@arethetypeswrong/core';
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, collectRepositoryFiles } from "../../core/auditorBase.js";
 import { getAuditConfig } from "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/safePath.js";
 enableCompileCache();
@@ -20,7 +20,6 @@ export const PACKAGE_TYPES_RULES = [
     'pkg-types-dual-hazard',
     'pkg-types-missing-dts'
 ];
-const MAX_SCAN_DEPTH = 10;
 /**
  * Builds an in-memory Package representation for @arethetypeswrong/core from a disk directory.
  */
@@ -33,25 +32,11 @@ export function createPackageFromDirectory(pkgDir) {
     const name = pkgJson.name ?? 'unknown-package';
     const version = pkgJson.version ?? '0.0.0';
     const files = {};
-    function readDirectoryRecursive(dir, baseDir, depth = 0) {
-        if (depth > MAX_SCAN_DEPTH)
-            return;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name);
-            const relPath = toPosixRelative(baseDir, fullPath);
-            if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'scratch') {
-                continue;
-            }
-            if (entry.isDirectory()) {
-                readDirectoryRecursive(fullPath, baseDir, depth + 1);
-            }
-            else if (entry.isFile()) {
-                files[`/node_modules/${name}/${relPath}`] = fs.readFileSync(fullPath);
-            }
-        }
+    const scannedFiles = collectRepositoryFiles(pkgDir, pkgDir, ['node_modules/**', '.git/**', 'scratch/**'], new Set(), ['dist']);
+    for (const filePath of scannedFiles) {
+        const relPath = toPosixRelative(pkgDir, filePath);
+        files[`/node_modules/${name}/${relPath}`] = fs.readFileSync(filePath);
     }
-    readDirectoryRecursive(pkgDir, pkgDir);
     return new Package(files, name, version);
 }
 function classifyAttwProblem(p) {
@@ -176,15 +161,12 @@ export class ValidatePackageTypesAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(PACKAGE_TYPES_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: false,
+                speed: 'light',
+                phase: 'post-build',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: true,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_package_types',
             name: 'Package Types Resolution Validator',

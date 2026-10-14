@@ -13,11 +13,11 @@ import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import "./permissionGuard.js";
-import { deriveCanonicalAuditorScript, countFixableFindings, computeResultsFixableViolations } from "./auditContract.js";
+import { AUDIT_EXECUTION_SPEEDS, AUDIT_EXECUTION_PHASES, AUDIT_FIX_CAPABILITIES, normalizeSpeeds, resolveEffectiveSpeed, deriveCanonicalAuditorScript, countFixableFindings, computeResultsFixableViolations } from "./auditContract.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
-export { deriveCanonicalAuditorScript };
+export { deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed };
 import { CoverageRecorder, deriveCoverageFromRoots, deriveCoverageFromRequiredFiles, isDeclaredByCoverage, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { renderBanner, renderAuditTaskRow, renderFindingsDetail, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
@@ -242,12 +242,12 @@ function matchesDirectorySegments(normalized, segments, unignoreSet, configIgnor
     let hasUnignoredAncestor = false;
     const hasConfigIgnored = configIgnoredDirs.length > 0;
     for (const seg of segments) {
-        if (ALWAYS_IGNORE_DIRS.has(seg)) {
-            return true;
-        }
         if (unignoreSet.has(seg)) {
             hasUnignoredAncestor = true;
             continue;
+        }
+        if (ALWAYS_IGNORE_DIRS.has(seg)) {
+            return true;
         }
         if (!hasUnignoredAncestor) {
             const isIgnored = CODE_ONLY_IGNORE_DIRS.has(seg) ||
@@ -310,7 +310,7 @@ function collectSingleFile(filePath, projectRoot, extraIgnorePatterns, allowedEx
     const relPath = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
     if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
         const ext = path.extname(filePath).toLowerCase();
-        if (allowedExtensions.has(ext)) {
+        if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) {
             return [filePath];
         }
     }
@@ -327,7 +327,7 @@ function processDirentEntry(entry, dir, projectRoot, extraIgnorePatterns, allowe
     }
     if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
-        if (allowedExtensions.has(ext)) {
+        if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) {
             return [fullPath];
         }
     }
@@ -405,7 +405,15 @@ function normalizeAuditorFilePath(file, projectRoot) {
     }
     return normFile;
 }
+const globalWorkspaceFileRamCache = new Map();
+/**
+ * Clears the in-memory RAM cache for workspace discovered files.
+ */
+export function clearWorkspaceFileCache() {
+    globalWorkspaceFileRamCache.clear();
+}
 export function setupAuditor(config) {
+    const fileRamCache = new Map();
     const startTime = performance.now();
     const args = process.argv.slice(2);
     const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (['errors-only'].includes(a) ? `--${a}` : a));
@@ -413,7 +421,9 @@ export function setupAuditor(config) {
         args: normalized,
         options: {
             output: { type: 'string', short: 'o' },
-            'errors-only': { type: 'boolean' }
+            'errors-only': { type: 'boolean' },
+            speed: { type: 'string' },
+            'only-speed': { type: 'string' }
         },
         strict: false
     });
@@ -436,6 +446,18 @@ export function setupAuditor(config) {
         unignoreDirs,
         isPathIgnored: (relPath) => isPathIgnored(relPath, combinedIgnores, unignoreDirs, projectRoot),
         collectFiles: (roots = getEffectiveScannableRoots(), allowedExtensions = SCANNABLE_EXTENSIONS) => {
+            const cacheKey = [
+                projectRoot,
+                [...roots].sort().join('|'),
+                Array.from(allowedExtensions).sort().join('|'),
+                combinedIgnores.join('|'),
+                [...unignoreDirs].sort().join('|')
+            ].join(':::');
+            const cached = fileRamCache.get(cacheKey) ?? globalWorkspaceFileRamCache.get(cacheKey);
+            if (cached) {
+                config.onFilesCollected?.(cached);
+                return cached;
+            }
             const seen = new Set();
             const all = []; // no-domain: Non-domain utility collection or data structure
             for (const root of roots) {
@@ -447,6 +469,7 @@ export function setupAuditor(config) {
                     }
                 }
             }
+            fileRamCache.set(cacheKey, all);
             config.onFilesCollected?.(all);
             return all;
         },
@@ -563,15 +586,12 @@ export function setupAuditor(config) {
     };
 }
 export const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
-    fix: false,
-    fixPriority: false,
-    lint: false,
+    speed: 'light',
+    phase: 'normal',
+    fix: 'none',
     md: false,
     ast: false,
-    changedSince: false,
-    heavy: false,
-    requiresBuild: false,
-    postRun: false
+    changedSince: false
 });
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
@@ -585,16 +605,34 @@ export function deriveSuiteCapabilities(ruleCapabilities) {
     const entries = Object.values(ruleCapabilities);
     if (entries.length === 0)
         return { ...DEFAULT_AUDITOR_CAPABILITIES };
+    const distinctSpeeds = [];
+    for (const s of AUDIT_EXECUTION_SPEEDS) {
+        if (entries.some(c => normalizeSpeeds(c.speed).includes(s))) {
+            distinctSpeeds.push(s);
+        }
+    }
+    const effectiveSpeed = distinctSpeeds.length === 0
+        ? 'light'
+        : distinctSpeeds.length === 1
+            ? distinctSpeeds[0]
+            : distinctSpeeds;
+    const effectivePhase = entries.some(c => c.phase === 'post-build')
+        ? 'post-build'
+        : entries.some(c => c.phase === 'post-run')
+            ? 'post-run'
+            : 'normal';
+    const effectiveFix = entries.some(c => c.fix === 'priority')
+        ? 'priority'
+        : entries.some(c => c.fix === 'normal')
+            ? 'normal'
+            : 'none';
     return {
-        fix: entries.some(c => c.fix),
-        fixPriority: entries.some(c => c.fixPriority),
-        lint: entries.some(c => c.lint),
+        speed: effectiveSpeed,
+        phase: effectivePhase,
+        fix: effectiveFix,
         md: entries.some(c => c.md),
         ast: entries.some(c => c.ast),
-        changedSince: entries.some(c => c.changedSince),
-        heavy: entries.some(c => c.heavy),
-        requiresBuild: entries.some(c => c.requiresBuild),
-        postRun: entries.some(c => c.postRun)
+        changedSince: entries.some(c => c.changedSince)
     };
 }
 /**
@@ -602,12 +640,14 @@ export function deriveSuiteCapabilities(ruleCapabilities) {
  * the `fix` capability per rule based on declared fixableRuleIds.
  */
 export function createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds) {
-    const fixableSet = new Set(fixableRuleIds ?? (baseCapabilities.fix ? ruleIds : []));
+    const isBaseFix = baseCapabilities.fix !== 'none';
+    const fixType = baseCapabilities.fix === 'priority' ? 'priority' : 'normal';
+    const fixableSet = new Set(fixableRuleIds ?? (isBaseFix ? ruleIds : []));
     const result = {};
     for (const id of ruleIds) {
         result[id] = {
             ...baseCapabilities,
-            fix: fixableSet.has(id)
+            fix: fixableSet.has(id) ? fixType : 'none'
         };
     }
     return result;
@@ -620,18 +660,22 @@ export function createUniformRuleCapabilities(ruleIds, capabilities) {
     return createRuleCapabilities(ruleIds, capabilities);
 }
 /**
- * Canonical capability template for standard lint-only rules (lint: true, all other capabilities false).
+ * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
  */
-export const LINT_RULE_CAPABILITIES = Object.freeze({
+export const LIGHT_RULE_CAPABILITIES = Object.freeze({
     ...DEFAULT_AUDITOR_CAPABILITIES,
-    lint: true
+    speed: 'light',
+    phase: 'normal',
+    fix: 'none'
 });
 /**
- * Canonical capability template for rules requiring TypeScript AST context (lint: true, ast: true).
+ * Canonical capability template for rules requiring TypeScript AST context (speed: 'light', ast: true).
  */
 export const AST_RULE_CAPABILITIES = Object.freeze({
     ...DEFAULT_AUDITOR_CAPABILITIES,
-    lint: true,
+    speed: 'light',
+    phase: 'normal',
+    fix: 'none',
     ast: true
 });
 /**
@@ -736,16 +780,27 @@ function validateAuditorCriticalConfig(options) {
     validateCriticalCallbacks(options.id, options.criticalConfig.validate, options.criticalConfig.repair);
 }
 export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
+    'speed',
+    'phase',
     'fix',
-    'fixPriority',
-    'lint',
     'md',
     'ast',
-    'changedSince',
-    'heavy',
-    'requiresBuild',
-    'postRun'
+    'changedSince'
 ];
+export const MANDATORY_BOOLEAN_CAPABILITY_KEYS = [
+    'md',
+    'ast',
+    'changedSince'
+];
+function isValidRuleSpeed(speed) {
+    if (typeof speed === 'string') {
+        return AUDIT_EXECUTION_SPEEDS.some(s => s === speed);
+    }
+    if (Array.isArray(speed) && speed.length > 0) {
+        return speed.every(s => typeof s === 'string' && AUDIT_EXECUTION_SPEEDS.some(x => x === s));
+    }
+    return false;
+}
 function validateAuditorRuleCapabilities(options) {
     if (options.ruleCapabilities === undefined || typeof options.ruleCapabilities !== 'object' || options.ruleCapabilities === null) {
         throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'ruleCapabilities' in its constructor. ` +
@@ -757,7 +812,16 @@ function validateAuditorRuleCapabilities(options) {
             throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] is missing 'ruleCapabilities' for declared rule '${ruleId}'. ` +
                 `Every sub-auditor must declare its individual capabilities.`);
         }
-        for (const key of MANDATORY_AUDITOR_CAPABILITY_KEYS) {
+        if (!isValidRuleSpeed(caps.speed)) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.speed' as ${AUDIT_EXECUTION_SPEEDS.map(s => `'${s}'`).join(' | ')} (or a non-empty array of them).`);
+        }
+        if (typeof caps.phase !== 'string' || !AUDIT_EXECUTION_PHASES.some(p => p === caps.phase)) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.phase' as ${AUDIT_EXECUTION_PHASES.map(p => `'${p}'`).join(' | ')}.`);
+        }
+        if (typeof caps.fix !== 'string' || !AUDIT_FIX_CAPABILITIES.some(f => f === caps.fix)) {
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.fix' as ${AUDIT_FIX_CAPABILITIES.map(f => `'${f}'`).join(' | ')}.`);
+        }
+        for (const key of MANDATORY_BOOLEAN_CAPABILITY_KEYS) {
             if (typeof caps[key] !== 'boolean') {
                 throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define sub-capability 'ruleCapabilities.${ruleId}.${key}' as a boolean (true or false).`);
             }
@@ -775,12 +839,12 @@ function validateAuditorRuleCapabilities(options) {
     }
 }
 function validateAuditorFixContract(options, capabilities) {
-    const isFix = capabilities.fix;
+    const isFix = capabilities.fix !== 'none';
     const fixableList = options.fixableRuleIds ?? [];
     const configFilesWithFix = (options.configFiles ?? []).filter(c => Boolean(c.ruleId && c.generateDefaultContent));
     if (isFix) {
         if (fixableList.length === 0 && configFilesWithFix.length === 0) {
-            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared capabilities.fix === true but failed to explicitly initialize 'fixableRuleIds' in its constructor. ` +
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared capabilities.fix !== 'none' (${capabilities.fix}) but failed to explicitly initialize 'fixableRuleIds' in its constructor. ` +
                 `Every auto-repairing suite must explicitly declare which ruleIds it can mechanically fix.`);
         }
         for (const ruleId of fixableList) {
@@ -791,7 +855,7 @@ function validateAuditorFixContract(options, capabilities) {
     }
     else {
         if (fixableList.length > 0) {
-            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' (${fixableList.join(', ')}) but capabilities.fix is false or omitted.`);
+            throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' (${fixableList.join(', ')}) but capabilities.fix is 'none'.`);
         }
     }
 }
@@ -1034,52 +1098,99 @@ export class BaseAuditor {
     }
     executedCommandTiers = new Map();
     /**
-     * Returns the active execution tier ('lint', 'md', 'fix', or 'full').
+     * Resolves the active speed ceiling (`maxSpeed`) and optional exact speed filter (`onlySpeed`)
+     * from environment variables or CLI arguments.
      */
-    getExecutionTier() {
-        if (process.env.AUDITOR_PRESET === 'lint')
-            return 'lint';
-        if (process.env.AUDITOR_PRESET === 'md')
-            return 'md';
-        if (this.fixMode)
-            return 'fix';
-        return 'full';
+    getExecutionSpeedOptions() {
+        const rawValues = this.context.values;
+        const rawOnly = rawValues?.['only-speed'] || process.env.AUDITOR_ONLY_SPEED;
+        const onlySpeed = (rawOnly && AUDIT_EXECUTION_SPEEDS.some(s => s === rawOnly))
+            ? rawOnly
+            : undefined;
+        const rawSpeed = rawValues?.speed || process.env.AUDITOR_SPEED;
+        if (rawSpeed && AUDIT_EXECUTION_SPEEDS.some(s => s === rawSpeed)) {
+            return { maxSpeed: rawSpeed, onlySpeed };
+        }
+        const preset = process.env.AUDITOR_PRESET;
+        if (preset === 'lint')
+            return { maxSpeed: 'light', onlySpeed };
+        if (preset === 'full' || preset === 'precommit')
+            return { maxSpeed: 'full', onlySpeed };
+        return { maxSpeed: 'heavy', onlySpeed };
     }
     /**
-     * Returns true when the active run is a fast/lightweight preset (lint or md).
+     * Resolves the effective speed ('light' | 'heavy' | 'full') for a specific ruleId in the current run,
+     * or null if the rule should be skipped under the current speed ceiling or exact speed filter.
+     */
+    resolveRuleEffectiveSpeed(ruleId) {
+        const caps = this.ruleCapabilities[ruleId];
+        if (!caps)
+            return null;
+        return resolveEffectiveSpeed(caps.speed, this.getExecutionSpeedOptions());
+    }
+    /**
+     * Returns the active execution tier ('light', 'heavy', 'full', 'md', 'fix', or 'post-build').
+     */
+    getExecutionTier() {
+        if (this.fixMode || this.isFixModeRequested())
+            return 'fix';
+        if (process.env.AUDITOR_PRESET === 'md')
+            return 'md';
+        if (process.env.AUDITOR_PHASE === 'post-build' ||
+            process.env.AUDITOR_PRESET === 'post-build' ||
+            process.env.AUDITOR_PRESET === 'build') {
+            return 'post-build';
+        }
+        const speedOpts = this.getExecutionSpeedOptions();
+        return resolveEffectiveSpeed(this.capabilities.speed, speedOpts) ?? speedOpts.onlySpeed ?? speedOpts.maxSpeed;
+    }
+    /**
+     * Returns true when the active run is a lightweight run ('light' or 'md').
      */
     isFastMode() {
         const tier = this.getExecutionTier();
-        return tier === 'lint' || tier === 'md';
+        return tier === 'light' || tier === 'md';
     }
     /**
-     * Checks whether a specific declared ruleId is active for the current execution tier.
+     * Checks whether a specific declared ruleId is active for the current execution tier/speed.
      */
     isRuleActiveForCurrentRun(ruleId) {
         const caps = this.ruleCapabilities[ruleId];
         if (!caps)
             return false;
         const tier = this.getExecutionTier();
-        if (tier === 'lint')
-            return caps.lint;
+        if (tier === 'fix')
+            return caps.fix !== 'none';
         if (tier === 'md')
             return caps.md;
-        if (tier === 'fix')
-            return caps.fix;
-        return true;
+        if (tier === 'post-build')
+            return caps.phase === 'post-build';
+        return this.resolveRuleEffectiveSpeed(ruleId) !== null;
+    }
+    isDualOrTieredProfile(val) {
+        return typeof val === 'object' && val !== null && 'command' in val;
     }
     /**
-     * Resolves arguments for a dual command profile (fast for lint/md, heavy for full audit),
+     * Resolves arguments for a tiered or dual command profile,
      * enforcing the Anti-Repetition Invariant: a command cannot be resolved in multiple tiers in the same run.
      */
     resolveCommandArgs(profile) {
-        const profileTier = this.isFastMode() ? 'fast' : 'heavy';
+        if (!this.isDualOrTieredProfile(profile)) {
+            return profile;
+        }
+        const tier = this.getExecutionTier();
         const previousTier = this.executedCommandTiers.get(profile.command);
         if (previousTier !== undefined) {
             throw new Error(`[Auditor Contract Violation] Auditor [${this.id}]: El comando '${profile.command}' ya fue resuelto/ejecutado con perfil '${previousTier}'. ` +
-                `Ejecutar o resolver tanto la versión rápida como la versión heavy del MISMO comando en la misma corrida está estrictamente prohibido.`);
+                `Ejecutar o resolver múltiples variantes de velocidad del MISMO comando en la misma corrida está estrictamente prohibido.`);
         }
-        this.executedCommandTiers.set(profile.command, profileTier);
+        this.executedCommandTiers.set(profile.command, tier);
+        // Multi-tier command profile
+        if ('profiles' in profile) {
+            return profile.profiles[tier] ?? profile.defaultArgs;
+        }
+        // Dual command profile compatibility
+        const profileTier = this.isFastMode() ? 'fast' : 'heavy';
         return profileTier === 'fast' ? profile.fastArgs : profile.heavyArgs;
     }
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
@@ -1355,15 +1466,15 @@ export class BaseAuditor {
         return result !== 'passed' ? ` [${result}]` : '';
     }
     logSubAudit(stepNumber, totalSteps, name, result, detail, counts, durationMs, speed) {
-        if (!speed || (speed !== 'fast' && speed !== 'heavy')) {
-            throw new Error(`[${this.id}] Sub-auditor step ${stepNumber} ('${name}') logged without mandatory execution speed ('fast' | 'heavy'). ` +
+        if (!speed || !AUDIT_EXECUTION_SPEEDS.some(s => s === speed)) {
+            throw new Error(`[${this.id}] Sub-auditor step ${stepNumber} ('${name}') logged without mandatory execution speed (${AUDIT_EXECUTION_SPEEDS.map(s => `'${s}'`).join(' | ')}). ` +
                 `All sub-auditors must strictly declare their speed.`);
         }
         const count = typeof result === 'number' ? result : 0;
         const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
         const warningsCount = counts?.warnings ?? 0;
         const badge = this.formatSubAuditorBadge(result);
-        const speedBadge = speed === 'fast' ? ' 🐇' : ' 🐢';
+        const speedBadge = speed === 'light' ? ' 🐇' : speed === 'heavy' ? ' 🐢' : ' 🐘';
         const extra = detail ? ` (${detail})` : '';
         this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`);
         const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
@@ -1699,7 +1810,7 @@ export class BaseAuditor {
                         status: 'passed',
                         count: 0,
                         detail: 'skipped',
-                        speed: 'fast'
+                        speed: 'light'
                     }]
             });
         }
@@ -1727,18 +1838,14 @@ export class BaseAuditor {
             }
             const empiricalDurationMs = durationMs ?? 0;
             const formattedDuration = formatDurationMs(empiricalDurationMs);
-            let speed;
-            if (this.executedCommandTiers.size > 0) {
-                speed = this.isFastMode() ? 'fast' : 'heavy';
+            const ruleCap = this.ruleCapabilities[sub.id];
+            if (!ruleCap || !ruleCap.speed) {
+                throw new Error(`[${this.id}] Missing rule capability or undefined 'speed' for sub-auditor '${sub.id}'. ` +
+                    `All sub-auditors and rules must strictly declare their execution speed contract.`);
             }
-            else {
-                const ruleCap = this.ruleCapabilities[sub.id];
-                if (!ruleCap || typeof ruleCap.heavy !== 'boolean') {
-                    throw new Error(`[${this.id}] Missing rule capability or undefined 'heavy' speed flag for sub-auditor '${sub.id}'. ` +
-                        `All sub-auditors and rules must strictly declare their execution speed contract.`);
-                }
-                speed = ruleCap.heavy ? 'heavy' : 'fast';
-            }
+            const speed = this.resolveRuleEffectiveSpeed(sub.id) ??
+                normalizeSpeeds(ruleCap.speed)[0] ??
+                'light';
             this.logSubAudit(i + 1, totalSteps, sub.name, count, formattedDuration, { errors: errorsCount, warnings: warningsCount }, empiricalDurationMs, speed);
         }
     }
@@ -1781,14 +1888,12 @@ export class BaseAuditor {
             icon: this.icon,
             description: this.description,
             capabilities: {
+                speed: Array.isArray(this.capabilities.speed) ? [...this.capabilities.speed] : this.capabilities.speed,
+                phase: this.capabilities.phase,
                 fix: this.capabilities.fix,
-                lint: this.capabilities.lint,
                 md: this.capabilities.md,
                 ast: this.capabilities.ast,
-                changedSince: this.capabilities.changedSince,
-                heavy: this.capabilities.heavy,
-                requiresBuild: this.capabilities.requiresBuild,
-                postRun: this.capabilities.postRun
+                changedSince: this.capabilities.changedSince
             },
             rules: rulesRecord,
             remediations: this.ruleRemediations ? { ...this.ruleRemediations } : undefined,
@@ -1804,6 +1909,47 @@ export class BaseAuditor {
             thirdPartyToolPolicy: this.thirdPartyToolPolicy ? { ...this.thirdPartyToolPolicy } : undefined,
             scripts: [...this.scripts]
         };
+    }
+    /**
+     * Scans a collection of files in a single pass in memory (RAM).
+     * Reads each file from disk exactly once, splits into lines, and evaluates each
+     * declared rule handler while automatically measuring empirical rule durations.
+     */
+    async scanFilesSinglePass(files, handlers) {
+        if (files.length === 0 || handlers.length === 0)
+            return;
+        const exempts = this.exemptPaths ?? [];
+        for (const file of files) {
+            const relPath = path.isAbsolute(file)
+                ? path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep)
+                : file.split(path.sep).join(path.posix.sep);
+            if (isPathExempt(relPath, exempts))
+                continue;
+            let content;
+            try {
+                content = nodeFs.readFileSync(file, 'utf-8');
+            }
+            catch {
+                // catch-ok: unreadable files are skipped
+                this.unrecordScanned(relPath);
+                continue;
+            }
+            const lines = content.split('\n');
+            const doc = new AuditedDocument(file, content, relPath);
+            for (const handler of handlers) {
+                const start = performance.now();
+                try {
+                    const res = handler.scan(file, content, lines, doc);
+                    if (res instanceof Promise) {
+                        await res;
+                    }
+                }
+                finally {
+                    this.recordRuleDuration(handler.ruleId, performance.now() - start);
+                }
+            }
+            this.recordScanned(relPath);
+        }
     }
     static isExecutingCli = false;
     static async runCli(auditor) {

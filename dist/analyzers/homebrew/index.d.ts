@@ -19,7 +19,8 @@ import { manualStepLoggingDetector } from './detectors/manualStepLoggingDetector
 import { unmeasuredRuleDetector } from './detectors/unmeasuredRuleDetector.ts';
 import { redundantRuleEvaluatedDetector } from './detectors/redundantRuleEvaluatedDetector.ts';
 import { thirdPartyToolContractDetector } from './detectors/thirdPartyToolContractDetector.ts';
+import { inefficientFileScanDetector } from './detectors/inefficientFileScanDetector.ts';
 export * from './homebrewTypes.ts';
 export * from './homebrewRegistry.ts';
-export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector, manualStepLoggingDetector, unmeasuredRuleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector };
+export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector, manualStepLoggingDetector, unmeasuredRuleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, inefficientFileScanDetector };
 //# sourceMappingURL=index.d.ts.map

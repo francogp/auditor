@@ -72,15 +72,12 @@ constructor(roots?: readonly string[], projectRoot?: string) {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
 id: 'validate_reactive_purity',
       name: 'Reactive Computed Purity Auditor',

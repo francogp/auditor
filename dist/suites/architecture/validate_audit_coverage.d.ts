@@ -24,6 +24,7 @@ export interface CoverageFinding {
 }
 export interface CoverageAnalysisInput {
     readonly trackedFiles: readonly string[];
+    readonly auditableFiles?: readonly string[];
     readonly ledgers: readonly CoverageLedger[];
     readonly expectedSuites: readonly string[];
     readonly config: AuditEngineConfig;

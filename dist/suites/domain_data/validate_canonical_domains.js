@@ -411,15 +411,12 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_canonical_domains',
             name: 'Canonical Domain Catalogs & SSoT Validator',

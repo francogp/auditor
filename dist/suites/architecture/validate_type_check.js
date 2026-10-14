@@ -114,15 +114,12 @@ export class TypeCheckAuditor extends BaseAuditor {
                 fallbackBehavior: "throw"
             },
             ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'heavy',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: true,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_type_check',
             name: 'TypeScript & Vue Type Validator',

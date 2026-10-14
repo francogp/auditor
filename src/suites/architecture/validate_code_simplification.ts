@@ -26,16 +26,13 @@ export const CODE_SIMPLIFICATION_RULES = [
 export type CodeSimplificationRuleId = (typeof CODE_SIMPLIFICATION_RULES)[number];
 
 export const CODE_SIMPLIFICATION_CAPABILITIES = {
-  fix: false,
-  fixPriority: false,
-  lint: true,
-  md: false,
-  ast: true,
-  changedSince: false,
-  heavy: false,
-  requiresBuild: false,
-  postRun: false
-} as const;
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
+        md: false,
+        ast: true,
+        changedSince: false
+      } as const;
 
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 

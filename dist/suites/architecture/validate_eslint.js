@@ -61,15 +61,12 @@ export class EslintAuditor extends BaseAuditor {
                 fallbackRuleId: "eslint-violation"
             },
             ruleCapabilities: createRuleCapabilities(ESLINT_RULES, {
-                fix: true,
-                fixPriority: false,
-                lint: true,
+                speed: 'heavy',
+                phase: 'normal',
+                fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: true,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['eslint-violation']),
             fixableRuleIds: ['eslint-violation'],
             gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,

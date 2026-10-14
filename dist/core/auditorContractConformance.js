@@ -19,7 +19,7 @@ import path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from "./auditorBase.js";
 import { getAuditConfig } from "./auditConfig.js";
-import { getActiveFamilies } from "./auditContract.js";
+import { getActiveFamilies, AUDIT_EXECUTION_SPEEDS, AUDIT_EXECUTION_PHASES, AUDIT_FIX_CAPABILITIES } from "./auditContract.js";
 import { discoverAuditors } from "../cli/auditScanner.js";
 const DEFAULT_EXTENSION_TASK_TIMEOUT_MS = 0;
 const DEFAULT_EXTENSION_TASK_ORDER = 99;
@@ -237,23 +237,41 @@ function validateAuditorRuleRemediationsContract(auditor, taskId, errors) {
         }
     }
 }
+function validateSpeedValue(speed) {
+    if (typeof speed === 'string')
+        return AUDIT_EXECUTION_SPEEDS.some(s => s === speed);
+    if (Array.isArray(speed))
+        return speed.length > 0 && speed.every(s => typeof s === 'string' && AUDIT_EXECUTION_SPEEDS.some(v => v === s));
+    return false;
+}
+function validateSixFieldCapabilities(caps, label, errors) {
+    if (!validateSpeedValue(caps.speed)) {
+        errors.push(`${label}.speed debe ser ${AUDIT_EXECUTION_SPEEDS.join(', ')} o un arreglo no vacío de ellos.`);
+    }
+    if (!AUDIT_EXECUTION_PHASES.some(p => p === caps.phase)) {
+        errors.push(`${label}.phase debe ser ${AUDIT_EXECUTION_PHASES.join(', ')}.`);
+    }
+    if (!AUDIT_FIX_CAPABILITIES.some(f => f === caps.fix)) {
+        errors.push(`${label}.fix debe ser ${AUDIT_FIX_CAPABILITIES.join(', ')}.`);
+    }
+    for (const boolKey of ['md', 'ast', 'changedSince']) {
+        if (typeof caps[boolKey] !== 'boolean') {
+            errors.push(`${label}.${boolKey} debe ser explícitamente booleano (true o false).`);
+        }
+    }
+}
 function validateAuditorRuleCapabilitiesContract(auditor, taskId, errors) {
     if (!auditor.ruleCapabilities || typeof auditor.ruleCapabilities !== 'object') {
         errors.push(`Auditor [${taskId}] no define el mapa obligatorio de 'ruleCapabilities' por sub-auditor.`);
         return;
     }
-    const REQUIRED_CAPS = ['fix', 'fixPriority', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'];
     for (const ruleId of auditor.ruleIds) {
         const caps = auditor.ruleCapabilities[ruleId];
         if (!caps || typeof caps !== 'object') {
             errors.push(`Auditor [${taskId}] no define 'ruleCapabilities' para la regla declarada '${ruleId}'.`);
             continue;
         }
-        for (const cap of REQUIRED_CAPS) {
-            if (typeof caps[cap] !== 'boolean') {
-                errors.push(`Auditor [${taskId}] sub-auditor '${ruleId}' debe definir explícitamente ruleCapabilities.${ruleId}.${cap} como booleano.`);
-            }
-        }
+        validateSixFieldCapabilities(caps, `Auditor [${taskId}] sub-auditor '${ruleId}' ruleCapabilities.${ruleId}`, errors);
     }
 }
 function validateAuditorCriticalConfigContract(auditor, taskId, errors) {
@@ -291,16 +309,11 @@ function validateAuditorCapabilitiesContract(auditor, taskId, errors) {
         errors.push(`Auditor [${taskId}] no define un objeto de 'capabilities' obligatorio.`);
         return;
     }
-    const REQUIRED_CAPS = ['fix', 'fixPriority', 'lint', 'md', 'ast', 'changedSince', 'heavy', 'requiresBuild', 'postRun'];
-    for (const cap of REQUIRED_CAPS) {
-        if (typeof auditor.capabilities[cap] !== 'boolean') {
-            errors.push(`Auditor [${taskId}] debe definir explícitamente el sub-campo capabilities.${cap} como booleano (true o false).`);
-        }
-    }
+    validateSixFieldCapabilities(auditor.capabilities, `Auditor [${taskId}] capabilities`, errors);
     const fixableRules = auditor.getFixableRuleIds();
-    if (auditor.capabilities.fix === true) {
+    if (auditor.capabilities.fix !== 'none') {
         if (fixableRules.length === 0) {
-            errors.push(`Auditor [${taskId}] declara capabilities.fix === true pero getFixableRuleIds() está vacío.`);
+            errors.push(`Auditor [${taskId}] declara capabilities.fix !== 'none' pero getFixableRuleIds() está vacío.`);
         }
         for (const r of fixableRules) {
             if (!auditor.ruleIds.includes(r)) {
@@ -309,7 +322,7 @@ function validateAuditorCapabilitiesContract(auditor, taskId, errors) {
         }
     }
     else if (fixableRules.length > 0) {
-        errors.push(`Auditor [${taskId}] declara reglas corregibles (${fixableRules.join(', ')}) pero capabilities.fix no es true.`);
+        errors.push(`Auditor [${taskId}] declara reglas corregibles (${fixableRules.join(', ')}) pero capabilities.fix es 'none'.`);
     }
 }
 function validateAuditorScriptsContract(auditor, taskId, errors) {

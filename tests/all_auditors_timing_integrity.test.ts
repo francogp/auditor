@@ -82,17 +82,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             criticalConfig: {},
       usesThirdPartyTool: false,
             coverage: { include: ['src/**/*.ts'] },
-            ruleCapabilities: createRuleCapabilities(['rule-a', 'rule-b'], {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }),
+            ruleCapabilities: createRuleCapabilities(['rule-a', 'rule-b'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }),
             ruleDescriptions: {
               'rule-a': 'Rule A description',
               'rule-b': 'Rule B description'
@@ -144,17 +134,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             defaultConfig: {},
             criticalConfig: {},
       usesThirdPartyTool: false,
-            ruleCapabilities: createRuleCapabilities(['scan-rule-1', 'scan-rule-2'], {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }),
+            ruleCapabilities: createRuleCapabilities(['scan-rule-1', 'scan-rule-2'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }),
             ruleDescriptions: {
               'scan-rule-1': 'Scan Rule 1',
               'scan-rule-2': 'Scan Rule 2'
@@ -234,17 +214,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             criticalConfig: {},
       usesThirdPartyTool: false,
             coverage: { include: ['src/**/*.ts'] },
-            ruleCapabilities: createRuleCapabilities(['batch-1', 'batch-2'], {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }),
+            ruleCapabilities: createRuleCapabilities(['batch-1', 'batch-2'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }),
             ruleDescriptions: {
               'batch-1': 'Batch 1',
               'batch-2': 'Batch 2'

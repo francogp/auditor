@@ -5,7 +5,7 @@
  * for auditor auto-discovery.
  */
 import path from 'node:path';
-import { resolveFamilyMetadata } from "../core/auditContract.js";
+import { resolveEffectiveSpeed, resolveFamilyMetadata } from "../core/auditContract.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "../core/packageScriptRegistry.js";
 import { extractAuditorMetadataFromFile } from "./auditorMetadata.js";
@@ -63,25 +63,50 @@ export function shouldSkipTaskByFilters(id, filename, family, isFast, options, t
     return false;
 }
 export function shouldSkipTaskByCapabilities(capabilities, options) {
-    const isBuildPreset = Boolean(options.preset === 'build' || options.buildOnly);
-    if (isBuildPreset) {
-        return !capabilities?.requiresBuild;
+    const isPostBuildMode = Boolean(options.phase === 'post-build' ||
+        options.preset === 'post-build' ||
+        options.preset === 'build' ||
+        options.buildOnly);
+    if (isPostBuildMode) {
+        return capabilities?.phase !== 'post-build';
+    }
+    if (options.phase && capabilities?.phase !== options.phase) {
+        return true;
     }
     if (options.fixOnly) {
-        return !capabilities?.fix;
-    }
-    if (options.lintOnly || options.preset === 'lint') {
-        return !capabilities?.lint;
+        return !capabilities?.fix || capabilities.fix === 'none';
     }
     if (options.mdOnly || options.preset === 'md') {
         return !capabilities?.md;
     }
-    if (options.includeHeavy === false && capabilities?.heavy) {
+    const isTargeted = Boolean(options.withBuild || options.task || options.suites);
+    if (!isTargeted && capabilities?.phase === 'post-build') {
         return true;
     }
-    const isTargeted = Boolean(options.withBuild || options.task || options.suites);
-    if (!isTargeted && capabilities?.requiresBuild) {
-        return true;
+    if (options.onlySpeed) {
+        return resolveEffectiveSpeed(capabilities?.speed, { onlySpeed: options.onlySpeed }) === null;
+    }
+    const hasExplicitSpeedOrPreset = Boolean(options.speed ||
+        options.lintOnly ||
+        options.preset === 'lint' ||
+        options.precommitOnly ||
+        options.preset === 'full' ||
+        options.preset === 'precommit' ||
+        options.includeHeavy === false);
+    if (!isTargeted || hasExplicitSpeedOrPreset) {
+        let maxSpeed = 'heavy';
+        if (options.speed) {
+            maxSpeed = options.speed;
+        }
+        else if (options.lintOnly || options.preset === 'lint' || options.includeHeavy === false) {
+            maxSpeed = 'light';
+        }
+        else if (options.preset === 'full' || options.preset === 'precommit' || options.precommitOnly) {
+            maxSpeed = 'full';
+        }
+        if (resolveEffectiveSpeed(capabilities?.speed ?? 'light', { maxSpeed }) === null) {
+            return true;
+        }
     }
     return false;
 }

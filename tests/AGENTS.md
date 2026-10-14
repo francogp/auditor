@@ -22,7 +22,7 @@ Architecture & Tooling Engineers.
 - [`auditor_base.test.ts`](./auditor_base.test.ts): Tests for `BaseAuditor` and `FileScanAuditor` base class lifecycle.
 - [`auditor_capabilities.test.ts`](./auditor_capabilities.test.ts): Tests for dynamic sub-auditor capability detection, zero-boilerplate inheritance, and fix mode filtering.
 - [`auditor_contract_enforcement.test.ts`](./auditor_contract_enforcement.test.ts): Rigorous verification of mandatory constructor metadata contract, dynamic gating, and dynamic scaffolding.
-- [`audit_build.test.ts`](./audit_build.test.ts): Tests for post-build compiled artifact audit runner (`auditor-build`, `preset=build`).
+- [`audit_build.test.ts`](./audit_build.test.ts): Tests for post-build compiled artifact audit runner (`auditor-post-build`, `phase=post-build`).
 - [`audit_bundle.test.ts`](./audit_bundle.test.ts): Tests for `audit_bundle.ts` treemap parsing and budget enforcement.
 - [`audit_ratchet.test.ts`](./audit_ratchet.test.ts): Git-sandbox tests for the warning ratchet (fingerprint stability, new-warning detection, shrink-only baseline, tamper rejection).
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.

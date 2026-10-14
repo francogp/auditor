@@ -219,25 +219,25 @@ describe('Auditor Architecture Conformance', () => {
   });
 
   describe('AuditorCapabilities Declaration & Conformance Mandate', () => {
-    it('100% of discovered tasks possess complete AuditorCapabilities with 7 booleans', async () => {
+    it('100% of discovered tasks possess complete 6-field AuditorRuleCapabilities', async () => {
       const allTasks = await discoverAuditors();
       expect(allTasks.length).toBeGreaterThanOrEqual(38);
 
       for (const task of allTasks) {
         expect(task.capabilities, `Task '${task.id}' missing capabilities`).toBeDefined();
-        expect(typeof task.capabilities?.fix).toBe('boolean');
-        expect(typeof task.capabilities?.lint).toBe('boolean');
+        const speed = task.capabilities?.speed;
+        expect(typeof speed === 'string' || Array.isArray(speed)).toBe(true);
+        expect(['normal', 'post-run', 'post-build']).toContain(task.capabilities?.phase);
+        expect(['none', 'normal', 'priority']).toContain(task.capabilities?.fix);
         expect(typeof task.capabilities?.md).toBe('boolean');
         expect(typeof task.capabilities?.ast).toBe('boolean');
         expect(typeof task.capabilities?.changedSince).toBe('boolean');
-        expect(typeof task.capabilities?.heavy).toBe('boolean');
-        expect(typeof task.capabilities?.requiresBuild).toBe('boolean');
       }
     });
 
-    it('expected auto-repair suites declare capabilities.fix = true', async () => {
+    it('expected auto-repair suites declare capabilities.fix !== "none"', async () => {
       const allTasks = await discoverAuditors();
-      const fixIds = allTasks.filter(t => t.capabilities?.fix).map(t => t.id).sort();
+      const fixIds = allTasks.filter(t => t.capabilities?.fix && t.capabilities.fix !== 'none').map(t => t.id).sort();
       const EXPECTED_FIX_SUITES = [
         'audit_project',
         'validate_accessibility',

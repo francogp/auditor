@@ -9,6 +9,7 @@ import fsSync from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import {
   type AuditorCapabilities,
+  type AuditExecutionSpeed,
   type GitIgnoreRequirement,
   type AuditorPackageScriptRequirement,
   type AuditorManifestDTO,
@@ -49,16 +50,34 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
       result.icon = iconMatch[1];
     }
 
-    const caps: Record<string, boolean> = {};
-    if (content.includes('requiresBuild: true')) caps.requiresBuild = true;
-    if (content.includes('ast: true') || content.includes('requiresAst: true') || content.includes('AST_RULE_CAPABILITIES')) caps.ast = true;
-    if (content.includes('fix: true')) caps.fix = true;
-    if (content.includes('fixPriority: true')) caps.fixPriority = true;
-    if (content.includes('lint: true') || content.includes('LINT_RULE_CAPABILITIES') || content.includes('AST_RULE_CAPABILITIES')) caps.lint = true;
-    if (content.includes('md: true')) caps.md = true;
-    if (content.includes('heavy: true')) caps.heavy = true;
-    if (content.includes('changedSince: true')) caps.changedSince = true;
-    if (content.includes('postRun: true')) caps.postRun = true;
+    const hasLight = content.includes("speed: 'light'") || content.includes("['light'");
+    const hasHeavy = content.includes("speed: 'heavy'") || content.includes("'heavy'");
+    const hasFull = content.includes("speed: 'full'") || content.includes("'full']");
+    const speeds: AuditExecutionSpeed[] = [];
+    if (hasLight) speeds.push('light');
+    if (hasHeavy) speeds.push('heavy');
+    if (hasFull) speeds.push('full');
+
+    const speed = speeds.length > 1 ? speeds : (speeds[0] ?? 'light');
+    const phase = content.includes("phase: 'post-build'")
+      ? 'post-build'
+      : content.includes("phase: 'post-run'")
+        ? 'post-run'
+        : 'normal';
+    const fix = content.includes("fix: 'priority'")
+      ? 'priority'
+      : content.includes("fix: 'normal'")
+        ? 'normal'
+        : 'none';
+
+    result.capabilities = {
+      speed,
+      phase,
+      fix,
+      md: content.includes('md: true'),
+      ast: content.includes('ast: true') || content.includes('requiresAst: true') || content.includes('AST_RULE_CAPABILITIES'),
+      changedSince: content.includes('changedSince: true')
+    };
 
     const descMatch = content.match(/description\s*[:=]\s*['"]([^'"]+)['"]/);
     const configKeyMatch = content.match(/configKey\s*[:=]\s*['"]([^'"]+)['"]/);
@@ -66,13 +85,6 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     let staticDefaultConfig: Record<string, unknown> | undefined;
     if (hasDefaultConfig) {
       staticDefaultConfig = content.includes('enabled: true') ? { enabled: true } : {};
-    }
-
-    if (Object.keys(caps).length > 0) {
-      result.capabilities = {
-        ...DEFAULT_AUDITOR_CAPABILITIES,
-        ...caps
-      };
     }
 
     return {

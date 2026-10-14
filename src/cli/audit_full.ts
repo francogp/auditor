@@ -18,6 +18,7 @@ import { pathToFileURL } from 'node:url';
 
 import {
   type StandardAuditResult,
+  type SubAuditorReport,
   type AuditFinding,
   type AuditFamily,
   type AuditTaskDefinition,
@@ -26,11 +27,14 @@ import {
   type ConsolidatedAuditReport,
   type AuditByFileReport,
   type AuditFileSummary,
+  type AuditExecutionSpeed,
+  type AuditExecutionPhase,
   resolveFamilyMetadata,
   getActiveFamilies,
   groupResultsByFamily,
   sortFindingsByFileAndLine,
   groupFindingsByFileMap,
+  normalizeSpeeds,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig, assertAuditConfigComplete, buildRatchetConfig, sanitizePath, type AuditEngineConfig, type AuditListFilter, type AuditRatchetConfig } from '../core/auditConfig.ts';
@@ -89,6 +93,9 @@ export interface AuditFullCliOptions {
   formattedRules: string;
   targetPreset: AuditPresetName | undefined;
   targetSuites: string[] | undefined;
+  speed?: AuditExecutionSpeed;
+  onlySpeed?: AuditExecutionSpeed;
+  phase?: AuditExecutionPhase;
   concurrencyLimit: number;
   skipSimilar: boolean;
   isEnabledFilter: boolean;
@@ -123,8 +130,17 @@ export function resolveFormattedRules(values: Record<string, unknown>, positiona
 }
 
 export function resolveTargetSuites(values: Record<string, unknown>): string[] | undefined {
+  if (values['only-suite']) {
+    return String(values['only-suite']).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (values['only-task']) {
+    return String(values['only-task']).split(',').map(s => s.trim()).filter(Boolean);
+  }
   if (values.suites) {
     return String(values.suites).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  if (values.suite) {
+    return String(values.suite).split(',').map(s => s.trim()).filter(Boolean);
   }
   if (values.tasks) {
     return String(values.tasks).split(',').map(s => s.trim()).filter(Boolean);
@@ -155,10 +171,20 @@ export function resolveSkipSimilar(): boolean {
 
 export function resolveTargetPreset(values: Record<string, unknown>, positionals: readonly string[]): AuditPresetName | undefined {
   if (values.preset) return values.preset as AuditPresetName;
-  if (values.build) return 'build';
-  if (positionals.includes('build')) return 'build';
+  if (values['post-build'] || positionals.includes('post-build')) return 'post-build';
+  if (values.full || positionals.includes('full')) return 'full';
   if (positionals.includes('lint')) return 'lint';
   if (positionals.includes('md')) return 'md';
+  return undefined;
+}
+
+function parseSpeedValue(raw: unknown): AuditExecutionSpeed | undefined {
+  if (raw === 'light' || raw === 'heavy' || raw === 'full') return raw;
+  return undefined;
+}
+
+function parsePhaseValue(raw: unknown): AuditExecutionPhase | undefined {
+  if (raw === 'normal' || raw === 'post-run' || raw === 'post-build') return raw;
   return undefined;
 }
 
@@ -168,7 +194,7 @@ export function parseAuditFullCliArgs(
 ): AuditFullCliOptions {
   const args = [...rawArgs];
   const BOOLEAN_FLAGS = [
-    'errors-only', 'fix', 'all', 'build', 'with-build', 'init-baseline', 'help', 'list', 'json', 'enabled', 'disabled'
+    'errors-only', 'fix', 'all', 'post-build', 'with-build', 'full', 'init-baseline', 'help', 'list', 'json', 'enabled', 'disabled'
   ];
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
 
@@ -187,8 +213,13 @@ export function parseAuditFullCliArgs(
       tasks: { type: 'string' },
       suites: { type: 'string' },
       suite: { type: 'string' },
+      'only-suite': { type: 'string' },
+      'only-task': { type: 'string' },
       guide: { type: 'string' },
       preset: { type: 'string' },
+      speed: { type: 'string' },
+      'only-speed': { type: 'string' },
+      phase: { type: 'string' },
       concurrency: { type: 'string' },
       output: { type: 'string', short: 'o' },
       'changed-since': { type: 'string' },
@@ -198,7 +229,8 @@ export function parseAuditFullCliArgs(
       rule: { type: 'string', short: 'r', multiple: true },
       rules: { type: 'string', multiple: true },
       fix: { type: 'boolean' },
-      build: { type: 'boolean' },
+      'post-build': { type: 'boolean' },
+      full: { type: 'boolean' },
       'with-build': { type: 'boolean' },
       'init-baseline': { type: 'boolean' }
     },
@@ -206,14 +238,24 @@ export function parseAuditFullCliArgs(
     strict: false
   });
 
+  const targetPreset = resolveTargetPreset(values, positionals);
+  const explicitSpeed = parseSpeedValue(values.speed)
+    ?? (targetPreset === 'full' ? 'full' : targetPreset === 'lint' ? 'light' : undefined);
+  const onlySpeed = parseSpeedValue(values['only-speed']);
+  const explicitPhase = parsePhaseValue(values.phase)
+    ?? (targetPreset === 'post-build' ? 'post-build' : undefined);
+
   return {
     values,
     positionals,
     project: typeof values.project === 'string' ? values.project : undefined,
     targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
     formattedRules: resolveFormattedRules(values, positionals),
-    targetPreset: resolveTargetPreset(values, positionals),
+    targetPreset,
     targetSuites: resolveTargetSuites(values),
+    speed: explicitSpeed,
+    onlySpeed,
+    phase: explicitPhase,
     concurrencyLimit: resolveConcurrencyLimit(values.concurrency),
     skipSimilar: resolveSkipSimilar(),
     isEnabledFilter: Boolean(
@@ -252,6 +294,8 @@ export function buildTaskArgs(
   if (values['errors-only'] && !taskArgs.includes('--errors-only')) taskArgs.push('--errors-only');
   if (formattedRules && !taskArgs.includes('--rule')) taskArgs.push('--rule', formattedRules);
   if (values.top && !taskArgs.includes('--top')) taskArgs.push('--top', values.top as string);
+  if (values.speed && !taskArgs.includes('--speed')) taskArgs.push('--speed', String(values.speed));
+  if (values['only-speed'] && !taskArgs.includes('--only-speed')) taskArgs.push('--only-speed', String(values['only-speed']));
   if (values['changed-since'] && task.capabilities?.changedSince && !taskArgs.includes('--changed-since')) {
     taskArgs.push('--changed-since', values['changed-since'] as string);
   }
@@ -691,8 +735,10 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
   const suitesPassed = results.filter(r => r.status === 'passed' && (r.summary?.errors ?? 0) === 0).length;
   const suitesSkipped = results.filter(r => r.status === 'skipped').length;
   const isFixMode = Boolean(cliOptions.values.fix);
-  const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
-  const isFullAudit = !isBuildMode && !isFixMode && tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
+  const isBuildMode = cliOptions.phase === 'post-build' || cliOptions.targetPreset === 'post-build' || Boolean(cliOptions.values['post-build']);
+  const isFullAudit = !isBuildMode && !isFixMode && !cliOptions.onlySpeed &&
+    (cliOptions.speed === undefined || cliOptions.speed === 'heavy' || cliOptions.speed === 'full') &&
+    tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
 
   const byFamily = groupResultsByFamily(results, activeFamilies);
   const sortedCategories = computeAuditCategoryCounts(results);
@@ -819,14 +865,12 @@ function handleListJsonOutput(filtered: readonly { task: AuditTaskDefinition; en
     enabled,
     ...(disabledReason ? { disabledReason } : {}),
     capabilities: {
-      fix: Boolean(t.capabilities?.fix),
-      lint: Boolean(t.capabilities?.lint),
+      speed: t.capabilities?.speed ?? 'light',
+      phase: t.capabilities?.phase ?? 'normal',
+      fix: t.capabilities?.fix ?? 'none',
       md: Boolean(t.capabilities?.md),
       ast: Boolean(t.capabilities?.ast || t.requiresAst),
-      changedSince: Boolean(t.capabilities?.changedSince),
-      heavy: Boolean(t.capabilities?.heavy),
-      requiresBuild: Boolean(t.capabilities?.requiresBuild),
-      postRun: Boolean(t.capabilities?.postRun)
+      changedSince: Boolean(t.capabilities?.changedSince)
     },
     rules: t.ruleDescriptions ?? {},
     configKey: t.configKey
@@ -894,10 +938,6 @@ function handleGuideCommand(
   allAvailableTasks: readonly AuditTaskDefinition[],
   activeFamilies: readonly AuditFamily[]
 ): void {
-  // 1. Resolver el target consultado:
-  // - Flag explícito: --guide=<target>
-  // - Posicional tras 'guide': auditor guide <ruleId|suiteId|family>
-  // - O argumentos clave-valor: rule=<id>, suite=<id>, family=<id>
   let target: string | undefined = typeof cliOptions.values.guide === 'string' && cliOptions.values.guide.trim() !== ''
     ? cliOptions.values.guide.trim()
     : undefined;
@@ -909,7 +949,6 @@ function handleGuideCommand(
     }
   }
 
-  // Si se pasó suite=<suiteId> o --suite=<suiteId>
   const suiteParam = typeof cliOptions.values.suite === 'string'
     ? cliOptions.values.suite.trim()
     : (typeof cliOptions.values.task === 'string' ? cliOptions.values.task.trim() : undefined);
@@ -924,7 +963,6 @@ function handleGuideCommand(
     process.exit(0);
   }
 
-  // Si se pasó family=<family> o --family=<family>
   if (cliOptions.values.family && typeof cliOptions.values.family === 'string') {
     const fam = cliOptions.values.family.trim();
     const tasksInFam = allAvailableTasks.filter(t => t.family === fam);
@@ -936,34 +974,29 @@ function handleGuideCommand(
     process.exit(0);
   }
 
-  // Si no hay target explícito, mostrar índice interactivo global
   if (!target) {
     console.log(renderGlobalGuideIndex(allAvailableTasks));
     process.exit(0);
   }
 
-  // 2. If target is an architectural family
   if (activeFamilies.includes(target as AuditFamily)) {
     const tasksInFam = allAvailableTasks.filter(t => t.family === target);
     console.log(renderFamilyGuideIndex(target, tasksInFam));
     process.exit(0);
   }
 
-  // 3. If target is a declared rule (high priority)
   const ruleMatch = findRuleGuide(allAvailableTasks, target);
   if (ruleMatch) {
     console.log(renderRuleGuideCard(ruleMatch));
     process.exit(0);
   }
 
-  // 4. If target is an existing suite
   const taskMatch = findTaskByUidOrName(allAvailableTasks, target);
   if (taskMatch) {
     console.log(renderSuiteGuideCards(taskMatch));
     process.exit(0);
   }
 
-  // 5. Target not found as rule, suite or family
   console.error(styleText('red', `\n❌ No se encontró ninguna regla, suite ni familia con el identificador '${target}'.`));
   console.error(styleText('dim', `   Ejecuta 'auditor guide' para ver el manual de uso y ejemplos de reglas.\n`));
   process.exit(1);
@@ -1034,7 +1067,9 @@ export function createAuditBannerDetails(
   } else if (isBuildMode) {
     subtitleDetails.push('Modo: POST-BUILD 🏗️');
   } else {
-    if (cliOptions.targetPreset) subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
+    if (cliOptions.onlySpeed) subtitleDetails.push(`Only-Speed: ${cliOptions.onlySpeed.toUpperCase()}`);
+    else if (cliOptions.speed) subtitleDetails.push(`Speed: ${cliOptions.speed.toUpperCase()}`);
+    else if (cliOptions.targetPreset) subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
     if (cliOptions.values.family) subtitleDetails.push(`Familia: ${String(cliOptions.values.family).toUpperCase()}`);
     if (cliOptions.skipSimilar) subtitleDetails.push('Similar-Code: OMITIDO ⏭️');
     if (tasksCount !== allAvailableCount || omittedCount > 0) subtitleDetails.push('Modo: PARCIAL ⚠️');
@@ -1108,12 +1143,37 @@ async function runTaskExecution(
   return { result: parsed, durationMs: suiteDuration };
 }
 
-function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: string[]): boolean {
-  if (!result.summary) {
-    const errCount = result.findings?.filter(f => f.severity === 'error').length ?? (result.status === 'failed' ? 1 : 0);
-    const warnCount = result.findings?.filter(f => f.severity === 'warning').length ?? 0;
-    result.summary = { errors: errCount, warnings: warnCount, info: 0 };
+function ensureTaskSummary(result: StandardAuditResult): void {
+  if (result.summary) return;
+  const errCount = result.findings?.filter(f => f.severity === 'error').length ?? (result.status === 'failed' ? 1 : 0);
+  const warnCount = result.findings?.filter(f => f.severity === 'warning').length ?? 0;
+  result.summary = { errors: errCount, warnings: warnCount, info: 0 };
+}
+
+function resolveSpeedEmoji(speed?: string): string {
+  if (speed === 'light') return ' 🐇';
+  if (speed === 'heavy') return ' 🐢';
+  if (speed === 'full') return ' 🐘';
+  return '';
+}
+
+function buildSubAuditorLine(s: SubAuditorReport, index: number, total: number): string {
+  const badge = s.count > 0 ? ` [🐛 ${formatNumber(s.count)}]` : '';
+  const speedEmoji = resolveSpeedEmoji(s.speed);
+  const durationBadge = s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
+  return `🔍 [${index + 1}/${total}] ${s.name}${badge}${speedEmoji}${durationBadge}`;
+}
+
+function populateSubAuditorSubLines(result: StandardAuditResult, subLines: string[]): void {
+  if (subLines.length > 0 || !result.subAuditors || result.subAuditors.length === 0) return;
+  const total = result.subAuditors.length;
+  for (let i = 0; i < total; i++) {
+    subLines.push(buildSubAuditorLine(result.subAuditors[i]!, i, total));
   }
+}
+
+function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: string[]): boolean {
+  ensureTaskSummary(result);
 
   const isSkipped = result.status === 'skipped' || result.metrics?.['Estado'] === 'OMITIDO ⏭️';
   if (isSkipped) {
@@ -1124,16 +1184,7 @@ function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: 
     return true;
   }
 
-  if (subLines.length === 0 && result.subAuditors && result.subAuditors.length > 0) {
-    const total = result.subAuditors.length;
-    for (let i = 0; i < total; i++) {
-      const s = result.subAuditors[i]!;
-      const badge = s.count > 0 ? ` [🐛 ${formatNumber(s.count)}]` : '';
-      const speedEmoji = s.speed === 'fast' ? ' 🐇' : s.speed === 'heavy' ? ' 🐢' : '';
-      const durationBadge = s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
-      subLines.push(`🔍 [${i + 1}/${total}] ${s.name}${badge}${speedEmoji}${durationBadge}`);
-    }
-  }
+  populateSubAuditorSubLines(result, subLines);
   return false;
 }
 
@@ -1235,14 +1286,16 @@ function displayMasterBanner(
 function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void {
   tasks.sort((a, b) => {
     if (isFixMode) {
-      const aPriority = Boolean(a.capabilities?.fixPriority);
-      const bPriority = Boolean(b.capabilities?.fixPriority);
+      const aPriority = a.capabilities?.fix === 'priority';
+      const bPriority = b.capabilities?.fix === 'priority';
       if (aPriority && !bPriority) return -1;
       if (!aPriority && bPriority) return 1;
     }
 
-    const aHeavy = Boolean(a.capabilities?.heavy);
-    const bHeavy = Boolean(b.capabilities?.heavy);
+    const aSpeeds = normalizeSpeeds(a.capabilities?.speed ?? 'light');
+    const bSpeeds = normalizeSpeeds(b.capabilities?.speed ?? 'light');
+    const aHeavy = aSpeeds.includes('heavy') || aSpeeds.includes('full');
+    const bHeavy = bSpeeds.includes('heavy') || bSpeeds.includes('full');
     if (aHeavy && !bHeavy) return -1;
     if (!aHeavy && bHeavy) return 1;
 
@@ -1286,6 +1339,15 @@ export async function runMasterAudit(): Promise<void> {
   if (cliOptions.targetPreset) {
     process.env.AUDITOR_PRESET = cliOptions.targetPreset;
   }
+  if (cliOptions.speed) {
+    process.env.AUDITOR_SPEED = cliOptions.speed;
+  }
+  if (cliOptions.onlySpeed) {
+    process.env.AUDITOR_ONLY_SPEED = cliOptions.onlySpeed;
+  }
+  if (cliOptions.phase) {
+    process.env.AUDITOR_PHASE = cliOptions.phase;
+  }
 
   if (cliOptions.skipSimilar) {
     process.env.AUDIT_SKIP_SIMILAR = 'true';
@@ -1293,15 +1355,17 @@ export async function runMasterAudit(): Promise<void> {
 
   const scratchAuditsDir = await setupMasterAuditDirectories(activeFamilies);
   const isFixMode = Boolean(cliOptions.values.fix);
-  const isBuildMode = cliOptions.targetPreset === 'build' || Boolean(cliOptions.values.build);
+  const isBuildMode = cliOptions.phase === 'post-build' || cliOptions.targetPreset === 'post-build' || Boolean(cliOptions.values['post-build']);
   const withBuild = Boolean(cliOptions.values['with-build'] || cliOptions.values.all);
   const discoveryBase = {
     fixOnly: isFixMode,
     buildOnly: isBuildMode,
     withBuild,
-    includeHeavy: (cliOptions.targetPreset === 'lint' || cliOptions.targetPreset === 'md') ? false : true
+    speed: cliOptions.speed,
+    onlySpeed: cliOptions.onlySpeed,
+    phase: cliOptions.phase
   };
-  const allAvailableTasks = await discoverAuditors(isBuildMode ? { buildOnly: true } : { withBuild });
+  const allAvailableTasks = await discoverAuditors(isBuildMode ? { buildOnly: true, phase: 'post-build' } : { withBuild });
 
   handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config);
 
@@ -1319,8 +1383,8 @@ export async function runMasterAudit(): Promise<void> {
   const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
 
   sortTasksByOrder(tasksToRun, isFixMode);
-  const workerTasks = tasksToRun.filter(t => !t.capabilities?.postRun);
-  const postRunTasks = tasksToRun.filter(t => t.capabilities?.postRun);
+  const workerTasks = tasksToRun.filter(t => t.capabilities?.phase !== 'post-run');
+  const postRunTasks = tasksToRun.filter(t => t.capabilities?.phase === 'post-run');
 
   await setupCoverageRunEnvironment(runMode, workerTasks);
   displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds);

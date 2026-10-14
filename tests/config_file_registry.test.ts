@@ -96,27 +96,14 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
       usesThirdPartyTool: false,
         ruleCapabilities: {
           'custom-config-missing': {
-            fix: isFix,
-            fixPriority: false,
-            lint: true,
+            speed: 'light',
+            phase: 'normal',
+            fix: isFix ? 'normal' : 'none',
             md: false,
             ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
+            changedSince: false
           },
-          'custom-content-valid': {
-            fix: false,
-            fixPriority: false,
-            lint: true,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
-          }
+          'custom-content-valid': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
         },
         fixableRuleIds: isFix ? ['custom-config-missing'] : undefined,
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
@@ -218,17 +205,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'optional-config-missing': {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }
+            'optional-config-missing': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
           },
           ruleIds: ['optional-config-missing'],
           ruleDescriptions: {

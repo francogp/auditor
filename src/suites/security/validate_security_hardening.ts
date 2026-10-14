@@ -1,5 +1,5 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -59,7 +59,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
         'permissive-cors': 'Guía de diagnóstico y remediación para permissive-cors. Revisa la incidencia detectada y ajusta el código correspondiente.',
         'unvalidated-redirect': 'Guía de diagnóstico y remediación para unvalidated-redirect. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
-      ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LINT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LIGHT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.securityHardening?.exemptPaths

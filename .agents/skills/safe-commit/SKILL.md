@@ -59,7 +59,7 @@ graph TD
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
         direction TB
-        T["2.1 Tests & Coverage\n(npm run test:coverage / test / Skip)"] -->|"Pass or Coverage Skip"| B["2.2 The Master Build Gate\nnpm run build\n(source auditor + tsc + auditor:build)"]
+        T["2.1 Tests & Coverage\n(npm run test:coverage / test / Skip)"] -->|"Pass or Coverage Skip"| B["2.2 The Master Build Gate\nnpm run build\n(auditor:full + tsc + auditor:post-build)"]
         B -->|"Exit 0 ✅"| F["2.3 Fallow Health Gate\nnpm run auditor:fallow"]
         
         T -->|"Tests Fail / Low Coverage"| REPAIR["🛠️ Repair:\n1. npm run auditor:fix\n2. Code & test edits"]
@@ -177,10 +177,10 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 ### 2.2 The Master Build & Audit Gate (`npm run build`)
 
 - Run `npm run build`.
-- **Strict Single Build & Atomic Verification**: This is the ONLY time `npm run build` executes in the workflow. Because `validate_audit_config` mandates that `"build"` chains `"npm run auditor && <compile> && npm run auditor:build"`:
-  1. **Pre-build Source Audit & Ratchet**: `npm run auditor` runs first, evaluating source code against 0 errors and 0 new warnings vs `ratchet.productionRef`, verifying freshly generated test coverage (if active) or skipping it cleanly (if disabled).
+- **Strict Single Build & Atomic Verification**: This is the ONLY time `npm run build` executes in the workflow. Because `validate_package_scripts` mandates that `"build"` chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`:
+  1. **Pre-build Exhaustive Source Audit & Ratchet (`auditor:full` / `speed=full` `🐘`)**: `npm run auditor:full` runs first, evaluating source code against 0 errors and 0 new warnings vs `ratchet.productionRef`, verifying freshly generated test coverage (if active) or skipping it cleanly (if disabled), and executing the full speed ceiling (`🐘`, including `fallow dead-code --type-aware`, complete AST, and heavy invariants).
   2. **Production Compilation**: TypeScript / bundler compiles the stamped code into `dist/` with strict exit code 0.
-  3. **Post-build Artifact Audit**: `npm run auditor:build` executes immediately post-compilation, evaluating chunk budgets, entrypoint types, and distribution hygiene in `dist/`.
+  3. **Post-build Artifact Audit (`auditor:post-build` / `phase=post-build`)**: `npm run auditor:post-build` executes immediately post-compilation, evaluating chunk budgets, entrypoint types, and distribution hygiene in `dist/`.
 - Strict exit code 0. Zero bypasses.
 
 ### 2.3 Fallow Health & Quality Gate (`npm run auditor:fallow`)

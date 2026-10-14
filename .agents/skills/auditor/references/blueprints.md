@@ -30,8 +30,8 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 20. `version`: Semantic version synchronization across files and build metadata (defaults to `enabled: true`).
 21. `secretLeaks`: Static secret token and private credential leak detection via `@secretlint/core` (defaults to `enabled: true`).
 22. `dependencyVulnerabilities`: External dependency CVE vulnerability scanner via `npm audit --json` (defaults to `enabled: true`).
-23. `packageDistribution`: Package distribution hygiene, export map resolution, and dual ESM/CJS compatibility (defaults to `enabled: true`, requires post-build `npm run auditor:build`).
-24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run auditor:build`).
+23. `packageDistribution`: Package distribution hygiene, export map resolution, and dual ESM/CJS compatibility (defaults to `enabled: true`, requires post-build `npm run auditor:post-build`).
+24. `packageTypes`: Package TypeScript `.d.ts` declaration and module resolution analysis via `@arethetypeswrong/core` (defaults to `enabled: true`, requires post-build `npm run auditor:post-build`).
 25. `valibot`: Bidirectional schema and persistence parity verification between TypeScript interfaces, Valibot schemas, and serializers (defaults to `enabled: true`, `targets: []`).
 26. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
 27. `testCoverage`: Istanbul/C8 coverage analysis, thresholds, and untracked file detection (defaults to `enabled: true`, `threshold: 80`, `enforceInAudit: true`).
@@ -45,7 +45,7 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 35. `codeSimplification`: Pragmatic code complexity and anti-pattern governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `maxBooleanParams: 2`, `maxSwitchCases: 10`, `allowMatrixLoops: false`, `exemptPaths: []`).
 36. `scssArchitecture`: Modular SCSS styling architecture and token governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `enforceThemeTokens: true`, `bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']`, `scopedMaxNestingDepth: {}`, `allowPixelArtSpacing: false`, `allowedSpacingUnits: []`, `allowScopedColors: false`, `exemptPaths: []`).
 
-When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.requiresBuild: true`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:build` / `preset=build`).
+When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.phase === 'post-build'`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:post-build` / `phase=post-build`).
 
 ---
 

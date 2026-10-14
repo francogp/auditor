@@ -86,15 +86,12 @@ private readonly minTestLines: number;
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
 id: 'validate_test_fragmentation',
       name: 'Test Anti-Fragmentation Validator',

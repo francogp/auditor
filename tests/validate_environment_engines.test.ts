@@ -52,9 +52,9 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Entorno');
       expect(auditor.icon).toBe('⚡');
-      expect(auditor.capabilities.fixPriority).toBe(false);
-      expect(auditor.capabilities.fix).toBe(false);
-      expect(auditor.capabilities.lint).toBe(true);
+      expect(auditor.capabilities.fix).not.toBe('priority');
+      expect(auditor.capabilities.fix).toBe('none');
+      expect(auditor.capabilities.speed).toBe('light');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
 
       for (const ruleId of ENVIRONMENT_ENGINES_RULES) {

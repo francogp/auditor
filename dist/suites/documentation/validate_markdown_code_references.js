@@ -424,15 +424,12 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: true,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_markdown_code_references',
             name: 'Markdown Code References Validator',

@@ -81,15 +81,12 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
-                fix: true,
-                fixPriority: true,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, [...SCRIPT_EXTENSIONS_RULES]),
             fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
             id: 'validate_script_extensions',

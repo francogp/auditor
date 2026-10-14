@@ -77,15 +77,12 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       roots: piniaRoots,
       projectRoot,
       ruleCapabilities: createRuleCapabilities(PINIA_REACTIVITY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',

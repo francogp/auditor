@@ -81,8 +81,20 @@ export const DEFAULT_NON_AUDITABLE_GLOBS = Object.freeze([
     // Legal documentation & licenses
     'LICENSE*'
 ]);
+export const FAST_NON_AUDITABLE_EXTENSIONS = new Set([
+    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.tiff', '.avif',
+    '.mp3', '.ogg', '.wav', '.flac', '.mp4', '.webm', '.avi', '.mov',
+    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+    '.db', '.sqlite', '.sqlite3', '.wasm', '.zip', '.tar', '.gz', '.tgz'
+]);
 /** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
 export function isAuditableCodebaseFile(relPosixPath, customExemptGlobs = []) {
+    const lastDot = relPosixPath.lastIndexOf('.');
+    if (lastDot !== -1) {
+        const ext = relPosixPath.slice(lastDot).toLowerCase();
+        if (FAST_NON_AUDITABLE_EXTENSIONS.has(ext))
+            return false;
+    }
     if (matchesAnyGlob(relPosixPath, DEFAULT_NON_AUDITABLE_GLOBS))
         return false;
     if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs))

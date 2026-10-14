@@ -36,15 +36,12 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_dependency_minimums',
       name: 'Dependency Minimum Versions Validator',

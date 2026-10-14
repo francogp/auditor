@@ -47,6 +47,5 @@ export declare class ValidateDocumentedCommandsAuditor extends BaseAuditor<Docum
         projectRoot?: string;
     });
     runAudit(): Promise<void>;
-    private collectAllMarkdownFiles;
 }
 //# sourceMappingURL=validate_documented_commands.d.ts.map

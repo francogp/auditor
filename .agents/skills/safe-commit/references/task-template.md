@@ -20,7 +20,7 @@
 - [ ] **Phase 2: Active Verification & Repair Loop 🔁 (Exits ONLY on All 3 Gates Passing)**
   - [ ] **Loop Cycle Checks (Must ALL pass consecutively on final code)**:
     - [ ] `npm run test:coverage` (Gate 2.1: 100% test suites passing + freshly emitted `coverage/coverage-final.json` artifact; conditionally `[SKIPPED]` if `testCoverage.enabled === false` or `enforceInAudit === false`)
-    - [ ] `npm run build` 🔒 **THE MASTER BUILD GATE** (Gate 2.2: STRICT Exit Code 0 — atomic single run chaining pre-build `auditor`, compilation, and post-build `auditor:build`)
+    - [ ] `npm run build` 🔒 **THE MASTER BUILD GATE** (Gate 2.2: STRICT Exit Code 0 — atomic single run chaining pre-build `auditor:full`, compilation, and post-build `auditor:post-build`)
     - [ ] `npm run auditor:fallow` (Gate 2.3: Score ≥ 85 and ≥ BASELINE_HEALTH)
   - [ ] **Loop Repair Action (Triggered on ANY failure above; repeat until all gates pass)**:
     - [ ] `npm run auditor:fix` / manual code fixes applied in workspace
@@ -59,7 +59,7 @@
 
 - **Loop Iteration Count**: `0`
 - **test:coverage (Tests & Dynamic Coverage)**: `PENDING (100% PASS OR SKIPPED)`
-- **npm run build (THE MASTER GATE: auditor + compile + auditor:build)**: `PENDING (MUST BE EXIT 0)`
+- **npm run build (THE MASTER GATE: auditor:full + compile + auditor:post-build)**: `PENDING (MUST BE EXIT 0)`
 - **auditor:fallow (Final Fallow Health)**: `PENDING (SCORE ≥ 85)`
 - **Repairs Applied**:
   - `(none yet)`

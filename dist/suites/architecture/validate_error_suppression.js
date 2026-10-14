@@ -48,15 +48,12 @@ export class ErrorSuppressionAuditor extends FileScanAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_error_suppression',
             name: 'Zero Error Suppression Auditor',

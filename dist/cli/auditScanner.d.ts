@@ -9,7 +9,7 @@
 import { type AuditTaskDefinition, type AuditorCapabilities, type GitIgnoreRequirement, type AuditorPackageScriptRequirement } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 export declare const AUDIT_PRESETS: Record<string, readonly string[]>;
-export type AuditPresetName = 'lint' | 'md' | 'build' | (string & {});
+export type AuditPresetName = 'lint' | 'full' | 'precommit' | 'md' | 'post-build' | 'build' | (string & {});
 export { type DiscoveryOptions, getTimeoutForTask, DEFAULT_PERMISSIONS, getPermissionsForTask, formatTaskTitle, shouldSkipTaskByFilters, shouldSkipTaskByCapabilities, buildTaskCliArguments, createAuditTaskDefinition } from './auditTaskFactory.ts';
 import { type DiscoveryOptions } from './auditTaskFactory.ts';
 export { type ExtractedAuditorMetadata, extractStaticMetadataFromFile, extractAuditorMetadataFromFile } from './auditorMetadata.ts';

@@ -67,6 +67,7 @@ describe('AuditorHygieneAuditor', () => {
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-unmeasured-rule');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-redundant-rule-evaluated');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-third-party-tool-contract');
+      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-inefficient-file-scan');
     });
 
     it('enforces composed rule descriptions <= 50 characters', () => {
@@ -803,6 +804,57 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+  });
+
+  describe('auditor-inefficient-file-scan', () => {
+    it('detects nested rule loop over file iteration', async () => {
+      const result = await audit('nested_rule_files.ts', [
+        "export class NestedLoopAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        '    for (const ruleId of this.ruleIds) {',
+        '      for (const filePath of filePaths) {',
+        '        const content = fs.readFileSync(filePath, "utf-8");',
+        '      }',
+        '    }',
+        '  }',
+        '}'
+      ]);
+
+      const findings = findingsFor(result, 'auditor-inefficient-file-scan');
+      expect(result.status).toBe('failed');
+      expect(findings.length).toBeGreaterThanOrEqual(1);
+      expect(findings[0]!.severity).toBe('error');
+    });
+
+    it('detects blind wildcards passed to external CLI tools', async () => {
+      const result = await audit('blind_wildcard.ts', [
+        "export class BlindWildcardAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        '    const args = ["**/*.md", "--dot"];',
+        '    executeNodeCli(binPath, args);',
+        '  }',
+        '}'
+      ]);
+
+      const findings = findingsFor(result, 'auditor-inefficient-file-scan');
+      expect(result.status).toBe('failed');
+      expect(findings.length).toBeGreaterThanOrEqual(1);
+      expect(findings[0]!.severity).toBe('error');
+    });
+
+    it('accepts clean single pass scanning', async () => {
+      const result = await audit('single_pass_clean.ts', [
+        "export class SinglePassAuditor extends BaseAuditor<'rule-a'> {",
+        '  public override async runAudit(): Promise<void> {',
+        '    await this.scanFilesSinglePass(filePaths, [',
+        '      { ruleId: "rule-a", scan: () => {} }',
+        '    ]);',
+        '  }',
+        '}'
+      ]);
+
+      expect(findingsFor(result, 'auditor-inefficient-file-scan')).toHaveLength(0);
     });
   });
 

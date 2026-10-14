@@ -279,15 +279,12 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         args: [],
         description: 'Audits code hygiene with ESLint flat config',
         capabilities: {
-          fix: true,
-          fixPriority: true,
-          lint: true,
+          speed: ['light', 'heavy'],
+          phase: 'normal',
+          fix: 'normal',
           md: false,
-          heavy: true,
           ast: true,
-          changedSince: true,
-          requiresBuild: false,
-          postRun: false
+          changedSince: true
         },
         ruleDescriptions: {
           'eslint-violation': 'Sintaxis o regla de lint violada'
@@ -298,7 +295,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const card = renderAuditorDetailCard(task);
       expect(card).toContain('ESLint Hygiene');
       expect(card).toContain('Auto-reparación (--fix)');
-      expect(card).toContain('Preset Lint');
+      expect(card).toContain('Velocidad Rápida (speed=light)');
       expect(card).toContain('eslint-violation');
       expect(card).toContain('Clave configurable:');
       expect(card).toContain('eslint');
@@ -316,7 +313,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
       const card = renderAuditorDetailCard(task);
       expect(card).toContain('Simple Task');
-      expect(card).toContain('(Ejecución estándar general)');
+      expect(card).toContain('Velocidad Rápida (speed=light)');
       expect(card).toContain('Sin configuración requerida');
     });
   });
@@ -329,7 +326,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'architecture',
         icon: '🏛️',
         description: 'First suite',
-        capabilities: { fix: true, fixPriority: true, lint: true, md: false, heavy: false, ast: false, changedSince: false, requiresBuild: false, postRun: false },
+        capabilities: { speed: 'light', phase: 'normal', fix: 'priority', md: false, ast: false, changedSince: false },
         scriptPath: 'src/a.ts',
         command: 'node',
         args: []
@@ -340,7 +337,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'domain_data',
         icon: '🔒',
         description: 'Second suite',
-        capabilities: { fix: false, fixPriority: false, lint: false, md: true, heavy: true, ast: false, changedSince: false, requiresBuild: false, postRun: false },
+        capabilities: { speed: 'heavy', phase: 'normal', fix: 'none', md: true, ast: false, changedSince: false },
         scriptPath: 'src/b.ts',
         command: 'node',
         args: []
@@ -353,8 +350,8 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       expect(cleanTable).toContain('CATÁLOGO DINÁMICO DE AUDITORES');
       expect(cleanTable).toContain('suite_a');
       expect(cleanTable).toContain('suite_b');
-      expect(cleanTable).toContain('FIX LINT');
-      expect(cleanTable).toContain('MD HVY');
+      expect(cleanTable).toContain('FIX! 🐇');
+      expect(cleanTable).toContain('🐢 MD');
     });
 
     it('renders enabled filter correctly', () => {
@@ -387,7 +384,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     it('renders CLI help card with active families and usage examples', () => {
       const help = renderCliHelp(['architecture', 'documentation']);
       expect(help).toContain('USO:');
-      expect(help).toContain('MODOS Y PRESETS DE EJECUCIÓN:');
+      expect(help).toContain('MODOS, VELOCIDADES Y FASES DE EJECUCIÓN:');
       expect(help).toContain('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:');
       expect(help).toContain('FILTROS Y SELECCIÓN:');
       expect(help).toContain('architecture');
@@ -479,7 +476,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         command: 'node',
         args: [],
         description: 'Audits code hygiene with ESLint flat config',
-        capabilities: { fix: true, fixPriority: true, lint: true, md: false, heavy: true, ast: true, changedSince: true, requiresBuild: false, postRun: false },
+        capabilities: { speed: ['light', 'heavy'], phase: 'normal', fix: 'priority', md: false, ast: true, changedSince: true },
         ruleDescriptions: { 'eslint-violation': 'Sintaxis o regla de lint violada' },
         configKey: 'eslint'
       };

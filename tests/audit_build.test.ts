@@ -1,13 +1,13 @@
 /**
  * tests/audit_build.test.ts
  *
- * Unit tests for post-build audit CLI execution (runAuditBuild).
+ * Unit tests for post-build audit CLI execution (runAuditPostBuild).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as childProcess from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { runAuditBuild } from '../src/cli/audit_build.ts';
+import { runAuditPostBuild } from '../src/cli/audit_post_build.ts';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof childProcess>();
@@ -17,12 +17,12 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
-describe('audit_build CLI', () => {
+describe('audit_post_build CLI', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('spawns child process targeting audit_full with preset=build and returns exit code 0 on success', async () => {
+  it('spawns child process targeting audit_full with phase=post-build and returns exit code 0 on success', async () => {
     const fakeChild = new EventEmitter() as unknown as childProcess.ChildProcess;
     vi.mocked(childProcess.spawn).mockImplementation((_cmd, _args, _opts) => {
       setTimeout(() => {
@@ -31,7 +31,7 @@ describe('audit_build CLI', () => {
       return fakeChild;
     });
 
-    const code = await runAuditBuild(['--verbose']);
+    const code = await runAuditPostBuild(['--verbose']);
 
     expect(code).toBe(0);
     expect(childProcess.spawn).toHaveBeenCalledTimes(1);
@@ -39,7 +39,7 @@ describe('audit_build CLI', () => {
     expect(callArgs).toBeDefined();
     expect(callArgs![0]).toBe(process.execPath);
     const nodeArgs = callArgs![1] as string[];
-    expect(nodeArgs).toContain('preset=build');
+    expect(nodeArgs).toContain('phase=post-build');
     expect(nodeArgs).toContain('--verbose');
   });
 
@@ -52,7 +52,7 @@ describe('audit_build CLI', () => {
       return fakeChild;
     });
 
-    const code = await runAuditBuild();
+    const code = await runAuditPostBuild();
     expect(code).toBe(2);
   });
 
@@ -65,7 +65,7 @@ describe('audit_build CLI', () => {
       return fakeChild;
     });
 
-    const code = await runAuditBuild();
+    const code = await runAuditPostBuild();
     expect(code).toBe(0);
   });
 });

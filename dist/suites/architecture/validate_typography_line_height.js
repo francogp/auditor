@@ -94,15 +94,12 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_typography_line_height',
             name: 'Typography Line-Height & Interlinear Spacing Validator',

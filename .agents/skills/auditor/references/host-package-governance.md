@@ -130,9 +130,9 @@ Host extensions declared in `.auditor/audit.config.ts` are automatically discove
 
 The build execution is partitioned into a **2-part auditor lifecycle**:
 
-1. **Pre-build verification** (`npm run auditor`): enforces source code architecture, linting, and domain type constraints before compilation starts.
+1. **Pre-build verification** (`npm run auditor:full`): enforces source code architecture, linting, and domain type constraints before compilation starts at full ceiling (`🐘`).
 2. **Compilation**: runs the bundler / TypeScript compiler (`vite build`, `tsc`, etc.).
-3. **Post-build verification** (`npm run auditor:build`): verifies compiled distribution artifacts in `dist/` (bundle budgets, export maps, type definitions).
+3. **Post-build verification** (`npm run auditor:post-build`): verifies compiled distribution artifacts in `dist/` (bundle budgets, export maps, type definitions).
 
 - **Tooling Packages (TypeScript CLI / Library Packages)**:
   Tool packages distributing CLI tools or pre-compiled distribution bundles (`dist/`) MUST strictly use the cross-platform Node.js executable script:
@@ -140,8 +140,8 @@ The build execution is partitioned into a **2-part auditor lifecycle**:
   ```json
   {
     "scripts": {
-      "build": "npm run auditor && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:build",
-      "build:prod": "auditor-build-prod"
+      "build": "npm run auditor:full && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:post-build",
+      "build:deploy": "auditor-build-deploy"
     }
   }
   ```
@@ -154,8 +154,8 @@ The build execution is partitioned into a **2-part auditor lifecycle**:
   ```json
   {
     "scripts": {
-      "build": "npm run auditor && vite build && npm run auditor:build",
-      "build:prod": "auditor-build-prod"
+      "build": "npm run auditor:full && vite build && npm run auditor:post-build",
+      "build:deploy": "auditor-build-deploy"
     }
   }
   ```
@@ -185,13 +185,13 @@ In consumer host projects deploying to production, building Docker containers, r
 
 - The full auditor normally validates 100% of architectural and quality checks.
 - In production environments, coverage files (`coverage/coverage-final.json`) are git-ignored and not generated during build, and computing vector embeddings via Candle CPU is undesirable.
-- Setting `AUDITOR_ENV=production` (or invoking `npm run build:prod` / `auditor-build-prod`) cleanly skips `validate_similar_code` and `validate_test_coverage` with 0 violations.
-- All other 48+ suites and post-build artifact verification (`auditor:build`) execute at 100% strictness.
+- Setting `AUDITOR_ENV=production` (or invoking `npm run build:deploy` / `auditor-build-deploy`) cleanly skips `validate_similar_code` and `validate_test_coverage` with 0 violations.
+- All other 48+ suites and post-build artifact verification (`auditor:post-build`) execute at 100% strictness.
 
 ```yaml
 # In GitHub Actions workflow step (e.g. GitHub Pages deploy):
 - name: Audit & Build
-  run: npm run build:prod
+  run: npm run build:deploy
   # or:
   # run: npm run build
   # env:
@@ -245,7 +245,7 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 
 When implementing core auditor features or script modernizations in `@francogp/auditor`:
 
-1. **Upstream First**: Complete all code changes, unit tests (`npm test`), distribution compilation (`npm run build`), and post-build audits (`auditor:build`) exclusively inside `@francogp/auditor`.
+1. **Upstream First**: Complete all code changes, unit tests (`npm test`), distribution compilation (`npm run build`), and post-build audits (`npm run auditor:post-build`) exclusively inside `@francogp/auditor`.
 2. **Zero Premature Host Updates**: NEVER edit or run auto-fix scripts on consumer applications (`package.json`) before the upstream package is committed and ready.
 3. **Consumer Upgrade via Canonical Workflow**: Once upstream is published or committed, upgrade consumer projects exclusively via `npm run auditor:update` (or `auditor-update`) followed by `auditor fix` to apply script updates cleanly.
 

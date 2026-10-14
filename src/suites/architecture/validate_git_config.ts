@@ -73,15 +73,12 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
-        fix: true,
-        fixPriority: true,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'priority',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }, [...GIT_CONFIG_RULES]),
       fixableRuleIds: [...GIT_CONFIG_RULES],
       id: 'validate_git_config',

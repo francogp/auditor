@@ -145,12 +145,14 @@ describe('audit_full CLI orchestration helpers', () => {
       expect(resolveTargetPreset({ preset: 'md' }, [])).toBe('md');
     });
 
-    it('returns build when values.build is truthy', () => {
-      expect(resolveTargetPreset({ build: true }, [])).toBe('build');
+    it('returns post-build when values["post-build"] is truthy', () => {
+      expect(resolveTargetPreset({ 'post-build': true }, [])).toBe('post-build');
+      expect(resolveTargetPreset({ full: true }, [])).toBe('full');
     });
 
     it('returns preset when found in positionals', () => {
-      expect(resolveTargetPreset({}, ['build'])).toBe('build');
+      expect(resolveTargetPreset({}, ['post-build'])).toBe('post-build');
+      expect(resolveTargetPreset({}, ['full'])).toBe('full');
       expect(resolveTargetPreset({}, ['lint'])).toBe('lint');
       expect(resolveTargetPreset({}, ['md'])).toBe('md');
     });
@@ -430,14 +432,14 @@ describe('audit_full CLI orchestration helpers', () => {
       expect(details.some(d => d.includes('Modo: POST-BUILD 🏗️'))).toBe(true);
     });
 
-    it('renders normal run details with preset, family, and partial badges', () => {
+    it('renders normal run details with speed/preset, family, and partial badges', () => {
       const customCli = parseAuditFullCliArgs(activeFamilies, [
         'preset=lint',
         'family=architecture'
       ]);
       const details = createAuditBannerDetails(customCli, false, false, 4, 10, 6);
       expect(details.some(d => d.includes('Auto-descubiertas: 4/10 suites'))).toBe(true);
-      expect(details.some(d => d.includes('Preset: LINT'))).toBe(true);
+      expect(details.some(d => d.includes('Speed: LIGHT'))).toBe(true);
       expect(details.some(d => d.includes('Familia: ARCHITECTURE'))).toBe(true);
       expect(details.some(d => d.includes('Modo: PARCIAL ⚠️'))).toBe(true);
     });

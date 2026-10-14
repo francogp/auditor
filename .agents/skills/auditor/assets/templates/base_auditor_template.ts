@@ -57,19 +57,18 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
   constructor(options: MyCompositeAuditorOptions = {}) {
     super({
-      // Explicit rule capabilities for all 9 boolean flags with fixable rule overrides:
+      // Explicit 6-field orthogonal rule capabilities (Zero Fallbacks Mandate):
+      // Tip: For tools with fast/deep CLI flags (e.g. TieredCommandProfile), you can pass
+      // speed: ['light', 'full'] so the rule runs fast in light/heavy and deep in full.
       ruleCapabilities: createRuleCapabilities(
         MY_COMPOSITE_RULES,
         {
-          fix: false,
-          fixPriority: false,
-          lint: true,
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
           md: false,
           ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
+          changedSince: false
         },
         ['composite-missing-config']
       ),
@@ -133,7 +132,14 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       this.recordScanned(file);
     }
 
-    // Option B: Validate data structures or relationships with individual empirical timing
+    // Option B (High-Performance Multi-Rule File Scan):
+    // If you need to scan multiple rules across the same files, use this.scanFilesSinglePass:
+    // await this.scanFilesSinglePass(files, [
+    //   { ruleId: 'composite-missing-entry', scan: (file, content, lines) => { /* ... */ } }
+    // ]);
+    // This reads each file once in RAM, preventing 'auditor-inefficient-file-scan'.
+
+    // Option C: Validate data structures or relationships with individual empirical timing
     // Rule 1: Missing entry check (measured individually)
     this.runSubAuditorSync('composite-missing-entry', () => {
       // In real code: check if all required entries exist in registry

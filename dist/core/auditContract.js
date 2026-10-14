@@ -89,8 +89,45 @@ export function getActiveFamilies(customFamilies) {
 }
 export const FINDING_SEVERITIES = ['error', 'warning', 'info'];
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'];
+export const AUDIT_EXECUTION_SPEEDS = ['light', 'heavy', 'full'];
+export const SPEED_RANK = Object.freeze({
+    light: 1,
+    heavy: 2,
+    full: 3
+});
+export const AUDIT_EXECUTION_PHASES = ['normal', 'post-run', 'post-build'];
+export const AUDIT_FIX_CAPABILITIES = ['none', 'normal', 'priority'];
+export function normalizeSpeeds(speed) {
+    if (!speed)
+        return [];
+    return Array.isArray(speed) ? speed : [speed];
+}
+/**
+ * Resolves the effective speed to run for a given capability under:
+ * - Ceiling mode (`maxSpeed`): picks the highest/slowest available speed <= maxSpeed. Returns null if none <= maxSpeed.
+ * - Exact mode (`onlySpeed`): returns onlySpeed if explicitly declared in `declaredSpeed`, else null.
+ */
+export function resolveEffectiveSpeed(declaredSpeed, options = {}) {
+    const speeds = normalizeSpeeds(declaredSpeed);
+    if (speeds.length === 0)
+        return null;
+    if (options.onlySpeed) {
+        return speeds.includes(options.onlySpeed) ? options.onlySpeed : null;
+    }
+    const ceiling = options.maxSpeed ?? 'heavy';
+    const maxRank = SPEED_RANK[ceiling];
+    let best = null;
+    for (const s of speeds) {
+        const rank = SPEED_RANK[s];
+        if (rank !== undefined && rank <= maxRank) {
+            if (!best || rank > SPEED_RANK[best]) {
+                best = s;
+            }
+        }
+    }
+    return best;
+}
 export const SUB_AUDITOR_STATUSES = ['passed', 'warning', 'failed'];
-export const AUDIT_EXECUTION_SPEEDS = ['fast', 'heavy'];
 export const COVERAGE_SOURCES = ['runtime', 'declared-only'];
 /**
  * Derives the canonical package.json script requirement for any auditor by convention.

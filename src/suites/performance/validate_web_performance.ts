@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { isPathExempt } from '../../core/safePath.ts';
@@ -61,7 +61,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         'layout-shift-dimensions': 'Guía de diagnóstico y remediación para layout-shift-dimensions. Revisa la incidencia detectada y ajusta el código correspondiente.',
         'uncompressed-video': 'Guía de diagnóstico y remediación para uncompressed-video. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
-      ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LINT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.webPerformance?.exemptPaths

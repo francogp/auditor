@@ -71,15 +71,12 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       icon: '🔍', // Mandatory thematic emoji
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
@@ -197,15 +194,12 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       icon: '📊', // Mandatory thematic emoji
       family: 'domain_data',
       ruleCapabilities: createUniformRuleCapabilities(MY_DATA_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleIds: MY_DATA_RULES,
       packageName: 'Datos',
@@ -332,15 +326,12 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
           '2. Reemplázala por la alternativa canónica recomendada.'
       },
       ruleCapabilities: createRuleCapabilities(MY_AST_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       requiresAst: true,
       roots: ['src'],
@@ -394,6 +385,7 @@ export interface SubAuditorReport {
   readonly name: string;
   readonly status: 'passed' | 'failed';
   readonly count: number;
+  readonly speed: AuditExecutionSpeed;
   readonly detail?: string;
 }
 
@@ -408,8 +400,8 @@ When you inherit from `FileScanAuditor`, every rule declared in `this.ruleIds` i
 Upon completing the file scan, `ensureSubAuditorsLogged()` automatically logs each sub-auditor step:
 
 ```text
-🔍 [1/2] MiModulo: Token prohibido en archivo fuente ⚡ (12,4 ms)
-🔍 [2/2] MiModulo: Atributo obligatorio faltante [🐛 2] ⚡ (5,1 ms)
+🔍 [1/2] MiModulo: Token prohibido en archivo fuente 🐇 (12,4 ms)
+🔍 [2/2] MiModulo: Atributo obligatorio faltante [🐛 2] 🐇 (5,1 ms)
 ```
 
 - **Zero Findings**: Silent and clean, with no badges or verbose text like `(0 encontradas)`.
@@ -677,42 +669,40 @@ The native Stylelint plugin [`src/suites/architecture/stylelintSassTrapsPlugin.t
 
 ---
 
-## 8. Sub-Auditor Capabilities Contract (`AuditorCapabilities`) & Zero-Boilerplate Defaults
+## 8. Orthogonal 6-Field Rule Capabilities Contract (`AuditorRuleCapabilities`) & Speed Engine
 
-Every sub-auditor declares its execution capabilities dynamically. The orchestrator inspects these capabilities to coordinate specialized execution modes (such as `auditor fix`, fast presets, differential runs, or AST sharing) without maintaining hardcoded suite lists.
+Every sub-auditor declares its execution capabilities per rule via `ruleCapabilities: Record<TRuleId, AuditorRuleCapabilities>`. The orchestrator inspects these capabilities to coordinate specialized execution modes (`auditor fix`, speed ceilings `speed=light|heavy|full`, exact speed isolation `only-speed=light|heavy|full`, lifecycle phases `phase=normal|post-run|post-build`, differential runs, or AST sharing) without maintaining hardcoded suite lists.
 
-### The Standard Capabilities
+### The Standard 6-Field Per-Rule Capabilities (`AuditorRuleCapabilities`)
 
 ```typescript
-export interface AuditorCapabilities {
-  /** Supports automatic fixing/repair of detected violations (--fix / auditor fix). */
-  readonly fix: boolean;
-  /** High priority in auto-repair mode; executed FIRST to bootstrap environment, configs, and scripts. */
-  readonly fixPriority: boolean;
-  /** Included in fast lint preset (preset=lint). */
-  readonly lint: boolean;
-  /** Included in markdown documentation preset (preset=md). */
+export type AuditExecutionSpeed = 'light' | 'heavy' | 'full';
+export type AuditExecutionPhase = 'normal' | 'post-run' | 'post-build';
+export type AuditFixCapability = 'none' | 'normal' | 'priority';
+
+export interface AuditorRuleCapabilities {
+  /** Execution speed tier ('light' 🐇, 'heavy' 🐢, 'full' 🐘) or array of tiers (e.g. ['light', 'full'] for TieredCommandProfile). */
+  readonly speed: AuditExecutionSpeed | readonly AuditExecutionSpeed[];
+  /** Execution lifecycle phase ('normal', 'post-run' after coverage ledgers flush, or 'post-build' against dist/). */
+  readonly phase: AuditExecutionPhase;
+  /** Auto-repair support: 'none', 'normal' (--fix), or 'priority' (executes FIRST in --fix to bootstrap configs/env). */
+  readonly fix: AuditFixCapability;
+  /** Included in markdown documentation preset (preset=md / npm run auditor:md). */
   readonly md: boolean;
   /** Requires in-memory TypeScript AST parsing engine (SharedAstContext). */
   readonly ast: boolean;
   /** Supports differential file scanning (--changed-since / changed-since=origin/main). */
   readonly changedSince: boolean;
-  /** Heavy computation / long-running suite, excluded by default from fast presets. */
-  readonly heavy: boolean;
-  /** Requires compilation / distribution artifacts (dist/) to exist prior to audit (auditor:build). */
-  readonly requiresBuild: boolean;
-  /** Lifecycle hook executed after primary scan. */
-  readonly postRun: boolean;
 }
 ```
 
-### Mandatory Capabilities Contract & 100% Complete Initialization
+### Mandatory 6-Field Contract & 100% Complete Initialization
 
-`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST declare ruleCapabilities** (using `createUniformRuleCapabilities(ruleIds, capabilities)` or `createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds)`), explicitly declaring all 9 boolean capabilities (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`) as booleans (`true` or `false`).
+`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST declare `ruleCapabilities`** (using `createUniformRuleCapabilities(ruleIds, capabilities)` or `createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds)`), explicitly declaring all 6 orthogonal fields (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`).
 
 > [!CAUTION]
-> **V6 → V7 BREAKING CHANGE: PROHIBITION ON PASSING `capabilities` DIRECTLY**
-> In v7.0.0+, suite-level `capabilities` must **NEVER** be passed directly to constructor options (`capabilities?: never`). Passing `capabilities: { ... }` throws an immediate, loud `[Auditor Contract Violation]` error. Always use `ruleCapabilities: createRuleCapabilities(...)` or `createUniformRuleCapabilities(...)`. The superclass automatically derives suite-level capabilities from the registered rules!
+> **V6 → V7+ BREAKING CHANGE: PROHIBITION ON PASSING SUITE-LEVEL `capabilities` OR LEGACY 10-BOOLEAN FLAGS**
+> Suite-level `capabilities` must **NEVER** be passed directly to constructor options (`capabilities?: never`), and the legacy 10-boolean flags (`lint`, `precommit`, `fixPriority`, `heavy`, `requiresBuild`, `postRun`) are replaced by the 6-field orthogonal contract (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`). Always use `ruleCapabilities: createRuleCapabilities(...)` or `createUniformRuleCapabilities(...)`. The superclass automatically derives suite-level `AuditorCapabilities` from the registered rules!
 
 ```typescript
 // Standard sub-auditor: initialize ruleCapabilities using createUniformRuleCapabilities
@@ -721,15 +711,12 @@ export class MyValidator extends BaseAuditor<MyRuleId> {
     super({
       id: 'validate_my_validator',
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       ruleIds: MY_RULES,
       ...
@@ -745,17 +732,14 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
       ruleCapabilities: createRuleCapabilities(
         MY_RULES,
         {
-          fix: false,
-          fixPriority: false,
-          lint: true,
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
           md: false,
           ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
+          changedSince: false
         },
-        ['my-fixable-rule'] // fixableRuleIds
+        ['my-fixable-rule'] // fixableRuleIds automatically upgraded to fix: 'normal'
       ),
       ruleIds: MY_RULES,
       ...
@@ -766,33 +750,39 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
 
 ### Dynamic Auto-Coordination in the Runner (Zero Hardcoding)
 
-- **`auditor fix` / `auditor --fix`**: Automatically discovers all suites declaring `capabilities.fix === true`. Suites declaring `capabilities.fixPriority === true` (environment, tooling, and configuration generators) execute **FIRST**, ensuring `.auditor/audit.config.ts`, `.gitignore`, `package.json` scripts, and linter configs are established before dependent code/style fixers run.
-- **Fast presets (`preset=lint`, `preset=md`)**: Automatically run suites with `capabilities.lint === true` or `capabilities.md === true`, while bypassing suites with `capabilities.heavy === true`.
-- **Post-Build verification (`auditor:build` / `preset=build`)**: Automatically runs suites with `capabilities.requiresBuild === true` against `dist/` post-compilation, excluding them from source audits.
-- **Pre-heat AST**: Automatically initializes `SharedAstContext` before executing any suite with `capabilities.ast === true`.
+- **`auditor fix` / `npm run auditor:fix`**: Automatically discovers all suites with rules declaring `fix: 'normal' | 'priority'`. Suites with `fix: 'priority'` (environment, tooling, and configuration generators) execute **FIRST**, ensuring `.auditor/audit.config.ts`, `.gitignore`, `package.json` scripts, and linter configs are established before dependent code/style fixers run.
+- **Speed Ceiling Mode (`speed=light|heavy|full`)**:
+  - `npm run auditor:lint` (`auditor speed=light`): Executes `'light'` (`🐇`) rules in milliseconds.
+  - `npm run auditor` (`auditor` / `auditor speed=heavy`): Default ceiling executing `'light'` (`🐇`) + `'heavy'` (`🐢`) rules.
+  - `npm run auditor:full` (`auditor speed=full`): Exhaustive pre-build/release ceiling executing `'light'` (`🐇`) + `'heavy'` (`🐢`) + `'full'` (`🐘`) rules.
+- **Exact Speed Isolation (`only-speed=light|heavy|full`)**: Executes ONLY rules matching that exact tier.
+- **Post-Build Verification (`npm run auditor:post-build` / `auditor phase=post-build`)**: Automatically runs suites with `phase: 'post-build'` against `dist/` post-compilation, excluding them from source audits.
+- **Pre-heat AST**: Automatically initializes `SharedAstContext` before executing any suite with `ast: true`.
 
 ### Mandatory Speed Contract (`speed: AuditExecutionSpeed`) & Scheduler LPT
 
 The framework enforces strict governance over execution speed across all suites and host extensions:
 
 1. **Mandatory Speed Property (`SubAuditorReport.speed`)**:
-   - Every sub-auditor report step MUST contain `speed: AuditExecutionSpeed` (`'fast' | 'heavy'`).
+   - Every sub-auditor report step MUST contain `speed: AuditExecutionSpeed` (`'light' | 'heavy' | 'full'`).
    - The speed property is **strictly non-optional**. Setting `speed` to `undefined` or allowing it to remain unassigned is categorically forbidden.
-   - If a sub-auditor or rule capability does not define `heavy: boolean` or cannot resolve its execution speed, the orchestrator **FAILS LOUDLY** (`throw new Error(...)`) at runtime, preventing silent contract degradation.
+   - If a sub-auditor or rule capability omits `speed` or cannot resolve its execution speed, the orchestrator **FAILS LOUDLY** (`throw new Error(...)`) at runtime, preventing silent contract degradation.
 
 2. **Longest Processing Time First (Scheduler LPT)**:
-   - When preparing the execution queue in `audit_full`, tasks are prioritized dynamically: suites that execute at least one heavy command or rule are placed **FIRST** in the queue.
-   - This ensures background worker threads absorb heavy suites (e.g. `validate_type_check`, `validate_eslint`, `validate_fallow`) immediately from $T_0$, while lighter suites execute concurrently across free threads, eliminating tail-end bottlenecks.
+   - When preparing the execution queue in `audit_full`, tasks are prioritized dynamically: suites that execute `'full'` (`🐘`) or `'heavy'` (`🐢`) commands/rules are placed **FIRST** in the queue.
+   - This ensures background worker threads absorb heavy suites (e.g. `validate_type_check`, `validate_eslint`, `validate_fallow`) immediately from $T_0$, while lighter `'light'` (`🐇`) suites execute concurrently across free threads, eliminating tail-end bottlenecks.
 
-3. **Sub-Line Console Indicators (`⚡` / `🐢`)**:
+3. **Sub-Line Console Indicators (`🐇` / `🐢` / `🐘`)**:
    - The suite header remains clean and unaltered.
    - Sub-auditor child lines render the execution speed emoji alongside the elapsed duration:
-     - `⚡` indicates fast command / rule execution.
-     - `🐢` indicates heavy command / rule execution.
+     - `🐇` indicates `'light'` rule execution.
+     - `🐢` indicates `'heavy'` rule execution.
+     - `🐘` indicates `'full'` exhaustive rule execution.
 
-4. **Logical Classification for `lint: true` vs `lint: false`**:
-   - **`lint: true`**: Reserved strictly for fast, pure static analysis of application source code (`.ts`, `.vue`, `.scss`, `.html`), Domain-Type-First validation, and O(1) structures.
-   - **`lint: false`**: Heavy workspace scanning, environment and packaging checks (`validate_environment_engines`, `validate_package_scripts`), test hygiene and fragmentation, secret leak scanning, documentation linting (`preset=md`), and database/asset verifications.
+4. **Logical Classification of Speed Tiers**:
+   - **`speed: 'light'` (`🐇`)**: Fast, pure static analysis of application source code (`.ts`, `.vue`, `.scss`, `.html`), Domain-Type-First validation, and O(1) structures.
+   - **`speed: 'heavy'` (`🐢`)**: Standard workspace scanning, environment and packaging checks (`validate_environment_engines`, `validate_package_scripts`), test hygiene and fragmentation, secret leak scanning, and database/asset verifications.
+   - **`speed: 'full'` (`🐘`) or `speed: ['light', 'full']`**: Exhaustive cross-module symbol graph checks (such as `fallow dead-code --type-aware` via `TieredCommandProfile`) executed during `npm run auditor:full` and `npm run build`.
 
 ---
 
@@ -859,7 +849,7 @@ The orchestrator and `validate_audit_config` will:
 
 ## 11. Forbidden Anti-Patterns & Hygiene Contracts
 
-When authoring sub-auditors or host extensions, `validate_auditor_hygiene` strictly enforces three execution invariants:
+When authoring sub-auditors or host extensions, `validate_auditor_hygiene` strictly enforces four execution invariants:
 
 1. **NO Manual Step Logging (`auditor-manual-step-logging`)**:
    Never invoke `this.context.logStep(...)`. The framework runner automatically streams rule lines (`🔍 [n/m]`) with real-time empirical durations.
@@ -869,11 +859,15 @@ When authoring sub-auditors or host extensions, `validate_auditor_hygiene` stric
    - Synchronous rules: `this.runSubAuditorSync('rule-id', () => { ... })`
    - Asynchronous rules: `await this.runSubAuditor('rule-id', async () => { ... })`
    - File scanners: `this.declareFileSubAuditor('rule-id', (doc) => { ... })`
+   - Single-pass multi-rule file scan: `await this.scanFilesSinglePass(files, handlers)`
    - External tools: `this.recordRuleDuration('rule-id', elapsedMs)`
    Emitting violations outside wrappers produces fake `(0 ms)` badges and triggers `auditor-unmeasured-rule`. (Single-rule `FileScanAuditor` classes automatically measure `scanFile` per file).
 
 3. **NO Redundant `markRuleEvaluated` (`auditor-redundant-rule-evaluated`)**:
    Do NOT call `this.markRuleEvaluated('rule-id')` right before `this.runSubAuditorSync('rule-id', ...)` or `declareFileSubAuditor`. Measurement wrappers already mark rules evaluated internally.
+
+4. **NO Inefficient Multi-Pass File Scans (`auditor-inefficient-file-scan`)**:
+   Never iterate rules in an outer loop that re-reads the same files from disk (`fs.readFileSync`) in an inner loop, and never pass blind wildcards to external tools when an explicit file list is available. Always use `await this.scanFilesSinglePass(files, handlers)` backed by the in-RAM `WorkspaceFileCache`.
 
 ---
 
@@ -1085,6 +1079,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `packageName` | `string` | Non-empty | Technology scope prefix (`'ESLint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
 | `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
 | `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
+| `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 6 fields | Orthogonal 6-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`). |
 | `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
 | `ruleRemediations` | `Record<TRuleId, string>` | 100% of rules, non-empty | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction. |
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
@@ -1106,32 +1101,29 @@ The master orchestrator does not maintain hardcoded lists of enabled suites. Eve
 
 ---
 
-## 20. Post-Build Compiled Artifact Partitioning (`audit:build` / `preset=build`)
+## 20. Post-Build Compiled Artifact Partitioning (`auditor:post-build` / `phase=post-build`)
 
-Suites that validate compiled distribution artifacts (such as bundle budgets, export maps, or TypeScript `.d.ts` declaration maps) declare:
+Suites that validate compiled distribution artifacts (such as bundle budgets, export maps, or TypeScript `.d.ts` declaration maps) declare `phase: 'post-build'`:
 
 ```typescript
 ruleCapabilities: createUniformRuleCapabilities(RULES, {
-  fix: false,
-  fixPriority: false,
-  lint: false,
+  speed: 'heavy',
+  phase: 'post-build',
+  fix: 'none',
   md: false,
   ast: false,
-  changedSince: false,
-  heavy: false,
-  requiresBuild: true,
-  postRun: false
+  changedSince: false
 })
 ```
 
-1. **Pre-Build Exclusion**: `npm run auditor` automatically filters out suites with `capabilities.requiresBuild === true` so pre-build development checks never fail due to missing `dist/` folders.
-2. **Post-Build Chaining**: In `package.json`, the standard build script chains `auditor:build`:
+1. **Pre-Build Exclusion**: `npm run auditor` and `npm run auditor:full` automatically filter out suites with `phase: 'post-build'` (`capabilities.requiresBuild === true`) so pre-build development checks never fail due to missing `dist/` folders.
+2. **Post-Build Chaining**: In `package.json`, the standard build script chains `auditor:full` pre-build and `auditor:post-build` post-compilation:
 
    ```json
-   "build": "npm run auditor && tsc -p tsconfig.build.json && npm run auditor:build"
+   "build": "npm run auditor:full && tsc -p tsconfig.build.json && npm run auditor:post-build"
    ```
 
-   Executing `npm run auditor:build` isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
+   Executing `npm run auditor:post-build` (`auditor phase=post-build`) isolates and evaluates only compiled artifact suites against the fresh `dist/` output.
 
 ---
 
@@ -1203,7 +1195,7 @@ Every sub-auditor and host extension has a mandatory execution contract (`script
 
 Sub-auditors and extensions extending `BaseAuditor` do not need to write manual script definitions. The base class automatically derives canonical script requirements by convention:
 
-- **Script Name**: `audit:<short-id>` (e.g. `validate_my_feature` -> `audit:my-feature`).
+- **Script Name**: `auditor:<short-id>` (e.g. `validate_my_feature` -> `auditor:my-feature`).
 - **Command**: `auditor task=<id>` (e.g. `auditor task=validate_my_feature`).
 - **Description**: Derived directly from the auditor's `description`.
 - **Category**: Derived directly from the auditor's `family`.
@@ -1218,8 +1210,8 @@ import { BaseAuditor, type AuditorPackageScriptRequirement } from '@francogp/aud
 export class MyFeatureAuditor extends BaseAuditor<MyFeatureRuleId> {
   public static readonly scripts: readonly AuditorPackageScriptRequirement[] = [
     {
-      name: 'audit:my-feature:fast',
-      command: 'auditor task=validate_my_feature fast=true',
+      name: 'auditor:my-feature:light',
+      command: 'auditor task=validate_my_feature speed=light',
       description: 'Fast check for my feature violations',
       category: 'architecture'
     }
@@ -1251,7 +1243,7 @@ When running `auditor fix` (or `npm run auditor:fix`), `validate_audit_config` d
 
 ## 23. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
-All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly evaluated by `validate_auditor_hygiene`. To guarantee performance, cross-platform stability, and architectural cleanliness, all sub-auditors and extensions MUST follow these 12 invariants:
+All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/auditors/`) are strictly evaluated by `validate_auditor_hygiene`. To guarantee performance, cross-platform stability, and architectural cleanliness, all sub-auditors and extensions MUST follow these 17 invariants:
 
 1. **Zero Manual `package.json` Reading (`auditor-manual-package-json`)**:
    - ❌ **Prohibited**: `fs.readFileSync(path.join(root, 'package.json'))` + `JSON.parse`.
@@ -1307,11 +1299,19 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
 
 14. **Zero Unmeasured Rules (`auditor-unmeasured-rule`)**:
     - ❌ **Prohibited**: Calling `this.addViolation(...)` outside a timing wrapper or relying on bare `markRuleEvaluated` without measurement.
-    - ✅ **Canonical**: Wrap evaluation in `this.runSubAuditorSync(ruleId, ...)`, `await this.runSubAuditor(ruleId, ...)`, or `this.declareFileSubAuditor(ruleId, ...)`.
+    - ✅ **Canonical**: Wrap evaluation in `this.runSubAuditorSync(ruleId, ...)`, `await this.runSubAuditor(ruleId, ...)`, `this.declareFileSubAuditor(ruleId, ...)`, or `await this.scanFilesSinglePass(files, handlers)`.
 
 15. **Zero Redundant Rule Marking (`auditor-redundant-rule-evaluated`)**:
     - ❌ **Prohibited**: Calling `this.markRuleEvaluated(ruleId)` immediately before a measuring wrapper for the same rule.
     - ✅ **Canonical**: Omit the manual mark; all timing wrappers mark rules evaluated internally.
+
+16. **Mandatory Third-Party Tool Policy Contract (`auditor-third-party-tool-contract`)**:
+    - ❌ **Prohibited**: Spawning external tools without declaring `usesThirdPartyTool: true` and `thirdPartyToolPolicy`, or declaring `thirdPartyToolPolicy` when `usesThirdPartyTool: false`.
+    - ✅ **Canonical**: Explicitly align `usesThirdPartyTool` and `thirdPartyToolPolicy` in `super({ ... })`.
+
+17. **Zero Inefficient Multi-Pass File Scans (`auditor-inefficient-file-scan`)**:
+    - ❌ **Prohibited**: Nested rule-over-files loops re-reading files from disk (`fs.readFileSync`) per rule, or blind wildcard arguments in external CLI calls.
+    - ✅ **Canonical**: Use `await this.scanFilesSinglePass(files, handlers)` backed by the in-RAM `WorkspaceFileCache`.
 
 ---
 
@@ -1319,10 +1319,10 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
 
 When upgrading `@francogp/auditor` in a host project with local extensions in `scripts/auditors/`, adapt legacy constructors to v7+ standards:
 
-### 1. Error: `passed redundant 'capabilities' to constructor options`
+### 1. Error: `passed redundant 'capabilities' to constructor options` or missing 6-field `ruleCapabilities`
 
-- ❌ **Legacy Pattern**: Passing `capabilities: { ... }` directly to `super({ ... })`.
-- ✅ **Canonical Pattern**: Pass `ruleCapabilities: createUniformRuleCapabilities(RULES, { ... })` (or `LINT_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
+- ❌ **Legacy Pattern**: Passing `capabilities: { ... }` directly to `super({ ... })` or using the old 10-boolean object.
+- ✅ **Canonical Pattern**: Pass the 6-field orthogonal `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false })` (or `LINT_RULE_CAPABILITIES` / `AST_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
 
 ```typescript
 // Legacy:
@@ -1338,15 +1338,12 @@ import { createUniformRuleCapabilities } from '@francogp/auditor';
 super({
   id: 'my_extension',
   ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
-    fix: false,
-    fixPriority: false,
-    lint: true,
+    speed: 'light',
+    phase: 'normal',
+    fix: 'none',
     md: false,
     ast: false,
-    changedSince: false,
-    heavy: false,
-    requiresBuild: false,
-    postRun: false
+    changedSince: false
   }),
   coverage: { include: ['src/**'] },
   ...

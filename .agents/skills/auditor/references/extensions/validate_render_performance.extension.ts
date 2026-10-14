@@ -64,15 +64,12 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       icon: '⚡',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(RENDER_PERFORMANCE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: true,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: true
       }),
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',

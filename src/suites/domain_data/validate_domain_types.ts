@@ -185,8 +185,7 @@ function findMatches(
   return findings;
 }
 
-export async function auditFile(filePath: string, ruleFilter?: DomainTypesRuleId): Promise<Finding[]> {
-  const content = await fs.readFile(filePath, 'utf8');
+export function auditFileContent(filePath: string, content: string, ruleFilter?: DomainTypesRuleId): Finding[] {
   const rel = toRepoPath(filePath);
   if (rel.endsWith('validate_domain_types.ts')) return [];
   const findings: Finding[] = [];
@@ -457,6 +456,11 @@ export async function auditFile(filePath: string, ruleFilter?: DomainTypesRuleId
   return ruleFilter ? findings.filter(f => f.ruleId === ruleFilter) : findings;
 }
 
+export async function auditFile(filePath: string, ruleFilter?: DomainTypesRuleId): Promise<Finding[]> {
+  const content = await fs.readFile(filePath, 'utf8');
+  return auditFileContent(filePath, content, ruleFilter);
+}
+
 export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
@@ -468,15 +472,12 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_domain_types',
       name: 'Domain Types Integrity Audit',
@@ -530,29 +531,36 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     const filePaths = this.collectAuditableDomainFiles();
     if (filePaths.length === 0) return;
 
+    const findingsByRule = new Map<DomainTypesRuleId, Finding[]>();
+    for (const rule of DOMAIN_TYPES_RULES) {
+      findingsByRule.set(rule, []);
+    }
 
     for (const filePath of filePaths) {
       this.recordScanned(toRepoPath(filePath));
+      const content = await fs.readFile(filePath, 'utf8');
+      const fileFindings = auditFileContent(filePath, content);
+      for (const finding of fileFindings) {
+        findingsByRule.get(finding.ruleId)?.push(finding);
+      }
     }
 
     let totalIssues = 0;
 
     for (const ruleId of DOMAIN_TYPES_RULES) {
-      await this.runSubAuditor(ruleId, async () => {
-        for (const filePath of filePaths) {
-          const findings = await auditFile(filePath, ruleId);
-          for (const finding of findings) {
-            totalIssues++;
-            this.addViolation({
-              ruleId: finding.ruleId,
-              severity: finding.severity === 'ERROR' ? 'error' : 'warning',
-              file: finding.file,
-              line: finding.line,
-              column: finding.col,
-              message: finding.pattern,
-              context: finding.snippet
-            });
-          }
+      await this.runSubAuditor(ruleId, () => {
+        const findings = findingsByRule.get(ruleId) ?? [];
+        for (const finding of findings) {
+          totalIssues++;
+          this.addViolation({
+            ruleId: finding.ruleId,
+            severity: finding.severity === 'ERROR' ? 'error' : 'warning',
+            file: finding.file,
+            line: finding.line,
+            column: finding.col,
+            message: finding.pattern,
+            context: finding.snippet
+          });
         }
       });
     }

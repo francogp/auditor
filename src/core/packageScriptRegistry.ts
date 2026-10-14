@@ -13,7 +13,7 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor',
     command: 'auditor',
-    description: 'Ejecución del orquestador completo de auditoría estática y arquitectura',
+    description: 'Ejecución del orquestador de auditoría estática y arquitectura (techo máximo por defecto: speed=heavy)',
     category: 'core'
   },
   {
@@ -30,8 +30,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   },
   {
     name: 'auditor:lint',
-    command: 'auditor preset=lint',
-    description: 'Preset rápido de linter y análisis estático (ast, eslint, markdown)',
+    command: 'auditor speed=light',
+    description: 'Auditoría rápida de linter y análisis estático (techo speed=light)',
     category: 'core'
   },
   {
@@ -41,15 +41,21 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'core'
   },
   {
-    name: 'auditor:build',
-    command: 'auditor preset=build',
-    description: 'Preset de validación post-compilación sobre artefactos distribuidos en dist/',
+    name: 'auditor:full',
+    command: 'auditor speed=full',
+    description: 'Auditoría exhaustiva pre-build con techo speed=full (incluye fallow dead-code --type-aware)',
     category: 'core'
   },
   {
-    name: 'build:prod',
-    command: 'auditor-build-prod',
-    description: 'Compilación de producción bajo AUDITOR_ENV=production (omite similar-code y cobertura)',
+    name: 'auditor:post-build',
+    command: 'auditor phase=post-build',
+    description: 'Validación post-compilación sobre artefactos distribuidos en dist/',
+    category: 'core'
+  },
+  {
+    name: 'build:deploy',
+    command: 'auditor-build-deploy',
+    description: 'Compilación de despliegue CI/CD bajo AUDITOR_ENV=production (omite similar-code y cobertura)',
     category: 'core'
   },
   {
@@ -238,12 +244,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'lint',
     command: 'npm run auditor:lint',
-    description: 'Alias canónico de linter delegando en auditor preset=lint',
+    description: 'Alias canónico de linter delegando en auditor speed=light',
     category: 'aliases'
   },
   {
     name: 'lint:fix',
-    command: 'auditor preset=lint fix',
+    command: 'auditor speed=light fix',
     description: 'Reparación automática rápida de violaciones de linting',
     category: 'aliases'
   }

@@ -242,15 +242,12 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'post-build',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: true,
-        postRun: false
+        changedSince: false
       }),
       gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
       id: 'validate_bundle_budget',

@@ -155,17 +155,7 @@ describe('auditorBase infrastructure', () => {
       usesThirdPartyTool: false,
             ruleIds: ['test-rule'],
             ruleCapabilities: {
-              'test-rule': {
-                fix: false,
-                fixPriority: false,
-                lint: false,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              }
+              'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
             },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
@@ -224,17 +214,7 @@ describe('auditorBase infrastructure', () => {
       usesThirdPartyTool: false,
       coverage: { include: ['src/**/*.ts'] },
       ruleCapabilities: {
-        dummy: {
-          fix: false,
-          fixPriority: false,
-          lint: false,
-          md: false,
-          ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
-        }
+        dummy: { speed: 'light' as const, phase: 'normal' as const, fix: 'none' as const, md: false, ast: false, changedSince: false }
       }
     };
 
@@ -301,17 +281,7 @@ describe('auditorBase infrastructure', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          capabilities: {
-            fix: false,
-            fixPriority: false,
-            lint: false,
-            md: false,
-            ast: false,
-            changedSince: false,
-            heavy: false,
-            requiresBuild: false,
-            postRun: false
-          }
+          capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
         } as never);
       }).toThrow(/passed redundant 'capabilities' to constructor options/);
     });
@@ -327,23 +297,23 @@ describe('auditorBase infrastructure', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          ruleCapabilities: { dummy: { fix: false } as never }
+          ruleCapabilities: { dummy: { fix: 'none' } as never }
         });
-      }).toThrow(/must explicitly define sub-capability 'ruleCapabilities\.dummy\.fixPriority' as a boolean/);
+      }).toThrow(/must explicitly define 'ruleCapabilities\.dummy\.speed' as 'light' \| 'heavy' \| 'full'/);
     });
 
-    it('throws when declared sub-capability is not a boolean or unknown', () => {
+    it('throws when declared sub-capability is invalid or unknown', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
           ruleCapabilities: {
             dummy: {
               ...validBaseOptions.ruleCapabilities.dummy,
-              fix: 'true' as unknown as boolean
+              fix: 'true' as unknown as 'none'
             }
           }
         });
-      }).toThrow(/must explicitly define sub-capability 'ruleCapabilities\.dummy\.fix' as a boolean/);
+      }).toThrow(/must explicitly define 'ruleCapabilities\.dummy\.fix' as 'none' \| 'normal' \| 'priority'/);
 
       expect(() => {
         new MinimalAuditor({
@@ -360,15 +330,12 @@ describe('auditorBase infrastructure', () => {
 
     it('successfully exposes capabilities derived from ruleCapabilities and auto-derives requiresAst on BaseAuditor instance', () => {
       const expectedCaps = {
-        fix: false,
-        lint: false,
+        speed: 'heavy',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: true,
-        requiresBuild: false,
-        postRun: false,
-        fixPriority: false
+        changedSince: false
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,
@@ -376,7 +343,7 @@ describe('auditorBase infrastructure', () => {
           dummy: {
             ...validBaseOptions.ruleCapabilities.dummy,
             ast: true,
-            heavy: true
+            speed: 'heavy' as const
           }
         }
       });
@@ -400,28 +367,8 @@ describe('auditorBase infrastructure', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'rule-a': {
-              fix: false,
-              fixPriority: false,
-              lint: false,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            },
-            'rule-b': {
-              fix: false,
-              fixPriority: false,
-              lint: false,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }
+            'rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
+            'rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
           },
           ruleIds: ['rule-a', 'rule-b'],
           ruleDescriptions: {
@@ -530,7 +477,7 @@ describe('auditorBase infrastructure', () => {
             },
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: {
-              'only-rule': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: false, requiresBuild: false, postRun: false }
+              'only-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
             }
           });
         }
@@ -553,6 +500,81 @@ describe('auditorBase infrastructure', () => {
 
       expect(loggedSteps.length).toBe(1);
       expect(loggedSteps[0]).toMatch(/\(<?[0-9.,]+ ms\)/);
+    });
+  });
+
+  describe('TieredCommandProfile and Dynamic Command Resolution', () => {
+    class CommandResolutionAuditor extends BaseAuditor<'test-rule'> {
+      constructor() {
+        super({
+          id: 'test_command_res',
+          name: 'Command Resolution Auditor',
+          description: 'Testing resolveCommandArgs',
+          family: 'architecture',
+          packageName: 'Test',
+          icon: '⚙️',
+          configKey: 'paths',
+          defaultConfig: {},
+          criticalConfig: {},
+          usesThirdPartyTool: false,
+          ruleIds: ['test-rule'],
+          ruleDescriptions: { 'test-rule': 'Regla test' },
+          ruleRemediations: { 'test-rule': 'Remediacion' },
+          coverage: { include: ['src/**/*.ts'] },
+          ruleCapabilities: {
+            'test-rule': { speed: ['light', 'heavy', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+          }
+        });
+      }
+      public override async runAudit(): Promise<void> {}
+      public testResolve(profile: any) {
+        return this.resolveCommandArgs(profile);
+      }
+    }
+
+    it('resolves raw arrays without modification', () => {
+      const auditor = new CommandResolutionAuditor();
+      expect(auditor.testResolve(['--raw', '--arg'])).toEqual(['--raw', '--arg']);
+    });
+
+    it('resolves tiered profiles according to active AUDITOR_SPEED and AUDITOR_PRESET', () => {
+      const createProfile = (cmd: string) => ({
+        command: cmd,
+        defaultArgs: ['--default-arg'],
+        profiles: {
+          light: ['--no-type-aware', '--light'],
+          full: ['--type-aware', '--full']
+        }
+      });
+
+      const originalPreset = process.env.AUDITOR_PRESET;
+      const originalSpeed = process.env.AUDITOR_SPEED;
+      try {
+        delete process.env.AUDITOR_SPEED;
+        process.env.AUDITOR_PRESET = 'full';
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd1'))).toEqual(['--type-aware', '--full']);
+
+        process.env.AUDITOR_PRESET = 'lint';
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd2'))).toEqual(['--no-type-aware', '--light']);
+
+        delete process.env.AUDITOR_PRESET;
+        process.env.AUDITOR_SPEED = 'heavy';
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd3'))).toEqual(['--default-arg']);
+
+        delete process.env.AUDITOR_SPEED;
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd4'))).toEqual(['--default-arg']);
+      } finally {
+        if (originalPreset !== undefined) {
+          process.env.AUDITOR_PRESET = originalPreset;
+        } else {
+          delete process.env.AUDITOR_PRESET;
+        }
+        if (originalSpeed !== undefined) {
+          process.env.AUDITOR_SPEED = originalSpeed;
+        } else {
+          delete process.env.AUDITOR_SPEED;
+        }
+      }
     });
   });
 });

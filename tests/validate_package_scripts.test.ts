@@ -40,7 +40,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Scripts');
       expect(auditor.icon).toBe('📦');
-      expect(auditor.capabilities.fix).toBe(true);
+      expect(auditor.capabilities.fix).not.toBe('none');
     });
 
     it('declares 100% of rule IDs in ruleDescriptions within the 50 char badge limit', () => {
@@ -77,7 +77,7 @@ describe('ValidatePackageScriptsAuditor', () => {
         JSON.stringify({
           name: 'test-app',
           scripts: {
-            build: 'auditor && vite build && npm run auditor:build',
+            build: 'npm run auditor:full && vite build && npm run auditor:post-build',
             lint: 'npm run auditor:lint'
           }
         }, null, 2),
@@ -143,7 +143,7 @@ describe('ValidatePackageScriptsAuditor', () => {
         JSON.stringify({
           name: 'test-app',
           scripts: {
-            build: 'auditor && vite build && npm run auditor:build',
+            build: 'npm run auditor:full && vite build && npm run auditor:post-build',
             'audit:for-commit': 'auditor-commit'
           }
         }, null, 2),
@@ -171,7 +171,7 @@ describe('ValidatePackageScriptsAuditor', () => {
         path.join(tempDir, 'package.json'),
         JSON.stringify({
           name: 'test-app',
-          scripts: { build: 'auditor && vite build && npm run auditor:build' }
+          scripts: { build: 'npm run auditor:full && vite build && npm run auditor:post-build' }
         }, null, 2),
         'utf-8'
       );
@@ -204,7 +204,7 @@ describe('ValidatePackageScriptsAuditor', () => {
         path.join(tempDir, 'package.json'),
         JSON.stringify({
           name: 'test-app',
-          scripts: { build: 'auditor && vite build && npm run auditor:build' }
+          scripts: { build: 'npm run auditor:full && vite build && npm run auditor:post-build' }
         }, null, 2),
         'utf-8'
       );
@@ -233,7 +233,7 @@ describe('ValidatePackageScriptsAuditor', () => {
         JSON.stringify({
           name: 'test-app',
           scripts: {
-            build: 'auditor && vite build && npm run auditor:build'
+            build: 'npm run auditor:full && vite build && npm run auditor:post-build'
           }
         }, null, 2),
         'utf-8'
@@ -261,7 +261,7 @@ describe('ValidatePackageScriptsAuditor', () => {
         JSON.stringify({
           name: 'test-app',
           scripts: {
-            build: 'auditor && vite build && npm run auditor:build',
+            build: 'npm run auditor:full && vite build && npm run auditor:post-build',
             'audit:legacy': 'node scripts/audit.js'
           }
         }, null, 2),
@@ -307,9 +307,59 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(fixResult.summary.errors).toBe(0);
 
       const updated = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
-      expect(updated.scripts.build).toBe('auditor && vite build && npm run auditor:build');
+      expect(updated.scripts.build).toBe('npm run auditor:full && vite build && npm run auditor:post-build');
       expect(updated.scripts['audit:for-commit']).toBeUndefined();
       expect(updated.scripts['audit:legacy']).toBeUndefined();
+    });
+
+    it('detects and migrates obsolete CI/CD workflow commands in .github/workflows/deploy.yml from build:prod to build:deploy', async () => {
+      await writeConfig({
+        name: 'test-app',
+        paths: { srcRoots: ['src'] },
+        packageScripts: { recommendedScripts: false },
+        ratchet: { enabled: false }
+      });
+
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'test-app',
+          scripts: {
+            build: 'npm run auditor:full && vite build && npm run auditor:post-build'
+          }
+        }, null, 2),
+        'utf-8'
+      );
+
+      const workflowsDir = path.join(tempDir, '.github', 'workflows');
+      await fs.mkdir(workflowsDir, { recursive: true });
+      const deployYmlPath = path.join(workflowsDir, 'deploy.yml');
+      await fs.writeFile(
+        deployYmlPath,
+        'name: Deploy\njobs:\n  build:\n    steps:\n      - run: npm run build:prod\n      - run: npm run auditor:build\n      - run: npm run auditor:precommit\n',
+        'utf-8'
+      );
+
+      // Check mode reports warning
+      const checkAuditor = new ValidatePackageScriptsAuditor(tempDir);
+      const checkResult = await checkAuditor.execute();
+      expect(checkResult.summary.warnings).toBeGreaterThan(0);
+      const wfFinding = checkResult.findings.find(x => x.ruleId === 'package-scripts-obsolete' && x.file === '.github/workflows/deploy.yml');
+      expect(wfFinding).toBeDefined();
+
+      // Fix mode migrates deploy.yml
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.summary.errors).toBe(0);
+      expect(fixResult.summary.warnings).toBe(0);
+
+      const migratedYml = await fs.readFile(deployYmlPath, 'utf-8');
+      expect(migratedYml).toContain('npm run build:deploy');
+      expect(migratedYml).toContain('npm run auditor:post-build');
+      expect(migratedYml).toContain('npm run auditor:full');
+      expect(migratedYml).not.toContain('build:prod');
+      expect(migratedYml).not.toContain('auditor:build');
+      expect(migratedYml).not.toContain('auditor:precommit');
     });
 
     it('bypasses build script chaining enforcement when packageScripts.enforceBuildAudit is false', async () => {

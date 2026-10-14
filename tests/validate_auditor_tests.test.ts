@@ -116,17 +116,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'dummy-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -178,17 +168,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'covered-rule': 'Desc', 'untested-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -247,17 +227,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -311,17 +281,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'custom-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -370,17 +330,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -449,17 +399,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -527,17 +467,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'my-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }
@@ -617,17 +547,7 @@ describe('AuditorTestsAuditor', () => {
               criticalConfig: {},
               icon: '🧪',
               ruleDescriptions: { 'custom-rule': 'Desc' },
-              capabilities: {
-                fix: false,
-                fixPriority: false,
-                lint: true,
-                md: false,
-                ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
-              },
+              capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
               coverage: { include: ['src/**'] }
             });
           }

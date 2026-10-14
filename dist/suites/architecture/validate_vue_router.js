@@ -53,15 +53,12 @@ export class ValidateVueRouterAuditor extends FileScanAuditor {
             description: 'Verifica estándares de Vue Router 4 y navegación SPA',
             icon: '🧭',
             ruleCapabilities: createRuleCapabilities(VUE_ROUTER_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             ruleIds: VUE_ROUTER_RULES,
             ruleDescriptions: {

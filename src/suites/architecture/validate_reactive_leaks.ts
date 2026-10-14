@@ -63,15 +63,12 @@ constructor(roots?: readonly string[], projectRoot?: string) {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: true,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_reactive_leaks',
       name: 'Reactive & DOM Event Leak Auditor',

@@ -46,17 +46,7 @@ describe('Auditor Plugin Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'dummy-rule': {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }
+            'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
           },
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
@@ -102,17 +92,7 @@ describe('Auditor Plugin Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'registered-rule': {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }
+            'registered-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
           },
           ruleIds: ['registered-rule'],
           coverage: {
@@ -155,28 +135,8 @@ describe('Auditor Plugin Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'step-one': {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            },
-            'step-two': {
-              fix: false,
-              fixPriority: false,
-              lint: true,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }
+            'step-one': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
+            'step-two': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
           },
           ruleIds: ['step-one', 'step-two'],
           coverage: {

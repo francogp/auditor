@@ -67,6 +67,7 @@ async function scanDoxHierarchy(
   const doxDirs: string[] = [];
   const doxFilesMap = new Map<string, string>();
 
+  // walker-ok: DOX hierarchy analyzer recursively discovers AGENTS.md and directory structure
   async function traverse(dir: string): Promise<void> {
     if (isPathIgnored(dir, ignoreDirs, gitIgnoreMatcher)) return;
 

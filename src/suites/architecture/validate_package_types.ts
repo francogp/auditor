@@ -5,14 +5,14 @@
  * Validates TypeScript declaration (.d.ts) resolution and dual ESM/CJS compatibility
  * for compiled packages in dist/ via @arethetypeswrong/core (ATTW).
  *
- * Capabilities: requiresBuild (executed exclusively post-build via preset=build).
+ * Capabilities: phase: 'post-build' (executed exclusively post-build via phase=post-build).
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { checkPackage, Package, type Problem } from '@arethetypeswrong/core';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities, collectRepositoryFiles } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
@@ -25,8 +25,6 @@ export const PACKAGE_TYPES_RULES = [
   'pkg-types-missing-dts'
 ] as const;
 export type PackageTypesRuleId = (typeof PACKAGE_TYPES_RULES)[number];
-
-const MAX_SCAN_DEPTH = 10;
 
 /**
  * Builds an in-memory Package representation for @arethetypeswrong/core from a disk directory.
@@ -41,27 +39,18 @@ export function createPackageFromDirectory(pkgDir: string): Package {
   const version = pkgJson.version ?? '0.0.0';
 
   const files: Record<string, Uint8Array> = {};
-
-  function readDirectoryRecursive(dir: string, baseDir: string, depth = 0): void {
-    if (depth > MAX_SCAN_DEPTH) return;
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const relPath = toPosixRelative(baseDir, fullPath);
-
-      if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'scratch') {
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        readDirectoryRecursive(fullPath, baseDir, depth + 1);
-      } else if (entry.isFile()) {
-        files[`/node_modules/${name}/${relPath}`] = fs.readFileSync(fullPath);
-      }
-    }
+  const scannedFiles = collectRepositoryFiles(
+    pkgDir,
+    pkgDir,
+    ['node_modules/**', '.git/**', 'scratch/**'],
+    new Set(),
+    ['dist']
+  );
+  for (const filePath of scannedFiles) {
+    const relPath = toPosixRelative(pkgDir, filePath);
+    files[`/node_modules/${name}/${relPath}`] = fs.readFileSync(filePath);
   }
 
-  readDirectoryRecursive(pkgDir, pkgDir);
   return new Package(files, name, version);
 }
 
@@ -203,15 +192,12 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(PACKAGE_TYPES_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'post-build',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: true,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_package_types',
       name: 'Package Types Resolution Validator',

@@ -17,8 +17,9 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.description.length).toBeLessThanOrEqual(60);
     expect(manifest.description).not.toContain('\n');
 
-    expect(manifest.capabilities.fix).toBe(true);
-    expect(manifest.capabilities.lint).toBe(false);
+    expect(manifest.capabilities.fix).toBe('priority');
+    expect(manifest.capabilities.speed).toBe('light');
+    expect(manifest.capabilities.phase).toBe('normal');
 
     expect(manifest.configKey).toBe('paths');
 
@@ -44,17 +45,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
           ruleIds: ['test-rule'],
           packageName: 'Test',
           ruleCapabilities: {
-            'test-rule': {
-              fix: false,
-              fixPriority: false,
-              lint: false,
-              md: false,
-              ast: false,
-              changedSince: false,
-              heavy: false,
-              requiresBuild: false,
-              postRun: false
-            }
+            'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
           },
           configKey: 'paths',
           defaultConfig: {},

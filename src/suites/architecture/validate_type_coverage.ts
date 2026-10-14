@@ -96,15 +96,12 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
         fallbackRuleId: "type-coverage-below-threshold"
       },
       ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'heavy',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: true,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_type_coverage',
       name: 'TypeScript Quantitative Type Coverage Auditor',

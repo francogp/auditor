@@ -27,7 +27,9 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 ## 1. Key Features & Architectural Architecture
 
 - **Built-In Generic Architectural Suites**: Comprehensive static verification across 6 canonical families (`architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, `documentation/`).
-- **Capability-Driven Auto-Coordination (`AuditorCapabilities`)**: Sub-auditors declare explicit capabilities (`lint`, `fix`, `fixPriority`, `md`, `heavy`, `requiresBuild`, `ast`, `changedSince`, `postRun`) with 100% mandatory completeness and zero fallbacks. No hardcoded suite lists in runners or scanners.
+- **Capability-Driven Auto-Coordination (`AuditorRuleCapabilities`)**: Sub-auditors declare explicit 6-field orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]`, `phase: 'normal' | 'post-run' | 'post-build'`, `fix: 'none' | 'normal' | 'priority'`, `md: boolean`, `ast: boolean`, `changedSince: boolean`) with 100% mandatory completeness and zero fallbacks. `BaseAuditor` derives suite-level `AuditorCapabilities` automatically from `ruleCapabilities`. No hardcoded suite lists in runners or scanners.
+- **3-Tier Speed Engine (`light` `🐇`, `heavy` `🐢`, `full` `🐘`) & `TieredCommandProfile`**: Supports cumulative ceiling mode (`speed=light|heavy|full`, default `speed=heavy`) and exact isolation mode (`only-speed=light|heavy|full`). Multi-profile suites (such as `validate_eslint`) declare `speed: ['light', 'full']` so fast modes run syntax-only (`🐇` ~2s) while `speed=full` (`🐘`) enables deep type-aware rules (`typescript-eslint` `projectService`).
+- **RAM Optimization (`WorkspaceFileCache` & `scanFilesSinglePass`)**: Deduplicates file reads across rules via `WorkspaceFileCache` (`getFileLines()`, `getFileContent()`, `scanFilesSinglePass(files, handlers)`), enforced by `validate_auditor_hygiene` (`auditor-inefficient-file-scan`).
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
 - **Automated ESLint Configuration Auditor (`validate_eslint_config`)**: Statically analyzes `eslint.config.js` to ensure host projects enforce strict type safety, banning `any`, double casting, and legacy dates.
 - **Official Living Specification Engines**: Standards enforcement via official linters (`html-validate`, `stylelint`, `knip`, `publint`, `type-coverage`, `vue-tsc`) rather than handcrafted regex.
@@ -213,7 +215,7 @@ The engine will:
 1. Inspect all active built-in sub-auditors and registered host extensions.
 2. Check for naming collisions across commands (`[COLISIÓN DE COMANDOS]`).
 3. Inject any missing scripts into your `package.json` without modifying or duplicating your existing custom scripts or aliases.
-4. Automatically chain `npm run auditor` and `npm run auditor:build` into your `build` script.
+4. Automatically chain `npm run auditor:full` and `npm run auditor:post-build` into your `build` script.
 
 ### 3.1. AI Agent Installation & Onboarding Protocol (Environment & Config First)
 
@@ -241,14 +243,14 @@ npm run auditor:fix
 auditor fix
 ```
 
-In fix mode, `@francogp/auditor` deterministically executes **Environment & Configuration suites FIRST**:
+In fix mode, `@francogp/auditor` deterministically executes **Environment & Configuration suites FIRST** (`fix: 'priority'`):
 
-1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing (including `auditorVersion` matching current engine and build), injects required subsystem sections (`eslint`, `htmlValidate`, `valibot`, etc.), synchronizes diverged engine versions, preserves existing custom user configurations while enforcing critical mandatory minimums, and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`) while chaining `npm run auditor` into `build`.
+1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing (including `auditorVersion` matching current engine and build), injects required subsystem sections (`eslint`, `htmlValidate`, `valibot`, etc.), synchronizes diverged engine versions, preserves existing custom user configurations while enforcing critical mandatory minimums, and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`, `build:deploy`) while chaining `npm run auditor:full` and `npm run auditor:post-build` into `build`.
 2. `validate_git_config`: Enforces and auto-repairs local Git repository configuration (`core.filemode false`, `core.autocrlf input`, `core.eol lf`).
 3. `validate_eslint_config`: Enforces and repairs `eslint.config.js` with strict type safety.
 4. `validate_fallow_config`: Synchronizes `.fallowrc.json` configuration.
 5. `validate_agent_plugin`: Registers `.agents/plugins.json` and `.agents/skills.json` for immediate Antigravity agent discovery.
-6. **Code & Content Fixers**: Only after the environment, git, and configurations are established do code fixers (`validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene`) execute.
+6. **Code & Content Fixers** (`fix: 'normal'`): Only after the environment, git, and configurations are established do code fixers (`validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene`) execute.
 
 #### Step 4: Verify Clean Baseline
 
@@ -267,17 +269,27 @@ AI agents and developers are strictly forbidden from suppressing, disabling, or 
 
 ## 4. Execution Modes & Capability-Driven Presets
 
-### 4.1. Full Project Audit
+### 4.1. Default Project Audit (`speed=heavy` `🐢`) & Exhaustive Audit (`auditor:full` / `speed=full` `🐘`)
 
-Executes all discovered built-in suites and registered host extensions:
+The 3-tier speed engine classifies rules across `light` (`🐇`), `heavy` (`🐢`), and `full` (`🐘`), supporting both **cumulative ceiling mode** (`speed=<tier>`) and **exact tier isolation** (`only-speed=<tier>`):
 
 ```bash
+# Default audit (speed=heavy 🐢 — executes light 🐇 + heavy 🐢 suites):
 npm run auditor
 # or directly with binary in PATH:
 auditor
+
+# Exhaustive pre-commit / build gate (speed=full 🐘 — executes light 🐇 + heavy 🐢 + full 🐘):
+npm run auditor:full
+# or:
+auditor speed=full
+
+# Exact tier isolation (e.g., execute ONLY heavy 🐢 or ONLY full 🐘 suites):
+auditor only-speed=heavy
+auditor only-speed=full
 ```
 
-- Streams real-time progress in completion order across background workers.
+- Streams real-time progress in completion order across background workers, displaying each task's speed tier badge (`🐇`, `🐢`, or `🐘`).
 - Renders the Box-Drawing consolidated summary table with the `TOTAL CONSOLIDADO` footer row.
 - Saves full structured results to `scratch/audits/latest_audit.json`.
 
@@ -299,21 +311,21 @@ auditor --info=validate_eslint
 auditor --help
 ```
 
-### 4.3. Fast Lint Preset (`preset=lint`)
+### 4.3. Fast Light Preset (`auditor:lint` / `speed=light` `🐇`)
 
-Dynamically isolates and executes only suites declaring `capabilities: { lint: true }` in milliseconds:
+Dynamically isolates and executes only suites declaring `speed: 'light'` (or multi-profile `speed: ['light', 'full']` in light syntax-only mode) in milliseconds:
 
 ```bash
 npm run auditor:lint
 # or:
-auditor preset=lint
+auditor speed=light
 ```
 
-Discovers lint-capable suites dynamically (including ESLint, Stylelint, HTML-Validate, Markdownlint, A11y, Domain Types, Vue SFC hygiene, and AST checkers).
+Discovers `light`-tier (`🐇`) suites dynamically (including ESLint syntax-only mode, Stylelint, HTML-Validate, Markdownlint, A11y, Domain Types, Vue SFC hygiene, and AST checkers).
 
 ### 4.4. Documentation Preset (`preset=md`)
 
-Dynamically isolates and executes suites declaring `capabilities: { md: true }`:
+Dynamically isolates and executes suites declaring `md: true` in their `ruleCapabilities`:
 
 ```bash
 npm run auditor:md
@@ -325,7 +337,7 @@ Discovers documentation suites dynamically (including DOX hierarchy, Markdown sy
 
 ### 4.5. Auto-Fix Mode (`auditor fix`)
 
-Dynamically isolates and runs only suites declaring `capabilities: { fix: true }` under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface:
+Dynamically isolates and runs only suites declaring `fix: 'priority'` or `fix: 'normal'` under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface (`fix: 'priority'` suites execute first):
 
 ```bash
 npm run auditor:fix
@@ -333,11 +345,11 @@ npm run auditor:fix
 auditor fix
 ```
 
-Auto-repair suites include: `validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene` (Knip dependency fixes), `validate_z_index`, and `validate_agent_plugin`.
+Auto-repair suites include: `validate_audit_config`, `validate_git_config`, `validate_eslint_config`, `validate_fallow_config`, `validate_agent_plugin`, `validate_eslint`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene` (Knip dependency fixes), and `validate_z_index`.
 
 ### 4.6. Built-In Warning Ratchet (0 errors, 0 new warnings)
 
-Every full default run (`npm run auditor` / `auditor`) is also the commit gate. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
+Every full default run (`npm run auditor` / `auditor`) and exhaustive run (`npm run auditor:full`) enforces the warning ratchet. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
 
 ```bash
 git fetch origin
@@ -347,37 +359,39 @@ npm run auditor -- --init-baseline  # one-time bootstrap when the production ref
 
 - The baseline only shrinks: clean full runs rewrite it when warnings disappear; commit the updated file.
 - Local fingerprints absent from the production baseline, a missing local baseline, or an unresolvable ref fail loudly. There is no accept-new escape hatch.
-- Partial runs (presets, families, tasks, rules, `changed-since`, `fix`, `build`) skip the ratchet.
+- Partial runs (`speed=light`, `only-speed=...`, `preset=md`, families, tasks, rules, `changed-since`, `fix`, `phase=post-build`) skip the ratchet.
 - CI checkouts must expose the production ref (for example `fetch-depth: 0`).
 - The former `audit:for-commit` / `auditor-commit` gate is removed; `validate_audit_config` flags leftover scripts (`audit-config-removed-commit-gate`) and `auditor fix` rewrites them.
 
-### 4.7. Post-Build Artifact Preset (`preset=build` / `auditor-build`)
+### 4.7. Post-Build Artifact Phase (`auditor:post-build` / `phase=post-build` / `auditor-post-build`)
 
-Dynamically isolates and executes suites declaring `capabilities: { requiresBuild: true }` against compiled distribution artifacts in `dist/`:
+Dynamically isolates and executes suites declaring `phase: 'post-build'` against compiled distribution artifacts in `dist/`:
 
 ```bash
-npm run auditor:build
+npm run auditor:post-build
 # or:
-auditor preset=build
+auditor phase=post-build
+# or directly via binary:
+auditor-post-build
 ```
 
 Executes `validate_package_distribution` (Publint), `validate_package_types` (ATTW), and `validate_bundle_budget` post-compilation.
 
-### 4.8. Production Build Runner (`build:prod` / `auditor-build-prod`)
+### 4.8. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
 
-In production environments (Docker builds, deployment scripts, CI containers), execute:
+In headless deployment environments (Docker builds, deployment scripts, CI containers), execute:
 
 ```bash
-npm run build:prod
+npm run build:deploy
 # or directly:
-auditor-build-prod
+auditor-build-deploy
 ```
 
 Under `AUDITOR_ENV=production`:
 
 - Automatically skips `validate_similar_code` (Candle CPU vector embeddings).
 - Automatically skips `validate_test_coverage` (coverage artifacts are git-ignored and not generated in production).
-- Executes all remaining 57+ static analysis suites and post-build verification (`auditor:build`) at 100% strictness.
+- Executes all remaining static analysis suites and post-build verification (`auditor:post-build`) at 100% strictness.
 
 ### 4.9. Remote Project Execution (`--project`, `-p`)
 
@@ -457,7 +471,7 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | :--- | :--- | :--- |
 | **`fallow`** | `validate_fallow`, `report_fallow`, `validate_similar_code` | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security. |
 | **Git** | `validate_git_config` | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix. |
-| **Auditor Hygiene** | `validate_auditor_hygiene` | Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
+| **Auditor Hygiene** | `validate_auditor_hygiene` | Anti-pattern, single-pass file scanning (`auditor-inefficient-file-scan`), and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
 | **`valibot`** | `validate_valibot_parity` | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers. |
 | **Web Storage & Persistence** | `validate_persistence_client` | Client-side `localStorage`/`sessionStorage` governance, bracket notation, untyped keys, and quota error guards. |
 | **Vue 3 SFC & Reactivity** | `validate_vue_sfc_hygiene`, `validate_vue_reactivity`, `validate_vue_router` | `<script setup lang="ts">` standards, pure computed derivations, getter-wrapped watchers, and SPA routing hygiene. |
@@ -468,14 +482,14 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **Magic Numbers (AST)** | `validate_magic_numbers` | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores. |
 | **Stylelint Config** | `validate_stylelint_config` | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`). |
 | **`knip`** | `validate_package_hygiene` | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`. |
-| **`publint`** | `validate_package_distribution` | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation. |
-| **`@arethetypeswrong/core`** | `validate_package_types` | Multi-resolution `.d.ts` typing validation and dual-package hazard checks. |
+| **`publint`** | `validate_package_distribution` | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation (`phase: 'post-build'`). |
+| **`@arethetypeswrong/core`** | `validate_package_types` | Multi-resolution `.d.ts` typing validation and dual-package hazard checks (`phase: 'post-build'`). |
 | **`@secretlint/core`** | `validate_secret_leaks` | High-entropy secret, API key, and cryptographic token leak detection. |
 | **`npm audit`** | `validate_dependency_vulnerabilities` | Vulnerability scanning and known CVEs across package dependencies. |
 | **`type-coverage`** | `validate_type_coverage` | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery. |
 | **`eslint-plugin-vuejs-accessibility`** | `validate_accessibility` | Static WCAG 2.2 accessibility rules for Vue SFC templates. |
 | **`markdownlint-cli`** | `validate_markdown_lint` | Markdown style, table formatting, and document hygiene with `--fix`. |
-| **Mermaid Linter** | `validate_mermaid_syntax` | Mermaid diagram syntax and special character quoting validator (`preset=lint`, `preset=md`). |
+| **Mermaid Linter** | `validate_mermaid_syntax` | Mermaid diagram syntax and special character quoting validator (`speed=light`, `preset=md`). |
 | **`vue-tsc` / `tsc`** | `validate_type_check` | Strict compiler type checking without emitting files (`--noEmit`). |
 
 ---
@@ -540,7 +554,7 @@ Host applications can add bespoke domain sub-auditors in `scripts/auditors/<fami
 
 ```typescript
 // scripts/auditors/architecture/validate_no_inline_sql.ts
-import { FileScanAuditor } from '@francogp/auditor';
+import { FileScanAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
 
 export const NO_INLINE_SQL_RULES = ['inline-sql-detected'] as const;
 export type NoInlineSqlRuleId = (typeof NO_INLINE_SQL_RULES)[number];
@@ -548,7 +562,6 @@ export type NoInlineSqlRuleId = (typeof NO_INLINE_SQL_RULES)[number];
 export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
   constructor(roots: readonly string[] = ['src']) {
     super({
-      capabilities: { lint: true },
       id: 'validate_no_inline_sql',
       name: 'No Inline SQL Auditor',
       description: 'Prohíbe consultas SQL directas en componentes de vista',
@@ -557,10 +570,23 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
       packageName: 'Base de Datos',
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },
+      criticalConfig: {},
+      usesThirdPartyTool: false,
       ruleIds: NO_INLINE_SQL_RULES,
       ruleDescriptions: {
         'inline-sql-detected': 'Consulta SQL en capa de presentación'
       },
+      ruleRemediations: {
+        'inline-sql-detected': `### ¿Por qué ocurre este problema?\nLas vistas contienen consultas SQL directas.\n\n### ¿Cómo solucionarlo paso a paso?\n1. Mueve la consulta al repositorio de datos.`
+      },
+      ruleCapabilities: createUniformRuleCapabilities(NO_INLINE_SQL_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
+        md: false,
+        ast: false,
+        changedSince: false
+      }),
       roots,
       allowedExtensions: new Set(['.vue', '.ts'])
     });
@@ -785,8 +811,9 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 
 | Binary Command | Script | Description |
 | :--- | :--- | :--- |
-| `auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `preset=lint`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
-| `auditor-build` | `src/cli/audit_build.ts` | Runs post-build compiled artifact audit suites against `dist/` (`preset=build`). |
+| `auditor` | `src/cli/audit_full.ts` | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `speed=light\|heavy\|full`, `only-speed=light\|heavy\|full`, `phase=post-build`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
+| `auditor-post-build` | `src/cli/audit_post_build.ts` | Runs post-build compiled artifact audit suites against `dist/` (`phase=post-build`). |
+| `auditor-build-deploy` | `src/cli/build_deploy.ts` | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production`. |
 | `auditor-bundle` | `src/cli/audit_bundle.ts` | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions. |
 | `auditor-findings` | `src/cli/report_findings.ts` | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`). |
 | `auditor-by-file` | `src/cli/report_findings.ts` | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`audit:by-file`). |

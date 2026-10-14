@@ -4,15 +4,12 @@ import { AuditedDocument } from '../../core/auditedDocument.ts';
 export declare const CODE_SIMPLIFICATION_RULES: readonly ["dead-code-accumulation", "boolean-trap-parameters", "deep-nesting-control-flow", "redundant-else-after-return", "premature-abstraction-wrapper", "massive-switch-branching"];
 export type CodeSimplificationRuleId = (typeof CODE_SIMPLIFICATION_RULES)[number];
 export declare const CODE_SIMPLIFICATION_CAPABILITIES: {
-    readonly fix: false;
-    readonly fixPriority: false;
-    readonly lint: true;
+    readonly speed: "light";
+    readonly phase: "normal";
+    readonly fix: "none";
     readonly md: false;
     readonly ast: true;
     readonly changedSince: false;
-    readonly heavy: false;
-    readonly requiresBuild: false;
-    readonly postRun: false;
 };
 export declare class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
     constructor(options?: {

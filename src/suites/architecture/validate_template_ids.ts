@@ -180,15 +180,12 @@ private readonly globalIdMap = new Map<string, IdOccurrence[]>();
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
 id: 'validate_template_ids',
       name: 'Template Static ID Uniqueness & Collision Validator',

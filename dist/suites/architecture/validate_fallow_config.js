@@ -301,15 +301,12 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
                 fallbackRuleId: 'fallow-config-workspace-diagnostic'
             },
             ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
-                fix: true,
-                fixPriority: true,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['fallow-config-missing']),
             fixableRuleIds: ['fallow-config-missing'],
             configFiles: [configRequirement],

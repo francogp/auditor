@@ -47,15 +47,12 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
                 source: 'declared-only'
             },
             ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             projectRoot: effectiveRoot
         });

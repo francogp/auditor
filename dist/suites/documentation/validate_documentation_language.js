@@ -146,6 +146,14 @@ export function evaluateParagraphLanguage(para, targetLanguage) {
     if (para.text.length < MIN_PARAGRAPH_CHARS || words.length < MIN_PARAGRAPH_WORDS) {
         return { isUnauthorized: false, detectedLang: 'und' };
     }
+    // Fast-path: If the text does not match opposing language stopwords,
+    // isUnauthorized is guaranteed to be false under the language mandate contract.
+    if (targetLanguage === 'en' && !SPANISH_STOPWORDS.test(para.text)) {
+        return { isUnauthorized: false, detectedLang: 'eng' };
+    }
+    if (targetLanguage === 'es' && !ENGLISH_STOPWORDS.test(para.text)) {
+        return { isUnauthorized: false, detectedLang: 'spa' };
+    }
     const detectedLang = franc(para.text, { minLength: FRANC_MIN_LENGTH });
     if (targetLanguage === 'en') {
         const isUnauthorized = detectedLang !== 'eng' &&
@@ -323,15 +331,12 @@ export class DocumentationLanguageAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
-                fix: true,
-                fixPriority: true,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'priority',
                 md: true,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['docs-missing-language-mandate']),
             fixableRuleIds: ['docs-missing-language-mandate'],
             fix: options?.fix,

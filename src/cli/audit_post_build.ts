@@ -1,9 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
 /**
- * src/cli/audit_build.ts
+ * src/cli/audit_post_build.ts
  *
  * POST-BUILD ARTIFACT AUDITOR CLI (Node.js 26+ Native)
- * Executes exclusively sub-auditors declaring capabilities.requiresBuild === true
+ * Executes exclusively sub-auditors declaring capabilities.phase === 'post-build'
  * against compiled production artifacts in dist/.
  */
 
@@ -15,7 +15,7 @@ import { isMainModule } from './cliUtils.ts';
 import '../core/permissionGuard.ts';
 import { DEFAULT_PERMISSIONS } from './auditTaskFactory.ts';
 
-export async function runAuditBuild(extraArgs: readonly string[] = []): Promise<number> {
+export async function runAuditPostBuild(extraArgs: readonly string[] = []): Promise<number> {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const fullAuditorPath = path.resolve(currentDir, 'audit_full.ts');
   const fullAuditorJsPath = path.resolve(currentDir, 'audit_full.js');
@@ -24,7 +24,7 @@ export async function runAuditBuild(extraArgs: readonly string[] = []): Promise<
   const nodeArgs = [
     ...DEFAULT_PERMISSIONS,
     targetScript,
-    'preset=build',
+    'phase=post-build',
     ...extraArgs
   ];
 
@@ -42,6 +42,6 @@ export async function runAuditBuild(extraArgs: readonly string[] = []): Promise<
 }
 
 if (isMainModule(import.meta.url)) {
-  const exitCode = await runAuditBuild(process.argv.slice(2));
+  const exitCode = await runAuditPostBuild(process.argv.slice(2));
   process.exit(exitCode);
 }

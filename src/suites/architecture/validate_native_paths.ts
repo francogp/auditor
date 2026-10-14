@@ -527,15 +527,12 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(NATIVE_PATH_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',

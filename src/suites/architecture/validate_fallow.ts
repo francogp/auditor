@@ -16,7 +16,7 @@ import { execSync } from 'node:child_process';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
-import type { FindingSeverity, AuditorCapabilities, DualCommandProfile } from '../../core/auditContract.ts';
+import type { FindingSeverity, AuditorCapabilities, TieredCommandProfile } from '../../core/auditContract.ts';
 import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
@@ -41,17 +41,17 @@ export const FALLOW_RULES = [
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 
 export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities> = {
-  'fallow-boundary-violations': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
-  'fallow-stale-suppressions': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
-  'fallow-workspace-diagnostic': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: false, requiresBuild: false, postRun: false },
-  'fallow-refactoring-targets': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-duplicate-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-triplicate-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-unused-exports': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-unused-files': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-unused-dependencies': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-circular-dependencies': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-security-cwe': { fix: false, fixPriority: false, lint: true, md: false, ast: false, changedSince: true, heavy: true, requiresBuild: false, postRun: false }
+  'fallow-boundary-violations': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-stale-suppressions': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-workspace-diagnostic': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-refactoring-targets': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-duplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-triplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-unused-exports': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-unused-files': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-unused-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-circular-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
+  'fallow-security-cwe': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true }
 };
 
 export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {
@@ -515,25 +515,35 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const allFindings: FallowFindingItem[] = [];
 
-    // Dead Code execution profile (Fast syntax in lint, Type-Aware cascade in full audit)
-    const deadCodeProfile: DualCommandProfile<string[]> = {
+    // Dead Code execution profile (Light syntax in light/heavy ceiling, Type-Aware cascade in full ceiling)
+    const deadCodeProfile: TieredCommandProfile<string[]> = {
       command: 'fallow dead-code',
-      fastArgs: [],
-      heavyArgs: (() => {
-        const args: string[] = [];
-        if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))) {
-          args.push('--type-aware');
-        }
-        if (config.fallow?.showCascade !== false) {
-          args.push('--show-cascade');
-        }
-        return args;
-      })()
+      profiles: {
+        light: ['--no-type-aware'],
+        full: (() => {
+          const args: string[] = [];
+          if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))) {
+            args.push('--type-aware');
+          }
+          if (config.fallow?.showCascade !== false) {
+            args.push('--show-cascade');
+          }
+          return args;
+        })()
+      },
+      defaultArgs: ['--no-type-aware']
     };
     const deadCodeArgs = this.resolveCommandArgs(deadCodeProfile);
-    const deadCodeRules: readonly FallowRuleId[] = ['fallow-unused-exports', 'fallow-unused-files'];
+    const deadCodeRules: readonly FallowRuleId[] = [
+      'fallow-unused-exports',
+      'fallow-unused-files',
+      'fallow-boundary-violations',
+      'fallow-stale-suppressions',
+      'fallow-workspace-diagnostic'
+    ];
 
     const executeFallowSecurity = (): void => {
+      if (!this.isRuleActiveForCurrentRun('fallow-security-cwe')) return;
       const isSecActive = config.fallow?.security?.enabled ?? config.security?.enabled ?? true;
       if (isSecActive !== false) {
         allFindings.push(...this.runFallowSubCommand('security', [], ['fallow-security-cwe']));
@@ -542,14 +552,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       }
     };
 
-    if (this.isFastMode()) {
-      // FAST PROFILE: Execute fast syntactic dead-code and security CWE
-      const deadCode = this.runFallowSubCommand('dead-code', deadCodeArgs, deadCodeRules);
-      allFindings.push(...deadCode.filter(f => this.isRuleActiveForCurrentRun(f.ruleId)));
-      executeFallowSecurity();
-    } else {
-      // FULL AUDIT: Execute full suite once without repeating any commands
-      // 1. Duplicates
+    if (this.isRuleActiveForCurrentRun('fallow-duplicate-code')) {
       const dupesArgs: string[] = [...FALLOW_DUPES_CONFIG];
       if (config.fallow?.duplicates?.nearMiss !== false) {
         dupesArgs.push('--dupes-near');
@@ -558,31 +561,32 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
         dupesArgs.push('--dupes-mode', config.fallow.duplicates.mode);
       }
       allFindings.push(...this.runFallowSubCommand('dupes', dupesArgs, ['fallow-duplicate-code']));
+    }
 
-      // 2. Triplets
+    if (this.isRuleActiveForCurrentRun('fallow-triplicate-code')) {
       allFindings.push(...this.runFallowSubCommand('triplets', FALLOW_TRIPLETS_CONFIG, ['fallow-triplicate-code']));
+    }
 
-      // 3. Security
-      executeFallowSecurity();
+    executeFallowSecurity();
 
-      // 4. Dead Code (heavy version)
-      allFindings.push(...this.runFallowSubCommand('dead-code', deadCodeArgs, deadCodeRules));
+    if (deadCodeRules.some(r => this.isRuleActiveForCurrentRun(r))) {
+      const deadCode = this.runFallowSubCommand('dead-code', deadCodeArgs, deadCodeRules);
+      allFindings.push(...deadCode.filter(f => this.isRuleActiveForCurrentRun(f.ruleId)));
+    }
 
-      // 5. Health & Targets
+    const healthRules: readonly FallowRuleId[] = [
+      'fallow-refactoring-targets',
+      'fallow-circular-dependencies',
+      'fallow-unused-dependencies'
+    ];
+    if (healthRules.some(r => this.isRuleActiveForCurrentRun(r))) {
       const healthArgs: string[] = ['--targets', '--report-only'];
       const covPath = path.resolve(this.projectRoot, 'coverage/coverage-final.json');
       if (fs.existsSync(covPath)) {
         healthArgs.push('--coverage', 'coverage/coverage-final.json');
       }
-      const healthRules: readonly FallowRuleId[] = [
-        'fallow-refactoring-targets',
-        'fallow-circular-dependencies',
-        'fallow-boundary-violations',
-        'fallow-unused-dependencies',
-        'fallow-stale-suppressions',
-        'fallow-workspace-diagnostic'
-      ];
-      allFindings.push(...this.runFallowSubCommand('health', healthArgs, healthRules));
+      const healthFindings = this.runFallowSubCommand('health', healthArgs, healthRules);
+      allFindings.push(...healthFindings.filter(f => this.isRuleActiveForCurrentRun(f.ruleId)));
     }
 
     for (const f of allFindings) {

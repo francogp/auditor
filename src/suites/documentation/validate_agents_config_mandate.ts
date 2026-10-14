@@ -291,15 +291,12 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
-        fix: true,
-        fixPriority: true,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'priority',
         md: true,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }, [...AGENTS_CONFIG_MANDATE_RULES]),
       fixableRuleIds: [...AGENTS_CONFIG_MANDATE_RULES],
       fix: options?.fix,

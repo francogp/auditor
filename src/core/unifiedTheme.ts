@@ -21,7 +21,8 @@ import {
   type FamilyMetadata,
   type AuditFamily,
   type AuditTaskDefinition,
-  FAMILY_METADATA
+  FAMILY_METADATA,
+  normalizeSpeeds
 } from './auditContract.ts';
 
 const TERMINAL_WIDTH = 80;
@@ -396,11 +397,16 @@ const ACTIVE_COLS: readonly TableColumn<ActiveSuiteRow>[] = [
 
 function formatTaskFlags(caps?: AuditTaskDefinition['capabilities']): string {
   const flags: string[] = [];
-  if (caps?.fix) flags.push(styleText('green', 'FIX'));
-  if (caps?.lint) flags.push(styleText('cyan', 'LINT'));
+  if (caps?.fix && caps.fix !== 'none') {
+    flags.push(styleText('green', caps.fix === 'priority' ? 'FIX!' : 'FIX'));
+  }
+  const speeds = normalizeSpeeds(caps?.speed ?? 'light');
+  if (speeds.includes('light')) flags.push(styleText('cyan', '🐇'));
+  if (speeds.includes('heavy')) flags.push(styleText('yellow', '🐢'));
+  if (speeds.includes('full')) flags.push(styleText('magenta', '🐘'));
   if (caps?.md) flags.push(styleText('magenta', 'MD'));
-  if (caps?.heavy) flags.push(styleText('yellow', 'HVY'));
-  if (caps?.requiresBuild) flags.push(styleText('red', 'BLD'));
+  if (caps?.phase === 'post-build') flags.push(styleText('red', 'BLD'));
+  if (caps?.phase === 'post-run') flags.push(styleText('blue', 'PST'));
   return flags.length > 0 ? flags.join(' ') : styleText('dim', '-');
 }
 
@@ -443,11 +449,18 @@ function renderActiveFamilyTables(
  */
 function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): string[] {
   const capList: string[] = [];
-  if (caps?.fix) capList.push(styleText('green', '✔ Auto-reparación (--fix)'));
-  if (caps?.lint) capList.push(styleText('cyan', '✔ Preset Lint (preset=lint)'));
+  if (caps?.fix === 'priority') {
+    capList.push(styleText('green', '✔ Auto-reparación Prioritaria (fix=priority)'));
+  } else if (caps?.fix === 'normal') {
+    capList.push(styleText('green', '✔ Auto-reparación (--fix)'));
+  }
+  const speeds = normalizeSpeeds(caps?.speed ?? 'light');
+  if (speeds.includes('light')) capList.push(styleText('cyan', '🐇 Velocidad Rápida (speed=light)'));
+  if (speeds.includes('heavy')) capList.push(styleText('yellow', '🐢 Velocidad Pesada (speed=heavy)'));
+  if (speeds.includes('full')) capList.push(styleText('magenta', '🐘 Velocidad Exhaustiva (speed=full)'));
   if (caps?.md) capList.push(styleText('magenta', '✔ Preset Markdown (preset=md)'));
-  if (caps?.heavy) capList.push(styleText('yellow', '⚡ Computacionalmente Pesado (heavy)'));
-  if (caps?.requiresBuild) capList.push(styleText('red', '📦 Requiere Build Previo (requiresBuild)'));
+  if (caps?.phase === 'post-build') capList.push(styleText('red', '📦 Fase Post-Build (phase=post-build)'));
+  if (caps?.phase === 'post-run') capList.push(styleText('blue', '🏁 Fase Post-Run (phase=post-run)'));
   if (caps?.changedSince) capList.push(styleText('white', '✔ Diferencial Git (--changed-since)'));
   if (caps?.ast) capList.push(styleText('white', '✔ AST TypeScript in-memory (ast)'));
   return capList;
@@ -543,12 +556,13 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   lines.push('  --guide=<id>, guide <id>     Muestra la guía de remediación y soluciones para una regla o suite.');
   lines.push('  -h, --help, help             Muestra este mensaje de ayuda.\n');
 
-  lines.push(boldYellow('MODOS Y PRESETS DE EJECUCIÓN:'));
+  lines.push(boldYellow('MODOS, VELOCIDADES Y FASES DE EJECUCIÓN:'));
   lines.push('  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.');
-  lines.push('  preset=lint                  Preset rápido de linting (ESLint, Stylelint, etc.).');
+  lines.push('  speed=light|heavy|full       Techo de velocidad (por defecto: heavy 🐢).');
+  lines.push('  only-speed=light|heavy|full  Ejecuta únicamente suites que declaren esa velocidad exacta.');
+  lines.push('  phase=post-build             Suites que validan artefactos compilados en dist/.');
   lines.push('  preset=md                    Preset rápido de documentación y Markdown.');
-  lines.push('  preset=build                 Suites que requieren artefactos compilados en dist/.');
-  lines.push('  --with-build                 Incluye suites de compilación en la corrida general.\n');
+  lines.push('  --with-build                 Incluye suites post-build en la corrida general.\n');
 
   lines.push(boldYellow('FILTROS Y SELECCIÓN:'));
   lines.push(`  family=<nombre>              Filtra por familia (${activeFamilies.join(', ')}).`);
@@ -558,6 +572,9 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   lines.push('  changed-since=<ref>          Filtra archivos modificados respecto de git ref.\n');
 
   lines.push(boldYellow('HERRAMIENTAS ASOCIADAS (NPM SCRIPTS):'));
+  lines.push('  npm run auditor:lint         Auditoría rápida (speed=light 🐇).');
+  lines.push('  npm run auditor:full         Auditoría exhaustiva pre-build (speed=full 🐘).');
+  lines.push('  npm run auditor:post-build   Auditoría de artefactos compilados (phase=post-build).');
   lines.push('  npm run auditor:by-file      Árbol jerárquico de incidencias por archivo y línea.');
   lines.push('  npm run auditor:findings     Consulta interactiva con filtros y desgloses.');
   lines.push('  npm run auditor:fix          Aplica auto-reparaciones mecánicas en el código.');

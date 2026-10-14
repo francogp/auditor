@@ -4,14 +4,15 @@
  * SUB-AUDITOR CAPABILITIES & DYNAMIC MODES SPECIFICATION
  *
  * Verifies that:
- * 1. 100% of sub-auditors declare mandatory AuditorCapabilities.
- * 2. Discovery with fixOnly: true filters strictly to the 7 auto-repair suites.
- * 3. Fast presets / includeHeavy: false excludes computationally heavy suites.
+ * 1. 100% of sub-auditors declare mandatory 6-field AuditorRuleCapabilities.
+ * 2. Discovery with fixOnly: true filters strictly to the auto-repair suites.
+ * 3. Speed ceiling (speed: 'light' / includeHeavy: false) excludes computationally heavy suites.
  * 4. AST requirements are derived dynamically from capabilities.ast (0 hardcoded suite lists).
  */
 
 import { describe, it, expect } from 'vitest';
 import { discoverAuditors, extractCapabilitiesFromFile, extractAuditorMetadataFromFile } from '../src/cli/auditScanner.ts';
+import { resolveEffectiveSpeed } from '../src/core/auditorBase.ts';
 import path from 'node:path';
 
 describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
@@ -19,15 +20,15 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const stylelintPath = path.resolve('src/suites/architecture/validate_stylelint.ts');
     const stylelintCaps = await extractCapabilitiesFromFile(stylelintPath);
     expect(stylelintCaps).not.toBeNull();
-    expect(stylelintCaps?.fix).toBe(true);
+    expect(stylelintCaps?.fix).toBe('normal');
     expect(stylelintCaps?.ast).toBe(false);
-    expect(stylelintCaps?.heavy).toBe(false);
+    expect(stylelintCaps?.speed).toBe('light');
 
     const similarCodePath = path.resolve('src/suites/architecture/validate_similar_code.ts');
     const similarCaps = await extractCapabilitiesFromFile(similarCodePath);
     expect(similarCaps).not.toBeNull();
-    expect(similarCaps?.fix).toBe(true);
-    expect(similarCaps?.heavy).toBe(true);
+    expect(similarCaps?.fix).toBe('normal');
+    expect(similarCaps?.speed).toBe('heavy');
 
     const piniaPath = path.resolve('src/suites/architecture/validate_pinia_reactivity.ts');
     const piniaCaps = await extractCapabilitiesFromFile(piniaPath);
@@ -35,31 +36,56 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     expect(piniaCaps?.ast).toBe(true);
   });
 
-  it('populates capabilities on 100% of discovered tasks', async () => {
+  it('populates 6-field capabilities on 100% of discovered tasks', async () => {
     const allTasks = await discoverAuditors();
     expect(allTasks.length).toBeGreaterThanOrEqual(38);
 
     for (const task of allTasks) {
       expect(task.capabilities, `Task '${task.id}' missing capabilities`).toBeDefined();
-      expect(typeof task.capabilities?.lint).toBe('boolean');
+      const speed = task.capabilities?.speed;
+      expect(typeof speed === 'string' || Array.isArray(speed)).toBe(true);
+      expect(['normal', 'post-run', 'post-build']).toContain(task.capabilities?.phase);
+      expect(['none', 'normal', 'priority']).toContain(task.capabilities?.fix);
       expect(typeof task.capabilities?.md).toBe('boolean');
-      expect(typeof task.capabilities?.fix).toBe('boolean');
       expect(typeof task.capabilities?.ast).toBe('boolean');
       expect(typeof task.capabilities?.changedSince).toBe('boolean');
-      expect(typeof task.capabilities?.heavy).toBe('boolean');
-      expect(typeof task.capabilities?.requiresBuild).toBe('boolean');
     }
   });
 
-  it('filters strictly to lint-capable suites when lintOnly: true or preset: lint', async () => {
+  it('filters to full-speed ceiling suites when speed: full or preset: full', async () => {
+    const fullTasks = await discoverAuditors({ speed: 'full' });
+    const presetFullTasks = await discoverAuditors({ preset: 'full' });
+
+    expect(fullTasks.length).toBeGreaterThan(0);
+    expect(fullTasks.map(t => t.id).sort()).toEqual(presetFullTasks.map(t => t.id).sort());
+
+    for (const task of fullTasks) {
+      expect(
+        resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'full' }),
+        `Suite ${task.id} should resolve a valid speed under full ceiling`
+      ).not.toBeNull();
+    }
+
+    const fullIds = fullTasks.map(t => t.id);
+    expect(fullIds).toContain('validate_test_coverage');
+    expect(fullIds).toContain('validate_similar_code');
+    expect(fullIds).not.toContain('validate_bundle_budget');
+  });
+
+  it('filters strictly to light-capable suites when speed: light, lintOnly: true or preset: lint', async () => {
     const lintTasks = await discoverAuditors({ lintOnly: true });
     const presetLintTasks = await discoverAuditors({ preset: 'lint' });
+    const speedLightTasks = await discoverAuditors({ speed: 'light' });
 
     expect(lintTasks.length).toBeGreaterThan(0);
     expect(lintTasks.map(t => t.id).sort()).toEqual(presetLintTasks.map(t => t.id).sort());
+    expect(lintTasks.map(t => t.id).sort()).toEqual(speedLightTasks.map(t => t.id).sort());
 
     for (const task of lintTasks) {
-      expect(task.capabilities?.lint, `Suite ${task.id} should have lint capability`).toBe(true);
+      expect(
+        resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' }),
+        `Suite ${task.id} should have light speed capability`
+      ).toBe('light');
     }
   });
 
@@ -105,7 +131,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
     expect(fixSuiteIds).toEqual(EXPECTED_FIX_SUITES);
     for (const task of fixTasks) {
-      expect(task.capabilities?.fix).toBe(true);
+      expect(task.capabilities?.fix).not.toBe('none');
     }
   });
 
@@ -131,34 +157,36 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     }
   });
 
-  it('excludes heavy suites when includeHeavy: false', async () => {
+  it('excludes heavy-only suites when includeHeavy: false or speed: light', async () => {
     const normalTasks = await discoverAuditors();
     const lightweightTasks = await discoverAuditors({ includeHeavy: false });
 
-    const heavyIds = normalTasks.filter(t => t.capabilities?.heavy).map(t => t.id);
-    expect(heavyIds).toContain('validate_similar_code');
-    expect(heavyIds).toContain('validate_type_check');
+    const heavyOnlyIds = normalTasks
+      .filter(t => resolveEffectiveSpeed(t.capabilities?.speed, { maxSpeed: 'light' }) === null)
+      .map(t => t.id);
+    expect(heavyOnlyIds).toContain('validate_similar_code');
+    expect(heavyOnlyIds).toContain('validate_type_check');
 
     const lightweightIds = lightweightTasks.map(t => t.id);
-    for (const heavyId of heavyIds) {
+    for (const heavyId of heavyOnlyIds) {
       expect(lightweightIds).not.toContain(heavyId);
     }
   });
 
-  it('separates pre-build and post-build suites cleanly via withBuild and buildOnly', async () => {
+  it('separates pre-build and post-build suites cleanly via withBuild, buildOnly, and phase: post-build', async () => {
     const defaultTasks = await discoverAuditors({ withBuild: false });
-    const buildTasks = await discoverAuditors({ buildOnly: true });
+    const buildTasks = await discoverAuditors({ phase: 'post-build' });
     const allTasks = await discoverAuditors({ withBuild: true });
 
-    // Pre-build tasks must never include requiresBuild suites
+    // Pre-build tasks must never include post-build phase suites
     for (const task of defaultTasks) {
-      expect(task.capabilities?.requiresBuild, `Suite ${task.id} should not require build in pre-build audit`).toBe(false);
+      expect(task.capabilities?.phase, `Suite ${task.id} should not be post-build in pre-build audit`).not.toBe('post-build');
     }
 
-    // Build-only tasks must strictly include requiresBuild suites
+    // Post-build tasks must strictly have phase === 'post-build'
     expect(buildTasks.length).toBeGreaterThan(0);
     for (const task of buildTasks) {
-      expect(task.capabilities?.requiresBuild, `Suite ${task.id} must require build in buildOnly mode`).toBe(true);
+      expect(task.capabilities?.phase, `Suite ${task.id} must have phase: post-build`).toBe('post-build');
     }
 
     // withBuild includes the union of both

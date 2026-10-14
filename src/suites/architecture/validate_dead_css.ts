@@ -228,15 +228,12 @@ constructor(projectRoot: string = process.cwd()) {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_dead_css',
       name: 'Scoped Dead CSS Auditor',

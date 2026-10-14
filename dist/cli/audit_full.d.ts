@@ -8,7 +8,7 @@
  *   2. Renders the complete Box-Drawing summary table grouped by family.
  *   3. Persists the complete structured JSON report to scratch/audits/latest_audit.json.
  */
-import { type StandardAuditResult, type AuditFinding, type AuditTaskDefinition, type AuditRunMode } from '../core/auditContract.ts';
+import { type StandardAuditResult, type AuditFinding, type AuditTaskDefinition, type AuditRunMode, type AuditExecutionSpeed, type AuditExecutionPhase } from '../core/auditContract.ts';
 import { type AuditPresetName } from './auditScanner.ts';
 import '../core/permissionGuard.ts';
 export interface AuditFullCliOptions {
@@ -19,6 +19,9 @@ export interface AuditFullCliOptions {
     formattedRules: string;
     targetPreset: AuditPresetName | undefined;
     targetSuites: string[] | undefined;
+    speed?: AuditExecutionSpeed;
+    onlySpeed?: AuditExecutionSpeed;
+    phase?: AuditExecutionPhase;
     concurrencyLimit: number;
     skipSimilar: boolean;
     isEnabledFilter: boolean;

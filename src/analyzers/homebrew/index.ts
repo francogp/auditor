@@ -21,6 +21,7 @@ import { manualStepLoggingDetector } from './detectors/manualStepLoggingDetector
 import { unmeasuredRuleDetector } from './detectors/unmeasuredRuleDetector.ts';
 import { redundantRuleEvaluatedDetector } from './detectors/redundantRuleEvaluatedDetector.ts';
 import { thirdPartyToolContractDetector } from './detectors/thirdPartyToolContractDetector.ts';
+import { inefficientFileScanDetector } from './detectors/inefficientFileScanDetector.ts';
 
 // Auto-register canonical built-in detectors
 HomebrewDetectorRegistry.register(packageJsonDetector);
@@ -39,6 +40,7 @@ HomebrewDetectorRegistry.register(manualStepLoggingDetector);
 HomebrewDetectorRegistry.register(unmeasuredRuleDetector);
 HomebrewDetectorRegistry.register(redundantRuleEvaluatedDetector);
 HomebrewDetectorRegistry.register(thirdPartyToolContractDetector);
+HomebrewDetectorRegistry.register(inefficientFileScanDetector);
 
 export * from './homebrewTypes.ts';
 export * from './homebrewRegistry.ts';
@@ -58,5 +60,6 @@ export {
   manualStepLoggingDetector,
   unmeasuredRuleDetector,
   redundantRuleEvaluatedDetector,
-  thirdPartyToolContractDetector
+  thirdPartyToolContractDetector,
+  inefficientFileScanDetector
 };

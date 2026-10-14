@@ -22,7 +22,8 @@ export const AUDITOR_HOMEBREW_RULES = [
   'auditor-manual-step-logging',
   'auditor-unmeasured-rule',
   'auditor-redundant-rule-evaluated',
-  'auditor-third-party-tool-contract'
+  'auditor-third-party-tool-contract',
+  'auditor-inefficient-file-scan'
 ] as const;
 
 export type AuditorHomebrewRuleId = (typeof AUDITOR_HOMEBREW_RULES)[number];

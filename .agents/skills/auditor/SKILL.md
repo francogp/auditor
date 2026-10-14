@@ -40,7 +40,7 @@ graph TD
 4. **Atomic Console Mandate**: Multi-rule suites MUST wait for all sub-checks to finish before rendering step reports (`│  🔍 [X/Y] ...`), preventing mixed output across concurrent workers.
 5. **Mandatory Construction Contract (`ruleRemediations`)**: `AuditorOptions` strictly requires: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig`. Omitting any field or lacking a remediation guide for any declared rule ID throws a loud runtime error.
 6. **On-Demand Diagnostic Guides (`auditor guide`)**: Any diagnostic and remediation manual can be rendered on-demand in the terminal via `npm run auditor guide <ruleId>`, `auditor guide suite=<suiteId>`, or `auditor guide family=<family>` with zero truncation and Box-Drawing formatting.
-7. **Compiled Artifact Verification (`npm run auditor:build`)**: Suites declaring `capabilities: { requiresBuild: true }` are excluded from pre-build source audit and execute post-build against `dist/`.
+7. **Compiled Artifact Verification (`npm run auditor:post-build`)**: Rules declaring `phase: 'post-build'` (`capabilities.phase === 'post-build'`) are excluded from pre-build source audit and execute post-build against `dist/` via `npm run auditor:post-build` (`auditor phase=post-build`).
 
 ---
 
@@ -91,20 +91,21 @@ graph TD
 - **Completion Order**: Suites appear in console strictly in the order they **FINISH** ($T_{\text{finish}} = T_{\text{start}} + \text{durationMs}$). The printed duration reflects active child runtime (`performance.now() - taskStart`), not global wall-clock time. Short suites queued later display after earlier heavy suites.
 - **`printLock` Mutex**: Guarantees each suite's output block renders as an unbroken atomic unit.
 
-### 9. Post-Run Phase Isolation (`capabilities.postRun: true`)
+### 9. Execution Lifecycle Phases (`phase: 'normal' | 'post-run' | 'post-build'`)
 
-- Suites declaring `capabilities.postRun: true` (`validate_audit_coverage`) are completely excluded from concurrent worker pools.
-- They execute sequentially ONLY AFTER 100% of preceding suites finish and flush coverage ledgers to `scratch/audits/coverage/<suiteId>.json`, eliminating false `coverage-missing-ledger` alarms.
+- **`phase: 'normal'`**: Standard source code and architecture suites dispatched across concurrent worker pools.
+- **`phase: 'post-run'` (`validate_audit_coverage`)**: Completely excluded from concurrent worker pools; executes sequentially ONLY AFTER 100% of preceding suites finish and flush coverage ledgers to `scratch/audits/coverage/<suiteId>.json`, eliminating false `coverage-missing-ledger` alarms.
+- **`phase: 'post-build'` (`npm run auditor:post-build` / `auditor phase=post-build`)**: Verifies compiled distribution artifacts in `dist/` after compilation completes.
 
 ### 10. Shared AST Engine & Zero Duplicate Parse Mandate (`SharedAstContext`)
 
-- Suites requiring AST or Vue SFC `<script>` parsing declare `requiresAst: true`.
+- Suites requiring AST or Vue SFC `<script>` parsing declare `requiresAst: true` (and `ast: true` in `ruleCapabilities`).
 - NEVER call `ts.createProgram` or `ts.createSourceFile` in file loops. Consume `SharedAstContext` preheated by the orchestrator.
 
-### 11. Centralized Directory Scanning & Prohibition of Custom Walkers
+### 11. Centralized Directory Scanning & In-RAM File Cache (`WorkspaceFileCache`, `scanFilesSinglePass`)
 
-- Sub-auditors MUST NEVER implement custom recursive directory traversals (`fs.readdir` loops, `walkDir`, `getAllFiles`).
-- Use `this.context.collectFiles(roots, extensions)` or `collectRepositoryFiles()`.
+- Sub-auditors MUST NEVER implement custom recursive directory traversals (`fs.readdir` loops, `walkDir`, `getAllFiles`). Use `this.context.collectFiles(roots, extensions)` or `collectRepositoryFiles()`.
+- Multi-rule suites scanning the same file set MUST use `await this.scanFilesSinglePass(files, handlers)` backed by the in-RAM `WorkspaceFileCache`, reading each file once and prohibiting nested rule-over-files disk loops (`auditor-inefficient-file-scan`).
 
 ### 12. Mandatory Modular Identity & Human-Friendly Description Standard
 
@@ -146,30 +147,45 @@ graph TD
 
 - Detects semantic clones via Fallow embeddings (`jina-embeddings-v2-base-code`) on **Candle CPU** (CPU-only, no GPU/CUDA) with `--threads ${os.availableParallelism()}`.
 - Caches persist in `%LOCALAPPDATA%\fallow\similar-code` (Windows) or `~/.cache/fallow/similar-code` (Linux).
-- Bypassed cleanly in fast presets (`preset=lint`) and production environments (`AUDITOR_ENV=production`). Skipping vector analysis in local development is strictly prohibited.
+- Bypassed cleanly in `speed=light` (`npm run auditor:lint`) and production deployment builds (`AUDITOR_ENV=production` via `npm run build:deploy`). Skipping vector analysis in local development is strictly prohibited.
 
 ### 20. Fallow 100% Error Severity & Holistic Refactoring Targets
 
 - All Fallow findings map strictly to `severity: 'error'`. Downgrading to warning is prohibited.
 - Governed by holistic Fallow Refactoring Targets (`fallow-refactoring-targets`, `config.fallow.enforceTargets: true`), eliminating artificial function fragmentation.
 
-### 21. Per-Rule Capabilities Contract (`ruleCapabilities`)
+### 21. Orthogonal 6-Field Rule Capabilities Contract (`AuditorRuleCapabilities`)
 
 - Every sub-auditor declares capabilities on each rule individually via `ruleCapabilities: Record<TRuleId, AuditorRuleCapabilities>`.
 - Passing suite-level `capabilities` directly in constructor options is prohibited (`capabilities?: never`).
-- Each rule capability explicitly enforces all 9 boolean flags (`fix`, `fixPriority`, `lint`, `md`, `ast`, `changedSince`, `heavy`, `requiresBuild`, `postRun`).
-- Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept full 9-field literals via `createUniformRuleCapabilities(RULES, { ... })`.
+- Each rule capability explicitly initializes all 6 orthogonal fields (replacing the legacy 10-boolean contract):
+  - `speed`: `'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]` (`🐇` `'light'`, `🐢` `'heavy'`, `🐘` `'full'`, or array `['light', 'full']` for multi-tier CLI tools).
+  - `phase`: `'normal' | 'post-run' | 'post-build'`.
+  - `fix`: `'none' | 'normal' | 'priority'` (`'priority'` executes first during `auditor fix` to bootstrap config/environment).
+  - `md`: `boolean` (included in `auditor preset=md` / `npm run auditor:md`).
+  - `ast`: `boolean` (preheats `SharedAstContext`).
+  - `changedSince`: `boolean` (supports `--changed-since`).
+- Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept explicit 6-field literals via `createUniformRuleCapabilities(RULES, { ... })` / `createRuleCapabilities(RULES, baseCapabilities, fixableRuleIds)`.
 
-### 21.1 Mandatory Execution Speed Contract (`speed: AuditExecutionSpeed`)
+### 21.1 Speed Engine: Ceiling vs. Exact Modes & Visual Icons (`🐇` / `🐢` / `🐘`)
 
-- Every sub-auditor step strictly reports `speed: AuditExecutionSpeed` (`'fast' | 'heavy'`) in `SubAuditorReport`.
-- **Absolute Prohibition on `undefined`**: Speed can NEVER be `undefined` or optional.
-- **Loud Failure Mandate**: If any sub-auditor, rule capability, or host extension omits its speed contract (missing rule capability or undefined `heavy: boolean`), the engine throws a loud blocking error (`throw new Error(...)`), immediately halting execution.
+- **3 Canonical Speed Tiers (`AuditExecutionSpeed`)**:
+  - `'light'` (`🐇`): Fast static lint and AST rules (`npm run auditor:lint` / `auditor speed=light`).
+  - `'heavy'` (`🐢`): Default workspace audit ceiling (`npm run auditor` / `auditor` / `auditor speed=heavy`), running `'light'` + `'heavy'` suites.
+  - `'full'` (`🐘`): Exhaustive pre-build/release ceiling (`npm run auditor:full` / `auditor speed=full`), running `'light'` + `'heavy'` + `'full'` (including `fallow dead-code --type-aware`).
+- **Ceiling Mode (`speed=light|heavy|full`)**: Cumulative up to the requested ceiling (`speed=heavy` runs `light` + `heavy`; `speed=full` runs `light` + `heavy` + `full`).
+- **Exact Isolation Mode (`only-speed=light|heavy|full`)**: Executes ONLY rules matching that exact tier.
+- **LPT Task Scheduler (Longest Processing Time First)**: In `audit_full`, suites with higher speed tiers (`🐘` `'full'`, `🐢` `'heavy'`) are sorted and dispatched FIRST in the worker queue so multi-core CPU workers absorb heavy tasks immediately.
+- **Tiered Command Profiles (`TieredCommandProfile`)**: External CLI sub-auditors can declare `speed: ['light', 'full']` and use `TieredCommandProfile` (`light` fast args vs `full` deep args like `--type-aware`).
 
-### 21.2 LPT Task Scheduler & Sub-Line Speed Indicators (`⚡` / `🐢`)
+### 21.2 Mnemonic Command Naming & Master Build Chaining
 
-- **Scheduler LPT (Longest Processing Time First)**: In `audit_full`, suites that execute heavy commands or rules are sorted and dispatched FIRST in the worker queue, ensuring multi-core CPU workers absorb heavy suites immediately while fast suites execute concurrently.
-- **Sub-Line Console Indicators**: The suite header remains clean. Individual sub-auditor child lines display `⚡` for fast execution and `🐢` for heavy execution alongside execution durations.
+- `npm run auditor:lint` (`auditor speed=light`): Fast `🐇` lint pass.
+- `npm run auditor` (`auditor`): Default `🐢` heavy audit pass.
+- `npm run auditor:full` (`auditor speed=full`): Exhaustive `🐘` pre-compilation/release audit pass.
+- `npm run auditor:post-build` (`auditor phase=post-build`, binary `auditor-post-build`): Post-compilation artifact verification against `dist/`.
+- `npm run build`: Chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`.
+- `npm run build:deploy` (`auditor-build-deploy`): Runs `npm run build` under `AUDITOR_ENV=production` for Docker/CI/deploy environments.
 
 ### 22. Strict ESLint Flat Config & Domain-Type-First Type Integrity
 
@@ -185,7 +201,7 @@ graph TD
 
 ### 25. Warning Ratchet & Baseline Governance (`ratchet`)
 
-- Full audit (`npm run auditor`) enforces **0 errors AND 0 new warnings** comparing fingerprints against `.auditor/audit-baseline.json`. Resolving existing warnings monotonically shrinks the baseline.
+- Full audit (`npm run auditor` / `npm run auditor:full`) enforces **0 errors AND 0 new warnings** comparing fingerprints against `.auditor/audit-baseline.json`. Resolving existing warnings monotonically shrinks the baseline.
 
 ### 26. Canonical DOX Hierarchy Governance (`validate_dox_integrity`)
 
@@ -203,7 +219,7 @@ graph TD
 
 ### 29. Sub-Auditor & Extension Hygiene Governance (`validate_auditor_hygiene`)
 
-- Enforces 12 strict hygiene rules eradicating homebrew utilities and hardcoded configurations:
+- Enforces 17 strict hygiene rules eradicating homebrew utilities, hardcoded configurations, and inefficient I/O:
   1. `auditor-manual-package-json` (`getPackageJson()`)
   2. `auditor-manual-vue-sfc-regex` (`parseVueSfc()`)
   3. `auditor-isolated-ts-ast` (`SharedAstContext`)
@@ -216,6 +232,11 @@ graph TD
   10. `auditor-manual-path-predicate` (`isTestPath` / `isTestFileForCodeAudit`)
   11. `auditor-manual-timing` (`runSubAuditorSync` / `runSubAuditor`)
   12. `auditor-hardcoded-config` (`hardcodedConfigDetector.ts` - prohibits hardcoded candidate paths, fallback filenames, or local ignore arrays)
+  13. `auditor-manual-step-logging` (prohibits `this.context.logStep(...)`)
+  14. `auditor-unmeasured-rule` (prohibits `addViolation` outside timing wrappers)
+  15. `auditor-redundant-rule-evaluated` (prohibits manual `markRuleEvaluated` before timing wrappers)
+  16. `auditor-third-party-tool-contract` (enforces `usesThirdPartyTool` and `thirdPartyToolPolicy`)
+  17. `auditor-inefficient-file-scan` (prohibits nested rule-over-files loops and blind wildcards; requires `scanFilesSinglePass` and `WorkspaceFileCache`)
 
 ### 30. Grounded Fixability Contract (`fixable: boolean`)
 
@@ -277,9 +298,9 @@ Pre-formatted, production-ready templates conforming to all project standards:
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
 - **Updates (`auditor-update` / `npm run auditor:update`)**: Pull latest upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`) and verify with `auditor-version -v`. Ad-hoc `node -e` scripts or cloning into `/tmp` are strictly forbidden.
-- **Host Extensions Migration (v7+)**: Local extensions in `scripts/auditors/` must pass explicit `ruleCapabilities: createUniformRuleCapabilities(RULES, { ... })` and eliminate `logStep(...)` manual calls. See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md#16-host-extension-migration-quick-guide-v7-modernization).
+- **Host Extensions Migration (v7+)**: Local extensions in `scripts/auditors/` must pass explicit 6-field `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false })` and eliminate `logStep(...)` manual calls. See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md#16-host-extension-migration-quick-guide-v7-modernization).
 - **Massive Styles Migration (`scss-strict-values`)**: When upgrading causes large volumes of design token issues, inherit `./node_modules/@francogp/auditor/.stylelintrc.json`, calibrate `maxNestingDepth: 5`, and apply AST codemods in an isolated worktree (`scratch/wt-migration`). See [host-package-governance.md](./references/host-package-governance.md#13-mass-migration-recipes-for-host-upgrades).
-- **Production Builds (`AUDITOR_ENV=production`)**: In production deployments, Docker containers, or CI pipelines, run `npm run build:prod` (`auditor-build-prod`) under `AUDITOR_ENV=production` to cleanly skip Candle CPU vector duplication and test coverage checks without failing builds on uncommitted coverage files.
+- **Deployment Builds (`AUDITOR_ENV=production`)**: In production deployments, Docker containers, or CI pipelines, run `npm run build:deploy` (`auditor-build-deploy`) under `AUDITOR_ENV=production` to cleanly skip Candle CPU vector duplication and test coverage checks without failing builds on uncommitted coverage files.
 
 📘 **Detailed Governance Guide**: See [host-package-governance.md](./references/host-package-governance.md).
 

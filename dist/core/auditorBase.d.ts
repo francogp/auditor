@@ -8,8 +8,8 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 import './permissionGuard.ts';
-import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditExecutionSpeed, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, type ThirdPartyToolFailurePolicy, deriveCanonicalAuditorScript } from './auditContract.ts';
-export { deriveCanonicalAuditorScript };
+import { type AuditFamily, type AuditFinding, type FindingSeverity, type StandardAuditResult, type ICompositeAuditor, type SubAuditorStep, type SubAuditorReport, type AuditExecutionSpeed, type AuditorRuleCapabilities, type AuditorCapabilities, type AuditorCoverageDeclaration, type GitIgnoreRequirement, type AuditorConfigFileRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig, type FixableFindingCounts, type FixableViolationsSummary, type AuditorExecutionTier, type DualCommandProfile, type TieredCommandProfile, type ThirdPartyToolFailurePolicy, normalizeSpeeds, resolveEffectiveSpeed, deriveCanonicalAuditorScript } from './auditContract.ts';
+export { deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed };
 import { CoverageRecorder } from './auditCoverage.ts';
 import { type AuditEngineConfig } from './auditConfig.ts';
 import type { SharedAstContext } from './astContext.ts';
@@ -92,32 +92,36 @@ export interface AuditorContext {
     setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
     setProgressLogger?: (logger: (msg: string) => void) => void;
 }
+/**
+ * Clears the in-memory RAM cache for workspace discovered files.
+ */
+export declare function clearWorkspaceFileCache(): void;
 export declare function setupAuditor(config: AuditorConfig): AuditorContext;
-export declare const DEFAULT_AUDITOR_CAPABILITIES: AuditorCapabilities;
+export declare const DEFAULT_AUDITOR_CAPABILITIES: AuditorRuleCapabilities;
 export declare const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export declare const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 /**
  * Derives aggregate suite-level capabilities from the logical union of all its sub-auditor ruleCapabilities.
  */
-export declare function deriveSuiteCapabilities(ruleCapabilities: Readonly<Record<string, AuditorCapabilities>> | undefined): AuditorCapabilities;
+export declare function deriveSuiteCapabilities(ruleCapabilities: Readonly<Record<string, AuditorRuleCapabilities>> | undefined): AuditorRuleCapabilities;
 /**
  * Creates individual rule capabilities for suites, automatically adjusting
  * the `fix` capability per rule based on declared fixableRuleIds.
  */
-export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], baseCapabilities: AuditorCapabilities, fixableRuleIds?: readonly TRuleId[]): Record<TRuleId, AuditorCapabilities>;
+export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], baseCapabilities: AuditorRuleCapabilities, fixableRuleIds?: readonly TRuleId[]): Record<TRuleId, AuditorRuleCapabilities>;
 /**
  * Creates uniform rule capabilities for suites where every declared rule
  * shares the same operational capabilities.
  */
-export declare function createUniformRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], capabilities: AuditorCapabilities): Record<TRuleId, AuditorCapabilities>;
+export declare function createUniformRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], capabilities: AuditorRuleCapabilities): Record<TRuleId, AuditorRuleCapabilities>;
 /**
- * Canonical capability template for standard lint-only rules (lint: true, all other capabilities false).
+ * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
  */
-export declare const LINT_RULE_CAPABILITIES: Readonly<AuditorCapabilities>;
+export declare const LIGHT_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities>;
 /**
- * Canonical capability template for rules requiring TypeScript AST context (lint: true, ast: true).
+ * Canonical capability template for rules requiring TypeScript AST context (speed: 'light', ast: true).
  */
-export declare const AST_RULE_CAPABILITIES: Readonly<AuditorCapabilities>;
+export declare const AST_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities>;
 export interface FileScanRootsOptions {
     readonly projectRoot?: string;
     readonly roots?: readonly string[];
@@ -199,7 +203,8 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly fixable?: boolean;
     readonly remediation?: string;
 }
-export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["fix", "fixPriority", "lint", "md", "ast", "changedSince", "heavy", "requiresBuild", "postRun"];
+export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["speed", "phase", "fix", "md", "ast", "changedSince"];
+export declare const MANDATORY_BOOLEAN_CAPABILITY_KEYS: readonly ["md", "ast", "changedSince"];
 export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
     readonly id: string;
     readonly name: string;
@@ -277,22 +282,36 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     getDurationsByRule(): ReadonlyMap<TRuleId, number>;
     private readonly executedCommandTiers;
     /**
-     * Returns the active execution tier ('lint', 'md', 'fix', or 'full').
+     * Resolves the active speed ceiling (`maxSpeed`) and optional exact speed filter (`onlySpeed`)
+     * from environment variables or CLI arguments.
+     */
+    getExecutionSpeedOptions(): {
+        maxSpeed: AuditExecutionSpeed;
+        onlySpeed?: AuditExecutionSpeed;
+    };
+    /**
+     * Resolves the effective speed ('light' | 'heavy' | 'full') for a specific ruleId in the current run,
+     * or null if the rule should be skipped under the current speed ceiling or exact speed filter.
+     */
+    resolveRuleEffectiveSpeed(ruleId: TRuleId): AuditExecutionSpeed | null;
+    /**
+     * Returns the active execution tier ('light', 'heavy', 'full', 'md', 'fix', or 'post-build').
      */
     getExecutionTier(): AuditorExecutionTier;
     /**
-     * Returns true when the active run is a fast/lightweight preset (lint or md).
+     * Returns true when the active run is a lightweight run ('light' or 'md').
      */
     isFastMode(): boolean;
     /**
-     * Checks whether a specific declared ruleId is active for the current execution tier.
+     * Checks whether a specific declared ruleId is active for the current execution tier/speed.
      */
     isRuleActiveForCurrentRun(ruleId: TRuleId): boolean;
+    private isDualOrTieredProfile;
     /**
-     * Resolves arguments for a dual command profile (fast for lint/md, heavy for full audit),
+     * Resolves arguments for a tiered or dual command profile,
      * enforcing the Anti-Repetition Invariant: a command cannot be resolved in multiple tiers in the same run.
      */
-    resolveCommandArgs<TArgs = readonly string[]>(profile: DualCommandProfile<TArgs>): TArgs;
+    resolveCommandArgs<TArgs = readonly string[]>(profile: DualCommandProfile<TArgs> | TieredCommandProfile<TArgs> | (TArgs & readonly unknown[])): TArgs;
     /** Derived from the coverage recorder: record real files with `recordScanned()` instead of counting. */
     protected get filesScannedCount(): number;
     protected set filesScannedCount(count: number);
@@ -404,6 +423,15 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
      * allowing external tools and AI agents to dynamically inspect capabilities and rules.
      */
     toManifest(): AuditorManifestDTO;
+    /**
+     * Scans a collection of files in a single pass in memory (RAM).
+     * Reads each file from disk exactly once, splits into lines, and evaluates each
+     * declared rule handler while automatically measuring empirical rule durations.
+     */
+    scanFilesSinglePass(files: readonly string[], handlers: ReadonlyArray<{
+        ruleId: TRuleId;
+        scan: (file: string, content: string, lines: readonly string[], doc: AuditedDocument) => void | Promise<void>;
+    }>): Promise<void>;
     private static isExecutingCli;
     static runCli(auditor: BaseAuditor<string>): Promise<void>;
     static runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void>;

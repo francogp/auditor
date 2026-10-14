@@ -5,7 +5,7 @@
  * Validates TypeScript declaration (.d.ts) resolution and dual ESM/CJS compatibility
  * for compiled packages in dist/ via @arethetypeswrong/core (ATTW).
  *
- * Capabilities: requiresBuild (executed exclusively post-build via preset=build).
+ * Capabilities: phase: 'post-build' (executed exclusively post-build via phase=post-build).
  */
 import { Package, type Problem } from '@arethetypeswrong/core';
 import { BaseAuditor } from '../../core/auditorBase.ts';

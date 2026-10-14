@@ -54,15 +54,12 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: true,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_type_assertion_hygiene',
       name: 'TypeScript Assertion & Strict Typing Hygiene',

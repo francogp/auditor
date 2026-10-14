@@ -86,15 +86,12 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
-                fix: false,
-                fixPriority: false,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }),
             id: 'validate_ephemeral_storage_isolation',
             name: 'Ephemeral Storage & Scratch Isolation Validator',

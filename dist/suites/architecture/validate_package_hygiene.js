@@ -253,15 +253,12 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
                 fallbackRuleId: 'package-unlisted-dependency'
             },
             ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
-                fix: true,
-                fixPriority: false,
-                lint: false,
+                speed: 'heavy',
+                phase: 'normal',
+                fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: true,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['package-unused-dependency']),
             fixableRuleIds: ['package-unused-dependency'],
             fix: options.fix,

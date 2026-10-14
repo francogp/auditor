@@ -49,7 +49,7 @@ describe('validate_dependency_minimums', () => {
     const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_dependency_minimums');
     expect(auditor.family).toBe('architecture');
-    expect(auditor.capabilities.fix).toBe(false);
+    expect(auditor.capabilities.fix).toBe('none');
     expect(auditor.description.length).toBeLessThanOrEqual(60);
   });
 

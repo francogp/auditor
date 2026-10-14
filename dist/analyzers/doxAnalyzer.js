@@ -47,6 +47,7 @@ async function tryReadAgentsMd(dir) {
 async function scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher) {
     const doxDirs = [];
     const doxFilesMap = new Map();
+    // walker-ok: DOX hierarchy analyzer recursively discovers AGENTS.md and directory structure
     async function traverse(dir) {
         if (isPathIgnored(dir, ignoreDirs, gitIgnoreMatcher))
             return;

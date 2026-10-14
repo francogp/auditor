@@ -67,7 +67,8 @@ export class HomebrewDetectorRegistry {
       'auditor-manual-step-logging': 'Elimina logs de pasos secuenciales ([1/6], [2/6]) dentro de subauditores; el streaming runner gestiona el ciclo de vida y estado visual.',
       'auditor-unmeasured-rule': 'Envuelve la evaluación de la regla con this.runRuleMeasured() o reportRuleDuration() para garantizar medición y telemetría de rendimiento.',
       'auditor-redundant-rule-evaluated': 'Elimina llamadas redundantes a markRuleEvaluated() cuando la regla ya se mide automáticamente con runRuleMeasured().',
-      'auditor-third-party-tool-contract': 'Declara usesThirdPartyTool: true con thirdPartyToolPolicy ({ toolName, fallbackBehavior, fallbackRuleId }) en el constructor si ejecutas herramientas externas, o usesThirdPartyTool: false si es un analizador nativo.'
+      'auditor-third-party-tool-contract': 'Declara usesThirdPartyTool: true con thirdPartyToolPolicy ({ toolName, fallbackBehavior, fallbackRuleId }) en el constructor si ejecutas herramientas externas, o usesThirdPartyTool: false si es un analizador nativo.',
+      'auditor-inefficient-file-scan': 'Evita iterar reglas antes de archivos o pasar comodines ciegos (**/*.ext) a CLIs externas; usa this.scanFilesSinglePass(), FileScanAuditor o pasa la lista de archivos descubiertos por el auditor.'
     };
     return remediations as Record<AuditorHomebrewRuleId, string>;
   }

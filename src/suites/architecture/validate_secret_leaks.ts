@@ -88,15 +88,12 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(SECRET_LEAKS_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: false,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_secret_leaks',
       name: 'Secret Leaks & Credentials Auditor',

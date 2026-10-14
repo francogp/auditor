@@ -36,8 +36,22 @@ export const SIMILAR_CODE_RULES = [
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 
 export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCapabilities> = {
-  'fallow-similar-code': { fix: false, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: true, requiresBuild: false, postRun: false },
-  'fallow-similar-code-failed': { fix: true, fixPriority: false, lint: false, md: false, ast: false, changedSince: false, heavy: true, requiresBuild: false, postRun: false }
+  'fallow-similar-code': {
+        speed: 'heavy',
+        phase: 'normal',
+        fix: 'none',
+        md: false,
+        ast: false,
+        changedSince: false
+      },
+  'fallow-similar-code-failed': {
+        speed: 'heavy',
+        phase: 'normal',
+        fix: 'normal',
+        md: false,
+        ast: false,
+        changedSince: false
+      }
 };
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;

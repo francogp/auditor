@@ -402,15 +402,12 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
-                fix: true,
-                fixPriority: true,
-                lint: false,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, [
                 'audit-config-missing-section',
                 'audit-config-missing-file',

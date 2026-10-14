@@ -51,7 +51,8 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       expect(auditor.family).toBe('documentation');
       expect(auditor.packageName).toBe('Doc');
       expect(auditor.capabilities.md).toBe(true);
-      expect(auditor.capabilities.lint).toBe(false);
+      expect(auditor.capabilities.speed).toBe('light');
+      expect(auditor.capabilities.phase).toBe('normal');
       expect(auditor.ruleIds).toContain('mermaid-syntax-error');
       expect(auditor.ruleIds).toContain('mermaid-unquoted-special-chars');
     });

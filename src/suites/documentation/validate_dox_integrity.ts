@@ -48,15 +48,12 @@ private readonly rootDir: string;
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(DOX_RULES, {
-        fix: false,
-        fixPriority: false,
-        lint: false,
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
         md: true,
         ast: false,
-        changedSince: false,
-        heavy: false,
-        requiresBuild: false,
-        postRun: false
+        changedSince: false
       }),
       id: 'validate_dox_integrity',
       name: 'DOX & AGENTS.md Integrity Validator',

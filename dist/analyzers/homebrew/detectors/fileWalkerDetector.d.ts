@@ -4,5 +4,6 @@
  * Detects custom recursive directory traversal functions (walkDir, getAllFiles)
  * instead of using BaseAuditor collectFiles() or collectRepositoryFiles().
  */
-export declare const fileWalkerDetector: import("../homebrewTypes.ts").HomebrewDetector;
+import type { HomebrewDetector } from '../homebrewTypes.ts';
+export declare const fileWalkerDetector: HomebrewDetector;
 //# sourceMappingURL=fileWalkerDetector.d.ts.map

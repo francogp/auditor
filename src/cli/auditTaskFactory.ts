@@ -9,7 +9,10 @@ import path from 'node:path';
 import {
   type AuditFamily,
   type AuditTaskDefinition,
-  type AuditorCapabilities,
+  type AuditorRuleCapabilities,
+  type AuditExecutionSpeed,
+  type AuditExecutionPhase,
+  resolveEffectiveSpeed,
   resolveFamilyMetadata
 } from '../core/auditContract.ts';
 import { type loadAuditConfig } from '../core/auditConfig.ts';
@@ -26,10 +29,14 @@ export interface DiscoveryOptions {
   task?: string;
   suites?: string[];
   preset?: string;
+  speed?: AuditExecutionSpeed;
+  onlySpeed?: AuditExecutionSpeed;
+  phase?: AuditExecutionPhase;
   fastOnly?: boolean;
   skipSimilar?: boolean;
   fixOnly?: boolean;
   lintOnly?: boolean;
+  precommitOnly?: boolean;
   mdOnly?: boolean;
   buildOnly?: boolean;
   withBuild?: boolean;
@@ -97,29 +104,60 @@ export function shouldSkipTaskByFilters(
 }
 
 export function shouldSkipTaskByCapabilities(
-  capabilities: Partial<AuditorCapabilities> | undefined,
+  capabilities: Partial<AuditorRuleCapabilities> | undefined,
   options: DiscoveryOptions
 ): boolean {
-  const isBuildPreset = Boolean(options.preset === 'build' || options.buildOnly);
-  if (isBuildPreset) {
-    return !capabilities?.requiresBuild;
+  const isPostBuildMode = Boolean(
+    options.phase === 'post-build' ||
+    options.preset === 'post-build' ||
+    options.preset === 'build' ||
+    options.buildOnly
+  );
+  if (isPostBuildMode) {
+    return capabilities?.phase !== 'post-build';
+  }
+  if (options.phase && capabilities?.phase !== options.phase) {
+    return true;
   }
   if (options.fixOnly) {
-    return !capabilities?.fix;
-  }
-  if (options.lintOnly || options.preset === 'lint') {
-    return !capabilities?.lint;
+    return !capabilities?.fix || capabilities.fix === 'none';
   }
   if (options.mdOnly || options.preset === 'md') {
     return !capabilities?.md;
   }
-  if (options.includeHeavy === false && capabilities?.heavy) {
-    return true;
-  }
   const isTargeted = Boolean(options.withBuild || options.task || options.suites);
-  if (!isTargeted && capabilities?.requiresBuild) {
+  if (!isTargeted && capabilities?.phase === 'post-build') {
     return true;
   }
+
+  if (options.onlySpeed) {
+    return resolveEffectiveSpeed(capabilities?.speed, { onlySpeed: options.onlySpeed }) === null;
+  }
+
+  const hasExplicitSpeedOrPreset = Boolean(
+    options.speed ||
+    options.lintOnly ||
+    options.preset === 'lint' ||
+    options.precommitOnly ||
+    options.preset === 'full' ||
+    options.preset === 'precommit' ||
+    options.includeHeavy === false
+  );
+
+  if (!isTargeted || hasExplicitSpeedOrPreset) {
+    let maxSpeed: AuditExecutionSpeed = 'heavy';
+    if (options.speed) {
+      maxSpeed = options.speed;
+    } else if (options.lintOnly || options.preset === 'lint' || options.includeHeavy === false) {
+      maxSpeed = 'light';
+    } else if (options.preset === 'full' || options.preset === 'precommit' || options.precommitOnly) {
+      maxSpeed = 'full';
+    }
+    if (resolveEffectiveSpeed(capabilities?.speed ?? 'light', { maxSpeed }) === null) {
+      return true;
+    }
+  }
+
   return false;
 }
 

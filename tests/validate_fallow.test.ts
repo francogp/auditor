@@ -41,8 +41,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(auditor.id).toBe('validate_fallow');
       expect(auditor.name).toBe('Fallow Architecture & Refactoring Targets');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.capabilities.heavy).toBe(true);
-      expect(auditor.capabilities.lint).toBe(true);
+      expect(auditor.capabilities.speed).toEqual(['light', 'heavy', 'full']);
       expect(auditor.capabilities.changedSince).toBe(true);
     });
 
@@ -389,7 +388,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(dispatchedArgs.dupes).toContain('semantic');
     });
 
-    it('dispatches --type-aware and --show-cascade when tsconfig.json exists on disk', async () => {
+    it('dispatches --type-aware and --show-cascade in full speed mode when tsconfig.json exists on disk', async () => {
       await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
 
       setAuditConfig(defineAuditConfig({
@@ -400,18 +399,28 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         }
       }));
 
-      const auditor = new FallowArchitectureAuditor(tempDir);
-      const dispatchedArgs: Record<string, string[]> = {};
-      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
-        dispatchedArgs[cmd] = args || [];
-        return [];
-      };
+      const prevSpeed = process.env.AUDITOR_SPEED;
+      process.env.AUDITOR_SPEED = 'full';
+      try {
+        const auditor = new FallowArchitectureAuditor(tempDir);
+        const dispatchedArgs: Record<string, string[]> = {};
+        (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+          dispatchedArgs[cmd] = args || [];
+          return [];
+        };
 
-      await auditor.runAudit();
+        await auditor.runAudit();
 
-      expect(dispatchedArgs['dead-code']).toBeDefined();
-      expect(dispatchedArgs['dead-code']).toContain('--type-aware');
-      expect(dispatchedArgs['dead-code']).toContain('--show-cascade');
+        expect(dispatchedArgs['dead-code']).toBeDefined();
+        expect(dispatchedArgs['dead-code']).toContain('--type-aware');
+        expect(dispatchedArgs['dead-code']).toContain('--show-cascade');
+      } finally {
+        if (prevSpeed !== undefined) {
+          process.env.AUDITOR_SPEED = prevSpeed;
+        } else {
+          delete process.env.AUDITOR_SPEED;
+        }
+      }
     });
 
     it('omits --type-aware when fallow.typeAware is explicitly false or tsconfig.json is missing', async () => {
@@ -463,7 +472,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(dispatchedArgs.health).toContain('--coverage');
     });
 
-    it('executes ONLY fast syntactic dead-code and skips heavy commands in lint mode (preset=lint)', async () => {
+    it('executes ONLY fast syntactic dead-code and security and skips heavy commands in lint mode (preset=lint)', async () => {
       const prevPreset = process.env.AUDITOR_PRESET;
       process.env.AUDITOR_PRESET = 'lint';
 
@@ -479,8 +488,8 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
         await auditor.runAudit();
 
-        // dead-code and security are dispatched in fast lint profile
-        expect(dispatchedCommands).toEqual(['dead-code', 'security']);
+        // security and dead-code are dispatched in fast lint profile
+        expect(dispatchedCommands).toEqual(['security', 'dead-code']);
         expect(dispatchedCommands).not.toContain('dupes');
         expect(dispatchedCommands).not.toContain('triplets');
         expect(dispatchedCommands).not.toContain('health');

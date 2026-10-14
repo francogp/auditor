@@ -1,5 +1,5 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LINT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripCommentsAndStrings } from '../../core/scannerUtils.ts';
@@ -50,7 +50,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         'missing-theme-token-usage': 'Guía de diagnóstico y remediación para missing-theme-token-usage. Revisa la incidencia detectada y ajusta el código correspondiente.',
         'excessive-scss-nesting': 'Guía de diagnóstico y remediación para excessive-scss-nesting. Revisa la incidencia detectada y ajusta el código correspondiente.',
       },
-      ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LINT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.scssArchitecture?.exemptPaths

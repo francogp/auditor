@@ -48,15 +48,12 @@ export class AgentPluginAuditor extends BaseAuditor {
         super({
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
-                fix: true,
-                fixPriority: true,
-                lint: true,
+                speed: 'light',
+                phase: 'normal',
+                fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false,
-                heavy: false,
-                requiresBuild: false,
-                postRun: false
+                changedSince: false
             }, ['missing-agent-plugin-registration']),
             fixableRuleIds: ['missing-agent-plugin-registration'],
             id: 'validate_agent_plugin',

@@ -28,6 +28,7 @@ export interface Finding {
     severity: FindingSeverity;
     ruleId: DomainTypesRuleId;
 }
+export declare function auditFileContent(filePath: string, content: string, ruleFilter?: DomainTypesRuleId): Finding[];
 export declare function auditFile(filePath: string, ruleFilter?: DomainTypesRuleId): Promise<Finding[]>;
 export declare class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     constructor(roots?: readonly string[], projectRoot?: string);

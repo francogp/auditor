@@ -52,17 +52,7 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
         'sample-rule': 'Soluciona la regla sample-rule ajustando la configuración crítica.'
       },
       ruleCapabilities: {
-        'sample-rule': {
-          fix: true,
-          fixPriority: false,
-          lint: true,
-          md: false,
-          ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
-        }
+        'sample-rule': { speed: 'light', phase: 'normal', fix: 'normal', md: false, ast: false, changedSince: false }
       },
       coverage: {
         include: ['src/**']
@@ -98,17 +88,7 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
         'sample-rule': 'Soluciona la regla sample-rule ajustando la sonda.'
       },
       ruleCapabilities: {
-        'sample-rule': {
-          fix: false,
-          fixPriority: false,
-          lint: true,
-          md: false,
-          ast: false,
-          changedSince: false,
-          heavy: false,
-          requiresBuild: false,
-          postRun: false
-        }
+        'sample-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
       },
       coverage: {
         include: ['src/**']
