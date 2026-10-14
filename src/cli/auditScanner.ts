@@ -30,7 +30,7 @@ export const AUDIT_PRESETS: Record<string, readonly string[]> = {
   security: ['validate_security_hardening']
 };
 
-export type AuditPresetName = 'lint' | 'full' | 'precommit' | 'md' | 'post-build' | 'build' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
+export type AuditPresetName = 'lint' | 'full' | 'precommit' | 'md' | 'post-build' | 'build' | 'critical' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
 
 export {
   type DiscoveryOptions,
@@ -76,6 +76,7 @@ function resolveTargetSuiteIds(
     options.preset !== 'md' &&
     options.preset !== 'post-build' &&
     options.preset !== 'build' &&
+    options.preset !== 'critical' &&
     options.preset in combinedPresets
   ) {
     targetSuiteIds = new Set(combinedPresets[options.preset]);

@@ -407,7 +407,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor {
                 fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }, [
                 'audit-config-missing-section',
                 'audit-config-missing-file',

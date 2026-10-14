@@ -404,7 +404,7 @@ export class NativePathsAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_native_paths',
             name: 'Security & Native Path Integrity Validator',

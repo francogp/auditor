@@ -78,7 +78,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
         fix: 'priority',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, [...GIT_CONFIG_RULES]),
       fixableRuleIds: [...GIT_CONFIG_RULES],
       id: 'validate_git_config',

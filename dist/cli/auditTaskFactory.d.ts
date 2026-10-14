@@ -20,6 +20,8 @@ export interface DiscoveryOptions {
     skipSimilar?: boolean;
     fixOnly?: boolean;
     lintOnly?: boolean;
+    criticalOnly?: boolean;
+    onlyCritical?: boolean;
     precommitOnly?: boolean;
     mdOnly?: boolean;
     buildOnly?: boolean;

@@ -171,10 +171,11 @@ export function resolveSkipSimilar(): boolean {
 
 export function resolveTargetPreset(values: Record<string, unknown>, positionals: readonly string[]): AuditPresetName | undefined {
   if (values.preset) return values.preset as AuditPresetName;
-  if (values['post-build'] || positionals.includes('post-build')) return 'post-build';
-  if (values.full || positionals.includes('full')) return 'full';
-  if (positionals.includes('lint')) return 'lint';
-  if (positionals.includes('md')) return 'md';
+  if (values.critical || positionals.includes('critical')) return 'critical';
+  if (values['post-build'] || positionals.includes('post-build') || values.phase === 'post-build') return 'post-build';
+  if (values.full || positionals.includes('full') || values.speed === 'full') return 'full';
+  if (values.speed === 'light' || positionals.includes('lint')) return 'lint';
+  if (values.md || positionals.includes('md')) return 'md';
   return undefined;
 }
 
@@ -194,7 +195,7 @@ export function parseAuditFullCliArgs(
 ): AuditFullCliOptions {
   const args = [...rawArgs];
   const BOOLEAN_FLAGS = [
-    'errors-only', 'fix', 'all', 'post-build', 'with-build', 'full', 'init-baseline', 'help', 'list', 'json', 'enabled', 'disabled'
+    'errors-only', 'fix', 'all', 'post-build', 'with-build', 'full', 'init-baseline', 'help', 'list', 'json', 'enabled', 'disabled', 'critical'
   ];
   const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (BOOLEAN_FLAGS.includes(a) ? `--${a}` : a));
 
@@ -208,6 +209,7 @@ export function parseAuditFullCliArgs(
       json: { type: 'boolean' },
       enabled: { type: 'boolean' },
       disabled: { type: 'boolean' },
+      critical: { type: 'boolean' },
       family: { type: 'string' },
       task: { type: 'string' },
       tasks: { type: 'string' },
@@ -276,12 +278,26 @@ export function determineRunMode(
   targetPreset?: AuditPresetName,
   targetSuites?: string[],
   taskArg?: unknown,
-  targetFamily?: string
+  targetFamily?: string,
+  extraOptions?: {
+    speed?: unknown;
+    onlySpeed?: unknown;
+    phase?: unknown;
+    changedOnly?: unknown;
+  }
 ): AuditRunMode {
   if (targetPreset) return 'preset';
   if (targetSuites && targetSuites.length > 1) return 'suites';
   if (taskArg || (targetSuites && targetSuites.length === 1)) return 'single';
   if (targetFamily) return 'family';
+  if (
+    extraOptions?.speed === 'light' ||
+    Boolean(extraOptions?.onlySpeed) ||
+    extraOptions?.phase === 'post-build' ||
+    Boolean(extraOptions?.changedOnly)
+  ) {
+    return 'preset';
+  }
   return 'full';
 }
 
@@ -296,7 +312,7 @@ export function buildTaskArgs(
   if (values.top && !taskArgs.includes('--top')) taskArgs.push('--top', values.top as string);
   if (values.speed && !taskArgs.includes('--speed')) taskArgs.push('--speed', String(values.speed));
   if (values['only-speed'] && !taskArgs.includes('--only-speed')) taskArgs.push('--only-speed', String(values['only-speed']));
-  if (values['changed-since'] && task.capabilities?.changedSince && !taskArgs.includes('--changed-since')) {
+  if (values['changed-since'] && task.capabilities?.changedOnly && !taskArgs.includes('--changed-since')) {
     taskArgs.push('--changed-since', values['changed-since'] as string);
   }
   if (values.fix && !taskArgs.includes('fix')) taskArgs.push('fix');
@@ -870,7 +886,8 @@ function handleListJsonOutput(filtered: readonly { task: AuditTaskDefinition; en
       fix: t.capabilities?.fix ?? 'none',
       md: Boolean(t.capabilities?.md),
       ast: Boolean(t.capabilities?.ast || t.requiresAst),
-      changedSince: Boolean(t.capabilities?.changedSince)
+      changedOnly: Boolean(t.capabilities?.changedOnly),
+      critical: Boolean(t.capabilities?.critical)
     },
     rules: t.ruleDescriptions ?? {},
     configKey: t.configKey
@@ -1276,6 +1293,8 @@ function displayMasterBanner(
     bannerTitle = '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]';
   } else if (isBuildMode) {
     bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
+  } else if (cliOptions.targetPreset === 'critical') {
+    bannerTitle = '[ 🚨 MODO CRÍTICO EXCLUSIVO ]';
   } else if (config.name && getVisualWidth(bannerTitle) > MAX_BANNER_SUBTITLE_WIDTH) {
     bannerTitle = `${config.name.toUpperCase()}\nSUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN`;
   }
@@ -1380,7 +1399,18 @@ export async function runMasterAudit(): Promise<void> {
   const executedSuiteIds = tasksToRun.map(t => t.id);
   const allSuiteIds = allAvailableTasks.map(t => t.id);
   const omittedSuiteIds = allSuiteIds.filter(id => !executedSuiteIds.includes(id));
-  const runMode = determineRunMode(cliOptions.targetPreset, cliOptions.targetSuites, cliOptions.values.task, cliOptions.targetFamily);
+  const runMode = determineRunMode(
+    cliOptions.targetPreset,
+    cliOptions.targetSuites,
+    cliOptions.values.task,
+    cliOptions.targetFamily,
+    {
+      speed: cliOptions.speed,
+      onlySpeed: cliOptions.onlySpeed,
+      phase: cliOptions.phase,
+      changedOnly: cliOptions.values['changed-since']
+    }
+  );
 
   sortTasksByOrder(tasksToRun, isFixMode);
   const workerTasks = tasksToRun.filter(t => t.capabilities?.phase !== 'post-run');

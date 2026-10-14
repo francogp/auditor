@@ -291,7 +291,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.scss', '.css']),

@@ -30,7 +30,7 @@ class ParityTestAuditor extends BaseAuditor<ParityRuleId> {
       configKey: 'parity.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      ruleCapabilities: createRuleCapabilities(PARITY_RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }),
+      ruleCapabilities: createRuleCapabilities(PARITY_RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }),
       coverage: {
         include: ['src/**/*.ts']
       },

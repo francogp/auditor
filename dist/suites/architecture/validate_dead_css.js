@@ -188,7 +188,7 @@ export class DeadCssAuditor extends BaseAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_dead_css',
             name: 'Scoped Dead CSS Auditor',

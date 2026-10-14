@@ -36,6 +36,8 @@ export interface DiscoveryOptions {
   skipSimilar?: boolean;
   fixOnly?: boolean;
   lintOnly?: boolean;
+  criticalOnly?: boolean;
+  onlyCritical?: boolean;
   precommitOnly?: boolean;
   mdOnly?: boolean;
   buildOnly?: boolean;
@@ -125,6 +127,9 @@ export function shouldSkipTaskByCapabilities(
   if (options.mdOnly || options.preset === 'md') {
     return !capabilities?.md;
   }
+  if (options.criticalOnly || options.onlyCritical || options.preset === 'critical') {
+    return !capabilities?.critical;
+  }
   const isTargeted = Boolean(options.withBuild || options.task || options.suites);
   if (!isTargeted && capabilities?.phase === 'post-build') {
     return true;
@@ -153,7 +158,8 @@ export function shouldSkipTaskByCapabilities(
     } else if (options.preset === 'full' || options.preset === 'precommit' || options.precommitOnly) {
       maxSpeed = 'full';
     }
-    if (resolveEffectiveSpeed(capabilities?.speed ?? 'light', { maxSpeed }) === null) {
+    const isCriticalLintBypass = capabilities?.critical === true && maxSpeed === 'light';
+    if (!isCriticalLintBypass && resolveEffectiveSpeed(capabilities?.speed ?? 'light', { maxSpeed }) === null) {
       return true;
     }
   }

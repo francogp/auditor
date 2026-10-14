@@ -308,7 +308,7 @@ function validateSixFieldCapabilities(
   if (!AUDIT_FIX_CAPABILITIES.some(f => f === caps.fix)) {
     errors.push(`${label}.fix debe ser ${AUDIT_FIX_CAPABILITIES.join(', ')}.`);
   }
-  for (const boolKey of ['md', 'ast', 'changedSince'] as const) {
+  for (const boolKey of ['md', 'ast', 'changedOnly', 'critical'] as const) {
     if (typeof (caps as Record<string, unknown>)[boolKey] !== 'boolean') {
       errors.push(`${label}.${boolKey} debe ser explícitamente booleano (true o false).`);
     }

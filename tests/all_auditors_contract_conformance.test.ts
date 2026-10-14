@@ -20,7 +20,7 @@ import {
 } from '../src/core/auditorContractConformance.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
 
-const BASE_MOCK_CAPS = { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false } as const;
+const BASE_MOCK_CAPS = { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false } as const;
 
 // 1. Run dynamic conformance tests for all discovered auditors in this project
 runAuditorContractConformanceTests();

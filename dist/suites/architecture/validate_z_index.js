@@ -98,7 +98,7 @@ export class ZIndexAuditor extends FileScanAuditor {
                 fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }, [
                 'z-index-missing-var',
                 'z-index-mismatch',

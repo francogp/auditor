@@ -62,7 +62,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_constant_hygiene',
       name: 'Constant Hygiene & Duplicate Validator',

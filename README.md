@@ -27,7 +27,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 ## 1. Key Features & Architectural Architecture
 
 - **Built-In Generic Architectural Suites**: Comprehensive static verification across 6 canonical families (`architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, `documentation/`).
-- **Capability-Driven Auto-Coordination (`AuditorRuleCapabilities`)**: Sub-auditors declare explicit 6-field orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]`, `phase: 'normal' | 'post-run' | 'post-build'`, `fix: 'none' | 'normal' | 'priority'`, `md: boolean`, `ast: boolean`, `changedSince: boolean`) with 100% mandatory completeness and zero fallbacks. `BaseAuditor` derives suite-level `AuditorCapabilities` automatically from `ruleCapabilities`. No hardcoded suite lists in runners or scanners.
+- **Capability-Driven Auto-Coordination (`AuditorRuleCapabilities`)**: Sub-auditors declare explicit 7-field orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]`, `phase: 'normal' | 'post-run' | 'post-build'`, `fix: 'none' | 'normal' | 'priority'`, `md: boolean`, `ast: boolean`, `changedOnly: boolean`, `critical: boolean`) with 100% mandatory completeness and zero fallbacks. `BaseAuditor` derives suite-level `AuditorCapabilities` automatically from `ruleCapabilities`. No hardcoded suite lists in runners or scanners.
 - **3-Tier Speed Engine (`light` `🐇`, `heavy` `🐢`, `full` `🐘`) & `TieredCommandProfile`**: Supports cumulative ceiling mode (`speed=light|heavy|full`, default `speed=heavy`) and exact isolation mode (`only-speed=light|heavy|full`). Multi-profile suites (such as `validate_eslint`) declare `speed: ['light', 'full']` so fast modes run syntax-only (`🐇` ~2s) while `speed=full` (`🐘`) enables deep type-aware rules (`typescript-eslint` `projectService`).
 - **RAM Optimization (`WorkspaceFileCache` & `scanFilesSinglePass`)**: Deduplicates file reads across rules via `WorkspaceFileCache` (`getFileLines()`, `getFileContent()`, `scanFilesSinglePass(files, handlers)`), enforced by `validate_auditor_hygiene` (`auditor-inefficient-file-scan`).
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
@@ -585,7 +585,8 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       roots,
       allowedExtensions: new Set(['.vue', '.ts'])

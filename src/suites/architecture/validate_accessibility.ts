@@ -63,7 +63,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, [...ACCESSIBILITY_RULES]),
       fixableRuleIds: [...ACCESSIBILITY_RULES],
       fix: options.fix,

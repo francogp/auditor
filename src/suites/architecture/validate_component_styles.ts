@@ -534,7 +534,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, ['banned-plain-css-style']),
       fixableRuleIds: ['banned-plain-css-style'],
       fix: options.fix,

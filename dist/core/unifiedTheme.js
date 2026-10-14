@@ -318,8 +318,8 @@ function formatCapabilityList(caps) {
         capList.push(styleText('red', '📦 Fase Post-Build (phase=post-build)'));
     if (caps?.phase === 'post-run')
         capList.push(styleText('blue', '🏁 Fase Post-Run (phase=post-run)'));
-    if (caps?.changedSince)
-        capList.push(styleText('white', '✔ Diferencial Git (--changed-since)'));
+    if (caps?.changedOnly)
+        capList.push(styleText('white', '✔ Diferencial Git (changed-only)'));
     if (caps?.ast)
         capList.push(styleText('white', '✔ AST TypeScript in-memory (ast)'));
     return capList;

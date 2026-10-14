@@ -284,7 +284,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
           fix: 'normal',
           md: false,
           ast: true,
-          changedSince: true
+          changedOnly: true, critical: false
         },
         ruleDescriptions: {
           'eslint-violation': 'Sintaxis o regla de lint violada'
@@ -326,7 +326,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'architecture',
         icon: '🏛️',
         description: 'First suite',
-        capabilities: { speed: 'light', phase: 'normal', fix: 'priority', md: false, ast: false, changedSince: false },
+        capabilities: { speed: 'light', phase: 'normal', fix: 'priority', md: false, ast: false, changedOnly: false, critical: false },
         scriptPath: 'src/a.ts',
         command: 'node',
         args: []
@@ -337,7 +337,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'domain_data',
         icon: '🔒',
         description: 'Second suite',
-        capabilities: { speed: 'heavy', phase: 'normal', fix: 'none', md: true, ast: false, changedSince: false },
+        capabilities: { speed: 'heavy', phase: 'normal', fix: 'none', md: true, ast: false, changedOnly: false, critical: false },
         scriptPath: 'src/b.ts',
         command: 'node',
         args: []
@@ -476,7 +476,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         command: 'node',
         args: [],
         description: 'Audits code hygiene with ESLint flat config',
-        capabilities: { speed: ['light', 'heavy'], phase: 'normal', fix: 'priority', md: false, ast: true, changedSince: true },
+        capabilities: { speed: ['light', 'heavy'], phase: 'normal', fix: 'priority', md: false, ast: true, changedOnly: true, critical: false },
         ruleDescriptions: { 'eslint-violation': 'Sintaxis o regla de lint violada' },
         configKey: 'eslint'
       };

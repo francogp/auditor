@@ -58,8 +58,8 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
     include: ['src/**/*.ts']
   },
   ruleCapabilities: {
-    'sample-rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
-    'sample-rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+    'sample-rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
+    'sample-rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
   }
 };
 

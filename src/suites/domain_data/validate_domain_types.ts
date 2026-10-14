@@ -477,7 +477,8 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: true
       }),
       id: 'validate_domain_types',
       name: 'Domain Types Integrity Audit',

@@ -49,7 +49,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: true,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_constant_hygiene',
             name: 'Constant Hygiene & Duplicate Validator',

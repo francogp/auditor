@@ -19,7 +19,7 @@ Architecture & Tooling Engineers.
 
 - Ensure all sub-auditors implement `toManifest()` accurately with description `<= 60` characters.
 - Maintain pure Spanish `ruleDescriptions` composed as `${packageName}: ${ruleDescription}` under `<= 50` characters.
-- Use explicit 6-field orthogonal `ruleCapabilities` (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`) via `createUniformRuleCapabilities` or `createRuleCapabilities`, and use `this.scanFilesSinglePass(files, handlers)` backed by `WorkspaceFileCache` in multi-rule `BaseAuditor` suites.
+- Use explicit 7-field orthogonal `ruleCapabilities` (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`) via `createUniformRuleCapabilities` or `createRuleCapabilities`, and use `this.scanFilesSinglePass(files, handlers)` backed by `WorkspaceFileCache` in multi-rule `BaseAuditor` suites.
 
 ## Verification
 

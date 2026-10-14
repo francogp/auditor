@@ -86,7 +86,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor {
                 fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }, [...SCRIPT_EXTENSIONS_RULES]),
             fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
             id: 'validate_script_extensions',

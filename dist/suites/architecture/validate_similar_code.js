@@ -35,7 +35,7 @@ export const SIMILAR_CODE_RULE_CAPABILITIES = {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
     },
     'fallow-similar-code-failed': {
         speed: 'heavy',
@@ -43,7 +43,7 @@ export const SIMILAR_CODE_RULE_CAPABILITIES = {
         fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
     }
 };
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;

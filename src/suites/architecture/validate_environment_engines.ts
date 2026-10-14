@@ -92,7 +92,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_environment_engines',
       name: 'Environment Engines & Runtime Validator',

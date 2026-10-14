@@ -273,7 +273,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_valibot_parity',
       name: 'Valibot Schema & Persistence Parity Auditor',

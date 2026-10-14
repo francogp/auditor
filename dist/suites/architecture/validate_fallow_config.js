@@ -306,7 +306,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor {
                 fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }, ['fallow-config-missing']),
             fixableRuleIds: ['fallow-config-missing'],
             configFiles: [configRequirement],

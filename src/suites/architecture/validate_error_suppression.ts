@@ -67,7 +67,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
 id: 'validate_error_suppression',
       name: 'Zero Error Suppression Auditor',

@@ -10,6 +10,7 @@
  *   - dependency-cve-high: High security vulnerabilities detected in package dependencies.
  *   - dependency-cve-moderate: Moderate security vulnerabilities detected in package dependencies.
  */
+import crypto from 'node:crypto';
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -112,12 +113,13 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
             },
             projectRoot: options.projectRoot,
             ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
-                speed: 'heavy',
+                speed: ['heavy', 'full'],
                 phase: 'normal',
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false,
+                critical: false
             }),
             id: 'validate_dependency_vulnerabilities',
             name: 'Dependency Vulnerabilities & CVE Auditor',
@@ -160,6 +162,32 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
         const omitDev = !config.dependencyVulnerabilities?.includeDev;
         const failOn = config.dependencyVulnerabilities?.failOn ?? 'critical';
         const allowList = new Set(config.dependencyVulnerabilities?.allowList ?? []);
+        const tier = this.getExecutionTier();
+        const cacheDir = path.resolve(this.projectRoot, 'scratch/audits/architecture');
+        const cacheFile = path.join(cacheDir, 'npm_audit_cache.json');
+        const lockfilePath = path.resolve(this.projectRoot, lockfileRelative);
+        let lockfileHash = '';
+        if (fs.existsSync(lockfilePath)) {
+            try {
+                lockfileHash = crypto.createHash('sha256').update(fs.readFileSync(lockfilePath, 'utf-8')).digest('hex');
+            }
+            catch {
+                // catch-ok: fallback to unhashed execution
+            }
+        }
+        if (tier !== 'full' && lockfileHash && fs.existsSync(cacheFile)) {
+            try {
+                const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+                if (cached.hash === lockfileHash && Array.isArray(cached.findings)) {
+                    this.context.logProgress('⚡ Reutilizando reporte de vulnerabilidades auditado (package-lock.json sin cambios)');
+                    this.applyAuditFindings(cached.findings);
+                    return;
+                }
+            }
+            catch {
+                // catch-ok: corrupt cache, fallback to live audit
+            }
+        }
         const { stdout, error } = runNpmAudit(this.projectRoot, omitDev);
         if (error || !stdout) {
             // catch-ok: Offline development environment or network lookup failure
@@ -180,6 +208,18 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor {
                 `Salida recibida: ${stdout.trim().slice(0, 300)}`);
         }
         const findings = parseNpmAuditReport(report, allowList, failOn);
+        if (lockfileHash) {
+            try {
+                fs.mkdirSync(cacheDir, { recursive: true });
+                fs.writeFileSync(cacheFile, JSON.stringify({ hash: lockfileHash, findings }, null, 2), 'utf-8');
+            }
+            catch {
+                // catch-ok: write failure in restricted filesystem
+            }
+        }
+        this.applyAuditFindings(findings);
+    }
+    applyAuditFindings(findings) {
         for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
             this.runSubAuditorSync(ruleId, () => {
                 const matching = findings.filter(f => f.ruleId === ruleId);

@@ -450,7 +450,7 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
-      capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
+      capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
       ruleIds: ['custom-rule'],
       ruleDescriptions: { 'custom-rule': 'Desc' },
       coverage: { include: ['src/**'] },
@@ -584,7 +584,7 @@ export class CustomExtAuditor extends BaseAuditor {
       defaultConfig: { enabled: true, customOption: 'default_val' },
       criticalConfig: {},
       ruleCapabilities: {
-        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
       },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
       ruleRemediations: { 'custom-rule': 'Soluciona la regla custom-rule ajustando la configuración.' },

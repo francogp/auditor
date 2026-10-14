@@ -278,7 +278,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
         fix: 'priority',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, [...STYLELINT_CONFIG_RULES]),
       fixableRuleIds: [...STYLELINT_CONFIG_RULES],
       configFiles: [STYLELINT_CONFIG_REQUIREMENT],

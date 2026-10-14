@@ -42,7 +42,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(auditor.name).toBe('Fallow Architecture & Refactoring Targets');
       expect(auditor.family).toBe('architecture');
       expect(auditor.capabilities.speed).toEqual(['light', 'heavy', 'full']);
-      expect(auditor.capabilities.changedSince).toBe(true);
+      expect(auditor.capabilities.changedOnly).toBe(true);
     });
 
     it('declares exactly 11 active rules without deprecated micro-complexity rules', () => {

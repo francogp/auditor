@@ -52,7 +52,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             projectRoot: effectiveRoot
         });

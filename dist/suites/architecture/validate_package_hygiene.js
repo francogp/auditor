@@ -253,12 +253,13 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
                 fallbackRuleId: 'package-unlisted-dependency'
             },
             ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
-                speed: 'heavy',
+                speed: ['heavy', 'full'],
                 phase: 'normal',
                 fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false,
+                critical: false
             }, ['package-unused-dependency']),
             fixableRuleIds: ['package-unused-dependency'],
             fix: options.fix,
@@ -427,6 +428,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
         return ephemeralConfigPath;
     }
     executeKnip(ephemeralConfigPath, cachePath, rawOutPath) {
+        const tier = this.getExecutionTier();
         const cliFlags = [
             '--config',
             ephemeralConfigPath,
@@ -437,6 +439,9 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
             '--cache-location',
             cachePath
         ];
+        if (tier === 'full') {
+            cliFlags.push('--include-libs');
+        }
         if (this.fixMode) {
             cliFlags.push('--fix', '--fix-type', 'dependencies');
         }
@@ -444,10 +449,10 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor {
             projectRoot: this.projectRoot,
             fallbackRelativeBin: 'bin/knip.js'
         });
-        const command = resolvedBin ? process.execPath : 'npx';
+        const command = resolvedBin ? process.execPath : 'knip';
         const finalArgs = resolvedBin
             ? [resolvedBin, ...cliFlags]
-            : ['--yes', 'knip', ...cliFlags];
+            : [...cliFlags];
         return executeCliAndReadJson(command, finalArgs, rawOutPath, {
             cwd: this.projectRoot,
             shell: !resolvedBin

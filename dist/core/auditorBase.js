@@ -13,7 +13,7 @@ import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import "./permissionGuard.js";
-import { AUDIT_EXECUTION_SPEEDS, AUDIT_EXECUTION_PHASES, AUDIT_FIX_CAPABILITIES, normalizeSpeeds, resolveEffectiveSpeed, deriveCanonicalAuditorScript, countFixableFindings, computeResultsFixableViolations } from "./auditContract.js";
+import { AUDIT_EXECUTION_SPEEDS, AUDIT_EXECUTION_PHASES, AUDIT_FIX_CAPABILITIES, SPEED_RANK, normalizeSpeeds, resolveEffectiveSpeed, deriveCanonicalAuditorScript, countFixableFindings, computeResultsFixableViolations } from "./auditContract.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
@@ -591,7 +591,8 @@ export const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
     fix: 'none',
     md: false,
     ast: false,
-    changedSince: false
+    changedOnly: false,
+    critical: false
 });
 export const MAX_AUDITOR_DESCRIPTION_LENGTH = 50;
 export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
@@ -632,7 +633,8 @@ export function deriveSuiteCapabilities(ruleCapabilities) {
         fix: effectiveFix,
         md: entries.some(c => c.md),
         ast: entries.some(c => c.ast),
-        changedSince: entries.some(c => c.changedSince)
+        changedOnly: entries.some(c => c.changedOnly),
+        critical: entries.some(c => c.critical)
     };
 }
 /**
@@ -785,12 +787,14 @@ export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
     'fix',
     'md',
     'ast',
-    'changedSince'
+    'changedOnly',
+    'critical'
 ];
 export const MANDATORY_BOOLEAN_CAPABILITY_KEYS = [
     'md',
     'ast',
-    'changedSince'
+    'changedOnly',
+    'critical'
 ];
 function isValidRuleSpeed(speed) {
     if (typeof speed === 'string') {
@@ -1109,14 +1113,16 @@ export class BaseAuditor {
             : undefined;
         const rawSpeed = rawValues?.speed || process.env.AUDITOR_SPEED;
         if (rawSpeed && AUDIT_EXECUTION_SPEEDS.some(s => s === rawSpeed)) {
-            return { maxSpeed: rawSpeed, onlySpeed };
+            return { maxSpeed: rawSpeed, onlySpeed, isSpeedSpecified: true };
         }
         const preset = process.env.AUDITOR_PRESET;
         if (preset === 'lint')
-            return { maxSpeed: 'light', onlySpeed };
+            return { maxSpeed: 'light', onlySpeed, isSpeedSpecified: true };
         if (preset === 'full' || preset === 'precommit')
-            return { maxSpeed: 'full', onlySpeed };
-        return { maxSpeed: 'heavy', onlySpeed };
+            return { maxSpeed: 'full', onlySpeed, isSpeedSpecified: true };
+        if (preset === 'critical')
+            return { maxSpeed: 'light', onlySpeed, isSpeedSpecified: true };
+        return { maxSpeed: 'heavy', onlySpeed, isSpeedSpecified: Boolean(onlySpeed) };
     }
     /**
      * Resolves the effective speed ('light' | 'heavy' | 'full') for a specific ruleId in the current run,
@@ -1126,7 +1132,15 @@ export class BaseAuditor {
         const caps = this.ruleCapabilities[ruleId];
         if (!caps)
             return null;
-        return resolveEffectiveSpeed(caps.speed, this.getExecutionSpeedOptions());
+        const speedOpts = this.getExecutionSpeedOptions();
+        // Mandate: if critical=true and speed has 2+, always select fastest when speed is unspecified
+        if (caps.critical && !speedOpts.isSpeedSpecified) {
+            const speeds = normalizeSpeeds(caps.speed);
+            if (speeds.length >= 2) {
+                return speeds.reduce((fastest, current) => SPEED_RANK[current] < SPEED_RANK[fastest] ? current : fastest);
+            }
+        }
+        return resolveEffectiveSpeed(caps.speed, speedOpts);
     }
     /**
      * Returns the active execution tier ('light', 'heavy', 'full', 'md', 'fix', or 'post-build').
@@ -1141,7 +1155,20 @@ export class BaseAuditor {
             process.env.AUDITOR_PRESET === 'build') {
             return 'post-build';
         }
+        if (process.env.AUDITOR_PRESET === 'critical') {
+            const speeds = normalizeSpeeds(this.capabilities.speed);
+            if (speeds.includes('light')) {
+                return 'light';
+            }
+        }
         const speedOpts = this.getExecutionSpeedOptions();
+        // Mandate: if critical=true and speed has 2+, always select fastest when speed is unspecified
+        if (this.capabilities.critical && !speedOpts.isSpeedSpecified) {
+            const speeds = normalizeSpeeds(this.capabilities.speed);
+            if (speeds.length >= 2) {
+                return speeds.reduce((fastest, current) => SPEED_RANK[current] < SPEED_RANK[fastest] ? current : fastest);
+            }
+        }
         return resolveEffectiveSpeed(this.capabilities.speed, speedOpts) ?? speedOpts.onlySpeed ?? speedOpts.maxSpeed;
     }
     /**
@@ -1893,7 +1920,8 @@ export class BaseAuditor {
                 fix: this.capabilities.fix,
                 md: this.capabilities.md,
                 ast: this.capabilities.ast,
-                changedSince: this.capabilities.changedSince
+                changedOnly: this.capabilities.changedOnly,
+                critical: this.capabilities.critical
             },
             rules: rulesRecord,
             remediations: this.ruleRemediations ? { ...this.ruleRemediations } : undefined,

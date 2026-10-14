@@ -41,17 +41,17 @@ export const FALLOW_RULES = [
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 
 export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities> = {
-  'fallow-boundary-violations': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-stale-suppressions': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-workspace-diagnostic': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-refactoring-targets': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-duplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-triplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-unused-exports': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-unused-files': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-unused-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-circular-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true },
-  'fallow-security-cwe': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: true }
+  'fallow-boundary-violations': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-stale-suppressions': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-workspace-diagnostic': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-refactoring-targets': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-duplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-triplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-unused-exports': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-unused-files': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-unused-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-circular-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
+  'fallow-security-cwe': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false }
 };
 
 export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {

@@ -9,7 +9,8 @@ export declare const CODE_SIMPLIFICATION_CAPABILITIES: {
     readonly fix: "none";
     readonly md: false;
     readonly ast: true;
-    readonly changedSince: false;
+    readonly changedOnly: false;
+    readonly critical: false;
 };
 export declare class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
     constructor(options?: {

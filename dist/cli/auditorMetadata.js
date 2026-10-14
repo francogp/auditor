@@ -54,7 +54,8 @@ export function extractStaticMetadataFromFile(fullPath) {
             fix,
             md: content.includes('md: true'),
             ast: content.includes('ast: true') || content.includes('requiresAst: true') || content.includes('AST_RULE_CAPABILITIES'),
-            changedSince: content.includes('changedSince: true')
+            changedOnly: content.includes('changedOnly: true'),
+            critical: content.includes('critical: true')
         };
         const descMatch = content.match(/description\s*[:=]\s*['"]([^'"]+)['"]/);
         const configKeyMatch = content.match(/configKey\s*[:=]\s*['"]([^'"]+)['"]/);

@@ -201,7 +201,7 @@ export class BundleBudgetAuditor extends BaseAuditor {
                 fix: 'none',
                 md: false,
                 ast: true,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
             id: 'validate_bundle_budget',

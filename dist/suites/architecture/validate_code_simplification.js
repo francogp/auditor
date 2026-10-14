@@ -21,7 +21,7 @@ export const CODE_SIMPLIFICATION_CAPABILITIES = {
     fix: 'none',
     md: false,
     ast: true,
-    changedSince: false
+    changedOnly: false, critical: false
 };
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 export class ValidateCodeSimplificationAuditor extends FileScanAuditor {

@@ -204,7 +204,7 @@ export class ValidateEslintConfigAuditor extends BaseAuditor {
                 fix: 'priority',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }, ['eslint-config-missing']),
             fixableRuleIds: ['eslint-config-missing'],
             configFiles: [configRequirement],

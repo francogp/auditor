@@ -40,7 +40,8 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: true
+        changedOnly: true,
+        critical: false
       }),
       ruleIds: OVERSCROLL_LOCK_RULES,
       packageName: 'Móvil',

@@ -57,7 +57,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
   constructor(options: MyCompositeAuditorOptions = {}) {
     super({
-      // Explicit 6-field orthogonal rule capabilities (Zero Fallbacks Mandate):
+      // Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate):
       // Tip: For tools with fast/deep CLI flags (e.g. TieredCommandProfile), you can pass
       // speed: ['light', 'full'] so the rule runs fast in light/heavy and deep in full.
       ruleCapabilities: createRuleCapabilities(
@@ -68,7 +68,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
           fix: 'none',
           md: false,
           ast: false,
-          changedSince: false
+          changedOnly: false,
+          critical: false
         },
         ['composite-missing-config']
       ),

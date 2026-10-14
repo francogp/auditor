@@ -212,6 +212,7 @@ describe('audit_full CLI orchestration helpers', () => {
   describe('determineRunMode', () => {
     it('returns preset when targetPreset is set', () => {
       expect(determineRunMode('lint', undefined, undefined, undefined)).toBe('preset');
+      expect(determineRunMode('critical', undefined, undefined, undefined)).toBe('preset');
     });
 
     it('returns suites when multiple targetSuites are set', () => {
@@ -227,6 +228,13 @@ describe('audit_full CLI orchestration helpers', () => {
       expect(determineRunMode(undefined, undefined, undefined, 'architecture')).toBe('family');
     });
 
+    it('returns preset when speed is light or other partial filters are active', () => {
+      expect(determineRunMode(undefined, undefined, undefined, undefined, { speed: 'light' })).toBe('preset');
+      expect(determineRunMode(undefined, undefined, undefined, undefined, { onlySpeed: 'heavy' })).toBe('preset');
+      expect(determineRunMode(undefined, undefined, undefined, undefined, { phase: 'post-build' })).toBe('preset');
+      expect(determineRunMode(undefined, undefined, undefined, undefined, { changedOnly: 'main' })).toBe('preset');
+    });
+
     it('returns full when no specific filter is provided', () => {
       expect(determineRunMode(undefined, undefined, undefined, undefined)).toBe('full');
     });
@@ -240,7 +248,7 @@ describe('audit_full CLI orchestration helpers', () => {
       scriptPath: 'src/suites/architecture/test_task.ts',
       command: 'node',
       args: ['--quiet'],
-      capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, changedSince: true }
+      capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, changedOnly: true, critical: false }
     };
 
     it('appends extra flags based on CLI values', () => {
@@ -268,7 +276,7 @@ describe('audit_full CLI orchestration helpers', () => {
     it('does not append changed-since if capability is false', () => {
       const taskWithoutChanged: AuditTaskDefinition = {
         ...baseTask,
-        capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, changedSince: false }
+        capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, changedOnly: false, critical: false }
       };
       const args = buildTaskArgs(taskWithoutChanged, { 'changed-since': 'main' }, '');
       expect(args).not.toContain('--changed-since');

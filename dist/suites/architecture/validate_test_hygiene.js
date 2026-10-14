@@ -64,7 +64,7 @@ export class TestHygieneAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_test_hygiene',
             name: 'Test Hygiene & Simulation Integrity Validator',

@@ -63,7 +63,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_console_cleanliness',
       name: 'Console & Debugger Cleanliness Auditor',

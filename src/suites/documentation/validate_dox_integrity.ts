@@ -53,7 +53,7 @@ private readonly rootDir: string;
         fix: 'none',
         md: true,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_dox_integrity',
       name: 'DOX & AGENTS.md Integrity Validator',

@@ -574,7 +574,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_canonical_domains',
       name: 'Canonical Domain Catalogs & SSoT Validator',

@@ -145,9 +145,13 @@ export class SampleAuditorExtension extends BaseAuditor<'sample-rule-a'> {
         'sample-rule-a': 'Step-by-step diagnostic and remediation guide.'
       },
       ruleCapabilities: createUniformRuleCapabilities(['sample-rule-a'], {
-        fix: false,
-        lint: true,
-        // ...
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
       }),
       coverage: { include: ['src/**/*.ts'] }
     });

@@ -233,7 +233,7 @@ constructor(projectRoot: string = process.cwd()) {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_dead_css',
       name: 'Scoped Dead CSS Auditor',

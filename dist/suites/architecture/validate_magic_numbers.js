@@ -222,7 +222,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: true,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_magic_numbers',
             name: 'Magic Numbers Validator',

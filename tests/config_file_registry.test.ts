@@ -101,9 +101,9 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
             fix: isFix ? 'normal' : 'none',
             md: false,
             ast: false,
-            changedSince: false
+            changedOnly: false, critical: false
           },
-          'custom-content-valid': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+          'custom-content-valid': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
         },
         fixableRuleIds: isFix ? ['custom-config-missing'] : undefined,
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
@@ -205,7 +205,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'optional-config-missing': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'optional-config-missing': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           },
           ruleIds: ['optional-config-missing'],
           ruleDescriptions: {

@@ -46,5 +46,6 @@ export declare class ValidateDependencyVulnerabilitiesAuditor extends BaseAudito
         projectRoot?: string;
     });
     runAudit(): Promise<void>;
+    private applyAuditFindings;
 }
 //# sourceMappingURL=validate_dependency_vulnerabilities.d.ts.map

@@ -34,7 +34,12 @@ export declare function resolveConcurrencyLimit(concurrencyValue: unknown): numb
 export declare function resolveSkipSimilar(): boolean;
 export declare function resolveTargetPreset(values: Record<string, unknown>, positionals: readonly string[]): AuditPresetName | undefined;
 export declare function parseAuditFullCliArgs(activeFamilies: readonly string[], rawArgs?: readonly string[]): AuditFullCliOptions;
-export declare function determineRunMode(targetPreset?: AuditPresetName, targetSuites?: string[], taskArg?: unknown, targetFamily?: string): AuditRunMode;
+export declare function determineRunMode(targetPreset?: AuditPresetName, targetSuites?: string[], taskArg?: unknown, targetFamily?: string, extraOptions?: {
+    speed?: unknown;
+    onlySpeed?: unknown;
+    phase?: unknown;
+    changedOnly?: unknown;
+}): AuditRunMode;
 export declare function buildTaskArgs(task: AuditTaskDefinition, values: Record<string, unknown>, formattedRules: string): string[];
 export declare function extractSubprocessErrorMessage(proc: {
     status: number | null;

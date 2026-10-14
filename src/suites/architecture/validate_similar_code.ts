@@ -42,7 +42,7 @@ export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCa
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       },
   'fallow-similar-code-failed': {
         speed: 'heavy',
@@ -50,7 +50,7 @@ export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCa
         fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }
 };
 

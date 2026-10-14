@@ -63,7 +63,7 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
         fix: 'priority',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, ['missing-agent-plugin-registration']),
       fixableRuleIds: ['missing-agent-plugin-registration'],
       id: 'validate_agent_plugin',

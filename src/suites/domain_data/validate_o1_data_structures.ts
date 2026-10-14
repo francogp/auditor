@@ -203,7 +203,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
 id: 'validate_o1_data_structures',
       name: 'O(1) Data Structure & Performance Auditor',

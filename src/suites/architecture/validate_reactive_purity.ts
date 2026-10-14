@@ -77,7 +77,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
 id: 'validate_reactive_purity',
       name: 'Reactive Computed Purity Auditor',

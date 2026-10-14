@@ -93,7 +93,8 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleDescriptions: {
         'my-rule-id': 'Regla de invariant personalizado'
@@ -262,7 +263,8 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleDescriptions: {
         'game-banned-magic-speed': 'Velocidad mágica sin constante',
@@ -390,7 +392,8 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleDescriptions: {
         'ui-banned-raw-hex-color': 'Color hexadecimal directo prohibido'
@@ -458,7 +461,8 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleDescriptions: {
         'service-missing-explicit-return-type': 'Falta tipo de retorno explícito'
@@ -530,7 +534,8 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleIds: ASSET_INTEGRITY_RULES,
       ruleDescriptions: {
@@ -676,16 +681,16 @@ The master runner resolves the host's `.auditor/audit.config.ts`, executes exten
 
 ---
 
-## 7. Migration Guide: Host Extensions from v6 to v7+
+## 7. Migration Guide: Host Extensions to Modern Standards
 
-When upgrading a host repository from `@francogp/auditor` v6.x to v7.0.0+, all host extensions in `scripts/auditors/` must be migrated to the modern **Orthogonal 6-Field Per-Rule Capabilities Contract (`AuditorRuleCapabilities`)**.
+When upgrading a host repository from legacy `@francogp/auditor` versions, all host extensions in `scripts/auditors/` must be migrated to the modern **Orthogonal 7-Field Per-Rule Capabilities Contract (`AuditorRuleCapabilities`)**.
 
 ### Breaking Change: Suite-Level `capabilities` & Legacy 10-Boolean Flags Removed
 
-In v6.x, sub-auditors and extensions configured aggregate suite-level capabilities directly:
+In legacy versions, sub-auditors and extensions configured aggregate suite-level capabilities directly:
 
 ```typescript
-// ❌ Deprecated in v6.x — Throws [Auditor Contract Violation] in v7.0.0+:
+// ❌ Deprecated — Throws [Auditor Contract Violation]:
 super({
   id: 'validate_my_extension',
   capabilities: { fix: false, lint: true, ast: true }, // 💥 FORBIDDEN!
@@ -693,15 +698,15 @@ super({
 });
 ```
 
-In v7.0.0+, `capabilities?: never` is enforced at the TypeScript type level and at runtime, and rule capabilities use the 6 orthogonal fields (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`):
+In modern versions, `capabilities?: never` is enforced at the TypeScript type level and at runtime, and rule capabilities use the 7 orthogonal fields (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`):
 
 ```text
-[Auditor Contract Violation] Suite 'validate_my_extension' passed deprecated suite-level 'capabilities' to constructor options. In v7+, capabilities are derived automatically from individual ruleCapabilities.
+[Auditor Contract Violation] Suite 'validate_my_extension' passed deprecated suite-level 'capabilities' to constructor options. Capabilities are derived automatically from individual ruleCapabilities.
 ```
 
-### Canonical v7+ Pattern: 6-Field `ruleCapabilities`
+### Canonical Modern Pattern: 7-Field `ruleCapabilities`
 
-In v7.0.0+, capabilities are declared on each rule individually, and the `BaseAuditor` superclass aggregates them automatically for the suite.
+Capabilities are declared on each rule individually, and the `BaseAuditor` superclass aggregates them automatically for the suite.
 
 #### If all rules share identical capabilities
 
@@ -724,7 +729,8 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ...
     });
@@ -755,7 +761,8 @@ export class MyAuditor extends BaseAuditor<MyRuleId> {
           fix: 'none',
           md: false,
           ast: false,
-          changedSince: false
+          changedOnly: false,
+          critical: false
         },
         ['my-auto-fixable'] // List of rule IDs that support --fix (upgraded to fix: 'normal')
       ),

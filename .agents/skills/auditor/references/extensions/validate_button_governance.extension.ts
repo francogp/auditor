@@ -46,7 +46,8 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: true
+        changedOnly: true,
+        critical: false
       }),
       ruleIds: BUTTON_GOVERNANCE_RULES,
       packageName: 'Botones',

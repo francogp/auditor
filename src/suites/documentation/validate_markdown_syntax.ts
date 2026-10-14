@@ -57,7 +57,7 @@ constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
         fix: 'none',
         md: true,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_markdown_syntax',
       name: 'Markdown Syntax & NPM Script SSoT Validator',

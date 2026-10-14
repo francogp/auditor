@@ -45,7 +45,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
           ruleIds: ['test-rule'],
           packageName: 'Test',
           ruleCapabilities: {
-            'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           },
           configKey: 'paths',
           defaultConfig: {},

@@ -203,8 +203,8 @@ export interface ViolationInput<TRuleId extends string = string> {
     readonly fixable?: boolean;
     readonly remediation?: string;
 }
-export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["speed", "phase", "fix", "md", "ast", "changedSince"];
-export declare const MANDATORY_BOOLEAN_CAPABILITY_KEYS: readonly ["md", "ast", "changedSince"];
+export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["speed", "phase", "fix", "md", "ast", "changedOnly", "critical"];
+export declare const MANDATORY_BOOLEAN_CAPABILITY_KEYS: readonly ["md", "ast", "changedOnly", "critical"];
 export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
     readonly id: string;
     readonly name: string;
@@ -288,6 +288,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     getExecutionSpeedOptions(): {
         maxSpeed: AuditExecutionSpeed;
         onlySpeed?: AuditExecutionSpeed;
+        isSpeedSpecified?: boolean;
     };
     /**
      * Resolves the effective speed ('light' | 'heavy' | 'full') for a specific ruleId in the current run,

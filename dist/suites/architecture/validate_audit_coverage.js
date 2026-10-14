@@ -227,7 +227,7 @@ export class AuditCoverageAuditor extends BaseAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: AUDIT_COVERAGE_SUITE_ID,
             name: 'Audit Coverage & Blind Spots',

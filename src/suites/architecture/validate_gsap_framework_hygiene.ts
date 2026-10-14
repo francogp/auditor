@@ -85,7 +85,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.jsx']),

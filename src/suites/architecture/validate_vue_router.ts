@@ -74,7 +74,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       ruleIds: VUE_ROUTER_RULES,
       ruleDescriptions: {

@@ -65,7 +65,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: true,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_pinia_reactivity',
             name: 'Pinia Reactivity & State Integrity Auditor',

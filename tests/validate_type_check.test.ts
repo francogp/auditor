@@ -149,6 +149,58 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       }
     });
   });
+
+  describe('Tiered Execution Profiles', () => {
+    it('declares tiered speeds [light, full] with critical: true', () => {
+      const auditor = new TypeCheckAuditor();
+      const speeds = Array.isArray(auditor.capabilities.speed)
+        ? auditor.capabilities.speed
+        : [auditor.capabilities.speed];
+      expect(speeds).toContain('light');
+      expect(speeds).toContain('full');
+      expect(auditor.capabilities.critical).toBe(true);
+    });
+
+    it('resolves incremental flag in light speed tier', () => {
+      const auditor = new TypeCheckAuditor();
+      const originalSpeed = process.env.AUDITOR_SPEED;
+      process.env.AUDITOR_SPEED = 'light';
+      try {
+        const base = ['tsc', '--noEmit'];
+        const args = auditor.resolveCommandArgs<string[]>({
+          command: 'test-tsc-light',
+          defaultArgs: base,
+          profiles: {
+            light: [...base, '--incremental']
+          }
+        });
+        expect(args).toContain('--incremental');
+      } finally {
+        if (originalSpeed === undefined) delete process.env.AUDITOR_SPEED;
+        else process.env.AUDITOR_SPEED = originalSpeed;
+      }
+    });
+
+    it('resolves clean whole-project execution without incremental in full speed tier', () => {
+      const auditor = new TypeCheckAuditor();
+      const originalSpeed = process.env.AUDITOR_SPEED;
+      process.env.AUDITOR_SPEED = 'full';
+      try {
+        const base = ['tsc', '--noEmit'];
+        const args = auditor.resolveCommandArgs<string[]>({
+          command: 'test-tsc-full',
+          defaultArgs: base,
+          profiles: {
+            light: [...base, '--incremental']
+          }
+        });
+        expect(args).not.toContain('--incremental');
+      } finally {
+        if (originalSpeed === undefined) delete process.env.AUDITOR_SPEED;
+        else process.env.AUDITOR_SPEED = originalSpeed;
+      }
+    });
+  });
 });
 
 

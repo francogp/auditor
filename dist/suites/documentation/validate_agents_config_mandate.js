@@ -202,7 +202,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor {
                 fix: 'priority',
                 md: true,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }, [...AGENTS_CONFIG_MANDATE_RULES]),
             fixableRuleIds: [...AGENTS_CONFIG_MANDATE_RULES],
             fix: options?.fix,

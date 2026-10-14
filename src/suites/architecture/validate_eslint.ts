@@ -74,12 +74,13 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
         fallbackRuleId: "eslint-violation"
       },
       ruleCapabilities: createRuleCapabilities(ESLINT_RULES, {
-        speed: 'heavy',
+        speed: ['heavy', 'full'],
         phase: 'normal',
         fix: 'normal',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: true
       }, ['eslint-violation']),
       fixableRuleIds: ['eslint-violation'],
       gitIgnoreEntries: EslintAuditor.gitIgnoreEntries,
@@ -135,7 +136,12 @@ export class EslintAuditor extends BaseAuditor<EslintRuleId> {
       projectRoot: this.projectRoot,
       fallbackRelativeBin: 'bin/eslint.js'
     }) ?? path.resolve(this.projectRoot, 'node_modules/eslint/bin/eslint.js');
-    const args: string[] = ['--config', 'eslint.config.js', '.', '--cache', '-f', 'json']; // no-domain: Non-domain utility collection or data structure
+    const tier = this.getExecutionTier();
+    const args: string[] = ['--config', 'eslint.config.js', '.', '--cache', '-f', 'json'];
+
+    if (tier === 'full') {
+      args.push('--report-unused-disable-directives');
+    }
 
     if (isFixMode) {
       args.push('--fix');

@@ -149,7 +149,7 @@ export class TemplateIdAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_template_ids',
             name: 'Template Static ID Uniqueness & Collision Validator',

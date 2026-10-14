@@ -356,7 +356,7 @@ export class MarkdownLinkAuditor extends BaseAuditor {
                 fix: 'none',
                 md: true,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_markdown_links',
             name: 'Markdown & DOX Relative Links Auditor',

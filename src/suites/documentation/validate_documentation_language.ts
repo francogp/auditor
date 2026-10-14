@@ -413,7 +413,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         fix: 'priority',
         md: true,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, ['docs-missing-language-mandate']),
       fixableRuleIds: ['docs-missing-language-mandate'],
       fix: options?.fix,

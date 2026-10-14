@@ -93,7 +93,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_secret_leaks',
       name: 'Secret Leaks & Credentials Auditor',

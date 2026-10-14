@@ -50,14 +50,15 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
     const allowedExtensions = new Set(['.vue', '.ts']);
 
     super({
-      // Mandatory: Explicit 6-field orthogonal rule capabilities (Zero Fallbacks Mandate)
+      // Mandatory: Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate)
       ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
         speed: 'light',
         phase: 'normal',
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyFeatureAuditor.gitIgnoreEntries,

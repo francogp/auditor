@@ -134,7 +134,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       ruleIds: AUDITOR_TEST_RULES,
       packageName: 'Auditor',

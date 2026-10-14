@@ -219,7 +219,7 @@ describe('Auditor Architecture Conformance', () => {
   });
 
   describe('AuditorCapabilities Declaration & Conformance Mandate', () => {
-    it('100% of discovered tasks possess complete 6-field AuditorRuleCapabilities', async () => {
+    it('100% of discovered tasks possess complete 7-field AuditorRuleCapabilities', async () => {
       const allTasks = await discoverAuditors();
       expect(allTasks.length).toBeGreaterThanOrEqual(38);
 
@@ -231,7 +231,8 @@ describe('Auditor Architecture Conformance', () => {
         expect(['none', 'normal', 'priority']).toContain(task.capabilities?.fix);
         expect(typeof task.capabilities?.md).toBe('boolean');
         expect(typeof task.capabilities?.ast).toBe('boolean');
-        expect(typeof task.capabilities?.changedSince).toBe('boolean');
+        expect(typeof task.capabilities?.changedOnly).toBe('boolean');
+        expect(typeof task.capabilities?.critical).toBe('boolean');
       }
     });
 

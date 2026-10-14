@@ -47,14 +47,15 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     const allowedExtensions = new Set(['.ts', '.vue']);
 
     super({
-      // Mandatory: Explicit 6-field orthogonal rule capabilities (Zero Fallbacks Mandate)
+      // Mandatory: Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate)
       ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
         speed: 'light',
         phase: 'normal',
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_my_ast',
       name: 'My AST Validator',

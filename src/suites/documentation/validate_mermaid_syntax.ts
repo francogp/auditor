@@ -102,7 +102,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         fix: 'normal',
         md: true,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, [...MERMAID_SYNTAX_RULES]),
       fixableRuleIds: [...MERMAID_SYNTAX_RULES],
       id: 'validate_mermaid_syntax',

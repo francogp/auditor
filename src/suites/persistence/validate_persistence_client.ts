@@ -73,7 +73,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_persistence_client',
       name: 'Client-Side Web Storage & Persistence Hygiene',

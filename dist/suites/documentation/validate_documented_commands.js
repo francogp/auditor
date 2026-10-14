@@ -284,7 +284,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor {
                 fix: 'none',
                 md: true,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_documented_commands',
             name: 'Documented Commands Validator',

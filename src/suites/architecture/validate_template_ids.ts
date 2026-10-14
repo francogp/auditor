@@ -185,7 +185,7 @@ private readonly globalIdMap = new Map<string, IdOccurrence[]>();
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
 id: 'validate_template_ids',
       name: 'Template Static ID Uniqueness & Collision Validator',

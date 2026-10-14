@@ -24,7 +24,7 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
-        'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+        'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
       },
       coverage: { include: ['src/**'] },
       ruleIds: ['dummy-rule'],
@@ -57,7 +57,7 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
-        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
       },
       coverage: { include: ['src/**'] },
       ruleIds: ['custom-rule'],
@@ -188,7 +188,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             criticalConfig: {},
       usesThirdPartyTool: false,
             ruleCapabilities: {
-              'rule-1': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+              'rule-1': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
             },
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],

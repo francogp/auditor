@@ -20,7 +20,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     delete process.env.AUDITOR_PHASE;
   });
 
-  it('discovers only light suites when speed=light or preset=lint is specified', async () => {
+  it('discovers light and critical suites when speed=light or preset=lint is specified', async () => {
     const tasks = await discoverAuditors({ speed: 'light' });
     const presetTasks = await discoverAuditors({ preset: 'lint' });
     expect(tasks.length).toBeGreaterThan(0);
@@ -29,14 +29,40 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     for (const task of tasks) {
       expect(task.id).not.toBe('validate_bundle_budget');
       expect(task.id).not.toBe('validate_package_distribution');
-      expect(resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' })).toBe('light');
+      if (!task.capabilities?.critical) {
+        expect(resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' })).toBe('light');
+      }
     }
 
     const taskIds = tasks.map(t => t.id);
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_fallow');
+    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_type_check');
+    expect(taskIds).toContain('validate_domain_types');
     expect(taskIds).not.toContain('validate_similar_code');
-    expect(taskIds).not.toContain('validate_eslint');
+    expect(taskIds).not.toContain('validate_type_coverage');
+  });
+
+  it('discovers exclusively critical suites when preset=critical or onlyCritical is specified', async () => {
+    const criticalTasks = await discoverAuditors({ preset: 'critical' });
+    const onlyCriticalTasks = await discoverAuditors({ onlyCritical: true });
+    expect(criticalTasks.length).toBeGreaterThan(0);
+    expect(criticalTasks.map(t => t.id).sort()).toEqual(onlyCriticalTasks.map(t => t.id).sort());
+
+    for (const task of criticalTasks) {
+      expect(task.capabilities?.critical).toBe(true);
+    }
+
+    const taskIds = criticalTasks.map(t => t.id);
+    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_type_check');
+    expect(taskIds).toContain('validate_stylelint');
+    expect(taskIds).toContain('validate_html_validate');
+    expect(taskIds).toContain('validate_domain_types');
+    expect(taskIds).not.toContain('validate_similar_code');
+    expect(taskIds).not.toContain('validate_type_coverage');
+    expect(taskIds).not.toContain('validate_bundle_budget');
   });
 
   it('excludes post-build suites (capabilities.phase === "post-build") in default general audit', async () => {
@@ -144,9 +170,9 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
           },
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
-            'r-light': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
-            'r-heavy': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
-            'r-multi': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'r-light': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
+            'r-heavy': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
+            'r-multi': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           }
         });
       }

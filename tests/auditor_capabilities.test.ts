@@ -4,7 +4,7 @@
  * SUB-AUDITOR CAPABILITIES & DYNAMIC MODES SPECIFICATION
  *
  * Verifies that:
- * 1. 100% of sub-auditors declare mandatory 6-field AuditorRuleCapabilities.
+ * 1. 100% of sub-auditors declare mandatory 7-field AuditorRuleCapabilities.
  * 2. Discovery with fixOnly: true filters strictly to the auto-repair suites.
  * 3. Speed ceiling (speed: 'light' / includeHeavy: false) excludes computationally heavy suites.
  * 4. AST requirements are derived dynamically from capabilities.ast (0 hardcoded suite lists).
@@ -23,12 +23,14 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     expect(stylelintCaps?.fix).toBe('normal');
     expect(stylelintCaps?.ast).toBe(false);
     expect(stylelintCaps?.speed).toBe('light');
+    expect(stylelintCaps?.critical).toBe(true);
 
     const similarCodePath = path.resolve('src/suites/architecture/validate_similar_code.ts');
     const similarCaps = await extractCapabilitiesFromFile(similarCodePath);
     expect(similarCaps).not.toBeNull();
     expect(similarCaps?.fix).toBe('normal');
     expect(similarCaps?.speed).toBe('heavy');
+    expect(similarCaps?.critical).toBe(false);
 
     const piniaPath = path.resolve('src/suites/architecture/validate_pinia_reactivity.ts');
     const piniaCaps = await extractCapabilitiesFromFile(piniaPath);
@@ -36,7 +38,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     expect(piniaCaps?.ast).toBe(true);
   });
 
-  it('populates 6-field capabilities on 100% of discovered tasks', async () => {
+  it('populates 7-field capabilities on 100% of discovered tasks', async () => {
     const allTasks = await discoverAuditors();
     expect(allTasks.length).toBeGreaterThanOrEqual(38);
 
@@ -48,7 +50,8 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       expect(['none', 'normal', 'priority']).toContain(task.capabilities?.fix);
       expect(typeof task.capabilities?.md).toBe('boolean');
       expect(typeof task.capabilities?.ast).toBe('boolean');
-      expect(typeof task.capabilities?.changedSince).toBe('boolean');
+      expect(typeof task.capabilities?.changedOnly).toBe('boolean');
+      expect(typeof task.capabilities?.critical).toBe('boolean');
     }
   });
 
@@ -82,10 +85,12 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     expect(lintTasks.map(t => t.id).sort()).toEqual(speedLightTasks.map(t => t.id).sort());
 
     for (const task of lintTasks) {
-      expect(
-        resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' }),
-        `Suite ${task.id} should have light speed capability`
-      ).toBe('light');
+      if (!task.capabilities?.critical) {
+        expect(
+          resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' }),
+          `Suite ${task.id} should have light speed capability`
+        ).toBe('light');
+      }
     }
   });
 
@@ -157,20 +162,24 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     }
   });
 
-  it('excludes heavy-only suites when includeHeavy: false or speed: light', async () => {
+  it('excludes non-critical heavy suites when includeHeavy: false or speed: light', async () => {
     const normalTasks = await discoverAuditors();
     const lightweightTasks = await discoverAuditors({ includeHeavy: false });
 
-    const heavyOnlyIds = normalTasks
-      .filter(t => resolveEffectiveSpeed(t.capabilities?.speed, { maxSpeed: 'light' }) === null)
+    const nonCriticalHeavyIds = normalTasks
+      .filter(t => !t.capabilities?.critical && resolveEffectiveSpeed(t.capabilities?.speed, { maxSpeed: 'light' }) === null)
       .map(t => t.id);
-    expect(heavyOnlyIds).toContain('validate_similar_code');
-    expect(heavyOnlyIds).toContain('validate_type_check');
+    expect(nonCriticalHeavyIds).toContain('validate_similar_code');
+    expect(nonCriticalHeavyIds).toContain('validate_type_coverage');
 
     const lightweightIds = lightweightTasks.map(t => t.id);
-    for (const heavyId of heavyOnlyIds) {
+    for (const heavyId of nonCriticalHeavyIds) {
       expect(lightweightIds).not.toContain(heavyId);
     }
+
+    // Critical suites run even with heavy speed
+    expect(lightweightIds).toContain('validate_eslint');
+    expect(lightweightIds).toContain('validate_type_check');
   });
 
   it('separates pre-build and post-build suites cleanly via withBuild, buildOnly, and phase: post-build', async () => {

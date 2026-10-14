@@ -197,7 +197,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_package_types',
       name: 'Package Types Resolution Validator',

@@ -99,7 +99,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_typography_line_height',
             name: 'Typography Line-Height & Interlinear Spacing Validator',

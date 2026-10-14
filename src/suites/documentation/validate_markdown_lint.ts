@@ -149,7 +149,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
         fix: 'normal',
         md: true,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, ['markdownlint-issue']),
       fixableRuleIds: ['markdownlint-issue'],
       id: 'validate_markdown_lint',

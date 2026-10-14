@@ -49,13 +49,13 @@ This automated step:
 
 ## 🏛️ 2. Modernizing Extension Rule Capabilities (`AuditorRuleCapabilities`)
 
-In v8, `BaseAuditor` enforces the **Explicit 6-Field Orthogonal Capabilities Contract** (`AuditorRuleCapabilities`). Legacy 10-boolean declarations (`lint`, `precommit`, `requiresBuild`, `postRun`, `heavy`, `fixPriority`) fail loudly at runtime:
+In v8, `BaseAuditor` enforces the **Explicit 7-Field Orthogonal Capabilities Contract** (`AuditorRuleCapabilities`). Legacy 10-boolean declarations (`lint`, `precommit`, `requiresBuild`, `postRun`, `heavy`, `fixPriority`) fail loudly at runtime:
 
 ```text
 [Auditor Contract Violation] Auditor [id] must explicitly define 'ruleCapabilities.<ruleId>.speed' as 'light' | 'heavy' | 'full'
 ```
 
-### 2.1 The 6 Orthogonal Fields
+### 2.1 The 7 Orthogonal Fields
 
 ```ts
 export interface AuditorRuleCapabilities {
@@ -64,7 +64,8 @@ export interface AuditorRuleCapabilities {
   readonly fix: 'none' | 'normal' | 'priority';
   readonly md: boolean;
   readonly ast: boolean;
-  readonly changedSince: boolean;
+  readonly changedOnly: boolean;
+  readonly critical: boolean;
 }
 ```
 
@@ -83,7 +84,9 @@ export interface AuditorRuleCapabilities {
 | `fixPriority: true` | `fix: 'priority'` | Executed first during `auditor fix` |
 | `ast: boolean` | `ast: boolean` | Preheats shared TypeScript AST |
 | `md: boolean` | `md: boolean` | Included in markdown-only preset |
-| `changedSince: boolean` | `changedSince: boolean` | Filtered under git diff |
+| `changedSince: boolean` | `changedOnly: boolean` | Differential git diff scoping (`changedSince` eradicated) |
+| Syntax/Type/Linter essential | `critical: true` | Bypasses speed ceiling in `auditor:lint` and `auditor:critical` |
+| Standard architecture rule | `critical: false` | Standard speed ceiling governance |
 
 ### 2.3 Refactoring Blueprint for Extensions
 
@@ -101,7 +104,8 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       // ... rest of AuditorOptions
     });
@@ -125,7 +129,8 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
           fix: 'none',
           md: false,
           ast: true,
-          changedSince: false
+          changedOnly: false,
+          critical: false
         },
         ['fixable-rule-1', 'fixable-rule-2'] // Automatically sets fix: 'normal' for these rules
       ),

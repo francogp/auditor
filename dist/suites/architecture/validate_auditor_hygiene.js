@@ -43,7 +43,7 @@ export class AuditorHygieneAuditor extends BaseAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             coverage: {
                 include: ['src/suites/**/*.ts', 'src/analyzers/**/*.ts', 'scripts/auditors/**/*.ts'],

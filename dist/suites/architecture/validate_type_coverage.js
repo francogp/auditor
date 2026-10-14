@@ -64,12 +64,13 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
                 fallbackRuleId: "type-coverage-below-threshold"
             },
             ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
-                speed: 'heavy',
+                speed: ['heavy', 'full'],
                 phase: 'normal',
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false,
+                critical: false
             }),
             id: 'validate_type_coverage',
             name: 'TypeScript Quantitative Type Coverage Auditor',
@@ -127,9 +128,9 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
     executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold) {
         const isStrict = config.typeCoverage?.strict ?? true;
         const ignoreFiles = config.typeCoverage?.ignoreFiles ?? [];
-        const cliFlags = [
+        const tier = this.getExecutionTier();
+        const baseFlags = [
             '--json-output',
-            '--detail',
             '--show-relative-path',
             '--at-least',
             String(threshold),
@@ -138,8 +139,11 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor {
             cacheDir
         ];
         if (isStrict) {
-            cliFlags.push('--strict');
+            baseFlags.push('--strict');
         }
+        const cliFlags = tier === 'full'
+            ? [...baseFlags, '--detail', '--ignore-catch']
+            : baseFlags;
         for (const ignoreFile of ignoreFiles) {
             cliFlags.push('--ignore-files', ignoreFile);
         }

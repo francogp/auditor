@@ -76,7 +76,8 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleIds: MY_FEATURE_RULES,
       packageName: 'MiModulo',
@@ -199,7 +200,8 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleIds: MY_DATA_RULES,
       packageName: 'Datos',
@@ -331,7 +333,8 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       requiresAst: true,
       roots: ['src'],
@@ -669,11 +672,11 @@ The native Stylelint plugin [`src/suites/architecture/stylelintSassTrapsPlugin.t
 
 ---
 
-## 8. Orthogonal 6-Field Rule Capabilities Contract (`AuditorRuleCapabilities`) & Speed Engine
+## 8. Orthogonal 7-Field Rule Capabilities Contract (`AuditorRuleCapabilities`) & Speed Engine
 
 Every sub-auditor declares its execution capabilities per rule via `ruleCapabilities: Record<TRuleId, AuditorRuleCapabilities>`. The orchestrator inspects these capabilities to coordinate specialized execution modes (`auditor fix`, speed ceilings `speed=light|heavy|full`, exact speed isolation `only-speed=light|heavy|full`, lifecycle phases `phase=normal|post-run|post-build`, differential runs, or AST sharing) without maintaining hardcoded suite lists.
 
-### The Standard 6-Field Per-Rule Capabilities (`AuditorRuleCapabilities`)
+### The Standard 7-Field Per-Rule Capabilities (`AuditorRuleCapabilities`)
 
 ```typescript
 export type AuditExecutionSpeed = 'light' | 'heavy' | 'full';
@@ -691,18 +694,20 @@ export interface AuditorRuleCapabilities {
   readonly md: boolean;
   /** Requires in-memory TypeScript AST parsing engine (SharedAstContext). */
   readonly ast: boolean;
-  /** Supports differential file scanning (--changed-since / changed-since=origin/main). */
-  readonly changedSince: boolean;
+  /** Supports differential file scanning (--changed-since / changed-since=origin/main). Note: legacy changedSince is eradicated. */
+  readonly changedOnly: boolean;
+  /** Whether the rule is critical for correctness, typing, and syntax (bypasses speed ceiling in auditor:lint and auditor:critical). */
+  readonly critical: boolean;
 }
 ```
 
-### Mandatory 6-Field Contract & 100% Complete Initialization
+### Mandatory 7-Field Contract & 100% Complete Initialization
 
-`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST declare `ruleCapabilities`** (using `createUniformRuleCapabilities(ruleIds, capabilities)` or `createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds)`), explicitly declaring all 6 orthogonal fields (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`).
+`BaseAuditor` enforces strict, complete initialization with **zero fallbacks**. Sub-auditors and host extensions **MUST declare `ruleCapabilities`** (using `createUniformRuleCapabilities(ruleIds, capabilities)` or `createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds)`), explicitly declaring all 7 orthogonal fields (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`).
 
 > [!CAUTION]
-> **V6 → V7+ BREAKING CHANGE: PROHIBITION ON PASSING SUITE-LEVEL `capabilities` OR LEGACY 10-BOOLEAN FLAGS**
-> Suite-level `capabilities` must **NEVER** be passed directly to constructor options (`capabilities?: never`), and the legacy 10-boolean flags (`lint`, `precommit`, `fixPriority`, `heavy`, `requiresBuild`, `postRun`) are replaced by the 6-field orthogonal contract (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`). Always use `ruleCapabilities: createRuleCapabilities(...)` or `createUniformRuleCapabilities(...)`. The superclass automatically derives suite-level `AuditorCapabilities` from the registered rules!
+> **V6 → V8 BREAKING CHANGE: PROHIBITION ON PASSING SUITE-LEVEL `capabilities` OR LEGACY 10-BOOLEAN FLAGS**
+> Suite-level `capabilities` must **NEVER** be passed directly to constructor options (`capabilities?: never`), and the legacy 10-boolean flags (`lint`, `precommit`, `fixPriority`, `heavy`, `requiresBuild`, `postRun`) are replaced by the 7-field orthogonal contract (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`). Always use `ruleCapabilities: createRuleCapabilities(...)` or `createUniformRuleCapabilities(...)`. The superclass automatically derives suite-level `AuditorCapabilities` from the registered rules!
 
 ```typescript
 // Standard sub-auditor: initialize ruleCapabilities using createUniformRuleCapabilities
@@ -716,7 +721,8 @@ export class MyValidator extends BaseAuditor<MyRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: false
       }),
       ruleIds: MY_RULES,
       ...
@@ -737,7 +743,8 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
           fix: 'none',
           md: false,
           ast: false,
-          changedSince: false
+          changedOnly: false,
+          critical: false
         },
         ['my-fixable-rule'] // fixableRuleIds automatically upgraded to fix: 'normal'
       ),
@@ -783,6 +790,50 @@ The framework enforces strict governance over execution speed across all suites 
    - **`speed: 'light'` (`🐇`)**: Fast, pure static analysis of application source code (`.ts`, `.vue`, `.scss`, `.html`), Domain-Type-First validation, and O(1) structures.
    - **`speed: 'heavy'` (`🐢`)**: Standard workspace scanning, environment and packaging checks (`validate_environment_engines`, `validate_package_scripts`), test hygiene and fragmentation, secret leak scanning, and database/asset verifications.
    - **`speed: 'full'` (`🐘`) or `speed: ['light', 'full']`**: Exhaustive cross-module symbol graph checks (such as `fallow dead-code --type-aware` via `TieredCommandProfile`) executed during `npm run auditor:full` and `npm run build`.
+
+### Mandatory Speed Selection in Multi-Speed Critical Suites
+
+If a suite or rule declares `critical: true` and `speed` has 2 or more declared speeds (e.g. `speed: ['light', 'full']`), the engine **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run validate:...`):
+
+- **Why**: Essential linters and type checkers (`validate_eslint`, `validate_type_check`, `validate_stylelint`, `validate_html_validate`, `validate_domain_types`) are indispensable for developer feedback. When invoked directly by a developer, they must run instantaneously using caching/incremental compilation (`--incremental`, `--cache`) rather than triggering an exhaustive full-tree recheck.
+- **Implementation in `BaseAuditor`**: `this.resolveRuleEffectiveSpeed(ruleId)` and `this.getExecutionTier()` inspect `caps.critical && !speedOpts.isSpeedSpecified`. When true, they select the minimum rank speed (`'light'`).
+
+### Mandatory Authentic Tiers & Prohibition of Duplicated Tiers
+
+Inventing or duplicating speed tiers that repeat identical CLI arguments or behaviors as another tier (such as inventing a `heavy` tier identical to `light`) is **STRICTLY PROHIBITED**:
+
+- Each declared tier (`light`, `heavy`, `full`) MUST execute genuinely different commands or CLI flags of the underlying tool.
+- If a tool only supports 2 distinct operational modes (e.g. `tsc` with `--incremental` in `light` vs without `--incremental` in `full`; `npm ls --depth=0` in `heavy` vs `--all` in `full`), declare **ONLY those 2 basic tiers** (e.g. `speed: ['light', 'full']`). Declaring a cloned 3rd tier is forbidden.
+- Only tools with 3 completely decoupled subcommands (such as `validate_fallow`: `dead-code --no-type-aware`, `dupes`, `type-aware`) declare all 3 tiers.
+
+### Permanent Cache Mandate (Cache is NEVER Turned Off in Full)
+
+In the Full (`🐘`) tier, the entire project is audited without incremental/delta scoping (evaluating all files), **BUT THE CACHE IS NEVER TURNED OFF**:
+
+- Tools with caching support (`eslint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers.
+- Running full verification verifies whole-project invariants, but disabling cache causes redundant I/O and CPU waste on unmodified source files.
+
+### Clean Composition in `TieredCommandProfile` Without Code Duplication
+
+Repeating identical literal arrays in `profiles` is strictly prohibited. Profiles must be cleanly composed using shared constants:
+
+```typescript
+const { cmd, args: baseArgs } = resolveTypeCheckBinary(this.projectRoot);
+const tsBuildInfoPath = path.resolve(this.projectRoot, 'scratch/.tsbuildinfo');
+
+// Composed cleanly via shared constants — zero duplicate array literals:
+const standardArgs = [...baseArgs, '--pretty', 'false'];
+const incrementalArgs = [...standardArgs, '--incremental', '--tsBuildInfoFile', tsBuildInfoPath];
+
+const resolvedArgs = this.resolveCommandArgs<string[]>({
+  command: 'tsc-type-check',
+  defaultArgs: standardArgs,
+  profiles: {
+    light: incrementalArgs,
+    full: standardArgs
+  }
+});
+```
 
 ---
 
@@ -1079,7 +1130,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `packageName` | `string` | Non-empty | Technology scope prefix (`'ESLint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
 | `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
 | `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
-| `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 6 fields | Orthogonal 6-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedSince`). |
+| `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 7 fields | Orthogonal 7-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`). |
 | `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
 | `ruleRemediations` | `Record<TRuleId, string>` | 100% of rules, non-empty | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction. |
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
@@ -1112,7 +1163,8 @@ ruleCapabilities: createUniformRuleCapabilities(RULES, {
   fix: 'none',
   md: false,
   ast: false,
-  changedSince: false
+  changedOnly: false,
+  critical: false
 })
 ```
 
@@ -1319,10 +1371,10 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
 
 When upgrading `@francogp/auditor` in a host project with local extensions in `scripts/auditors/`, adapt legacy constructors to v7+ standards:
 
-### 1. Error: `passed redundant 'capabilities' to constructor options` or missing 6-field `ruleCapabilities`
+### 1. Error: `passed redundant 'capabilities' to constructor options` or missing 7-field `ruleCapabilities`
 
 - ❌ **Legacy Pattern**: Passing `capabilities: { ... }` directly to `super({ ... })` or using the old 10-boolean object.
-- ✅ **Canonical Pattern**: Pass the 6-field orthogonal `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false })` (or `LINT_RULE_CAPABILITIES` / `AST_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
+- ✅ **Canonical Pattern**: Pass the 7-field orthogonal `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false })` (or `LINT_RULE_CAPABILITIES` / `AST_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
 
 ```typescript
 // Legacy:
@@ -1332,7 +1384,7 @@ super({
   ...
 });
 
-// Modern v7+:
+// Modern v8+:
 import { createUniformRuleCapabilities } from '@francogp/auditor';
 
 super({
@@ -1343,7 +1395,8 @@ super({
     fix: 'none',
     md: false,
     ast: false,
-    changedSince: false
+    changedOnly: false,
+    critical: false
   }),
   coverage: { include: ['src/**'] },
   ...

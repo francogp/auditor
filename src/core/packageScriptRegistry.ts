@@ -35,6 +35,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'core'
   },
   {
+    name: 'auditor:critical',
+    command: 'auditor critical',
+    description: 'Ejecución exclusiva de suites críticas de código, tipado y sintaxis (bypass de velocidad)',
+    category: 'core'
+  },
+  {
     name: 'auditor:md',
     command: 'auditor preset=md',
     description: 'Preset rápido de documentación y markdown (enlaces relativos e índices DOX)',

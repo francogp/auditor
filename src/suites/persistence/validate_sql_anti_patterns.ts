@@ -109,7 +109,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_sql_anti_patterns',
       name: 'SQL & Relational Schema Anti-Patterns Validator',

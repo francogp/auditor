@@ -947,7 +947,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         fix: 'normal',
         md: true,
         ast: true,
-        changedSince: true
+        changedOnly: true, critical: false
       }, fixableRuleIds),
       fixableRuleIds,
       ruleIds,

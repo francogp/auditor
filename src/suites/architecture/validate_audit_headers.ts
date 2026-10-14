@@ -229,7 +229,7 @@ private readonly collectedViolations: HeaderViolation[] = [];
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_audit_headers',
       name: 'Audit Headers & Suppression Validator',

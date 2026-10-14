@@ -91,7 +91,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_ephemeral_storage_isolation',
             name: 'Ephemeral Storage & Scratch Isolation Validator',

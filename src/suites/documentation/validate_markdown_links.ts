@@ -524,7 +524,7 @@ private readonly scanRoots: readonly string[];
         fix: 'none',
         md: true,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_markdown_links',
       name: 'Markdown & DOX Relative Links Auditor',

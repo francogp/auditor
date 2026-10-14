@@ -287,7 +287,8 @@ export class StylelintAuditor extends BaseAuditor {
                 fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false,
+                critical: true
             }, [...STYLELINT_RULES]),
             fixableRuleIds: [...STYLELINT_RULES],
             gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,

@@ -41,7 +41,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_dependency_minimums',
       name: 'Dependency Minimum Versions Validator',

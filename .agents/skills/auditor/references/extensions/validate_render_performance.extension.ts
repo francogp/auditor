@@ -69,7 +69,8 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: true
+        changedOnly: true,
+        critical: false
       }),
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',

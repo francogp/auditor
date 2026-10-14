@@ -113,7 +113,8 @@ export class HtmlValidateAuditor extends BaseAuditor {
                 fix: 'normal',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false,
+                critical: true
             }, ['html-validate-issue']),
             fixableRuleIds: ['html-validate-issue'],
             id: 'validate_html_validate',

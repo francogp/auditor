@@ -98,7 +98,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor {
                 fix: 'none',
                 md: false,
                 ast: false,
-                changedSince: false
+                changedOnly: false, critical: false
             }),
             id: 'validate_vue_sfc_hygiene',
             name: 'Vue SFC & Script Setup Hygiene Auditor',

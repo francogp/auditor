@@ -50,7 +50,7 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
       'probe-external': 'Remediación de prueba externa.',
       'probe-internal': 'Remediación de prueba interna.'
     },
-    ruleCapabilities: createUniformRuleCapabilities(['probe-external', 'probe-internal'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }),
+    ruleCapabilities: createUniformRuleCapabilities(['probe-external', 'probe-internal'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }),
     coverage: { include: ['src/**'] },
     ...overrides
   };

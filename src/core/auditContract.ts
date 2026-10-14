@@ -164,7 +164,7 @@ export const AUDIT_FIX_CAPABILITIES = ['none', 'normal', 'priority'] as const;
 export type AuditFixCapability = (typeof AUDIT_FIX_CAPABILITIES)[number];
 
 /**
- * Orthogonal 6-field rule capability contract eliminating overlapping boolean flags.
+ * Orthogonal 7-field rule capability contract eliminating overlapping boolean flags.
  */
 export interface AuditorRuleCapabilities {
   /** Execution speed level(s): 'light' (🐇), 'heavy' (🐢), or 'full' (🐘), or a tuple of supported levels e.g. ['light', 'full'] */
@@ -177,8 +177,10 @@ export interface AuditorRuleCapabilities {
   readonly md: boolean;
   /** Whether the rule requires the shared in-memory TypeScript AST context */
   readonly ast: boolean;
-  /** Whether the rule supports incremental git diff scoping via --changed-since */
-  readonly changedSince: boolean;
+  /** Whether the rule supports incremental git diff scoping via --changed-since / changed-only mode */
+  readonly changedOnly: boolean;
+  /** Whether the rule is critical for code correctness, typing, and syntax (bypasses speed ceiling in lint) */
+  readonly critical: boolean;
 }
 
 export type AuditorCapabilities = AuditorRuleCapabilities;

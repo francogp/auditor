@@ -71,7 +71,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
         fix: 'priority',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }, [
         'package-scripts-removed-commit-gate',
         'package-scripts-build-missing-audit',

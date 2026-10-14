@@ -68,7 +68,7 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_reactive_leaks',
       name: 'Reactive & DOM Event Leak Auditor',

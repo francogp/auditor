@@ -154,20 +154,21 @@ graph TD
 - All Fallow findings map strictly to `severity: 'error'`. Downgrading to warning is prohibited.
 - Governed by holistic Fallow Refactoring Targets (`fallow-refactoring-targets`, `config.fallow.enforceTargets: true`), eliminating artificial function fragmentation.
 
-### 21. Orthogonal 6-Field Rule Capabilities Contract (`AuditorRuleCapabilities`)
+### 21. Orthogonal 7-Field Rule Capabilities Contract (`AuditorRuleCapabilities`)
 
 - Every sub-auditor declares capabilities on each rule individually via `ruleCapabilities: Record<TRuleId, AuditorRuleCapabilities>`.
 - Passing suite-level `capabilities` directly in constructor options is prohibited (`capabilities?: never`).
-- Each rule capability explicitly initializes all 6 orthogonal fields (replacing the legacy 10-boolean contract):
+- Each rule capability explicitly initializes all 7 orthogonal fields (the legacy contract field `changedSince` is completely eradicated in favor of `changedOnly: boolean`):
   - `speed`: `'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]` (`🐇` `'light'`, `🐢` `'heavy'`, `🐘` `'full'`, or array `['light', 'full']` for multi-tier CLI tools).
   - `phase`: `'normal' | 'post-run' | 'post-build'`.
   - `fix`: `'none' | 'normal' | 'priority'` (`'priority'` executes first during `auditor fix` to bootstrap config/environment).
   - `md`: `boolean` (included in `auditor preset=md` / `npm run auditor:md`).
   - `ast`: `boolean` (preheats `SharedAstContext`).
-  - `changedSince`: `boolean` (supports `--changed-since`).
-- Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept explicit 6-field literals via `createUniformRuleCapabilities(RULES, { ... })` / `createRuleCapabilities(RULES, baseCapabilities, fixableRuleIds)`.
+  - `changedOnly`: `boolean` (supports differential scoping via `--changed-since`).
+  - `critical`: `boolean` (indispensable for code correctness, typing, and syntax; bypasses speed ceiling in `auditor:lint` and `auditor:critical`).
+- Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept explicit 7-field literals via `createUniformRuleCapabilities(RULES, { ... })` / `createRuleCapabilities(RULES, baseCapabilities, fixableRuleIds)`.
 
-### 21.1 Speed Engine: Ceiling vs. Exact Modes & Visual Icons (`🐇` / `🐢` / `🐘`)
+### 21.1 Speed Engine: Ceiling vs. Exact Modes, Visual Icons (`🐇` / `🐢` / `🐘`) & Multi-Tier Mandates
 
 - **3 Canonical Speed Tiers (`AuditExecutionSpeed`)**:
   - `'light'` (`🐇`): Fast static lint and AST rules (`npm run auditor:lint` / `auditor speed=light`).
@@ -175,8 +176,11 @@ graph TD
   - `'full'` (`🐘`): Exhaustive pre-build/release ceiling (`npm run auditor:full` / `auditor speed=full`), running `'light'` + `'heavy'` + `'full'` (including `fallow dead-code --type-aware`).
 - **Ceiling Mode (`speed=light|heavy|full`)**: Cumulative up to the requested ceiling (`speed=heavy` runs `light` + `heavy`; `speed=full` runs `light` + `heavy` + `full`).
 - **Exact Isolation Mode (`only-speed=light|heavy|full`)**: Executes ONLY rules matching that exact tier.
+- **Mandatory Speed Selection in Multi-Speed Critical Suites**: If a suite or rule declares `critical: true` and `speed` has 2 or more speeds declared (e.g. `speed: ['light', 'full']`), it **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run validate:...`), guaranteeing that direct local executions run instantaneously with incremental/cache enabled.
+- **Mandatory Authentic Tiers & Prohibition of Duplicated Tiers**: Inventing or duplicating speed tiers that repeat identical CLI arguments or behaviors as another tier (such as inventing a `heavy` tier identical to `light`) is STRICTLY PROHIBITED. Each declared tier (`light`, `heavy`, `full`) MUST execute genuinely different commands or CLI flags of the underlying tool. If a tool only supports 2 distinct operational modes (e.g. `tsc` with `--incremental` in `light` vs without `--incremental` in `full`), ONLY those 2 basic tiers are declared (`['light', 'full']`). Only tools with 3 completely decoupled subcommands (such as `validate_fallow`: `dead-code --no-type-aware`, `dupes`, `type-aware`) declare all 3 tiers.
+- **Permanent Cache Mandate (Cache is NEVER Turned Off in Full)**: In the Full (`🐘`) tier, the entire project is audited without incremental/delta scoping (evaluating all files), BUT THE CACHE IS NEVER TURNED OFF. Tools with caching support (`eslint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers to avoid re-processing identical files on disk.
+- **Clean Composition in `TieredCommandProfile`**: Repeating identical literal arrays in `profiles` is strictly prohibited. Profiles must be cleanly composed using shared constants (e.g. `standardArgs`, `incrementalArgs`).
 - **LPT Task Scheduler (Longest Processing Time First)**: In `audit_full`, suites with higher speed tiers (`🐘` `'full'`, `🐢` `'heavy'`) are sorted and dispatched FIRST in the worker queue so multi-core CPU workers absorb heavy tasks immediately.
-- **Tiered Command Profiles (`TieredCommandProfile`)**: External CLI sub-auditors can declare `speed: ['light', 'full']` and use `TieredCommandProfile` (`light` fast args vs `full` deep args like `--type-aware`).
 
 ### 21.2 Mnemonic Command Naming & Master Build Chaining
 
@@ -298,7 +302,7 @@ Pre-formatted, production-ready templates conforming to all project standards:
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
 - **Updates (`auditor-update` / `npm run auditor:update`)**: Pull latest upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`) and verify with `auditor-version -v`. Ad-hoc `node -e` scripts or cloning into `/tmp` are strictly forbidden.
-- **Host Extensions Migration (v7+)**: Local extensions in `scripts/auditors/` must pass explicit 6-field `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false })` and eliminate `logStep(...)` manual calls. See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md#16-host-extension-migration-quick-guide-v7-modernization).
+- **Host Extensions Migration (v7+)**: Local extensions in `scripts/auditors/` must pass explicit 7-field `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false })` and eliminate `logStep(...)` manual calls. See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md#16-host-extension-migration-quick-guide-v7-modernization).
 - **Massive Styles Migration (`scss-strict-values`)**: When upgrading causes large volumes of design token issues, inherit `./node_modules/@francogp/auditor/.stylelintrc.json`, calibrate `maxNestingDepth: 5`, and apply AST codemods in an isolated worktree (`scratch/wt-migration`). See [host-package-governance.md](./references/host-package-governance.md#13-mass-migration-recipes-for-host-upgrades).
 - **Deployment Builds (`AUDITOR_ENV=production`)**: In production deployments, Docker containers, or CI pipelines, run `npm run build:deploy` (`auditor-build-deploy`) under `AUDITOR_ENV=production` to cleanly skip Candle CPU vector duplication and test coverage checks without failing builds on uncommitted coverage files.
 

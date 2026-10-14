@@ -89,7 +89,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_package_distribution',
       name: 'Package Distribution & Exports Hygiene Auditor',

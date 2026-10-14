@@ -91,7 +91,7 @@ private readonly minTestLines: number;
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
 id: 'validate_test_fragmentation',
       name: 'Test Anti-Fragmentation Validator',

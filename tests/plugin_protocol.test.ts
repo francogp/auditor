@@ -46,7 +46,7 @@ describe('Auditor Plugin Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           },
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
@@ -92,7 +92,7 @@ describe('Auditor Plugin Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'registered-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'registered-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           },
           ruleIds: ['registered-rule'],
           coverage: {
@@ -135,8 +135,8 @@ describe('Auditor Plugin Protocol', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'step-one': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
-            'step-two': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'step-one': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
+            'step-two': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           },
           ruleIds: ['step-one', 'step-two'],
           coverage: {

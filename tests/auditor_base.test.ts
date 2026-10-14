@@ -155,7 +155,7 @@ describe('auditorBase infrastructure', () => {
       usesThirdPartyTool: false,
             ruleIds: ['test-rule'],
             ruleCapabilities: {
-              'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+              'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
             },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
@@ -214,7 +214,7 @@ describe('auditorBase infrastructure', () => {
       usesThirdPartyTool: false,
       coverage: { include: ['src/**/*.ts'] },
       ruleCapabilities: {
-        dummy: { speed: 'light' as const, phase: 'normal' as const, fix: 'none' as const, md: false, ast: false, changedSince: false }
+        dummy: { speed: 'light' as const, phase: 'normal' as const, fix: 'none' as const, md: false, ast: false, changedOnly: false, critical: false }
       }
     };
 
@@ -281,7 +281,7 @@ describe('auditorBase infrastructure', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+          capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
         } as never);
       }).toThrow(/passed redundant 'capabilities' to constructor options/);
     });
@@ -335,7 +335,7 @@ describe('auditorBase infrastructure', () => {
         fix: 'none',
         md: false,
         ast: true,
-        changedSince: false
+        changedOnly: false, critical: false
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,
@@ -367,8 +367,8 @@ describe('auditorBase infrastructure', () => {
           criticalConfig: {},
       usesThirdPartyTool: false,
           ruleCapabilities: {
-            'rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false },
-            'rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
+            'rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           },
           ruleIds: ['rule-a', 'rule-b'],
           ruleDescriptions: {
@@ -477,7 +477,7 @@ describe('auditorBase infrastructure', () => {
             },
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: {
-              'only-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+              'only-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
             }
           });
         }
@@ -522,7 +522,7 @@ describe('auditorBase infrastructure', () => {
           ruleRemediations: { 'test-rule': 'Remediacion' },
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
-            'test-rule': { speed: ['light', 'heavy', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedSince: false }
+            'test-rule': { speed: ['light', 'heavy', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
           }
         });
       }

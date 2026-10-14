@@ -461,7 +461,7 @@ function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): strin
   if (caps?.md) capList.push(styleText('magenta', '✔ Preset Markdown (preset=md)'));
   if (caps?.phase === 'post-build') capList.push(styleText('red', '📦 Fase Post-Build (phase=post-build)'));
   if (caps?.phase === 'post-run') capList.push(styleText('blue', '🏁 Fase Post-Run (phase=post-run)'));
-  if (caps?.changedSince) capList.push(styleText('white', '✔ Diferencial Git (--changed-since)'));
+  if (caps?.changedOnly) capList.push(styleText('white', '✔ Diferencial Git (changed-only)'));
   if (caps?.ast) capList.push(styleText('white', '✔ AST TypeScript in-memory (ast)'));
   return capList;
 }

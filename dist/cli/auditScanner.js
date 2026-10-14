@@ -37,6 +37,7 @@ function resolveTargetSuiteIds(options, combinedPresets) {
         options.preset !== 'md' &&
         options.preset !== 'post-build' &&
         options.preset !== 'build' &&
+        options.preset !== 'critical' &&
         options.preset in combinedPresets) {
         targetSuiteIds = new Set(combinedPresets[options.preset]);
     }

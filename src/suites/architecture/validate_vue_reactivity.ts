@@ -69,7 +69,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false, critical: false
       }),
       id: 'validate_vue_reactivity',
       name: 'Vue Reactivity & State Hygiene Auditor',

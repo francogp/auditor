@@ -133,12 +133,13 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
         fallbackBehavior: "throw"
       },
       ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
-        speed: 'heavy',
+        speed: ['light', 'full'],
         phase: 'normal',
         fix: 'none',
         md: false,
         ast: false,
-        changedSince: false
+        changedOnly: false,
+        critical: true
       }),
       id: 'validate_type_check',
       name: 'TypeScript & Vue Type Validator',
@@ -171,19 +172,31 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
     const { cmd, args: baseArgs } = resolveTypeCheckBinary(this.projectRoot);
     const tsBuildInfoPath = path.resolve(this.projectRoot, 'scratch/.tsbuildinfo');
 
-    if (this.isFastMode()) {
+    const standardArgs = [...baseArgs, '--pretty', 'false'];
+    const incrementalArgs = [...standardArgs, '--incremental', '--tsBuildInfoFile', tsBuildInfoPath];
+
+    const resolvedArgs = this.resolveCommandArgs<string[]>({
+      command: 'tsc-type-check',
+      defaultArgs: standardArgs,
+      profiles: {
+        light: incrementalArgs,
+        full: standardArgs
+      }
+    });
+
+    if (resolvedArgs.includes('--incremental')) {
       try {
         fsSync.mkdirSync(path.dirname(tsBuildInfoPath), { recursive: true });
       } catch {
         // catch-ok: ignore directory creation failures
       }
+    } else if (fsSync.existsSync(tsBuildInfoPath)) {
+      try {
+        fsSync.unlinkSync(tsBuildInfoPath);
+      } catch {
+        // catch-ok: ignore failure deleting stale tsbuildinfo
+      }
     }
-
-    const resolvedArgs = this.resolveCommandArgs<string[]>({
-      command: 'tsc-type-check',
-      fastArgs: [...baseArgs, '--pretty', 'false', '--incremental', '--tsBuildInfoFile', tsBuildInfoPath],
-      heavyArgs: [...baseArgs, '--pretty', 'false']
-    });
 
     const proc = spawnSync(cmd, resolvedArgs, {
       cwd: this.projectRoot,
