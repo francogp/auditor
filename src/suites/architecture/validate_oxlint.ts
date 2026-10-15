@@ -77,13 +77,12 @@ export function parseOxlintResults(
         const line = diag.labels?.[0]?.span?.line ?? 1;
         const col = diag.labels?.[0]?.span?.column ?? 1;
         const rule = diag.code || 'oxlint-violation';
-        const isWarning = diag.severity?.toLowerCase() === 'warning';
         findings.push({
           suiteId: 'validate_oxlint',
           suiteName: 'Oxlint & Vite+ Code Hygiene Validator',
           ruleId: 'oxlint-violation',
           ruleDescription: 'Error de sintaxis o regla de linter',
-          severity: isWarning ? 'warning' : 'error',
+          severity: 'error',
           file: cleanFile,
           line,
           col,

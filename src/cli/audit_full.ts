@@ -783,7 +783,7 @@ function printRatchetVerdict(
         `\n🔒 RATCHET DE WARNINGS: ${verdict.newWarnings} warning(s) NUEVO(S) respecto de '${verdict.productionRef}'. Deben corregirse.`
       )
     );
-    console.log(renderSampleFindings(newWarnings, 'all'));
+    console.log(renderSampleFindings(newWarnings, 5));
     return;
   }
   const shrinkNote = verdict.baselineUpdated

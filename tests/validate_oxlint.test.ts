@@ -64,6 +64,27 @@ describe('OxlintAuditor & parseOxlintResults', () => {
       expect(findings[0]!.message).toContain('typescript(no-unsafe-type-assertion)');
     });
 
+    it('CANARY: elevates diagnostics with native severity warning to severity error (Zero-Warning Policy)', () => {
+      const oxlintOutput = JSON.stringify({
+        diagnostics: [
+          {
+            message: 'Promise returned in function argument where void return is expected.',
+            code: 'typescript(no-floating-promises)',
+            severity: 'warning',
+            filename: 'src/async.ts',
+            labels: [{ span: { line: 20, column: 5 } }]
+          }
+        ],
+        number_of_files: 1,
+        number_of_rules: 153
+      });
+
+      const findings = parseOxlintResults(oxlintOutput, process.cwd());
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.ruleId).toBe('oxlint-violation');
+      expect(findings[0]!.severity).toBe('error');
+    });
+
     it('parses legacy array report into AuditFindings with severity error', () => {
       const rawReports = [
         {

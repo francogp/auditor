@@ -579,6 +579,20 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       expect(sample).toContain('⚠️  Muestra de advertencias detectadas (todos los 1 de 1):');
       expect(sample).toContain('package.json:1: [warn-rule] Test warning');
     });
+
+    it('CANARY: samples only the last 5 warnings when limit is 5 and findings exceed 5', () => {
+      const warnings = Array.from({ length: 15 }, (_, i) => ({
+        file: `src/file_${i}.ts`,
+        line: i + 1,
+        ruleId: 'warn-rule',
+        message: `Warning ${i}`,
+        severity: 'warning' as const
+      }));
+      const sample = renderSampleFindings(warnings, 5);
+      expect(sample).toContain('⚠️  Muestra de advertencias detectadas (últimos 5 de 15):');
+      expect(sample).toContain('file_14.ts');
+      expect(sample).not.toContain('file_0.ts');
+    });
   });
 
   describe('formatDurationMs', () => {
