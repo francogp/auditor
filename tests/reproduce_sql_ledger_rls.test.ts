@@ -9,7 +9,7 @@
  * Desired behavior: canonical ledger tables and persistence.exemptRlsTables must be exempt.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { SqlAntiPatternsAuditor } from '../src/suites/persistence/validate_sql_anti_patterns.ts';

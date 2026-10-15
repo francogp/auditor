@@ -303,6 +303,77 @@ export function verifyLockfileIntegrity(projectRoot: string): AuditFinding[] {
     });
   }
 
+  // 4. Floating git dependencies prohibition in package.json
+  let pkgJson: Record<string, unknown> = {};
+  try {
+    pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+  } catch {
+    // catch-ok: Ignore parse errors
+  }
+
+  const allDeclaredDeps: Record<string, string> = {
+    ...(pkgJson.dependencies as Record<string, string>),
+    ...(pkgJson.devDependencies as Record<string, string>)
+  };
+
+  for (const [depName, spec] of Object.entries(allDeclaredDeps)) {
+    if (
+      typeof spec === 'string' &&
+      (spec.includes('#semver:') || /#(?:main|master|dev|develop)$/.test(spec))
+    ) {
+      findings.push({
+        suiteId: 'validate_package_hygiene',
+        suiteName: 'Package & Dependency Hygiene Auditor',
+        ruleId: 'package-lockfile-integrity',
+        ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+        severity: 'error',
+        file: 'package.json',
+        line: 1,
+        context: `${depName}: ${spec}`,
+        message: `La dependencia "${depName}" utiliza un rango git flotante ("${spec}"). Para garantizar despliegues deterministas con 'npm ci', debes fijar un tag exacto (ej. "github:org/repo#vX.Y.Z") o un commit SHA.`
+      });
+    }
+  }
+
+  // 5. Package.json vs package-lock.json root packages synchronization (v3)
+  const packages = (lockfileJson.packages as Record<string, unknown>) || {};
+  const rootPackage = (packages[''] as Record<string, unknown>) || {};
+  if (rootPackage && typeof rootPackage === 'object') {
+    const rootDeps: Record<string, string> = {
+      ...(rootPackage.dependencies as Record<string, string>),
+      ...(rootPackage.devDependencies as Record<string, string>)
+    };
+
+    for (const [depName, expectedSpec] of Object.entries(allDeclaredDeps)) {
+      const lockedSpec = rootDeps[depName];
+      if (!lockedSpec) {
+        findings.push({
+          suiteId: 'validate_package_hygiene',
+          suiteName: 'Package & Dependency Hygiene Auditor',
+          ruleId: 'package-lockfile-integrity',
+          ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+          severity: 'error',
+          file: 'package-lock.json',
+          line: 1,
+          context: `${depName}: missing`,
+          message: `La dependencia "${depName}" declarada en package.json no está registrada en package-lock.json. Ejecuta "npm install" para sincronizar el lockfile.`
+        });
+      } else if (lockedSpec !== expectedSpec) {
+        findings.push({
+          suiteId: 'validate_package_hygiene',
+          suiteName: 'Package & Dependency Hygiene Auditor',
+          ruleId: 'package-lockfile-integrity',
+          ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+          severity: 'error',
+          file: 'package-lock.json',
+          line: 1,
+          context: `${depName}: ${expectedSpec} vs ${lockedSpec}`,
+          message: `La dependencia "${depName}" en package.json ("${expectedSpec}") difiere de package-lock.json ("${lockedSpec}"). Ejecuta "npm install" para sincronizar el lockfile.`
+        });
+      }
+    }
+  }
+
   return findings;
 }
 

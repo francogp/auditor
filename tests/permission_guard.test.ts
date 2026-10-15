@@ -4,7 +4,7 @@
  * Unit tests for permissionGuard Node.js 26+ native permission helpers.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import {

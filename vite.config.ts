@@ -19,6 +19,13 @@ export default defineConfig({
       typeCheck: true
     },
     ignorePatterns: [
+      'coverage/**',
+      '**/*.d.ts',
+      'tests/e2e/**',
+      'tests/integration/**',
+      '**/*.spec.ts',
+      '**/*.test.ts',
+      '**/*.simulation.ts',
       'dist/**',
       'dev-dist/**',
       'node_modules/**',
@@ -44,6 +51,9 @@ export default defineConfig({
     trailingComma: 'none',
     printWidth: 100,
     ignorePatterns: [
+      'dev-dist/**',
+      'coverage/**',
+      '**/*.d.ts',
       'dist/**',
       'node_modules/**',
       'scratch/**',

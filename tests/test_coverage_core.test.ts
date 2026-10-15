@@ -3,7 +3,7 @@
  * @description Unit tests for testCoverageCore engine.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';

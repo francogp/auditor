@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -110,7 +110,7 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
 
     it('executes runAudit and imports findings when coverage is below threshold', async () => {
       const cliUtils = await import('../src/cli/cliUtils.ts');
-      const { vi } = await import('vitest');
+      const { vi } = await import('vite-plus/test');
       vi.spyOn(cliUtils, 'executeCliAndReadJson').mockReturnValue({
         correctCount: 75,
         totalCount: 100,

@@ -5,7 +5,7 @@
  * Verifies directory traversal prevention (CWE-22) and SSRF prevention (CWE-918).
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';

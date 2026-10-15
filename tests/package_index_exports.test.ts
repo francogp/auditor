@@ -5,7 +5,7 @@
  * ensuring complete public API stability for host sub-auditors and extension plugins.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import * as AuditorPackage from '../src/index.ts';
 
 describe('Public Package Exports (src/index.ts)', () => {

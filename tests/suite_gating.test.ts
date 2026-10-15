@@ -4,7 +4,7 @@
  * Unit tests for suite activation gating and CLI introspection flags.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { evaluateSuiteStatus, AUDIT_LIST_FILTERS } from '../src/core/suiteGating.ts';
 import type { AuditConfig } from '../src/core/auditConfigTypes.ts';
 

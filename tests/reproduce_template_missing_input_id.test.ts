@@ -7,7 +7,7 @@
  * without false positives.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   TemplateIdAuditor,
   type TemplateIdRuleId

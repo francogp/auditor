@@ -10,7 +10,7 @@
  * - Clean execution verification (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   NativePathsAuditor,
   scanFileForNativePathViolations,

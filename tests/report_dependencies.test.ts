@@ -5,7 +5,7 @@
  * evaluation states, install commands grouping, CLI flag parsing, and clean execution.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';

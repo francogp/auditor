@@ -8,7 +8,7 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   TestFragmentationAuditor,
   TEST_FRAGMENTATION_RULES
@@ -57,7 +57,7 @@ describe('TestFragmentationAuditor', () => {
     it('detects fragmented micro-test files under 60 lines (no-fragmented-tests)', () => {
       const auditor = new TestableTestFragmentationAuditor();
       const code = `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('Tiny', () => {
           it('works', () => {
             expect(1).toBe(1);
@@ -75,7 +75,7 @@ describe('TestFragmentationAuditor', () => {
       const lines = new Array(70).fill('// padding line');
       const code = [
         '// ' + '@vitest-environment jsdom',
-        "import { describe, it, expect } from 'vitest';",
+        "import { describe, it, expect } from 'vite-plus/test';",
         ...lines,
         "describe('Pure Math', () => { it('adds', () => { expect(1 + 1).toBe(2); }); });"
       ].join('\n');
@@ -90,7 +90,7 @@ describe('TestFragmentationAuditor', () => {
       const auditor = new TestableTestFragmentationAuditor();
       const code = `
         // test-fragmentation-ok: Isolated test runner
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('Tiny', () => { it('runs', () => expect(true).toBe(true)); });
       `;
       auditor.testScanFile('tests/unit/exempt.test.ts', code);
@@ -102,7 +102,7 @@ describe('TestFragmentationAuditor', () => {
       const lines = new Array(70).fill('// padding line');
       const code = [
         '// ' + '@vitest-environment jsdom',
-        "import { describe, it, expect } from 'vitest';",
+        "import { describe, it, expect } from 'vite-plus/test';",
         "import { mount } from '@vue/test-utils';",
         ...lines,
         "describe('Vue UI', () => { it('mounts', () => { window.scrollTo(0, 0); }); });"
@@ -118,7 +118,7 @@ describe('TestFragmentationAuditor', () => {
       const auditor = new TestableTestFragmentationAuditor();
       const lines = new Array(80).fill('// cohesive test logic line');
       const code = [
-        "import { describe, it, expect } from 'vitest';",
+        "import { describe, it, expect } from 'vite-plus/test';",
         ...lines,
         "describe('Billing', () => { it('computes tariffs', () => { expect(100).toBe(100); }); });"
       ].join('\n');

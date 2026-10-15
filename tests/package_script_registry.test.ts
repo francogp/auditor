@@ -5,7 +5,7 @@
  * and BaseAuditor automatic script derivation contracts.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
 import type { AuditorPackageScriptRequirement } from '../src/core/auditContract.ts';

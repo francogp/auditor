@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
 import type { AuditorManifestDTO } from '../src/core/auditContract.ts';

@@ -7,7 +7,7 @@
  * to developers or AI agents when the errors are architectural or non-mechanical.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseLintResultsToFindings } from '../src/core/reportUtils.ts';

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -190,6 +190,9 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
           name: 'pkg',
           lockfileVersion: 3,
           packages: {
+            '': {
+              dependencies: {}
+            },
             'node_modules/good': {
               resolved: 'https://registry.npmjs.org/good.tgz'
             }
@@ -198,6 +201,63 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       );
       const findings = verifyLockfileIntegrity(tempDir);
       expect(findings).toHaveLength(0);
+    });
+
+    it('detects floating git semver dependencies in package.json', () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'pkg',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#semver:*'
+          }
+        })
+      );
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({
+          name: 'pkg',
+          lockfileVersion: 3,
+          packages: {
+            '': {
+              devDependencies: {
+                '@francogp/auditor': 'github:francogp/auditor#semver:*'
+              }
+            }
+          }
+        })
+      );
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings.some((f) => f.context?.includes('#semver:*'))).toBe(true);
+      expect(findings.some((f) => f.message.includes('rango git flotante'))).toBe(true);
+    });
+
+    it('detects desynchronization between package.json and package-lock.json', () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'pkg',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#v8.4.1'
+          }
+        })
+      );
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({
+          name: 'pkg',
+          lockfileVersion: 3,
+          packages: {
+            '': {
+              devDependencies: {
+                '@francogp/auditor': 'github:francogp/auditor#v8.2.0'
+              }
+            }
+          }
+        })
+      );
+      const findings = verifyLockfileIntegrity(tempDir);
+      expect(findings.some((f) => f.message.includes('difiere de package-lock.json'))).toBe(true);
     });
   });
 

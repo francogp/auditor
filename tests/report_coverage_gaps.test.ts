@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { getAuditConfig } from '../src/core/auditConfig.ts';

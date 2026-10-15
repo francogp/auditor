@@ -435,22 +435,50 @@ audit-level=high
 # 9. Instalar dependencias limpias del proyecto
 Write-Host ""
 Set-Location $PSScriptRoot
+
+$installSuccess = $false
+
 if (Get-Command vp -ErrorAction SilentlyContinue) {
     Write-Host "[DEPENDENCIES] Instalando dependencias del proyecto con Vite+ (vp install)..." -ForegroundColor Cyan
-    try {
-        vp install
-    } catch {
-        Write-Host "  [WARN] vp install fallo, reintentando con npm ci..." -ForegroundColor Yellow
-        npm ci
+    & vp install
+    if ($LASTEXITCODE -eq 0) {
+        $installSuccess = $true
+    } else {
+        Write-Host "  [WARN] 'vp install' falló (código $LASTEXITCODE). Reintentando con npm ci..." -ForegroundColor Yellow
     }
+}
+
+if (-not $installSuccess) {
+    Write-Host "[DEPENDENCIES] Instalando dependencias limpias con npm ci..." -ForegroundColor Cyan
+    & npm ci
+    if ($LASTEXITCODE -eq 0) {
+        $installSuccess = $true
+    } else {
+        Write-Host "  [WARN] 'npm ci' falló con código $LASTEXITCODE (posible desincronización de lockfile o dependencias remotas)." -ForegroundColor Yellow
+        Write-Host "  [RECOVERY] Intentando recuperación con 'npm install' para sincronizar dependencias..." -ForegroundColor Cyan
+        & npm install
+        if ($LASTEXITCODE -eq 0) {
+            $installSuccess = $true
+            Write-Host "  [OK] Dependencias instaladas y sincronizadas exitosamente con npm install." -ForegroundColor Green
+        }
+    }
+}
+
+if (-not $installSuccess) {
     Write-Host ""
-    Write-Host "[CONFIG] Sincronizando configuracion y agentes con Vite+ (vp config)..." -ForegroundColor Cyan
+    Write-Host "======================================================" -ForegroundColor Red
+    Write-Host " ❌ [ERROR] Falló la instalación de dependencias en $projectName." -ForegroundColor Red
+    Write-Host " Verifique los errores de npm arriba. No es seguro continuar sin dependencias instaladas." -ForegroundColor Red
+    Write-Host "======================================================" -ForegroundColor Red
+    exit 1
+}
+
+if (Get-Command vp -ErrorAction SilentlyContinue) {
+    Write-Host ""
+    Write-Host "[CONFIG] Sincronizando configuración y agentes con Vite+ (vp config)..." -ForegroundColor Cyan
     try {
-        vp config
+        & vp config
     } catch {}
-} else {
-    Write-Host "[DEPENDENCIES] Instalando dependencias del proyecto con npm ci..." -ForegroundColor Cyan
-    npm ci
 }
 
 # 10. Desbloquear binarios nativos descargados por npm en Windows

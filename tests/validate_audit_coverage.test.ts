@@ -4,7 +4,7 @@
  * Unit tests and hermetic verification for validate_audit_coverage suite.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';

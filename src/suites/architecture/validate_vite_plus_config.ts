@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
@@ -10,7 +10,9 @@ import {
   repairVitePlusProject,
   LEGACY_CONFIG_FILES,
   cleanLegacyConfigFiles,
-  syncViteConfigWithAuditConfig
+  syncViteConfigWithAuditConfig,
+  resolveAuditConfigIgnoreGlobs,
+  extractObjectPropertyBlock
 } from '../../core/vitePlusConfigSync.ts';
 
 enableCompileCache();
@@ -25,7 +27,11 @@ export type VitePlusConfigRuleId =
   | 'vite-plus-config-fmt-missing'
   | 'vite-plus-config-staged-missing'
   | 'vite-plus-config-test-missing'
-  | 'vite-plus-legacy-config-forbidden';
+  | 'vite-plus-legacy-config-forbidden'
+  | 'vite-plus-config-ignore-patterns-missing'
+  | 'vite-plus-config-plugin-missing'
+  | 'vite-plus-config-options-missing'
+  | 'vite-plus-config-test-roots-desynced';
 
 export const VITE_PLUS_CONFIG_RULES: readonly VitePlusConfigRuleId[] = [
   'vite-plus-config-missing',
@@ -37,7 +43,11 @@ export const VITE_PLUS_CONFIG_RULES: readonly VitePlusConfigRuleId[] = [
   'vite-plus-config-fmt-missing',
   'vite-plus-config-staged-missing',
   'vite-plus-config-test-missing',
-  'vite-plus-legacy-config-forbidden'
+  'vite-plus-legacy-config-forbidden',
+  'vite-plus-config-ignore-patterns-missing',
+  'vite-plus-config-plugin-missing',
+  'vite-plus-config-options-missing',
+  'vite-plus-config-test-roots-desynced'
 ] as const;
 
 export interface VitePlusConfigAuditOptions {
@@ -57,13 +67,9 @@ function checkRuleLevel(content: string, ruleName: string): boolean {
   return hasError && !hasOffOrWarn;
 }
 
-/**
- * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections.
- */
-export function auditVitePlusConfigContent(content: string, fileName: string): AuditFinding[] {
+function validateAntiCastrationRules(content: string, fileName: string): AuditFinding[] {
   const findings: AuditFinding[] = [];
 
-  // 1. @typescript-eslint/no-explicit-any MUST be 'error'
   if (!checkRuleLevel(content, '@typescript-eslint/no-explicit-any')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -79,7 +85,6 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 2. @typescript-eslint/ban-ts-comment MUST be 'error'
   if (!checkRuleLevel(content, '@typescript-eslint/ban-ts-comment')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -95,14 +100,15 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 3. @typescript-eslint/consistent-type-assertions MUST be enforced
   const hasTypeAssertions =
-    /['"]@typescript-eslint\/consistent-type-assertions['"]\s*:\s*\[\s*['"]error['"]/i.test(
-      content
-    ) &&
-    !/['"]@typescript-eslint\/consistent-type-assertions['"]\s*:\s*['"](?:off|warn|0|1)['"]/i.test(
-      content
-    );
+    new RegExp(
+      `['"]@typescript-eslint/consistent-type-assertions['"]\\s*:\\s*\\[\\s*['"]error['"]`,
+      'i'
+    ).test(content) &&
+    !new RegExp(
+      `['"]@typescript-eslint/consistent-type-assertions['"]\\s*:\\s*['"](?:off|warn|0|1)['"]`,
+      'i'
+    ).test(content);
   if (!hasTypeAssertions) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -118,7 +124,6 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 4. @francogp/domain-type/no-double-cast-unknown MUST be 'error'
   if (!checkRuleLevel(content, '@francogp/domain-type/no-double-cast-unknown')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -134,7 +139,6 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 5. @francogp/domain-type/no-legacy-date MUST be 'error'
   if (!checkRuleLevel(content, '@francogp/domain-type/no-legacy-date')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -150,7 +154,12 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 6. fmt: { MUST be present
+  return findings;
+}
+
+function validateRequiredSections(content: string, fileName: string): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+
   if (!/(^|\s)fmt\s*:\s*\{/m.test(content)) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -166,7 +175,6 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 11. staged: { MUST be present
   if (!/(^|\s)staged\s*:\s*\{/m.test(content)) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -182,7 +190,6 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
     });
   }
 
-  // 12. test: { MUST be present
   if (!/(^|\s)test\s*:\s*\{/m.test(content)) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -196,6 +203,132 @@ export function auditVitePlusConfigContent(content: string, fileName: string): A
       context: 'test',
       message: `Falta la sección 'test' en vite.config.ts para ejecutar pruebas con Vitest integrado.`
     });
+  }
+
+  return findings;
+}
+
+function validateLintOptionsAndPlugins(content: string, fileName: string): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+
+  if (!content.includes('@francogp/auditor/domain-type-plugin')) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-plugin-missing',
+      ruleDescription: 'Vite+: Falta jsPlugin de dominio en lint',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'domain-type-plugin',
+      message: `Falta registrar el plugin jsPlugins: ['@francogp/auditor/domain-type-plugin'] en la sección 'lint' de vite.config.ts.`
+    });
+  }
+
+  const lintBlock = extractObjectPropertyBlock(content, 'lint');
+  if (lintBlock && (!lintBlock.includes('options:') || !lintBlock.includes('typeAware:'))) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-options-missing',
+      ruleDescription: 'Vite+: Falta bloque options en lint',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'lint.options',
+      message: `Falta configurar la sección 'options' con 'typeAware' y 'typeCheck' en 'lint' de vite.config.ts.`
+    });
+  }
+
+  return findings;
+}
+
+function validateSynchronizedConfig(
+  content: string,
+  fileName: string,
+  auditConfig: AuditConfig,
+  projectRoot?: string
+): AuditFinding[] {
+  const findings: AuditFinding[] = [];
+  const lintBlock = extractObjectPropertyBlock(content, 'lint');
+
+  // ignorePatterns synchronization
+  const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'lint', projectRoot);
+  const missingLint = lintBlock
+    ? lintIgnores.filter((g) => !lintBlock.includes(`'${g}'`) && !lintBlock.includes(`"${g}"`))
+    : lintIgnores;
+
+  const fmtBlock = extractObjectPropertyBlock(content, 'fmt');
+  const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'fmt', projectRoot);
+  const missingFmt = fmtBlock
+    ? fmtIgnores.filter((g) => !fmtBlock.includes(`'${g}'`) && !fmtBlock.includes(`"${g}"`))
+    : fmtIgnores;
+
+  if (missingLint.length > 0 || missingFmt.length > 0) {
+    const missingParts: string[] = [];
+    if (missingLint.length > 0) missingParts.push(`lint: [${missingLint.join(', ')}]`);
+    if (missingFmt.length > 0) missingParts.push(`fmt: [${missingFmt.join(', ')}]`);
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-ignore-patterns-missing',
+      ruleDescription: 'Vite+: Faltan exclusiones de audit.config.ts',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'ignorePatterns',
+      message: `Faltan patrones de exclusión requeridos por audit.config.ts en vite.config.ts: ${missingParts.join('; ')}. Ejecuta 'auditor fix' para sincronizarlos automáticamente.`
+    });
+  }
+
+  // testRoots synchronization
+  const testRoots = auditConfig.paths?.testRoots;
+  if (testRoots && testRoots.length > 0) {
+    const testBlock = extractObjectPropertyBlock(content, 'test');
+    if (testBlock) {
+      const missingRoots = testRoots.filter(
+        (r) => !testBlock.includes(`'${r}/`) && !testBlock.includes(`"${r}/`)
+      );
+      if (missingRoots.length > 0) {
+        findings.push({
+          suiteId: 'validate_vite_plus_config',
+          suiteName: 'Vite+ Unified Configuration Validator',
+          ruleId: 'vite-plus-config-test-roots-desynced',
+          ruleDescription: 'Vite+: Raíces de test desincronizadas',
+          severity: 'error',
+          file: fileName,
+          line: 1,
+          col: 1,
+          context: 'test.include',
+          message: `Las raíces de pruebas declaradas en audit.config.ts (${missingRoots.join(', ')}) no están sincronizadas en 'test.include' de vite.config.ts. Ejecuta 'auditor fix' para sincronizarlas automáticamente.`
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+/**
+ * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections.
+ */
+export function auditVitePlusConfigContent(
+  content: string,
+  fileName: string,
+  auditConfig?: AuditConfig,
+  projectRoot?: string
+): AuditFinding[] {
+  const findings: AuditFinding[] = [
+    ...validateAntiCastrationRules(content, fileName),
+    ...validateRequiredSections(content, fileName),
+    ...validateLintOptionsAndPlugins(content, fileName)
+  ];
+
+  if (auditConfig) {
+    findings.push(...validateSynchronizedConfig(content, fileName, auditConfig, projectRoot));
   }
 
   return findings;
@@ -235,9 +368,9 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
           changedOnly: false,
           critical: false
         },
-        ['vite-plus-config-missing', 'vite-plus-legacy-config-forbidden']
+        [...VITE_PLUS_CONFIG_RULES]
       ),
-      fixableRuleIds: ['vite-plus-config-missing', 'vite-plus-legacy-config-forbidden'],
+      fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
       configFiles: [configRequirement],
       fix: options.fix,
       id: 'validate_vite_plus_config',
@@ -255,12 +388,16 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
         'vite-plus-config-any-allowed': 'Regla no-explicit-any no es error',
         'vite-plus-config-ts-ignore-allowed': 'Regla ban-ts-comment no es error',
         'vite-plus-config-type-assertions-allowed': 'Regla consistent-type-assertions',
-        'vite-plus-config-double-cast-allowed': 'Falta prohibición de doble casteo a unknown',
+        'vite-plus-config-double-cast-allowed': 'Falta prohibición de doble casteo',
         'vite-plus-config-legacy-date-allowed': 'Falta prohibición de Date legado',
         'vite-plus-config-fmt-missing': 'Falta bloque de formateo fmt',
         'vite-plus-config-staged-missing': 'Falta bloque de git hooks staged',
         'vite-plus-config-test-missing': 'Falta bloque de pruebas test',
-        'vite-plus-legacy-config-forbidden': 'Configuraciones legacy prohibidas'
+        'vite-plus-legacy-config-forbidden': 'Configuraciones legacy prohibidas',
+        'vite-plus-config-ignore-patterns-missing': 'Faltan exclusiones de audit.config.ts',
+        'vite-plus-config-plugin-missing': 'Falta jsPlugin de dominio en lint',
+        'vite-plus-config-options-missing': 'Falta bloque options en lint',
+        'vite-plus-config-test-roots-desynced': 'Raíces de test desincronizadas'
       },
       ruleRemediations: {
         'vite-plus-config-missing':
@@ -282,7 +419,15 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
         'vite-plus-config-test-missing':
           'Guía de diagnóstico y remediación para vite-plus-config-test-missing. Configura la sección test en vite.config.ts o ejecuta `auditor fix`.',
         'vite-plus-legacy-config-forbidden':
-          'Guía de diagnóstico y remediación para vite-plus-legacy-config-forbidden. Elimina archivos de configuración obsoletos (eslint, vitest, tsdown) migrándolos a vite.config.ts.'
+          'Guía de diagnóstico y remediación para vite-plus-legacy-config-forbidden. Elimina archivos de configuración obsoletos (eslint, vitest, tsdown) migrándolos a vite.config.ts.',
+        'vite-plus-config-ignore-patterns-missing':
+          'Guía de diagnóstico y remediación para vite-plus-config-ignore-patterns-missing. Sincroniza paths.ignoreGlobs, testRoots y exclusiones desde audit.config.ts a vite.config.ts mediante `auditor fix`.',
+        'vite-plus-config-plugin-missing':
+          'Guía de diagnóstico y remediación para vite-plus-config-plugin-missing. Registra jsPlugins: ["@francogp/auditor/domain-type-plugin"] en vite.config.ts mediante `auditor fix`.',
+        'vite-plus-config-options-missing':
+          'Guía de diagnóstico y remediación para vite-plus-config-options-missing. Configura la sección options con typeAware en lint de vite.config.ts mediante `auditor fix`.',
+        'vite-plus-config-test-roots-desynced':
+          'Guía de diagnóstico y remediación para vite-plus-config-test-roots-desynced. Asegura que todas las raíces de prueba de paths.testRoots estén en test.include de vite.config.ts mediante `auditor fix`.'
       },
       coverage: {
         include: ['vite.config.ts']
@@ -328,54 +473,6 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       syncViteConfigWithAuditConfig(this.projectRoot);
     }
 
-    if (!ensured) {
-      this.markRuleNotApplicable(
-        'vite-plus-config-any-allowed',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-ts-ignore-allowed',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-type-assertions-allowed',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-double-cast-allowed',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-legacy-date-allowed',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-fmt-missing',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-staged-missing',
-        'Archivo de configuración no encontrado'
-      );
-      this.markRuleNotApplicable(
-        'vite-plus-config-test-missing',
-        'Archivo de configuración no encontrado'
-      );
-      return;
-    }
-
-    const resolvedPath = ensured.resolvedPath;
-    const relFileName = toPosixRelative(this.projectRoot, resolvedPath);
-    this.recordScanned(relFileName);
-
-    const content = fs.readFileSync(resolvedPath, 'utf-8');
-    const findings = auditVitePlusConfigContent(content, relFileName);
-
-    const findingMap = new Map<VitePlusConfigRuleId, AuditFinding>();
-    for (const f of findings) {
-      findingMap.set(f.ruleId as VitePlusConfigRuleId, f);
-    }
-
     const rulesToCheck: readonly VitePlusConfigRuleId[] = [
       'vite-plus-config-any-allowed',
       'vite-plus-config-ts-ignore-allowed',
@@ -384,8 +481,32 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       'vite-plus-config-legacy-date-allowed',
       'vite-plus-config-fmt-missing',
       'vite-plus-config-staged-missing',
-      'vite-plus-config-test-missing'
+      'vite-plus-config-test-missing',
+      'vite-plus-config-ignore-patterns-missing',
+      'vite-plus-config-plugin-missing',
+      'vite-plus-config-options-missing',
+      'vite-plus-config-test-roots-desynced'
     ];
+
+    if (!ensured) {
+      for (const ruleId of rulesToCheck) {
+        this.markRuleNotApplicable(ruleId, 'Archivo de configuración no encontrado');
+      }
+      return;
+    }
+
+    const resolvedPath = ensured.resolvedPath;
+    const relFileName = toPosixRelative(this.projectRoot, resolvedPath);
+    this.recordScanned(relFileName);
+
+    const content = fs.readFileSync(resolvedPath, 'utf-8');
+    const config = getAuditConfig(this.projectRoot);
+    const findings = auditVitePlusConfigContent(content, relFileName, config, this.projectRoot);
+
+    const findingMap = new Map<VitePlusConfigRuleId, AuditFinding>();
+    for (const f of findings) {
+      findingMap.set(f.ruleId as VitePlusConfigRuleId, f);
+    }
 
     for (const ruleId of rulesToCheck) {
       this.runSubAuditorSync(ruleId, () => {
@@ -397,7 +518,8 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
             file: relFileName,
             line: f.line ?? 1,
             context: f.context ?? ruleId,
-            message: f.message
+            message: f.message,
+            fixable: true
           });
         }
       });

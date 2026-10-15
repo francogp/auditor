@@ -6,7 +6,7 @@
  * Assert that homebrew regex sanitization and naive traversal checks are detected and flagged.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   scanFileForNativePathViolations,
   NATIVE_PATH_RULES

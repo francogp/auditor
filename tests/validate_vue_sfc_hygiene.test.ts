@@ -10,7 +10,7 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   VueSfcHygieneAuditor,
   VUE_SFC_HYGIENE_RULES

@@ -4,7 +4,7 @@
  * Exhaustive unit tests for Z-Index Design System Parity and isolated constant rules.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   CANONICAL_DEFAULT_Z_LAYERS,
   Z_INDEX_CONSISTENCY_DESCRIPTOR,

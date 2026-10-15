@@ -4,7 +4,7 @@
  * Dedicated unit tests for audit_project.ts report helpers and ProjectArchitectureAuditor.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   buildProjectTopFiles,
   getProjectArchitectureRuleDescriptions,

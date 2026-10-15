@@ -4,7 +4,7 @@
  * Unit tests for SharedAstContext.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import ts from 'typescript';
 import { SharedAstContext } from '../src/core/astContext.ts';
 

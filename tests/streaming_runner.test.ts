@@ -4,7 +4,7 @@
  * Unit tests for streamingRunner process coordinator and stream filters (Node.js 26+).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import {
   TaskStreamCoordinator,
   isNodeInternalWarning,

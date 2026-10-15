@@ -10,7 +10,8 @@ import {
 import {
   buildCanonicalVitePlusConfig,
   resolveAuditConfigIgnoreGlobs,
-  syncViteConfigWithAuditConfig
+  syncViteConfigWithAuditConfig,
+  cleanLegacyConfigFiles
 } from '../src/core/vitePlusConfigSync.ts';
 import { getAuditConfig, defineAuditConfig, setAuditConfig } from '../src/core/auditConfig.ts';
 
@@ -249,6 +250,192 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       expect(synced).toContain("'supabase/**'");
       expect(synced).toContain("'tests/**'");
       expect(synced).toContain("'build-cache/**'");
+    });
+
+    it('C-CFG-13: flags vite-plus-config-plugin-missing when domain-type jsPlugins is absent', () => {
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: {}
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-plugin-missing')).toBe(true);
+    });
+
+    it('C-CFG-14: flags vite-plus-config-options-missing when options typeAware is absent in lint', () => {
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: {}
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-options-missing')).toBe(true);
+    });
+
+    it('C-CFG-15: flags vite-plus-config-ignore-patterns-missing when audit ignore globs are not in vite config', () => {
+      const config = defineAuditConfig({
+        name: 'Ignore Test',
+        paths: { ignoreGlobs: ['supabase/**', 'custom-folder/**'] }
+      });
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {}, ignorePatterns: ['other/**'] },
+          fmt: { ignorePatterns: ['other/**'] },
+          staged: {},
+          test: {}
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts', config, tempDir);
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-ignore-patterns-missing')).toBe(
+        true
+      );
+    });
+
+    it('C-CFG-16: flags vite-plus-config-test-roots-desynced when testRoots are not in test.include', () => {
+      const config = defineAuditConfig({
+        name: 'TestRoots Test',
+        paths: { testRoots: ['custom_tests', 'spec_tests'] }
+      });
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**'] }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts', config);
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-test-roots-desynced')).toBe(true);
+    });
+
+    it('C-CFG-17: auto-fix repairs all missing SSoT configs and achieves 0 errors', async () => {
+      const mockAuditConfig = defineAuditConfig({
+        name: 'Full Sync Test',
+        domain: { enabled: true },
+        paths: {
+          ignoreGlobs: ['supabase/**', 'generated/**'],
+          testRoots: ['custom_tests']
+        }
+      });
+      setAuditConfig(mockAuditConfig, tempDir);
+
+      const bareConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {
+              '@typescript-eslint/no-explicit-any': 'error',
+              '@typescript-eslint/ban-ts-comment': 'error',
+              '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }],
+              '@francogp/domain-type/no-double-cast-unknown': 'error',
+              '@francogp/domain-type/no-legacy-date': 'error'
+            }
+          },
+          fmt: { singleQuote: true },
+          staged: { '**/*': 'vp check' },
+          test: { environment: 'node' }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), bareConfig);
+
+      // Run with fix: true
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+
+      const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(synced).toContain('@francogp/auditor/domain-type-plugin');
+      expect(synced).toContain('typeAware: true');
+      expect(synced).toContain("'supabase/**'");
+      expect(synced).toContain("'generated/**'");
+      expect(synced).toContain("'custom_tests/**/*.{test,spec}.ts'");
+    });
+
+    it('C-CFG-18: seamlessly injects missing blocks into function-style defineConfig(({ mode }) => { return { ... }; })', async () => {
+      const functionStyleConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig(({ mode }) => {
+          return {
+            plugins: [],
+            build: { outDir: 'dist' }
+          };
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), functionStyleConfig);
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+
+      const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(synced).not.toContain('};,');
+      expect(synced).toContain('lint: {');
+      expect(synced).toContain('fmt: {');
+      expect(synced).toContain('test: {');
+      expect(synced).toContain('staged: {');
+      expect(synced).toContain('return {');
+    });
+
+    it('C-CFG-19: cleanLegacyConfigFiles honors Migration-First gate and never deletes configs prematurely', () => {
+      const vitestPath = path.join(tempDir, 'vitest.config.ts');
+      const eslintPath = path.join(tempDir, 'eslint.config.js');
+      const tsdownPath = path.join(tempDir, 'tsdown.config.ts');
+      fs.writeFileSync(vitestPath, 'export default {};');
+      fs.writeFileSync(eslintPath, 'export default [];');
+      fs.writeFileSync(tsdownPath, 'export default {};');
+
+      // 1. When vite.config.ts is absent: NOTHING should be deleted
+      let purged = cleanLegacyConfigFiles(tempDir);
+      expect(purged).toEqual([]);
+      expect(fs.existsSync(vitestPath)).toBe(true);
+      expect(fs.existsSync(eslintPath)).toBe(true);
+      expect(fs.existsSync(tsdownPath)).toBe(true);
+
+      // 2. When vite.config.ts has only 'lint:', vitest and tsdown must NOT be deleted
+      const partialVite = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), partialVite);
+      purged = cleanLegacyConfigFiles(tempDir);
+      expect(purged).toContain('eslint.config.js');
+      expect(fs.existsSync(eslintPath)).toBe(false);
+      expect(fs.existsSync(vitestPath)).toBe(true);
+      expect(fs.existsSync(tsdownPath)).toBe(true);
+
+      // 3. When vite.config.ts has 'test:' and 'pack:', they can now be purged safely
+      const fullVite = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          test: { environment: 'node' },
+          pack: { entry: ['src/index.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), fullVite);
+      purged = cleanLegacyConfigFiles(tempDir);
+      expect(purged).toContain('vitest.config.ts');
+      expect(purged).toContain('tsdown.config.ts');
+      expect(fs.existsSync(vitestPath)).toBe(false);
+      expect(fs.existsSync(tsdownPath)).toBe(false);
     });
   });
 });

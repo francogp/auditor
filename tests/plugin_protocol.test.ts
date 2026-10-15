@@ -4,7 +4,7 @@
  * Unit tests for Auditor Extension & Plugin Protocol.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { defineAuditConfig, DEFAULT_AUDIT_CONFIG } from '../src/core/auditConfig.ts';
 import { defineAuditorExtension } from '../src/plugin/defineAuditorExtension.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';

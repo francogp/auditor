@@ -7,7 +7,7 @@
  * - Success assertion on fully executed suites
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   assertAuditorExecuted,
   type ConsolidatedAuditReport,

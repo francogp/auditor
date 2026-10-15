@@ -11,7 +11,7 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   TestHygieneAuditor,
   TEST_HYGIENE_RULES
@@ -74,7 +74,7 @@ describe('TestHygieneAuditor', () => {
     it('detects tautological database mocks in integration tests (no-tautological-integration-mocks)', () => {
       const auditor = new TestableTestHygieneAuditor();
       const code = `
-        import { vi } from 'vitest';
+        import { vi } from 'vite-plus/test';
         vi.mock('@/logic/db/supabase', () => ({}));
       `;
       auditor.testScanFile('tests/integration/billing.test.ts', code);
@@ -156,7 +156,7 @@ describe('TestHygieneAuditor', () => {
     it('runs on compliant test suites and reports zero errors', async () => {
       const auditor = new TestableTestHygieneAuditor();
       const intCode = `
-        import { expect, test } from 'vitest';
+        import { expect, test } from 'vite-plus/test';
         test('ok', () => { expect(1).toBe(1); });
       `;
       auditor.testScanFile('tests/integration/clean_integration.test.ts', intCode);

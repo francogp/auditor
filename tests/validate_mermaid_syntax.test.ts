@@ -3,7 +3,7 @@
  * @description Dedicated unit test suite for ValidateMermaidSyntaxAuditor and native Mermaid validator.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
 import {
   ValidateMermaidSyntaxAuditor,

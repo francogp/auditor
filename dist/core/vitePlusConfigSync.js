@@ -2,6 +2,7 @@ import { getAuditConfig } from "./auditConfigLoader.js";
 import "./auditConfig.js";
 import path from "node:path";
 import fs from "node:fs";
+import childProcess from "node:child_process";
 //#region src/core/vitePlusConfigSync.ts
 /**
 * packages/auditor/src/core/vitePlusConfigSync.ts
@@ -71,9 +72,11 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		"coverage/**",
 		"**/*.d.ts"
 	];
+	if (target === "fmt") baseIgnores.push("package-lock.json");
 	const projectIgnores = config.paths?.ignoreGlobs ?? [];
 	const dirIgnores = (config.paths?.ignoredDirs ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
 	const patternIgnores = config.paths?.ignoredPatterns ?? [];
+	const exemptFiles = config.paths?.exemptFiles ?? [];
 	const testIgnores = [];
 	if (target === "lint" && config.paths?.includeTestsInCodeAudit === false) {
 		const testRoots = config.paths.testRoots ?? ["tests"];
@@ -96,6 +99,7 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		...projectIgnores,
 		...dirIgnores,
 		...patternIgnores,
+		...exemptFiles,
 		...testIgnores,
 		...legacyIgnores,
 		...specificTargetIgnores
@@ -139,6 +143,17 @@ function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
 	const lintIgnoreStr = JSON.stringify(mergedLintIgnores, null, 6).replace(/\n/g, "\n    ");
 	const mergedFmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
 	const fmtIgnoreStr = JSON.stringify(mergedFmtIgnores, null, 6).replace(/\n/g, "\n    ");
+	let extraRulesStr = "";
+	if (auditConfig.vitePlusConfig?.extraLintRules) {
+		const entries = Object.entries(auditConfig.vitePlusConfig.extraLintRules).map(([k, v]) => `      '${k}': '${v}'`);
+		if (entries.length > 0) extraRulesStr = ",\n" + entries.join(",\n");
+	}
+	const testRoots = auditConfig.paths?.testRoots ?? ["tests"];
+	const testIncludeStr = JSON.stringify(testRoots.map((r) => `${r}/**/*.{test,spec}.ts`), null, 6).replace(/\n/g, "\n    ");
+	const srcRoots = auditConfig.paths?.srcRoots ?? ["src"];
+	const srcIncludeStr = JSON.stringify(srcRoots.map((r) => `${r}/**/*.ts`), null, 8).replace(/\n/g, "\n      ");
+	const cliRoots = auditConfig.paths?.cliRoots ?? ["src/cli"];
+	const excludeStr = JSON.stringify([...cliRoots.map((r) => `${r}/**`), ...testRoots.map((r) => `${r}/**`)], null, 8).replace(/\n/g, "\n      ");
 	return `import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
@@ -159,7 +174,7 @@ ${packSection}  lint: {
         }
       ],
       '@francogp/domain-type/no-double-cast-unknown': 'error',
-      '@francogp/domain-type/no-legacy-date': 'error'
+      '@francogp/domain-type/no-legacy-date': 'error'${extraRulesStr}
     },
     ignorePatterns: ${lintIgnoreStr}${overridesSection}
   },
@@ -173,12 +188,12 @@ ${packSection}  lint: {
   },
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ${testIncludeStr},
     coverage: {
       provider: 'v8',
       reportsDirectory: 'scratch/coverage',
-      include: ['src/**/*.ts'],
-      exclude: ['src/cli/**', 'tests/**'],
+      include: ${srcIncludeStr},
+      exclude: ${excludeStr},
       thresholds: {
         lines: ${coverageThreshold},
         functions: ${coverageThreshold},
@@ -233,31 +248,61 @@ function findClosingBraceIndex(content, startBraceIndex) {
 	return -1;
 }
 function extractObjectPropertyBlock(fileContent, propName) {
-	const match = new RegExp(`(^|\\s)${propName}\\s*:\\s*\\{`, "m").exec(fileContent);
+	const regex = new RegExp(`(^|\\s)${propName}\\s*:\\s*\\{`, "m");
+	const exportMatch = /export\s+default\s+defineConfig/m.exec(fileContent);
+	const searchStart = exportMatch ? exportMatch.index : 0;
+	const scopedContent = fileContent.slice(searchStart);
+	let match = regex.exec(scopedContent);
+	let effectiveOffset = searchStart;
+	if (!match) {
+		match = regex.exec(fileContent);
+		effectiveOffset = 0;
+	}
 	if (!match) return null;
 	const prefixLen = match[1]?.length ?? 0;
-	const propStartIndex = match.index + prefixLen;
+	const propStartIndex = effectiveOffset + match.index + prefixLen;
 	const braceIndex = fileContent.indexOf("{", propStartIndex);
 	if (braceIndex === -1) return null;
 	const closingIndex = findClosingBraceIndex(fileContent, braceIndex);
 	return closingIndex !== -1 ? fileContent.slice(propStartIndex, closingIndex + 1) : null;
 }
+function injectBeforeClosingBrace(content, startBraceIndex, block) {
+	const closingIndex = findClosingBraceIndex(content, startBraceIndex);
+	if (closingIndex === -1) return null;
+	const before = content.slice(0, closingIndex).trimEnd();
+	return `${before}${before.endsWith(",") ? "\n" : ",\n"}  ${block}\n${content.slice(closingIndex)}`;
+}
+function findTargetObjectStart(content) {
+	const exportMatch = /export\s+default\s+defineConfig/m.exec(content);
+	const searchStart = exportMatch ? exportMatch.index : 0;
+	const configContent = content.slice(searchStart);
+	const directMatch = /defineConfig\s*\(\s*\{/m.exec(configContent);
+	if (directMatch) return searchStart + configContent.indexOf("{", directMatch.index);
+	const arrowMatch = /=>\s*\(\s*\{/m.exec(configContent);
+	if (arrowMatch) return searchStart + configContent.indexOf("{", arrowMatch.index);
+	const returnMatch = /return\s*\{/m.exec(configContent);
+	if (returnMatch) return searchStart + configContent.indexOf("{", returnMatch.index);
+	return -1;
+}
 function injectBlockBeforeConfigEnd(content, block) {
-	const match = /defineConfig\s*\(\s*\{/m.exec(content);
-	if (match) {
-		const braceIndex = content.indexOf("{", match.index);
-		if (braceIndex !== -1) {
-			const closingIndex = findClosingBraceIndex(content, braceIndex);
-			if (closingIndex !== -1) {
-				const before = content.slice(0, closingIndex).trimEnd();
-				return `${before}${before.endsWith(",") ? "\n" : ",\n"}  ${block}\n${content.slice(closingIndex)}`;
-			}
-		}
+	const startBraceIndex = findTargetObjectStart(content);
+	if (startBraceIndex !== -1) {
+		const injected = injectBeforeClosingBrace(content, startBraceIndex, block);
+		if (injected) return injected;
 	}
 	const lastClose = Math.max(content.lastIndexOf("});"), content.lastIndexOf("})"));
 	if (lastClose !== -1) {
-		const before = content.slice(0, lastClose).trimEnd();
-		return `${before}${before.endsWith(",") ? "\n" : ",\n"}  ${block}\n${content.slice(lastClose)}`;
+		let before = content.slice(0, lastClose).trimEnd();
+		let postBlock = "";
+		if (before.endsWith("};")) {
+			before = before.slice(0, -2).trimEnd();
+			postBlock = "\n};";
+		} else if (before.endsWith("}")) {
+			before = before.slice(0, -1).trimEnd();
+			postBlock = "\n}";
+		}
+		const separator = before.endsWith(",") ? "\n" : ",\n";
+		return `${before}${separator}  ${block}${postBlock}\n${content.slice(lastClose)}`;
 	}
 	return content;
 }
@@ -273,6 +318,18 @@ function findLegacyTestBlock(projectRoot) {
 			if (extracted) return extracted;
 		} catch {}
 	}
+	try {
+		const extracted = extractObjectPropertyBlock(childProcess.execSync("git show HEAD:vitest.config.ts", {
+			cwd: projectRoot,
+			stdio: [
+				"pipe",
+				"pipe",
+				"ignore"
+			],
+			encoding: "utf-8"
+		}), "test");
+		if (extracted) return extracted;
+	} catch {}
 	return null;
 }
 function scaffoldInitialViteConfig(viteConfigPath, config, legacyTestBlock, projectRoot) {
@@ -289,19 +346,18 @@ function scaffoldInitialViteConfig(viteConfigPath, config, legacyTestBlock, proj
 	};
 }
 function ensureTestBlock(content, legacyTestBlock, config) {
-	if (/(^|\s)test\s*:\s*\{/m.test(content)) return {
-		content,
-		modified: false
-	};
-	if (legacyTestBlock) return {
-		content: injectBlockBeforeConfigEnd(content, legacyTestBlock),
-		modified: true
-	};
-	const coverageThreshold = config.testCoverage?.threshold ?? 80;
-	return {
-		content: injectBlockBeforeConfigEnd(content, `test: {
+	if (!/(^|\s)test\s*:\s*\{/m.test(content)) {
+		if (legacyTestBlock) return {
+			content: injectBlockBeforeConfigEnd(content, legacyTestBlock),
+			modified: true
+		};
+		const testRoots = config.paths?.testRoots ?? ["tests"];
+		const testIncludeStr = JSON.stringify(testRoots.map((r) => `${r}/**/*.{test,spec}.ts`), null, 4).replace(/\n/g, "\n    ");
+		const coverageThreshold = config.testCoverage?.threshold ?? 80;
+		return {
+			content: injectBlockBeforeConfigEnd(content, `test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ${testIncludeStr},
     coverage: {
       provider: 'v8',
       reportsDirectory: 'scratch/coverage',
@@ -315,7 +371,41 @@ function ensureTestBlock(content, legacyTestBlock, config) {
       }
     }
   }`),
+			modified: true
+		};
+	}
+	const testBlock = extractObjectPropertyBlock(content, "test");
+	if (!testBlock) return {
+		content,
+		modified: false
+	};
+	const testRoots = config.paths?.testRoots ?? ["tests"];
+	const missingRoots = [];
+	for (const root of testRoots) {
+		const pattern = `${root}/**/*.{test,spec}.ts`;
+		const simple = `${root}/**/*.test.ts`;
+		if (!testBlock.includes(`'${pattern}'`) && !testBlock.includes(`"${pattern}"`) && !testBlock.includes(`'${simple}'`) && !testBlock.includes(`"${simple}"`) && !testBlock.includes(`'${root}/**`) && !testBlock.includes(`"${root}/**`)) missingRoots.push(pattern);
+	}
+	if (missingRoots.length === 0) return {
+		content,
+		modified: false
+	};
+	let updatedBlock = testBlock;
+	if (testBlock.includes("include: [")) {
+		const formatted = missingRoots.map((r) => `      '${r}'`).join(",\n");
+		updatedBlock = testBlock.replace(/include:\s*\[/, `include: [\n${formatted},`);
+	} else {
+		const formatted = missingRoots.map((r) => `'${r}'`).join(", ");
+		const braceIndex = testBlock.indexOf("{");
+		if (braceIndex !== -1) updatedBlock = testBlock.slice(0, braceIndex + 1) + `\n    include: [${formatted}],` + testBlock.slice(braceIndex + 1);
+	}
+	if (updatedBlock !== testBlock) return {
+		content: content.replace(testBlock, updatedBlock),
 		modified: true
+	};
+	return {
+		content,
+		modified: false
 	};
 }
 const STRICT_RULE_CHECKS = [
@@ -325,11 +415,11 @@ const STRICT_RULE_CHECKS = [
 	"@francogp/domain-type/no-double-cast-unknown",
 	"@francogp/domain-type/no-legacy-date"
 ];
-function applyStrictRule(content, rule) {
+function applyStrictRule(content, rule, canonicalOverride) {
 	const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	const existingRuleRegex = new RegExp(`['"]${escaped}['"]\\s*:\\s*(['"][^'"]+['"]|\\[[^\\]]+\\])`, "m");
 	const match = existingRuleRegex.exec(content);
-	const canonicalValue = rule === "@typescript-eslint/consistent-type-assertions" ? "['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]" : "'error'";
+	const canonicalValue = canonicalOverride ?? (rule === "@typescript-eslint/consistent-type-assertions" ? "['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]" : "'error'");
 	if (!match) {
 		if (content.includes("rules: {")) return {
 			content: content.replace(/rules:\s*\{/, `rules: {\n      '${rule}': ${canonicalValue},`),
@@ -349,6 +439,65 @@ function applyStrictRule(content, rule) {
 		modified: false
 	};
 }
+function ensureLintOptions(content, config) {
+	const typeAware = config.vitePlusConfig?.lint?.typeAware ?? true;
+	const typeCheck = config.vitePlusConfig?.lint?.typeCheck ?? true;
+	const lintBlock = extractObjectPropertyBlock(content, "lint");
+	if (lintBlock && !lintBlock.includes("options:")) {
+		const braceIndex = lintBlock.indexOf("{");
+		if (braceIndex !== -1) {
+			const updatedLintBlock = lintBlock.slice(0, braceIndex + 1) + `\n    options: {\n      typeAware: ${typeAware},\n      typeCheck: ${typeCheck}\n    },` + lintBlock.slice(braceIndex + 1);
+			return {
+				content: content.replace(lintBlock, updatedLintBlock),
+				modified: true
+			};
+		}
+	}
+	return {
+		content,
+		modified: false
+	};
+}
+function ensureLintPlugins(content) {
+	if (content.includes("@francogp/auditor/domain-type-plugin")) return {
+		content,
+		modified: false
+	};
+	if (content.includes("jsPlugins: [")) return {
+		content: content.replace(/jsPlugins:\s*\[/, "jsPlugins: ['@francogp/auditor/domain-type-plugin', "),
+		modified: true
+	};
+	if (content.includes("lint: {")) return {
+		content: content.replace(/lint:\s*\{/, "lint: {\n    jsPlugins: ['@francogp/auditor/domain-type-plugin'],"),
+		modified: true
+	};
+	return {
+		content,
+		modified: false
+	};
+}
+function ensureLintRules(content, config) {
+	let updated = content;
+	let modified = false;
+	for (const rule of STRICT_RULE_CHECKS) {
+		const res = applyStrictRule(updated, rule);
+		if (res.modified) {
+			updated = res.content;
+			modified = true;
+		}
+	}
+	if (config.vitePlusConfig?.extraLintRules) for (const [ruleName, ruleLevel] of Object.entries(config.vitePlusConfig.extraLintRules)) {
+		const res = applyStrictRule(updated, ruleName, `'${ruleLevel}'`);
+		if (res.modified) {
+			updated = res.content;
+			modified = true;
+		}
+	}
+	return {
+		content: updated,
+		modified
+	};
+}
 function ensureLintBlock(content, auditConfig, projectRoot) {
 	const config = auditConfig ?? getAuditConfig(projectRoot);
 	if (!/(^|\s)lint\s*:\s*\{/m.test(content)) {
@@ -360,21 +509,20 @@ function ensureLintBlock(content, auditConfig, projectRoot) {
 	}
 	let updated = content;
 	let modified = false;
-	if (!updated.includes("@francogp/auditor/domain-type-plugin")) {
-		if (updated.includes("jsPlugins: [")) {
-			updated = updated.replace(/jsPlugins:\s*\[/, "jsPlugins: ['@francogp/auditor/domain-type-plugin', ");
-			modified = true;
-		} else if (updated.includes("lint: {")) {
-			updated = updated.replace(/lint:\s*\{/, "lint: {\n    jsPlugins: ['@francogp/auditor/domain-type-plugin'],");
-			modified = true;
-		}
+	const optStep = ensureLintOptions(updated, config);
+	if (optStep.modified) {
+		updated = optStep.content;
+		modified = true;
 	}
-	for (const rule of STRICT_RULE_CHECKS) {
-		const res = applyStrictRule(updated, rule);
-		if (res.modified) {
-			updated = res.content;
-			modified = true;
-		}
+	const pluginStep = ensureLintPlugins(updated);
+	if (pluginStep.modified) {
+		updated = pluginStep.content;
+		modified = true;
+	}
+	const rulesStep = ensureLintRules(updated, config);
+	if (rulesStep.modified) {
+		updated = rulesStep.content;
+		modified = true;
 	}
 	const ignoreStep = ensureIgnorePatterns(updated, "lint", config, projectRoot);
 	if (ignoreStep.modified) {
@@ -471,8 +619,22 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	};
 }
 function cleanLegacyConfigFiles(projectRoot) {
+	const viteConfigPath = path.resolve(projectRoot, "vite.config.ts");
+	if (!fs.existsSync(viteConfigPath)) return [];
+	let viteContent = "";
+	try {
+		viteContent = fs.readFileSync(viteConfigPath, "utf-8");
+	} catch {
+		return [];
+	}
+	const hasTest = /(^|\s)test\s*:\s*\{/m.test(viteContent);
+	const hasLint = /(^|\s)lint\s*:\s*\{/m.test(viteContent);
+	const hasPack = /(^|\s)pack\s*:\s*\{/m.test(viteContent);
 	const removed = [];
 	for (const legacy of LEGACY_CONFIG_FILES) {
+		if (legacy.startsWith("vitest") && !hasTest) continue;
+		if ((legacy.startsWith("eslint") || legacy.startsWith(".eslintrc")) && !hasLint) continue;
+		if (legacy.startsWith("tsdown") && !hasPack) continue;
 		const fullPath = path.resolve(projectRoot, legacy);
 		if (fs.existsSync(fullPath)) try {
 			fs.rmSync(fullPath, { force: true });

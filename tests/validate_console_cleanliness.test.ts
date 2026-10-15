@@ -8,7 +8,7 @@
  * - Verifies clean execution
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   ConsoleCleanlinessAuditor,
   CONSOLE_CLEANLINESS_RULES

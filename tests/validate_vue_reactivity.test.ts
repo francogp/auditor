@@ -9,7 +9,7 @@
  * - Escape hatches: // reactivity-ok:, // sfc-ok:
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   ValidateVueReactivityAuditor,
   VUE_REACTIVITY_RULES,

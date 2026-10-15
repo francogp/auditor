@@ -4,7 +4,7 @@
  * Unit tests for check_environment CLI script (SSoT Environment Engine Validator).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';

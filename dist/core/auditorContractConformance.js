@@ -403,13 +403,7 @@ function runAuditorContractConformanceTests(options = {}) {
 	return (async () => {
 		try {
 			const toConformanceHooks = (mod) => mod;
-			let vt;
-			try {
-				vt = toConformanceHooks(await import("vite-plus/test"));
-			} catch {
-				vt = toConformanceHooks(await import("../node_modules/vitest/dist/index.js"));
-			}
-			registerConformanceSuite(vt, projectRoot);
+			registerConformanceSuite(toConformanceHooks(await import("vite-plus/test")), projectRoot);
 		} catch {
 			throw new Error("runAuditorContractConformanceTests() requiere un entorno de prueba Vite+ / Vitest. Asegúrate de ejecutar tus tests con Vite+ ('vp test') o pasa las funciones de prueba explícitamente: runAuditorContractConformanceTests({ vitest: { describe, it, expect, beforeAll, afterAll } }).");
 		}

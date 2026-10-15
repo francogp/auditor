@@ -4,7 +4,7 @@
  * Unit tests for duration and number formatting utility using native Intl.NumberFormat.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   formatNumber,
   formatDurationMs,

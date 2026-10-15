@@ -823,12 +823,7 @@ export function runAuditorContractConformanceTests(
     try {
       const toConformanceHooks = (mod: object): ConformanceVitestHooks =>
         mod as ConformanceVitestHooks;
-      let vt: ConformanceVitestHooks;
-      try {
-        vt = toConformanceHooks(await import('vite-plus/test'));
-      } catch {
-        vt = toConformanceHooks(await import('vitest'));
-      }
+      const vt = toConformanceHooks(await import('vite-plus/test'));
       registerConformanceSuite(vt, projectRoot);
     } catch {
       throw new Error(

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { fileWalkerDetector } from '../src/analyzers/homebrew/detectors/fileWalkerDetector.ts';
 import { type HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
 

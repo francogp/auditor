@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vite-plus/test';
 import { colorizeStreamSubLine, TaskStreamCoordinator } from '../src/core/streamingRunner.ts';
 import type { SubAuditorReport } from '../src/core/auditContract.ts';
 

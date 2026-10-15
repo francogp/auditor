@@ -8,7 +8,7 @@
  * - Verifies rule extraction helper (extractSuiteDeclaredRules)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -184,7 +184,7 @@ describe('AuditorTestsAuditor', () => {
       await fs.writeFile(
         path.join(testDir, 'validate_dummy.test.ts'),
         `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('DummyAuditor', () => {
           it('tests covered-rule', () => {
             const rule = 'covered-rule';
@@ -245,7 +245,7 @@ describe('AuditorTestsAuditor', () => {
       await fs.writeFile(
         path.join(testDir, 'validate_dummy.test.ts'),
         `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('DummyAuditor', () => {
           it('checks my-rule', () => {
             expect('my-rule').toBe('my-rule');
@@ -351,7 +351,7 @@ describe('AuditorTestsAuditor', () => {
       await fs.writeFile(
         path.join(testDir, 'validate_dummy.test.ts'),
         `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('DummyAuditor', () => {
           it('checks my-rule and verifies clean execution', () => {
             const rule = 'my-rule';
@@ -422,7 +422,7 @@ describe('AuditorTestsAuditor', () => {
       await fs.writeFile(
         path.join(testDir, 'validate_dummy.test.ts'),
         `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('DummyAuditor', () => {
           it('initializes with correct metadata', () => {
             expect(auditor.id).toBe('validate_dummy');
@@ -490,7 +490,7 @@ describe('AuditorTestsAuditor', () => {
       await fs.writeFile(
         path.join(testDir, 'validate_dummy.test.ts'),
         `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('DummyAuditor', () => {
           it('initializes with correct metadata', () => {
             expect(auditor.id).toBe('validate_dummy');
@@ -574,7 +574,7 @@ describe('AuditorTestsAuditor', () => {
       await fs.writeFile(
         path.join(testDir, 'validate_custom.test.ts'),
         `
-        import { describe, it, expect } from 'vitest';
+        import { describe, it, expect } from 'vite-plus/test';
         describe('ValidateCustom', () => {
           it('checks construction', () => {
             const auditor = new CustomAuditor();

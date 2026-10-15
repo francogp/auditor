@@ -10,7 +10,7 @@
  * 5. Eliminate all homebrew or bespoke timers in favor of superclass orchestration.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import { formatDurationMs, formatDuration } from '../src/core/durationFormatter.ts';
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../src/core/auditorBase.ts';

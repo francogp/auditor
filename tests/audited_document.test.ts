@@ -4,7 +4,7 @@
  * COMPREHENSIVE UNIT TESTS FOR AuditedDocument CORE ENGINE
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { AuditedDocument } from '../src/core/auditedDocument.ts';
 
 describe('AuditedDocument', () => {

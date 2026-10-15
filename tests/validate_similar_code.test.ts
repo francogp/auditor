@@ -8,7 +8,7 @@
  * - Clean execution verification (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import childProcess from 'node:child_process';

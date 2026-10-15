@@ -5,7 +5,7 @@
  * Enforces the 13 canonical design token properties across constants, configuration, violation detection, and auto-fix.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';

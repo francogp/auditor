@@ -4,7 +4,7 @@
  * Exhaustive unit tests for auditorEnvironment module and build_deploy CLI.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import * as childProcess from 'node:child_process';
 import { isProductionEnvironment } from '../src/core/auditorEnvironment.ts';
 import { runBuildDeploy } from '../src/cli/build_deploy.ts';

@@ -10,7 +10,7 @@
  * 4. AST requirements are derived dynamically from capabilities.ast (0 hardcoded suite lists).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   discoverAuditors,
   extractCapabilitiesFromFile,

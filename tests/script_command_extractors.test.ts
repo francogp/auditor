@@ -4,7 +4,7 @@
  * Hermetic unit tests for AST and syntax-aware script command extractors.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   extractCommandsFromShell,
   extractCommandsFromYaml,

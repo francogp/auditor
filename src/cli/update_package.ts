@@ -22,6 +22,7 @@ export interface UpdateAuditorOptions {
   cwd?: string;
   silent?: boolean;
   stopAt?: string;
+  targetVersion?: string;
 }
 
 export interface UpdateAuditorResult {
@@ -60,6 +61,28 @@ export function readInstalledAuditorVersion(projectRoot: string): string {
     // catch-ok: Fallback when package.json is missing or unreadable
   }
   return '(no instalada)';
+}
+
+export function resolveLatestAuditorTag(
+  repoUrl = 'https://github.com/francogp/auditor.git'
+): string {
+  try {
+    const stdout = childProcess.execSync(`git ls-remote --tags --sort=-v:refname ${repoUrl}`, {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10000
+    });
+    const lines = stdout.split('\n');
+    for (const line of lines) {
+      const match = line.match(/refs\/tags\/(v\d+\.\d+\.\d+)$/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+  } catch {
+    // catch-ok: Fallback to local default when offline or network unavailable
+  }
+  return 'v8.4.1';
 }
 
 export function updateAuditorPackage(options: UpdateAuditorOptions = {}): UpdateAuditorResult {
@@ -107,7 +130,13 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     };
   }
 
-  const npmArgs = ['install', '-D', 'github:francogp/auditor#semver:*'];
+  const targetTag = options.targetVersion
+    ? options.targetVersion.startsWith('v')
+      ? options.targetVersion
+      : `v${options.targetVersion}`
+    : resolveLatestAuditorTag();
+
+  const npmArgs = ['install', '-D', `github:francogp/auditor#${targetTag}`];
   ensureNpmrcAllowGit(projectRoot);
 
   const previousVersion = readInstalledAuditorVersion(projectRoot);
@@ -116,7 +145,7 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     console.log(
       renderBanner(
         '@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE',
-        `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`
+        `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}  |  Objetivo: ${targetTag}`
       )
     );
     console.log(
@@ -216,7 +245,10 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
 }
 
 export function runCli(): void {
-  const result = updateAuditorPackage();
+  const args = process.argv.slice(2);
+  const targetVersion = args.find((a) => !a.startsWith('-'));
+  const silent = args.includes('--silent') || args.includes('-s');
+  const result = updateAuditorPackage({ targetVersion, silent });
 
   if (!result.success) {
     console.error(

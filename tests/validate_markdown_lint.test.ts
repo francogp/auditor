@@ -8,7 +8,7 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
 import {
   MarkdownLintAuditor,
@@ -130,7 +130,7 @@ describe('MarkdownLintAuditor', () => {
     });
 
     it('executes actual runAudit and passes when no issues found', async () => {
-      const { vi } = await import('vitest');
+      const { vi } = await import('vite-plus/test');
       const cliUtils = await import('../src/cli/cliUtils.ts');
       vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue('[]');
 
@@ -142,7 +142,7 @@ describe('MarkdownLintAuditor', () => {
     });
 
     it('executes actual runAudit with findings and handles fix mode', async () => {
-      const { vi } = await import('vitest');
+      const { vi } = await import('vite-plus/test');
       const cliUtils = await import('../src/cli/cliUtils.ts');
       const spy = vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue(
         JSON.stringify([

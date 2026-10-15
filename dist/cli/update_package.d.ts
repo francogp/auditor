@@ -9,6 +9,7 @@ export interface UpdateAuditorOptions {
   cwd?: string;
   silent?: boolean;
   stopAt?: string;
+  targetVersion?: string;
 }
 export interface UpdateAuditorResult {
   success: boolean;
@@ -20,6 +21,7 @@ export interface UpdateAuditorResult {
 }
 export declare function findHostProjectRoot(startDir?: string, stopAt?: string): string;
 export declare function readInstalledAuditorVersion(projectRoot: string): string;
+export declare function resolveLatestAuditorTag(repoUrl?: string): string;
 export declare function updateAuditorPackage(options?: UpdateAuditorOptions): UpdateAuditorResult;
 export declare function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean;
 export declare function runCli(): void;

@@ -9,7 +9,7 @@
  * - Escape hatches: // router-ok:
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   ValidateVueRouterAuditor,
   VUE_ROUTER_RULES,

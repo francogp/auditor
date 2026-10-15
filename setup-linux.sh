@@ -213,13 +213,43 @@ fi
 # 7. Instalar dependencias limpias del proyecto
 echo -e "\n📦 Instalando dependencias del proyecto..."
 cd "$SCRIPT_DIR"
+
+INSTALL_SUCCESS=false
+
 if command -v vp >/dev/null 2>&1; then
     echo "⚡ Usando Vite+ (vp install)..."
-    vp install || npm ci
+    if vp install; then
+        INSTALL_SUCCESS=true
+    else
+        echo "⚠️ 'vp install' falló. Reintentando con npm ci..."
+    fi
+fi
+
+if [ "$INSTALL_SUCCESS" = false ]; then
+    echo "📦 Instalando dependencias limpias con npm ci..."
+    if npm ci; then
+        INSTALL_SUCCESS=true
+    else
+        echo "⚠️ 'npm ci' falló (posible desincronización de lockfile o dependencias remotas)."
+        echo "🔄 Intentando recuperación con 'npm install' para sincronizar dependencias..."
+        if npm install; then
+            INSTALL_SUCCESS=true
+            echo "✅ Dependencias instaladas y sincronizadas exitosamente con npm install."
+        fi
+    fi
+fi
+
+if [ "$INSTALL_SUCCESS" = false ]; then
+    echo -e "\n======================================================"
+    echo "❌ ERROR: Falló la instalación de dependencias en $PROJECT_NAME."
+    echo "Verifique los errores de npm arriba. No es seguro continuar."
+    echo "======================================================"
+    exit 1
+fi
+
+if command -v vp >/dev/null 2>&1; then
     echo -e "\n🔧 Sincronizando configuración con Vite+ (vp config)..."
     vp config || true
-else
-    npm ci
 fi
 
 # 8. Inicializar Directorios Básicos del Auditor y del Proyecto

@@ -4,7 +4,7 @@
  * Unit tests for report_guard CLI tool (architecture pre-flight boundaries and policy checker).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import { runGuardReport } from '../src/cli/report_guard.ts';
 import * as cliUtils from '../src/cli/cliUtils.ts';
 import * as similarCodeModule from '../src/suites/architecture/validate_similar_code.ts';

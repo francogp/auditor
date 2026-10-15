@@ -11,7 +11,7 @@
  * 5. 100% of declared rule IDs tested
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   ValidatePersistenceClientAuditor,
   PERSISTENCE_CLIENT_RULES

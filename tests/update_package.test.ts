@@ -8,7 +8,7 @@
  * - Clean execution verification
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import childProcess from 'node:child_process';
@@ -17,6 +17,7 @@ import {
   readInstalledAuditorVersion,
   updateAuditorPackage,
   runAuditorFixAutoRemediation,
+  resolveLatestAuditorTag,
   runCli
 } from '../src/cli/update_package.ts';
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
@@ -131,13 +132,14 @@ describe('update_package CLI', () => {
       spy.mockRestore();
 
       expect(result.success).toBe(true);
-      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor#semver:*']);
+      const expectedTag = resolveLatestAuditorTag();
+      expect(spawnCalls[0]).toEqual(['install', '-D', `github:francogp/auditor#${expectedTag}`]);
       expect(result.previousVersion).toBe('1.2.0-build.20261002-152514');
       expect(result.newVersion).toBe('1.2.0-build.20261002-152514');
       expect(result.updated).toBe(false);
     });
 
-    it('executes npm install -D github:francogp/auditor#semver:* when declared in devDependencies', () => {
+    it('executes npm install -D with pinned tag when declared in devDependencies', () => {
       fs.writeFileSync(
         path.join(sandboxDir, 'package.json'),
         JSON.stringify({
@@ -165,7 +167,43 @@ describe('update_package CLI', () => {
       spy.mockRestore();
 
       expect(result.success).toBe(true);
-      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor#semver:*']);
+      const expectedTag = resolveLatestAuditorTag();
+      expect(spawnCalls[0]).toEqual(['install', '-D', `github:francogp/auditor#${expectedTag}`]);
+    });
+
+    it('executes npm install -D github:francogp/auditor#v9.0.0 when custom targetVersion is specified', () => {
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({
+          name: 'host-dev-consumer',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#v7.1.1'
+          }
+        })
+      );
+
+      const spawnCalls: string[][] = [];
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((_cmd, args) => {
+        spawnCalls.push(args as string[]);
+        return {
+          status: 0,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const result = updateAuditorPackage({
+        cwd: sandboxDir,
+        targetVersion: 'v9.0.0',
+        silent: false
+      });
+      spy.mockRestore();
+
+      expect(result.success).toBe(true);
+      expect(spawnCalls[0]).toEqual(['install', '-D', 'github:francogp/auditor#v9.0.0']);
     });
 
     it('handles npm update command failure cleanly', () => {

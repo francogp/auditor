@@ -9,7 +9,7 @@
  * - Suppression / escape hatches (timer-ok, layout-ok, audit-disable)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import {
   ValidateGsapAnimationsAuditor,
   GSAP_ANIMATION_RULES,

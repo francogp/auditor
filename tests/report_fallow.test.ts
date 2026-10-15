@@ -4,7 +4,7 @@
  * Unit tests for report_fallow CLI tool (categories, formats, and fallow report integration).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import { runFallowReportCli } from '../src/cli/report_fallow.ts';
 
 describe('report_fallow CLI Tool', () => {

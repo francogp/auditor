@@ -8,7 +8,7 @@
  * - auditor:post-build (phase=post-build) -> Only capabilities.phase === 'post-build'
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vite-plus/test';
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import { BaseAuditor, resolveEffectiveSpeed } from '../src/core/auditorBase.ts';
 

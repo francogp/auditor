@@ -5,7 +5,7 @@
  * Verifies detection of zero/low line-height collisions on multiline text.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
 import {
   TypographyLineHeightAuditor,

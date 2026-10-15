@@ -8,7 +8,7 @@
  * 3. Regression: A dormant rule with 0 evaluations is caught by validate_audit_coverage.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';

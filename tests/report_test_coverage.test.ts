@@ -3,7 +3,7 @@
  * @description Unit tests for report_test_coverage CLI tool.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';

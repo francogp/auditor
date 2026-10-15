@@ -11,7 +11,7 @@
  * Also verifies dynamic configuration generation (auditor fix) and dynamic gating.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { BaseAuditor, FileScanAuditor, type AuditorOptions } from '../src/core/auditorBase.ts';
 import { createDefaultAuditConfigContent } from '../src/suites/architecture/validate_audit_config.ts';
 import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';

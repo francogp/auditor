@@ -38,6 +38,24 @@ function readInstalledAuditorVersion(projectRoot) {
 	} catch {}
 	return "(no instalada)";
 }
+function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.git") {
+	try {
+		const lines = childProcess.execSync(`git ls-remote --tags --sort=-v:refname ${repoUrl}`, {
+			encoding: "utf-8",
+			stdio: [
+				"ignore",
+				"pipe",
+				"ignore"
+			],
+			timeout: 1e4
+		}).split("\n");
+		for (const line of lines) {
+			const match = line.match(/refs\/tags\/(v\d+\.\d+\.\d+)$/);
+			if (match && match[1]) return match[1];
+		}
+	} catch {}
+	return "v8.4.1";
+}
 function updateAuditorPackage(options = {}) {
 	const projectRoot = findHostProjectRoot(options.cwd ?? process.cwd(), options.stopAt);
 	const hostPkgJsonPath = path.join(projectRoot, "package.json");
@@ -72,15 +90,16 @@ function updateAuditorPackage(options = {}) {
 		updated: false,
 		error: "El paquete @francogp/auditor no está declarado en dependencies ni devDependencies."
 	};
+	const targetTag = options.targetVersion ? options.targetVersion.startsWith("v") ? options.targetVersion : `v${options.targetVersion}` : resolveLatestAuditorTag();
 	const npmArgs = [
 		"install",
 		"-D",
-		"github:francogp/auditor#semver:*"
+		`github:francogp/auditor#${targetTag}`
 	];
 	ensureNpmrcAllowGit(projectRoot);
 	const previousVersion = readInstalledAuditorVersion(projectRoot);
 	if (!options.silent) {
-		console.log(renderBanner("@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE", `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`));
+		console.log(renderBanner("@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE", `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}  |  Objetivo: ${targetTag}`));
 		console.log(styleText("cyan", `📦 Ejecutando actualización nativa vía npm ${npmArgs.join(" ")}...\n`));
 	}
 	const proc = runNpmCommandSync(npmArgs, {
@@ -142,7 +161,11 @@ function runAuditorFixAutoRemediation(projectRoot, silent) {
 	}
 }
 function runCli() {
-	const result = updateAuditorPackage();
+	const args = process.argv.slice(2);
+	const result = updateAuditorPackage({
+		targetVersion: args.find((a) => !a.startsWith("-")),
+		silent: args.includes("--silent") || args.includes("-s")
+	});
 	if (!result.success) {
 		console.error(styleText("red", `\n❌ Falló la actualización de @francogp/auditor: ${result.error}`));
 		process.exit(1);
@@ -185,4 +208,4 @@ if (isMainModule(import.meta.url)) {
 	runCli();
 }
 //#endregion
-export { findHostProjectRoot, readInstalledAuditorVersion, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };
+export { findHostProjectRoot, readInstalledAuditorVersion, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };

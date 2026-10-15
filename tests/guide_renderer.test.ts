@@ -4,7 +4,7 @@
  * Unit tests for the on-demand diagnostic and remediation guide renderer.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   findRuleGuide,
   renderRuleGuideCard,
