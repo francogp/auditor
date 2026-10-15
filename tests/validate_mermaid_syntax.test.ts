@@ -138,7 +138,8 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('validates class, state, and er diagrams', async () => {
-      const classCode = 'classDiagram\n    class Animal {\n        +String name\n        +makeSound()\n    }';
+      const classCode =
+        'classDiagram\n    class Animal {\n        +String name\n        +makeSound()\n    }';
       expect((await validateMermaid(classCode)).valid).toBe(true);
 
       const stateCode = 'stateDiagram-v2\n    [*] --> Still\n    Still --> [*]';
@@ -152,7 +153,8 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       const pieCode = 'pie title Browser Usage\n    "Chrome" : 65.2\n    "Firefox" : 12.8';
       expect((await validateMermaid(pieCode)).valid).toBe(true);
 
-      const gitCode = 'gitGraph\n    commit\n    branch dev\n    checkout dev\n    commit\n    checkout main\n    merge dev';
+      const gitCode =
+        'gitGraph\n    commit\n    branch dev\n    checkout dev\n    commit\n    checkout main\n    merge dev';
       expect((await validateMermaid(gitCode)).valid).toBe(true);
     });
 
@@ -268,7 +270,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/spec.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-unquoted-special-chars');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-unquoted-special-chars'
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
       expect(violations[0]?.message).toContain('100% Pass');
@@ -287,7 +291,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/spec.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-unquoted-special-chars');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-unquoted-special-chars'
+      );
       expect(violations).toHaveLength(3);
     });
 
@@ -302,7 +308,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/spec.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-unquoted-special-chars');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-unquoted-special-chars'
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]?.message).toContain('2.1 git fetch origin (0 errors)');
     });
@@ -318,7 +326,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/spec.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-unquoted-special-chars');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-unquoted-special-chars'
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]?.message).toContain('Chunk bloat / budget exceeded');
     });
@@ -334,7 +344,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/spec.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-unquoted-special-chars');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-unquoted-special-chars'
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]?.message).toContain('learning_proposal.md?');
     });
@@ -366,7 +378,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/broken.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-syntax-error');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-syntax-error'
+      );
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -382,7 +396,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/invalid_header.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-syntax-error');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-syntax-error'
+      );
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0]?.message).toContain('Error de sintaxis en diagrama Mermaid');
     });
@@ -399,7 +415,9 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/unclosed_subgraph.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'mermaid-syntax-error');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-syntax-error'
+      );
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0]?.message).toContain('subgraph');
     });

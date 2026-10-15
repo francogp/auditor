@@ -79,10 +79,9 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
   });
 
   it('fulfills point 3 & 5: detects type-assertion-zero-any violations', async () => {
-    const code = [
-      'const a = val ' + 'as any' + ';',
-      'const b = list ' + 'as any[]' + ';'
-    ].join('\n');
+    const code = ['const a = val ' + 'as any' + ';', 'const b = list ' + 'as any[]' + ';'].join(
+      '\n'
+    );
 
     await fs.writeFile(path.join(tempDir, 'src/anyViolation.ts'), code, 'utf-8');
 
@@ -91,7 +90,7 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBeGreaterThanOrEqual(2);
-    const findings = result.findings.filter(f => f.ruleId === 'type-assertion-zero-any');
+    const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-zero-any');
     expect(findings.length).toBeGreaterThanOrEqual(2);
     expect(findings[0]?.severity).toBe('error');
   });
@@ -108,16 +107,15 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'type-assertion-double-cast');
+    const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-double-cast');
     expect(findings.length).toBeGreaterThanOrEqual(2);
     expect(findings[0]?.severity).toBe('error');
   });
 
   it('fulfills point 3 & 5: detects type-assertion-boolean-literal violations', async () => {
-    const code = [
-      'export const isEnabled: true = true;',
-      'export type ModeFlag = false;'
-    ].join('\n');
+    const code = ['export const isEnabled: true = true;', 'export type ModeFlag = false;'].join(
+      '\n'
+    );
 
     await fs.writeFile(path.join(tempDir, 'src/boolLiteral.ts'), code, 'utf-8');
 
@@ -125,17 +123,13 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'type-assertion-boolean-literal');
+    const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-boolean-literal');
     expect(findings.length).toBeGreaterThanOrEqual(1);
     expect(findings[0]?.severity).toBe('error');
   });
 
   it('fulfills point 3 & 5: detects type-assertion-floating-promise violations', async () => {
-    const code = [
-      'export function sync(): void {',
-      '  saveDataAsync();',
-      '}'
-    ].join('\n');
+    const code = ['export function sync(): void {', '  saveDataAsync();', '}'].join('\n');
 
     await fs.writeFile(path.join(tempDir, 'src/floatingPromise.ts'), code, 'utf-8');
 
@@ -143,15 +137,13 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'type-assertion-floating-promise');
+    const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-floating-promise');
     expect(findings.length).toBeGreaterThanOrEqual(1);
     expect(findings[0]?.severity).toBe('error');
   });
 
   it('fulfills point 3 & 5: detects type-assertion-loose-array violations', async () => {
-    const code = [
-      'export const items = raw ' + 'as string[];'
-    ].join('\n');
+    const code = ['export const items = raw ' + 'as string[];'].join('\n');
 
     await fs.writeFile(path.join(tempDir, 'src/looseArray.ts'), code, 'utf-8');
 
@@ -159,7 +151,7 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'type-assertion-loose-array');
+    const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-loose-array');
     expect(findings.length).toBeGreaterThanOrEqual(1);
     expect(findings[0]?.severity).toBe('error');
   });

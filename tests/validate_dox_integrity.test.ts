@@ -25,7 +25,8 @@ function createValidAgentsMd(options?: {
   childContent?: string;
   keyFilesContent?: string;
 }): string {
-  const childContent = options?.childContent ?? '- _This directory contains isolated modules with no subdirectories._';
+  const childContent =
+    options?.childContent ?? '- _This directory contains isolated modules with no subdirectories._';
   const keyFiles = options?.keyFilesContent ? `\n## Key Files\n\n${options.keyFilesContent}\n` : '';
 
   return `# Purpose
@@ -96,7 +97,7 @@ describe('DoxIntegrityAuditor', () => {
 
       const auditor = new DoxIntegrityAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'dox-missing-agents-md');
+      const violation = result.findings.find((f) => f.ruleId === 'dox-missing-agents-md');
       expect(violation).toBeDefined();
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
@@ -108,31 +109,45 @@ describe('DoxIntegrityAuditor', () => {
       fs.mkdirSync(subDir, { recursive: true });
       fs.writeFileSync(path.join(subDir, 'index.ts'), 'export const a = 1;\n', 'utf-8');
       fs.writeFileSync(path.join(subDir, 'AGENTS.md'), '# Logic\n', 'utf-8');
-      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '# Root\n\n## Child DOX Index\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(scratchDir, 'AGENTS.md'),
+        '# Root\n\n## Child DOX Index\n',
+        'utf-8'
+      );
 
       const auditor = new DoxIntegrityAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'dox-unregistered-child');
+      const violation = result.findings.find((f) => f.ruleId === 'dox-unregistered-child');
       expect(violation).toBeDefined();
     });
-
 
     it('detects unindexed code files in a documented directory (dox-unindexed-file)', async () => {
       const subDir = path.join(scratchDir, 'src/services');
       fs.mkdirSync(subDir, { recursive: true });
       fs.writeFileSync(path.join(subDir, 'authService.ts'), 'export const auth = true;\n', 'utf-8');
-      fs.writeFileSync(path.join(subDir, 'paymentService.ts'), 'export const pay = true;\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(subDir, 'paymentService.ts'),
+        'export const pay = true;\n',
+        'utf-8'
+      );
       // AGENTS.md only lists authService.ts, omits paymentService.ts
-      fs.writeFileSync(path.join(subDir, 'AGENTS.md'), '# Services\n\n- [`authService.ts`](./authService.ts)\n', 'utf-8');
-      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '# Root\n\n## Child DOX Index\n- [src/services/AGENTS.md](./src/services/AGENTS.md)\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(subDir, 'AGENTS.md'),
+        '# Services\n\n- [`authService.ts`](./authService.ts)\n',
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(scratchDir, 'AGENTS.md'),
+        '# Root\n\n## Child DOX Index\n- [src/services/AGENTS.md](./src/services/AGENTS.md)\n',
+        'utf-8'
+      );
 
       const auditor = new DoxIntegrityAuditor(scratchDir);
       const result = await auditor.execute();
-      const unindexed = result.findings.find(f => f.ruleId === 'dox-unindexed-file');
+      const unindexed = result.findings.find((f) => f.ruleId === 'dox-unindexed-file');
       expect(unindexed).toBeDefined();
       expect(unindexed?.context).toBe('paymentService.ts');
     });
-
 
     it('detects missing mandatory sections in AGENTS.md (dox-missing-section)', async () => {
       // Missing ## Work Guidance and ## Verification
@@ -157,8 +172,12 @@ Architecture & Tooling Engineers.
 
       const auditor = new DoxIntegrityAuditor(scratchDir);
       const result = await auditor.execute();
-      const missingWork = result.findings.find(f => f.ruleId === 'dox-missing-section' && f.context === '## Work Guidance');
-      const missingVerif = result.findings.find(f => f.ruleId === 'dox-missing-section' && f.context === '## Verification');
+      const missingWork = result.findings.find(
+        (f) => f.ruleId === 'dox-missing-section' && f.context === '## Work Guidance'
+      );
+      const missingVerif = result.findings.find(
+        (f) => f.ruleId === 'dox-missing-section' && f.context === '## Verification'
+      );
       expect(missingWork).toBeDefined();
       expect(missingVerif).toBeDefined();
     });
@@ -194,7 +213,7 @@ Architecture & Tooling Engineers.
 
       const auditor = new DoxIntegrityAuditor(scratchDir);
       const result = await auditor.execute();
-      const orderViolation = result.findings.find(f => f.ruleId === 'dox-section-order');
+      const orderViolation = result.findings.find((f) => f.ruleId === 'dox-section-order');
       expect(orderViolation).toBeDefined();
       expect(orderViolation?.message).toContain('no debe aparecer después de');
     });
@@ -230,10 +249,10 @@ TODO: Add verification
 
       const auditor = new DoxIntegrityAuditor(scratchDir);
       const result = await auditor.execute();
-      const emptyFindings = result.findings.filter(f => f.ruleId === 'dox-empty-section');
+      const emptyFindings = result.findings.filter((f) => f.ruleId === 'dox-empty-section');
       expect(emptyFindings.length).toBeGreaterThanOrEqual(2);
-      expect(emptyFindings.some(f => f.context === '## Work Guidance')).toBe(true);
-      expect(emptyFindings.some(f => f.context === '## Verification')).toBe(true);
+      expect(emptyFindings.some((f) => f.context === '## Work Guidance')).toBe(true);
+      expect(emptyFindings.some((f) => f.context === '## Verification')).toBe(true);
     });
   });
 

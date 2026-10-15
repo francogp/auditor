@@ -27,11 +27,15 @@ describe('audit_full CLI orchestration helpers', () => {
   describe('resolveTargetFamily', () => {
     it('resolves family from family option if provided', () => {
       expect(resolveTargetFamily('architecture', [], activeFamilies)).toBe('architecture');
-      expect(resolveTargetFamily('domain_data', ['documentation'], activeFamilies)).toBe('domain_data');
+      expect(resolveTargetFamily('domain_data', ['documentation'], activeFamilies)).toBe(
+        'domain_data'
+      );
     });
 
     it('resolves family from positionals if present in activeFamilies', () => {
-      expect(resolveTargetFamily(undefined, ['documentation', 'foo'], activeFamilies)).toBe('documentation');
+      expect(resolveTargetFamily(undefined, ['documentation', 'foo'], activeFamilies)).toBe(
+        'documentation'
+      );
     });
 
     it('returns undefined if no family option or valid positional matches', () => {
@@ -43,7 +47,9 @@ describe('audit_full CLI orchestration helpers', () => {
   describe('resolveFormattedRules', () => {
     it('joins single or multiple rule options', () => {
       expect(resolveFormattedRules({ rule: 'no-any' }, [])).toBe('no-any');
-      expect(resolveFormattedRules({ rule: ['no-any', 'legacy-date'] }, [])).toBe('no-any,legacy-date');
+      expect(resolveFormattedRules({ rule: ['no-any', 'legacy-date'] }, [])).toBe(
+        'no-any,legacy-date'
+      );
     });
 
     it('joins single or multiple rules options', () => {
@@ -216,7 +222,9 @@ describe('audit_full CLI orchestration helpers', () => {
     });
 
     it('returns suites when multiple targetSuites are set', () => {
-      expect(determineRunMode(undefined, ['suite1', 'suite2'], undefined, undefined)).toBe('suites');
+      expect(determineRunMode(undefined, ['suite1', 'suite2'], undefined, undefined)).toBe(
+        'suites'
+      );
     });
 
     it('returns single when taskArg is provided or targetSuites has length 1', () => {
@@ -229,10 +237,18 @@ describe('audit_full CLI orchestration helpers', () => {
     });
 
     it('returns preset when speed is light or other partial filters are active', () => {
-      expect(determineRunMode(undefined, undefined, undefined, undefined, { speed: 'light' })).toBe('preset');
-      expect(determineRunMode(undefined, undefined, undefined, undefined, { onlySpeed: 'heavy' })).toBe('preset');
-      expect(determineRunMode(undefined, undefined, undefined, undefined, { phase: 'post-build' })).toBe('preset');
-      expect(determineRunMode(undefined, undefined, undefined, undefined, { changedOnly: 'main' })).toBe('preset');
+      expect(determineRunMode(undefined, undefined, undefined, undefined, { speed: 'light' })).toBe(
+        'preset'
+      );
+      expect(
+        determineRunMode(undefined, undefined, undefined, undefined, { onlySpeed: 'heavy' })
+      ).toBe('preset');
+      expect(
+        determineRunMode(undefined, undefined, undefined, undefined, { phase: 'post-build' })
+      ).toBe('preset');
+      expect(
+        determineRunMode(undefined, undefined, undefined, undefined, { changedOnly: 'main' })
+      ).toBe('preset');
     });
 
     it('returns full when no specific filter is provided', () => {
@@ -298,7 +314,9 @@ describe('audit_full CLI orchestration helpers', () => {
         5000,
         task
       );
-      expect(msgWithTask).toContain("Timeout excedido (5000ms) al ejecutar el auditor 'Heavy Audit' (heavy_audit).");
+      expect(msgWithTask).toContain(
+        "Timeout excedido (5000ms) al ejecutar el auditor 'Heavy Audit' (heavy_audit)."
+      );
 
       const msgWithoutTask = extractSubprocessErrorMessage(
         { status: null, stdout: '', stderr: '', timedOut: true },
@@ -308,7 +326,8 @@ describe('audit_full CLI orchestration helpers', () => {
     });
 
     it('extracts clean stderr ignoring node experimental warnings', () => {
-      const stderr = '(node:12345) ExperimentalWarning: Type Stripping is an experimental feature\nActual error occurred';
+      const stderr =
+        '(node:12345) ExperimentalWarning: Type Stripping is an experimental feature\nActual error occurred';
       const msg = extractSubprocessErrorMessage({
         status: 1,
         stdout: '',
@@ -431,13 +450,13 @@ describe('audit_full CLI orchestration helpers', () => {
 
     it('renders auto-fix mode banner details', () => {
       const details = createAuditBannerDetails(baseCli, true, false, 5, 20, 0);
-      expect(details.some(d => d.includes('Suites con Auto-Reparación: 5 suites'))).toBe(true);
-      expect(details.some(d => d.includes('Modo: AUTO-FIX 🛠️'))).toBe(true);
+      expect(details.some((d) => d.includes('Suites con Auto-Reparación: 5 suites'))).toBe(true);
+      expect(details.some((d) => d.includes('Modo: AUTO-FIX 🛠️'))).toBe(true);
     });
 
     it('renders post-build mode banner details', () => {
       const details = createAuditBannerDetails(baseCli, false, true, 1, 20, 0);
-      expect(details.some(d => d.includes('Modo: POST-BUILD 🏗️'))).toBe(true);
+      expect(details.some((d) => d.includes('Modo: POST-BUILD 🏗️'))).toBe(true);
     });
 
     it('renders normal run details with speed/preset, family, and partial badges', () => {
@@ -446,10 +465,10 @@ describe('audit_full CLI orchestration helpers', () => {
         'family=architecture'
       ]);
       const details = createAuditBannerDetails(customCli, false, false, 4, 10, 6);
-      expect(details.some(d => d.includes('Auto-descubiertas: 4/10 suites'))).toBe(true);
-      expect(details.some(d => d.includes('Speed: LIGHT'))).toBe(true);
-      expect(details.some(d => d.includes('Familia: ARCHITECTURE'))).toBe(true);
-      expect(details.some(d => d.includes('Modo: PARCIAL ⚠️'))).toBe(true);
+      expect(details.some((d) => d.includes('Auto-descubiertas: 4/10 suites'))).toBe(true);
+      expect(details.some((d) => d.includes('Speed: LIGHT'))).toBe(true);
+      expect(details.some((d) => d.includes('Familia: ARCHITECTURE'))).toBe(true);
+      expect(details.some((d) => d.includes('Modo: PARCIAL ⚠️'))).toBe(true);
     });
 
     it('renders remote banner detail when cli.project is specified', () => {
@@ -457,7 +476,7 @@ describe('audit_full CLI orchestration helpers', () => {
       expect(remoteCli.project).toBe('../PokeBorrador');
 
       const details = createAuditBannerDetails(remoteCli, false, false, 50, 50, 0);
-      expect(details.some(d => d.includes('🎯 Remoto: PokeBorrador'))).toBe(true);
+      expect(details.some((d) => d.includes('🎯 Remoto: PokeBorrador'))).toBe(true);
     });
   });
 });

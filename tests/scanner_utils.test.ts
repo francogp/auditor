@@ -24,10 +24,7 @@ describe('scannerUtils', () => {
     const directive = /<!--\s*ui-branching-ok:|\/\/\s*layout-ok:/i;
 
     it('returns true when directive is on the current line', () => {
-      const lines = [
-        'const a = 1;',
-        'gsap.to(el, { height: 100 }); // layout-ok: accordion'
-      ];
+      const lines = ['const a = 1;', 'gsap.to(el, { height: 100 }); // layout-ok: accordion'];
       expect(hasPrecedingComment(lines, 1, directive)).toBe(true);
     });
 
@@ -91,11 +88,7 @@ describe('scannerUtils', () => {
     });
 
     it('returns false when no matching directive exists', () => {
-      const lines = [
-        '// some regular comment',
-        'const a = 1;',
-        'gsap.to(el, { height: 10 });'
-      ];
+      const lines = ['// some regular comment', 'const a = 1;', 'gsap.to(el, { height: 10 });'];
       expect(hasPrecedingComment(lines, 2, directive)).toBe(false);
     });
   });
@@ -141,7 +134,9 @@ describe('scannerUtils', () => {
 
     it('advances past line and block comments', () => {
       const lineComment = '// a comment\\ncode';
-      expect(advancePastStringOrComment(lineComment, 0, lineComment.length)).toBe(lineComment.length);
+      expect(advancePastStringOrComment(lineComment, 0, lineComment.length)).toBe(
+        lineComment.length
+      );
 
       const blockComment = '/* block comment */ tail';
       expect(advancePastStringOrComment(blockComment, 0, blockComment.length)).toBe(19);

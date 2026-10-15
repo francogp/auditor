@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.3.0-build.20261015-011549",
+  "version": "8.4.0-build.20261015-092018",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -105,6 +105,9 @@
   "scripts": {
     "prepare": "vp config",
     "check": "vp check",
+    "check:fix": "vp check --fix",
+    "fmt": "vp fmt",
+    "fmt:check": "vp fmt --check",
     "auditor:coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:test-coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:coverage-map": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/report_coverage_map.ts",
@@ -179,6 +182,7 @@
     "auditor:ephemeral-storage-isolation": "auditor task=validate_ephemeral_storage_isolation",
     "auditor:error-suppression": "auditor task=validate_error_suppression",
     "auditor:oxlint": "auditor task=validate_oxlint",
+    "auditor:oxfmt": "auditor task=validate_oxfmt",
     "auditor:vite-plus-config": "auditor task=validate_vite_plus_config",
     "auditor:fallow-config": "auditor task=validate_fallow_config",
     "auditor:html-validate": "auditor task=validate_html_validate",

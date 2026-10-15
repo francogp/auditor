@@ -992,14 +992,14 @@ export function createRuleCapabilities<TRuleId extends string>(
   const isBaseFix = baseCapabilities.fix !== 'none';
   const fixType: AuditFixCapability = baseCapabilities.fix === 'priority' ? 'priority' : 'normal';
   const fixableSet = new Set(fixableRuleIds ?? (isBaseFix ? ruleIds : []));
-  const result = {} as Record<TRuleId, AuditorRuleCapabilities>;
+  const result: Partial<Record<TRuleId, AuditorRuleCapabilities>> = {};
   for (const id of ruleIds) {
     result[id] = {
       ...baseCapabilities,
       fix: fixableSet.has(id) ? fixType : 'none'
     };
   }
-  return result;
+  return result as Record<TRuleId, AuditorRuleCapabilities>;
 }
 
 /**

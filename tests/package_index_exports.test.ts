@@ -62,7 +62,6 @@ describe('Public Package Exports (src/index.ts)', () => {
     expect(typeof AuditorPackage.isInCodeRoots).toBe('function');
   });
 
-
   it('exports framework version metadata and conformance test runner', () => {
     expect(typeof AuditorPackage.AUDITOR_VERSION).toBe('string');
     expect(typeof AuditorPackage.validateAuditorConstruction).toBe('function');

@@ -43,7 +43,9 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('A11y');
       expect(auditor.ruleDescriptions['a11y-img-alt']).toBe('Imagen sin atributo alt accesible');
-      expect(auditor.ruleDescriptions['a11y-viewport-zoom-lock']).toBe('Bloqueo de zoom en viewport HTML');
+      expect(auditor.ruleDescriptions['a11y-viewport-zoom-lock']).toBe(
+        'Bloqueo de zoom en viewport HTML'
+      );
     });
   });
 
@@ -53,17 +55,27 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
     });
 
     it('maps form labels to a11y-form-control-has-label', () => {
-      expect(mapA11yRuleId('vuejs-accessibility/form-control-has-label')).toBe('a11y-form-control-has-label');
-      expect(mapA11yRuleId('vuejs-accessibility/label-has-for')).toBe('a11y-form-control-has-label');
+      expect(mapA11yRuleId('vuejs-accessibility/form-control-has-label')).toBe(
+        'a11y-form-control-has-label'
+      );
+      expect(mapA11yRuleId('vuejs-accessibility/label-has-for')).toBe(
+        'a11y-form-control-has-label'
+      );
     });
 
     it('maps interactive focus to a11y-interactive-supports-focus', () => {
-      expect(mapA11yRuleId('vuejs-accessibility/interactive-supports-focus')).toBe('a11y-interactive-supports-focus');
+      expect(mapA11yRuleId('vuejs-accessibility/interactive-supports-focus')).toBe(
+        'a11y-interactive-supports-focus'
+      );
     });
 
     it('maps anchor and heading content to a11y-anchor-has-content', () => {
-      expect(mapA11yRuleId('vuejs-accessibility/anchor-has-content')).toBe('a11y-anchor-has-content');
-      expect(mapA11yRuleId('vuejs-accessibility/heading-has-content')).toBe('a11y-anchor-has-content');
+      expect(mapA11yRuleId('vuejs-accessibility/anchor-has-content')).toBe(
+        'a11y-anchor-has-content'
+      );
+      expect(mapA11yRuleId('vuejs-accessibility/heading-has-content')).toBe(
+        'a11y-anchor-has-content'
+      );
     });
 
     it('maps aria roles and props to a11y-aria-role-invalid', () => {
@@ -129,7 +141,10 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       expect(result.status).toBe('passed');
 
       const ledger = auditor.getCoverageRecorder().toLedger({
-        runId: 't', suiteId: auditor.id, skipped: false, ruleIds: auditor.getRuleCatalog()
+        runId: 't',
+        suiteId: auditor.id,
+        skipped: false,
+        ruleIds: auditor.getRuleCatalog()
       });
       expect(ledger.scanned).toEqual(['index.html', 'src/components/CleanButton.vue']);
       for (const ruleId of ledger.ruleIds) {
@@ -142,7 +157,10 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       const auditor = new ValidateAccessibilityAuditor({ projectRoot: tempDir });
       await auditor.runAudit();
       const ledger = auditor.getCoverageRecorder().toLedger({
-        runId: 't', suiteId: auditor.id, skipped: false, ruleIds: auditor.getRuleCatalog()
+        runId: 't',
+        suiteId: auditor.id,
+        skipped: false,
+        ruleIds: auditor.getRuleCatalog()
       });
       expect(ledger.scanned).toEqual([]);
       expect(Object.keys(ledger.notApplicable).sort()).toEqual([...ledger.ruleIds].sort());
@@ -176,7 +194,7 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const imgAltIssue = result.findings.find(f => f.ruleId === 'a11y-img-alt');
+      const imgAltIssue = result.findings.find((f) => f.ruleId === 'a11y-img-alt');
       expect(imgAltIssue).toBeDefined();
       expect(imgAltIssue?.file).toBe('src/components/BadImage.vue');
     });
@@ -205,7 +223,7 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const zoomIssue = result.findings.find(f => f.ruleId === 'a11y-viewport-zoom-lock');
+      const zoomIssue = result.findings.find((f) => f.ruleId === 'a11y-viewport-zoom-lock');
       expect(zoomIssue).toBeDefined();
       expect(zoomIssue?.file).toBe('index.html');
       expect(zoomIssue?.message).toContain('WCAG 1.4.4');

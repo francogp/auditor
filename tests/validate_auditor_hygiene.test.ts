@@ -148,7 +148,9 @@ describe('AuditorHygieneAuditor', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-package-json' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-package-json' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -156,14 +158,17 @@ describe('AuditorHygieneAuditor', () => {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
 
-      const snippet = 'const m = /<temp' + 'late\\b[^>]*>([\\s\\S]*?)<\\/template>/i.exec(content);';
+      const snippet =
+        'const m = /<temp' + 'late\\b[^>]*>([\\s\\S]*?)<\\/template>/i.exec(content);';
       await fs.writeFile(path.join(auditorsDir, 'bad_vue.ts'), snippet, 'utf8');
 
       const auditor = new AuditorHygieneAuditor(tempDir);
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-vue-sfc-regex' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-vue-sfc-regex' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -171,14 +176,17 @@ describe('AuditorHygieneAuditor', () => {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
 
-      const snippet = 'const sf = ts.' + 'createSourceFile("file.ts", code, ts.ScriptTarget.Latest);';
+      const snippet =
+        'const sf = ts.' + 'createSourceFile("file.ts", code, ts.ScriptTarget.Latest);';
       await fs.writeFile(path.join(auditorsDir, 'bad_ast.ts'), snippet, 'utf8');
 
       const auditor = new AuditorHygieneAuditor(tempDir);
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-ts-ast' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-ts-ast' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -193,7 +201,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-path-normalize' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-path-normalize' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -208,7 +218,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-raw-console' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-raw-console' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -223,7 +235,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-comment-stripping' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-comment-stripping' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -238,7 +252,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-brace-counting' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-brace-counting' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -253,7 +269,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-path-containment' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-path-containment' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -268,7 +286,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-file-walker' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-file-walker' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -283,7 +303,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-homebrew-predicates' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-homebrew-predicates' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -291,9 +313,12 @@ describe('AuditorHygieneAuditor', () => {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
 
-      const snippet = 'const start = performance.' + 'now();\n' +
+      const snippet =
+        'const start = performance.' +
+        'now();\n' +
         'doWork();\n' +
-        'const elapsed = performance.' + 'now() - start;\n' +
+        'const elapsed = performance.' +
+        'now() - start;\n' +
         'this.recordDuration("rule-1", elapsed);';
       await fs.writeFile(path.join(auditorsDir, 'bad_timing.ts'), snippet, 'utf8');
 
@@ -301,7 +326,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-manual-rule-timing' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-manual-rule-timing' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -316,7 +343,9 @@ describe('AuditorHygieneAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-hardcoded-config' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-hardcoded-config' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
     });
 
@@ -343,7 +372,9 @@ export class MissingPolicyAuditor extends BaseAuditor {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === ('auditor-third-party-tool-contract' as AuditorHomebrewRuleId));
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-third-party-tool-contract' as AuditorHomebrewRuleId)
+      );
       expect(finding).toBeDefined();
       expect(finding?.context).toBe('missing-third-party-tool-policy');
     });
@@ -352,7 +383,8 @@ export class MissingPolicyAuditor extends BaseAuditor {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
 
-      const snippet = 'const norm = file.split(' + "'\\\\').join('/'); // homebrew-ok: benchmark test";
+      const snippet =
+        'const norm = file.split(' + "'\\\\').join('/'); // homebrew-ok: benchmark test";
       await fs.writeFile(path.join(auditorsDir, 'exempt_file.ts'), snippet, 'utf8');
 
       const auditor = new AuditorHygieneAuditor(tempDir);
@@ -368,7 +400,11 @@ export class MissingPolicyAuditor extends BaseAuditor {
         JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }),
         'utf-8'
       );
-      await fs.writeFile(path.join(tempDir, 'plugin.json'), JSON.stringify({ name: 'auditor' }), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, 'plugin.json'),
+        JSON.stringify({ name: 'auditor' }),
+        'utf-8'
+      );
       await fs.mkdir(path.join(tempDir, 'skills/auditor'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'skills/auditor/SKILL.md'), '# Auditor Skill', 'utf-8');
 
@@ -387,14 +423,38 @@ export class MissingPolicyAuditor extends BaseAuditor {
       await fs.mkdir(homebrewDir, { recursive: true });
 
       // Clean files
-      await fs.writeFile(path.join(suitesDir, 'clean_suite.ts'), 'export const SUITE = 1;\n', 'utf-8');
-      await fs.writeFile(path.join(analyzersDir, 'clean_analyzer.ts'), 'export const ANALYZER = 2;\n', 'utf-8');
+      await fs.writeFile(
+        path.join(suitesDir, 'clean_suite.ts'),
+        'export const SUITE = 1;\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(analyzersDir, 'clean_analyzer.ts'),
+        'export const ANALYZER = 2;\n',
+        'utf-8'
+      );
 
       // Ignored patterns: .d.ts, test file, _private, and analyzers/homebrew/
-      await fs.writeFile(path.join(suitesDir, 'types.d.ts'), 'export type Foo = string;\n', 'utf-8');
-      await fs.writeFile(path.join(suitesDir, 'suite.test.ts'), 'console.' + 'log("test");\n', 'utf-8');
-      await fs.writeFile(path.join(suitesDir, '_private.ts'), 'console.' + 'log("private");\n', 'utf-8');
-      await fs.writeFile(path.join(homebrewDir, 'detector.ts'), 'console.' + 'log("homebrew");\n', 'utf-8');
+      await fs.writeFile(
+        path.join(suitesDir, 'types.d.ts'),
+        'export type Foo = string;\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(suitesDir, 'suite.test.ts'),
+        'console.' + 'log("test");\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(suitesDir, '_private.ts'),
+        'console.' + 'log("private");\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(homebrewDir, 'detector.ts'),
+        'console.' + 'log("homebrew");\n',
+        'utf-8'
+      );
 
       const auditor = new AuditorHygieneAuditor(tempDir);
       const result = await auditor.execute();
@@ -424,13 +484,25 @@ export class MissingPolicyAuditor extends BaseAuditor {
       await fs.mkdir(auditorsDir, { recursive: true });
 
       // Extension file
-      await fs.writeFile(path.join(customDir, 'my_extension.ts'), 'export const EXT = 1;\n', 'utf-8');
+      await fs.writeFile(
+        path.join(customDir, 'my_extension.ts'),
+        'export const EXT = 1;\n',
+        'utf-8'
+      );
 
       // Exempt file has raw console but is exempt
-      await fs.writeFile(path.join(auditorsDir, 'exempted.ts'), 'console.' + 'log("exempt");\n', 'utf-8');
+      await fs.writeFile(
+        path.join(auditorsDir, 'exempted.ts'),
+        'console.' + 'log("exempt");\n',
+        'utf-8'
+      );
 
       // File with raw console, but detector is disabled
-      await fs.writeFile(path.join(auditorsDir, 'runner.ts'), 'console.' + 'log("disabled detector");\n', 'utf-8');
+      await fs.writeFile(
+        path.join(auditorsDir, 'runner.ts'),
+        'console.' + 'log("disabled detector");\n',
+        'utf-8'
+      );
 
       const auditor = new AuditorHygieneAuditor(tempDir);
       const result = await auditor.execute();
@@ -492,11 +564,8 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
     return auditor.execute();
   }
 
-  function findingsFor(
-    result: Awaited<ReturnType<typeof audit>>,
-    ruleId: AuditorHomebrewRuleId
-  ) {
-    return result.findings.filter(f => f.ruleId === ruleId);
+  function findingsFor(result: Awaited<ReturnType<typeof audit>>, ruleId: AuditorHomebrewRuleId) {
+    return result.findings.filter((f) => f.ruleId === ruleId);
   }
 
   describe('auditor-manual-step-logging', () => {
@@ -515,7 +584,7 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(stepFindings).toHaveLength(2);
-      expect(stepFindings.every(f => f.severity === 'error')).toBe(true);
+      expect(stepFindings.every((f) => f.severity === 'error')).toBe(true);
     });
 
     it('rejects dynamic step logging with template literals and loop counters', async () => {

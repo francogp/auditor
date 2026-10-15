@@ -22,11 +22,23 @@ describe('validate_dependency_minimums', () => {
   const htmlValidateFloor = minimums['html-validate'] as string;
   const htmlValidateMin = htmlValidateFloor.replace('^', '');
 
-  async function writeProject(devDependencies: Record<string, string>, locked?: Record<string, string>): Promise<void> { // open-record: test fixture dictionaries
-    await fs.writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'host', devDependencies }));
+  async function writeProject(
+    devDependencies: Record<string, string>,
+    locked?: Record<string, string>
+  ): Promise<void> {
+    // open-record: test fixture dictionaries
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'host', devDependencies })
+    );
     if (locked) {
-      const packages = Object.fromEntries(Object.entries(locked).map(([n, v]) => [`node_modules/${n}`, { version: v }]));
-      await fs.writeFile(path.join(tempDir, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3, packages }));
+      const packages = Object.fromEntries(
+        Object.entries(locked).map(([n, v]) => [`node_modules/${n}`, { version: v }])
+      );
+      await fs.writeFile(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({ lockfileVersion: 3, packages })
+      );
     }
   }
 
@@ -45,7 +57,10 @@ describe('validate_dependency_minimums', () => {
   });
 
   it('declares canonical rules and metadata', () => {
-    expect(DEPENDENCY_MINIMUMS_RULES).toEqual(['dependency-below-minimum-range', 'dependency-below-minimum-installed']);
+    expect(DEPENDENCY_MINIMUMS_RULES).toEqual([
+      'dependency-below-minimum-range',
+      'dependency-below-minimum-installed'
+    ]);
     const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_dependency_minimums');
     expect(auditor.family).toBe('architecture');
@@ -59,7 +74,10 @@ describe('validate_dependency_minimums', () => {
   });
 
   it('passes cleanly when declared libraries meet the floor', async () => {
-    await writeProject({ 'html-validate': htmlValidateFloor }, { 'html-validate': htmlValidateMin });
+    await writeProject(
+      { 'html-validate': htmlValidateFloor },
+      { 'html-validate': htmlValidateMin }
+    );
     const result = await run();
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -87,12 +105,24 @@ describe('validate_dependency_minimums', () => {
     await writeProject({ 'html-validate': htmlValidateFloor }, { 'html-validate': '1.0.0' });
     const result = await run();
     expect(result.status).toBe('failed');
-    expect(result.findings.some((f) => f.ruleId === 'dependency-below-minimum-installed' && f.severity === 'error')).toBe(true);
+    expect(
+      result.findings.some(
+        (f) => f.ruleId === 'dependency-below-minimum-installed' && f.severity === 'error'
+      )
+    ).toBe(true);
   });
 
   it('findDeclaredDependency locates libraries across sections', () => {
-    expect(findDeclaredDependency({ dependencies: { a: '^1.0.0' } }, 'a')).toEqual({ range: '^1.0.0', isProduction: true, section: 'dependencies' });
-    expect(findDeclaredDependency({ devDependencies: { a: '^1.0.0' } }, 'a')).toEqual({ range: '^1.0.0', isProduction: false, section: 'devDependencies' });
+    expect(findDeclaredDependency({ dependencies: { a: '^1.0.0' } }, 'a')).toEqual({
+      range: '^1.0.0',
+      isProduction: true,
+      section: 'dependencies'
+    });
+    expect(findDeclaredDependency({ devDependencies: { a: '^1.0.0' } }, 'a')).toEqual({
+      range: '^1.0.0',
+      isProduction: false,
+      section: 'devDependencies'
+    });
     expect(findDeclaredDependency({}, 'a')).toBeNull();
   });
 });

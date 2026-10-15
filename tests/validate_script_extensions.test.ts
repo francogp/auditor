@@ -119,13 +119,16 @@ describe('ValidateScriptExtensionsAuditor', () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-violation-mjs-'));
       try {
         fs.mkdirSync(path.join(tempDir, 'scripts'), { recursive: true });
-        fs.writeFileSync(path.join(tempDir, 'scripts', 'export_map.mjs'), 'export const map = {};\n');
+        fs.writeFileSync(
+          path.join(tempDir, 'scripts', 'export_map.mjs'),
+          'export const map = {};\n'
+        );
 
         const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
         const result = await auditor.execute();
 
         expect(result.findings.length).toBeGreaterThan(0);
-        const mjsViolation = result.findings.find(v => v.ruleId === 'banned-mjs-extension');
+        const mjsViolation = result.findings.find((v) => v.ruleId === 'banned-mjs-extension');
         expect(mjsViolation).toBeDefined();
         expect(mjsViolation?.file).toBe('scripts/export_map.mjs');
         expect(mjsViolation?.fixable).toBe(true);
@@ -146,7 +149,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
         const result = await auditor.execute();
 
         expect(result.findings.length).toBeGreaterThan(0);
-        const cjsViolation = result.findings.find(v => v.ruleId === 'banned-cjs-extension');
+        const cjsViolation = result.findings.find((v) => v.ruleId === 'banned-cjs-extension');
         expect(cjsViolation).toBeDefined();
         expect(cjsViolation?.file).toBe('src/legacy.cjs');
         expect(cjsViolation?.fixable).toBe(true);
@@ -166,7 +169,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
         const result = await auditor.execute();
 
         expect(result.findings.length).toBeGreaterThan(0);
-        const jsViolation = result.findings.find(v => v.ruleId === 'banned-raw-js-script');
+        const jsViolation = result.findings.find((v) => v.ruleId === 'banned-raw-js-script');
         expect(jsViolation).toBeDefined();
         expect(jsViolation?.file).toBe('scripts/runner.js');
         expect(jsViolation?.fixable).toBe(true);
@@ -192,7 +195,8 @@ describe('ValidateScriptExtensionsAuditor', () => {
         const srcPath = path.join(tempDir, 'src', 'importer.ts');
         fs.writeFileSync(
           srcPath,
-          'import { analyze } from ' + '"../scripts/auto_tile_analyzer.mjs";\nconsole.log(analyze());\n'
+          'import { analyze } from ' +
+            '"../scripts/auto_tile_analyzer.mjs";\nconsole.log(analyze());\n'
         );
 
         // package.json referencing the .mjs
@@ -219,11 +223,15 @@ describe('ValidateScriptExtensionsAuditor', () => {
         expect(fs.existsSync(mjsPath)).toBe(false);
         const expectedTsPath = path.join(tempDir, 'scripts', 'auto_tile_analyzer.ts');
         expect(fs.existsSync(expectedTsPath)).toBe(true);
-        expect(fs.readFileSync(expectedTsPath, 'utf-8')).toBe('export function analyze() { return true; }\n');
+        expect(fs.readFileSync(expectedTsPath, 'utf-8')).toBe(
+          'export function analyze() { return true; }\n'
+        );
 
         // 2. Import references must be rewritten
         const updatedSrc = fs.readFileSync(srcPath, 'utf-8');
-        expect(updatedSrc).toContain('import { analyze } from ' + '"../scripts/auto_tile_analyzer.ts";');
+        expect(updatedSrc).toContain(
+          'import { analyze } from ' + '"../scripts/auto_tile_analyzer.ts";'
+        );
         expect(updatedSrc).not.toContain('.mjs');
 
         // 3. package.json script must be rewritten

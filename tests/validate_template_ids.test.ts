@@ -70,7 +70,9 @@ describe('TemplateIdAuditor', () => {
         </template>
       `;
       auditor.testScanFile('src/components/First.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'template-duplicate-static-id');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'template-duplicate-static-id'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -88,7 +90,9 @@ describe('TemplateIdAuditor', () => {
         </template>
       `;
       auditor.testScanFile('src/components/Form.vue', sfc);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'template-missing-input-id'
+      );
       expect(violations.length).toBe(2);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -105,7 +109,9 @@ describe('TemplateIdAuditor', () => {
         </template>
       `;
       auditor.testScanFile('src/components/Interactive.vue', sfc);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'template-missing-input-id'
+      );
       expect(violations.length).toBe(3);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -126,7 +132,9 @@ describe('TemplateIdAuditor', () => {
       auditor.testScanFile('src/components/ModalB.vue', sfc2);
 
       await auditor.runAudit();
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'template-shared-static-id');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'template-shared-static-id'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

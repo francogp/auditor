@@ -70,7 +70,9 @@ describe('MarkdownSyntaxAuditor', () => {
 
       auditor.testScanFile('docs/guide.md', content);
 
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'npm-script-exclusivity-in-docs');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'npm-script-exclusivity-in-docs'
+      );
       expect(violations).toHaveLength(3);
       expect(violations[0]?.severity).toBe('error');
       expect(violations[0]?.message).toContain('Direct script execution');
@@ -88,7 +90,9 @@ describe('MarkdownSyntaxAuditor', () => {
       ].join('\n');
 
       auditor.testScanFile('docs/guide.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'npm-script-exclusivity-in-docs');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'npm-script-exclusivity-in-docs'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -118,7 +122,9 @@ describe('MarkdownSyntaxAuditor', () => {
 
       auditor.testScanFile('docs/table.md', content);
 
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'markdown-table-preceding-blank-line');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'markdown-table-preceding-blank-line'
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('warning');
       expect(violations[0]?.message).toContain('preceded by a blank empty line');
@@ -140,7 +146,9 @@ describe('MarkdownSyntaxAuditor', () => {
       ].join('\n');
 
       auditor.testScanFile('docs/clean_table.md', content);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'markdown-table-preceding-blank-line');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'markdown-table-preceding-blank-line'
+      );
       expect(violations).toHaveLength(0);
     });
 

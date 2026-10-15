@@ -123,4 +123,13 @@ describe('MyFeatureAuditor', () => {
       expect(auditor.getRuleDuration(ruleId)).toBeGreaterThanOrEqual(0);
     }
   });
+
+  it('Canary: respects configuration active state and cleanly handles deactivation', async () => {
+    const activeAuditor = new MyFeatureAuditor({ projectRoot: TEST_DIR });
+    expect(activeAuditor.toManifest().rules).toBeDefined();
+
+    // When a rule or subsystem is deactivated, markRuleNotApplicable cleanly bypasses
+    activeAuditor.markRuleNotApplicable('my-feature-forbidden-pattern', 'Deactivated in audit.config.ts');
+    expect(activeAuditor.isRuleEvaluated('my-feature-forbidden-pattern')).toBe(true);
+  });
 });

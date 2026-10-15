@@ -29,20 +29,28 @@ describe('report_findings CLI Tool', () => {
       targetFamily: null,
       totalDiscoveredSuites: 40,
       executedSuiteCount: 40,
-      executedSuites: ['validate_eslint'],
+      executedSuites: ['validate_oxlint'],
       omittedSuites: [],
       environment: { nodeVersion: 'v26.0.0', platform: 'win32', cwd: '/test' }
     },
     status: 'passed',
-    summary: { totalViolations: 1, errors: 1, warnings: 0, suitesTotal: 1, suitesPassed: 1, suitesFailed: 0, durationMs: 15 },
+    summary: {
+      totalViolations: 1,
+      errors: 1,
+      warnings: 0,
+      suitesTotal: 1,
+      suitesPassed: 1,
+      suitesFailed: 0,
+      durationMs: 15
+    },
     families: {
       architecture: {
         title: 'ESTÁNDARES ESTÁTICOS',
         suites: [
           {
-            id: 'validate_eslint',
-            name: 'ESLint',
-            description: 'Reglas de ESLint',
+            id: 'validate_oxlint',
+            name: 'Oxlint & Vite+',
+            description: 'Reglas de Oxlint',
             family: 'architecture',
             status: 'failed',
             durationMs: 15,
@@ -55,8 +63,8 @@ describe('report_findings CLI Tool', () => {
                 line: 12,
                 ruleId: 'no-explicit-any',
                 ruleDescription: 'Sin tipos any',
-                suiteId: 'validate_eslint',
-                suiteName: 'ESLint'
+                suiteId: 'validate_oxlint',
+                suiteName: 'Oxlint & Vite+'
               }
             ],
             summary: { errors: 1, warnings: 0, info: 0 }
@@ -72,8 +80,8 @@ describe('report_findings CLI Tool', () => {
         line: 12,
         ruleId: 'no-explicit-any',
         ruleDescription: 'Sin tipos any',
-        suiteId: 'validate_eslint',
-        suiteName: 'ESLint'
+        suiteId: 'validate_oxlint',
+        suiteName: 'Oxlint & Vite+'
       }
     ]
   };
@@ -143,7 +151,14 @@ describe('report_findings CLI Tool', () => {
   });
 
   it('supports filtering by category and severity', () => {
-    process.argv = ['node', 'report_findings.ts', 'category=validate_eslint', 'severity=error', '--json', 'allow-stale'];
+    process.argv = [
+      'node',
+      'report_findings.ts',
+      'category=validate_oxlint',
+      'severity=error',
+      '--json',
+      'allow-stale'
+    ];
 
     expect(() => runReport()).not.toThrow();
     expect(consoleLogSpy).toHaveBeenCalled();
@@ -164,12 +179,22 @@ describe('report_findings CLI Tool', () => {
   });
 
   it('renders clean success banner when there are zero findings', () => {
-    fsReadSpy.mockImplementationOnce(() => JSON.stringify({
-      ...mockReport,
-      summary: { totalViolations: 0, errors: 0, warnings: 0, suitesTotal: 1, suitesPassed: 1, suitesFailed: 0, durationMs: 5 },
-      allFindings: [],
-      families: { architecture: { title: 'TEST', suites: [] } }
-    }));
+    fsReadSpy.mockImplementationOnce(() =>
+      JSON.stringify({
+        ...mockReport,
+        summary: {
+          totalViolations: 0,
+          errors: 0,
+          warnings: 0,
+          suitesTotal: 1,
+          suitesPassed: 1,
+          suitesFailed: 0,
+          durationMs: 5
+        },
+        allFindings: [],
+        families: { architecture: { title: 'TEST', suites: [] } }
+      })
+    );
 
     process.argv = ['node', 'report_findings.ts', 'allow-stale'];
     expect(() => runReport()).not.toThrow();

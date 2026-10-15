@@ -22,7 +22,10 @@ import {
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
 
 describe('update_package CLI', () => {
-  const sandboxDir = path.resolve(process.cwd(), 'scratch/test_update_package_' + crypto.randomUUID());
+  const sandboxDir = path.resolve(
+    process.cwd(),
+    'scratch/test_update_package_' + crypto.randomUUID()
+  );
 
   beforeEach(() => {
     fs.mkdirSync(sandboxDir, { recursive: true });
@@ -38,7 +41,10 @@ describe('update_package CLI', () => {
     it('discovers project root containing package.json', () => {
       const nestedDir = path.join(sandboxDir, 'nested/child/grandchild');
       fs.mkdirSync(nestedDir, { recursive: true });
-      fs.writeFileSync(path.join(sandboxDir, 'package.json'), JSON.stringify({ name: 'host-project' }));
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({ name: 'host-project' })
+      );
 
       const found = findHostProjectRoot(nestedDir);
       expect(found).toBe(sandboxDir);
@@ -255,7 +261,10 @@ describe('update_package CLI', () => {
     });
 
     it('executes via host node binary when host auditor package exists', () => {
-      const hostAuditorPkg = path.join(sandboxDir, 'node_modules/@francogp/auditor/dist/cli/audit_full.js');
+      const hostAuditorPkg = path.join(
+        sandboxDir,
+        'node_modules/@francogp/auditor/dist/cli/audit_full.js'
+      );
       fs.mkdirSync(path.dirname(hostAuditorPkg), { recursive: true });
       fs.writeFileSync(hostAuditorPkg, '// runner stub');
 
@@ -308,7 +317,9 @@ describe('ensureNpmrcAllowGit', () => {
   it('replaces a restrictive allow-git and preserves other lines', () => {
     fs.writeFileSync(path.join(dir, '.npmrc'), 'registry=https://example.org\nallow-git=none\n');
     expect(ensureNpmrcAllowGit(dir)).toBe(true);
-    expect(fs.readFileSync(path.join(dir, '.npmrc'), 'utf-8')).toBe('registry=https://example.org\nallow-git=all\n');
+    expect(fs.readFileSync(path.join(dir, '.npmrc'), 'utf-8')).toBe(
+      'registry=https://example.org\nallow-git=all\n'
+    );
   });
 
   it('is idempotent when allow-git=all already exists', () => {

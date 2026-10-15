@@ -94,7 +94,11 @@ describe('Project Architecture Rules & Auditor', () => {
 
     it('noInlineAnonymousObjectType bans Java-style anonymous object param signatures', () => {
       noInlineAnonymousObjectType.regex.lastIndex = 0;
-      expect(noInlineAnonymousObjectType.regex.test('function updateUser(payload: { name: string; age: number }) {}')).toBe(true);
+      expect(
+        noInlineAnonymousObjectType.regex.test(
+          'function updateUser(payload: { name: string; age: number }) {}'
+        )
+      ).toBe(true);
     });
 
     it('noFloatingPromises detects unhandled async calls', () => {
@@ -110,7 +114,6 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(noLeakedGlobalState.regex.test('export let globalActiveIndex = 0;')).toBe(true);
     });
 
-
     it('noSassAtImport detects legacy @import in SCSS', () => {
       noSassAtImport.regex.lastIndex = 0;
       expect(noSassAtImport.regex.test('@import "variables";')).toBe(true);
@@ -123,7 +126,9 @@ describe('Project Architecture Rules & Auditor', () => {
       expect(legacyDates.regex.test('const ms = Date.now();')).toBe(true);
 
       hardcodedTimezone.regex.lastIndex = 0;
-      expect(hardcodedTimezone.regex.test("toZonedDateTimeISO('America/Argentina/Buenos_Aires')")).toBe(true);
+      expect(
+        hardcodedTimezone.regex.test("toZonedDateTimeISO('America/Argentina/Buenos_Aires')")
+      ).toBe(true);
       hardcodedTimezone.regex.lastIndex = 0;
       expect(hardcodedTimezone.regex.test("Temporal.TimeZone.from('UTC')")).toBe(true);
     });
@@ -161,7 +166,9 @@ describe('Project Architecture Rules & Auditor', () => {
 
       explicitResource.regex.lastIndex = 0;
       expect(explicitResource.regex.test('const db = new DatabaseSync(":memory:")')).toBe(true);
-      expect(explicitResource.fix?.('const db = new DatabaseSync(":memory:")')).toBe('using db = new DatabaseSync(":memory:")');
+      expect(explicitResource.fix?.('const db = new DatabaseSync(":memory:")')).toBe(
+        'using db = new DatabaseSync(":memory:")'
+      );
     });
 
     it('jsonStringifyInWatch and intersectionObserverRoot detect reactivity and template defects', () => {
@@ -178,7 +185,9 @@ describe('Project Architecture Rules & Auditor', () => {
       forbiddenFallbacks.regex.lastIndex = 0;
       expect(forbiddenFallbacks.regex.test('const x = user.id || user.name;')).toBe(true);
       forbiddenFallbacks.regex.lastIndex = 0;
-      expect(forbiddenFallbacks.regex.test('const p = dataProvider.getUser() || fallback;')).toBe(true);
+      expect(forbiddenFallbacks.regex.test('const p = dataProvider.getUser() || fallback;')).toBe(
+        true
+      );
 
       noDomainIdFallbacks.regex.lastIndex = 0;
       expect(noDomainIdFallbacks.regex.test("const targetId = userId ?? ''")).toBe(true);
@@ -186,16 +195,26 @@ describe('Project Architecture Rules & Auditor', () => {
       strictDomainParamTypes.regex.lastIndex = 0;
       expect(strictDomainParamTypes.regex.test('function getUser(userId: string) {}')).toBe(true);
       strictDomainParamTypes.regex.lastIndex = 0;
-      expect(strictDomainParamTypes.regex.test('function setItem(itemId: ItemId | string) {}')).toBe(true);
+      expect(
+        strictDomainParamTypes.regex.test('function setItem(itemId: ItemId | string) {}')
+      ).toBe(true);
 
       noInlineTypeImports.regex.lastIndex = 0;
-      expect(noInlineTypeImports.regex.test("const user: import('./user').User = data;")).toBe(true);
+      expect(noInlineTypeImports.regex.test("const user: import('./user').User = data;")).toBe(
+        true
+      );
 
       noInlineLiteralUnions.regex.lastIndex = 0;
-      expect(noInlineLiteralUnions.regex.test("const status: 'pending' | 'active' | 'archived' = 'active';")).toBe(true);
+      expect(
+        noInlineLiteralUnions.regex.test(
+          "const status: 'pending' | 'active' | 'archived' = 'active';"
+        )
+      ).toBe(true);
 
       noRawJsonImportsOutsideData.regex.lastIndex = 0;
-      expect(noRawJsonImportsOutsideData.regex.test("import config from './config.json';")).toBe(true);
+      expect(noRawJsonImportsOutsideData.regex.test("import config from './config.json';")).toBe(
+        true
+      );
 
       zeroTimerLogic.regex.lastIndex = 0;
       expect(zeroTimerLogic.regex.test('sleep(100);')).toBe(true);

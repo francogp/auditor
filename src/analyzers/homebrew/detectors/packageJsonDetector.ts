@@ -13,7 +13,9 @@ export const packageJsonDetector = createLineDetector({
   checkLine(line) {
     const readsManualPkg =
       (line.includes('readFileSync(') && line.includes('package.json')) ||
-      (line.includes('JSON.parse(') && line.includes('package.json') && !line.includes('getPackageJson')) ||
+      (line.includes('JSON.parse(') &&
+        line.includes('package.json') &&
+        !line.includes('getPackageJson')) ||
       (/readFileSync\([^)]*\)/.test(line) && line.includes('pkgPath'));
 
     if (readsManualPkg && !line.includes('getPackageJson(')) {

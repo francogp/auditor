@@ -30,7 +30,8 @@ import { DocumentationLanguageAuditor } from '../src/suites/documentation/valida
 
 function countOccurrences(content: string, substring: string): number {
   if (!substring) return 0;
-  return (content.match(new RegExp(substring.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+  return (content.match(new RegExp(substring.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || [])
+    .length;
 }
 
 function createValidAgentsMd(extraContract = ''): string {
@@ -194,27 +195,17 @@ describe('AgentsConfigMandateAuditor', () => {
     ).toBe(true);
 
     expect(
-      containsFakePassMandate(
-        'Standard audit procedures allow warnings when ratchets permit.'
-      )
+      containsFakePassMandate('Standard audit procedures allow warnings when ratchets permit.')
     ).toBe(false);
   });
 
   it('detects chat language mandate across Spanish and English variations', () => {
     expect(
-      containsChatLanguageMandate(
-        CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES,
-        'en',
-        'es'
-      )
+      containsChatLanguageMandate(CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, 'en', 'es')
     ).toBe(true);
 
     expect(
-      containsChatLanguageMandate(
-        CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES,
-        'es',
-        'es'
-      )
+      containsChatLanguageMandate(CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, 'es', 'es')
     ).toBe(true);
 
     expect(
@@ -253,10 +244,14 @@ describe('AgentsConfigMandateAuditor', () => {
 
     expect(result.summary.errors).toBe(4);
     expect(result.status).toBe('failed');
-    expect(result.findings.some(v => v.ruleId === 'agents-missing-config-mandate')).toBe(true);
-    expect(result.findings.some(v => v.ruleId === 'agents-missing-backward-compat-mandate')).toBe(true);
-    expect(result.findings.some(v => v.ruleId === 'agents-missing-fake-pass-mandate')).toBe(true);
-    expect(result.findings.some(v => v.ruleId === 'agents-missing-chat-language-mandate')).toBe(true);
+    expect(result.findings.some((v) => v.ruleId === 'agents-missing-config-mandate')).toBe(true);
+    expect(result.findings.some((v) => v.ruleId === 'agents-missing-backward-compat-mandate')).toBe(
+      true
+    );
+    expect(result.findings.some((v) => v.ruleId === 'agents-missing-fake-pass-mandate')).toBe(true);
+    expect(result.findings.some((v) => v.ruleId === 'agents-missing-chat-language-mandate')).toBe(
+      true
+    );
   });
 
   it('fails with agents-missing-backward-compat-mandate when only backward-compat is missing', async () => {
@@ -298,7 +293,9 @@ describe('AgentsConfigMandateAuditor', () => {
 
     expect(result.summary.errors).toBe(4);
     expect(result.status).toBe('failed');
-    expect(result.findings.map(f => f.ruleId).sort()).toEqual([...AGENTS_CONFIG_MANDATE_RULES].sort());
+    expect(result.findings.map((f) => f.ruleId).sort()).toEqual(
+      [...AGENTS_CONFIG_MANDATE_RULES].sort()
+    );
   });
 
   it('auto-repairs missing mandates when running in fix mode', async () => {
@@ -308,9 +305,15 @@ describe('AgentsConfigMandateAuditor', () => {
     await fixAuditor.execute();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-    expect(updatedContent).toContain('Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation');
-    expect(updatedContent).toContain('Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate');
-    expect(updatedContent).toContain('Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate');
+    expect(updatedContent).toContain(
+      'Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation'
+    );
+    expect(updatedContent).toContain(
+      'Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate'
+    );
+    expect(updatedContent).toContain(
+      'Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate'
+    );
     expect(updatedContent).toContain('AI Agent Chat Communication & Interactive Language Mandate');
 
     // Subsequent audit on repaired file should pass cleanly
@@ -328,8 +331,12 @@ describe('AgentsConfigMandateAuditor', () => {
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain('trade-offs, pros, and cons');
-    expect(updatedContent).toContain('Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate');
-    expect(updatedContent).toContain('Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate');
+    expect(updatedContent).toContain(
+      'Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate'
+    );
+    expect(updatedContent).toContain(
+      'Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate'
+    );
     expect(updatedContent).toContain('AI Agent Chat Communication & Interactive Language Mandate');
 
     // Subsequent audit on repaired file should pass cleanly
@@ -347,10 +354,18 @@ describe('AgentsConfigMandateAuditor', () => {
     await fixAuditorEs.execute();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-    expect(updatedContent).toContain('Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador');
-    expect(updatedContent).toContain('Prohibición Absoluta de Código Retrocompatible y Mandato de Fallo Ruidoso');
-    expect(updatedContent).toContain('Prohibición Absoluta de Suprimir, Silenciar, Anular o Eludir Reglas de Auditoría y Mandato de Cero Tolerancia a Pases Falsos');
-    expect(updatedContent).toContain('Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA');
+    expect(updatedContent).toContain(
+      'Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador'
+    );
+    expect(updatedContent).toContain(
+      'Prohibición Absoluta de Código Retrocompatible y Mandato de Fallo Ruidoso'
+    );
+    expect(updatedContent).toContain(
+      'Prohibición Absoluta de Suprimir, Silenciar, Anular o Eludir Reglas de Auditoría y Mandato de Cero Tolerancia a Pases Falsos'
+    );
+    expect(updatedContent).toContain(
+      'Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA'
+    );
 
     // Verification in Spanish mode passes cleanly
     const verifyEs = new AgentsConfigMandateAuditor(scratchDir, { language: 'es' });
@@ -368,9 +383,15 @@ describe('AgentsConfigMandateAuditor', () => {
     await fixAuditorEn.execute();
 
     const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-    expect(finalContent).toContain('Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation');
-    expect(finalContent).toContain('Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate');
-    expect(finalContent).toContain('Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate');
+    expect(finalContent).toContain(
+      'Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation'
+    );
+    expect(finalContent).toContain(
+      'Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate'
+    );
+    expect(finalContent).toContain(
+      'Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate'
+    );
     expect(finalContent).toContain('AI Agent Chat Communication & Interactive Language Mandate');
     expect(finalContent).not.toContain('Prohibición de Modificar o Desactivar');
     expect(finalContent).not.toContain('Mandato de Idioma de Comunicación');
@@ -392,9 +413,15 @@ describe('AgentsConfigMandateAuditor', () => {
         expect(result.status).toBe('passed');
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(
+          countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')
+        ).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+          1
+        );
+        expect(
+          countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+        ).toBe(1);
         expect(countOccurrences(current, 'AI Agent Chat Communication')).toBe(1);
         expect(countOccurrences(current, '## Local Contracts')).toBe(1);
         expect(current).toBe(initial);
@@ -409,9 +436,18 @@ describe('AgentsConfigMandateAuditor', () => {
       await auditorRun1.execute();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
-      expect(countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
+      expect(
+        countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')
+      ).toBe(1);
+      expect(
+        countOccurrences(
+          contentAfterRun1,
+          'Absolute Prohibition on Suppressing, Silencing, Nullifying'
+        )
+      ).toBe(1);
       expect(countOccurrences(contentAfterRun1, 'AI Agent Chat Communication')).toBe(1);
       expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
 
@@ -422,9 +458,15 @@ describe('AgentsConfigMandateAuditor', () => {
         expect(result.summary.errors).toBe(0);
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(
+          countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')
+        ).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+          1
+        );
+        expect(
+          countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+        ).toBe(1);
         expect(countOccurrences(current, 'AI Agent Chat Communication')).toBe(1);
         expect(countOccurrences(current, '## Local Contracts')).toBe(1);
         expect(current).toBe(contentAfterRun1);
@@ -438,9 +480,18 @@ describe('AgentsConfigMandateAuditor', () => {
       await auditorRun1.execute();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
-      expect(countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
+      expect(
+        countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')
+      ).toBe(1);
+      expect(
+        countOccurrences(
+          contentAfterRun1,
+          'Absolute Prohibition on Suppressing, Silencing, Nullifying'
+        )
+      ).toBe(1);
       expect(countOccurrences(contentAfterRun1, 'AI Agent Chat Communication')).toBe(1);
       expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
 
@@ -449,9 +500,15 @@ describe('AgentsConfigMandateAuditor', () => {
         await auditor.execute();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(
+          countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')
+        ).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+          1
+        );
+        expect(
+          countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+        ).toBe(1);
         expect(countOccurrences(current, 'AI Agent Chat Communication')).toBe(1);
         expect(countOccurrences(current, '## Local Contracts')).toBe(1);
         expect(current).toBe(contentAfterRun1);
@@ -459,15 +516,28 @@ describe('AgentsConfigMandateAuditor', () => {
     });
 
     it('guarantees zero duplicate mandates when auto-repairing outdated legacy mandates repeatedly', async () => {
-      fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createOutdatedMandatesAgentsMd(), 'utf8');
+      fs.writeFileSync(
+        path.join(scratchDir, 'AGENTS.md'),
+        createOutdatedMandatesAgentsMd(),
+        'utf8'
+      );
 
       const auditorRun1 = new AgentsConfigMandateAuditor(scratchDir, { fix: true });
       await auditorRun1.execute();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
-      expect(countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(contentAfterRun1, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(contentAfterRun1, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
+      expect(
+        countOccurrences(contentAfterRun1, 'Absolute Prohibition on Backward-Compatible Code')
+      ).toBe(1);
+      expect(
+        countOccurrences(
+          contentAfterRun1,
+          'Absolute Prohibition on Suppressing, Silencing, Nullifying'
+        )
+      ).toBe(1);
       expect(countOccurrences(contentAfterRun1, 'AI Agent Chat Communication')).toBe(1);
       expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
 
@@ -480,9 +550,15 @@ describe('AgentsConfigMandateAuditor', () => {
         await auditor.execute();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-        expect(countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-        expect(countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+        expect(
+          countOccurrences(current, 'Prohibition on Modifying or Disabling Configurations')
+        ).toBe(1);
+        expect(countOccurrences(current, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+          1
+        );
+        expect(
+          countOccurrences(current, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+        ).toBe(1);
         expect(countOccurrences(current, 'AI Agent Chat Communication')).toBe(1);
         expect(current).toBe(contentAfterRun1);
       }
@@ -510,9 +586,15 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
 
       // Before fix: ensure test fixture actually has duplicates
       const beforeFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(countOccurrences(beforeFix, 'Prohibition on Modifying or Disabling Configurations')).toBe(3);
-      expect(countOccurrences(beforeFix, 'Absolute Prohibition on Backward-Compatible Code')).toBe(2);
-      expect(countOccurrences(beforeFix, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(2);
+      expect(
+        countOccurrences(beforeFix, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(3);
+      expect(countOccurrences(beforeFix, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+        2
+      );
+      expect(
+        countOccurrences(beforeFix, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+      ).toBe(2);
       expect(countOccurrences(beforeFix, 'AI Agent Chat Communication')).toBe(2);
 
       // Run fix mode: must prune duplicates to exactly 1 of each
@@ -520,9 +602,15 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       await fixAuditor.execute();
 
       const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(countOccurrences(afterFix, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-      expect(countOccurrences(afterFix, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(afterFix, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(afterFix, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
+      expect(countOccurrences(afterFix, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+        1
+      );
+      expect(
+        countOccurrences(afterFix, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+      ).toBe(1);
       expect(countOccurrences(afterFix, 'AI Agent Chat Communication')).toBe(1);
       expect(countOccurrences(afterFix, '## Local Contracts')).toBe(1);
 
@@ -531,9 +619,15 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       await fixAuditor2.execute();
 
       const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(countOccurrences(afterFix2, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-      expect(countOccurrences(afterFix2, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(afterFix2, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(afterFix2, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
+      expect(countOccurrences(afterFix2, 'Absolute Prohibition on Backward-Compatible Code')).toBe(
+        1
+      );
+      expect(
+        countOccurrences(afterFix2, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+      ).toBe(1);
       expect(countOccurrences(afterFix2, 'AI Agent Chat Communication')).toBe(1);
       expect(afterFix2).toBe(afterFix);
     });
@@ -547,7 +641,9 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
         await auditor.execute();
       }
       let content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(
+        countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
       expect(countOccurrences(content, 'AI Agent Chat Communication')).toBe(1);
       expect(countOccurrences(content, 'Prohibición de Modificar o Desactivar')).toBe(0);
       expect(countOccurrences(content, 'Mandato de Idioma de Comunicación')).toBe(0);
@@ -562,7 +658,9 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       expect(countOccurrences(content, 'Prohibición Absoluta de Código Retrocompatible')).toBe(1);
       expect(countOccurrences(content, 'Prohibición Absoluta de Suprimir, Silenciar')).toBe(1);
       expect(countOccurrences(content, 'Mandato de Idioma de Comunicación')).toBe(1);
-      expect(countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')).toBe(0);
+      expect(
+        countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(0);
       expect(countOccurrences(content, 'AI Agent Chat Communication')).toBe(0);
 
       // 3. Switch back to English mode 2x
@@ -571,9 +669,13 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
         await auditor.execute();
       }
       content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
+      expect(
+        countOccurrences(content, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
       expect(countOccurrences(content, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(content, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(content, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+      ).toBe(1);
       expect(countOccurrences(content, 'AI Agent Chat Communication')).toBe(1);
       expect(countOccurrences(content, 'Prohibición de Modificar o Desactivar')).toBe(0);
       expect(countOccurrences(content, 'Mandato de Idioma de Comunicación')).toBe(0);
@@ -585,19 +687,36 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
 
       // Alternating execution of both fix auditors across 3 cycles
       for (let cycle = 1; cycle <= 3; cycle++) {
-        const mandateAuditor = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'en' });
+        const mandateAuditor = new AgentsConfigMandateAuditor(scratchDir, {
+          fix: true,
+          language: 'en'
+        });
         await mandateAuditor.execute();
 
-        const langAuditor = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+        const langAuditor = new DocumentationLanguageAuditor(scratchDir, {
+          fix: true,
+          language: 'en'
+        });
         await langAuditor.execute();
       }
 
       const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(countOccurrences(finalContent, 'Prohibition on Modifying or Disabling Configurations')).toBe(1);
-      expect(countOccurrences(finalContent, 'Absolute Prohibition on Backward-Compatible Code')).toBe(1);
-      expect(countOccurrences(finalContent, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')).toBe(1);
+      expect(
+        countOccurrences(finalContent, 'Prohibition on Modifying or Disabling Configurations')
+      ).toBe(1);
+      expect(
+        countOccurrences(finalContent, 'Absolute Prohibition on Backward-Compatible Code')
+      ).toBe(1);
+      expect(
+        countOccurrences(finalContent, 'Absolute Prohibition on Suppressing, Silencing, Nullifying')
+      ).toBe(1);
       expect(countOccurrences(finalContent, 'AI Agent Chat Communication')).toBe(1);
-      expect(countOccurrences(finalContent, 'Universal English Documentation Default Mandate & Language Governance')).toBe(1);
+      expect(
+        countOccurrences(
+          finalContent,
+          'Universal English Documentation Default Mandate & Language Governance'
+        )
+      ).toBe(1);
       expect(countOccurrences(finalContent, '## Local Contracts')).toBe(1);
 
       // Clean non-fix execution must pass with 0 errors

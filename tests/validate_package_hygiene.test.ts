@@ -146,16 +146,22 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
 
     it('detects unresolved merge conflict markers in package-lock.json', () => {
       fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
-      fs.writeFileSync(path.join(tempDir, 'package-lock.json'), '{\n<<<<<<< HEAD\n  "name": "foo"\n=======\n  "name": "bar"\n>>>>>>> main\n}\n');
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        '{\n<<<<<<< HEAD\n  "name": "foo"\n=======\n  "name": "bar"\n>>>>>>> main\n}\n'
+      );
       const findings = verifyLockfileIntegrity(tempDir);
-      expect(findings.some(f => f.context === 'merge-conflict')).toBe(true);
+      expect(findings.some((f) => f.context === 'merge-conflict')).toBe(true);
     });
 
     it('detects obsolete lockfileVersion < 3', () => {
       fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'pkg' }));
-      fs.writeFileSync(path.join(tempDir, 'package-lock.json'), JSON.stringify({ name: 'pkg', lockfileVersion: 2 }));
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({ name: 'pkg', lockfileVersion: 2 })
+      );
       const findings = verifyLockfileIntegrity(tempDir);
-      expect(findings.some(f => f.message.includes('lockfileVersion obsoleto'))).toBe(true);
+      expect(findings.some((f) => f.message.includes('lockfileVersion obsoleto'))).toBe(true);
     });
 
     it('detects insecure http:// registry resolutions', () => {
@@ -173,7 +179,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
         })
       );
       const findings = verifyLockfileIntegrity(tempDir);
-      expect(findings.some(f => f.context === 'insecure-http-resolved')).toBe(true);
+      expect(findings.some((f) => f.context === 'insecure-http-resolved')).toBe(true);
     });
 
     it('passes cleanly on valid modern lockfileVersion 3 with https', () => {
@@ -253,7 +259,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       const result = await auditor.finishAudit();
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
-      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+      expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
     });
 
     it('generates ephemeral Knip configuration pointing to Knip v6 schema', () => {
@@ -267,7 +273,9 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
         packageHygiene: { enabled: true }
       });
 
-      const ephemeralConfigPath = (auditor as unknown as { buildEphemeralKnipConfig: (c: typeof cfg, s: string) => string }).buildEphemeralKnipConfig(cfg, scratchDir);
+      const ephemeralConfigPath = (
+        auditor as unknown as { buildEphemeralKnipConfig: (c: typeof cfg, s: string) => string }
+      ).buildEphemeralKnipConfig(cfg, scratchDir);
       expect(fs.existsSync(ephemeralConfigPath)).toBe(true);
 
       const parsed = JSON.parse(fs.readFileSync(ephemeralConfigPath, 'utf-8'));

@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { inefficientFileScanDetector } from '../src/analyzers/homebrew/detectors/inefficientFileScanDetector.ts';
 import { type HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
 
-function createContext(content: string, filePath = 'src/suites/testSuite.ts'): HomebrewInspectionContext {
+function createContext(
+  content: string,
+  filePath = 'src/suites/testSuite.ts'
+): HomebrewInspectionContext {
   const lines = content.split('\n');
   return {
     filePath,
@@ -40,10 +43,9 @@ describe('inefficientFileScanDetector', () => {
   });
 
   it('detects blind wildcards passed to external tools', () => {
-    const code = [
-      'const args = ["**/*.md", "--dot"];',
-      'executeNodeCli(binPath, args);'
-    ].join('\n');
+    const code = ['const args = ["**/*.md", "--dot"];', 'executeNodeCli(binPath, args);'].join(
+      '\n'
+    );
 
     const findings = inefficientFileScanDetector.detect(createContext(code));
     expect(findings).toHaveLength(1);

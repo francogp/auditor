@@ -78,7 +78,9 @@ describe('TestHygieneAuditor', () => {
         vi.mock('@/logic/db/supabase', () => ({}));
       `;
       auditor.testScanFile('tests/integration/billing.test.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-tautological-integration-mocks');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-tautological-integration-mocks'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -89,7 +91,9 @@ describe('TestHygieneAuditor', () => {
         await page.getByText('Submit Order').click();
       `;
       auditor.testScanFile('tests/e2e/order.spec.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'playwright-id-locators-only');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'playwright-id-locators-only'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -100,7 +104,9 @@ describe('TestHygieneAuditor', () => {
         await page.locator('#btn-save').click({ force: true });
       `;
       auditor.testScanFile('tests/e2e/save.spec.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-playwright-force-click');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-playwright-force-click'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -111,7 +117,9 @@ describe('TestHygieneAuditor', () => {
         await page.waitForTimeout(3000);
       `;
       auditor.testScanFile('tests/e2e/wait.spec.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-playwright-polling-waits');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-playwright-polling-waits'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -123,7 +131,9 @@ describe('TestHygieneAuditor', () => {
         export default { testTimeout: ${timeoutMs} };
       `;
       auditor.testScanFile('tests/node/heavy.test.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-test-timeout-inflation');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-test-timeout-inflation'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

@@ -13,11 +13,7 @@ import {
   zIndexAudit,
   zIndexConstantDeclaration
 } from '../src/analyzers/zIndexRules.ts';
-import {
-  setAuditConfig,
-  defineAuditConfig,
-  resetAuditConfig
-} from '../src/core/auditConfig.ts';
+import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('zIndexRules Analyzer', () => {
   beforeEach(() => {
@@ -89,23 +85,34 @@ describe('zIndexRules Analyzer', () => {
     });
 
     it('generates appropriate messages for exact, relative, and out-of-standard layers', () => {
-      const msgExact = typeof zIndexAudit.message === 'function' ? zIndexAudit.message('z-index: 11000') : zIndexAudit.message;
+      const msgExact =
+        typeof zIndexAudit.message === 'function'
+          ? zIndexAudit.message('z-index: 11000')
+          : zIndexAudit.message;
       expect(msgExact).toContain('Z_LAYERS.MODAL');
       expect(msgExact).toContain('var(--z-modal)');
 
-      const msgRelative = typeof zIndexAudit.message === 'function' ? zIndexAudit.message('z-index: 11005') : zIndexAudit.message;
+      const msgRelative =
+        typeof zIndexAudit.message === 'function'
+          ? zIndexAudit.message('z-index: 11005')
+          : zIndexAudit.message;
       expect(msgRelative).toContain('Z_LAYERS.MODAL');
       expect(msgRelative).toContain('calc(var(--z-modal) + 5)');
 
-      const msgNoNum = typeof zIndexAudit.message === 'function' ? zIndexAudit.message('z-index: none') : zIndexAudit.message;
+      const msgNoNum =
+        typeof zIndexAudit.message === 'function'
+          ? zIndexAudit.message('z-index: none')
+          : zIndexAudit.message;
       expect(msgNoNum).toContain('Z-Index hardcodeado detectado');
     });
 
     it('check returns false when styles.zLayersEnabled is false', () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'test-app',
-        styles: { zLayersEnabled: false }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'test-app',
+          styles: { zLayersEnabled: false }
+        })
+      );
 
       const match = ['z-index: 100'] as unknown as RegExpExecArray;
       const shouldRun = zIndexAudit.check?.('z-index: 100', match, 'src/test.vue');
@@ -113,10 +120,12 @@ describe('zIndexRules Analyzer', () => {
     });
 
     it('check returns true for non-exempt files when enabled', () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'test-app',
-        styles: { zLayersEnabled: true }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'test-app',
+          styles: { zLayersEnabled: true }
+        })
+      );
 
       const match = ['z-index: 100'] as unknown as RegExpExecArray;
       const shouldRun = zIndexAudit.check?.('z-index: 100', match, 'src/components/Modal.vue');
@@ -141,29 +150,36 @@ describe('zIndexRules Analyzer', () => {
     });
 
     it('generates message pointing to Z_LAYERS configuration', () => {
-      const msg = typeof zIndexConstantDeclaration.message === 'function'
-        ? zIndexConstantDeclaration.message('const Z_INDEX_X = 1;')
-        : zIndexConstantDeclaration.message;
+      const msg =
+        typeof zIndexConstantDeclaration.message === 'function'
+          ? zIndexConstantDeclaration.message('const Z_INDEX_X = 1;')
+          : zIndexConstantDeclaration.message;
       expect(msg).toContain('PROHIBIDO declarar constantes de Z-Index');
       expect(msg).toContain('Z_LAYERS');
     });
 
     it('check returns false when zLayersEnabled is false or file is exempt', () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'test-app',
-        styles: { zLayersEnabled: false }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'test-app',
+          styles: { zLayersEnabled: false }
+        })
+      );
 
       const match = ['const Z_INDEX = 1;'] as unknown as RegExpExecArray;
       expect(zIndexConstantDeclaration.check?.('', match, 'src/test.ts')).toBe(false);
 
-      setAuditConfig(defineAuditConfig({
-        name: 'test-app',
-        styles: { zLayersEnabled: true, zLayersTsFile: 'src/constants/zLayers.ts' }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'test-app',
+          styles: { zLayersEnabled: true, zLayersTsFile: 'src/constants/zLayers.ts' }
+        })
+      );
 
       expect(zIndexConstantDeclaration.check?.('', match, 'src/constants/zLayers.ts')).toBe(false);
-      expect(zIndexConstantDeclaration.check?.('', match, 'src/node_modules/pkg/index.ts')).toBe(false);
+      expect(zIndexConstantDeclaration.check?.('', match, 'src/node_modules/pkg/index.ts')).toBe(
+        false
+      );
       expect(zIndexConstantDeclaration.check?.('', match, 'src/views/Home.vue')).toBe(true);
     });
   });

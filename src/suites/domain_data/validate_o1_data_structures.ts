@@ -1,6 +1,6 @@
 /**
  * scripts/auditors/domain_data/validate_o1_data_structures.ts
- * 
+ *
  * O(1) DATA STRUCTURE & LINEAR SEARCH AUDITOR (Node.js 26+ Native)
  * Scans codebase to detect anti-patterns of linear search O(N) and nested loops O(N^2)
  * where an O(1) indexed data structure (Record, ReadonlySet, Map) is available.
@@ -39,7 +39,7 @@ export function getResolvedO1CatalogPatterns(): Array<{
   const config = getAuditConfig();
   const configured = config.domain?.o1CatalogPatterns;
   if (configured && configured.length > 0) {
-    return configured.map(c => ({
+    return configured.map((c) => ({
       name: c.name,
       pattern: typeof c.pattern === 'string' ? new RegExp(c.pattern, 'g') : c.pattern,
       alternative: c.alternative,
@@ -49,8 +49,10 @@ export function getResolvedO1CatalogPatterns(): Array<{
   return DEFAULT_O1_CATALOG_PATTERNS;
 }
 
-export const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
-export const P_OBJECT_SCAN_LOOKUP = /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
+export const P_STATIC_ARRAY_INCLUDES =
+  /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(?:includes|indexOf)\s*\(/g;
+export const P_OBJECT_SCAN_LOOKUP =
+  /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
 export const P_JSON_CLONE = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(/g;
 export const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
 
@@ -58,7 +60,7 @@ export const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*
 export const ESCAPE_HATCHES = ['// o1-ok:', '// linear-search-ok:'] as const;
 
 export function shouldIgnoreLine(line: string): boolean {
-  return ESCAPE_HATCHES.some(hatch => line.includes(hatch));
+  return ESCAPE_HATCHES.some((hatch) => line.includes(hatch));
 }
 
 export type O1RuleId =
@@ -88,7 +90,12 @@ function checkLineCatalogLookups(params: {
   lineText: string;
   lineNumber: number;
   normalizedPath: string;
-  catalogPatterns: Array<{ name: string; pattern: RegExp; alternative: string; definingFile: string }>;
+  catalogPatterns: Array<{
+    name: string;
+    pattern: RegExp;
+    alternative: string;
+    definingFile: string;
+  }>;
   issues: O1Issue[];
 }): void {
   for (const catalog of params.catalogPatterns) {
@@ -134,7 +141,8 @@ function checkLinePatterns(params: {
   if (P_OBJECT_SCAN_LOOKUP.test(lineText)) {
     issues.push({
       ruleId: 'o1-object-scan',
-      message: "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
+      message:
+        "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
       line: lineNumber,
       context: trimmed,
       isWarning: false
@@ -145,7 +153,10 @@ function checkLinePatterns(params: {
   if (P_JSON_CLONE.test(lineText)) {
     issues.push({
       ruleId: 'o1-json-clone',
-      message: "Forbidden 'JSON" + ".parse(JSON" + ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
+      message:
+        "Forbidden 'JSON" +
+        '.parse(JSON' +
+        ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
       line: lineNumber,
       context: trimmed,
       isWarning: false
@@ -169,7 +180,12 @@ function checkLinePatterns(params: {
 export function scanFileForO1Issues(
   filePath: string,
   content: string,
-  catalogPatterns: Array<{ name: string; pattern: RegExp; alternative: string; definingFile: string }> = getResolvedO1CatalogPatterns()
+  catalogPatterns: Array<{
+    name: string;
+    pattern: RegExp;
+    alternative: string;
+    definingFile: string;
+  }> = getResolvedO1CatalogPatterns()
 ): O1Issue[] {
   const issues: O1Issue[] = [];
   const lines = content.split('\n');
@@ -180,7 +196,12 @@ export function scanFileForO1Issues(
     const lineNumber = index + 1;
 
     const trimmed = lineText.trim();
-    if (shouldIgnoreLine(lineText) || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
+    if (
+      shouldIgnoreLine(lineText) ||
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('*') ||
+      trimmed.startsWith('/*')
+    ) {
       continue;
     }
 
@@ -191,9 +212,8 @@ export function scanFileForO1Issues(
   return issues;
 }
 
-
 export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? config.paths.codeRoots ?? [];
     super({
@@ -204,9 +224,10 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_o1_data_structures',
+      id: 'validate_o1_data_structures',
       name: 'O(1) Data Structure & Performance Auditor',
       description: 'Búsqueda lineal O(N) o clonado con JSON.parse',
       family: 'domain_data',
@@ -224,11 +245,16 @@ id: 'validate_o1_data_structures',
         'o1-redundant-spread-return': 'Retorno redundante con spread'
       },
       ruleRemediations: {
-        'o1-catalog-lookup': 'Guía de diagnóstico y remediación para o1-catalog-lookup. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'o1-linear-membership': 'Guía de diagnóstico y remediación para o1-linear-membership. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'o1-object-scan': 'Guía de diagnóstico y remediación para o1-object-scan. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'o1-json-clone': 'Guía de diagnóstico y remediación para o1-json-clone. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'o1-redundant-spread-return': 'Guía de diagnóstico y remediación para o1-redundant-spread-return. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'o1-catalog-lookup':
+          'Guía de diagnóstico y remediación para o1-catalog-lookup. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'o1-linear-membership':
+          'Guía de diagnóstico y remediación para o1-linear-membership. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'o1-object-scan':
+          'Guía de diagnóstico y remediación para o1-object-scan. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'o1-json-clone':
+          'Guía de diagnóstico y remediación para o1-json-clone. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'o1-redundant-spread-return':
+          'Guía de diagnóstico y remediación para o1-redundant-spread-return. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
@@ -240,7 +266,10 @@ id: 'validate_o1_data_structures',
     const config = getAuditConfig(this.projectRoot);
     const catalogPatterns = config.domain?.o1CatalogPatterns ?? [];
     if (catalogPatterns.length === 0) {
-      this.markRuleNotApplicable('o1-catalog-lookup', 'No o1CatalogPatterns configurados en audit.config.ts');
+      this.markRuleNotApplicable(
+        'o1-catalog-lookup',
+        'No o1CatalogPatterns configurados en audit.config.ts'
+      );
     }
     await super.runAudit(astContext);
   }
@@ -286,12 +315,14 @@ id: 'validate_o1_data_structures',
     relPath: string,
     lines: readonly string[],
     normalizedPath: string,
-    catalogPatterns: Array<{ name: string; pattern: RegExp; alternative: string; definingFile: string }>
+    catalogPatterns: Array<{
+      name: string;
+      pattern: RegExp;
+      alternative: string;
+      definingFile: string;
+    }>
   ): void {
-    for (let index = 0; index < lines.length; index++) {
-      const lineText = lines[index]!;
-      if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*')) continue;
-
+    this.forEachCodeLine(lines, (lineText, line) => {
       for (const catalog of catalogPatterns) {
         if (normalizedPath.endsWith(catalog.definingFile)) continue;
         catalog.pattern.lastIndex = 0;
@@ -300,20 +331,36 @@ id: 'validate_o1_data_structures',
             ruleId: 'o1-catalog-lookup',
             severity: 'error',
             file: relPath,
-            line: index + 1,
+            line,
             message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
             context: lineText.trim()
           });
         }
       }
+    });
+  }
+
+  private forEachCodeLine(
+    lines: readonly string[],
+    callback: (lineText: string, lineNumber: number) => void
+  ): void {
+    for (let index = 0; index < lines.length; index++) {
+      const lineText = lines[index]!;
+      const trimmed = lineText.trim();
+      if (
+        shouldIgnoreLine(lineText) ||
+        trimmed.startsWith('//') ||
+        trimmed.startsWith('*') ||
+        trimmed.startsWith('/*')
+      ) {
+        continue;
+      }
+      callback(lineText, index + 1);
     }
   }
 
   private scanLinearMembership(relPath: string, lines: readonly string[]): void {
-    for (let index = 0; index < lines.length; index++) {
-      const lineText = lines[index]!;
-      if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*')) continue;
-
+    this.forEachCodeLine(lines, (lineText, line) => {
       P_STATIC_ARRAY_INCLUDES.lastIndex = 0;
       let match: RegExpExecArray | null;
       while ((match = P_STATIC_ARRAY_INCLUDES.exec(lineText)) !== null) {
@@ -322,57 +369,52 @@ id: 'validate_o1_data_structures',
           ruleId: 'o1-linear-membership',
           severity: 'error',
           file: relPath,
-          line: index + 1,
+          line,
           message: `Linear O(N) membership check with '.includes()' on '${arrayName}'. Derive a 'ReadonlySet<T>' and use '.has()'`,
           context: lineText.trim()
         });
       }
-    }
+    });
   }
 
   private scanObjectScan(relPath: string, lines: readonly string[]): void {
-    for (let index = 0; index < lines.length; index++) {
-      const lineText = lines[index]!;
-      if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*')) continue;
-
+    this.forEachCodeLine(lines, (lineText, line) => {
       P_OBJECT_SCAN_LOOKUP.lastIndex = 0;
       if (P_OBJECT_SCAN_LOOKUP.test(lineText)) {
         this.addViolation({
           ruleId: 'o1-object-scan',
           severity: 'error',
           file: relPath,
-          line: index + 1,
-          message: "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
+          line,
+          message:
+            "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
           context: lineText.trim()
         });
       }
-    }
+    });
   }
 
   private scanJsonClone(relPath: string, lines: readonly string[]): void {
-    for (let index = 0; index < lines.length; index++) {
-      const lineText = lines[index]!;
-      if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*')) continue;
-
+    this.forEachCodeLine(lines, (lineText, line) => {
       P_JSON_CLONE.lastIndex = 0;
       if (P_JSON_CLONE.test(lineText)) {
         this.addViolation({
           ruleId: 'o1-json-clone',
           severity: 'error',
           file: relPath,
-          line: index + 1,
-          message: "Forbidden 'JSON" + ".parse(JSON" + ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
+          line,
+          message:
+            "Forbidden 'JSON" +
+            '.parse(JSON' +
+            ".stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
           context: lineText.trim()
         });
       }
-    }
+    });
   }
 
   private scanRedundantSpreadReturn(relPath: string, lines: readonly string[]): void {
-    for (let index = 0; index < lines.length; index++) {
-      const lineText = lines[index]!;
-      if (shouldIgnoreLine(lineText) || lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.trim().startsWith('/*')) continue;
-
+    this.forEachCodeLine(lines, (lineText, line) => {
       P_REDUNDANT_SPREAD_RETURN.lastIndex = 0;
       const spreadMatch = P_REDUNDANT_SPREAD_RETURN.exec(lineText);
       if (spreadMatch && spreadMatch[1]) {
@@ -381,12 +423,12 @@ id: 'validate_o1_data_structures',
           ruleId: 'o1-redundant-spread-return',
           severity: 'error',
           file: relPath,
-          line: index + 1,
+          line,
           message: `Redundant array spread 'return [...${target}]'. Return the collection directly typed as 'readonly T[]' to prevent unnecessary heap allocations and GC churn.`,
           context: lineText.trim()
         });
       }
-    }
+    });
   }
 }
 

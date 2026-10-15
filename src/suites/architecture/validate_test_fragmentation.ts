@@ -29,10 +29,7 @@ import { renderBoxTable } from '../../core/unifiedTheme.ts';
 
 enableCompileCache();
 
-export const TEST_FRAGMENTATION_RULES = [
-  'no-fragmented-tests',
-  'unnecessary-jsdom'
-] as const;
+export const TEST_FRAGMENTATION_RULES = ['no-fragmented-tests', 'unnecessary-jsdom'] as const;
 
 export type TestFragmentationRuleId = (typeof TEST_FRAGMENTATION_RULES)[number];
 

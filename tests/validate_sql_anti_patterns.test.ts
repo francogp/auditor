@@ -20,7 +20,10 @@ import {
 } from '../src/suites/persistence/validate_sql_anti_patterns.ts';
 
 describe('SqlAntiPatternsAuditor', () => {
-  const scratchDir = path.resolve(process.cwd(), 'scratch/test_sql_anti_patterns_' + crypto.randomUUID());
+  const scratchDir = path.resolve(
+    process.cwd(),
+    'scratch/test_sql_anti_patterns_' + crypto.randomUUID()
+  );
   const migrationsDir = path.join(scratchDir, 'supabase/migrations');
 
   beforeEach(() => {
@@ -68,7 +71,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       const auditor = new TestableAuditor();
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'sql-no-positional-arrays');
+      const violation = result.findings.find((f) => f.ruleId === 'sql-no-positional-arrays');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -95,7 +98,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       const auditor = new TestableAuditor();
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'sql-plpgsql-declared-variables');
+      const violation = result.findings.find((f) => f.ruleId === 'sql-plpgsql-declared-variables');
       expect(violation).toBeDefined();
     });
 
@@ -113,7 +116,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       const auditor = new TestableAuditor();
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'sql-rls-policy-grant-integrity');
+      const violation = result.findings.find((f) => f.ruleId === 'sql-rls-policy-grant-integrity');
       expect(violation).toBeDefined();
     });
 
@@ -163,7 +166,9 @@ describe('SqlAntiPatternsAuditor', () => {
       const auditor = new TestableAuditor();
       const result = await auditor.execute();
       expect(result.summary.errors).toBe(0);
-      const rlsViolations = result.findings.filter(f => f.ruleId === 'sql-rls-policy-grant-integrity');
+      const rlsViolations = result.findings.filter(
+        (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
+      );
       expect(rlsViolations).toHaveLength(0);
       expect(rlsViolations.length).toBe(0);
     });

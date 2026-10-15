@@ -121,13 +121,17 @@ describe('O1DataStructuresAuditor', () => {
         }
       ];
       const issues = scanFileForO1Issues('src/logic/serverFinder.ts', code, catalogPatterns);
-      const issue = issues.find(i => i.ruleId === 'o1-catalog-lookup');
+      const issue = issues.find((i) => i.ruleId === 'o1-catalog-lookup');
       expect(issue).toBeDefined();
       expect(issue?.isWarning).toBe(false);
 
       // Defining file should be ignored
-      const definingIssues = scanFileForO1Issues('src/data/system/official_servers.ts', code, catalogPatterns);
-      expect(definingIssues.filter(i => i.ruleId === 'o1-catalog-lookup')).toHaveLength(0);
+      const definingIssues = scanFileForO1Issues(
+        'src/data/system/official_servers.ts',
+        code,
+        catalogPatterns
+      );
+      expect(definingIssues.filter((i) => i.ruleId === 'o1-catalog-lookup')).toHaveLength(0);
     });
 
     it('detects .includes() on constant array (o1-linear-membership)', () => {
@@ -137,7 +141,7 @@ describe('O1DataStructuresAuditor', () => {
         }
       `;
       const issues = scanFileForO1Issues('src/logic/tariffValidator.ts', code);
-      const issue = issues.find(i => i.ruleId === 'o1-linear-membership');
+      const issue = issues.find((i) => i.ruleId === 'o1-linear-membership');
       expect(issue).toBeDefined();
     });
 
@@ -146,7 +150,7 @@ describe('O1DataStructuresAuditor', () => {
         const found = Object.values(records).find(r => r.active);
       `;
       const issues = scanFileForO1Issues('src/logic/recordScanner.ts', code);
-      const issue = issues.find(i => i.ruleId === 'o1-object-scan');
+      const issue = issues.find((i) => i.ruleId === 'o1-object-scan');
       expect(issue).toBeDefined();
     });
 
@@ -155,7 +159,7 @@ describe('O1DataStructuresAuditor', () => {
         const copy = JSON.parse(JSON.stringify(original));
       `;
       const issues = scanFileForO1Issues('src/logic/cloneHelper.ts', code);
-      const issue = issues.find(i => i.ruleId === 'o1-json-clone');
+      const issue = issues.find((i) => i.ruleId === 'o1-json-clone');
       expect(issue).toBeDefined();
     });
 
@@ -166,7 +170,7 @@ describe('O1DataStructuresAuditor', () => {
         }
       `;
       const issues = scanFileForO1Issues('src/logic/items.ts', code);
-      const issue = issues.find(i => i.ruleId === 'o1-redundant-spread-return');
+      const issue = issues.find((i) => i.ruleId === 'o1-redundant-spread-return');
       expect(issue).toBeDefined();
     });
 
@@ -212,7 +216,10 @@ describe('O1DataStructuresAuditor', () => {
       expect(auditor.collectedViolations).toHaveLength(0);
 
       // Self file ignored
-      auditor.testScanFile('src/suites/domain_data/validate_o1_data_structures.ts', 'TARIFF_IDS.includes(id)');
+      auditor.testScanFile(
+        'src/suites/domain_data/validate_o1_data_structures.ts',
+        'TARIFF_IDS.includes(id)'
+      );
       expect(auditor.collectedViolations).toHaveLength(0);
 
       // Test file ignored when includeTestsInCodeAudit is false
@@ -234,11 +241,15 @@ describe('O1DataStructuresAuditor', () => {
       auditor.testScanFile('src/violations.ts', violationSnippet);
 
       expect(auditor.collectedViolations.length).toBe(5);
-      expect(auditor.collectedViolations.some(v => v.ruleId === 'o1-catalog-lookup')).toBe(true);
-      expect(auditor.collectedViolations.some(v => v.ruleId === 'o1-linear-membership')).toBe(true);
-      expect(auditor.collectedViolations.some(v => v.ruleId === 'o1-object-scan')).toBe(true);
-      expect(auditor.collectedViolations.some(v => v.ruleId === 'o1-json-clone')).toBe(true);
-      expect(auditor.collectedViolations.some(v => v.ruleId === 'o1-redundant-spread-return')).toBe(true);
+      expect(auditor.collectedViolations.some((v) => v.ruleId === 'o1-catalog-lookup')).toBe(true);
+      expect(auditor.collectedViolations.some((v) => v.ruleId === 'o1-linear-membership')).toBe(
+        true
+      );
+      expect(auditor.collectedViolations.some((v) => v.ruleId === 'o1-object-scan')).toBe(true);
+      expect(auditor.collectedViolations.some((v) => v.ruleId === 'o1-json-clone')).toBe(true);
+      expect(
+        auditor.collectedViolations.some((v) => v.ruleId === 'o1-redundant-spread-return')
+      ).toBe(true);
     });
 
     it('detects violations and fails with status failed and severity error', async () => {
@@ -250,7 +261,7 @@ describe('O1DataStructuresAuditor', () => {
       const result = await auditor.finishAudit();
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
-      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+      expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
     });
   });
 
@@ -299,4 +310,3 @@ describe('O1DataStructuresAuditor', () => {
     });
   });
 });
-

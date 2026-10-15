@@ -41,14 +41,14 @@ describe('NativePathsAuditor', () => {
 
   describe('Violation Detection', () => {
     it('detects unsafe path concatenation in fs sinks (unsafe-path-concat)', () => {
-      const readSink = 'fs.' + 'readFileSync(`' + '${base}/${file}`' + ', \'utf-8\');';
+      const readSink = 'fs.' + 'readFileSync(`' + '${base}/${file}`' + ", 'utf-8');";
       const code = `
         const base = '/tmp';
         const file = 'test.txt';
         const content = ${readSink}
       `;
       const violations = scanFileForNativePathViolations('src/logic/reader.ts', code);
-      const violation = violations.find(v => v.ruleId === 'unsafe-path-concat');
+      const violation = violations.find((v) => v.ruleId === 'unsafe-path-concat');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -59,17 +59,17 @@ describe('NativePathsAuditor', () => {
         const target = ${joinSink}
       `;
       const violations = scanFileForNativePathViolations('src/logic/path.ts', code);
-      const violation = violations.find(v => v.ruleId === 'unsafe-path-concat');
+      const violation = violations.find((v) => v.ruleId === 'unsafe-path-concat');
       expect(violation).toBeDefined();
     });
 
     it('detects unsanitized process.env or process.argv in path sinks (unsanitized-env-argv-path)', () => {
-      const argvSink = 'fs.' + 'readFileSync(' + 'process.argv[2]' + ', \'utf-8\');';
+      const argvSink = 'fs.' + 'readFileSync(' + 'process.argv[2]' + ", 'utf-8');";
       const code = `
         const data = ${argvSink}
       `;
       const violations = scanFileForNativePathViolations('scripts/worker.ts', code);
-      const violation = violations.find(v => v.ruleId === 'unsanitized-env-argv-path');
+      const violation = violations.find((v) => v.ruleId === 'unsanitized-env-argv-path');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -83,7 +83,7 @@ describe('NativePathsAuditor', () => {
         }
       `;
       const violations = scanFileForNativePathViolations('src/logic/fetcher.ts', code);
-      const violation = violations.find(v => v.ruleId === 'untrusted-url-fetch');
+      const violation = violations.find((v) => v.ruleId === 'untrusted-url-fetch');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -93,19 +93,19 @@ describe('NativePathsAuditor', () => {
         const filename = filePath.split('\\\\').pop();
       `;
       const violations = scanFileForNativePathViolations('src/logic/splitter.ts', code);
-      const violation = violations.find(v => v.ruleId === 'hardcoded-slash-path');
+      const violation = violations.find((v) => v.ruleId === 'hardcoded-slash-path');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
 
     it('detects homebrew regex sanitization and naive traversal checks (homebrew-path-manipulation)', () => {
-      const naiveCheck = 'if (filePath.' + 'includes(\'..\')) { throw new Error(\'Traversal\'); }';
+      const naiveCheck = 'if (filePath.' + "includes('..')) { throw new Error('Traversal'); }";
       const code = `
         const cleanPath = userPath.replace(/\\.\\./g, '');
         ${naiveCheck}
       `;
       const violations = scanFileForNativePathViolations('src/logic/sanitizer.ts', code);
-      const violation = violations.find(v => v.ruleId === 'homebrew-path-manipulation');
+      const violation = violations.find((v) => v.ruleId === 'homebrew-path-manipulation');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

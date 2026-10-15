@@ -67,7 +67,7 @@ Also check \`supabase/nonexistent_table.sql\`.
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(2);
-    const brokenRefs = result.findings.filter(f => f.ruleId === 'markdown-broken-source-ref');
+    const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(2);
     expect(brokenRefs[0]?.context).toBe('src/nonexistent/broken_file.ts');
     expect(brokenRefs[1]?.context).toBe('supabase/nonexistent_table.sql');
@@ -85,7 +85,7 @@ Also check \`packages/legacy_pkg\`.
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(2);
-    const brokenRefs = result.findings.filter(f => f.ruleId === 'markdown-broken-source-ref');
+    const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(2);
     expect(brokenRefs[0]?.context).toBe('packages/auditor/src/index.ts');
     expect(brokenRefs[1]?.context).toBe('packages/legacy_pkg');
@@ -93,7 +93,11 @@ Also check \`packages/legacy_pkg\`.
 
   it('accepts valid existing source code references', async () => {
     await fs.mkdir(path.join(tempDir, 'src/data'), { recursive: true });
-    await fs.writeFile(path.join(tempDir, 'src/data/items.ts'), 'export const items = {};', 'utf-8');
+    await fs.writeFile(
+      path.join(tempDir, 'src/data/items.ts'),
+      'export const items = {};',
+      'utf-8'
+    );
 
     const mdContent = `
 # Valid Documentation
@@ -104,13 +108,17 @@ Refer to \`src/data/items.ts\` or \`src/data/items\` for details.
     const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
     const result = await auditor.execute();
 
-    const brokenRefs = result.findings.filter(f => f.ruleId === 'markdown-broken-source-ref');
+    const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(0);
   });
 
   it('detects case mismatches on disk (Linux ext4 case sensitivity)', async () => {
     await fs.mkdir(path.join(tempDir, 'src/data'), { recursive: true });
-    await fs.writeFile(path.join(tempDir, 'src/data/items.ts'), 'export const items = {};', 'utf-8');
+    await fs.writeFile(
+      path.join(tempDir, 'src/data/items.ts'),
+      'export const items = {};',
+      'utf-8'
+    );
 
     const mdContent = `
 # Casing Issue
@@ -122,7 +130,7 @@ Refer to \`src/data/Items.ts\` for details.
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(1);
-    const caseFindings = result.findings.filter(f => f.ruleId === 'markdown-case-mismatch');
+    const caseFindings = result.findings.filter((f) => f.ruleId === 'markdown-case-mismatch');
     expect(caseFindings.length).toBe(1);
     expect(caseFindings[0]?.context).toBe('src/data/Items.ts');
   });
@@ -142,7 +150,7 @@ Refer to \`src/data/Items.ts\` for details.
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(1);
-    const caseFindings = result.findings.filter(f => f.ruleId === 'markdown-case-mismatch');
+    const caseFindings = result.findings.filter((f) => f.ruleId === 'markdown-case-mismatch');
     expect(caseFindings.length).toBe(1);
     expect(caseFindings[0]?.context).toBe('Database.ts');
   });
@@ -162,7 +170,7 @@ Path alias (ignored): @/components/Button.vue
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(1);
-    const skillFindings = result.findings.filter(f => f.ruleId === 'markdown-broken-skill-ref');
+    const skillFindings = result.findings.filter((f) => f.ruleId === 'markdown-broken-skill-ref');
     expect(skillFindings.length).toBe(1);
     expect(skillFindings[0]?.context).toBe('@/nonexistent-broken-skill');
   });
@@ -184,7 +192,7 @@ import './src/nonexistent/sample.css';
     const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
     const result = await auditor.execute();
 
-    const brokenRefs = result.findings.filter(f => f.ruleId === 'markdown-broken-source-ref');
+    const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(0);
   });
 
@@ -199,10 +207,9 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
     const result = await auditor.execute();
 
-    const brokenRefs = result.findings.filter(f => f.ruleId === 'markdown-broken-source-ref');
+    const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(0);
   });
-
 
   it('detects hardcoded runtime version assertions in markdown', async () => {
     const mdContent = `
@@ -216,13 +223,19 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(2);
-    const versionFindings = result.findings.filter(f => f.ruleId === 'markdown-hardcoded-runtime-version');
+    const versionFindings = result.findings.filter(
+      (f) => f.ruleId === 'markdown-hardcoded-runtime-version'
+    );
     expect(versionFindings.length).toBe(2);
   });
 
   it('passes completely with zero errors when documentation adheres to all rules', async () => {
     await fs.mkdir(path.join(tempDir, 'src/data'), { recursive: true });
-    await fs.writeFile(path.join(tempDir, 'src/data/items.ts'), 'export const items = {};', 'utf-8');
+    await fs.writeFile(
+      path.join(tempDir, 'src/data/items.ts'),
+      'export const items = {};',
+      'utf-8'
+    );
     await fs.mkdir(path.join(tempDir, '.agents/skills/clean-code'), { recursive: true });
 
     const mdContent = `
@@ -260,8 +273,12 @@ Temporary artifacts are placed in \`scratch/bundle_stats.html\`.
 
   it('recognizes skills distributed with @francogp/auditor package and node_modules', async () => {
     // Simulate library distribution in node_modules/@francogp/auditor/skills
-    await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/domain-type-first'), { recursive: true });
-    await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/auditor'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/domain-type-first'), {
+      recursive: true
+    });
+    await fs.mkdir(path.join(tempDir, 'node_modules/@francogp/auditor/skills/auditor'), {
+      recursive: true
+    });
 
     const mdContent = `
 # Skill References from Framework
@@ -272,28 +289,31 @@ Refer to @/domain-type-first and @/auditor.
     const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
     const result = await auditor.execute();
 
-    const skillFindings = result.findings.filter(f => f.ruleId === 'markdown-broken-skill-ref');
+    const skillFindings = result.findings.filter((f) => f.ruleId === 'markdown-broken-skill-ref');
     expect(skillFindings).toHaveLength(0);
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
   });
 
   it('resolves markdown scan directories dynamically from config including codeRoots, demoRoots, dataRoots, and top-level markdown files', async () => {
-    setAuditConfig(defineAuditConfig({
-      name: 'Custom Markdown Roots Test',
-      paths: {
-        srcRoots: ['src'],
-        codeRoots: ['src', 'scripts', 'database'],
-        demoRoots: ['ui-demo'],
-        dataRoots: ['src/data', 'data'],
-        cliRoots: ['cli'],
-        migrationsDir: 'database/migrations'
-      },
-      persistence: {
-        engine: 'supabase',
-        supabaseDir: 'supabase'
-      }
-    }), tempDir);
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'Custom Markdown Roots Test',
+        paths: {
+          srcRoots: ['src'],
+          codeRoots: ['src', 'scripts', 'database'],
+          demoRoots: ['ui-demo'],
+          dataRoots: ['src/data', 'data'],
+          cliRoots: ['cli'],
+          migrationsDir: 'database/migrations'
+        },
+        persistence: {
+          engine: 'supabase',
+          supabaseDir: 'supabase'
+        }
+      }),
+      tempDir
+    );
 
     await fs.writeFile(path.join(tempDir, 'CHANGELOG.md'), '# Changelog\n', 'utf-8');
 
@@ -308,13 +328,16 @@ Refer to @/domain-type-first and @/auditor.
   });
 
   it('extracts top-level parent directories from nested testRoots and codeRoots without duplicating', async () => {
-    setAuditConfig(defineAuditConfig({
-      name: 'Nested Roots Test',
-      paths: {
-        testRoots: ['tests/unit', 'tests/node', 'tests/e2e'],
-        codeRoots: ['packages/core', 'packages/cli']
-      }
-    }), tempDir);
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'Nested Roots Test',
+        paths: {
+          testRoots: ['tests/unit', 'tests/node', 'tests/e2e'],
+          codeRoots: ['packages/core', 'packages/cli']
+        }
+      }),
+      tempDir
+    );
 
     const dirs = resolveMarkdownScanDirectories(tempDir);
     expect(dirs).toContain('tests');
@@ -323,4 +346,3 @@ Refer to @/domain-type-first and @/auditor.
     expect(dirs).toContain('docs');
   });
 });
-

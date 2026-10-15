@@ -23,7 +23,10 @@ import {
 } from '../src/suites/architecture/validate_fallow_config.ts';
 
 describe('ValidateFallowConfigAuditor', () => {
-  const scratchDir = path.resolve(process.cwd(), 'scratch/test_fallow_config_' + crypto.randomUUID());
+  const scratchDir = path.resolve(
+    process.cwd(),
+    'scratch/test_fallow_config_' + crypto.randomUUID()
+  );
 
   beforeEach(() => {
     process.env.AUDIT_SUBPROCESS = 'true';
@@ -75,15 +78,19 @@ describe('ValidateFallowConfigAuditor', () => {
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
       expect(result.summary.errors).toBeGreaterThan(0);
-      const violation = result.findings.find(f => f.ruleId === 'fallow-config-missing');
+      const violation = result.findings.find((f) => f.ruleId === 'fallow-config-missing');
       expect(violation).toBeDefined();
     });
 
     it('flags fallow-config-syntax when .fallowrc.json has invalid JSON', async () => {
-      fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), '{ "entry": [invalid, ] }', 'utf-8');
+      fs.writeFileSync(
+        path.join(scratchDir, '.fallowrc.json'),
+        '{ "entry": [invalid, ] }',
+        'utf-8'
+      );
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'fallow-config-syntax');
+      const violation = result.findings.find((f) => f.ruleId === 'fallow-config-syntax');
       expect(violation).toBeDefined();
     });
 
@@ -94,33 +101,29 @@ describe('ValidateFallowConfigAuditor', () => {
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'fallow-banned-entry-glob');
+      const violation = result.findings.find((f) => f.ruleId === 'fallow-banned-entry-glob');
       expect(violation).toBeDefined();
     });
 
     it('flags fallow-stale-file when ignored file does not exist on disk', async () => {
       const config = {
-        ignoreExports: [
-          { file: 'src/logic/non_existent.ts', exports: ['foo'] }
-        ]
+        ignoreExports: [{ file: 'src/logic/non_existent.ts', exports: ['foo'] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'fallow-stale-file');
+      const violation = result.findings.find((f) => f.ruleId === 'fallow-stale-file');
       expect(violation).toBeDefined();
     });
 
     it('flags fallow-empty-export-list when exports array is empty', async () => {
       const config = {
-        ignoreExports: [
-          { file: 'src/logic/existing.ts', exports: [] }
-        ]
+        ignoreExports: [{ file: 'src/logic/existing.ts', exports: [] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'fallow-empty-export-list');
+      const violation = result.findings.find((f) => f.ruleId === 'fallow-empty-export-list');
       expect(violation).toBeDefined();
     });
 
@@ -138,7 +141,7 @@ describe('ValidateFallowConfigAuditor', () => {
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
-      const dupes = result.findings.filter(f => f.ruleId === 'fallow-duplicate-entry');
+      const dupes = result.findings.filter((f) => f.ruleId === 'fallow-duplicate-entry');
       expect(dupes.length).toBeGreaterThan(0);
     });
 
@@ -148,21 +151,23 @@ describe('ValidateFallowConfigAuditor', () => {
       fs.writeFileSync(targetFile, 'export const VALID = 1;\n', 'utf-8');
 
       const config = {
-        ignoreExports: [
-          { file: 'src/logic/data.ts', exports: ['GHOST_EXPORT'] }
-        ]
+        ignoreExports: [{ file: 'src/logic/data.ts', exports: ['GHOST_EXPORT'] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'fallow-stale-export');
+      const violation = result.findings.find((f) => f.ruleId === 'fallow-stale-export');
       expect(violation).toBeDefined();
     });
 
     it('flags fallow-config-workspace-diagnostic when actionable workspace diagnostic is reported', async () => {
       const auditor = new ValidateFallowConfigAuditor(scratchDir);
       const diagnostics = [
-        { path: 'packages/core', kind: 'undeclared-workspace', message: 'Workspace packages/core is not declared in package.json' },
+        {
+          path: 'packages/core',
+          kind: 'undeclared-workspace',
+          message: 'Workspace packages/core is not declared in package.json'
+        },
         { path: '.', kind: 'boundaries-not-configured', message: 'Ignored informational notice' }
       ];
       validateFallowWorkspaceDiagnostics(diagnostics, auditor);
@@ -177,13 +182,15 @@ describe('ValidateFallowConfigAuditor', () => {
     it('passes with zero errors on a valid, synchronized configuration', async () => {
       const targetFile = path.join(scratchDir, 'src/logic/calc.ts');
       fs.mkdirSync(path.dirname(targetFile), { recursive: true });
-      fs.writeFileSync(targetFile, 'export const ADD = (a: number, b: number) => a + b;\n', 'utf-8');
+      fs.writeFileSync(
+        targetFile,
+        'export const ADD = (a: number, b: number) => a + b;\n',
+        'utf-8'
+      );
 
       const config = {
         entry: ['src/main.ts'],
-        ignoreExports: [
-          { file: 'src/logic/calc.ts', exports: ['ADD'] }
-        ]
+        ignoreExports: [{ file: 'src/logic/calc.ts', exports: ['ADD'] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
 
@@ -215,4 +222,3 @@ describe('ValidateFallowConfigAuditor', () => {
     });
   });
 });
-

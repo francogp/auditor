@@ -13,7 +13,12 @@ import {
   analyzeAuditCoverage,
   type CoverageAnalysisInput
 } from '../src/suites/architecture/validate_audit_coverage.ts';
-import { COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, COVERAGE_EXPECTED_SUITES_ENV, type CoverageLedger } from '../src/core/auditCoverage.ts';
+import {
+  COVERAGE_RUN_ID_ENV,
+  COVERAGE_RUN_MODE_ENV,
+  COVERAGE_EXPECTED_SUITES_ENV,
+  type CoverageLedger
+} from '../src/core/auditCoverage.ts';
 import { defineAuditConfig, type AuditEngineConfig } from '../src/core/auditConfig.ts';
 
 describe('validate_audit_coverage Suite', () => {
@@ -80,7 +85,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const uncovered = findings.filter(f => f.ruleId === 'coverage-uncovered-file');
+      const uncovered = findings.filter((f) => f.ruleId === 'coverage-uncovered-file');
       expect(uncovered.length).toBe(1);
       expect(uncovered[0]!.message).toContain('orphan.ts');
     });
@@ -109,7 +114,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const dormant = findings.filter(f => f.ruleId === 'coverage-dormant-rule');
+      const dormant = findings.filter((f) => f.ruleId === 'coverage-dormant-rule');
       expect(dormant.length).toBe(1);
       expect(dormant[0]!.context).toBe('suite-magic/magicNumbers');
     });
@@ -138,7 +143,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const dormant = findings.filter(f => f.ruleId === 'coverage-dormant-rule');
+      const dormant = findings.filter((f) => f.ruleId === 'coverage-dormant-rule');
       expect(dormant.length).toBe(0);
     });
 
@@ -180,7 +185,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const degraded = findings.filter(f => f.ruleId === 'coverage-degraded-file');
+      const degraded = findings.filter((f) => f.ruleId === 'coverage-degraded-file');
       expect(degraded.length).toBeGreaterThan(0);
     });
 
@@ -208,7 +213,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const notScanned = findings.filter(f => f.ruleId === 'coverage-declared-not-scanned');
+      const notScanned = findings.filter((f) => f.ruleId === 'coverage-declared-not-scanned');
       expect(notScanned.length).toBe(1);
     });
 
@@ -236,7 +241,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const undeclared = findings.filter(f => f.ruleId === 'coverage-scanned-undeclared');
+      const undeclared = findings.filter((f) => f.ruleId === 'coverage-scanned-undeclared');
       expect(undeclared.length).toBe(1);
     });
 
@@ -250,7 +255,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const missing = findings.filter(f => f.ruleId === 'coverage-missing-ledger');
+      const missing = findings.filter((f) => f.ruleId === 'coverage-missing-ledger');
       expect(missing.length).toBe(1);
       expect(missing[0]!.context).toBe('suite-expected');
     });
@@ -286,7 +291,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      const invalid = findings.filter(f => f.ruleId === 'coverage-invalid-exemption');
+      const invalid = findings.filter((f) => f.ruleId === 'coverage-invalid-exemption');
       expect(invalid.length).toBe(1);
       expect(invalid[0]!.context).toBe('legacy/**/*.ts');
     });
@@ -368,9 +373,17 @@ describe('validate_audit_coverage Suite', () => {
         ruleEvaluations: { 'demo-rule': 1 },
         notApplicable: {}
       };
-      await fs.writeFile(path.join(coverageDir, 'suite-demo.json'), JSON.stringify(ledger), 'utf-8');
+      await fs.writeFile(
+        path.join(coverageDir, 'suite-demo.json'),
+        JSON.stringify(ledger),
+        'utf-8'
+      );
       await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'export default { coverage: { enabled: true } };', 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
+        'export default { coverage: { enabled: true } };',
+        'utf-8'
+      );
 
       // Initialize git repo in sandbox so listTrackedFiles succeeds
       const { execFileSync } = await import('node:child_process');
@@ -394,7 +407,11 @@ describe('validate_audit_coverage Suite', () => {
       process.env[COVERAGE_EXPECTED_SUITES_ENV] = 'suite-missing-ledger';
 
       await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'export default { coverage: { enabled: true } };', 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
+        'export default { coverage: { enabled: true } };',
+        'utf-8'
+      );
 
       const { execFileSync } = await import('node:child_process');
       execFileSync('git', ['init'], { cwd: tempDir });
@@ -408,7 +425,7 @@ describe('validate_audit_coverage Suite', () => {
 
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
-      expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+      expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
     });
   });
 });

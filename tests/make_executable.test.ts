@@ -35,14 +35,34 @@ describe('make_executable CLI Utility', () => {
     it('purges files from dist that have no matching source file in src', () => {
       // Create src structure
       fs.mkdirSync(path.join(tempSrc, 'cli'), { recursive: true });
-      fs.writeFileSync(path.join(tempSrc, 'cli/active.ts'), 'export const active = true;\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(tempSrc, 'cli/active.ts'),
+        'export const active = true;\n',
+        'utf-8'
+      );
 
       // Create dist structure with active and orphaned files
       fs.mkdirSync(path.join(tempDist, 'cli'), { recursive: true });
-      fs.writeFileSync(path.join(tempDist, 'cli/active.js'), 'export const active = true;\n', 'utf-8');
-      fs.writeFileSync(path.join(tempDist, 'cli/active.d.ts'), 'export declare const active = true;\n', 'utf-8');
-      fs.writeFileSync(path.join(tempDist, 'cli/orphan.js'), 'export const orphan = true;\n', 'utf-8');
-      fs.writeFileSync(path.join(tempDist, 'cli/orphan.d.ts'), 'export declare const orphan = true;\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDist, 'cli/active.js'),
+        'export const active = true;\n',
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(tempDist, 'cli/active.d.ts'),
+        'export declare const active = true;\n',
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(tempDist, 'cli/orphan.js'),
+        'export const orphan = true;\n',
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(tempDist, 'cli/orphan.d.ts'),
+        'export declare const orphan = true;\n',
+        'utf-8'
+      );
 
       purgeOrphanedDistFiles(tempDist, tempSrc);
 

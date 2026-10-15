@@ -72,12 +72,12 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
       const findings = parseTypeCoverageReport(report, 95, tempDir);
       expect(findings.length).toBeGreaterThanOrEqual(2);
 
-      const thresholdFinding = findings.find(f => f.ruleId === 'type-coverage-below-threshold');
+      const thresholdFinding = findings.find((f) => f.ruleId === 'type-coverage-below-threshold');
       expect(thresholdFinding).toBeDefined();
       expect(thresholdFinding?.message).toContain('80.00%');
       expect(thresholdFinding?.message).toContain('95%');
 
-      const anyFinding = findings.find(f => f.ruleId === 'type-coverage-untyped-identifier');
+      const anyFinding = findings.find((f) => f.ruleId === 'type-coverage-untyped-identifier');
       expect(anyFinding).toBeDefined();
       expect(anyFinding?.file).toBe('src/api.ts');
       expect(anyFinding?.context).toBe('untypedPayload');
@@ -142,4 +142,3 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
     });
   });
 });
-

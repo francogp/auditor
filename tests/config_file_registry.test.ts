@@ -52,8 +52,8 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     ConfigFileRegistry.registerMany([req2]);
     const all = ConfigFileRegistry.getAll();
     expect(all.length).toBe(2);
-    expect(all.map(r => r.id)).toContain('test-tool-config');
-    expect(all.map(r => r.id)).toContain('another-tool-config');
+    expect(all.map((r) => r.id)).toContain('test-tool-config');
+    expect(all.map((r) => r.id)).toContain('another-tool-config');
 
     // Re-registration overwrites cleanly
     const updatedReq1: AuditorConfigFileRequirement = {
@@ -93,7 +93,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         configKey: 'paths',
         defaultConfig: {},
         criticalConfig: {},
-      usesThirdPartyTool: false,
+        usesThirdPartyTool: false,
         ruleCapabilities: {
           'custom-config-missing': {
             speed: 'light',
@@ -101,9 +101,18 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
             fix: isFix ? 'normal' : 'none',
             md: false,
             ast: false,
-            changedOnly: false, critical: false
+            changedOnly: false,
+            critical: false
           },
-          'custom-content-valid': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+          'custom-content-valid': {
+            speed: 'light',
+            phase: 'normal',
+            fix: 'none',
+            md: false,
+            ast: false,
+            changedOnly: false,
+            critical: false
+          }
         },
         fixableRuleIds: isFix ? ['custom-config-missing'] : undefined,
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
@@ -144,7 +153,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBe(1);
-    const finding = result.findings.find(f => f.ruleId === 'custom-config-missing');
+    const finding = result.findings.find((f) => f.ruleId === 'custom-config-missing');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('Falta configuración requerida en custom.config.json.');
     expect(finding?.context).toBe('custom.config.json');
@@ -152,7 +161,12 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
   it('scaffolds default config file when missing in fix mode and completes clean path', async () => {
     const configPath = path.join(tempDir, 'custom.config.json');
-    expect(await fs.access(configPath).then(() => true).catch(() => false)).toBe(false);
+    expect(
+      await fs
+        .access(configPath)
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(false);
 
     const auditor = new CustomToolAuditor({ projectRoot: tempDir, fix: true });
     const result = await auditor.execute();
@@ -162,7 +176,12 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     expect(result.status).toBe('passed');
 
     // Verifies physical creation and content
-    expect(await fs.access(configPath).then(() => true).catch(() => false)).toBe(true);
+    expect(
+      await fs
+        .access(configPath)
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true);
     const createdContent = await fs.readFile(configPath, 'utf-8');
     expect(createdContent).toContain('"ok": true');
     expect(createdContent).toContain('"name": "CustomTool"');
@@ -203,9 +222,17 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           ruleCapabilities: {
-            'optional-config-missing': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'optional-config-missing': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           },
           ruleIds: ['optional-config-missing'],
           ruleDescriptions: {

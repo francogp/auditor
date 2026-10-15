@@ -97,10 +97,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     const effectiveProjectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveProjectRoot);
     const scriptAndCliDirs = resolveScriptAndCliDirs(config);
-    const coverageInclude: string[] = [ // no-domain: Non-domain utility collection or data structure
-      '**/*.{mjs,cjs}',
-      ...scriptAndCliDirs.map((d) => `${d}/**/*.js`)
-    ];
+    const coverageInclude = ['**/*.{mjs,cjs}', ...scriptAndCliDirs.map((d) => `${d}/**/*.js`)]; // no-domain: Non-domain utility collection or data structure
 
     super({
       usesThirdPartyTool: false,

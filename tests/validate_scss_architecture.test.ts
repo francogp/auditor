@@ -37,10 +37,18 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
       expect(auditor.icon).toBe('🎨');
       expect(auditor.ruleIds).toEqual([...SCSS_ARCHITECTURE_RULES]);
       expect(auditor.ruleDescriptions['raw-css-in-sfc']).toBe('<style> sin atributo lang="scss"');
-      expect(auditor.ruleDescriptions['scss-deep-selector-abuse']).toBe('Abuso o anidamiento de :deep()');
-      expect(auditor.ruleDescriptions['non-standard-spacing-unit']).toBe('Espaciado arbitrario sin escala');
-      expect(auditor.ruleDescriptions['missing-theme-token-usage']).toBe('Color hardcodeado sin token de tema');
-      expect(auditor.ruleDescriptions['excessive-scss-nesting']).toBe('Anidamiento SCSS superior a 3 niveles');
+      expect(auditor.ruleDescriptions['scss-deep-selector-abuse']).toBe(
+        'Abuso o anidamiento de :deep()'
+      );
+      expect(auditor.ruleDescriptions['non-standard-spacing-unit']).toBe(
+        'Espaciado arbitrario sin escala'
+      );
+      expect(auditor.ruleDescriptions['missing-theme-token-usage']).toBe(
+        'Color hardcodeado sin token de tema'
+      );
+      expect(auditor.ruleDescriptions['excessive-scss-nesting']).toBe(
+        'Anidamiento SCSS superior a 3 niveles'
+      );
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);
@@ -83,14 +91,15 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
   describe('Point 3: Violation Detection Path for All 5 Rules', () => {
     it('detects raw-css-in-sfc when SFC style tag lacks lang="scss"', async () => {
       const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
-      const snippet = '<template><div>Hello</div></template><style scoped>.box { margin: 8px; }</style>';
+      const snippet =
+        '<template><div>Hello</div></template><style scoped>.box { margin: 8px; }</style>';
 
       auditor.testScanFile('src/components/RawBox.vue', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'raw-css-in-sfc');
+      const finding = result.findings.find((f) => f.ruleId === 'raw-css-in-sfc');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -104,7 +113,7 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'scss-deep-selector-abuse');
+      const finding = result.findings.find((f) => f.ruleId === 'scss-deep-selector-abuse');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -118,7 +127,7 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'non-standard-spacing-unit');
+      const finding = result.findings.find((f) => f.ruleId === 'non-standard-spacing-unit');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -132,7 +141,7 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'missing-theme-token-usage');
+      const finding = result.findings.find((f) => f.ruleId === 'missing-theme-token-usage');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -156,7 +165,7 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'excessive-scss-nesting');
+      const finding = result.findings.find((f) => f.ruleId === 'excessive-scss-nesting');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });

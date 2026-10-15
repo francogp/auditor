@@ -30,7 +30,11 @@ import {
   type TableColumn
 } from '../src/core/unifiedTheme.ts';
 import { formatSubtitleDetails } from '../src/cli/audit_full.ts';
-import type { StandardAuditResult, AuditFinding, AuditTaskDefinition } from '../src/core/auditContract.ts';
+import type {
+  StandardAuditResult,
+  AuditFinding,
+  AuditTaskDefinition
+} from '../src/core/auditContract.ts';
 
 describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderBanner', () => {
@@ -113,7 +117,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         description: 'Test description',
         status: 'passed',
         durationMs: 42,
-        metrics: { 'Items': 15 },
+        metrics: { Items: 15 },
         findings: [],
         summary: { errors: 0, warnings: 0, info: 0, totalFilesScanned: 5 }
       };
@@ -284,7 +288,8 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
           fix: 'normal',
           md: false,
           ast: true,
-          changedOnly: true, critical: false
+          changedOnly: true,
+          critical: false
         },
         ruleDescriptions: {
           'oxlint-violation': 'Sintaxis o regla de lint violada'
@@ -326,7 +331,15 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'architecture',
         icon: '🏛️',
         description: 'First suite',
-        capabilities: { speed: 'light', phase: 'normal', fix: 'priority', md: false, ast: false, changedOnly: false, critical: false },
+        capabilities: {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
         scriptPath: 'src/a.ts',
         command: 'node',
         args: []
@@ -337,7 +350,15 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         family: 'domain_data',
         icon: '🔒',
         description: 'Second suite',
-        capabilities: { speed: 'heavy', phase: 'normal', fix: 'none', md: true, ast: false, changedOnly: false, critical: false },
+        capabilities: {
+          speed: 'heavy',
+          phase: 'normal',
+          fix: 'none',
+          md: true,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
         scriptPath: 'src/b.ts',
         command: 'node',
         args: []
@@ -355,7 +376,9 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     });
 
     it('renders enabled filter correctly', () => {
-      const table = renderAuditorsRegistryTable(sampleTasks, ['architecture'], { filter: 'enabled' });
+      const table = renderAuditorsRegistryTable(sampleTasks, ['architecture'], {
+        filter: 'enabled'
+      });
       expect(table).toContain('CATÁLOGO DE AUDITORES ACTIVOS / ENCENDIDOS');
       expect(table).toContain('suite_a');
     });
@@ -375,7 +398,9 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const emptyEnabled = renderAuditorsRegistryTable([], ['architecture'], { filter: 'enabled' });
       expect(emptyEnabled).toContain('No se encontraron auditores');
 
-      const emptyDisabled = renderAuditorsRegistryTable([], ['architecture'], { filter: 'disabled' });
+      const emptyDisabled = renderAuditorsRegistryTable([], ['architecture'], {
+        filter: 'disabled'
+      });
       expect(emptyDisabled).toContain('¡No hay auditores desactivados!');
     });
   });
@@ -416,7 +441,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     });
 
     it('renderBanner aligns borders consistently with and without emojis', () => {
-      const bannerWithEmojis = renderBanner('🛠️ REPARACIÓN GLOBAL', '⚠️  Incidencias detectadas  |  👉 Ejecutar fix');
+      const bannerWithEmojis = renderBanner(
+        '🛠️ REPARACIÓN GLOBAL',
+        '⚠️  Incidencias detectadas  |  👉 Ejecutar fix'
+      );
       const lines = bannerWithEmojis.split('\n');
       const expectedWidth = getVisualWidth(lines[0]!);
       for (const line of lines) {
@@ -429,7 +457,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         { title: '🎉 ÉXITO TOTAL ✅', subtitle: '✨ Todas las suites pasaron sin errores' },
         { title: '🚨 ALERTA CRÍTICA ❌', subtitle: '⚠️ Se detectaron violaciones en arquitectura' },
         { title: '🏛️ GOBERNANZA DE DOMINIO 👉', subtitle: '⚡ Ejecutando auditorías canónicas' },
-        { title: '🛠️ REPARACIÓN AUTOMÁTICA', subtitle: '👉 Ejecuta npm run auditor:fix para reparar' },
+        {
+          title: '🛠️ REPARACIÓN AUTOMÁTICA',
+          subtitle: '👉 Ejecuta npm run auditor:fix para reparar'
+        },
         { title: 'ℹ️ INFORMACIÓN DEL SISTEMA', subtitle: '🔒 Modo de permisos estricto activo' }
       ];
 
@@ -447,7 +478,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
     it('calculates box width dynamically based on content rather than fixed width', () => {
       const shortBanner = renderBanner('CORTO', 'Sub');
-      const longBanner = renderBanner('TITULO MUY LARGO PARA PROBAR LA DINAMICA DEL RECUADRO', 'Subtitulo extendido con informacion relevante');
+      const longBanner = renderBanner(
+        'TITULO MUY LARGO PARA PROBAR LA DINAMICA DEL RECUADRO',
+        'Subtitulo extendido con informacion relevante'
+      );
 
       const shortWidth = getVisualWidth(shortBanner.split('\n')[0]!);
       const longWidth = getVisualWidth(longBanner.split('\n')[0]!);
@@ -476,7 +510,15 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         command: 'node',
         args: [],
         description: 'Audits code hygiene with Oxlint',
-        capabilities: { speed: ['light', 'heavy'], phase: 'normal', fix: 'priority', md: false, ast: true, changedOnly: true, critical: false },
+        capabilities: {
+          speed: ['light', 'heavy'],
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: true,
+          changedOnly: true,
+          critical: false
+        },
         ruleDescriptions: { 'oxlint-violation': 'Sintaxis o regla de lint violada' },
         configKey: 'oxlint'
       };
@@ -512,7 +554,13 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderSampleFindings', () => {
     it('renders error title and red icon when findings are errors', () => {
       const sample = renderSampleFindings([
-        { file: 'src/app.ts', line: 10, ruleId: 'error-rule', message: 'Test error', severity: 'error' }
+        {
+          file: 'src/app.ts',
+          line: 10,
+          ruleId: 'error-rule',
+          message: 'Test error',
+          severity: 'error'
+        }
       ]);
       expect(sample).toContain('❌ Muestra de errores detectados (todos los 1 de 1):');
       expect(sample).toContain('app.ts:10: [error-rule] Test error');
@@ -520,7 +568,13 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
     it('renders warning title and warning icon when findings are warnings', () => {
       const sample = renderSampleFindings([
-        { file: 'package.json', line: 1, ruleId: 'warn-rule', message: 'Test warning', severity: 'warning' }
+        {
+          file: 'package.json',
+          line: 1,
+          ruleId: 'warn-rule',
+          message: 'Test warning',
+          severity: 'warning'
+        }
       ]);
       expect(sample).toContain('⚠️  Muestra de advertencias detectadas (todos los 1 de 1):');
       expect(sample).toContain('package.json:1: [warn-rule] Test warning');

@@ -79,7 +79,7 @@ describe('Official Locked Skills Isolation', () => {
         version: 1,
         skills: {
           'gsap-core': { source: 'greensock/gsap-skills' },
-          'Vitest': { source: 'antfu/skills' },
+          Vitest: { source: 'antfu/skills' },
           'PLAYWRIGHT-CLI': { source: 'microsoft/playwright-cli' }
         }
       };
@@ -95,7 +95,7 @@ describe('Official Locked Skills Isolation', () => {
     it('caches parsed skills for the same project root and clears on clearLockedSkillsCache', () => {
       fs.writeFileSync(
         path.join(tempDir, 'skills-lock.json'),
-        JSON.stringify({ version: 1, skills: { 'vitest': {} } })
+        JSON.stringify({ version: 1, skills: { vitest: {} } })
       );
 
       const first = loadLockedSkills(tempDir);
@@ -104,7 +104,7 @@ describe('Official Locked Skills Isolation', () => {
       // Overwrite file without clearing cache
       fs.writeFileSync(
         path.join(tempDir, 'skills-lock.json'),
-        JSON.stringify({ version: 1, skills: { 'vitest': {}, 'playwright': {} } })
+        JSON.stringify({ version: 1, skills: { vitest: {}, playwright: {} } })
       );
       const cached = loadLockedSkills(tempDir);
       expect(cached.has('playwright')).toBe(false);
@@ -175,7 +175,7 @@ describe('Official Locked Skills Isolation', () => {
         version: 1,
         skills: {
           'gsap-core': { source: 'greensock/gsap-skills' },
-          'vitest': { source: 'antfu/skills' }
+          vitest: { source: 'antfu/skills' }
         }
       };
       fs.writeFileSync(path.join(tempDir, 'skills-lock.json'), JSON.stringify(lockData, null, 2));
@@ -251,7 +251,15 @@ describe('Official Locked Skills Isolation', () => {
         defaultConfig: {},
         criticalConfig: {},
         usesThirdPartyTool: false,
-        ruleCapabilities: createUniformRuleCapabilities(['test-rule'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }),
+        ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }),
         coverage: { include: ['**/*'] },
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
@@ -286,9 +294,9 @@ describe('Official Locked Skills Isolation', () => {
       const result = await auditor.finishAudit();
       const findings = result.findings;
       expect(findings.length).toBe(2);
-      expect(findings.some(f => f.file?.includes('gsap-core'))).toBe(false);
-      expect(findings.some(f => f.file?.includes('auditor'))).toBe(true);
-      expect(findings.some(f => f.file?.includes('main.ts'))).toBe(true);
+      expect(findings.some((f) => f.file?.includes('gsap-core'))).toBe(false);
+      expect(findings.some((f) => f.file?.includes('auditor'))).toBe(true);
+      expect(findings.some((f) => f.file?.includes('main.ts'))).toBe(true);
     });
 
     it('drops violations added via addViolation and does not increment rule counts', async () => {
@@ -303,7 +311,15 @@ describe('Official Locked Skills Isolation', () => {
         defaultConfig: {},
         criticalConfig: {},
         usesThirdPartyTool: false,
-        ruleCapabilities: createUniformRuleCapabilities(['test-rule'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }),
+        ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }),
         coverage: { include: ['**/*'] },
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
@@ -354,9 +370,9 @@ describe('Official Locked Skills Isolation', () => {
 
     it('blocks safeWriteFile to official locked skills', async () => {
       const target = path.join(tempDir, '.agents/skills/gsap-core/SKILL.md');
-      await expect(
-        safeWriteFile(target, '# Corrupted Content')
-      ).rejects.toThrow(/Security \/ Immutability Violation: Cannot write to official locked skill/);
+      await expect(safeWriteFile(target, '# Corrupted Content')).rejects.toThrow(
+        /Security \/ Immutability Violation: Cannot write to official locked skill/
+      );
     });
 
     it('allows safeWriteFileSync and safeWriteFile to custom skills and project files', async () => {

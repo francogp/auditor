@@ -27,7 +27,11 @@ describe('stamp_version CLI Utility', () => {
 
   it('stamps package.json and generates src/core/version.ts with build metadata', () => {
     const pkgPath = path.join(tempDir, 'package.json');
-    fs.writeFileSync(pkgPath, JSON.stringify({ name: 'test-app', version: '2.5.0' }, null, 2), 'utf-8');
+    fs.writeFileSync(
+      pkgPath,
+      JSON.stringify({ name: 'test-app', version: '2.5.0' }, null, 2),
+      'utf-8'
+    );
 
     const result = stampVersion(tempDir);
 
@@ -53,7 +57,11 @@ describe('stamp_version CLI Utility', () => {
 
   it('preserves existing base semver when version already had a prerelease tag', () => {
     const pkgPath = path.join(tempDir, 'package.json');
-    fs.writeFileSync(pkgPath, JSON.stringify({ name: 'test-app', version: '1.4.2-build.20261001-120000' }, null, 2), 'utf-8');
+    fs.writeFileSync(
+      pkgPath,
+      JSON.stringify({ name: 'test-app', version: '1.4.2-build.20261001-120000' }, null, 2),
+      'utf-8'
+    );
 
     const result = stampVersion(tempDir);
     expect(result.version.startsWith('1.4.2-build.')).toBe(true);

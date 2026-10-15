@@ -39,27 +39,45 @@ describe('ValidatePackageDistributionAuditor & parsePublintMessages', () => {
       expect(auditor.id).toBe('validate_package_distribution');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Distribución');
-      expect(auditor.ruleDescriptions['pkg-distribution-invalid-exports']).toBe('Export map de package.json inválido');
-      expect(auditor.ruleDescriptions['pkg-distribution-missing-types']).toBe('Falta .d.ts para entrypoint público');
-      expect(auditor.ruleDescriptions['pkg-distribution-dual-package-hazard']).toBe('Incompatibilidad dual ESM y CJS');
+      expect(auditor.ruleDescriptions['pkg-distribution-invalid-exports']).toBe(
+        'Export map de package.json inválido'
+      );
+      expect(auditor.ruleDescriptions['pkg-distribution-missing-types']).toBe(
+        'Falta .d.ts para entrypoint público'
+      );
+      expect(auditor.ruleDescriptions['pkg-distribution-dual-package-hazard']).toBe(
+        'Incompatibilidad dual ESM y CJS'
+      );
     });
   });
 
   describe('mapPublintCodeToRuleId rule mapping', () => {
     it('maps types-related codes to pkg-distribution-missing-types', () => {
-      expect(mapPublintCodeToRuleId('EXPORTS_TYPES_SHOULD_BE_FIRST')).toBe('pkg-distribution-missing-types');
+      expect(mapPublintCodeToRuleId('EXPORTS_TYPES_SHOULD_BE_FIRST')).toBe(
+        'pkg-distribution-missing-types'
+      );
       expect(mapPublintCodeToRuleId('TYPES_NOT_EXPORTED')).toBe('pkg-distribution-missing-types');
     });
 
     it('maps dual-package and format codes to pkg-distribution-dual-package-hazard', () => {
-      expect(mapPublintCodeToRuleId('DUAL_PACKAGE_HAZARD')).toBe('pkg-distribution-dual-package-hazard');
-      expect(mapPublintCodeToRuleId('MODULE_SHOULD_BE_ESM')).toBe('pkg-distribution-dual-package-hazard');
-      expect(mapPublintCodeToRuleId('CJS_INDEX_INVALID')).toBe('pkg-distribution-dual-package-hazard');
+      expect(mapPublintCodeToRuleId('DUAL_PACKAGE_HAZARD')).toBe(
+        'pkg-distribution-dual-package-hazard'
+      );
+      expect(mapPublintCodeToRuleId('MODULE_SHOULD_BE_ESM')).toBe(
+        'pkg-distribution-dual-package-hazard'
+      );
+      expect(mapPublintCodeToRuleId('CJS_INDEX_INVALID')).toBe(
+        'pkg-distribution-dual-package-hazard'
+      );
     });
 
     it('maps generic export and file issues to pkg-distribution-invalid-exports', () => {
-      expect(mapPublintCodeToRuleId('FILE_DOES_NOT_EXIST')).toBe('pkg-distribution-invalid-exports');
-      expect(mapPublintCodeToRuleId('INVALID_EXPORTS_FIELD')).toBe('pkg-distribution-invalid-exports');
+      expect(mapPublintCodeToRuleId('FILE_DOES_NOT_EXIST')).toBe(
+        'pkg-distribution-invalid-exports'
+      );
+      expect(mapPublintCodeToRuleId('INVALID_EXPORTS_FIELD')).toBe(
+        'pkg-distribution-invalid-exports'
+      );
     });
   });
 
@@ -89,7 +107,12 @@ describe('ValidatePackageDistributionAuditor & parsePublintMessages', () => {
 
     it('creates warning findings for warning type messages', () => {
       const messages: PublintMessageLike[] = [
-        { type: 'warning', code: 'EXPORTS_MODULE_SHOULD_PRECEDE_REQUIRE', path: ['exports', '.'], args: {} }
+        {
+          type: 'warning',
+          code: 'EXPORTS_MODULE_SHOULD_PRECEDE_REQUIRE',
+          path: ['exports', '.'],
+          args: {}
+        }
       ];
       const findings = parsePublintMessages(messages, { name: 'test-pkg' }, tempDir);
       expect(findings).toHaveLength(1);

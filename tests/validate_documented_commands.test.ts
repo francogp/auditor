@@ -40,17 +40,21 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('passes cleanly when all documented commands exist in package.json', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          test: 'vitest',
-          lint: 'eslint .',
-          build: 'tsc'
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            test: 'vitest',
+            lint: 'eslint .',
+            build: 'tsc'
+          },
+          devDependencies: {
+            vitest: '^3.0.0'
+          }
         },
-        devDependencies: {
-          vitest: '^3.0.0'
-        }
-      }, null, 2)
+        null,
+        2
+      )
     );
 
     const docContent = [
@@ -76,12 +80,16 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('detects unregistered npm run script in inline markdown', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          build: 'tsc'
-        }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            build: 'tsc'
+          }
+        },
+        null,
+        2
+      )
     );
 
     await fs.writeFile(
@@ -93,7 +101,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const finding = result.findings.find(f => f.ruleId === 'documented-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('validate:types');
   });
@@ -101,27 +109,26 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('detects unregistered npm run script inside fenced bash code block', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          test: 'vitest'
-        }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            test: 'vitest'
+          }
+        },
+        null,
+        2
+      )
     );
 
-    const content = [
-      '# Setup',
-      '```sh',
-      '$ npm run nonexistent-setup',
-      '```'
-    ].join('\n');
+    const content = ['# Setup', '```sh', '$ npm run nonexistent-setup', '```'].join('\n');
 
     await fs.writeFile(path.join(tempDir, 'SETUP.md'), content);
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
-    const finding = result.findings.find(f => f.ruleId === 'documented-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('nonexistent-setup');
   });
@@ -129,23 +136,24 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('detects invalid direct npm commands instead of npm run', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          foo: 'echo foo'
-        }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            foo: 'echo foo'
+          }
+        },
+        null,
+        2
+      )
     );
 
-    await fs.writeFile(
-      path.join(tempDir, 'DOC.md'),
-      'Run `npm foo` to execute the foo task.'
-    );
+    await fs.writeFile(path.join(tempDir, 'DOC.md'), 'Run `npm foo` to execute the foo task.');
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
-    const finding = result.findings.find(f => f.ruleId === 'documented-cmd-invalid-npm-syntax');
+    const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-invalid-npm-syntax');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain("debe ser 'npm run foo'");
   });
@@ -153,10 +161,14 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('detects unregistered npx binaries', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        dependencies: {}
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          dependencies: {}
+        },
+        null,
+        2
+      )
     );
 
     await fs.writeFile(
@@ -167,7 +179,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
-    const finding = result.findings.find(f => f.ruleId === 'documented-cmd-unregistered-npx');
+    const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npx');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('nonexistent-binary-cli');
   });
@@ -175,10 +187,14 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('ignores placeholder template syntax in documentation', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {}
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {}
+        },
+        null,
+        2
+      )
     );
 
     await fs.writeFile(
@@ -196,10 +212,14 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('audits skills in .agents/skills/ directory and flags unregistered commands', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { test: 'vitest' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { test: 'vitest' }
+        },
+        null,
+        2
+      )
     );
 
     const skillDir = path.join(tempDir, '.agents/skills/my-custom-skill');
@@ -213,7 +233,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const finding = result.findings.find(f => f.ruleId === 'documented-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('unrecorded-skill-task');
   });
@@ -221,10 +241,14 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('allows npx binaries configured in audit.config.ts allowedNpxBinaries', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        dependencies: {}
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          dependencies: {}
+        },
+        null,
+        2
+      )
     );
 
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -253,10 +277,14 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('recognizes npm info and wildcard pattern as valid/placeholders', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { test: 'vitest' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { test: 'vitest' }
+        },
+        null,
+        2
+      )
     );
 
     await fs.writeFile(
@@ -274,10 +302,14 @@ describe('ValidateDocumentedCommandsAuditor', () => {
   it('respects paths.ignoredDirs and paths.ignoreGlobs from audit.config.ts', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { test: 'vitest' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { test: 'vitest' }
+        },
+        null,
+        2
+      )
     );
 
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -305,4 +337,3 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     expect(result.status).toBe('passed');
   });
 });
-

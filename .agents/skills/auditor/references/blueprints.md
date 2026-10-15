@@ -36,14 +36,16 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 26. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
 27. `testCoverage`: Istanbul/C8 coverage analysis, thresholds, and untracked file detection (defaults to `enabled: true`, `threshold: 80`, `enforceInAudit: true`).
 28. `auditorHygiene`: Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (defaults to `enabled: true`).
-29. `oxlint`: Vite+ Oxlint configuration integrity and Domain-Type-First type safety governance (defaults to `enabled: true`).
-30. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
-31. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
-32. `webPerformance`: Frontend web performance hygiene (defaults to `enabled: true`, `maxDomDepth: 32`, `maxInlineSvgBytes: 4096`, `maxUncompressedVideoBytes: 10485760`, `exemptSvgPaths: []`, `exemptImgClasses: []`, `exemptPaths: []`).
-33. `queryPerformance`: Database query efficiency and anti-pattern governance (defaults to `enabled: true`, `enforceSelectStar: true`, `enforcePagination: true`, `enforceNPlusOneDetection: true`, `exemptSelectStarPaths: []`, `exemptPaths: []`).
-34. `securityHardening`: Static security hygiene and vulnerability hardening (defaults to `enabled: true`, `enforceInsecureRandom: true`, `enforceVulnerableRegex: true`, `enforceEvalDetection: true`, `exemptPaths: []`).
-35. `codeSimplification`: Pragmatic code complexity and anti-pattern governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `maxBooleanParams: 2`, `maxSwitchCases: 10`, `allowMatrixLoops: false`, `exemptPaths: []`).
-36. `scssArchitecture`: Modular SCSS styling architecture and token governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `enforceThemeTokens: true`, `bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']`, `scopedMaxNestingDepth: {}`, `allowPixelArtSpacing: false`, `allowedSpacingUnits: []`, `allowScopedColors: false`, `exemptPaths: []`).
+29. `oxlint`: Vite+ Oxlint syntax and code hygiene execution via `vp lint` (defaults to `enabled: true`).
+30. `oxfmt`: Vite+ Oxfmt code formatting hygiene execution via `vp fmt` (defaults to `enabled: true`).
+31. `vitePlusConfig`: Vite+ unified configuration governance and mandatory type safety in `vite.config.ts` (defaults to `enabled: true`).
+32. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
+33. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
+34. `webPerformance`: Frontend web performance hygiene (defaults to `enabled: true`, `maxDomDepth: 32`, `maxInlineSvgBytes: 4096`, `maxUncompressedVideoBytes: 10485760`, `exemptSvgPaths: []`, `exemptImgClasses: []`, `exemptPaths: []`).
+35. `queryPerformance`: Database query efficiency and anti-pattern governance (defaults to `enabled: true`, `enforceSelectStar: true`, `enforcePagination: true`, `enforceNPlusOneDetection: true`, `exemptSelectStarPaths: []`, `exemptPaths: []`).
+36. `securityHardening`: Static security hygiene and vulnerability hardening (defaults to `enabled: true`, `enforceInsecureRandom: true`, `enforceVulnerableRegex: true`, `enforceEvalDetection: true`, `exemptPaths: []`).
+37. `codeSimplification`: Pragmatic code complexity and anti-pattern governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `maxBooleanParams: 2`, `maxSwitchCases: 10`, `allowMatrixLoops: false`, `exemptPaths: []`).
+38. `scssArchitecture`: Modular SCSS styling architecture and token governance (defaults to `enabled: true`, `maxNestingDepth: 4`, `enforceThemeTokens: true`, `bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc']`, `scopedMaxNestingDepth: {}`, `allowPixelArtSpacing: false`, `allowedSpacingUnits: []`, `allowScopedColors: false`, `exemptPaths: []`).
 
 When omitted, each subsystem is safely populated with its active defaults. If explicitly configured with invalid types or unknown enumeration values, `assertAuditConfigComplete` immediately alerts developers with detailed diagnostics. Suites requiring compiled artifacts (`capabilities.phase === 'post-build'`, including `bundle`, `packageDistribution`, and `packageTypes`) are dynamically routed to post-build verification (`npm run auditor:post-build` / `phase=post-build`).
 

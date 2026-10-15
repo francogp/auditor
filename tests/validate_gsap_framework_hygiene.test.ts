@@ -107,7 +107,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-unscoped-component-selectors'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -140,7 +142,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-unscoped-component-selectors'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
       expect(violations[0]?.message).toContain('.unscoped-banner');
@@ -163,7 +167,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-missing-context-revert');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-missing-context-revert'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -177,7 +183,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         Draggable.create('.box', { type: 'x,y' });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-missing-plugin-registration');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-missing-plugin-registration'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -191,7 +199,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         GSDevTools.create();`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-devtools-production');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-banned-devtools-production'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -208,7 +218,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-unscoped-component-selectors'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -223,7 +235,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-unscoped-component-selectors'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -238,7 +252,9 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-unscoped-component-selectors');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-unscoped-component-selectors'
+      );
       expect(violations.length).toBe(1);
     });
   });

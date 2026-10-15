@@ -223,13 +223,26 @@ Running `npm run auditor:fix` automatically executes the non-destructive 5-stage
 | Tool / Action | Legacy Toolchain | Vite+ Standard |
 |---|---|---|
 | Syntax & Lint | Legacy ESLint (`npm run lint`) | `vp check` (or `npm run check`) |
-| Format Check | Legacy Prettier (`prettier --check`) | `vp check` |
-| Format Fix | Legacy Prettier (`prettier --write`) | `vp check --fix` |
+| Format Check | Legacy Prettier (`prettier --check`) | `vp fmt --check` (or `npm run fmt:check`, `vp check`) |
+| Format Fix | Legacy Prettier (`prettier --write`) | `vp fmt` (or `npm run fmt`, `vp check --fix`) |
 | Test Suite | Legacy Vitest (`npm test`) | `vp test` (or `npm test`) |
 | Test Coverage | Legacy Vitest (`npm run test:coverage`) | `vp test --coverage` (or `npm run test:coverage`) |
 | Library Packaging | Legacy tsdown CLI | `vp pack` |
 | Dev Server | Legacy Vite CLI | `vp dev` |
 | Project Tasks | Legacy script runner (`npm run <task>`) | `vp run <task>` (or `npm run <task>`) |
+
+### 4.3 Production Edge Cases & Clean Config Architecture
+
+When migrating large codebases with multiple external plugins and complex test environments:
+
+1. **Avoid Plugin Type Recursion in `defineConfig`**:
+   Extract plugins into a standalone `const plugins: PluginOption[] = [...]` array outside `defineConfig` to prevent TS2321/TS2589 ("Excessive stack depth comparing types") between bundled Rollup types and external plugin declarations.
+
+2. **Remove Obsolete `environmentMatchGlobs`**:
+   Remove deprecated `environmentMatchGlobs` from `vite.config.ts`. In Vite+, use project-level environments or file-level docblocks (`// @vitest-environment jsdom`) for component tests.
+
+3. **ANSI VT Sequences in Log Spies**:
+   Node.js 26+ native styling (`node:util` `styleText`) injects ANSI color sequences into console logs. When asserting warnings or logs in Vitest / Vite+ test suites, match against regex patterns (`expect.stringMatching(/.../)`) instead of strict string equality.
 
 ---
 

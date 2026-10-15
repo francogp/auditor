@@ -161,7 +161,18 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
 
   it('validates fallow.maxTargetPriority supporting all official levels and numeric thresholds', () => {
     // Valid priorities: string and number
-    for (const prio of ['critical', 'high', 'medium', 'moderate', 'low', 'all', 0, 15, 25.5, 100] as const) {
+    for (const prio of [
+      'critical',
+      'high',
+      'medium',
+      'moderate',
+      'low',
+      'all',
+      0,
+      15,
+      25.5,
+      100
+    ] as const) {
       const validConfig = defineAuditConfig({
         name: 'Valid Fallow Priority Project',
         fallow: { maxTargetPriority: prio as any }
@@ -174,23 +185,28 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       name: 'Invalid Fallow Priority Project',
       fallow: { maxTargetPriority: 'ultra' as any }
     });
-    expect(() => assertAuditConfigComplete(invalidStrConfig)).toThrowError(/fallow.*Prioridad de objetivo no válida/i);
+    expect(() => assertAuditConfigComplete(invalidStrConfig)).toThrowError(
+      /fallow.*Prioridad de objetivo no válida/i
+    );
 
     // Invalid negative number
     const invalidNegConfig = defineAuditConfig({
       name: 'Invalid Fallow Priority Project',
       fallow: { maxTargetPriority: -5 as any }
     });
-    expect(() => assertAuditConfigComplete(invalidNegConfig)).toThrowError(/fallow.*Prioridad de objetivo no válida/i);
+    expect(() => assertAuditConfigComplete(invalidNegConfig)).toThrowError(
+      /fallow.*Prioridad de objetivo no válida/i
+    );
 
     // Invalid number > 100
     const invalidOverConfig = defineAuditConfig({
       name: 'Invalid Fallow Priority Project',
       fallow: { maxTargetPriority: 150 as any }
     });
-    expect(() => assertAuditConfigComplete(invalidOverConfig)).toThrowError(/fallow.*Prioridad de objetivo no válida/i);
+    expect(() => assertAuditConfigComplete(invalidOverConfig)).toThrowError(
+      /fallow.*Prioridad de objetivo no válida/i
+    );
   });
-
 
   it('aggregates multiple invalid subsystem configurations into a single diagnostic message', () => {
     const config = defineAuditConfig({
@@ -273,7 +289,9 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
     expect(config.paths.cliRoots).toEqual(['src/cli', 'src/tools']);
     expect(config.templates?.safeTemplateFunctions).toEqual(['formatMoney', 'customTranslate']);
     expect(config.styles?.baseScssFile).toBe('src/custom-styles/_base.scss');
-    expect(config.bundle?.forbiddenUiImports).toEqual([{ module: 'heavy-lib', reason: 'Too heavy for frontend' }]);
+    expect(config.bundle?.forbiddenUiImports).toEqual([
+      { module: 'heavy-lib', reason: 'Too heavy for frontend' }
+    ]);
     expect(config.animation?.customTimerFunctions).toEqual(['scheduleFrame', 'rafWait']);
     expect(config.constants?.ignoredNames).toEqual(['MY_MAGIC_FLAG']);
     expect(config.constants?.exemptMagicNumbers).toEqual([42, 100]);
@@ -361,4 +379,3 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
     });
   });
 });
-

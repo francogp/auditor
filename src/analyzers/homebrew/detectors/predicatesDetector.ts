@@ -13,7 +13,10 @@ export const predicatesDetector = createLineDetector({
   ruleDescription: 'Predicados caseros de rutas o test',
   checkLine(line, _trimmed, _lineNum, context) {
     const hasHomebrewTestCheck =
-      (line.includes("includes('.spec.')") || line.includes("includes('.test.')") || line.includes('includes(".spec.")') || line.includes('includes(".test.")')) &&
+      (line.includes("includes('.spec.')") ||
+        line.includes("includes('.test.')") ||
+        line.includes('includes(".spec.")') ||
+        line.includes('includes(".test.")')) &&
       !line.includes('isTestPath(') &&
       !context.filePath.includes('auditTestPredicates');
 

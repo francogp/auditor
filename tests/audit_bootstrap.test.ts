@@ -66,7 +66,7 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
 
     const content = fs.readFileSync(generatedConfigFile, 'utf-8');
     expect(content).toContain("name: 'virgin-sample-app'");
-    expect(content).toContain("defineAuditConfig");
+    expect(content).toContain('defineAuditConfig');
 
     // Must contain default configurations of all major built-in subauditors
     expect(content).toContain('webPerformance:');
@@ -85,7 +85,9 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
     expect(fs.existsSync(skillsJson)).toBe(true);
 
     const pluginsContent = JSON.parse(fs.readFileSync(pluginsJson, 'utf-8'));
-    expect(pluginsContent.entries.some((e: { path: string }) => e.path.includes('@francogp/auditor'))).toBe(true);
+    expect(
+      pluginsContent.entries.some((e: { path: string }) => e.path.includes('@francogp/auditor'))
+    ).toBe(true);
 
     // GitIgnore verification
     const gitignorePath = path.join(tempDir, '.gitignore');
@@ -139,7 +141,7 @@ export default defineAuditConfig({
     const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
     // Prior settings preserved
     expect(updatedContent).toContain("name: 'old-sample-app'");
-    expect(updatedContent).toContain("targets: []");
+    expect(updatedContent).toContain('targets: []');
     // Newly injected sections exist
     expect(updatedContent).toContain('webPerformance:');
     expect(updatedContent).toContain('queryPerformance:');
@@ -294,7 +296,7 @@ export default defineAuditConfig({
     const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
     // Non-violating user customizations MUST be preserved
     expect(updatedContent).toContain("language: 'es'");
-    expect(updatedContent).toContain("maxDomDepth: 64");
+    expect(updatedContent).toContain('maxDomDepth: 64');
     expect(updatedContent).toContain("srcRoots: ['custom-src']");
     expect(updatedContent).toContain("testRoots: ['custom-tests']");
 
@@ -407,10 +409,11 @@ export default defineAuditConfig({
     await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
     const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
 
-    const updatedTranspile = ts.default.transpileModule(updatedContent, { reportDiagnostics: true });
+    const updatedTranspile = ts.default.transpileModule(updatedContent, {
+      reportDiagnostics: true
+    });
     expect(updatedTranspile.diagnostics ?? []).toHaveLength(0);
     expect(updatedContent).not.toMatch(/\}\s*\r?\n\s*,/);
     expect(updatedContent).not.toMatch(/^\s*,\s*$/m);
   });
 });
-

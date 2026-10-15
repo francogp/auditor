@@ -170,7 +170,9 @@ describe('report_test_coverage CLI Tool', () => {
     const srcDir = path.join(tmpDir, 'src');
     fs.writeFileSync(path.join(srcDir, 'zero.ts'), 'export const z = 0;');
     const covDir = path.join(tmpDir, 'coverage');
-    const fixtureCoverage = JSON.parse(fs.readFileSync(path.join(covDir, 'coverage-final.json'), 'utf8'));
+    const fixtureCoverage = JSON.parse(
+      fs.readFileSync(path.join(covDir, 'coverage-final.json'), 'utf8')
+    );
     fixtureCoverage[path.join(srcDir, 'zero.ts')] = {
       statements: { total: 5, covered: 0, pct: 0 },
       branches: { total: 0, covered: 0, pct: 100 },
@@ -222,4 +224,3 @@ describe('report_test_coverage CLI Tool', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
 });
-

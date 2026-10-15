@@ -31,47 +31,91 @@ const LEGACY_CONFIG_FILES = [
 function buildCanonicalVitePlusConfig(auditConfig) {
 	const isLibrary = auditConfig.packageDistribution?.enabled !== false;
 	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
-	return `import { defineConfig } from 'vite-plus';
-
-export default defineConfig({
-${isLibrary ? `  pack: {
+	const packSection = isLibrary ? `  pack: {
     entry: ['src/index.ts', 'src/cli/*.ts', 'src/suites/**/*.ts'],
     unbundle: true,
     dts: true,
     publint: true,
     attw: { profile: 'esm-only' },
     outExtensions: () => ({ js: '.js', dts: '.d.ts' })
-  },
-` : ""}  lint: {
+  },\n` : "";
+	const fmtCfg = auditConfig.vitePlusConfig?.fmt;
+	const singleQuote = fmtCfg?.singleQuote ?? true;
+	const semi = fmtCfg?.semi ?? true;
+	const trailingComma = fmtCfg?.trailingComma ?? "none";
+	const printWidth = fmtCfg?.printWidth ?? 100;
+	const sortPackageJson = fmtCfg?.sortPackageJson ?? true;
+	const tabWidthLine = fmtCfg?.tabWidth !== void 0 ? `\n    tabWidth: ${fmtCfg.tabWidth},` : "";
+	const useTabsLine = fmtCfg?.useTabs !== void 0 ? `\n    useTabs: ${fmtCfg.useTabs},` : "";
+	const lintCfg = auditConfig.vitePlusConfig?.lint;
+	const typeAware = lintCfg?.typeAware ?? true;
+	const typeCheck = lintCfg?.typeCheck ?? true;
+	let categoriesSection = "";
+	if (lintCfg?.categories && Object.keys(lintCfg.categories).length > 0) categoriesSection = `\n    categories: {\n${Object.entries(lintCfg.categories).map(([k, v]) => `      '${k}': '${v}'`).join(",\n")}\n    },`;
+	let overridesSection = "";
+	if (lintCfg?.overrides && lintCfg.overrides.length > 0) overridesSection = `,\n    overrides: [\n${lintCfg.overrides.map((ov) => {
+		return `      {\n        files: ${JSON.stringify(ov.files)},\n        rules: {\n${Object.entries(ov.rules).map(([k, v]) => `        '${k}': ${JSON.stringify(v)}`).join(",\n")}\n        }\n      }`;
+	}).join(",\n")}\n    ]`;
+	const stagedCfg = auditConfig.vitePlusConfig?.staged;
+	let stagedRules = "{ '*': 'vp check --fix' }";
+	if (stagedCfg) {
+		const rulesObj = "rules" in stagedCfg && stagedCfg.rules ? stagedCfg.rules : stagedCfg;
+		if (Object.keys(rulesObj).length > 0) stagedRules = JSON.stringify(rulesObj, null, 4).replace(/\n/g, "\n  ");
+	}
+	const defaultBaseIgnores = [
+		"dist/**",
+		"dev-dist/**",
+		"node_modules/**",
+		"scratch/**",
+		"tmp/**",
+		".agents/**",
+		"coverage/**",
+		"**/*.d.ts"
+	];
+	const projectIgnores = auditConfig.paths?.ignoreGlobs ?? [];
+	const mergedLintIgnores = Array.from(/* @__PURE__ */ new Set([
+		...defaultBaseIgnores,
+		...projectIgnores,
+		...lintCfg?.ignorePatterns ?? []
+	]));
+	const lintIgnoreStr = JSON.stringify(mergedLintIgnores, null, 6).replace(/\n/g, "\n    ");
+	const mergedFmtIgnores = Array.from(/* @__PURE__ */ new Set([
+		...defaultBaseIgnores,
+		...projectIgnores,
+		...fmtCfg?.ignorePatterns ?? []
+	]));
+	const fmtIgnoreStr = JSON.stringify(mergedFmtIgnores, null, 6).replace(/\n/g, "\n    ");
+	return `import { defineConfig } from 'vite-plus';
+
+export default defineConfig({
+${packSection}  lint: {
     options: {
-      typeAware: true,
-      typeCheck: true
-    },
+      typeAware: ${typeAware},
+      typeCheck: ${typeCheck}
+    },${categoriesSection}
     jsPlugins: ['@francogp/auditor/domain-type-plugin'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/ban-ts-comment': 'error',
-      '@francogp/domain-type/no-naked-string-union': 'error',
-      '@francogp/domain-type/no-record-string-key': 'error',
-      '@francogp/domain-type/no-untyped-string-set-map': 'error',
-      '@francogp/domain-type/no-broad-string-array': 'error'
+      '@typescript-eslint/consistent-type-assertions': [
+        'error',
+        {
+          assertionStyle: 'as',
+          objectLiteralTypeAssertions: 'never'
+        }
+      ],
+      '@francogp/domain-type/no-double-cast-unknown': 'error',
+      '@francogp/domain-type/no-legacy-date': 'error'
     },
-    ignorePatterns: [
-      'dist/**',
-      'dev-dist/**',
-      'node_modules/**',
-      'scratch/**',
-      'tmp/**',
-      '.agents/**',
-      'coverage/**',
-      '**/*.d.ts'
-    ]
+    ignorePatterns: ${lintIgnoreStr}${overridesSection}
   },
   fmt: {
-    singleQuote: true,
-    semi: true,
-    trailingComma: 'none',
-    printWidth: 100
+    singleQuote: ${singleQuote},
+    semi: ${semi},
+    trailingComma: '${trailingComma}',
+    printWidth: ${printWidth},
+    sortPackageJson: ${sortPackageJson},
+    ignorePatterns: ${fmtIgnoreStr}${tabWidthLine}${useTabsLine}
   },
   test: {
     environment: 'node',
@@ -89,9 +133,7 @@ ${isLibrary ? `  pack: {
       }
     }
   },
-  staged: {
-    '*': 'vp check --fix'
-  }
+  staged: ${stagedRules}
 });
 `;
 }
@@ -225,40 +267,43 @@ function ensureTestBlock(content, legacyTestBlock, config) {
 const STRICT_RULE_CHECKS = [
 	"@typescript-eslint/no-explicit-any",
 	"@typescript-eslint/ban-ts-comment",
-	"@francogp/domain-type/no-naked-string-union",
-	"@francogp/domain-type/no-record-string-key",
-	"@francogp/domain-type/no-untyped-string-set-map",
-	"@francogp/domain-type/no-broad-string-array"
+	"@typescript-eslint/consistent-type-assertions",
+	"@francogp/domain-type/no-double-cast-unknown",
+	"@francogp/domain-type/no-legacy-date"
 ];
-function ensureLintBlock(content) {
-	if (!/(^|\s)lint\s*:\s*\{/m.test(content)) return {
-		content: injectBlockBeforeConfigEnd(content, `lint: {
-    options: {
-      typeAware: true,
-      typeCheck: true
-    },
-    jsPlugins: ['@francogp/auditor/domain-type-plugin'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/ban-ts-comment': 'error',
-      '@francogp/domain-type/no-naked-string-union': 'error',
-      '@francogp/domain-type/no-record-string-key': 'error',
-      '@francogp/domain-type/no-untyped-string-set-map': 'error',
-      '@francogp/domain-type/no-broad-string-array': 'error'
-    },
-    ignorePatterns: [
-      'dist/**',
-      'dev-dist/**',
-      'node_modules/**',
-      'scratch/**',
-      'tmp/**',
-      '.agents/**',
-      'coverage/**',
-      '**/*.d.ts'
-    ]
-  }`),
+function applyStrictRule(content, rule) {
+	const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const existingRuleRegex = new RegExp(`['"]${escaped}['"]\\s*:\\s*(['"][^'"]+['"]|\\[[^\\]]+\\])`, "m");
+	const match = existingRuleRegex.exec(content);
+	const canonicalValue = rule === "@typescript-eslint/consistent-type-assertions" ? "['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]" : "'error'";
+	if (!match) {
+		if (content.includes("rules: {")) return {
+			content: content.replace(/rules:\s*\{/, `rules: {\n      '${rule}': ${canonicalValue},`),
+			modified: true
+		};
+		return {
+			content,
+			modified: false
+		};
+	}
+	if (/['"](?:off|warn|0|1)['"]/.test(match[1] ?? "")) return {
+		content: content.replace(existingRuleRegex, `'${rule}': ${canonicalValue}`),
 		modified: true
 	};
+	return {
+		content,
+		modified: false
+	};
+}
+function ensureLintBlock(content, auditConfig) {
+	const config = auditConfig ?? getAuditConfig();
+	if (!/(^|\s)lint\s*:\s*\{/m.test(content)) {
+		const extractedLint = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config), "lint");
+		if (extractedLint) return {
+			content: injectBlockBeforeConfigEnd(content, extractedLint),
+			modified: true
+		};
+	}
 	let updated = content;
 	let modified = false;
 	if (!updated.includes("@francogp/auditor/domain-type-plugin")) {
@@ -270,32 +315,85 @@ function ensureLintBlock(content) {
 			modified = true;
 		}
 	}
-	for (const rule of STRICT_RULE_CHECKS) if (!updated.includes(`'${rule}'`) && !updated.includes(`"${rule}"`)) {
-		if (updated.includes("rules: {")) {
-			updated = updated.replace(/rules:\s*\{/, `rules: {\n      '${rule}': 'error',`);
+	for (const rule of STRICT_RULE_CHECKS) {
+		const res = applyStrictRule(updated, rule);
+		if (res.modified) {
+			updated = res.content;
 			modified = true;
 		}
+	}
+	const ignoreStep = ensureIgnorePatterns(updated, "lint", config);
+	if (ignoreStep.modified) {
+		updated = ignoreStep.content;
+		modified = true;
 	}
 	return {
 		content: updated,
 		modified
 	};
 }
-function ensureFmtAndStagedBlocks(content) {
+function ensureIgnorePatterns(content, blockName, config) {
+	const globsToEnsure = Array.from(/* @__PURE__ */ new Set([
+		"dist/**",
+		"dev-dist/**",
+		"node_modules/**",
+		"scratch/**",
+		"tmp/**",
+		".agents/**",
+		"coverage/**",
+		"**/*.d.ts",
+		...config.paths?.ignoreGlobs ?? []
+	]));
+	const block = extractObjectPropertyBlock(content, blockName);
+	if (!block) return {
+		content,
+		modified: false
+	};
+	const missingGlobs = globsToEnsure.filter((g) => !block.includes(`'${g}'`) && !block.includes(`"${g}"`));
+	if (missingGlobs.length === 0) return {
+		content,
+		modified: false
+	};
+	let updatedBlock = block;
+	if (block.includes("ignorePatterns: [")) {
+		const formatted = missingGlobs.map((g) => `      '${g}'`).join(",\n");
+		updatedBlock = block.replace(/ignorePatterns:\s*\[/, `ignorePatterns: [\n${formatted},`);
+	} else {
+		const formatted = missingGlobs.map((g) => `      '${g}'`).join(",\n");
+		const braceIndex = block.indexOf("{");
+		if (braceIndex !== -1) updatedBlock = block.slice(0, braceIndex + 1) + `\n    ignorePatterns: [\n${formatted}\n    ],` + block.slice(braceIndex + 1);
+	}
+	if (updatedBlock !== block) return {
+		content: content.replace(block, updatedBlock),
+		modified: true
+	};
+	return {
+		content,
+		modified: false
+	};
+}
+function ensureFmtAndStagedBlocks(content, auditConfig) {
+	const config = auditConfig ?? getAuditConfig();
 	let updated = content;
 	let modified = false;
 	if (!/(^|\s)fmt\s*:\s*\{/m.test(updated)) {
-		updated = injectBlockBeforeConfigEnd(updated, `fmt: {
-    singleQuote: true,
-    semi: true,
-    trailingComma: 'none',
-    printWidth: 100
-  }`);
+		const extractedFmt = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config), "fmt");
+		if (extractedFmt) {
+			updated = injectBlockBeforeConfigEnd(updated, extractedFmt);
+			modified = true;
+		}
+	}
+	const fmtIgnoreStep = ensureIgnorePatterns(updated, "fmt", config);
+	if (fmtIgnoreStep.modified) {
+		updated = fmtIgnoreStep.content;
 		modified = true;
 	}
 	if (!updated.includes("staged:")) {
-		updated = injectBlockBeforeConfigEnd(updated, `staged: {\n    '*': 'vp check --fix'\n  }`);
-		modified = true;
+		const extractedStaged = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config), "staged");
+		if (extractedStaged) {
+			updated = injectBlockBeforeConfigEnd(updated, extractedStaged);
+			modified = true;
+		}
 	}
 	return {
 		content: updated,
@@ -316,10 +414,10 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	const testStep = ensureTestBlock(content, legacyTestBlock, config);
 	content = testStep.content;
 	if (testStep.modified) modified = true;
-	const lintStep = ensureLintBlock(content);
+	const lintStep = ensureLintBlock(content, config);
 	content = lintStep.content;
 	if (lintStep.modified) modified = true;
-	const fmtStagedStep = ensureFmtAndStagedBlocks(content);
+	const fmtStagedStep = ensureFmtAndStagedBlocks(content, config);
 	content = fmtStagedStep.content;
 	if (fmtStagedStep.modified) modified = true;
 	if (modified) fs.writeFileSync(viteConfigPath, content, "utf-8");
@@ -396,6 +494,66 @@ function migrateNodeVersion(projectRoot) {
 	}
 	return migrated;
 }
+function getVitePlusDefaultExcludeGlobs(projectRoot) {
+	return [
+		"node_modules/**",
+		"dist/**",
+		"scratch/**",
+		".agents/**",
+		...getAuditConfig(projectRoot).paths?.ignoreGlobs ?? []
+	];
+}
+const LEGACY_DEPS_TO_REMOVE = [
+	"eslint",
+	"@eslint/js",
+	"typescript-eslint",
+	"@typescript-eslint/eslint-plugin",
+	"@typescript-eslint/parser",
+	"eslint-formatter-codeframe",
+	"eslint-plugin-unused-imports",
+	"eslint-plugin-vue",
+	"eslint-plugin-regexp",
+	"globals",
+	"vue-eslint-parser",
+	"vitest"
+];
+function removeLegacyDependencies(pkg) {
+	let modified = false;
+	for (const dep of LEGACY_DEPS_TO_REMOVE) {
+		if (pkg.devDependencies && dep in pkg.devDependencies) {
+			delete pkg.devDependencies[dep];
+			modified = true;
+		}
+		if (pkg.dependencies && dep in pkg.dependencies) {
+			delete pkg.dependencies[dep];
+			modified = true;
+		}
+	}
+	return modified;
+}
+const REQUIRED_VITE_PLUS_SCRIPTS = {
+	check: "vp check",
+	"check:fix": "vp check --fix",
+	fmt: "vp fmt",
+	"fmt:check": "vp fmt --check"
+};
+function updateVitePlusScripts(scripts) {
+	let modified = false;
+	for (const [sName, sCmd] of Object.entries(scripts)) if (typeof sCmd === "string" && /\beslint\b/.test(sCmd)) {
+		if (sName === "lint") {
+			scripts[sName] = "vp check";
+			modified = true;
+		} else if (sName === "lint:fix") {
+			scripts[sName] = "vp check --fix";
+			modified = true;
+		}
+	}
+	for (const [key, cmd] of Object.entries(REQUIRED_VITE_PLUS_SCRIPTS)) if (!scripts[key]) {
+		scripts[key] = cmd;
+		modified = true;
+	}
+	return modified;
+}
 function syncPackageJsonForVitePlus(projectRoot) {
 	const pkgPath = path.resolve(projectRoot, "package.json");
 	if (!fs.existsSync(pkgPath)) return false;
@@ -411,55 +569,75 @@ function syncPackageJsonForVitePlus(projectRoot) {
 		pkg.devDependencies["vite-plus"] = "^1.2.0";
 		modified = true;
 	}
-	for (const dep of [
-		"eslint",
-		"@eslint/js",
-		"typescript-eslint",
-		"@typescript-eslint/eslint-plugin",
-		"@typescript-eslint/parser",
-		"eslint-formatter-codeframe",
-		"eslint-plugin-unused-imports",
-		"eslint-plugin-vue",
-		"eslint-plugin-regexp",
-		"globals",
-		"vue-eslint-parser",
-		"vitest"
-	]) {
-		if (pkg.devDependencies && dep in pkg.devDependencies) {
-			delete pkg.devDependencies[dep];
-			modified = true;
-		}
-		if (pkg.dependencies && dep in pkg.dependencies) {
-			delete pkg.dependencies[dep];
-			modified = true;
-		}
-	}
-	if (pkg.scripts) {
-		for (const [sName, sCmd] of Object.entries(pkg.scripts)) if (typeof sCmd === "string" && /\beslint\b/.test(sCmd)) {
-			if (sName === "lint") {
-				pkg.scripts[sName] = "vp check";
-				modified = true;
-			} else if (sName === "lint:fix") {
-				pkg.scripts[sName] = "vp check --fix";
-				modified = true;
-			}
-		}
-	}
+	if (removeLegacyDependencies(pkg)) modified = true;
+	pkg.scripts = pkg.scripts ?? {};
+	if (updateVitePlusScripts(pkg.scripts)) modified = true;
 	if (modified) fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
 	return modified;
 }
+function syncVSCodeSettings(projectRoot, auditConfig) {
+	const vscConfig = (auditConfig ?? getAuditConfig(projectRoot)).vitePlusConfig?.vscode;
+	if (vscConfig?.enabled === false) return false;
+	const vscodeDir = path.resolve(projectRoot, ".vscode");
+	fs.mkdirSync(vscodeDir, { recursive: true });
+	let modified = false;
+	const extPath = path.resolve(vscodeDir, "extensions.json");
+	let extJson = {};
+	if (fs.existsSync(extPath)) try {
+		extJson = JSON.parse(fs.readFileSync(extPath, "utf-8"));
+	} catch {
+		extJson = {};
+	}
+	const recommendations = [...extJson.recommendations ?? []];
+	const unwantedRecommendations = [...extJson.unwantedRecommendations ?? []];
+	if (!recommendations.includes("oxc.oxc-vscode")) {
+		recommendations.push("oxc.oxc-vscode");
+		modified = true;
+	}
+	const unwanted = vscConfig?.unwantedRecommendations ?? ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"];
+	for (const unw of unwanted) if (!unwantedRecommendations.includes(unw)) {
+		unwantedRecommendations.push(unw);
+		modified = true;
+	}
+	if (modified || !fs.existsSync(extPath)) {
+		extJson.recommendations = recommendations;
+		extJson.unwantedRecommendations = unwantedRecommendations;
+		fs.writeFileSync(extPath, JSON.stringify(extJson, null, 2) + "\n", "utf-8");
+	}
+	const settingsPath = path.resolve(vscodeDir, "settings.json");
+	let settingsJson = {};
+	if (fs.existsSync(settingsPath)) try {
+		settingsJson = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+	} catch {
+		settingsJson = {};
+	}
+	const defFormatter = vscConfig?.defaultFormatter ?? "oxc.oxc-vscode";
+	if (settingsJson["editor.defaultFormatter"] !== defFormatter) {
+		settingsJson["editor.defaultFormatter"] = defFormatter;
+		modified = true;
+	}
+	if (vscConfig?.formatOnSave !== false && settingsJson["editor.formatOnSave"] !== true) {
+		settingsJson["editor.formatOnSave"] = true;
+		modified = true;
+	}
+	if (modified || !fs.existsSync(settingsPath)) fs.writeFileSync(settingsPath, JSON.stringify(settingsJson, null, 2) + "\n", "utf-8");
+	return modified;
+}
 function repairVitePlusProject(projectRoot) {
-	const viteConfigSync = syncViteConfigWithAuditConfig(projectRoot);
+	const config = getAuditConfig(projectRoot);
+	const viteConfigSync = syncViteConfigWithAuditConfig(projectRoot, config);
 	const rewrittenFiles = rewriteImportsToVitePlus(projectRoot);
 	const nodeVersionMigrated = migrateNodeVersion(projectRoot);
 	const packageJsonUpdated = syncPackageJsonForVitePlus(projectRoot);
+	const vscodeSync = syncVSCodeSettings(projectRoot, config);
 	return {
 		removedConfigs: cleanLegacyConfigFiles(projectRoot),
 		rewrittenFiles,
 		viteConfigSync,
 		nodeVersionMigrated,
-		packageJsonUpdated
+		packageJsonUpdated,
+		vscodeSync
 	};
 }
 //#endregion
-export { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, extractObjectPropertyBlock, migrateNodeVersion, repairVitePlusProject, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncViteConfigWithAuditConfig };
+export { LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, extractObjectPropertyBlock, getVitePlusDefaultExcludeGlobs, migrateNodeVersion, repairVitePlusProject, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };

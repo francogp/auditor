@@ -13,6 +13,7 @@ export default defineConfig({
     outExtensions: () => ({ js: '.js', dts: '.d.ts' })
   },
   lint: {
+    jsPlugins: ['@francogp/auditor/domain-type-plugin'],
     options: {
       typeAware: true,
       typeCheck: true
@@ -27,6 +28,12 @@ export default defineConfig({
       'tests/**'
     ],
     rules: {
+      '@francogp/domain-type/no-legacy-date': 'error',
+      '@francogp/domain-type/no-double-cast-unknown': 'error',
+      '@typescript-eslint/consistent-type-assertions': [
+        'error',
+        { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
+      ],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/ban-ts-comment': 'error'
     }

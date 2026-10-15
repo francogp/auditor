@@ -8,7 +8,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { ValidateMagicNumbersAuditor, MAGIC_NUMBERS_RULES } from '../src/suites/architecture/validate_magic_numbers.ts';
+import {
+  ValidateMagicNumbersAuditor,
+  MAGIC_NUMBERS_RULES
+} from '../src/suites/architecture/validate_magic_numbers.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
@@ -108,7 +111,7 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'config.ts'),
         `export const DIMENSIONS = { WIDTH: 1920, HEIGHT: 1080 } as const;\n` +
-        `export const THEMES = { dark: { bg: 24, fg: 250 } };\n`,
+          `export const THEMES = { dark: { bg: 24, fg: 250 } };\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -145,7 +148,7 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'types.ts'),
         `export type AllowedPort = 8080 | 3000 | 9000;\n` +
-        `export interface ServerConfig { readonly defaultPort: 8080; }\n`,
+          `export interface ServerConfig { readonly defaultPort: 8080; }\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -158,9 +161,9 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'service.ts'),
         `export class ApiService {\n` +
-        `  static readonly MAX_RETRIES = 5;\n` +
-        `  readonly defaultTimeout = 3000;\n` +
-        `}\n`,
+          `  static readonly MAX_RETRIES = 5;\n` +
+          `  readonly defaultTimeout = 3000;\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -173,9 +176,9 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'logic.ts'),
         `export function checkStatus(index: number, total: number): boolean {\n` +
-        `  if (index === 0 || index === 1 || index === -1) return true;\n` +
-        `  return total === 100;\n` +
-        `}\n`,
+          `  if (index === 0 || index === 1 || index === -1) return true;\n` +
+          `  return total === 100;\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -200,8 +203,8 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'rates.ts'),
         `export function calculateTax(subtotal: number): number {\n` +
-        `  return subtotal * 21 + 10.5;\n` +
-        `}\n`,
+          `  return subtotal * 21 + 10.5;\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -214,11 +217,11 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'angles.ts'),
         `export function normalizeAngle(deg: number, hours: number, min: number): number {\n` +
-        `  const normalized = deg % 360;\n` +
-        `  const dayHours = hours % 24;\n` +
-        `  const hourMin = min % 60;\n` +
-        `  return normalized + dayHours + hourMin;\n` +
-        `}\n`,
+          `  const normalized = deg % 360;\n` +
+          `  const dayHours = hours % 24;\n` +
+          `  const hourMin = min % 60;\n` +
+          `  return normalized + dayHours + hourMin;\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -231,10 +234,10 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'tick.ts'),
         `export function nextTick(cb: () => void) {\n` +
-        `  setTimeout(cb, 0);\n` +
-        `  setInterval(cb, 0);\n` +
-        `  delayedCall(0, cb);\n` +
-        `}\n`,
+          `  setTimeout(cb, 0);\n` +
+          `  setInterval(cb, 0);\n` +
+          `  delayedCall(0, cb);\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -247,12 +250,12 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'radix.ts'),
         `export function parseValues(raw: string, num: number) {\n` +
-        `  const a = parseInt(raw, 10);\n` +
-        `  const b = Number.parseInt(raw, 16);\n` +
-        `  const c = num.toString(36);\n` +
-        `  const d = num.toString(2);\n` +
-        `  return { a, b, c, d };\n` +
-        `}\n`,
+          `  const a = parseInt(raw, 10);\n` +
+          `  const b = Number.parseInt(raw, 16);\n` +
+          `  const c = num.toString(36);\n` +
+          `  const d = num.toString(2);\n` +
+          `  return { a, b, c, d };\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -265,8 +268,8 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'format.ts'),
         `export function formatOutput(data: unknown): string {\n` +
-        `  return JSON.stringify(data, null, 2);\n` +
-        `}\n`,
+          `  return JSON.stringify(data, null, 2);\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -279,10 +282,10 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'codes.ts'),
         `export const STATUS_TEXT = {\n` +
-        `  200: 'OK',\n` +
-        `  404: 'Not Found',\n` +
-        `  500: 'Internal Error'\n` +
-        `};\n`,
+          `  200: 'OK',\n` +
+          `  404: 'Not Found',\n` +
+          `  500: 'Internal Error'\n` +
+          `};\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -296,8 +299,8 @@ describe('ValidateMagicNumbersAuditor', () => {
       await fs.writeFile(
         path.join(srcDir, 'algorithm.ts'),
         `export function computeHash(val: number): number {\n` +
-        `  return (val * 31) ^ 7; ${escapeComment}\n` +
-        `}\n`,
+          `  return (val * 31) ^ 7; ${escapeComment}\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
@@ -335,15 +338,15 @@ export const COMPONENT_ID = 42;
       await fs.writeFile(
         path.join(srcDir, 'condition.ts'),
         `export function isHighPrice(price: number): boolean {\n` +
-        `  if (price > 50) return true;\n` +
-        `  return false;\n` +
-        `}\n`,
+          `  if (price > 50) return true;\n` +
+          `  return false;\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'magic-number-naked');
+      const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('50');
@@ -353,15 +356,13 @@ export const COMPONENT_ID = 42;
     it('detects naked number in return statement', async () => {
       await fs.writeFile(
         path.join(srcDir, 'ret.ts'),
-        `export function getDefaultCode(): number {\n` +
-        `  return 999;\n` +
-        `}\n`,
+        `export function getDefaultCode(): number {\n` + `  return 999;\n` + `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'magic-number-naked');
+      const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('999');
       expect(finding?.line).toBe(2);
@@ -371,14 +372,14 @@ export const COMPONENT_ID = 42;
       await fs.writeFile(
         path.join(srcDir, 'tax.ts'),
         `export function calculateTax(amount: number): number {\n` +
-        `  return amount * 1.21;\n` +
-        `}\n`,
+          `  return amount * 1.21;\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'magic-number-naked');
+      const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('1.21');
     });
@@ -386,15 +387,13 @@ export const COMPONENT_ID = 42;
     it('detects naked negative number in return statement', async () => {
       await fs.writeFile(
         path.join(srcDir, 'neg.ts'),
-        `export function getFallback(): number {\n` +
-        `  return -999;\n` +
-        `}\n`,
+        `export function getFallback(): number {\n` + `  return -999;\n` + `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'magic-number-naked');
+      const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('-999');
     });
@@ -402,15 +401,13 @@ export const COMPONENT_ID = 42;
     it('detects naked number in function call argument', async () => {
       await fs.writeFile(
         path.join(srcDir, 'call.ts'),
-        `export function schedule(fn: (val: number) => void) {\n` +
-        `  fn(5000);\n` +
-        `}\n`,
+        `export function schedule(fn: (val: number) => void) {\n` + `  fn(5000);\n` + `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'magic-number-naked');
+      const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('5000');
       expect(finding?.message).toContain('Número mágico no declarado');
@@ -420,17 +417,19 @@ export const COMPONENT_ID = 42;
       await fs.writeFile(
         path.join(srcDir, 'timers.ts'),
         `export function runTimers(cb: () => void) {\n` +
-        `  setTimeout(cb, 1000);\n` +
-        `  setInterval(cb, 500);\n` +
-        `  delayedCall(2, cb);\n` +
-        `}\n`,
+          `  setTimeout(cb, 1000);\n` +
+          `  setInterval(cb, 500);\n` +
+          `  delayedCall(2, cb);\n` +
+          `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
       const timerFindings = result.findings.filter(
-        f => f.ruleId === 'magic-number-naked' && f.message.includes('Retardo de temporizador numérico desnudo')
+        (f) =>
+          f.ruleId === 'magic-number-naked' &&
+          f.message.includes('Retardo de temporizador numérico desnudo')
       );
       expect(timerFindings).toHaveLength(3);
       expect(timerFindings[0]?.message).toContain('1000');
@@ -441,16 +440,13 @@ export const COMPONENT_ID = 42;
     it('detects naked number in mutable variable assignment (let)', async () => {
       await fs.writeFile(
         path.join(srcDir, 'mutate.ts'),
-        `export function count() {\n` +
-        `  let total = 42;\n` +
-        `  return total;\n` +
-        `}\n`,
+        `export function count() {\n` + `  let total = 42;\n` + `  return total;\n` + `}\n`,
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'magic-number-naked');
+      const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('42');
     });
@@ -473,9 +469,9 @@ if (count.value > 99) {
       const auditor = new ValidateMagicNumbersAuditor([srcDir], tempDir);
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
-      const findings = result.findings.filter(f => f.ruleId === 'magic-number-naked');
+      const findings = result.findings.filter((f) => f.ruleId === 'magic-number-naked');
       expect(findings.length).toBeGreaterThanOrEqual(1);
-      expect(findings.some(f => f.message.includes('99') || f.message.includes('25'))).toBe(true);
+      expect(findings.some((f) => f.message.includes('99') || f.message.includes('25'))).toBe(true);
     });
   });
 });

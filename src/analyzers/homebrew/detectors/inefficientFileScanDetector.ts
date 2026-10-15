@@ -6,7 +6,11 @@
  * 2. Blind wildcards: Passing recursive wildcard globs directly to external linters instead of passing discovered target files.
  */
 
-import { type HomebrewDetector, type HomebrewFinding, type HomebrewInspectionContext } from '../homebrewTypes.ts';
+import {
+  type HomebrewDetector,
+  type HomebrewFinding,
+  type HomebrewInspectionContext
+} from '../homebrewTypes.ts';
 
 export const inefficientFileScanDetector: HomebrewDetector = {
   id: 'inefficient-file-scan',
@@ -31,7 +35,8 @@ export const inefficientFileScanDetector: HomebrewDetector = {
       }
 
       // Check for blind wildcard passed to external CLI
-      const isConfigObjectPattern = /^\s*files\s*:\s*\[/.test(trimmed) || line.includes('overrideConfig');
+      const isConfigObjectPattern =
+        /^\s*files\s*:\s*\[/.test(trimmed) || line.includes('overrideConfig');
 
       if (
         /['"]\*\*\/\*\.(?:md|vue|html|ts|js)['"]/.test(trimmed) &&
@@ -55,7 +60,9 @@ export const inefficientFileScanDetector: HomebrewDetector = {
       // Track rule loop start
       if (
         !inRuleLoop &&
-        /for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:[A-Z_]+_RULES|this\.ruleIds|this\.getRuleCatalog\(\))\s*\)/.test(line)
+        /for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:[A-Z_]+_RULES|this\.ruleIds|this\.getRuleCatalog\(\))\s*\)/.test(
+          line
+        )
       ) {
         inRuleLoop = true;
         ruleLoopBraceDepth = 0;
@@ -70,7 +77,9 @@ export const inefficientFileScanDetector: HomebrewDetector = {
 
         // Inside rule loop, check for inner file iteration reading disk
         if (
-          /for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:filePaths|files|allFiles|candidateFiles)\s*\)/.test(line) &&
+          /for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:filePaths|files|allFiles|candidateFiles)\s*\)/.test(
+            line
+          ) &&
           !line.includes('// nesting-ok:')
         ) {
           findings.push({

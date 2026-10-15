@@ -89,7 +89,9 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/components/BadComponent.vue', violatingCode);
     const result = await auditor.finishAudit();
 
-    const violations = result.findings.filter(f => f.ruleId === 'persistence-client-uncoordinated-save');
+    const violations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-uncoordinated-save'
+    );
     expect(violations.length).toBeGreaterThan(0);
     expect(violations[0]?.severity).toBe('error');
     expect(result.summary.errors).toBeGreaterThan(0);
@@ -115,12 +117,14 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/logic/session.ts', violatingCode);
     const result = await auditor.finishAudit();
 
-    const violations = result.findings.filter(f => f.ruleId === 'persistence-client-untyped-key');
+    const violations = result.findings.filter((f) => f.ruleId === 'persistence-client-untyped-key');
     expect(violations).toHaveLength(3);
-    expect(violations.every(v => v.severity === 'error')).toBe(true);
+    expect(violations.every((v) => v.severity === 'error')).toBe(true);
     expect(result.summary.errors).toBe(3);
     // Ensure getItem and removeItem did NOT trigger quota errors
-    const quotaViolations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    const quotaViolations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-unhandled-quota-error'
+    );
     expect(quotaViolations).toHaveLength(0);
   });
 
@@ -140,7 +144,9 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/logic/theme.ts', violatingCode);
     const result = await auditor.finishAudit();
 
-    const violations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    const violations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-unhandled-quota-error'
+    );
     expect(violations.length).toBeGreaterThan(0);
     expect(violations[0]?.severity).toBe('error');
     expect(result.summary.errors).toBeGreaterThan(0);
@@ -163,10 +169,14 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/features/bracketStorage.ts', violatingCode);
     const result = await auditor.finishAudit();
 
-    const untypedViolations = result.findings.filter(f => f.ruleId === 'persistence-client-untyped-key');
+    const untypedViolations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-untyped-key'
+    );
     expect(untypedViolations).toHaveLength(3);
 
-    const quotaViolations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    const quotaViolations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-unhandled-quota-error'
+    );
     expect(quotaViolations).toHaveLength(1);
     expect(quotaViolations[0]?.message).toContain('indexed assignment');
   });
@@ -219,7 +229,9 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/views/UnauthorizedView.vue', code);
     const result = await auditor.finishAudit();
 
-    const saveViolations = result.findings.filter(f => f.ruleId === 'persistence-client-uncoordinated-save');
+    const saveViolations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-uncoordinated-save'
+    );
     expect(saveViolations.length).toBe(1);
     expect(saveViolations[0]?.severity).toBe('error');
   });
@@ -285,7 +297,9 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/utils/retryUtils.ts', code);
     const result = await auditor.finishAudit();
 
-    const quotaViolations = result.findings.filter(f => f.ruleId === 'persistence-client-unhandled-quota-error');
+    const quotaViolations = result.findings.filter(
+      (f) => f.ruleId === 'persistence-client-unhandled-quota-error'
+    );
     expect(quotaViolations.length).toBe(1);
   });
 });

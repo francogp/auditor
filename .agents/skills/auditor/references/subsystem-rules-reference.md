@@ -149,3 +149,21 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   - `securityHardening`: `exemptPaths` (and natively allows empty string `.innerHTML = ''`)
   - `codeSimplification`: `exemptPaths`, `allowMatrixLoops`
   - `scssArchitecture`: `exemptPaths`, `scopedMaxNestingDepth`, `allowPixelArtSpacing`, `allowedSpacingUnits`, `allowScopedColors`
+
+---
+
+## 11. Vite+ Unified Toolchain Governance (`validate_vite_plus_config`, `validate_oxlint`, `validate_oxfmt`)
+
+- **Dynamic Exclusion Synchronization (`syncViteConfigWithAuditConfig`)**:
+  Exclusion globs configured in `audit.config.ts` (`config.paths.ignoreGlobs`) are automatically projected into `lint.ignorePatterns` and `fmt.ignorePatterns` inside `vite.config.ts`. This guarantees third-party and scratch paths (`external/**`, `dist/**`, `scratch/**`) are never audited by Oxlint or Oxfmt, preventing false-positive violations.
+- **Mandatory Oxlint Injected Rules & Anti-Castration**:
+  `validate_vite_plus_config` enforces that `vite.config.ts` declares:
+  - `@typescript-eslint/no-explicit-any: 'error'`
+  - `@typescript-eslint/ban-ts-comment: 'error'`
+  - `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
+  - Casting rules banning double unknown casts (`as unknown as`) and legacy `new Date()` / `Date.now()`.
+  Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails with `vite-plus-config-defect`. In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline.
+- **Source Code Formatting Hygiene (`validate_oxfmt`)**:
+  `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
+- **Mandatory Canary Verification**:
+  All mandatory injected rules and configuration toggles must have active automated canary tests asserting positive detection, negative compliance, and active vs disabled behavior.

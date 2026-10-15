@@ -1,6 +1,6 @@
 /**
  * tests/node/auditors/auditor_architecture_conformance.test.ts
- * 
+ *
  * AUDITOR ARCHITECTURE CONFORMANCE META-TEST
  * Verifies that 100% of discovered sub-auditors in scripts/auditors/:
  *   1. Strictly inherit from BaseAuditor or FileScanAuditor.
@@ -146,7 +146,7 @@ describe('Auditor Architecture Conformance', () => {
       }
 
       // Check that every scanned file is present in discovered tasks
-      const discoveredPaths = new Set(tasks.map(t => path.resolve(process.cwd(), t.scriptPath)));
+      const discoveredPaths = new Set(tasks.map((t) => path.resolve(process.cwd(), t.scriptPath)));
       for (const filePath of subAuditorFiles) {
         expect(
           discoveredPaths.has(filePath),
@@ -167,12 +167,21 @@ describe('Auditor Architecture Conformance', () => {
         const source = fs.readFileSync(filePath, 'utf-8');
         const descMatch = source.match(/description:\s*['"]([^'"]+)['"]/);
 
-        expect(descMatch, `Expected ${relPath} to declare a 'description' property in super({...})`).toBeTruthy();
+        expect(
+          descMatch,
+          `Expected ${relPath} to declare a 'description' property in super({...})`
+        ).toBeTruthy();
         const desc = descMatch![1]!;
 
         expect(desc.trim().length, `Description in ${relPath} cannot be empty`).toBeGreaterThan(0);
-        expect(desc.length, `Description "${desc}" in ${relPath} exceeds ${MAX_LENGTH} characters (${desc.length} chars)`).toBeLessThanOrEqual(MAX_LENGTH);
-        expect(desc.includes('\n'), `Description in ${relPath} must be a single line without newlines`).toBe(false);
+        expect(
+          desc.length,
+          `Description "${desc}" in ${relPath} exceeds ${MAX_LENGTH} characters (${desc.length} chars)`
+        ).toBeLessThanOrEqual(MAX_LENGTH);
+        expect(
+          desc.includes('\n'),
+          `Description in ${relPath} must be a single line without newlines`
+        ).toBe(false);
       });
 
       it(`${filename} declares single-line ruleDescriptions under ${MAX_LENGTH} chars when present`, () => {
@@ -185,8 +194,14 @@ describe('Auditor Architecture Conformance', () => {
             const valMatch = line.match(/:\s*['"]([^'"]+)['"]/);
             if (valMatch) {
               const ruleDesc = valMatch[1]!;
-              expect(ruleDesc.length, `Rule description "${ruleDesc}" in ${relPath} exceeds ${MAX_LENGTH} characters`).toBeLessThanOrEqual(MAX_LENGTH);
-              expect(ruleDesc.includes('\n'), `Rule description in ${relPath} cannot contain newlines`).toBe(false);
+              expect(
+                ruleDesc.length,
+                `Rule description "${ruleDesc}" in ${relPath} exceeds ${MAX_LENGTH} characters`
+              ).toBeLessThanOrEqual(MAX_LENGTH);
+              expect(
+                ruleDesc.includes('\n'),
+                `Rule description in ${relPath} cannot contain newlines`
+              ).toBe(false);
             }
           }
         }
@@ -196,8 +211,12 @@ describe('Auditor Architecture Conformance', () => {
 
   describe('False Positive Eradication & Precision Tests', () => {
     it('noImportantOnTransforms ignores text-transform and catches transform', async () => {
-      const { NO_IMPORTANT_ON_TRANSFORMS_REGEX } = await import('../src/suites/architecture/validate_gsap_animations.ts');
-      const r = new RegExp(NO_IMPORTANT_ON_TRANSFORMS_REGEX.source, NO_IMPORTANT_ON_TRANSFORMS_REGEX.flags);
+      const { NO_IMPORTANT_ON_TRANSFORMS_REGEX } =
+        await import('../src/suites/architecture/validate_gsap_animations.ts');
+      const r = new RegExp(
+        NO_IMPORTANT_ON_TRANSFORMS_REGEX.source,
+        NO_IMPORTANT_ON_TRANSFORMS_REGEX.flags
+      );
       expect(r.test('text-transform: uppercase !important;')).toBe(false);
       r.lastIndex = 0;
       expect(r.test('transform: none !important;')).toBe(true);
@@ -206,8 +225,12 @@ describe('Auditor Architecture Conformance', () => {
     });
 
     it('noImportantOnFilters ignores backdrop-filter and catches element filter', async () => {
-      const { NO_IMPORTANT_ON_FILTERS_REGEX } = await import('../src/suites/architecture/validate_gsap_animations.ts');
-      const r = new RegExp(NO_IMPORTANT_ON_FILTERS_REGEX.source, NO_IMPORTANT_ON_FILTERS_REGEX.flags);
+      const { NO_IMPORTANT_ON_FILTERS_REGEX } =
+        await import('../src/suites/architecture/validate_gsap_animations.ts');
+      const r = new RegExp(
+        NO_IMPORTANT_ON_FILTERS_REGEX.source,
+        NO_IMPORTANT_ON_FILTERS_REGEX.flags
+      );
       expect(r.test('-webkit-backdrop-filter: none !important;')).toBe(false);
       r.lastIndex = 0;
       expect(r.test('backdrop-filter: none !important;')).toBe(false);
@@ -238,7 +261,10 @@ describe('Auditor Architecture Conformance', () => {
 
     it('expected auto-repair suites declare capabilities.fix !== "none"', async () => {
       const allTasks = await discoverAuditors();
-      const fixIds = allTasks.filter(t => t.capabilities?.fix && t.capabilities.fix !== 'none').map(t => t.id).sort();
+      const fixIds = allTasks
+        .filter((t) => t.capabilities?.fix && t.capabilities.fix !== 'none')
+        .map((t) => t.id)
+        .sort();
       const EXPECTED_FIX_SUITES = [
         'audit_project',
         'validate_accessibility',
@@ -252,6 +278,7 @@ describe('Auditor Architecture Conformance', () => {
         'validate_html_validate',
         'validate_markdown_lint',
         'validate_mermaid_syntax',
+        'validate_oxfmt',
         'validate_oxlint',
         'validate_package_hygiene',
         'validate_package_scripts',
@@ -292,7 +319,7 @@ describe('Auditor Architecture Conformance', () => {
         name: 'Project Architecture & Style Rules',
         description: 'Reglas de arquitectura y estilos de proyecto',
         durationMs: 1689,
-        metrics: { 'Archivos': 2073 },
+        metrics: { Archivos: 2073 },
         status: 'failed',
         summary: { errors: 91, warnings: 5, info: 0 },
         family: 'architecture',
@@ -304,7 +331,7 @@ describe('Auditor Architecture Conformance', () => {
         name: 'Mobile & Web Accessibility Auditor',
         description: 'Auditor de accesibilidad móvil y web',
         durationMs: 106,
-        metrics: { 'Archivos': 309 },
+        metrics: { Archivos: 309 },
         status: 'passed',
         summary: { errors: 0, warnings: 46, info: 0 },
         family: 'architecture',
@@ -316,7 +343,7 @@ describe('Auditor Architecture Conformance', () => {
         name: 'Sql Anti Patterns',
         description: 'Auditor de antipatrones SQL en persistencia',
         durationMs: 42,
-        metrics: { 'Tables': 12 },
+        metrics: { Tables: 12 },
         status: 'passed',
         summary: { errors: 0, warnings: 0, info: 0 },
         family: 'persistence',
@@ -340,14 +367,14 @@ describe('Auditor Architecture Conformance', () => {
         name: 'Extremely Long Auditor Name That Needs Truncation Definitely',
         description: 'Auditor con nombre extenso para probar truncado visual',
         durationMs: 9999,
-        metrics: { 'SuperLongMetricCategoryName': 999999 },
+        metrics: { SuperLongMetricCategoryName: 999999 },
         status: 'failed',
         summary: { errors: 100, warnings: 99, info: 0 },
         family: 'architecture',
         findings: []
       });
 
-      const getColWidths = (row: string) => row.split('│').map(col => getVisualWidth(col));
+      const getColWidths = (row: string) => row.split('│').map((col) => getVisualWidth(col));
 
       const expectedWidths = [14, 40, 12, 18, 9, 7];
       expect(getColWidths(rowFail)).toEqual(expectedWidths);

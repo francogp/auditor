@@ -59,7 +59,7 @@ describe('MarkdownLinkAuditor', () => {
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
 
-      const broken = brokenLinks.find(b => b.ruleId === 'markdown-broken-relative-link');
+      const broken = brokenLinks.find((b) => b.ruleId === 'markdown-broken-relative-link');
       expect(broken).toBeDefined();
       expect(broken?.error).toContain('Target path does not exist on disk');
     });
@@ -70,7 +70,11 @@ describe('MarkdownLinkAuditor', () => {
         await fs.mkdir(path.join(sandbox, 'src/core'), { recursive: true });
         await fs.mkdir(path.join(sandbox, 'docs'), { recursive: true });
         // File exists in src/core/service.ts
-        await fs.writeFile(path.join(sandbox, 'src/core/service.ts'), 'export const service = true;\n', 'utf-8');
+        await fs.writeFile(
+          path.join(sandbox, 'src/core/service.ts'),
+          'export const service = true;\n',
+          'utf-8'
+        );
 
         // Markdown in docs links to ./service.ts (which doesn't exist in docs/)
         const mdPath = path.join(sandbox, 'docs/guide.md');
@@ -78,10 +82,12 @@ describe('MarkdownLinkAuditor', () => {
         await fs.writeFile(mdPath, markdown, 'utf-8');
 
         const { brokenLinks } = checkMarkdownLinksInContent(markdown, mdPath, sandbox);
-        const broken = brokenLinks.find(b => b.ruleId === 'markdown-broken-relative-link');
+        const broken = brokenLinks.find((b) => b.ruleId === 'markdown-broken-relative-link');
         expect(broken).toBeDefined();
         expect(broken?.error).toContain('aparentemente fue localizado en: "src/core/service.ts"');
-        expect(broken?.error).toContain('Verifica si corresponde corregir el enlace a: "../src/core/service.ts"');
+        expect(broken?.error).toContain(
+          'Verifica si corresponde corregir el enlace a: "../src/core/service.ts"'
+        );
       } finally {
         await fs.rm(sandbox, { recursive: true, force: true });
       }
@@ -96,10 +102,10 @@ describe('MarkdownLinkAuditor', () => {
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
 
-      const absoluteViolations = brokenLinks.filter(b => b.ruleId === 'markdown-absolute-path');
+      const absoluteViolations = brokenLinks.filter((b) => b.ruleId === 'markdown-absolute-path');
       expect(absoluteViolations.length).toBeGreaterThanOrEqual(2);
-      expect(absoluteViolations.some(b => b.rawUrl.includes('/src/index.ts'))).toBe(true);
-      expect(absoluteViolations.some(b => b.rawUrl.includes('file:///'))).toBe(true);
+      expect(absoluteViolations.some((b) => b.rawUrl.includes('/src/index.ts'))).toBe(true);
+      expect(absoluteViolations.some((b) => b.rawUrl.includes('file:///'))).toBe(true);
     });
 
     it('detects stale legacy environment references (markdown-stale-environment-path)', () => {
@@ -111,9 +117,11 @@ describe('MarkdownLinkAuditor', () => {
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
 
-      const staleViolations = brokenLinks.filter(b => b.ruleId === 'markdown-stale-environment-path');
+      const staleViolations = brokenLinks.filter(
+        (b) => b.ruleId === 'markdown-stale-environment-path'
+      );
       expect(staleViolations.length).toBeGreaterThanOrEqual(1);
-      expect(staleViolations.some(b => b.error.includes('Stale legacy environment'))).toBe(true);
+      expect(staleViolations.some((b) => b.error.includes('Stale legacy environment'))).toBe(true);
     });
 
     it('detects links targeting git-ignored files (markdown-gitignored-target)', () => {
@@ -124,7 +132,7 @@ describe('MarkdownLinkAuditor', () => {
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
 
-      const gitignored = brokenLinks.find(b => b.ruleId === 'markdown-gitignored-target');
+      const gitignored = brokenLinks.find((b) => b.ruleId === 'markdown-gitignored-target');
       expect(gitignored).toBeDefined();
       expect(gitignored?.error).toContain('ignored by git (.gitignore)');
     });
@@ -138,9 +146,13 @@ describe('MarkdownLinkAuditor', () => {
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
 
-      const pkgViolations = brokenLinks.filter(b => b.ruleId === 'markdown-broken-workspace-package');
+      const pkgViolations = brokenLinks.filter(
+        (b) => b.ruleId === 'markdown-broken-workspace-package'
+      );
       expect(pkgViolations.length).toBeGreaterThanOrEqual(1);
-      expect(pkgViolations.some(b => b.error.includes('workspace package inexistente'))).toBe(true);
+      expect(pkgViolations.some((b) => b.error.includes('workspace package inexistente'))).toBe(
+        true
+      );
     });
 
     it('allows workspace package mentions in migration context', () => {
@@ -151,7 +163,9 @@ describe('MarkdownLinkAuditor', () => {
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
       const { brokenLinks } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
 
-      const pkgViolations = brokenLinks.filter(b => b.ruleId === 'markdown-broken-workspace-package');
+      const pkgViolations = brokenLinks.filter(
+        (b) => b.ruleId === 'markdown-broken-workspace-package'
+      );
       expect(pkgViolations).toHaveLength(0);
     });
 
@@ -180,7 +194,11 @@ describe('MarkdownLinkAuditor', () => {
         However real link [real](./real.md) is parsed.
       `;
       const dummyFilePath = path.join(PROJECT_ROOT, 'docs/test.md');
-      const { brokenLinks, linksChecked } = checkMarkdownLinksInContent(markdown, dummyFilePath, PROJECT_ROOT);
+      const { brokenLinks, linksChecked } = checkMarkdownLinksInContent(
+        markdown,
+        dummyFilePath,
+        PROJECT_ROOT
+      );
 
       // Only [real](./real.md) is checked as an active link
       expect(linksChecked).toBe(1);
@@ -191,12 +209,16 @@ describe('MarkdownLinkAuditor', () => {
     it('detects violations and fails with status failed and severity error', async () => {
       const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-fail-'));
       try {
-        await fs.writeFile(path.join(sandbox, 'README.md'), '# Broken\n[Missing](./does_not_exist.md)\n', 'utf-8');
+        await fs.writeFile(
+          path.join(sandbox, 'README.md'),
+          '# Broken\n[Missing](./does_not_exist.md)\n',
+          'utf-8'
+        );
         const auditor = new MarkdownLinkAuditor([], sandbox);
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
         expect(result.summary.errors).toBeGreaterThan(0);
-        expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+        expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
       } finally {
         await fs.rm(sandbox, { recursive: true, force: true });
       }
@@ -213,7 +235,11 @@ describe('MarkdownLinkAuditor', () => {
         const auditor = new MarkdownLinkAuditor([], sandbox);
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
-        expect(result.findings.some(f => f.ruleId === 'markdown-broken-relative-link' && f.file?.includes('AGENTS.md'))).toBe(true);
+        expect(
+          result.findings.some(
+            (f) => f.ruleId === 'markdown-broken-relative-link' && f.file?.includes('AGENTS.md')
+          )
+        ).toBe(true);
       } finally {
         await fs.rm(sandbox, { recursive: true, force: true });
       }
@@ -226,7 +252,11 @@ describe('MarkdownLinkAuditor', () => {
       const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), 'md-links-clean-'));
       try {
         await fs.writeFile(path.join(sandbox, 'guide.md'), '# Guide\n', 'utf-8');
-        await fs.writeFile(path.join(sandbox, 'README.md'), '# Readme\n\nSee [guide](./guide.md).\n', 'utf-8');
+        await fs.writeFile(
+          path.join(sandbox, 'README.md'),
+          '# Readme\n\nSee [guide](./guide.md).\n',
+          'utf-8'
+        );
         const auditor = new MarkdownLinkAuditor([], sandbox);
         const result = await auditor.execute();
 

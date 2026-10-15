@@ -72,7 +72,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     const auditor = new NativePathsAuditor(['src'], sandboxDir);
     const result = await auditor.execute();
 
-    const pathFinding = (result.findings || []).find(f => f.ruleId === 'unsafe-path-concat');
+    const pathFinding = (result.findings || []).find((f) => f.ruleId === 'unsafe-path-concat');
     expect(pathFinding).toBeDefined();
     expect(pathFinding?.file).toContain('canary_path.ts');
     expect(result.summary.errors).toBeGreaterThan(0);
@@ -80,7 +80,10 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
 
   it('Canary 2: unjustified-error-suppression canary triggers violation and records evaluation', async () => {
     const canarySource = await fs.readFile(
-      path.resolve(__dirname, 'canaries/validate_error_suppression/unjustified-error-suppression.ts.canary'),
+      path.resolve(
+        __dirname,
+        'canaries/validate_error_suppression/unjustified-error-suppression.ts.canary'
+      ),
       'utf-8'
     );
     const targetFile = path.join(sandboxDir, 'src/canary_catch.ts');
@@ -93,7 +96,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     const auditor = new ErrorSuppressionAuditor(['src'], sandboxDir);
     const result = await auditor.execute();
 
-    const catchFinding = (result.findings || []).find(f => f.ruleId === 'no-empty-catch');
+    const catchFinding = (result.findings || []).find((f) => f.ruleId === 'no-empty-catch');
     expect(catchFinding).toBeDefined();
     expect(catchFinding?.file).toContain('canary_catch.ts');
     expect(result.summary.errors).toBeGreaterThan(0);
@@ -135,14 +138,22 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
       notApplicable: {} // Not marked notApplicable!
     };
 
-    await fs.writeFile(path.join(coverageDir, 'audit_project.json'), JSON.stringify(brokenLedger), 'utf-8');
+    await fs.writeFile(
+      path.join(coverageDir, 'audit_project.json'),
+      JSON.stringify(brokenLedger),
+      'utf-8'
+    );
 
     // Initialize git repository in sandbox
     const { execFileSync } = await import('node:child_process');
     execFileSync('git', ['init'], { cwd: sandboxDir });
     execFileSync('git', ['config', 'user.name', 'Auditor Test'], { cwd: sandboxDir });
     execFileSync('git', ['config', 'user.email', 'test@auditor.local'], { cwd: sandboxDir });
-    await fs.writeFile(path.join(sandboxDir, 'src/app.ts'), 'export const clean = true;\n', 'utf-8');
+    await fs.writeFile(
+      path.join(sandboxDir, 'src/app.ts'),
+      'export const clean = true;\n',
+      'utf-8'
+    );
     execFileSync('git', ['add', '.'], { cwd: sandboxDir });
     execFileSync('git', ['commit', '-m', 'sandbox files'], { cwd: sandboxDir });
 
@@ -153,7 +164,9 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     expect(coverageResult.status).toBe('failed');
     expect(coverageResult.summary.errors).toBeGreaterThan(0);
 
-    const dormantFinding = coverageResult.findings?.find(f => f.ruleId === 'coverage-dormant-rule');
+    const dormantFinding = coverageResult.findings?.find(
+      (f) => f.ruleId === 'coverage-dormant-rule'
+    );
     expect(dormantFinding).toBeDefined();
     expect(dormantFinding?.context).toBe('audit_project/hardcodedTimezone');
     expect(dormantFinding?.severity).toBe('error');

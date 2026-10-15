@@ -65,7 +65,7 @@ describe('TestFragmentationAuditor', () => {
         });
       `;
       auditor.testScanFile('tests/unit/tiny.test.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-fragmented-tests');
+      const violation = auditor.collectedViolations.find((v) => v.ruleId === 'no-fragmented-tests');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -81,7 +81,7 @@ describe('TestFragmentationAuditor', () => {
       ].join('\n');
 
       auditor.testScanFile('tests/unit/math.test.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'unnecessary-jsdom');
+      const violation = auditor.collectedViolations.find((v) => v.ruleId === 'unnecessary-jsdom');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -150,4 +150,3 @@ describe('TestFragmentationAuditor', () => {
     });
   });
 });
-

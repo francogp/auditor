@@ -5,7 +5,11 @@
  * instead of using BaseAuditor collectFiles() or collectRepositoryFiles().
  */
 
-import type { HomebrewDetector, HomebrewInspectionContext, HomebrewFinding } from '../homebrewTypes.ts';
+import type {
+  HomebrewDetector,
+  HomebrewInspectionContext,
+  HomebrewFinding
+} from '../homebrewTypes.ts';
 
 function extractFunctionBody(lines: readonly string[], startIdx: number): string {
   let braceDepth = 0;
@@ -79,42 +83,51 @@ export const fileWalkerDetector: HomebrewDetector = {
           ruleId: 'auditor-manual-file-walker',
           line: i + 1,
           context: line.trim(),
-          message: "Recorrido recursivo directo con 'readdirSync({ recursive: true })' detectado. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+          message:
+            "Recorrido recursivo directo con 'readdirSync({ recursive: true })' detectado. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
         });
         continue;
       }
 
       // Direct calls to known custom directory walkers
       const isWalkerCall =
-        /(?<!\.)\b(?:walkDir|walkDirectory|walkFolder|getFilesRecursively|getAllFiles|getAll\w*Files|scanDirRecursively)\s*\(/.test(line);
+        /(?<!\.)\b(?:walkDir|walkDirectory|walkFolder|getFilesRecursively|getAllFiles|getAll\w*Files|scanDirRecursively)\s*\(/.test(
+          line
+        );
 
       if (isWalkerCall) {
         findings.push({
           ruleId: 'auditor-manual-file-walker',
           line: i + 1,
           context: line.trim(),
-          message: "Llamada a función de recorrido recursivo manual detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+          message:
+            "Llamada a función de recorrido recursivo manual detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
         });
         continue;
       }
 
       // Declarations of known custom directory walkers
       const isDeclaredWalker =
-        /\b(?:function\s+|(?:const|let|var)\s+|(?:private|public|protected)\s+)(?:walk\b|walkDir|walkDirectory|walkFolder|walkTree|walkFiles|getFilesRecursively|getAllFiles|getAll\w*Files|scanDirRecursively)\b/i.test(line);
+        /\b(?:function\s+|(?:const|let|var)\s+|(?:private|public|protected)\s+)(?:walk\b|walkDir|walkDirectory|walkFolder|walkTree|walkFiles|getFilesRecursively|getAllFiles|getAll\w*Files|scanDirRecursively)\b/i.test(
+          line
+        );
 
       if (isDeclaredWalker) {
         findings.push({
           ruleId: 'auditor-manual-file-walker',
           line: i + 1,
           context: line.trim(),
-          message: "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+          message:
+            "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
         });
         continue;
       }
 
       // Generic walker taking directory parameter - only flag if it actually recurses or does recursive readdir
       const genericWalkMatch =
-        /\b(?:function\s+|(?:const|let|var)\s+|(?:private|public|protected)\s+)(\w+)\s*(?:=\s*(?:async\s*)?\(\s*|\(\s*)(?:dir|directory|folder|dirPath|currentDir|targetDir)\b/i.exec(line);
+        /\b(?:function\s+|(?:const|let|var)\s+|(?:private|public|protected)\s+)(\w+)\s*(?:=\s*(?:async\s*)?\(\s*|\(\s*)(?:dir|directory|folder|dirPath|currentDir|targetDir)\b/i.exec(
+          line
+        );
 
       if (!genericWalkMatch) {
         continue;
@@ -129,14 +142,17 @@ export const fileWalkerDetector: HomebrewDetector = {
 
       // Does it call itself recursively INSIDE its own body or call recursive readdir?
       const recursesItself = new RegExp(`\\b${funcName}\\s*\\(`).test(bodyContent);
-      const recursiveReaddir = /\breaddir(?:Sync)?\s*\([^)]*\{\s*recursive:\s*true/i.test(bodyContent);
+      const recursiveReaddir = /\breaddir(?:Sync)?\s*\([^)]*\{\s*recursive:\s*true/i.test(
+        bodyContent
+      );
 
       if ((recursesItself || recursiveReaddir) && !usesCanonical) {
         findings.push({
           ruleId: 'auditor-manual-file-walker',
           line: i + 1,
           context: line.trim(),
-          message: "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+          message:
+            "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
         });
       }
     }

@@ -58,7 +58,7 @@ describe('BundleBudgetAuditor', () => {
       const auditor = new BundleBudgetAuditor(tempDir);
       const result = await auditor.execute();
 
-      const leak = result.findings.find(f => f.ruleId === 'bundle-runtime-leak');
+      const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
       expect(leak).toBeDefined();
       expect(leak?.severity).toBe('error');
     });
@@ -75,7 +75,7 @@ describe('BundleBudgetAuditor', () => {
       const auditor = new BundleBudgetAuditor(tempDir);
       const result = await auditor.execute();
 
-      const heavy = result.findings.find(f => f.ruleId === 'bundle-heavy-import');
+      const heavy = result.findings.find((f) => f.ruleId === 'bundle-heavy-import');
       expect(heavy).toBeDefined();
       expect(heavy?.severity).toBe('error');
     });
@@ -91,7 +91,7 @@ describe('BundleBudgetAuditor', () => {
       const auditor = new BundleBudgetAuditor(tempDir);
       const result = await auditor.execute();
 
-      const sizeViolation = result.findings.find(f => f.ruleId === 'bundle-chunk-size');
+      const sizeViolation = result.findings.find((f) => f.ruleId === 'bundle-chunk-size');
       expect(sizeViolation).toBeDefined();
       expect(sizeViolation?.severity).toBe('error');
     });
@@ -108,7 +108,7 @@ describe('BundleBudgetAuditor', () => {
       const auditor = new BundleBudgetAuditor(tempDir);
       const result = await auditor.execute();
 
-      const leak = result.findings.find(f => f.ruleId === 'bundle-runtime-leak');
+      const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
       expect(leak).toBeUndefined();
     });
   });

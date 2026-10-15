@@ -28,7 +28,10 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
 
   describe('1. ESLint Real-World Fixture Parsing', () => {
     it('correctly flags unfixable and fixable ESLint violations from raw report', () => {
-      const rawJson = fs.readFileSync(path.join(fixturesDir, 'eslint_real_world_report.json'), 'utf-8');
+      const rawJson = fs.readFileSync(
+        path.join(fixturesDir, 'eslint_real_world_report.json'),
+        'utf-8'
+      );
       const reports = JSON.parse(rawJson);
 
       const findings = parseLintResultsToFindings(reports, {
@@ -41,24 +44,24 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
       expect(findings).toHaveLength(4);
 
       // 1. Date.now() via no-restricted-syntax -> MUST be fixable: false
-      const dateNowFinding = findings.find(f => f.message.includes('Date.now()'));
+      const dateNowFinding = findings.find((f) => f.message.includes('Date.now()'));
       expect(dateNowFinding).toBeDefined();
       expect(dateNowFinding!.context).toBe('no-restricted-syntax');
       expect(dateNowFinding!.fixable).toBe(false);
 
       // 2. new Date() via no-restricted-syntax -> MUST be fixable: false
-      const newDateFinding = findings.find(f => f.message.includes('new Date()'));
+      const newDateFinding = findings.find((f) => f.message.includes('new Date()'));
       expect(newDateFinding).toBeDefined();
       expect(newDateFinding!.context).toBe('no-restricted-syntax');
       expect(newDateFinding!.fixable).toBe(false);
 
       // 3. no-useless-assignment -> MUST be fixable: false
-      const uselessAssignFinding = findings.find(f => f.context === 'no-useless-assignment');
+      const uselessAssignFinding = findings.find((f) => f.context === 'no-useless-assignment');
       expect(uselessAssignFinding).toBeDefined();
       expect(uselessAssignFinding!.fixable).toBe(false);
 
       // 4. semi (with EditInfo) -> MUST be fixable: true
-      const semiFinding = findings.find(f => f.context === 'semi');
+      const semiFinding = findings.find((f) => f.context === 'semi');
       expect(semiFinding).toBeDefined();
       expect(semiFinding!.fixable).toBe(true);
 
@@ -71,29 +74,32 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
 
   describe('2. Stylelint Real-World Fixture Parsing', () => {
     it('correctly flags unfixable and fixable Stylelint warnings from raw report', () => {
-      const rawJson = fs.readFileSync(path.join(fixturesDir, 'stylelint_real_world_report.json'), 'utf-8');
+      const rawJson = fs.readFileSync(
+        path.join(fixturesDir, 'stylelint_real_world_report.json'),
+        'utf-8'
+      );
       const reports = JSON.parse(rawJson);
 
       const { violations } = processStylelintResults(reports, process.cwd());
       expect(violations).toHaveLength(4);
 
       // 1. no-duplicate-selectors -> MUST be fixable: false
-      const dupSelector = violations.find(v => v.context === 'no-duplicate-selectors');
+      const dupSelector = violations.find((v) => v.context === 'no-duplicate-selectors');
       expect(dupSelector).toBeDefined();
       expect(dupSelector!.fixable).toBe(false);
 
       // 2. keyframes-name-pattern -> MUST be fixable: false
-      const keyframesViolation = violations.find(v => v.context === 'keyframes-name-pattern');
+      const keyframesViolation = violations.find((v) => v.context === 'keyframes-name-pattern');
       expect(keyframesViolation).toBeDefined();
       expect(keyframesViolation!.fixable).toBe(false);
 
       // 3. order/order -> MUST be fixable: true (governed by isStylelintRuleFixable)
-      const orderFix = violations.find(v => v.context === 'order/order');
+      const orderFix = violations.find((v) => v.context === 'order/order');
       expect(orderFix).toBeDefined();
       expect(orderFix!.fixable).toBe(true);
 
       // 4. color-hex-length -> MUST be fixable: true (governed by isStylelintRuleFixable)
-      const hexFinding = violations.find(v => v.context === 'color-hex-length');
+      const hexFinding = violations.find((v) => v.context === 'color-hex-length');
       expect(hexFinding).toBeDefined();
       expect(hexFinding!.fixable).toBe(true);
 
@@ -169,7 +175,8 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
           file: 'test_aventura/components/studio/ContinentStudioControls.vue',
           line: 55,
           context: 'vuejs-accessibility/interactive-supports-focus',
-          message: 'Visible, non-interactive elements with click handlers must have at least one keyboard listener.',
+          message:
+            'Visible, non-interactive elements with click handlers must have at least one keyboard listener.',
           fixable: false
         }
       ];
@@ -300,7 +307,14 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
       const { auditRulesConfig } = await import('../src/suites/architecture/audit_rules.ts');
       const violations: any[] = [];
       const code = "import manifestJson from '../../data/map/canonical_assets_manifest.json';";
-      runRules('src/composables/studio/useAssetAtlas.ts', code, [auditRulesConfig.noRawJsonImportsOutsideData], violations, false, 0);
+      runRules(
+        'src/composables/studio/useAssetAtlas.ts',
+        code,
+        [auditRulesConfig.noRawJsonImportsOutsideData],
+        violations,
+        false,
+        0
+      );
 
       expect(violations).toHaveLength(1);
       expect(violations[0].ruleId).toBe('noRawJsonImportsOutsideData');

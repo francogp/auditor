@@ -146,7 +146,8 @@ export const zIndexAudit: AuditRule = {
   regex: /(?:z-index|zIndex)\s*:\s*(-?\d+)\b/gi,
   message: (match: string) => {
     const numMatch = match.match(/-?\d+/);
-    if (!numMatch || !numMatch[0]) return `Z-Index hardcodeado detectado: '${match}'. Usa 'var(--z-layer)'.`;
+    if (!numMatch || !numMatch[0])
+      return `Z-Index hardcodeado detectado: '${match}'. Usa 'var(--z-layer)'.`;
     const val = parseInt(numMatch[0], 10);
     const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
 

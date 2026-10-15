@@ -14,11 +14,7 @@ import {
 import { isTestPath, isTestFileForCodeAudit } from '../src/core/auditTestPredicates.ts';
 import { matchesAnyRoot } from '../src/core/auditRootMatcher.ts';
 import { isSelfProviderProject } from '../src/core/auditProjectIdentity.ts';
-import {
-  resolveZLayersScssPath,
-  getEffectiveZLayers,
-  Z_LAYERS
-} from '../src/core/auditZLayers.ts';
+import { resolveZLayersScssPath, getEffectiveZLayers, Z_LAYERS } from '../src/core/auditZLayers.ts';
 import { advancePastStringOrComment, scanBalancedBraces } from '../src/core/scannerUtils.ts';
 import { defineAuditConfig } from '../src/core/auditConfig.ts';
 import { loadAuditConfig } from '../src/core/auditConfigLoader.ts';
@@ -80,7 +76,11 @@ describe('auditPathPredicates', () => {
         name: 'test-custom',
         paths: { includeTestsInCodeAudit: true }
       };
-      fs.writeFileSync(path.join(customAuditorDir, 'audit.config.json'), JSON.stringify(customConfig), 'utf8');
+      fs.writeFileSync(
+        path.join(customAuditorDir, 'audit.config.json'),
+        JSON.stringify(customConfig),
+        'utf8'
+      );
       expect(isTestFileForCodeAudit('tests/unit/app.test.ts', customDir)).toBe(false);
     });
   });
@@ -146,12 +146,20 @@ describe('auditPathPredicates', () => {
     it('returns false when package.json is missing or name is not @francogp/auditor', () => {
       expect(isSelfProviderProject(tempDir)).toBe(false);
 
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'other-app' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'other-app' }),
+        'utf-8'
+      );
       expect(isSelfProviderProject(tempDir)).toBe(false);
     });
 
     it('returns true when package.json matches @francogp/auditor and contains plugin.json + skill', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: '@francogp/auditor' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: '@francogp/auditor' }),
+        'utf-8'
+      );
       fs.writeFileSync(path.join(tempDir, 'plugin.json'), '{}', 'utf-8');
       const skillDir = path.join(tempDir, '.agents/skills/auditor');
       fs.mkdirSync(skillDir, { recursive: true });

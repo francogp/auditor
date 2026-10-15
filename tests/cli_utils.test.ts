@@ -108,7 +108,12 @@ describe('cliUtils', () => {
   describe('executeCliToFile & executeCliAndReadJson', () => {
     it('executes command and pipes output directly to file', () => {
       const outPath = path.join(tempDir, 'output.json');
-      executeCliToFile(process.execPath, ['-e', 'console.log(JSON.stringify({ ok: true }))'], outPath, { shell: false });
+      executeCliToFile(
+        process.execPath,
+        ['-e', 'console.log(JSON.stringify({ ok: true }))'],
+        outPath,
+        { shell: false }
+      );
 
       expect(fs.existsSync(outPath)).toBe(true);
       const content = fs.readFileSync(outPath, 'utf-8');

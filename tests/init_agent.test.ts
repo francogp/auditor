@@ -34,7 +34,11 @@ describe('init_agent CLI Tool', () => {
 
   it('registers auditor in .agents/plugins.json and skills.json for host projects', () => {
     // Setup host project with distinct name
-    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'consumer-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'consumer-app' }),
+      'utf-8'
+    );
 
     const result = initAgentSkill({ targetDir: tempDir });
     expect(result.success).toBe(true);
@@ -56,7 +60,11 @@ describe('init_agent CLI Tool', () => {
   });
 
   it('is idempotent when already registered in host project', () => {
-    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'consumer-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'consumer-app' }),
+      'utf-8'
+    );
 
     // First run
     initAgentSkill({ targetDir: tempDir });
@@ -69,7 +77,11 @@ describe('init_agent CLI Tool', () => {
   });
 
   it('respects dryRun option without writing to disk', () => {
-    fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'consumer-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'consumer-app' }),
+      'utf-8'
+    );
 
     const result = initAgentSkill({ targetDir: tempDir, dryRun: true });
     expect(result.success).toBe(true);

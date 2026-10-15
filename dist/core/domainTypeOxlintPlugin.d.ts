@@ -33,6 +33,8 @@ export interface OxlintAstNode {
   readonly init?: OxlintAstNode;
   readonly expression?: OxlintAstNode;
   readonly id?: OxlintAstNode;
+  readonly object?: OxlintAstNode;
+  readonly property?: OxlintAstNode;
 }
 export interface OxlintReportDescriptor {
   readonly node: unknown;
@@ -93,6 +95,30 @@ export declare const domainTypeOxlintPlugin: {
       };
       create(context: OxlintRuleContext): {
         VariableDeclarator(node: OxlintAstNode): void;
+      };
+    };
+    'no-double-cast-unknown': {
+      meta: {
+        type: string;
+        docs: {
+          description: string;
+        };
+      };
+      create(context: OxlintRuleContext): {
+        TSAsExpression: (node: OxlintAstNode) => void;
+        TSTypeAssertion: (node: OxlintAstNode) => void;
+      };
+    };
+    'no-legacy-date': {
+      meta: {
+        type: string;
+        docs: {
+          description: string;
+        };
+      };
+      create(context: OxlintRuleContext): {
+        NewExpression(node: OxlintAstNode): void;
+        CallExpression(node: OxlintAstNode): void;
       };
     };
   };

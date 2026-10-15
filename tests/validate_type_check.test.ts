@@ -64,7 +64,7 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       const findings = parseTypeScriptDiagnostics(rawOutput, process.cwd());
       expect(findings).toHaveLength(1);
       expect(findings[0]?.ruleId).toBe('ts-compiler-error');
-      expect(findings[0]?.message).toContain('Property \'password\' is missing');
+      expect(findings[0]?.message).toContain("Property 'password' is missing");
     });
   });
 
@@ -72,12 +72,15 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
     it('returns empty findings for clean compiler output', () => {
       const findings = parseTypeScriptDiagnostics('', process.cwd());
       expect(findings).toHaveLength(0);
-      const errors = findings.filter(f => f.severity === 'error').length;
+      const errors = findings.filter((f) => f.severity === 'error').length;
       expect(errors).toBe(0);
     });
 
     it('returns empty findings when output contains no compiler errors', () => {
-      const findings = parseTypeScriptDiagnostics('Compiled successfully without diagnostics.', process.cwd());
+      const findings = parseTypeScriptDiagnostics(
+        'Compiled successfully without diagnostics.',
+        process.cwd()
+      );
       expect(findings).toHaveLength(0);
     });
 
@@ -88,10 +91,13 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-typecheck-'));
       try {
         fs.writeFileSync(path.join(sandbox, 'package.json'), JSON.stringify({ type: 'module' }));
-        fs.writeFileSync(path.join(sandbox, 'tsconfig.json'), JSON.stringify({
-          compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext' },
-          include: ['src/**/*.ts']
-        }));
+        fs.writeFileSync(
+          path.join(sandbox, 'tsconfig.json'),
+          JSON.stringify({
+            compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext' },
+            include: ['src/**/*.ts']
+          })
+        );
         fs.mkdirSync(path.join(sandbox, 'src'), { recursive: true });
         fs.writeFileSync(path.join(sandbox, 'src/index.ts'), 'export const x: number = 42;\n');
 
@@ -113,12 +119,23 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       const os = await import('node:os');
       const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-typecheck-broken-'));
       fs.writeFileSync(path.join(sandbox, 'package.json'), JSON.stringify({ type: 'module' }));
-      fs.writeFileSync(path.join(sandbox, 'tsconfig.json'), JSON.stringify({
-        compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true },
-        include: ['src/**/*.ts', 'tests/**/*.ts']
-      }));
+      fs.writeFileSync(
+        path.join(sandbox, 'tsconfig.json'),
+        JSON.stringify({
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'NodeNext',
+            moduleResolution: 'NodeNext',
+            strict: true
+          },
+          include: ['src/**/*.ts', 'tests/**/*.ts']
+        })
+      );
       fs.mkdirSync(path.join(sandbox, 'tests'), { recursive: true });
-      fs.writeFileSync(path.join(sandbox, 'tests/broken.test.ts'), 'export const x: number = ' + '"a";\n');
+      fs.writeFileSync(
+        path.join(sandbox, 'tests/broken.test.ts'),
+        'export const x: number = ' + '"a";\n'
+      );
       return { sandbox, cleanup: () => fs.rmSync(sandbox, { recursive: true, force: true }) };
     };
 
@@ -128,7 +145,14 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
         const result = await new TypeCheckAuditor(sandbox).execute();
         expect(result.summary.errors).toBeGreaterThan(0);
         expect(result.status).toBe('failed');
-        expect(result.findings.some(f => f.ruleId === 'ts-compiler-error' && f.severity === 'error' && f.file === 'tests/broken.test.ts')).toBe(true);
+        expect(
+          result.findings.some(
+            (f) =>
+              f.ruleId === 'ts-compiler-error' &&
+              f.severity === 'error' &&
+              f.file === 'tests/broken.test.ts'
+          )
+        ).toBe(true);
       } finally {
         cleanup();
       }
@@ -202,7 +226,3 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
     });
   });
 });
-
-
-
-

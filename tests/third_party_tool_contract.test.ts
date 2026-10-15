@@ -22,7 +22,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { BaseAuditor, createUniformRuleCapabilities, type AuditorOptions } from '../src/core/auditorBase.ts';
+import {
+  BaseAuditor,
+  createUniformRuleCapabilities,
+  type AuditorOptions
+} from '../src/core/auditorBase.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { thirdPartyToolContractDetector } from '../src/analyzers/homebrew/detectors/thirdPartyToolContractDetector.ts';
 import type { HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
@@ -50,7 +54,15 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
       'probe-external': 'Remediación de prueba externa.',
       'probe-internal': 'Remediación de prueba interna.'
     },
-    ruleCapabilities: createUniformRuleCapabilities(['probe-external', 'probe-internal'], { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }),
+    ruleCapabilities: createUniformRuleCapabilities(['probe-external', 'probe-internal'], {
+      speed: 'light',
+      phase: 'normal',
+      fix: 'none',
+      md: false,
+      ast: false,
+      changedOnly: false,
+      critical: false
+    }),
     coverage: { include: ['src/**'] },
     ...overrides
   };

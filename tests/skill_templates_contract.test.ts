@@ -20,19 +20,28 @@ const FENCE = '`'.repeat(3);
 function listFiles(dir: string, predicate: (name: string) => boolean): string[] {
   const abs = path.join(SKILL_ROOT, dir);
   if (!fs.existsSync(abs)) return [];
-  return fs.readdirSync(abs)
-    .filter(name => predicate(name))
-    .map(name => path.join(abs, name));
+  return fs
+    .readdirSync(abs)
+    .filter((name) => predicate(name))
+    .map((name) => path.join(abs, name));
 }
 
 describe('skill templates and blueprints contract (ruleRemediations)', () => {
   it('discovers templates and extension blueprints (Metadata)', () => {
-    const files = TEMPLATE_DIRS.flatMap(dir => listFiles(dir, n => n.endsWith('.ts') && !n.includes('.test.') && !n.includes('vitest.coverage')));
+    const files = TEMPLATE_DIRS.flatMap((dir) =>
+      listFiles(
+        dir,
+        (n) => n.endsWith('.ts') && !n.includes('.test.') && !n.includes('vitest.coverage')
+      )
+    );
     expect(files.length).toBeGreaterThan(0);
   });
 
   for (const dir of TEMPLATE_DIRS) {
-    for (const file of listFiles(dir, n => n.endsWith('.ts') && !n.includes('.test.') && !n.includes('vitest.coverage'))) {
+    for (const file of listFiles(
+      dir,
+      (n) => n.endsWith('.ts') && !n.includes('.test.') && !n.includes('vitest.coverage')
+    )) {
       const source = fs.readFileSync(file, 'utf-8');
       if (!source.includes(DESCRIPTIONS_KEY)) continue;
       it(`${path.relative(SKILL_ROOT, file)} declares ruleRemediations alongside ruleDescriptions`, () => {
@@ -43,12 +52,16 @@ describe('skill templates and blueprints contract (ruleRemediations)', () => {
 
   it('every typescript snippet in reference guides that declares ruleDescriptions also declares ruleRemediations', () => {
     const offenders: string[] = [];
-    for (const file of listFiles(GUIDE_DIR, n => n.endsWith('.md'))) {
+    for (const file of listFiles(GUIDE_DIR, (n) => n.endsWith('.md'))) {
       const blocks = fs.readFileSync(file, 'utf-8').split(FENCE);
       // Odd indexes are fenced code blocks
       for (let i = 1; i < blocks.length; i += 2) {
         const block = blocks[i]!;
-        if (block.includes(DESCRIPTIONS_KEY) && block.includes('super(') && !block.includes(REMEDIATIONS_KEY)) {
+        if (
+          block.includes(DESCRIPTIONS_KEY) &&
+          block.includes('super(') &&
+          !block.includes(REMEDIATIONS_KEY)
+        ) {
           offenders.push(`${path.relative(SKILL_ROOT, file)} (block #${Math.ceil(i / 2)})`);
         }
       }
@@ -62,7 +75,10 @@ describe('skill templates and blueprints contract (ruleRemediations)', () => {
   });
 
   for (const dir of TEMPLATE_DIRS) {
-    for (const file of listFiles(dir, n => n.endsWith('.ts') && !n.includes('.test.') && !n.includes('vitest.coverage'))) {
+    for (const file of listFiles(
+      dir,
+      (n) => n.endsWith('.ts') && !n.includes('.test.') && !n.includes('vitest.coverage')
+    )) {
       const source = fs.readFileSync(file, 'utf-8');
       if (!source.includes(DESCRIPTIONS_KEY)) continue;
       it(`${path.relative(SKILL_ROOT, file)} declares usesThirdPartyTool in constructor`, () => {

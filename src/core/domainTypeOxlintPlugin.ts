@@ -25,6 +25,8 @@ export interface OxlintAstNode {
   readonly init?: OxlintAstNode;
   readonly expression?: OxlintAstNode;
   readonly id?: OxlintAstNode;
+  readonly object?: OxlintAstNode;
+  readonly property?: OxlintAstNode;
 }
 
 export interface OxlintReportDescriptor {
@@ -197,6 +199,80 @@ export const domainTypeOxlintPlugin = {
                       'Array de literales de cadena declarado sin `as const`. Añade `as const` o tipa con un dominio canónico.'
                   });
                 }
+              }
+            }
+          }
+        };
+      }
+    },
+
+    'no-double-cast-unknown': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Prohíbe terminantemente el uso de doble casteo o aserciones hacia unknown (`as unknown -> as T`)'
+        }
+      },
+      create(context: OxlintRuleContext) {
+        const verifyNode = (node: OxlintAstNode): void => {
+          const typeAnn = node.typeAnnotation;
+          if (
+            typeAnn &&
+            (typeAnn.type === 'TSUnknownKeyword' ||
+              (typeAnn.type === 'TSTypeReference' && typeAnn.typeName?.name === 'unknown'))
+          ) {
+            context.report({
+              node,
+              message:
+                'Está ESTRICTAMENTE PROHIBIDO usar casteo hacia unknown (`as unknown`). Usa guardas de tipo, tipado canónico o interfaces directas.'
+            });
+          }
+        };
+        return {
+          TSAsExpression: verifyNode,
+          TSTypeAssertion: verifyNode
+        };
+      }
+    },
+
+    'no-legacy-date': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Prohíbe el uso de constructores legados de Date (new Date() y Date.now()) en favor de Temporal API'
+        }
+      },
+      create(context: OxlintRuleContext) {
+        return {
+          NewExpression(node: OxlintAstNode) {
+            const callee = node.callee;
+            if (
+              callee &&
+              (callee.name === 'Date' || (callee.type === 'Identifier' && callee.name === 'Date'))
+            ) {
+              context.report({
+                node,
+                message:
+                  'El uso de new Date() está ESTRICTAMENTE PROHIBIDO. Usa la API moderna Temporal (Temporal.Now.instant() / Temporal.Instant).'
+              });
+            }
+          },
+          CallExpression(node: OxlintAstNode) {
+            const callee = node.callee;
+            if (callee && (callee.type === 'MemberExpression' || callee.object)) {
+              const obj = callee.object;
+              const prop = callee.property;
+              if (
+                (obj?.name === 'Date' || (obj?.type === 'Identifier' && obj.name === 'Date')) &&
+                (prop?.name === 'now' || (prop?.type === 'Identifier' && prop.name === 'now'))
+              ) {
+                context.report({
+                  node,
+                  message:
+                    'El uso de Date.now() está ESTRICTAMENTE PROHIBIDO. Usa Temporal.Now.instant().epochMilliseconds o performance.now().'
+                });
               }
             }
           }

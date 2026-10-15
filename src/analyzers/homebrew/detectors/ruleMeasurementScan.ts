@@ -74,7 +74,8 @@ function violationRuleLiteral(call: ts.CallExpression): string | undefined {
   if (!arg || !ts.isObjectLiteralExpression(arg)) return undefined;
   for (const prop of arg.properties) {
     if (!ts.isPropertyAssignment(prop)) continue;
-    const name = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : undefined;
+    const name =
+      ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : undefined;
     if (name === 'ruleId') return literalText(prop.initializer);
   }
   return undefined;
@@ -165,8 +166,8 @@ export function scanRuleMeasurement(context: HomebrewInspectionContext): RuleMea
 
   if (extendsFileScan) {
     const distinctRules = new Set<string>([
-      ...acc.violations.map(v => v.ruleId),
-      ...acc.marks.map(m => m.ruleId)
+      ...acc.violations.map((v) => v.ruleId),
+      ...acc.marks.map((m) => m.ruleId)
     ]);
     if (distinctRules.size === 1) {
       for (const singleRule of distinctRules) {

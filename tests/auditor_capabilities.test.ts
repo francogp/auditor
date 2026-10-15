@@ -11,7 +11,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { discoverAuditors, extractCapabilitiesFromFile, extractAuditorMetadataFromFile } from '../src/cli/auditScanner.ts';
+import {
+  discoverAuditors,
+  extractCapabilitiesFromFile,
+  extractAuditorMetadataFromFile
+} from '../src/cli/auditScanner.ts';
 import { resolveEffectiveSpeed } from '../src/core/auditorBase.ts';
 import path from 'node:path';
 
@@ -60,7 +64,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const presetFullTasks = await discoverAuditors({ preset: 'full' });
 
     expect(fullTasks.length).toBeGreaterThan(0);
-    expect(fullTasks.map(t => t.id).sort()).toEqual(presetFullTasks.map(t => t.id).sort());
+    expect(fullTasks.map((t) => t.id).sort()).toEqual(presetFullTasks.map((t) => t.id).sort());
 
     for (const task of fullTasks) {
       expect(
@@ -69,7 +73,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       ).not.toBeNull();
     }
 
-    const fullIds = fullTasks.map(t => t.id);
+    const fullIds = fullTasks.map((t) => t.id);
     expect(fullIds).toContain('validate_test_coverage');
     expect(fullIds).toContain('validate_similar_code');
     expect(fullIds).not.toContain('validate_bundle_budget');
@@ -81,8 +85,8 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const speedLightTasks = await discoverAuditors({ speed: 'light' });
 
     expect(lintTasks.length).toBeGreaterThan(0);
-    expect(lintTasks.map(t => t.id).sort()).toEqual(presetLintTasks.map(t => t.id).sort());
-    expect(lintTasks.map(t => t.id).sort()).toEqual(speedLightTasks.map(t => t.id).sort());
+    expect(lintTasks.map((t) => t.id).sort()).toEqual(presetLintTasks.map((t) => t.id).sort());
+    expect(lintTasks.map((t) => t.id).sort()).toEqual(speedLightTasks.map((t) => t.id).sort());
 
     for (const task of lintTasks) {
       if (!task.capabilities?.critical) {
@@ -99,7 +103,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const presetMdTasks = await discoverAuditors({ preset: 'md' });
 
     expect(mdTasks.length).toBeGreaterThan(0);
-    expect(mdTasks.map(t => t.id).sort()).toEqual(presetMdTasks.map(t => t.id).sort());
+    expect(mdTasks.map((t) => t.id).sort()).toEqual(presetMdTasks.map((t) => t.id).sort());
 
     for (const task of mdTasks) {
       expect(task.capabilities?.md, `Suite ${task.id} should have md capability`).toBe(true);
@@ -108,7 +112,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
   it('filters strictly to the fix-capable suites when fixOnly: true', async () => {
     const fixTasks = await discoverAuditors({ fixOnly: true });
-    const fixSuiteIds = fixTasks.map(t => t.id).sort();
+    const fixSuiteIds = fixTasks.map((t) => t.id).sort();
 
     const EXPECTED_FIX_SUITES = [
       'audit_project',
@@ -123,6 +127,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_html_validate',
       'validate_markdown_lint',
       'validate_mermaid_syntax',
+      'validate_oxfmt',
       'validate_oxlint',
       'validate_package_hygiene',
       'validate_package_scripts',
@@ -142,8 +147,8 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
   it('dynamically resolves requiresAst from capabilities.ast (0 hardcoded lists)', async () => {
     const allTasks = await discoverAuditors({ withBuild: true });
-    const astTasks = allTasks.filter(t => t.requiresAst);
-    const astSuiteIds = astTasks.map(t => t.id).sort();
+    const astTasks = allTasks.filter((t) => t.requiresAst);
+    const astSuiteIds = astTasks.map((t) => t.id).sort();
 
     const EXPECTED_AST_SUITES = [
       'audit_project',
@@ -167,12 +172,16 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const lightweightTasks = await discoverAuditors({ includeHeavy: false });
 
     const nonCriticalHeavyIds = normalTasks
-      .filter(t => !t.capabilities?.critical && resolveEffectiveSpeed(t.capabilities?.speed, { maxSpeed: 'light' }) === null)
-      .map(t => t.id);
+      .filter(
+        (t) =>
+          !t.capabilities?.critical &&
+          resolveEffectiveSpeed(t.capabilities?.speed, { maxSpeed: 'light' }) === null
+      )
+      .map((t) => t.id);
     expect(nonCriticalHeavyIds).toContain('validate_similar_code');
     expect(nonCriticalHeavyIds).toContain('validate_type_coverage');
 
-    const lightweightIds = lightweightTasks.map(t => t.id);
+    const lightweightIds = lightweightTasks.map((t) => t.id);
     for (const heavyId of nonCriticalHeavyIds) {
       expect(lightweightIds).not.toContain(heavyId);
     }
@@ -189,13 +198,18 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
     // Pre-build tasks must never include post-build phase suites
     for (const task of defaultTasks) {
-      expect(task.capabilities?.phase, `Suite ${task.id} should not be post-build in pre-build audit`).not.toBe('post-build');
+      expect(
+        task.capabilities?.phase,
+        `Suite ${task.id} should not be post-build in pre-build audit`
+      ).not.toBe('post-build');
     }
 
     // Post-build tasks must strictly have phase === 'post-build'
     expect(buildTasks.length).toBeGreaterThan(0);
     for (const task of buildTasks) {
-      expect(task.capabilities?.phase, `Suite ${task.id} must have phase: post-build`).toBe('post-build');
+      expect(task.capabilities?.phase, `Suite ${task.id} must have phase: post-build`).toBe(
+        'post-build'
+      );
     }
 
     // withBuild includes the union of both

@@ -138,7 +138,9 @@ describe('AuditorTestsAuditor', () => {
       const auditor = new AuditorTestsAuditor(tempDir);
 
       const result = await auditor.execute();
-      const missingViolation = result.findings.find(f => f.ruleId === 'missing-auditor-test' && f.context === 'validate_dummy');
+      const missingViolation = result.findings.find(
+        (f) => f.ruleId === 'missing-auditor-test' && f.context === 'validate_dummy'
+      );
       expect(missingViolation).toBeDefined();
       expect(missingViolation?.severity).toBe('error');
     });
@@ -197,7 +199,9 @@ describe('AuditorTestsAuditor', () => {
       const auditor = new AuditorTestsAuditor(tempDir);
 
       const result = await auditor.execute();
-      const untestedViolation = result.findings.find(f => f.ruleId === 'untested-auditor-rule' && f.context === 'untested-rule');
+      const untestedViolation = result.findings.find(
+        (f) => f.ruleId === 'untested-auditor-rule' && f.context === 'untested-rule'
+      );
       expect(untestedViolation).toBeDefined();
       expect(untestedViolation?.severity).toBe('error');
     });
@@ -254,7 +258,9 @@ describe('AuditorTestsAuditor', () => {
       const auditor = new AuditorTestsAuditor(tempDir);
 
       const result = await auditor.execute();
-      const errClean = result.findings.find(f => f.ruleId === 'missing-clean-auditor-test' && f.context === 'validate_dummy');
+      const errClean = result.findings.find(
+        (f) => f.ruleId === 'missing-clean-auditor-test' && f.context === 'validate_dummy'
+      );
       expect(errClean).toBeDefined();
       expect(errClean?.severity).toBe('error');
     });
@@ -300,7 +306,9 @@ describe('AuditorTestsAuditor', () => {
 
       const auditor = new AuditorTestsAuditor(tempDir);
       const result = await auditor.execute();
-      const missingViolation = result.findings.find(f => f.ruleId === 'missing-auditor-test' && f.context === 'validate_custom_ext');
+      const missingViolation = result.findings.find(
+        (f) => f.ruleId === 'missing-auditor-test' && f.context === 'validate_custom_ext'
+      );
       expect(missingViolation).toBeDefined();
       expect(missingViolation?.severity).toBe('error');
     });
@@ -369,7 +377,9 @@ describe('AuditorTestsAuditor', () => {
 
       const auditor = new AuditorTestsAuditor(tempDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'missing-construction-auditor-test');
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'missing-construction-auditor-test'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -437,7 +447,7 @@ describe('AuditorTestsAuditor', () => {
 
       const auditor = new AuditorTestsAuditor(tempDir);
       const result = await auditor.execute();
-      const violation = result.findings.find(f => f.ruleId === 'missing-violation-auditor-test');
+      const violation = result.findings.find((f) => f.ruleId === 'missing-violation-auditor-test');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -519,7 +529,11 @@ describe('AuditorTestsAuditor', () => {
         JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }),
         'utf-8'
       );
-      await fs.writeFile(path.join(tempDir, 'plugin.json'), JSON.stringify({ name: 'auditor' }), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, 'plugin.json'),
+        JSON.stringify({ name: 'auditor' }),
+        'utf-8'
+      );
       await fs.mkdir(path.join(tempDir, 'skills/auditor'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'skills/auditor/SKILL.md'), '# Auditor Skill', 'utf-8');
 
@@ -599,4 +613,3 @@ describe('AuditorTestsAuditor', () => {
     });
   });
 });
-

@@ -24,27 +24,32 @@ import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core
 import { renderSimilarCodeWarningBanner } from '../src/core/unifiedTheme.ts';
 
 describe('ValidateSimilarCodeAuditor', () => {
-  const scratchDir = path.resolve(process.cwd(), 'scratch/test_similar_code_' + crypto.randomUUID());
+  const scratchDir = path.resolve(
+    process.cwd(),
+    'scratch/test_similar_code_' + crypto.randomUUID()
+  );
 
   beforeEach(() => {
     process.env.AUDIT_SUBPROCESS = 'true';
     fs.mkdirSync(scratchDir, { recursive: true });
-    setAuditConfig(defineAuditConfig({
-      name: 'Similar Code Test Project',
-      persistence: { engine: 'none' },
-      bundle: { enabled: false },
-      styles: { zLayersEnabled: false },
-      templates: { requireInputIds: false },
-      agentPlugin: { enabled: false },
-      fallow: {
-        enabled: true,
-        similarCode: {
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'Similar Code Test Project',
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false },
+        fallow: {
           enabled: true,
-          threshold: 0.95,
-          ignoreSameFile: true
+          similarCode: {
+            enabled: true,
+            threshold: 0.95,
+            ignoreSameFile: true
+          }
         }
-      }
-    }));
+      })
+    );
   });
 
   afterEach(() => {
@@ -129,21 +134,27 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('skips candidates when either side is in a test file and includeTestsInCodeAudit is false', async () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'Exclude Tests Project',
-        paths: { includeTestsInCodeAudit: false },
-        persistence: { engine: 'none' },
-        bundle: { enabled: false },
-        styles: { zLayersEnabled: false },
-        templates: { requireInputIds: false },
-        agentPlugin: { enabled: false }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Exclude Tests Project',
+          paths: { includeTestsInCodeAudit: false },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
 
       const auditor = new ValidateSimilarCodeAuditor(scratchDir);
       const candidates: SimilarCodeCandidate[] = [
         {
           left: { path: 'tests/unit/mockHelper.test.ts', name: 'createMock', start_line: 5 },
-          right: { path: 'tests/integration/mockHelper.test.ts', name: 'createMock', start_line: 8 },
+          right: {
+            path: 'tests/integration/mockHelper.test.ts',
+            name: 'createMock',
+            start_line: 8
+          },
           similarity: 0.99
         }
       ];
@@ -157,15 +168,17 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('skips candidates when either side is in an ignored directory', async () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'Ignored Dirs Project',
-        paths: { ignoredDirs: ['external'] },
-        persistence: { engine: 'none' },
-        bundle: { enabled: false },
-        styles: { zLayersEnabled: false },
-        templates: { requireInputIds: false },
-        agentPlugin: { enabled: false }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Ignored Dirs Project',
+          paths: { ignoredDirs: ['external'] },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false },
+          styles: { zLayersEnabled: false },
+          templates: { requireInputIds: false },
+          agentPlugin: { enabled: false }
+        })
+      );
 
       const auditor = new ValidateSimilarCodeAuditor(scratchDir);
       const candidates: SimilarCodeCandidate[] = [
@@ -224,7 +237,7 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('failed');
 
-      const finding = result.findings.find(f => f.ruleId === 'fallow-similar-code-failed');
+      const finding = result.findings.find((f) => f.ruleId === 'fallow-similar-code-failed');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('ETIMEDOUT');
@@ -250,7 +263,7 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(result.summary.warnings).toBe(1);
       expect(result.status).toBe('passed');
 
-      const finding = result.findings.find(f => f.ruleId === 'fallow-similar-code-failed');
+      const finding = result.findings.find((f) => f.ruleId === 'fallow-similar-code-failed');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('warning');
       expect(finding?.context).toBe('manual-setup-required');
@@ -262,8 +275,12 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(banner).toContain('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE');
       expect(banner).toContain('fallow similar-code setup --local --yes');
       expect(banner).toContain('AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1');
-      expect(banner).toContain('╔══════════════════════════════════════════════════════════════════════════════╗');
-      expect(banner).toContain('╚══════════════════════════════════════════════════════════════════════════════╝');
+      expect(banner).toContain(
+        '╔══════════════════════════════════════════════════════════════════════════════╗'
+      );
+      expect(banner).toContain(
+        '╚══════════════════════════════════════════════════════════════════════════════╝'
+      );
     });
   });
 
@@ -322,11 +339,11 @@ describe('ValidateSimilarCodeAuditor', () => {
 
     it('excludes validate_similar_code from discovery when skipSimilar is true', async () => {
       const allTasks = await discoverAuditors();
-      const hasSimilarCodeInAll = allTasks.some(t => t.id === 'validate_similar_code');
+      const hasSimilarCodeInAll = allTasks.some((t) => t.id === 'validate_similar_code');
       expect(hasSimilarCodeInAll).toBe(true);
 
       const skippedTasks = await discoverAuditors({ skipSimilar: true });
-      const hasSimilarCodeInSkipped = skippedTasks.some(t => t.id === 'validate_similar_code');
+      const hasSimilarCodeInSkipped = skippedTasks.some((t) => t.id === 'validate_similar_code');
       expect(hasSimilarCodeInSkipped).toBe(false);
     });
   });

@@ -49,22 +49,36 @@ describe('check_environment CLI Utility', () => {
 
   describe('compareVersions', () => {
     it('returns true when current version is strictly greater in major', () => {
-      expect(compareVersions({ major: 26, minor: 0, patch: 0 }, { major: 25, minor: 9, patch: 9 })).toBe(true);
+      expect(
+        compareVersions({ major: 26, minor: 0, patch: 0 }, { major: 25, minor: 9, patch: 9 })
+      ).toBe(true);
     });
 
     it('returns false when current version is lower in major', () => {
-      expect(compareVersions({ major: 24, minor: 9, patch: 9 }, { major: 26, minor: 0, patch: 0 })).toBe(false);
+      expect(
+        compareVersions({ major: 24, minor: 9, patch: 9 }, { major: 26, minor: 0, patch: 0 })
+      ).toBe(false);
     });
 
     it('compares minor when major is equal', () => {
-      expect(compareVersions({ major: 26, minor: 10, patch: 0 }, { major: 26, minor: 5, patch: 0 })).toBe(true);
-      expect(compareVersions({ major: 26, minor: 4, patch: 0 }, { major: 26, minor: 5, patch: 0 })).toBe(false);
+      expect(
+        compareVersions({ major: 26, minor: 10, patch: 0 }, { major: 26, minor: 5, patch: 0 })
+      ).toBe(true);
+      expect(
+        compareVersions({ major: 26, minor: 4, patch: 0 }, { major: 26, minor: 5, patch: 0 })
+      ).toBe(false);
     });
 
     it('compares patch when major and minor are equal', () => {
-      expect(compareVersions({ major: 26, minor: 10, patch: 2 }, { major: 26, minor: 10, patch: 1 })).toBe(true);
-      expect(compareVersions({ major: 26, minor: 10, patch: 1 }, { major: 26, minor: 10, patch: 1 })).toBe(true);
-      expect(compareVersions({ major: 26, minor: 10, patch: 0 }, { major: 26, minor: 10, patch: 1 })).toBe(false);
+      expect(
+        compareVersions({ major: 26, minor: 10, patch: 2 }, { major: 26, minor: 10, patch: 1 })
+      ).toBe(true);
+      expect(
+        compareVersions({ major: 26, minor: 10, patch: 1 }, { major: 26, minor: 10, patch: 1 })
+      ).toBe(true);
+      expect(
+        compareVersions({ major: 26, minor: 10, patch: 0 }, { major: 26, minor: 10, patch: 1 })
+      ).toBe(false);
     });
   });
 
@@ -85,17 +99,25 @@ describe('check_environment CLI Utility', () => {
     });
 
     it('returns false when package.json lacks engines declaration', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test-app' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'test-app' }),
+        'utf-8'
+      );
       const result = checkEnvironment(tempDir);
       expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
     it('returns false when declared engines are lower than auditor floor', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
-        name: 'old-app',
-        engines: { node: '>=20.0.0', npm: '>=10.0.0' }
-      }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'old-app',
+          engines: { node: '>=20.0.0', npm: '>=10.0.0' }
+        }),
+        'utf-8'
+      );
       const result = checkEnvironment(tempDir);
       expect(result).toBe(false);
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -103,10 +125,14 @@ describe('check_environment CLI Utility', () => {
 
     it('returns true when declared engines match auditor requirements and current runtime satisfies them', () => {
       const currentMajor = parseSemver(process.versions.node).major;
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
-        name: 'modern-app',
-        engines: { node: `>=${currentMajor}.0.0`, npm: '>=12.0.0' }
-      }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'modern-app',
+          engines: { node: `>=${currentMajor}.0.0`, npm: '>=12.0.0' }
+        }),
+        'utf-8'
+      );
 
       const result = checkEnvironment(tempDir);
       // Result depends on current Node version matching auditor floor
@@ -117,10 +143,14 @@ describe('check_environment CLI Utility', () => {
       const originalUa = process.env.npm_config_user_agent;
       try {
         process.env.npm_config_user_agent = 'npm/8.0.0 node/v26.0.0';
-        fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
-          name: 'modern-app',
-          engines: { node: '>=26.0.0', npm: '>=12.0.0' }
-        }), 'utf-8');
+        fs.writeFileSync(
+          path.join(tempDir, 'package.json'),
+          JSON.stringify({
+            name: 'modern-app',
+            engines: { node: '>=26.0.0', npm: '>=12.0.0' }
+          }),
+          'utf-8'
+        );
 
         const result = checkEnvironment(tempDir);
         expect(result).toBe(false);
@@ -140,10 +170,14 @@ describe('check_environment CLI Utility', () => {
       try {
         Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
         process.env.npm_config_user_agent = 'npm/8.0.0 node/v26.0.0';
-        fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
-          name: 'win-app',
-          engines: { node: '>=26.0.0', npm: '>=12.0.0' }
-        }), 'utf-8');
+        fs.writeFileSync(
+          path.join(tempDir, 'package.json'),
+          JSON.stringify({
+            name: 'win-app',
+            engines: { node: '>=26.0.0', npm: '>=12.0.0' }
+          }),
+          'utf-8'
+        );
 
         const result = checkEnvironment(tempDir);
         expect(result).toBe(false);
@@ -159,10 +193,14 @@ describe('check_environment CLI Utility', () => {
     });
 
     it('returns false when current runtime node is lower than host required node', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
-        name: 'future-app',
-        engines: { node: '>=999.0.0', npm: '>=12.0.0' }
-      }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'future-app',
+          engines: { node: '>=999.0.0', npm: '>=12.0.0' }
+        }),
+        'utf-8'
+      );
 
       const result = checkEnvironment(tempDir);
       expect(result).toBe(false);
@@ -174,21 +212,31 @@ describe('check_environment CLI Utility', () => {
       const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
       const auditorEngines = getAuditorEngines();
 
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({
-        name: 'legacy-app',
-        engines: { node: '>=20.0.0', npm: '>=10.0.0' }
-      }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'legacy-app',
+          engines: { node: '>=20.0.0', npm: '>=10.0.0' }
+        }),
+        'utf-8'
+      );
 
       if (isWindows) {
-        fs.writeFileSync(path.join(tempDir, setupScriptName), `
+        fs.writeFileSync(
+          path.join(tempDir, setupScriptName),
+          `
           $pkg = Get-Content package.json | ConvertFrom-Json
           $pkg.engines.node = "${auditorEngines.node}"
           $pkg.engines.npm = "${auditorEngines.npm}"
           $pkg | ConvertTo-Json | Set-Content package.json
           exit 0
-        `, 'utf-8');
+        `,
+          'utf-8'
+        );
       } else {
-        fs.writeFileSync(path.join(tempDir, setupScriptName), `#!/bin/sh
+        fs.writeFileSync(
+          path.join(tempDir, setupScriptName),
+          `#!/bin/sh
 cat << 'EOF' > package.json
 {
   "name": "legacy-app",
@@ -199,7 +247,9 @@ cat << 'EOF' > package.json
 }
 EOF
 exit 0
-`, { mode: 0o755 });
+`,
+          { mode: 0o755 }
+        );
       }
 
       const result = checkEnvironment(tempDir);

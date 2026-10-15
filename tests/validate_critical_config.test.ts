@@ -12,7 +12,10 @@ import path from 'node:path';
 import os from 'node:os';
 import { BaseAuditor, type AuditorOptions } from '../src/core/auditorBase.ts';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
-import { ValidateStylelintConfigAuditor, REQUIRED_STRICT_PROPERTIES } from '../src/suites/architecture/validate_stylelint_config.ts';
+import {
+  ValidateStylelintConfigAuditor,
+  REQUIRED_STRICT_PROPERTIES
+} from '../src/suites/architecture/validate_stylelint_config.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
 import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
@@ -52,7 +55,15 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
         'sample-rule': 'Soluciona la regla sample-rule ajustando la configuración crítica.'
       },
       ruleCapabilities: {
-        'sample-rule': { speed: 'light', phase: 'normal', fix: 'normal', md: false, ast: false, changedOnly: false, critical: false }
+        'sample-rule': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
       },
       coverage: {
         include: ['src/**']
@@ -88,7 +99,15 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
         'sample-rule': 'Soluciona la regla sample-rule ajustando la sonda.'
       },
       ruleCapabilities: {
-        'sample-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+        'sample-rule': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
       },
       coverage: {
         include: ['src/**']
@@ -104,7 +123,10 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
 }
 
 class TestableAuditConfigAuditor extends ValidateAuditConfigAuditor {
-  public async testVerifyCritical(config: unknown, tasks: readonly AuditTaskDefinition[]): Promise<void> {
+  public async testVerifyCritical(
+    config: unknown,
+    tasks: readonly AuditTaskDefinition[]
+  ): Promise<void> {
     return this.verifyCriticalConfigurations(config as AuditEngineConfig, tasks);
   }
 }
@@ -129,32 +151,42 @@ describe('Auditor Critical Configuration Contract', () => {
       const errors = validateAuditorConstruction(auditor);
       expect(errors).toEqual([]);
       expect(auditor.criticalConfig).toBeDefined();
-      expect(auditor.criticalConfig?.rationale).toBe('Las constantes alpha y beta son invariantes de seguridad.');
+      expect(auditor.criticalConfig?.rationale).toBe(
+        'Las constantes alpha y beta son invariantes de seguridad.'
+      );
       expect(auditor.criticalConfig?.requiredMinimums?.strictList).toEqual(['alpha', 'beta']);
 
       const manifest = auditor.toManifest();
       expect(manifest.criticalConfig).toBeDefined();
-      expect(manifest.criticalConfig?.rationale).toBe('Las constantes alpha y beta son invariantes de seguridad.');
+      expect(manifest.criticalConfig?.rationale).toBe(
+        'Las constantes alpha y beta son invariantes de seguridad.'
+      );
       expect(manifest.criticalConfig?.requiredMinimums?.strictList).toEqual(['alpha', 'beta']);
       expect(manifest.criticalConfig?.forbiddenOverrides?.enabled).toEqual([false]);
     });
 
     it('rejects criticalConfig with empty rationale', () => {
       expect(() => {
-        new TestProbeAuditor({
-          criticalConfig: {
-            rationale: '   ',
-            requiredMinimums: { items: ['min1'] }
-          }
-        }, tempDir);
+        new TestProbeAuditor(
+          {
+            criticalConfig: {
+              rationale: '   ',
+              requiredMinimums: { items: ['min1'] }
+            }
+          },
+          tempDir
+        );
       }).toThrow(/must define a non-empty 'rationale' in 'criticalConfig'/);
     });
 
     it('rejects auditor when criticalConfig is undefined or omitted', () => {
       expect(() => {
-        new TestProbeAuditor({
-          criticalConfig: undefined
-        }, tempDir);
+        new TestProbeAuditor(
+          {
+            criticalConfig: undefined
+          },
+          tempDir
+        );
       }).toThrow(/must define mandatory 'criticalConfig' in its constructor/);
     });
 
@@ -167,14 +199,17 @@ describe('Auditor Critical Configuration Contract', () => {
 
     it('rejects criticalConfig with non-array requiredMinimums', () => {
       expect(() => {
-        new TestProbeAuditor({
-          criticalConfig: {
-            rationale: 'Mínimos inválidos',
-            requiredMinimums: {
-              items: 'not-an-array'
+        new TestProbeAuditor(
+          {
+            criticalConfig: {
+              rationale: 'Mínimos inválidos',
+              requiredMinimums: {
+                items: 'not-an-array'
+              }
             }
-          }
-        }, tempDir);
+          },
+          tempDir
+        );
       }).toThrow(/must be a non-empty array/);
     });
   });
@@ -222,10 +257,14 @@ export default defineAuditConfig({
       );
 
       const findings = auditor.getFindings();
-      const criticalViolation = findings.find(f => f.ruleId === 'audit-config-critical-violation');
+      const criticalViolation = findings.find(
+        (f) => f.ruleId === 'audit-config-critical-violation'
+      );
       expect(criticalViolation).toBeDefined();
       expect(criticalViolation?.severity).toBe('error');
-      expect(criticalViolation?.message).toContain('missing required minimum values for "strictList": [beta]');
+      expect(criticalViolation?.message).toContain(
+        'missing required minimum values for "strictList": [beta]'
+      );
       expect(criticalViolation?.message).toContain('Las constantes alpha y beta son obligatorias.');
     });
 
@@ -247,16 +286,19 @@ export default defineAuditConfig({
         }
       };
 
-      await auditor.testVerifyCritical(
-        { _rawConfig: { sample: { enabled: false } } },
-        [sampleTask]
-      );
+      await auditor.testVerifyCritical({ _rawConfig: { sample: { enabled: false } } }, [
+        sampleTask
+      ]);
 
       const findings = auditor.getFindings();
-      const criticalViolation = findings.find(f => f.ruleId === 'audit-config-critical-violation');
+      const criticalViolation = findings.find(
+        (f) => f.ruleId === 'audit-config-critical-violation'
+      );
       expect(criticalViolation).toBeDefined();
       expect(criticalViolation?.severity).toBe('error');
-      expect(criticalViolation?.message).toContain('field "enabled" is set to disallowed value "false"');
+      expect(criticalViolation?.message).toContain(
+        'field "enabled" is set to disallowed value "false"'
+      );
     });
 
     it('executes custom validate predicate and reports error if invalid', async () => {
@@ -281,16 +323,17 @@ export default defineAuditConfig({
         }
       };
 
-      await auditor.testVerifyCritical(
-        { _rawConfig: { sample: { limit: 4 } } },
-        [sampleTask]
-      );
+      await auditor.testVerifyCritical({ _rawConfig: { sample: { limit: 4 } } }, [sampleTask]);
 
       const findings = auditor.getFindings();
-      const criticalViolation = findings.find(f => f.ruleId === 'audit-config-critical-violation');
+      const criticalViolation = findings.find(
+        (f) => f.ruleId === 'audit-config-critical-violation'
+      );
       expect(criticalViolation).toBeDefined();
       expect(criticalViolation?.severity).toBe('error');
-      expect(criticalViolation?.message).toContain('el límite configurado (4) es menor que el mínimo permitido (10)');
+      expect(criticalViolation?.message).toContain(
+        'el límite configurado (4) es menor que el mínimo permitido (10)'
+      );
     });
   });
 
@@ -339,10 +382,14 @@ export default defineAuditConfig({
       );
 
       const findings = auditor.getFindings();
-      const criticalViolation = findings.find(f => f.ruleId === 'audit-config-critical-violation');
+      const criticalViolation = findings.find(
+        (f) => f.ruleId === 'audit-config-critical-violation'
+      );
       expect(criticalViolation).toBeDefined();
       expect(criticalViolation?.severity).toBe('error');
-      expect(criticalViolation?.message).toContain('missing required minimum values for "strictValues.properties"');
+      expect(criticalViolation?.message).toContain(
+        'missing required minimum values for "strictValues.properties"'
+      );
       expect(criticalViolation?.message).toContain('box-shadow');
       expect(criticalViolation?.message).toContain('border-radius');
     });

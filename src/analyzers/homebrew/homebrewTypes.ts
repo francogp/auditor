@@ -29,14 +29,14 @@ export const AUDITOR_HOMEBREW_RULES = [
 export type AuditorHomebrewRuleId = (typeof AUDITOR_HOMEBREW_RULES)[number];
 
 export interface HomebrewInspectionContext {
-  readonly filePath: string;          // Normalized POSIX relative path
-  readonly absolutePath: string;      // Absolute filesystem path
-  readonly content: string;           // Full file text content
-  readonly lines: readonly string[];  // File lines
-  readonly isExtension: boolean;      // True if defined in scripts/auditors or host extensions
-  readonly isBuiltinSuite: boolean;   // True if residing in src/suites/
-  readonly isAnalyzer: boolean;       // True if residing in src/analyzers/
-  readonly projectRoot: string;       // Repository root
+  readonly filePath: string; // Normalized POSIX relative path
+  readonly absolutePath: string; // Absolute filesystem path
+  readonly content: string; // Full file text content
+  readonly lines: readonly string[]; // File lines
+  readonly isExtension: boolean; // True if defined in scripts/auditors or host extensions
+  readonly isBuiltinSuite: boolean; // True if residing in src/suites/
+  readonly isAnalyzer: boolean; // True if residing in src/analyzers/
+  readonly projectRoot: string; // Repository root
 }
 
 export interface HomebrewFinding {
@@ -50,7 +50,7 @@ export interface HomebrewFinding {
 export interface HomebrewDetector {
   readonly id: string;
   readonly ruleId: AuditorHomebrewRuleId;
-  readonly ruleDescription: string;   // Pure Spanish description (max 41 chars)
+  readonly ruleDescription: string; // Pure Spanish description (max 41 chars)
   detect(context: HomebrewInspectionContext): HomebrewFinding[];
 }
 

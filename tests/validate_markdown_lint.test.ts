@@ -61,7 +61,9 @@ describe('MarkdownLintAuditor', () => {
       expect(findings[0]?.file).toBe('docs/test.md');
       expect(findings[0]?.line).toBe(12);
       expect(findings[0]?.context).toBe('MD001/heading-increment');
-      expect(findings[0]?.message).toContain('Heading levels should only increment by one level at a time');
+      expect(findings[0]?.message).toContain(
+        'Heading levels should only increment by one level at a time'
+      );
     });
 
     it('parses array of RawMarkdownLintIssue objects directly', () => {
@@ -106,7 +108,9 @@ describe('MarkdownLintAuditor', () => {
 
     it('throws descriptive error on malformed JSON string', () => {
       const malformed = '[(node:123) { invalid json }]';
-      expect(() => parseMarkdownLintIssues(malformed, PROJECT_ROOT)).toThrow('Error al procesar salida JSON de markdownlint');
+      expect(() => parseMarkdownLintIssues(malformed, PROJECT_ROOT)).toThrow(
+        'Error al procesar salida JSON de markdownlint'
+      );
     });
   });
 
@@ -114,14 +118,14 @@ describe('MarkdownLintAuditor', () => {
     it('returns 0 errors when given empty output or clean results', () => {
       const findings = parseMarkdownLintIssues('', PROJECT_ROOT);
       expect(findings).toHaveLength(0);
-      const errors = findings.filter(f => f.severity === 'error').length;
+      const errors = findings.filter((f) => f.severity === 'error').length;
       expect(errors).toBe(0);
     });
 
     it('returns 0 errors when given an empty JSON array', () => {
       const findings = parseMarkdownLintIssues('[]', PROJECT_ROOT);
       expect(findings).toHaveLength(0);
-      const errors = findings.filter(f => f.severity === 'error').length;
+      const errors = findings.filter((f) => f.severity === 'error').length;
       expect(errors).toBe(0);
     });
 
@@ -140,15 +144,17 @@ describe('MarkdownLintAuditor', () => {
     it('executes actual runAudit with findings and handles fix mode', async () => {
       const { vi } = await import('vitest');
       const cliUtils = await import('../src/cli/cliUtils.ts');
-      const spy = vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue(JSON.stringify([
-        {
-          fileName: 'README.md',
-          lineNumber: 10,
-          ruleNames: ['MD001'],
-          ruleDescription: 'Heading level error',
-          errorDetail: 'Expected h2'
-        }
-      ]));
+      const spy = vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue(
+        JSON.stringify([
+          {
+            fileName: 'README.md',
+            lineNumber: 10,
+            ruleNames: ['MD001'],
+            ruleDescription: 'Heading level error',
+            errorDetail: 'Expected h2'
+          }
+        ])
+      );
 
       process.argv.push('fix');
       try {
@@ -239,8 +245,9 @@ describe('MarkdownLintAuditor', () => {
 
     it('safely handles non-existent or invalid configuration file', async () => {
       const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
-      expect(() => auditor.repairMarkdownLintConfig('/non/existent/path/.markdownlint.json')).not.toThrow();
+      expect(() =>
+        auditor.repairMarkdownLintConfig('/non/existent/path/.markdownlint.json')
+      ).not.toThrow();
     });
   });
 });
-

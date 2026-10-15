@@ -30,7 +30,7 @@ Pull Request Opened
     │
     ▼
 ┌─────────────────┐
-│   LINT CHECK     │  eslint, prettier
+│   LINT CHECK     │  vp check (oxlint, oxfmt)
 │   ↓ pass         │
 │   TYPE CHECK     │  tsc --noEmit
 │   ↓ pass         │

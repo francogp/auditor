@@ -15,11 +15,15 @@ export const manualTimingDetector = createLineDetector({
   ruleDescription: 'Medición casera de tiempos en auditor',
   checkLine(line, _trimmed, _lineNum, context) {
     if (context.filePath.includes('/cli/') || context.filePath.startsWith('src/cli/')) return null;
-    if (context.filePath.includes('src/core/') || context.filePath.startsWith('src/core/')) return null;
+    if (context.filePath.includes('src/core/') || context.filePath.startsWith('src/core/'))
+      return null;
     if (line.includes('// timing-ok:') || line.includes('// benchmark-ok:')) return null;
 
     // Check for performance.now(), console.time/timeEnd, process.hrtime, or direct recordRuleDuration
-    const match = /\b(?:performance\.now\s*\(|console\.time(?:End)?\s*\(|process\.hrtime\b|\bthis\.recordRuleDuration\s*\()/.exec(line);
+    const match =
+      /\b(?:performance\.now\s*\(|console\.time(?:End)?\s*\(|process\.hrtime\b|\bthis\.recordRuleDuration\s*\()/.exec(
+        line
+      );
     if (!match) return null;
 
     // Ignore if inside a string literal

@@ -166,4 +166,3 @@ describe('report_fallow CLI Tool', () => {
     expect(() => runFallowReportCli()).not.toThrow();
   });
 });
-

@@ -40,12 +40,18 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
       ALTER TABLE public.schema_migrations ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.supabase_migrations ENABLE ROW LEVEL SECURITY;
     `;
-    fs.writeFileSync(path.join(migrationsDir, '20260518000000_harden_security_and_rls.sql'), migrationSql, 'utf-8');
+    fs.writeFileSync(
+      path.join(migrationsDir, '20260518000000_harden_security_and_rls.sql'),
+      migrationSql,
+      'utf-8'
+    );
 
     const auditor = new SqlAntiPatternsAuditor('database/migrations', scratchDir);
     const result = await auditor.execute();
 
-    const rlsViolations = result.findings.filter(f => f.ruleId === 'sql-rls-policy-grant-integrity');
+    const rlsViolations = result.findings.filter(
+      (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
+    );
     expect(rlsViolations.length).toBe(0);
   });
 
@@ -54,21 +60,34 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
       ALTER TABLE public.custom_system_ledger ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.unprotected_user_table ENABLE ROW LEVEL SECURITY;
     `;
-    fs.writeFileSync(path.join(migrationsDir, '20260519000000_custom_system.sql'), migrationSql, 'utf-8');
+    fs.writeFileSync(
+      path.join(migrationsDir, '20260519000000_custom_system.sql'),
+      migrationSql,
+      'utf-8'
+    );
 
-    setAuditConfig({
-      ...DEFAULT_AUDIT_CONFIG,
-      paths: { ...DEFAULT_AUDIT_CONFIG.paths, migrationsDir: 'database/migrations', srcRoots: ['src'] },
-      persistence: {
-        ...DEFAULT_AUDIT_CONFIG.persistence,
-        exemptRlsTables: ['custom_system_ledger']
-      }
-    }, scratchDir);
+    setAuditConfig(
+      {
+        ...DEFAULT_AUDIT_CONFIG,
+        paths: {
+          ...DEFAULT_AUDIT_CONFIG.paths,
+          migrationsDir: 'database/migrations',
+          srcRoots: ['src']
+        },
+        persistence: {
+          ...DEFAULT_AUDIT_CONFIG.persistence,
+          exemptRlsTables: ['custom_system_ledger']
+        }
+      },
+      scratchDir
+    );
 
     const auditor = new SqlAntiPatternsAuditor('database/migrations', scratchDir);
     const result = await auditor.execute();
 
-    const rlsViolations = result.findings.filter(f => f.ruleId === 'sql-rls-policy-grant-integrity');
+    const rlsViolations = result.findings.filter(
+      (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
+    );
     expect(rlsViolations.length).toBe(1);
     expect(rlsViolations[0]?.message).toContain('unprotected_user_table');
   });

@@ -164,6 +164,9 @@ export default defineAuditConfig({
   oxlint: {
     enabled: true
   },
+  oxfmt: {
+    enabled: true
+  },
   vitePlusConfig: {
     enabled: true
   },

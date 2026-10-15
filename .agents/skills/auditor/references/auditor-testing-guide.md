@@ -91,3 +91,20 @@ When writing unit tests for linters or AST rules that detect banned imports or s
 ### 4. Suppression / Escape Hatch Verification
 
 If the auditor supports statement-level suppression comments (e.g., `// <rule>-ok: <justification>`) or configuration ignore patterns, the test suite must verify that valid suppressions cleanly bypass detection and do not produce violations.
+
+---
+
+## 🎯 Mandatory Canary Verification for Injected & Obligatory Rules
+
+Every rule injected or mandated by the framework MUST be verified through automated canary tests asserting positive detection, negative compliance, and auto-fix behavior:
+
+1. **Mandatory Injected Linter Rules**:
+   - `@typescript-eslint/no-explicit-any`: Verified by canary asserting failure on `: any` or `as any`.
+   - `@typescript-eslint/ban-ts-comment`: Verified by canary asserting failure on `@ts-ignore` and auto-repair to `@ts-expect-error`.
+   - `@typescript-eslint/consistent-type-assertions`: Verified by canary asserting failure on `<T>value` and auto-repair to `value as T`.
+   - `@francogp/domain-type(no-double-cast-unknown)`: Verified by canary asserting failure on `as unknown as T`.
+   - `@francogp/domain-type(no-legacy-date)`: Verified by canary asserting failure on `new Date()` and `Date.now()` without Temporal API.
+2. **Stylelint Strict Properties Minimum Baseline**:
+   - Verified by asserting that all 13 canonical properties cannot be omitted or castrated in `.stylelintrc.json`.
+3. **Active vs Inactive Configuration Canaries**:
+   - Every auditor configuration section MUST include canaries asserting behavior both when active (`enabled: true`) and when explicitly deactivated (`enabled: false`), ensuring that disabled subsystems cleanly bypass verification without false positives or runtime crashes.

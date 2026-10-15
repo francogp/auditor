@@ -66,7 +66,9 @@ describe('ReactivePurityAuditor', () => {
         });
       `;
       auditor.testScanFile('src/composables/useCount.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'computed-state-mutation');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'computed-state-mutation'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -85,7 +87,9 @@ describe('ReactivePurityAuditor', () => {
         });
       `;
       auditor.testScanFile('src/stores/billingStore.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'computed-state-mutation');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'computed-state-mutation'
+      );
       expect(violation).toBeDefined();
     });
 
@@ -100,7 +104,9 @@ describe('ReactivePurityAuditor', () => {
         });
       `;
       auditor.testScanFile('src/stores/userStore.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'computed-side-effect');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'computed-side-effect'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

@@ -19,7 +19,9 @@ describe('ValidatePackageScriptsAuditor', () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'package-scripts-test-'));
 
     // Git sandbox satisfying ratchet production ref
-    const git = (...args: string[]): void => { execFileSync('git', args, { cwd: tempDir, stdio: 'ignore' }); };
+    const git = (...args: string[]): void => {
+      execFileSync('git', args, { cwd: tempDir, stdio: 'ignore' });
+    };
     git('init', '-q');
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
     git('update-ref', 'refs/remotes/origin/main', 'HEAD');
@@ -74,13 +76,17 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'npm run auditor:full && vite build && npm run auditor:post-build',
-            lint: 'npm run auditor:lint'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'npm run auditor:full && vite build && npm run auditor:post-build',
+              lint: 'npm run auditor:lint'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -102,7 +108,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-missing-file');
+      const f = result.findings.find((x) => x.ruleId === 'package-scripts-missing-file');
       expect(f).toBeDefined();
       expect(f?.severity).toBe('error');
     });
@@ -125,7 +131,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-build-missing-audit');
+      const f = result.findings.find((x) => x.ruleId === 'package-scripts-build-missing-audit');
       expect(f).toBeDefined();
       expect(f?.severity).toBe('error');
     });
@@ -140,13 +146,17 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'npm run auditor:full && vite build && npm run auditor:post-build',
-            'audit:for-commit': 'auditor-commit'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'npm run auditor:full && vite build && npm run auditor:post-build',
+              'audit:for-commit': 'auditor-commit'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -154,7 +164,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-removed-commit-gate');
+      const f = result.findings.find((x) => x.ruleId === 'package-scripts-removed-commit-gate');
       expect(f).toBeDefined();
       expect(f?.severity).toBe('error');
     });
@@ -169,10 +179,14 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: { build: 'npm run auditor:full && vite build && npm run auditor:post-build' }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: { build: 'npm run auditor:full && vite build && npm run auditor:post-build' }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -180,7 +194,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-invalid-production-ref');
+      const f = result.findings.find((x) => x.ruleId === 'package-scripts-invalid-production-ref');
       expect(f).toBeDefined();
       expect(f?.severity).toBe('error');
     });
@@ -202,10 +216,14 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: { build: 'npm run auditor:full && vite build && npm run auditor:post-build' }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: { build: 'npm run auditor:full && vite build && npm run auditor:post-build' }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -213,7 +231,9 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-invalid-ratchet-baseline');
+      const f = result.findings.find(
+        (x) => x.ruleId === 'package-scripts-invalid-ratchet-baseline'
+      );
       expect(f).toBeDefined();
       expect(f?.severity).toBe('error');
     });
@@ -230,12 +250,16 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'npm run auditor:full && vite build && npm run auditor:post-build'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'npm run auditor:full && vite build && npm run auditor:post-build'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -243,7 +267,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-missing-recommended');
+      const f = result.findings.find((x) => x.ruleId === 'package-scripts-missing-recommended');
       expect(f).toBeDefined();
       expect(f?.severity).toBe('warning');
     });
@@ -258,13 +282,17 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'npm run auditor:full && vite build && npm run auditor:post-build',
-            'audit:legacy': 'node scripts/audit.js'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'npm run auditor:full && vite build && npm run auditor:post-build',
+              'audit:legacy': 'node scripts/audit.js'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -272,7 +300,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
-      const f = result.findings.find(x => x.ruleId === 'package-scripts-obsolete');
+      const f = result.findings.find((x) => x.ruleId === 'package-scripts-obsolete');
       expect(f).toBeDefined();
       expect(f?.severity).toBe('warning');
     });
@@ -290,14 +318,18 @@ describe('ValidatePackageScriptsAuditor', () => {
       const pkgPath = path.join(tempDir, 'package.json');
       await fs.writeFile(
         pkgPath,
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'vite build',
-            'audit:for-commit': 'auditor-commit',
-            'audit:legacy': 'node old.js'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'vite build',
+              'audit:for-commit': 'auditor-commit',
+              'audit:legacy': 'node old.js'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -307,7 +339,9 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(fixResult.summary.errors).toBe(0);
 
       const updated = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
-      expect(updated.scripts.build).toBe('npm run auditor:full && vite build && npm run auditor:post-build');
+      expect(updated.scripts.build).toBe(
+        'npm run auditor:full && vite build && npm run auditor:post-build'
+      );
       expect(updated.scripts['audit:for-commit']).toBeUndefined();
       expect(updated.scripts['audit:legacy']).toBeUndefined();
     });
@@ -322,12 +356,16 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'npm run auditor:full && vite build && npm run auditor:post-build'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'npm run auditor:full && vite build && npm run auditor:post-build'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 
@@ -344,7 +382,9 @@ describe('ValidatePackageScriptsAuditor', () => {
       const checkAuditor = new ValidatePackageScriptsAuditor(tempDir);
       const checkResult = await checkAuditor.execute();
       expect(checkResult.summary.warnings).toBeGreaterThan(0);
-      const wfFinding = checkResult.findings.find(x => x.ruleId === 'package-scripts-obsolete' && x.file === '.github/workflows/deploy.yml');
+      const wfFinding = checkResult.findings.find(
+        (x) => x.ruleId === 'package-scripts-obsolete' && x.file === '.github/workflows/deploy.yml'
+      );
       expect(wfFinding).toBeDefined();
 
       // Fix mode migrates deploy.yml
@@ -372,12 +412,16 @@ describe('ValidatePackageScriptsAuditor', () => {
 
       await fs.writeFile(
         path.join(tempDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          scripts: {
-            build: 'vite build'
-          }
-        }, null, 2),
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'vite build'
+            }
+          },
+          null,
+          2
+        ),
         'utf-8'
       );
 

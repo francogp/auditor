@@ -55,7 +55,9 @@ describe('safePath Core Security Utility', () => {
 
     it('throws security error when path attempts directory traversal escaping project root', () => {
       expect(() => safeResolve('..', 'secret.txt')).toThrow(/Security Violation CWE-22/);
-      expect(() => safeJoin('sub', '..', '..', 'etc', 'passwd')).toThrow(/Security Violation CWE-22/);
+      expect(() => safeJoin('sub', '..', '..', 'etc', 'passwd')).toThrow(
+        /Security Violation CWE-22/
+      );
     });
 
     it('filters empty or falsy segments cleanly', () => {
@@ -96,19 +98,27 @@ describe('safePath Core Security Utility', () => {
 
   describe('safeFetch (SSRF CWE-918 Prevention)', () => {
     it('rejects non-HTTPS URLs', async () => {
-      await expect(safeFetch('http://example.com/api')).rejects.toThrow(/Security Violation CWE-SSRF: Non-HTTPS/);
-      await expect(safeFetch('ftp://example.com/file')).rejects.toThrow(/Security Violation CWE-SSRF: Non-HTTPS/);
+      await expect(safeFetch('http://example.com/api')).rejects.toThrow(
+        /Security Violation CWE-SSRF: Non-HTTPS/
+      );
+      await expect(safeFetch('ftp://example.com/file')).rejects.toThrow(
+        /Security Violation CWE-SSRF: Non-HTTPS/
+      );
     });
 
     it('rejects hosts not in allowlist', async () => {
-      await expect(safeFetch('https://evil-hacker.com/steal', undefined, ['localhost', 'api.supabase.co'])).rejects.toThrow(/Security Violation CWE-SSRF: Host/);
+      await expect(
+        safeFetch('https://evil-hacker.com/steal', undefined, ['localhost', 'api.supabase.co'])
+      ).rejects.toThrow(/Security Violation CWE-SSRF: Host/);
     });
 
     it('allows requests to allowed hosts or subdomains', async () => {
       const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true })));
       vi.stubGlobal('fetch', mockFetch);
 
-      const res = await safeFetch('https://sub.api.supabase.co/rest/v1', undefined, ['supabase.co']);
+      const res = await safeFetch('https://sub.api.supabase.co/rest/v1', undefined, [
+        'supabase.co'
+      ]);
       expect(mockFetch).toHaveBeenCalledOnce();
       const json = await res.json();
       expect(json).toEqual({ success: true });
@@ -136,7 +146,9 @@ describe('safePath Core Security Utility', () => {
 
   describe('toPosixPath, toPosixRelative, normalizePosixPath & isPathContained', () => {
     it('converts relative paths with backslashes to POSIX format', () => {
-      expect(toPosixPath('src\\suites\\architecture\\validate.ts')).toBe('src/suites/architecture/validate.ts');
+      expect(toPosixPath('src\\suites\\architecture\\validate.ts')).toBe(
+        'src/suites/architecture/validate.ts'
+      );
       expect(toPosixPath('.\\src\\index.ts')).toBe('src/index.ts');
     });
 

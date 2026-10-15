@@ -114,7 +114,11 @@ describe('ValidateStylelintConfigAuditor', () => {
           'block-no-empty': true
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
@@ -131,7 +135,11 @@ describe('ValidateStylelintConfigAuditor', () => {
           'declaration-block-single-line-max-declarations': null
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
@@ -148,7 +156,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -161,13 +169,17 @@ describe('ValidateStylelintConfigAuditor', () => {
           [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-plugin');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-plugin');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain(REQUIRED_STYLELINT_PLUGIN);
@@ -181,13 +193,19 @@ describe('ValidateStylelintConfigAuditor', () => {
           'block-no-empty': true
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
+      const finding = result.findings.find(
+        (f) => f.ruleId === 'stylelint-config-missing-strict-value'
+      );
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain(REQUIRED_STRICT_VALUE_RULE);
@@ -202,13 +220,19 @@ describe('ValidateStylelintConfigAuditor', () => {
           [REQUIRED_STRICT_VALUE_RULE]: [['/color$/', 'font-size', 'z-index']]
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
+      const finding = result.findings.find(
+        (f) => f.ruleId === 'stylelint-config-missing-strict-value'
+      );
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('box-shadow');
@@ -227,7 +251,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       'Parametric Integrity Check: Omitting property "%s"',
       (omittedProp) => {
         it(`fails when "${omittedProp}" is missing from strict-value configuration`, async () => {
-          const subset = EXPECTED_CANONICAL_13_PROPERTIES.filter(p => p !== omittedProp);
+          const subset = EXPECTED_CANONICAL_13_PROPERTIES.filter((p) => p !== omittedProp);
           const config = {
             extends: ['stylelint-config-standard'],
             plugins: ['stylelint-order', REQUIRED_STYLELINT_PLUGIN],
@@ -235,13 +259,19 @@ describe('ValidateStylelintConfigAuditor', () => {
               [REQUIRED_STRICT_VALUE_RULE]: [subset]
             }
           };
-          await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+          await fs.writeFile(
+            path.join(tempDir, '.stylelintrc.json'),
+            JSON.stringify(config, null, 2),
+            'utf-8'
+          );
 
           const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
           const result = await auditor.execute();
 
           expect(result.status).toBe('failed');
-          const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
+          const finding = result.findings.find(
+            (f) => f.ruleId === 'stylelint-config-missing-strict-value'
+          );
           expect(finding).toBeDefined();
           expect(finding?.severity).toBe('error');
           expect(finding?.message).toContain(omittedProp);
@@ -257,13 +287,17 @@ describe('ValidateStylelintConfigAuditor', () => {
           [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain(REQUIRED_ORDER_RULE);
@@ -281,13 +315,17 @@ describe('ValidateStylelintConfigAuditor', () => {
           ]
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('hasBlock: false');
     });
@@ -304,13 +342,17 @@ describe('ValidateStylelintConfigAuditor', () => {
           ]
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('hasBlock: true');
     });
@@ -328,13 +370,17 @@ describe('ValidateStylelintConfigAuditor', () => {
           ]
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('ANTES de "declarations"');
     });
@@ -352,13 +398,17 @@ describe('ValidateStylelintConfigAuditor', () => {
           ]
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-order');
+      const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('DESPUÉS de "declarations"');
     });
@@ -378,7 +428,10 @@ describe('ValidateStylelintConfigAuditor', () => {
 
       expect(result.summary.errors).toBe(0);
       const createdFile = path.join(tempDir, '.stylelintrc.json');
-      const exists = await fs.stat(createdFile).then(() => true).catch(() => false);
+      const exists = await fs
+        .stat(createdFile)
+        .then(() => true)
+        .catch(() => false);
       expect(exists).toBe(true);
 
       const content = JSON.parse(await fs.readFile(createdFile, 'utf-8'));
@@ -394,12 +447,18 @@ describe('ValidateStylelintConfigAuditor', () => {
           'block-no-empty': true
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(initialConfig, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(initialConfig, null, 2),
+        'utf-8'
+      );
 
       const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
       await fixAuditor.execute();
 
-      const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
+      const repaired = JSON.parse(
+        await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8')
+      );
       expect(repaired.plugins).toContain(REQUIRED_STYLELINT_PLUGIN);
       const strictRule = repaired.rules[REQUIRED_STRICT_VALUE_RULE];
       expect(strictRule[0]).toHaveLength(13);
@@ -434,9 +493,11 @@ export default {
       const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
       await fixAuditor.execute();
 
-      const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
+      const repaired = JSON.parse(
+        await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8')
+      );
       const strictRule = repaired.rules[REQUIRED_STRICT_VALUE_RULE];
-      
+
       // All 13 canonicals must be present
       for (const canonical of EXPECTED_CANONICAL_13_PROPERTIES) {
         expect(strictRule[0]).toContain(canonical);
@@ -475,13 +536,19 @@ export default {
           [REQUIRED_STRICT_VALUE_RULE]: [['z-index']]
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'stylelint-config-missing-strict-value');
+      const finding = result.findings.find(
+        (f) => f.ruleId === 'stylelint-config-missing-strict-value'
+      );
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('/color$/');
@@ -498,17 +565,25 @@ export default {
           [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(initialConfig, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(initialConfig, null, 2),
+        'utf-8'
+      );
 
       const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
       const fixResult = await fixAuditor.execute();
       expect(fixResult.summary.errors).toBe(0);
 
-      const repaired = JSON.parse(await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8'));
+      const repaired = JSON.parse(
+        await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8')
+      );
       expect(repaired.plugins).toContain(REQUIRED_ORDER_PLUGIN);
       expect(repaired.plugins).toContain(REQUIRED_STYLELINT_PLUGIN);
       expect(repaired.rules[REQUIRED_ORDER_RULE]).toBeDefined();
-      expect(validateOrderHasBlockPartitioning(repaired.rules[REQUIRED_ORDER_RULE]).valid).toBe(true);
+      expect(validateOrderHasBlockPartitioning(repaired.rules[REQUIRED_ORDER_RULE]).valid).toBe(
+        true
+      );
 
       const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const verifyResult = await verifyAuditor.execute();
@@ -537,7 +612,11 @@ export default {
           [REQUIRED_STRICT_VALUE_RULE]: CANONICAL_STRICT_VALUE_CONFIG
         }
       };
-      await fs.writeFile(path.join(tempDir, '.stylelintrc.json'), JSON.stringify(config, null, 2), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();

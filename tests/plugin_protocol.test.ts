@@ -14,11 +14,11 @@ describe('Auditor Plugin Protocol', () => {
     const config = defineAuditConfig({
       name: 'Custom Project',
       paths: {
-        migrationsDir: 'custom/migrations',
+        migrationsDir: 'custom/migrations'
       },
       persistence: {
         engine: 'sqlite',
-        schemaQualified: false,
+        schemaQualified: false
       },
       extensions: ['./custom/extension.ts']
     });
@@ -44,9 +44,17 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           ruleCapabilities: {
-            'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'dummy-rule': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           },
           ruleIds: ['dummy-rule'],
           ruleDescriptions: {
@@ -90,9 +98,17 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           ruleCapabilities: {
-            'registered-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'registered-rule': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           },
           ruleIds: ['registered-rule'],
           coverage: {
@@ -133,10 +149,26 @@ describe('Auditor Plugin Protocol', () => {
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           ruleCapabilities: {
-            'step-one': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
-            'step-two': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'step-one': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            },
+            'step-two': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           },
           ruleIds: ['step-one', 'step-two'],
           coverage: {
@@ -213,11 +245,10 @@ describe('Auditor Plugin Protocol', () => {
       id: 'ext_with_factory',
       name: 'Ext With Factory',
       family: 'persistence',
-      factory: () => ({} as unknown as BaseAuditor<string>)
+      factory: () => ({}) as unknown as BaseAuditor<string>
     });
 
     expect(extWithFactory.id).toBe('ext_with_factory');
     expect(typeof extWithFactory.factory).toBe('function');
   });
 });
-

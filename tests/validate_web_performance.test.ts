@@ -36,13 +36,27 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(auditor.packageName).toBe('WebPerf');
       expect(auditor.icon).toBe('⚡');
       expect(auditor.ruleIds).toEqual([...WEB_PERFORMANCE_RULES]);
-      expect(auditor.ruleDescriptions['unoptimized-images']).toBe('Imagen sin compresión moderna WebP');
-      expect(auditor.ruleDescriptions['font-display-missing']).toBe('@font-face sin font-display swap');
-      expect(auditor.ruleDescriptions['inline-svg-bloat']).toBe('SVG inline excesivo superando 2KB');
-      expect(auditor.ruleDescriptions['css-render-blocking']).toBe('Recurso CSS o script bloqueante en head');
-      expect(auditor.ruleDescriptions['excessive-dom-depth']).toBe('Anidamiento DOM excesivo > 16 niveles');
-      expect(auditor.ruleDescriptions['layout-shift-dimensions']).toBe('img o video sin width o height explícito');
-      expect(auditor.ruleDescriptions['uncompressed-video']).toBe('video sin preload none o formato webm');
+      expect(auditor.ruleDescriptions['unoptimized-images']).toBe(
+        'Imagen sin compresión moderna WebP'
+      );
+      expect(auditor.ruleDescriptions['font-display-missing']).toBe(
+        '@font-face sin font-display swap'
+      );
+      expect(auditor.ruleDescriptions['inline-svg-bloat']).toBe(
+        'SVG inline excesivo superando 2KB'
+      );
+      expect(auditor.ruleDescriptions['css-render-blocking']).toBe(
+        'Recurso CSS o script bloqueante en head'
+      );
+      expect(auditor.ruleDescriptions['excessive-dom-depth']).toBe(
+        'Anidamiento DOM excesivo > 16 niveles'
+      );
+      expect(auditor.ruleDescriptions['layout-shift-dimensions']).toBe(
+        'img o video sin width o height explícito'
+      );
+      expect(auditor.ruleDescriptions['uncompressed-video']).toBe(
+        'video sin preload none o formato webm'
+      );
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);
@@ -88,7 +102,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'unoptimized-images');
+      const finding = result.findings.find((f) => f.ruleId === 'unoptimized-images');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -102,7 +116,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'font-display-missing');
+      const finding = result.findings.find((f) => f.ruleId === 'font-display-missing');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -117,7 +131,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'inline-svg-bloat');
+      const finding = result.findings.find((f) => f.ruleId === 'inline-svg-bloat');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -131,7 +145,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'css-render-blocking');
+      const finding = result.findings.find((f) => f.ruleId === 'css-render-blocking');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -147,7 +161,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'excessive-dom-depth');
+      const finding = result.findings.find((f) => f.ruleId === 'excessive-dom-depth');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -161,7 +175,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'layout-shift-dimensions');
+      const finding = result.findings.find((f) => f.ruleId === 'layout-shift-dimensions');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -175,7 +189,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'uncompressed-video');
+      const finding = result.findings.find((f) => f.ruleId === 'uncompressed-video');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -197,7 +211,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === 'css-render-blocking');
+      const finding = result.findings.find((f) => f.ruleId === 'css-render-blocking');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('Hoja de estilos externa');
     });
@@ -211,7 +225,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(f => f.ruleId === 'inline-svg-bloat');
+      const finding = result.findings.find((f) => f.ruleId === 'inline-svg-bloat');
       expect(finding).toBeDefined();
     });
 
@@ -233,7 +247,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       auditor.testScanFile('src/views/NoPreload.vue', noPreloadSnippet);
 
       const result = await auditor.finishAudit();
-      const findings = result.findings.filter(f => f.ruleId === 'uncompressed-video');
+      const findings = result.findings.filter((f) => f.ruleId === 'uncompressed-video');
       expect(findings.length).toBe(2);
       expect(findings[0]?.message).toContain('formato no comprimido');
       expect(findings[1]?.message).toContain('sin preload="none" ni fuente en formato WebM');
@@ -281,7 +295,10 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       auditor.testScanFile('src/views/Compliant.vue', compliantSnippet);
 
       // Non-html/vue file should be ignored for dom depth and css render blocking
-      auditor.testScanFile('src/styles/theme.css', '<head><link rel="stylesheet" href="/x.css"></head>' + '<div>'.repeat(20));
+      auditor.testScanFile(
+        'src/styles/theme.css',
+        '<head><link rel="stylesheet" href="/x.css"></head>' + '<div>'.repeat(20)
+      );
 
       const result = await auditor.finishAudit();
       expect(result.summary.errors).toBe(0);
@@ -326,7 +343,8 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       );
 
       const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
-      const largeSvg = '<svg viewBox="0 0 1000 1000">' + '<path d="M0,0 L10,10" />'.repeat(50) + '</svg>';
+      const largeSvg =
+        '<svg viewBox="0 0 1000 1000">' + '<path d="M0,0 L10,10" />'.repeat(50) + '</svg>';
       const snippet = `<template><div>${largeSvg}</div></template>`;
 
       auditor.testScanFile('src/components/NetworkOverlay.vue', snippet);
@@ -349,7 +367,8 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       );
 
       const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
-      const snippet = '<template><img src="/tiles.webp" class="pixelated" alt="tile" decoding="async" /></template>';
+      const snippet =
+        '<template><img src="/tiles.webp" class="pixelated" alt="tile" decoding="async" /></template>';
 
       auditor.testScanFile('src/components/Tile.vue', snippet);
       const result = await auditor.finishAudit();

@@ -91,7 +91,10 @@ describe('auditorBase infrastructure', () => {
 
       await fs.writeFile(path.join(tempDir, 'src/main.ts'), 'console.log("hello");');
       await fs.writeFile(path.join(tempDir, '.agents/skills/demo/SKILL.md'), '# Skill');
-      await fs.writeFile(path.join(tempDir, 'node_modules/some-pkg/index.js'), 'module.exports = {};');
+      await fs.writeFile(
+        path.join(tempDir, 'node_modules/some-pkg/index.js'),
+        'module.exports = {};'
+      );
       await fs.writeFile(path.join(tempDir, 'AGENTS.md'), '# Global Rules');
     });
 
@@ -101,13 +104,9 @@ describe('auditorBase infrastructure', () => {
 
     it('scans single file without throwing ENOTDIR', () => {
       const singleFilePath = path.join(tempDir, 'AGENTS.md');
-      const files = collectRepositoryFiles(
-        singleFilePath,
-        tempDir,
-        [],
-        new Set(['.md']),
-        ['.agents']
-      );
+      const files = collectRepositoryFiles(singleFilePath, tempDir, [], new Set(['.md']), [
+        '.agents'
+      ]);
       expect(files).toHaveLength(1);
       expect(files[0]).toBe(singleFilePath);
     });
@@ -120,21 +119,15 @@ describe('auditorBase infrastructure', () => {
         new Set(['.ts', '.js', '.md'])
       );
       // node_modules and .agents should be ignored by default
-      const relPaths = codeFiles.map(f => path.relative(tempDir, f).replace(/\\/g, '/'));
+      const relPaths = codeFiles.map((f) => path.relative(tempDir, f).replace(/\\/g, '/'));
       expect(relPaths).toContain('src/main.ts');
       expect(relPaths).toContain('AGENTS.md');
       expect(relPaths).not.toContain('.agents/skills/demo/SKILL.md');
-      expect(relPaths.some(p => p.includes('node_modules'))).toBe(false);
+      expect(relPaths.some((p) => p.includes('node_modules'))).toBe(false);
 
       // With .agents unignored
-      const docFiles = collectRepositoryFiles(
-        tempDir,
-        tempDir,
-        [],
-        new Set(['.md']),
-        ['.agents']
-      );
-      const docRelPaths = docFiles.map(f => path.relative(tempDir, f).replace(/\\/g, '/'));
+      const docFiles = collectRepositoryFiles(tempDir, tempDir, [], new Set(['.md']), ['.agents']);
+      const docRelPaths = docFiles.map((f) => path.relative(tempDir, f).replace(/\\/g, '/'));
       expect(docRelPaths).toContain('.agents/skills/demo/SKILL.md');
       expect(docRelPaths).toContain('AGENTS.md');
     });
@@ -152,10 +145,18 @@ describe('auditorBase infrastructure', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
-      usesThirdPartyTool: false,
+            usesThirdPartyTool: false,
             ruleIds: ['test-rule'],
             ruleCapabilities: {
-              'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+              'test-rule': {
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
+                md: false,
+                ast: false,
+                changedOnly: false,
+                critical: false
+              }
             },
             ruleDescriptions: {
               'test-rule': 'Regla de test'
@@ -214,7 +215,15 @@ describe('auditorBase infrastructure', () => {
       usesThirdPartyTool: false,
       coverage: { include: ['src/**/*.ts'] },
       ruleCapabilities: {
-        dummy: { speed: 'light' as const, phase: 'normal' as const, fix: 'none' as const, md: false, ast: false, changedOnly: false, critical: false }
+        dummy: {
+          speed: 'light' as const,
+          phase: 'normal' as const,
+          fix: 'none' as const,
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
       }
     };
 
@@ -281,7 +290,15 @@ describe('auditorBase infrastructure', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+          capabilities: {
+            speed: 'light',
+            phase: 'normal',
+            fix: 'none',
+            md: false,
+            ast: false,
+            changedOnly: false,
+            critical: false
+          }
         } as never);
       }).toThrow(/passed redundant 'capabilities' to constructor options/);
     });
@@ -299,7 +316,9 @@ describe('auditorBase infrastructure', () => {
           ...validBaseOptions,
           ruleCapabilities: { dummy: { fix: 'none' } as never }
         });
-      }).toThrow(/must explicitly define 'ruleCapabilities\.dummy\.speed' as 'light' \| 'heavy' \| 'full'/);
+      }).toThrow(
+        /must explicitly define 'ruleCapabilities\.dummy\.speed' as 'light' \| 'heavy' \| 'full'/
+      );
     });
 
     it('throws when declared sub-capability is invalid or unknown', () => {
@@ -313,7 +332,9 @@ describe('auditorBase infrastructure', () => {
             }
           }
         });
-      }).toThrow(/must explicitly define 'ruleCapabilities\.dummy\.fix' as 'none' \| 'normal' \| 'priority'/);
+      }).toThrow(
+        /must explicitly define 'ruleCapabilities\.dummy\.fix' as 'none' \| 'normal' \| 'priority'/
+      );
 
       expect(() => {
         new MinimalAuditor({
@@ -335,7 +356,8 @@ describe('auditorBase infrastructure', () => {
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       };
       const auditor = new MinimalAuditor({
         ...validBaseOptions,
@@ -365,10 +387,26 @@ describe('auditorBase infrastructure', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           ruleCapabilities: {
-            'rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
-            'rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'rule-a': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            },
+            'rule-b': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           },
           ruleIds: ['rule-a', 'rule-b'],
           ruleDescriptions: {
@@ -446,7 +484,11 @@ describe('auditorBase infrastructure', () => {
         const withoutExts = deriveCoverageFromRequiredFiles(['migrations'], tempDir);
         expect(withoutExts.include).toEqual(['migrations/**']);
 
-        const withExts = deriveCoverageFromRequiredFiles(['migrations'], tempDir, new Set(['.sql']));
+        const withExts = deriveCoverageFromRequiredFiles(
+          ['migrations'],
+          tempDir,
+          new Set(['.sql'])
+        );
         expect(withExts.include).toEqual(['migrations/**/*.sql']);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
@@ -467,7 +509,7 @@ describe('auditorBase infrastructure', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
-      usesThirdPartyTool: false,
+            usesThirdPartyTool: false,
             ruleIds: ['only-rule'],
             ruleDescriptions: {
               'only-rule': 'Regla única'
@@ -477,7 +519,15 @@ describe('auditorBase infrastructure', () => {
             },
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: {
-              'only-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+              'only-rule': {
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
+                md: false,
+                ast: false,
+                changedOnly: false,
+                critical: false
+              }
             }
           });
         }
@@ -522,7 +572,15 @@ describe('auditorBase infrastructure', () => {
           ruleRemediations: { 'test-rule': 'Remediacion' },
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
-            'test-rule': { speed: ['light', 'heavy', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'test-rule': {
+              speed: ['light', 'heavy', 'full'],
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           }
         });
       }
@@ -552,17 +610,27 @@ describe('auditorBase infrastructure', () => {
       try {
         delete process.env.AUDITOR_SPEED;
         process.env.AUDITOR_PRESET = 'full';
-        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd1'))).toEqual(['--type-aware', '--full']);
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd1'))).toEqual([
+          '--type-aware',
+          '--full'
+        ]);
 
         process.env.AUDITOR_PRESET = 'lint';
-        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd2'))).toEqual(['--no-type-aware', '--light']);
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd2'))).toEqual([
+          '--no-type-aware',
+          '--light'
+        ]);
 
         delete process.env.AUDITOR_PRESET;
         process.env.AUDITOR_SPEED = 'heavy';
-        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd3'))).toEqual(['--default-arg']);
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd3'))).toEqual([
+          '--default-arg'
+        ]);
 
         delete process.env.AUDITOR_SPEED;
-        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd4'))).toEqual(['--default-arg']);
+        expect(new CommandResolutionAuditor().testResolve(createProfile('cmd4'))).toEqual([
+          '--default-arg'
+        ]);
       } finally {
         if (originalPreset !== undefined) {
           process.env.AUDITOR_PRESET = originalPreset;
@@ -578,4 +646,3 @@ describe('auditorBase infrastructure', () => {
     });
   });
 });
-

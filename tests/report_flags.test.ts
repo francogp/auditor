@@ -43,7 +43,9 @@ describe('Report Flags CLI Tool', () => {
 
     const code = runFlagsReport('/empty/dir');
     expect(code).toBe(1);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('No se encontró el binario de Fallow'));
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No se encontró el binario de Fallow')
+    );
 
     errSpy.mockRestore();
   });
@@ -75,7 +77,7 @@ describe('Report Flags CLI Tool', () => {
 
     const code = runFlagsReport(process.cwd(), { retirement: false, json: false });
     expect(code).toBe(0);
-    const allLogs = logSpy.mock.calls.map(c => c[0]).join('\n');
+    const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allLogs).toContain('No se encontraron feature flags configuradas');
 
     logSpy.mockRestore();
@@ -97,7 +99,7 @@ describe('Report Flags CLI Tool', () => {
 
     const code = runFlagsReport(process.cwd(), { retirement: false, json: false, top: 10 });
     expect(code).toBe(0);
-    const allLogs = logSpy.mock.calls.map(c => c[0]).join('\n');
+    const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allLogs).toContain('FEATURE FLAG');
     expect(allLogs).toContain('enable_new_pricing');
     expect(allLogs).toContain('dark_mode_v2');
@@ -119,7 +121,7 @@ describe('Report Flags CLI Tool', () => {
 
     const code = runFlagsReport(process.cwd(), { retirement: true, json: false });
     expect(code).toBe(0);
-    const allLogs = logSpy.mock.calls.map(c => c[0]).join('\n');
+    const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allLogs).toContain('No se detectaron feature flags candidatas a retiro');
 
     logSpy.mockRestore();
@@ -131,13 +133,38 @@ describe('Report Flags CLI Tool', () => {
         total_flags: 8,
         retirement: {
           flags: [
-            { name: 'flag_single_read', age_days: 120, read_sites: 1, reasons: ['single-read-site'] },
+            {
+              name: 'flag_single_read',
+              age_days: 120,
+              read_sites: 1,
+              reasons: ['single-read-site']
+            },
             { name: 'flag_empty_branch', age_days: 45, read_sites: 2, reasons: ['empty-branch'] },
-            { name: 'flag_literal_const', age_days: 90, read_sites: 5, reasons: ['literal-constant'] },
-            { name: 'flag_never_read', age_days: 180, read_sites: 0, reasons: ['defined-never-read'] },
-            { name: 'flag_identical_branches', age_days: 30, read_sites: 3, reasons: ['identical-branches'] },
+            {
+              name: 'flag_literal_const',
+              age_days: 90,
+              read_sites: 5,
+              reasons: ['literal-constant']
+            },
+            {
+              name: 'flag_never_read',
+              age_days: 180,
+              read_sites: 0,
+              reasons: ['defined-never-read']
+            },
+            {
+              name: 'flag_identical_branches',
+              age_days: 30,
+              read_sites: 3,
+              reasons: ['identical-branches']
+            },
             { name: 'flag_dead_code', age_days: 60, read_sites: 1, reasons: ['guards-dead-code'] },
-            { name: 'flag_rolled_out', age_days: 200, read_sites: 10, reasons: ['fully-rolled-out'] },
+            {
+              name: 'flag_rolled_out',
+              age_days: 200,
+              read_sites: 10,
+              reasons: ['fully-rolled-out']
+            },
             { name: 'flag_custom_reason', reasons: ['unknown-custom-reason'] }
           ]
         }
@@ -149,7 +176,7 @@ describe('Report Flags CLI Tool', () => {
 
     const code = runFlagsReport(process.cwd(), { retirement: true, json: false, top: 10 });
     expect(code).toBe(0);
-    const allLogs = logSpy.mock.calls.map(c => c[0]).join('\n');
+    const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allLogs).toContain('Leída en un solo sitio');
     expect(allLogs).toContain('Rama vacía');
     expect(allLogs).toContain('Constante literal');

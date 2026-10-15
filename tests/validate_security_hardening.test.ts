@@ -36,14 +36,26 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
       expect(auditor.packageName).toBe('SecHarden');
       expect(auditor.icon).toBe('🛡️');
       expect(auditor.ruleIds).toEqual([...SECURITY_HARDENING_RULES]);
-      expect(auditor.ruleDescriptions['hardcoded-secrets']).toBe('Secret o token hardcodeado en código');
-      expect(auditor.ruleDescriptions['insecure-random']).toBe('Math.random() para valores sensibles');
-      expect(auditor.ruleDescriptions['vulnerable-regex-redos']).toBe('Expresión regular vulnerable a ReDoS');
-      expect(auditor.ruleDescriptions['raw-html-injection']).toBe('Inyección HTML con v-html o innerHTML');
+      expect(auditor.ruleDescriptions['hardcoded-secrets']).toBe(
+        'Secret o token hardcodeado en código'
+      );
+      expect(auditor.ruleDescriptions['insecure-random']).toBe(
+        'Math.random() para valores sensibles'
+      );
+      expect(auditor.ruleDescriptions['vulnerable-regex-redos']).toBe(
+        'Expresión regular vulnerable a ReDoS'
+      );
+      expect(auditor.ruleDescriptions['raw-html-injection']).toBe(
+        'Inyección HTML con v-html o innerHTML'
+      );
       expect(auditor.ruleDescriptions['missing-csrf-token']).toBe('Formulario POST sin token CSRF');
-      expect(auditor.ruleDescriptions['eval-or-function-constructor']).toBe('Uso de eval() o new Function() dinámico');
+      expect(auditor.ruleDescriptions['eval-or-function-constructor']).toBe(
+        'Uso de eval() o new Function() dinámico'
+      );
       expect(auditor.ruleDescriptions['permissive-cors']).toBe("CORS permisivo con origen '*'");
-      expect(auditor.ruleDescriptions['unvalidated-redirect']).toBe('Redirección abierta sin validar ruta');
+      expect(auditor.ruleDescriptions['unvalidated-redirect']).toBe(
+        'Redirección abierta sin validar ruta'
+      );
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);
@@ -74,14 +86,16 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
   describe('Point 3: Violation Detection Path for All 8 Rules', () => {
     it('detects hardcoded-secrets when private key or bearer token is embedded', async () => {
       const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
-      const snippet = 'const token = "bearer ' + 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.signature";';
+      const snippet =
+        'const token = "bearer ' +
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.signature";';
 
       auditor.testScanFile('src/config/auth.ts', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'hardcoded-secrets');
+      const finding = result.findings.find((f) => f.ruleId === 'hardcoded-secrets');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -95,7 +109,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'insecure-random');
+      const finding = result.findings.find((f) => f.ruleId === 'insecure-random');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -109,7 +123,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'vulnerable-regex-redos');
+      const finding = result.findings.find((f) => f.ruleId === 'vulnerable-regex-redos');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -123,35 +137,37 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'raw-html-injection');
+      const finding = result.findings.find((f) => f.ruleId === 'raw-html-injection');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
 
     it('detects raw-html-injection when innerHTML receives unsanitized dynamic markup', async () => {
       const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
-      const snippet = 'const node = document.createElement("div"); node.innerHTML = userControlledContent;';
+      const snippet =
+        'const node = document.createElement("div"); node.innerHTML = userControlledContent;';
 
       auditor.testScanFile('src/components/Renderer.ts', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'raw-html-injection');
+      const finding = result.findings.find((f) => f.ruleId === 'raw-html-injection');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
 
     it('detects missing-csrf-token when form POST lacks CSRF protection', async () => {
       const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
-      const snippet = '<form action="/transfer" method="post"><button type="submit">Send</button></form>';
+      const snippet =
+        '<form action="/transfer" method="post"><button type="submit">Send</button></form>';
 
       auditor.testScanFile('src/views/Checkout.vue', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'missing-csrf-token');
+      const finding = result.findings.find((f) => f.ruleId === 'missing-csrf-token');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -165,7 +181,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'eval-or-function-constructor');
+      const finding = result.findings.find((f) => f.ruleId === 'eval-or-function-constructor');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -179,7 +195,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'permissive-cors');
+      const finding = result.findings.find((f) => f.ruleId === 'permissive-cors');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -193,7 +209,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'unvalidated-redirect');
+      const finding = result.findings.find((f) => f.ruleId === 'unvalidated-redirect');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });

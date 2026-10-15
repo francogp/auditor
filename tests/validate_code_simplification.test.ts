@@ -36,12 +36,24 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
       expect(auditor.packageName).toBe('Simplify');
       expect(auditor.icon).toBe('🧹');
       expect(auditor.ruleIds).toEqual([...CODE_SIMPLIFICATION_RULES]);
-      expect(auditor.ruleDescriptions['dead-code-accumulation']).toBe('Bloques de código muerto comentados');
-      expect(auditor.ruleDescriptions['boolean-trap-parameters']).toBe('Parámetros booleanos posicionales');
-      expect(auditor.ruleDescriptions['deep-nesting-control-flow']).toBe('Anidamiento excesivo > 4 niveles');
-      expect(auditor.ruleDescriptions['redundant-else-after-return']).toBe('Cláusula else tras return o throw');
-      expect(auditor.ruleDescriptions['premature-abstraction-wrapper']).toBe('Wrapper innecesario sin lógica');
-      expect(auditor.ruleDescriptions['massive-switch-branching']).toBe('Switch masivo con más de 10 casos');
+      expect(auditor.ruleDescriptions['dead-code-accumulation']).toBe(
+        'Bloques de código muerto comentados'
+      );
+      expect(auditor.ruleDescriptions['boolean-trap-parameters']).toBe(
+        'Parámetros booleanos posicionales'
+      );
+      expect(auditor.ruleDescriptions['deep-nesting-control-flow']).toBe(
+        'Anidamiento excesivo > 4 niveles'
+      );
+      expect(auditor.ruleDescriptions['redundant-else-after-return']).toBe(
+        'Cláusula else tras return o throw'
+      );
+      expect(auditor.ruleDescriptions['premature-abstraction-wrapper']).toBe(
+        'Wrapper innecesario sin lógica'
+      );
+      expect(auditor.ruleDescriptions['massive-switch-branching']).toBe(
+        'Switch masivo con más de 10 casos'
+      );
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);
@@ -76,32 +88,29 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
   describe('Point 3: Violation Detection Path for All 6 Rules', () => {
     it('detects dead-code-accumulation when blocks of code are commented out', async () => {
       const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
-      const snippet = [
-        '// const x = 10;',
-        '// const y = 20;',
-        '// return x + y;'
-      ].join('\n');
+      const snippet = ['// const x = 10;', '// const y = 20;', '// return x + y;'].join('\n');
 
       auditor.testScanFile('src/services/legacy.ts', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'dead-code-accumulation');
+      const finding = result.findings.find((f) => f.ruleId === 'dead-code-accumulation');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
 
     it('detects boolean-trap-parameters when signature has multiple boolean arguments', async () => {
       const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
-      const snippet = 'function sendNotification(msg: string, isUrgent: boolean, sendSms: boolean): void {}';
+      const snippet =
+        'function sendNotification(msg: string, isUrgent: boolean, sendSms: boolean): void {}';
 
       auditor.testScanFile('src/services/notifier.ts', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'boolean-trap-parameters');
+      const finding = result.findings.find((f) => f.ruleId === 'boolean-trap-parameters');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -127,7 +136,7 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'deep-nesting-control-flow');
+      const finding = result.findings.find((f) => f.ruleId === 'deep-nesting-control-flow');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -149,21 +158,22 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'redundant-else-after-return');
+      const finding = result.findings.find((f) => f.ruleId === 'redundant-else-after-return');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
 
     it('detects premature-abstraction-wrapper when function merely delegates identical arguments', async () => {
       const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
-      const snippet = 'function wrapAdd(a: number, b: number): number { return originalAdd(a, b); }';
+      const snippet =
+        'function wrapAdd(a: number, b: number): number { return originalAdd(a, b); }';
 
       auditor.testScanFile('src/services/mathWrapper.ts', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'premature-abstraction-wrapper');
+      const finding = result.findings.find((f) => f.ruleId === 'premature-abstraction-wrapper');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -178,7 +188,7 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'massive-switch-branching');
+      const finding = result.findings.find((f) => f.ruleId === 'massive-switch-branching');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });

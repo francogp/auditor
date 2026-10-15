@@ -26,11 +26,25 @@ describe('streamingRunner Core Utility', () => {
 
   describe('isNodeInternalWarning', () => {
     it('identifies Node permission and deprecation warnings correctly', () => {
-      expect(isNodeInternalWarning('(node:1234) [PERM0002] SecurityWarning: The flag --allow-child-process')).toBe(true);
-      expect(isNodeInternalWarning('(node:5678) [DEP0190] DeprecationWarning: Passing args to module loader')).toBe(true);
+      expect(
+        isNodeInternalWarning(
+          '(node:1234) [PERM0002] SecurityWarning: The flag --allow-child-process'
+        )
+      ).toBe(true);
+      expect(
+        isNodeInternalWarning(
+          '(node:5678) [DEP0190] DeprecationWarning: Passing args to module loader'
+        )
+      ).toBe(true);
       expect(isNodeInternalWarning('SecurityWarning: The flag --allow')).toBe(true);
-      expect(isNodeInternalWarning('(Use `node --trace-warnings ...` to show where the warning was created)')).toBe(true);
-      expect(isNodeInternalWarning('experimental-strip-types is an experimental feature')).toBe(true);
+      expect(
+        isNodeInternalWarning(
+          '(Use `node --trace-warnings ...` to show where the warning was created)'
+        )
+      ).toBe(true);
+      expect(isNodeInternalWarning('experimental-strip-types is an experimental feature')).toBe(
+        true
+      );
       expect(isNodeInternalWarning('   ^^^^   ')).toBe(true);
     });
 
@@ -174,7 +188,7 @@ describe('streamingRunner Core Utility', () => {
       expect(result.status).toBe(0);
       expect(result.timedOut).toBe(false);
       expect(result.stdout).toContain('Done');
-      expect(progressLines.some(l => l.includes('Step finished'))).toBe(true);
+      expect(progressLines.some((l) => l.includes('Step finished'))).toBe(true);
     });
 
     it('handles child process error gracefully', async () => {

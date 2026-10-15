@@ -42,9 +42,15 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
       expect(auditor.id).toBe('validate_dependency_vulnerabilities');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Dependencias');
-      expect(auditor.ruleDescriptions['dependency-cve-critical']).toBe('Vulnerabilidad crítica en paquete');
-      expect(auditor.ruleDescriptions['dependency-cve-high']).toBe('Vulnerabilidad de severidad alta');
-      expect(auditor.ruleDescriptions['dependency-cve-moderate']).toBe('Vulnerabilidad moderada detectada');
+      expect(auditor.ruleDescriptions['dependency-cve-critical']).toBe(
+        'Vulnerabilidad crítica en paquete'
+      );
+      expect(auditor.ruleDescriptions['dependency-cve-high']).toBe(
+        'Vulnerabilidad de severidad alta'
+      );
+      expect(auditor.ruleDescriptions['dependency-cve-moderate']).toBe(
+        'Vulnerabilidad moderada detectada'
+      );
     });
   });
 
@@ -88,16 +94,16 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
       const findings = parseNpmAuditReport(report, new Set(), 'critical');
       expect(findings).toHaveLength(3);
 
-      const criticalFinding = findings.find(f => f.ruleId === 'dependency-cve-critical');
+      const criticalFinding = findings.find((f) => f.ruleId === 'dependency-cve-critical');
       expect(criticalFinding).toBeDefined();
       expect(criticalFinding?.severity).toBe('error');
       expect(criticalFinding?.message).toContain('Critical RCE');
 
-      const highFinding = findings.find(f => f.ruleId === 'dependency-cve-high');
+      const highFinding = findings.find((f) => f.ruleId === 'dependency-cve-high');
       expect(highFinding).toBeDefined();
       expect(highFinding?.severity).toBe('warning');
 
-      const moderateFinding = findings.find(f => f.ruleId === 'dependency-cve-moderate');
+      const moderateFinding = findings.find((f) => f.ruleId === 'dependency-cve-moderate');
       expect(moderateFinding).toBeDefined();
       expect(moderateFinding?.severity).toBe('warning');
     });
@@ -161,7 +167,12 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
                 name: 'malicious-pkg',
                 severity: 'critical',
                 isDirect: true,
-                via: [{ title: 'Remote Code Execution in malicious-pkg', url: 'https://example.com/cve-test' }],
+                via: [
+                  {
+                    title: 'Remote Code Execution in malicious-pkg',
+                    url: 'https://example.com/cve-test'
+                  }
+                ],
                 range: '<1.0.0',
                 effects: []
               }
@@ -192,7 +203,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
       expect(result.summary.errors).toBe(1);
       expect(result.summary.warnings).toBe(0);
 
-      const finding = result.findings.find(f => f.ruleId === 'dependency-cve-critical');
+      const finding = result.findings.find((f) => f.ruleId === 'dependency-cve-critical');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('CRITICAL');
@@ -248,7 +259,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(1);
 
-      const finding = result.findings.find(f => f.ruleId === 'dependency-cve-moderate');
+      const finding = result.findings.find((f) => f.ruleId === 'dependency-cve-moderate');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('warning');
       expect(finding?.message).toContain('MODERATE');
@@ -304,7 +315,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
       expect(result.summary.errors).toBe(1);
       expect(result.summary.warnings).toBe(0);
 
-      const finding = result.findings.find(f => f.ruleId === 'dependency-cve-high');
+      const finding = result.findings.find((f) => f.ruleId === 'dependency-cve-high');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });

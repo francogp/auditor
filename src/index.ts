@@ -50,3 +50,6 @@ export * from './suites/architecture/validate_script_extensions.ts';
 export * from './suites/persistence/validate_valibot_parity.ts';
 export * from './core/domainTypeOxlintPlugin.ts';
 export * from './core/vitePlusConfigSync.ts';
+export * from './suites/architecture/validate_oxlint.ts';
+export * from './suites/architecture/validate_oxfmt.ts';
+export * from './suites/architecture/validate_vite_plus_config.ts';

@@ -43,7 +43,9 @@ describe('Report Guard CLI Tool', () => {
 
     const exitCode = runGuardReport('/missing/root', ['src/a.ts']);
     expect(exitCode).toBe(1);
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('No se encontró el binario de Fallow'));
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No se encontró el binario de Fallow')
+    );
 
     errSpy.mockRestore();
   });
@@ -146,7 +148,9 @@ describe('Report Guard CLI Tool', () => {
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const exitCode = runGuardReport(process.cwd(), ['src/unrestricted.ts', 'src/isolated.ts'], { json: false });
+    const exitCode = runGuardReport(process.cwd(), ['src/unrestricted.ts', 'src/isolated.ts'], {
+      json: false
+    });
     expect(exitCode).toBe(0);
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('PRE-VUELO ARQUITECTÓNICO');

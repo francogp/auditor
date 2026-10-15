@@ -15,7 +15,10 @@ export const commentStrippingDetector = createLineDetector({
     const hasManualCommentRegex =
       line.includes('replace(') &&
       (line.includes('\\/\\*') || line.includes('\\/\\/')) &&
-      (line.includes('comment') || line.includes("''") || line.includes('""') || line.includes('`'));
+      (line.includes('comment') ||
+        line.includes("''") ||
+        line.includes('""') ||
+        line.includes('`'));
 
     if (hasManualCommentRegex) {
       return "Regex casero para remover comentarios detectado. Usa la utilidad canónica 'stripComments(code)' o 'stripCommentsAndStrings(code)' de 'src/core/scannerUtils.ts'.";

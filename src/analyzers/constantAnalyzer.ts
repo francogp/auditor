@@ -11,7 +11,14 @@ import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rul
 import { SharedAstContext } from '../core/astContext.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
 import { isPathContained, toPosixRelative } from '../core/safePath.ts';
-import { getAuditConfig, isInCodeRoots, isScriptPath, isExemptFile, isDataPath, isDemoPath } from '../core/auditConfig.ts';
+import {
+  getAuditConfig,
+  isInCodeRoots,
+  isScriptPath,
+  isExemptFile,
+  isDataPath,
+  isDemoPath
+} from '../core/auditConfig.ts';
 
 export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'duplicate-constants',
@@ -21,14 +28,80 @@ export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
 };
 
 export const DEFAULT_IGNORED_CONSTANT_NAMES = [
-  'ID', 'NAME', 'TYPE', 'KEY', 'INDEX', 'COUNT', 'DEFAULT', 'SIZE', 'MAX', 'MIN',
-  'VAL', 'VALUE', 'ITEM', 'STATE', 'MODE', 'TAG', 'URL', 'PATH', 'ERR', 'ERROR',
-  'MSG', 'DATA', 'INFO', 'OPTIONS', 'CONFIG', 'RESULT', 'RES', 'REQ', 'STATUS',
-  'LEVEL', 'STEP', 'DELTA', 'WIDTH', 'HEIGHT', 'X', 'Y', 'Z', 'I', 'J', 'K',
-  'TEST', 'MOCK', 'STUB', 'DUMMY', 'VERSION', 'DESC', 'TITLE', 'LABEL', 'ICON',
-  'COLOR', 'THEME', 'STYLE', 'PROPS', 'EMITS', 'MAP', 'LIST', 'ITEMS', 'ACTIONS',
-  'TYPES', 'KEYS', 'VALUES', 'ROLES', 'MODALS', 'VIEWS', 'COMPONENTS', 'STORE',
-  'SCHEMA', 'KEY_CODES', 'REF', 'COMPOSABLE', 'PROVIDE', 'INJECT', 'SLOTS', 'SLOT'
+  'ID',
+  'NAME',
+  'TYPE',
+  'KEY',
+  'INDEX',
+  'COUNT',
+  'DEFAULT',
+  'SIZE',
+  'MAX',
+  'MIN',
+  'VAL',
+  'VALUE',
+  'ITEM',
+  'STATE',
+  'MODE',
+  'TAG',
+  'URL',
+  'PATH',
+  'ERR',
+  'ERROR',
+  'MSG',
+  'DATA',
+  'INFO',
+  'OPTIONS',
+  'CONFIG',
+  'RESULT',
+  'RES',
+  'REQ',
+  'STATUS',
+  'LEVEL',
+  'STEP',
+  'DELTA',
+  'WIDTH',
+  'HEIGHT',
+  'X',
+  'Y',
+  'Z',
+  'I',
+  'J',
+  'K',
+  'TEST',
+  'MOCK',
+  'STUB',
+  'DUMMY',
+  'VERSION',
+  'DESC',
+  'TITLE',
+  'LABEL',
+  'ICON',
+  'COLOR',
+  'THEME',
+  'STYLE',
+  'PROPS',
+  'EMITS',
+  'MAP',
+  'LIST',
+  'ITEMS',
+  'ACTIONS',
+  'TYPES',
+  'KEYS',
+  'VALUES',
+  'ROLES',
+  'MODALS',
+  'VIEWS',
+  'COMPONENTS',
+  'STORE',
+  'SCHEMA',
+  'KEY_CODES',
+  'REF',
+  'COMPOSABLE',
+  'PROVIDE',
+  'INJECT',
+  'SLOTS',
+  'SLOT'
 ] as const;
 
 export function getEffectiveIgnoredConstantNames(projectRoot?: string): ReadonlySet<string> {
@@ -102,11 +175,17 @@ function extractConstantsFromStatement(
   const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
   if (!isConst) return [];
 
-  const isExported = !!statement.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+  const isExported = !!statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
   const decls: ConstDecl[] = [];
 
   for (const decl of statement.declarationList.declarations) {
-    const constDecl = processVariableDeclaration(decl, sourceFile, filePath, isExported, ignoredNames);
+    const constDecl = processVariableDeclaration(
+      decl,
+      sourceFile,
+      filePath,
+      isExported,
+      ignoredNames
+    );
     if (constDecl) {
       decls.push(constDecl);
     }
@@ -133,7 +212,11 @@ export function extractConstantsFromSource(
   return decls;
 }
 
-function isConstantAuditCandidate(filePath: string, projectRoot: string, config: ReturnType<typeof getAuditConfig>): boolean {
+function isConstantAuditCandidate(
+  filePath: string,
+  projectRoot: string,
+  config: ReturnType<typeof getAuditConfig>
+): boolean {
   const isUnderRoot = isPathContained(projectRoot, filePath);
   const rel = toPosixRelative(projectRoot, filePath);
   if (isUnderRoot && isPathIgnored(rel)) return false;
@@ -172,7 +255,10 @@ async function collectFileConstants(
   }
 }
 
-async function getCachedFileContent(filePath: string, fileContentCache: Map<string, string>): Promise<string> {
+async function getCachedFileContent(
+  filePath: string,
+  fileContentCache: Map<string, string>
+): Promise<string> {
   const cached = fileContentCache.get(filePath);
   if (cached !== undefined) return cached;
   try {
@@ -213,8 +299,10 @@ function createConstantViolations(
   filter?: DuplicateConstantFilter
 ): Violation[] {
   const normalizedValueA = decls[0]!.valueStr.replace(/\s+/g, '');
-  const hasIdenticalValues = decls.every(d => d.valueStr.replace(/\s+/g, '') === normalizedValueA);
-  const fileList = uniqueFiles.map(f => path.relative(process.cwd(), f)).join(', ');
+  const hasIdenticalValues = decls.every(
+    (d) => d.valueStr.replace(/\s+/g, '') === normalizedValueA
+  );
+  const fileList = uniqueFiles.map((f) => path.relative(process.cwd(), f)).join(', ');
 
   const violations: Violation[] = [];
   if (hasIdenticalValues) {
@@ -226,7 +314,7 @@ function createConstantViolations(
         message: `Constante duplicada '${constName}' con valor idéntico declarada en múltiples módulos (${fileList}). DEBE modularizarse obligatoriamente en ${targetConstantsDir} para su reutilización.`,
         context: constName,
         severity: 'error',
-        fixable: false,
+        fixable: false
       });
     }
   } else {
@@ -238,7 +326,7 @@ function createConstantViolations(
         message: `Constante '${constName}' declarada con valores diferentes en múltiples módulos (${fileList}). Revisa si es un posible bug o si se debe unificar/renombrar según su subdominio.`,
         context: constName,
         severity: 'error',
-        fixable: false,
+        fixable: false
       });
     }
   }
@@ -267,12 +355,14 @@ export async function detectDuplicateConstants(
   const violations: Violation[] = [];
 
   for (const [constName, decls] of declarations.entries()) {
-    const uniqueFiles = Array.from(new Set(decls.map(d => d.file)));
+    const uniqueFiles = Array.from(new Set(decls.map((d) => d.file)));
     if (uniqueFiles.length <= 1) continue;
 
     const isCrossImported = await checkIsCrossImported(constName, uniqueFiles, fileContentCache);
     if (!isCrossImported) {
-      violations.push(...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir, filter));
+      violations.push(
+        ...createConstantViolations(constName, decls, uniqueFiles, targetConstantsDir, filter)
+      );
     }
   }
 

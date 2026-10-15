@@ -15,11 +15,7 @@ import {
   FALLOW_RULE_DESCRIPTIONS,
   mapFallowJson
 } from '../src/suites/architecture/validate_fallow.ts';
-import {
-  resetAuditConfig,
-  setAuditConfig,
-  defineAuditConfig
-} from '../src/core/auditConfig.ts';
+import { resetAuditConfig, setAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('FallowArchitectureAuditor (validate_fallow)', () => {
   let tempDir: string;
@@ -62,12 +58,14 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     });
 
     it('runs cleanly with zero errors when Fallow is disabled in config', async () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enabled: false
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enabled: false
+          }
+        })
+      );
 
       const auditor = new FallowArchitectureAuditor(tempDir);
       await auditor.runAudit();
@@ -131,7 +129,11 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
           }
         ]
       };
-      const violations = mapFallowJson('dupes', data as unknown as Parameters<typeof mapFallowJson>[1], tempDir);
+      const violations = mapFallowJson(
+        'dupes',
+        data as unknown as Parameters<typeof mapFallowJson>[1],
+        tempDir
+      );
       expect(violations).toHaveLength(2);
       expect(violations[0]!.message).toContain('(85 tokens)');
     });
@@ -139,7 +141,9 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     it('executes runFallowSubCommand with triplets command for triplicate detection', async () => {
       const auditor = new FallowArchitectureAuditor(tempDir);
       const calls: string[] = [];
-      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string) => {
+      (
+        auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
+      ).runFallowSubCommand = (cmd: string) => {
         calls.push(cmd);
         return [];
       };
@@ -153,10 +157,19 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       const data = {
         findings: [
           { path: 'src/server.ts', line: 42, rule_id: 'cwe-022', message: 'Path traversal' },
-          { path: 'src/cli/tool.ts', line: 10, rule_id: 'cwe-078', message: 'Command injection in CLI' }
+          {
+            path: 'src/cli/tool.ts',
+            line: 10,
+            rule_id: 'cwe-078',
+            message: 'Command injection in CLI'
+          }
         ]
       };
-      const violations = mapFallowJson('security', data as unknown as Parameters<typeof mapFallowJson>[1], tempDir);
+      const violations = mapFallowJson(
+        'security',
+        data as unknown as Parameters<typeof mapFallowJson>[1],
+        tempDir
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]!.ruleId).toBe('fallow-security-cwe');
       expect(violations[0]!.message).toContain('Path traversal');
@@ -170,8 +183,8 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         unused_exports: [{ path: 'src/math.ts', export_name: 'oldCalc', line: 15 }]
       };
       const violations = mapFallowJson('dead-code', data, tempDir);
-      expect(violations.some(v => v.ruleId === 'fallow-unused-files')).toBe(true);
-      expect(violations.some(v => v.ruleId === 'fallow-unused-exports')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-unused-files')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-unused-exports')).toBe(true);
     });
 
     it('maps circular dependencies and boundary violations', () => {
@@ -180,8 +193,8 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         boundary_violations: [{ path: 'src/core/a.ts', line: 10, message: 'Cross-boundary import' }]
       };
       const violations = mapFallowJson('dead-code', data, tempDir);
-      expect(violations.some(v => v.ruleId === 'fallow-circular-dependencies')).toBe(true);
-      expect(violations.some(v => v.ruleId === 'fallow-boundary-violations')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-circular-dependencies')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-boundary-violations')).toBe(true);
     });
 
     it('maps unused package dependencies and workspace diagnostics', () => {
@@ -190,8 +203,8 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         workspace_diagnostics: [{ kind: 'unresolved-package', message: 'Missing type definition' }]
       };
       const violations = mapFallowJson('dead-code', data, tempDir);
-      expect(violations.some(v => v.ruleId === 'fallow-unused-dependencies')).toBe(true);
-      expect(violations.some(v => v.ruleId === 'fallow-workspace-diagnostic')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-unused-dependencies')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-workspace-diagnostic')).toBe(true);
     });
 
     it('maps stale suppressions as error severity', () => {
@@ -199,7 +212,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         stale_suppressions: [{ path: 'src/old.ts', line: 10, message: 'Unneeded suppression' }]
       };
       const violations = mapFallowJson('dead-code', data, tempDir);
-      expect(violations.some(v => v.ruleId === 'fallow-stale-suppressions')).toBe(true);
+      expect(violations.some((v) => v.ruleId === 'fallow-stale-suppressions')).toBe(true);
     });
   });
 
@@ -207,12 +220,16 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     it('executes runFallowSubCommand with health and ["--targets"] argument to prevent design bug where targets were omitted', async () => {
       const auditor = new FallowArchitectureAuditor(tempDir);
       const subcommands: Array<{ cmd: string; args?: readonly string[] }> = [];
-      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: readonly string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: readonly string[]) => {
+      (
+        auditor as unknown as {
+          runFallowSubCommand: (cmd: string, args?: readonly string[]) => unknown;
+        }
+      ).runFallowSubCommand = (cmd: string, args?: readonly string[]) => {
         subcommands.push({ cmd, args });
         return [];
       };
       await auditor.runAudit();
-      const healthCall = subcommands.find(c => c.cmd === 'health');
+      const healthCall = subcommands.find((c) => c.cmd === 'health');
       expect(healthCall).toBeDefined();
       expect(healthCall?.args).toContain('--targets');
     });
@@ -220,8 +237,20 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     it('ignores raw micro-complexity findings and produces zero violations for metric breaching functions', () => {
       const data = {
         findings: [
-          { path: 'src/complex.ts', line: 20, name: 'heavyFunc', exceeded: 'cognitive', cognitive: 25 },
-          { path: 'src/branchy.ts', line: 50, name: 'switchFunc', exceeded: 'cyclomatic', cyclomatic: 30 },
+          {
+            path: 'src/complex.ts',
+            line: 20,
+            name: 'heavyFunc',
+            exceeded: 'cognitive',
+            cognitive: 25
+          },
+          {
+            path: 'src/branchy.ts',
+            line: 50,
+            name: 'switchFunc',
+            exceeded: 'cyclomatic',
+            cyclomatic: 30
+          },
           { path: 'src/large.ts', line: 80, name: 'largeFunc', line_count: 120 }
         ]
       };
@@ -238,13 +267,15 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     });
 
     it('enforces refactoring targets when config.fallow.enforceTargets is true', () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 'high'
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'high'
+          }
+        })
+      );
 
       const data = {
         targets: [
@@ -253,7 +284,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         ]
       };
       const violations = mapFallowJson('health', data, tempDir);
-      const targetViolations = violations.filter(v => v.ruleId === 'fallow-refactoring-targets');
+      const targetViolations = violations.filter((v) => v.ruleId === 'fallow-refactoring-targets');
       expect(targetViolations).toHaveLength(1);
       expect(targetViolations[0]!.message).toContain('Extract submodules');
       expect(targetViolations[0]!.severity).toBe('error');
@@ -261,13 +292,15 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
     it('filters refactoring targets based on maxTargetPriority thresholds', () => {
       // 1. Critical threshold (>= 30)
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 'critical'
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'critical'
+          }
+        })
+      );
 
       const sampleData = {
         targets: [
@@ -280,13 +313,15 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(criticalViolations[0]!.message).toContain('Split critical file');
 
       // 2. All threshold (>= 1)
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 'all'
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'all'
+          }
+        })
+      );
       const allViolations = mapFallowJson('health', sampleData, tempDir);
       expect(allViolations).toHaveLength(2);
 
@@ -299,83 +334,94 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
           { path: 'src/low.ts', priority: 7, recommendation: 'Low file' }
         ]
       };
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 'medium'
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'medium'
+          }
+        })
+      );
       const mediumViolations = mapFallowJson('health', tieredData, tempDir);
       expect(mediumViolations).toHaveLength(3);
 
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 'moderate'
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'moderate'
+          }
+        })
+      );
       const moderateViolations = mapFallowJson('health', tieredData, tempDir);
       expect(moderateViolations).toHaveLength(3);
 
       // 4. Low threshold (>= 5)
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 'low'
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 'low'
+          }
+        })
+      );
       const lowViolations = mapFallowJson('health', tieredData, tempDir);
       expect(lowViolations).toHaveLength(4);
 
       // 5. Custom numeric threshold (e.g. 20)
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: true,
-          maxTargetPriority: 20
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: true,
+            maxTargetPriority: 20
+          }
+        })
+      );
       const numericViolations = mapFallowJson('health', tieredData, tempDir);
       expect(numericViolations).toHaveLength(2);
     });
 
-
     it('bypasses refactoring targets when config.fallow.enforceTargets is false', () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          enforceTargets: false
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            enforceTargets: false
+          }
+        })
+      );
 
       const data = {
-        targets: [
-          { path: 'src/monolith.ts', priority: 35, recommendation: 'Major rewrite' }
-        ]
+        targets: [{ path: 'src/monolith.ts', priority: 35, recommendation: 'Major rewrite' }]
       };
       const violations = mapFallowJson('health', data, tempDir);
-      expect(violations.filter(v => v.ruleId === 'fallow-refactoring-targets')).toHaveLength(0);
+      expect(violations.filter((v) => v.ruleId === 'fallow-refactoring-targets')).toHaveLength(0);
     });
   });
 
   describe('Fallow Modern Capabilities & Flags Dispatching', () => {
     it('dispatches --dupes-near and --dupes-mode when configured in fallow.duplicates', async () => {
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          duplicates: {
-            nearMiss: true,
-            mode: 'semantic'
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            duplicates: {
+              nearMiss: true,
+              mode: 'semantic'
+            }
           }
-        }
-      }));
+        })
+      );
 
       const auditor = new FallowArchitectureAuditor(tempDir);
       const dispatchedArgs: Record<string, string[]> = {};
-      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+      (
+        auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
+      ).runFallowSubCommand = (cmd: string, args?: string[]) => {
         dispatchedArgs[cmd] = args || [];
         return [];
       };
@@ -391,20 +437,24 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     it('dispatches --type-aware and --show-cascade in full speed mode when tsconfig.json exists on disk', async () => {
       await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
 
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          typeAware: true,
-          showCascade: true
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            typeAware: true,
+            showCascade: true
+          }
+        })
+      );
 
       const prevSpeed = process.env.AUDITOR_SPEED;
       process.env.AUDITOR_SPEED = 'full';
       try {
         const auditor = new FallowArchitectureAuditor(tempDir);
         const dispatchedArgs: Record<string, string[]> = {};
-        (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+        (
+          auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
+        ).runFallowSubCommand = (cmd: string, args?: string[]) => {
           dispatchedArgs[cmd] = args || [];
           return [];
         };
@@ -427,7 +477,11 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       // 1. Without tsconfig.json
       const auditorWithoutTs = new FallowArchitectureAuditor(tempDir);
       const argsWithoutTs: Record<string, string[]> = {};
-      (auditorWithoutTs as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+      (
+        auditorWithoutTs as unknown as {
+          runFallowSubCommand: (cmd: string, args?: string[]) => unknown;
+        }
+      ).runFallowSubCommand = (cmd: string, args?: string[]) => {
         argsWithoutTs[cmd] = args || [];
         return [];
       };
@@ -436,15 +490,21 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
       // 2. With tsconfig.json but typeAware: false
       await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
-      setAuditConfig(defineAuditConfig({
-        name: 'validate-fallow-test',
-        fallow: {
-          typeAware: false
-        }
-      }));
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'validate-fallow-test',
+          fallow: {
+            typeAware: false
+          }
+        })
+      );
       const auditorWithDisabled = new FallowArchitectureAuditor(tempDir);
       const argsWithDisabled: Record<string, string[]> = {};
-      (auditorWithDisabled as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+      (
+        auditorWithDisabled as unknown as {
+          runFallowSubCommand: (cmd: string, args?: string[]) => unknown;
+        }
+      ).runFallowSubCommand = (cmd: string, args?: string[]) => {
         argsWithDisabled[cmd] = args || [];
         return [];
       };
@@ -459,7 +519,9 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
       const auditor = new FallowArchitectureAuditor(tempDir);
       const dispatchedArgs: Record<string, string[]> = {};
-      (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string, args?: string[]) => {
+      (
+        auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
+      ).runFallowSubCommand = (cmd: string, args?: string[]) => {
         dispatchedArgs[cmd] = args || [];
         return [];
       };
@@ -481,7 +543,9 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         expect(auditor.isFastMode()).toBe(true);
 
         const dispatchedCommands: string[] = [];
-        (auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }).runFallowSubCommand = (cmd: string) => {
+        (
+          auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
+        ).runFallowSubCommand = (cmd: string) => {
           dispatchedCommands.push(cmd);
           return [];
         };

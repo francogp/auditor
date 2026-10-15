@@ -24,17 +24,19 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const tasks = await discoverAuditors({ speed: 'light' });
     const presetTasks = await discoverAuditors({ preset: 'lint' });
     expect(tasks.length).toBeGreaterThan(0);
-    expect(tasks.map(t => t.id).sort()).toEqual(presetTasks.map(t => t.id).sort());
+    expect(tasks.map((t) => t.id).sort()).toEqual(presetTasks.map((t) => t.id).sort());
 
     for (const task of tasks) {
       expect(task.id).not.toBe('validate_bundle_budget');
       expect(task.id).not.toBe('validate_package_distribution');
       if (!task.capabilities?.critical) {
-        expect(resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' })).toBe('light');
+        expect(resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' })).toBe(
+          'light'
+        );
       }
     }
 
-    const taskIds = tasks.map(t => t.id);
+    const taskIds = tasks.map((t) => t.id);
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_fallow');
     expect(taskIds).toContain('validate_oxlint');
@@ -48,13 +50,15 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const criticalTasks = await discoverAuditors({ preset: 'critical' });
     const onlyCriticalTasks = await discoverAuditors({ onlyCritical: true });
     expect(criticalTasks.length).toBeGreaterThan(0);
-    expect(criticalTasks.map(t => t.id).sort()).toEqual(onlyCriticalTasks.map(t => t.id).sort());
+    expect(criticalTasks.map((t) => t.id).sort()).toEqual(
+      onlyCriticalTasks.map((t) => t.id).sort()
+    );
 
     for (const task of criticalTasks) {
       expect(task.capabilities?.critical).toBe(true);
     }
 
-    const taskIds = criticalTasks.map(t => t.id);
+    const taskIds = criticalTasks.map((t) => t.id);
     expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_type_check');
     expect(taskIds).toContain('validate_stylelint');
@@ -69,7 +73,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const tasks = await discoverAuditors({});
     expect(tasks.length).toBeGreaterThan(30);
 
-    const taskIds = tasks.map(t => t.id);
+    const taskIds = tasks.map((t) => t.id);
     // Post-build suites must NOT be present in pre-build general audit
     expect(taskIds).not.toContain('validate_bundle_budget');
     expect(taskIds).not.toContain('validate_package_distribution');
@@ -84,9 +88,9 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
   it('includes full-speed suites when speed=full or preset=full is specified', async () => {
     const fullTasks = await discoverAuditors({ speed: 'full' });
     const presetFullTasks = await discoverAuditors({ preset: 'full' });
-    expect(fullTasks.map(t => t.id).sort()).toEqual(presetFullTasks.map(t => t.id).sort());
+    expect(fullTasks.map((t) => t.id).sort()).toEqual(presetFullTasks.map((t) => t.id).sort());
 
-    const taskIds = fullTasks.map(t => t.id);
+    const taskIds = fullTasks.map((t) => t.id);
     expect(taskIds).toContain('validate_fallow');
     expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_similar_code');
@@ -99,7 +103,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     for (const task of onlyHeavy) {
       expect(resolveEffectiveSpeed(task.capabilities?.speed, { onlySpeed: 'heavy' })).toBe('heavy');
     }
-    const heavyIds = onlyHeavy.map(t => t.id);
+    const heavyIds = onlyHeavy.map((t) => t.id);
     expect(heavyIds).toContain('validate_type_coverage');
     expect(heavyIds).toContain('validate_similar_code');
     expect(heavyIds).not.toContain('validate_stylelint');
@@ -109,14 +113,14 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     for (const task of onlyFull) {
       expect(resolveEffectiveSpeed(task.capabilities?.speed, { onlySpeed: 'full' })).toBe('full');
     }
-    expect(onlyFull.map(t => t.id)).toContain('validate_fallow');
+    expect(onlyFull.map((t) => t.id)).toContain('validate_fallow');
   });
 
   it('discovers exclusively post-build suites when phase=post-build is specified', async () => {
     const tasks = await discoverAuditors({ phase: 'post-build' });
     expect(tasks.length).toBeGreaterThanOrEqual(2);
 
-    const taskIds = tasks.map(t => t.id);
+    const taskIds = tasks.map((t) => t.id);
     expect(taskIds).toContain('validate_bundle_budget');
     expect(taskIds).toContain('validate_package_distribution');
 
@@ -136,7 +140,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
   it('includes both source and build suites when withBuild=true is explicitly requested', async () => {
     const tasks = await discoverAuditors({ withBuild: true });
-    const taskIds = tasks.map(t => t.id);
+    const taskIds = tasks.map((t) => t.id);
     expect(taskIds).toContain('validate_bundle_budget');
     expect(taskIds).toContain('validate_package_distribution');
     expect(taskIds).toContain('validate_oxlint');
@@ -170,9 +174,33 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
           },
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
-            'r-light': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
-            'r-heavy': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
-            'r-multi': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'r-light': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            },
+            'r-heavy': {
+              speed: 'heavy',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            },
+            'r-multi': {
+              speed: ['light', 'full'],
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           }
         });
       }

@@ -166,7 +166,9 @@ describe('report_similar_code CLI', () => {
 
     runSimilarCodeReport();
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('No se detectaron duplicados semánticos'));
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No se detectaron duplicados semánticos')
+    );
 
     logSpy.mockRestore();
   });
@@ -178,8 +180,16 @@ describe('report_similar_code CLI', () => {
       candidates: [
         {
           similarity: 0.96,
-          left: { path: 'src/utils/very_long_file_name_left.ts', name: 'veryLongFunctionNameLeftA', start_line: 10 },
-          right: { path: 'src/utils/very_long_file_name_right.ts', name: 'veryLongFunctionNameRightB', start_line: 25 }
+          left: {
+            path: 'src/utils/very_long_file_name_left.ts',
+            name: 'veryLongFunctionNameLeftA',
+            start_line: 10
+          },
+          right: {
+            path: 'src/utils/very_long_file_name_right.ts',
+            name: 'veryLongFunctionNameRightB',
+            start_line: 25
+          }
         }
       ]
     };
@@ -190,7 +200,9 @@ describe('report_similar_code CLI', () => {
     runSimilarCodeReport();
 
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('CANDIDATOS DETECTADOS'));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Total de pares semánticos detectados: 1'));
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Total de pares semánticos detectados: 1')
+    );
 
     logSpy.mockRestore();
   });

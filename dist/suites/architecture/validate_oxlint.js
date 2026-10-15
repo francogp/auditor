@@ -1,8 +1,7 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath, parseJsonObjectOutput, parseLintResultsToFindings } from "../../core/reportUtils.js";
-import "../../core/auditConfig.js";
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 //#region src/suites/architecture/validate_oxlint.ts
@@ -108,26 +107,14 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			ruleRemediations: { "oxlint-violation": "Guía de diagnóstico y remediación para oxlint-violation. Revisa la incidencia reportada por Vite+ (Oxlint) y ajusta el código correspondiente." },
 			coverage: {
 				include: ["**/*.{js,ts,mjs,cjs,vue}"],
-				exclude: [
-					"node_modules/**",
-					"dist/**",
-					"scratch/**",
-					".agents/**",
-					...getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []
-				],
+				exclude: getVitePlusDefaultExcludeGlobs(effectiveRoot),
 				source: "declared-only"
 			},
 			projectRoot: effectiveRoot
 		});
 	}
 	async runAudit() {
-		const excludeGlobs = [
-			"node_modules/**",
-			"dist/**",
-			"scratch/**",
-			".agents/**",
-			...getAuditConfig(this.projectRoot).paths.ignoreGlobs ?? []
-		];
+		const excludeGlobs = getVitePlusDefaultExcludeGlobs(this.projectRoot);
 		this.redeclareCoverage({
 			include: ["**/*.{js,ts,mjs,cjs,vue}"],
 			exclude: excludeGlobs,

@@ -147,7 +147,8 @@ function parseAuditConfigFileAst(
 ): { code: string; source: ts.SourceFile; configObj: ts.ObjectLiteralExpression | null } | null {
   try {
     const code = fs.readFileSync(configFilePath, 'utf8');
-    const source = ts.createSourceFile( // homebrew-ok: in-place AST configuration rewrite
+    // homebrew-ok: in-place AST configuration rewrite
+    const source = ts.createSourceFile(
       configFilePath,
       code,
       ts.ScriptTarget.Latest,
@@ -770,7 +771,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
 
       text = text.replace(/(^|\s)eslint\s*:/g, '$1oxlint:');
       if (!text.includes('vitePlusConfig:')) {
-        text = text.replace(/oxlint\s*:\s*\{[^}]*\},?/, (m) => `${m}\n  vitePlusConfig: { enabled: true },`);
+        text = text.replace(
+          /oxlint\s*:\s*\{[^}]*\},?/,
+          (m) => `${m}\n  vitePlusConfig: { enabled: true },`
+        );
       }
       fs.writeFileSync(configFilePath, text, 'utf-8');
       return true;

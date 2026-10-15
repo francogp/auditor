@@ -15,7 +15,9 @@ import {
 } from '../src/core/auditContract.ts';
 
 describe('Audit Metadata & Anti-Staleness Contract', () => {
-  const createMockReport = (overrides: Partial<AuditRunMetadata> = {}): ConsolidatedAuditReport => ({
+  const createMockReport = (
+    overrides: Partial<AuditRunMetadata> = {}
+  ): ConsolidatedAuditReport => ({
     meta: {
       version: '2.0.0',
       timestamp: Temporal.Now.instant().toString(),
@@ -55,17 +57,20 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
 
   describe('assertAuditorExecuted', () => {
     it('throws when report is null or undefined', () => {
-      expect(() => assertAuditorExecuted(null, 'audit_project', 'TestConsumer'))
-        .toThrowError(/no contiene la cabecera de metadatos 'meta'/);
+      expect(() => assertAuditorExecuted(null, 'audit_project', 'TestConsumer')).toThrowError(
+        /no contiene la cabecera de metadatos 'meta'/
+      );
 
-      expect(() => assertAuditorExecuted(undefined, 'audit_project', 'TestConsumer'))
-        .toThrowError(/no contiene la cabecera de metadatos 'meta'/);
+      expect(() => assertAuditorExecuted(undefined, 'audit_project', 'TestConsumer')).toThrowError(
+        /no contiene la cabecera de metadatos 'meta'/
+      );
     });
 
     it('throws when report.meta is missing', () => {
       const corruptReport = { status: 'passed' as const };
-      expect(() => assertAuditorExecuted(corruptReport, 'audit_project', 'TestConsumer'))
-        .toThrowError(/no contiene la cabecera de metadatos 'meta'/);
+      expect(() =>
+        assertAuditorExecuted(corruptReport, 'audit_project', 'TestConsumer')
+      ).toThrowError(/no contiene la cabecera de metadatos 'meta'/);
     });
 
     it('throws when suite was omitted in a partial audit (runMode: preset)', () => {
@@ -78,8 +83,11 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
         omittedSuites: ['audit_project', 'validate_domain_types']
       });
 
-      expect(() => assertAuditorExecuted(partialReport, 'audit_project', 'ComplexityReport'))
-        .toThrowError(/\[ComplexityReport\] La suite requerida 'audit_project' NO fue ejecutada en la última auditoría/);
+      expect(() =>
+        assertAuditorExecuted(partialReport, 'audit_project', 'ComplexityReport')
+      ).toThrowError(
+        /\[ComplexityReport\] La suite requerida 'audit_project' NO fue ejecutada en la última auditoría/
+      );
     });
 
     it('throws when suite is not in executedSuites even if omittedSuites is empty', () => {
@@ -90,30 +98,41 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
         omittedSuites: []
       });
 
-      expect(() => assertAuditorExecuted(report, 'audit_project', 'FallowReport'))
-        .toThrowError(/\[FallowReport\] La suite requerida 'audit_project' NO fue ejecutada/);
+      expect(() => assertAuditorExecuted(report, 'audit_project', 'FallowReport')).toThrowError(
+        /\[FallowReport\] La suite requerida 'audit_project' NO fue ejecutada/
+      );
     });
 
     it('throws when report timestamp is older than 5 minutes (stale audit)', () => {
       const sixMinutesAgo = Temporal.Now.instant().subtract({ minutes: 6 }).toString();
       const staleReport = createMockReport({ timestamp: sixMinutesAgo });
 
-      expect(() => assertAuditorExecuted(staleReport, 'audit_project', 'ComplexityReport'))
-        .toThrowError(/\[ComplexityReport\] scratch\/audits\/latest_audit\.json está OBSOLETO \(6 minutos de antigüedad, límite: 5 min\)/);
+      expect(() =>
+        assertAuditorExecuted(staleReport, 'audit_project', 'ComplexityReport')
+      ).toThrowError(
+        /\[ComplexityReport\] scratch\/audits\/latest_audit\.json está OBSOLETO \(6 minutos de antigüedad, límite: 5 min\)/
+      );
     });
 
     it('allows stale report if allowStale option is explicitly set to true', () => {
       const tenMinutesAgo = Temporal.Now.instant().subtract({ minutes: 10 }).toString();
       const staleReport = createMockReport({ timestamp: tenMinutesAgo });
 
-      expect(() => assertAuditorExecuted(staleReport, 'audit_project', 'ComplexityReport', { allowStale: true }))
-        .not.toThrow();
+      expect(() =>
+        assertAuditorExecuted(staleReport, 'audit_project', 'ComplexityReport', {
+          allowStale: true
+        })
+      ).not.toThrow();
     });
 
     it('succeeds without throwing when suite was executed and is not omitted', () => {
       const fullReport = createMockReport();
-      expect(() => assertAuditorExecuted(fullReport, 'audit_project', 'ComplexityReport')).not.toThrow();
-      expect(() => assertAuditorExecuted(fullReport, 'validate_domain_types', 'DomainTypesChecker')).not.toThrow();
+      expect(() =>
+        assertAuditorExecuted(fullReport, 'audit_project', 'ComplexityReport')
+      ).not.toThrow();
+      expect(() =>
+        assertAuditorExecuted(fullReport, 'validate_domain_types', 'DomainTypesChecker')
+      ).not.toThrow();
     });
   });
 });

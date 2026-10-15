@@ -76,7 +76,9 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
   describe('generateBuildId', () => {
     it('generates deterministic buildId from custom Temporal date', () => {
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T15:30:45-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-02T15:30:45-03:00[America/Buenos_Aires]'
+      );
       const { buildId, buildDate } = generateBuildId(fixedDate);
 
       expect(buildId).toBe('20261002-153045');
@@ -86,7 +88,11 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
   describe('analyzeVersionBump heuristics', () => {
     it('recommends major when conventional commit indicates breaking change', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.2.0' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ version: '1.2.0' }),
+        'utf-8'
+      );
 
       const analysis = analyzeVersionBump({
         cwd: tempDir,
@@ -100,7 +106,11 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     });
 
     it('recommends minor when conventional commit has feat prefix', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.2.0' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ version: '1.2.0' }),
+        'utf-8'
+      );
 
       const analysis = analyzeVersionBump({
         cwd: tempDir,
@@ -112,7 +122,11 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     });
 
     it('recommends patch for maintenance or fix commits with small diffs', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.2.0' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ version: '1.2.0' }),
+        'utf-8'
+      );
 
       const analysis = analyzeVersionBump({
         cwd: tempDir,
@@ -124,8 +138,14 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     });
 
     it('calculates all candidates (major, minor, patch, build) stamped with the exact same buildId', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ version: '1.2.0-build.20261001-000000' }), 'utf-8');
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-08T12:00:00-03:00[America/Buenos_Aires]');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ version: '1.2.0-build.20261001-000000' }),
+        'utf-8'
+      );
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-08T12:00:00-03:00[America/Buenos_Aires]'
+      );
 
       const analysis = analyzeVersionBump({
         cwd: tempDir,
@@ -143,9 +163,15 @@ describe('Version Analyzer & SemVer Heuristics', () => {
   describe('applyVersionBump hermetic sandboxing', () => {
     it('applies version bump and writes package.json and version.ts for @francogp/auditor', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: '@francogp/auditor', version: '1.0.0' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T18:00:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-02T18:00:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'minor',
@@ -164,15 +190,23 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       // Verify version.ts created on disk
       expect(fs.existsSync(result.versionTsPath)).toBe(true);
       const versionTsContent = fs.readFileSync(result.versionTsPath, 'utf-8');
-      expect(versionTsContent).toContain("export const AUDITOR_VERSION = '1.1.0-build.20261002-180000';");
+      expect(versionTsContent).toContain(
+        "export const AUDITOR_VERSION = '1.1.0-build.20261002-180000';"
+      );
       expect(versionTsContent).toContain("export const AUDITOR_BUILD_ID = '20261002-180000';");
     });
 
     it('does not create version.ts for consumer host projects when unconfigured', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'consumer-app', version: '1.0.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'consumer-app', version: '1.0.0' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T18:00:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-02T18:00:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'minor',
@@ -185,9 +219,15 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
     it('honors major bump override', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'my-project', version: '1.4.2' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'my-project', version: '1.4.2' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T18:00:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-02T18:00:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'major',
@@ -200,9 +240,15 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
     it('honors patch bump override', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'my-project', version: '2.0.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'my-project', version: '2.0.0' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-02T18:00:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-02T18:00:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'patch',
@@ -215,9 +261,15 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
     it('honors build bump override preserving base semver and updating build timestamp', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'my-project', version: '2.5.3-build.20261001-080000' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'my-project', version: '2.5.3-build.20261001-080000' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-08T15:45:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-08T15:45:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'build',
@@ -234,14 +286,24 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
     it('automatically synchronizes public/version.json preserving v prefix when it exists', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'pokeborrador-host', version: '0.6.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'pokeborrador-host', version: '0.6.0' }, null, 2),
+        'utf-8'
+      );
 
       const publicDir = path.join(tempDir, 'public');
       fs.mkdirSync(publicDir, { recursive: true });
       const versionJsonPath = path.join(publicDir, 'version.json');
-      fs.writeFileSync(versionJsonPath, JSON.stringify({ version: 'v0.6.0-build.20261002-172710' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        versionJsonPath,
+        JSON.stringify({ version: 'v0.6.0-build.20261002-172710' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-04T02:30:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-04T02:30:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'patch',
@@ -257,9 +319,15 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
     it('synchronizes custom JSON and TS targets specified in syncTargets', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'custom-app', version: '1.0.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'custom-app', version: '1.0.0' }, null, 2),
+        'utf-8'
+      );
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-04T02:30:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-04T02:30:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'minor',
@@ -282,19 +350,27 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       const tsPath = path.join(tempDir, 'src/config/appVersion.ts');
       expect(fs.existsSync(tsPath)).toBe(true);
       const tsContent = fs.readFileSync(tsPath, 'utf-8');
-      expect(tsContent).toContain("export const CURRENT_APP_VERSION = '1.1.0-build.20261004-023000';");
+      expect(tsContent).toContain(
+        "export const CURRENT_APP_VERSION = '1.1.0-build.20261004-023000';"
+      );
     });
 
     it('respects autoSyncPublicVersionJson: false', () => {
       const pkgPath = path.join(tempDir, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'no-sync-app', version: '1.0.0' }, null, 2), 'utf-8');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'no-sync-app', version: '1.0.0' }, null, 2),
+        'utf-8'
+      );
 
       const publicDir = path.join(tempDir, 'public');
       fs.mkdirSync(publicDir, { recursive: true });
       const versionJsonPath = path.join(publicDir, 'version.json');
       fs.writeFileSync(versionJsonPath, JSON.stringify({ version: 'v1.0.0' }, null, 2), 'utf-8');
 
-      const fixedDate = Temporal.ZonedDateTime.from('2026-10-04T02:30:00-03:00[America/Buenos_Aires]');
+      const fixedDate = Temporal.ZonedDateTime.from(
+        '2026-10-04T02:30:00-03:00[America/Buenos_Aires]'
+      );
       const result = applyVersionBump({
         cwd: tempDir,
         bumpType: 'patch',
@@ -334,8 +410,8 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       const metrics = collectGitDiffMetrics(tempDir);
       expect(metrics.filesChanged).toBeGreaterThanOrEqual(1);
-      expect(metrics.changedFiles.some(f => f.path === 'initial.txt')).toBe(true);
-      expect(metrics.changedFiles.some(f => f.path === 'new.txt')).toBe(true);
+      expect(metrics.changedFiles.some((f) => f.path === 'initial.txt')).toBe(true);
+      expect(metrics.changedFiles.some((f) => f.path === 'new.txt')).toBe(true);
     });
   });
 
@@ -351,7 +427,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
         runBumpCli(['-v']);
         runBumpCli(['--version']);
         expect(logs.length).toBe(3);
-        expect(logs.every(l => l.includes('@francogp/auditor'))).toBe(true);
+        expect(logs.every((l) => l.includes('@francogp/auditor'))).toBe(true);
       } finally {
         logSpy.mockRestore();
       }
@@ -365,10 +441,10 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['analyze', '--json']);
-        expect(logs.some(l => l.includes('"recommendedBump"'))).toBe(true);
+        expect(logs.some((l) => l.includes('"recommendedBump"'))).toBe(true);
 
         runBumpCli(['analyze']);
-        expect(logs.some(l => l.includes('ANÁLISIS HEURÍSTICO'))).toBe(true);
+        expect(logs.some((l) => l.includes('ANÁLISIS HEURÍSTICO'))).toBe(true);
       } finally {
         logSpy.mockRestore();
       }
@@ -382,7 +458,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['unknown-command']);
-        expect(logs.some(l => l.includes('Comando no reconocido: unknown-command'))).toBe(true);
+        expect(logs.some((l) => l.includes('Comando no reconocido: unknown-command'))).toBe(true);
       } finally {
         logSpy.mockRestore();
       }
@@ -396,19 +472,19 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['--help']);
-        expect(logs.some(l => l.includes('Gestor SemVer'))).toBe(true);
+        expect(logs.some((l) => l.includes('Gestor SemVer'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['-h']);
-        expect(logs.some(l => l.includes('Gestor SemVer'))).toBe(true);
+        expect(logs.some((l) => l.includes('Gestor SemVer'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['bump', '--help']);
-        expect(logs.some(l => l.includes('auditor-version bump [tipo]'))).toBe(true);
+        expect(logs.some((l) => l.includes('auditor-version bump [tipo]'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['analyze', '--help']);
-        expect(logs.some(l => l.includes('auditor-version analyze'))).toBe(true);
+        expect(logs.some((l) => l.includes('auditor-version analyze'))).toBe(true);
       } finally {
         logSpy.mockRestore();
       }
@@ -423,7 +499,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['bump', 'invalid-type']);
-        expect(errors.some(e => e.includes('Tipo de salto no reconocido'))).toBe(true);
+        expect(errors.some((e) => e.includes('Tipo de salto no reconocido'))).toBe(true);
         expect(process.exitCode).toBe(1);
       } finally {
         errorSpy.mockRestore();
@@ -432,7 +508,11 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     });
 
     it('applies an explicit targetVersion when provided', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test-pkg', version: '4.6.2' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'test-pkg', version: '4.6.2' }),
+        'utf-8'
+      );
 
       const result = applyVersionBump({
         cwd: tempDir,
@@ -445,7 +525,11 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     });
 
     it('accepts build as a valid CLI bump type in positional and --type flags', () => {
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test-pkg', version: '3.1.4-build.20261001-000000' }), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'test-pkg', version: '3.1.4-build.20261001-000000' }),
+        'utf-8'
+      );
 
       const origCwd = process.cwd();
       try {
@@ -464,6 +548,3 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     });
   });
 });
-
-
-

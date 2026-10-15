@@ -115,7 +115,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
           .to('.card', { opacity: 1, scrollTrigger: { trigger: '.card' } });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-in-timeline-child');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-in-timeline-child'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -131,7 +133,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
         });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-scrub-and-toggle');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-scrub-and-toggle'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -147,7 +151,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
         });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-markers-production');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-markers-production'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -159,7 +165,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
         `gsap.to('.hero-banner', { pin: true, x: 200, duration: 1 });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-animating-pinned-element');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-animating-pinned-element'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -175,7 +183,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
         });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-container-animation-ease');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-container-animation-ease'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -189,7 +199,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
         `tl.to('.card', { opacity: 1, scrollTrigger: { trigger: '.card' } }); // scrolltrigger-ok: standalone sequence`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-in-timeline-child');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-in-timeline-child'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -204,7 +216,9 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
         });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-scrolltrigger-markers-production');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-scrolltrigger-markers-production'
+      );
       expect(violations).toHaveLength(0);
     });
   });

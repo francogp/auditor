@@ -44,7 +44,9 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Agente');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
-      expect(auditor.formatRuleDescription('missing-agent-plugin-registration').length).toBeLessThanOrEqual(50);
+      expect(
+        auditor.formatRuleDescription('missing-agent-plugin-registration').length
+      ).toBeLessThanOrEqual(50);
     });
   });
 
@@ -63,7 +65,9 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
 
-      const violation = result.findings.find(f => f.ruleId === 'missing-agent-plugin-registration');
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'missing-agent-plugin-registration'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.file).toBe('.agents/plugins.json');
@@ -88,7 +92,9 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(1);
-      const violation = result.findings.find(f => f.ruleId === 'missing-agent-plugin-registration');
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'missing-agent-plugin-registration'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -110,7 +116,11 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
       await fs.writeFile(
         path.join(agentsDir, 'skills.json'),
-        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor/.agents/skills' }] }, null, 2),
+        JSON.stringify(
+          { entries: [{ path: 'node_modules/@francogp/auditor/.agents/skills' }] },
+          null,
+          2
+        ),
         'utf8'
       );
 
@@ -140,7 +150,9 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
-      const violation = result.findings.find(f => f.ruleId === 'missing-agent-plugin-registration');
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'missing-agent-plugin-registration'
+      );
       expect(violation).toBeDefined();
     });
 

@@ -20,7 +20,15 @@ import {
 } from '../src/core/auditorContractConformance.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
 
-const BASE_MOCK_CAPS = { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false } as const;
+const BASE_MOCK_CAPS = {
+  speed: 'light',
+  phase: 'normal',
+  fix: 'none',
+  md: false,
+  ast: false,
+  changedOnly: false,
+  critical: false
+} as const;
 
 // 1. Run dynamic conformance tests for all discovered auditors in this project
 runAuditorContractConformanceTests();
@@ -60,7 +68,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
-      usesThirdPartyTool: false,
+              usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'],
               ruleDescriptions: { 'rule-1': 'Desc' },
@@ -86,7 +94,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
             configKey: 'paths',
             defaultConfig: {},
             criticalConfig: {},
-      usesThirdPartyTool: false,
+            usesThirdPartyTool: false,
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],
             ruleDescriptions: { 'rule-1': 'Desc' },
@@ -98,7 +106,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
       const auditor = new MockAuditor();
       const errors = validateAuditorConstruction(auditor, 'different_id');
-      expect(errors.some(e => e.includes('no coincide con el taskId'))).toBe(true);
+      expect(errors.some((e) => e.includes('no coincide con el taskId'))).toBe(true);
     });
 
     it('detects missing rule in ruleDescriptions at BaseAuditor construction', () => {
@@ -112,16 +120,21 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
-              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS }, 'rule-2': { ...BASE_MOCK_CAPS } } as never,
+              ruleCapabilities: {
+                'rule-1': { ...BASE_MOCK_CAPS },
+                'rule-2': { ...BASE_MOCK_CAPS }
+              } as never,
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
-      usesThirdPartyTool: false,
+              usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1', 'rule-2'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
               ruleRemediations: { 'rule-1': 'Remediacion', 'rule-2': 'Remediacion 2' } as never,
-              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
+              scripts: [
+                { name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }
+              ]
             });
           }
           public override async runAudit() {}
@@ -143,11 +156,13 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
-      usesThirdPartyTool: false,
+              usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
-              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
+              scripts: [
+                { name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }
+              ]
             } as never);
           }
           public override async runAudit() {}
@@ -162,7 +177,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
             super({
               id: 'mock_suite',
               name: 'Mock',
-              description: 'Esta descripción es excesivamente larga y supera con creces el límite de 60 caracteres permitidos',
+              description:
+                'Esta descripción es excesivamente larga y supera con creces el límite de 60 caracteres permitidos',
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
@@ -170,12 +186,14 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               configKey: 'paths',
               defaultConfig: {},
               criticalConfig: {},
-      usesThirdPartyTool: false,
+              usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
               ruleRemediations: { 'rule-1': 'Remediacion' } as never,
-              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }]
+              scripts: [
+                { name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }
+              ]
             });
           }
           public override async runAudit() {}
@@ -203,7 +221,13 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
               ruleRemediations: { 'rule-1': 'Remediacion' } as never,
-              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_fix_missing', description: 'Mock' }]
+              scripts: [
+                {
+                  name: 'auditor:mock',
+                  command: 'auditor task=mock_fix_missing',
+                  description: 'Mock'
+                }
+              ]
             });
           }
           public override async runAudit() {}
@@ -232,7 +256,13 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
               ruleRemediations: { 'rule-1': 'Remediacion' } as never,
-              scripts: [{ name: 'auditor:mock', command: 'auditor task=mock_fix_invalid', description: 'Mock' }]
+              scripts: [
+                {
+                  name: 'auditor:mock',
+                  command: 'auditor task=mock_fix_invalid',
+                  description: 'Mock'
+                }
+              ]
             });
           }
           public override async runAudit() {}
@@ -258,7 +288,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           coverage: { include: ['src/**'] },
           ruleIds: ['test-rule-alpha', 'test-rule-beta'],
           ruleDescriptions: {
@@ -296,8 +326,12 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         });
       `;
 
-      const errors = validateAuditorTestFileContent(invalidTestSource, 'tests/mock_compliant.test.ts', auditor);
-      expect(errors.some(e => e.includes('no verifica la construcción o metadatos'))).toBe(true);
+      const errors = validateAuditorTestFileContent(
+        invalidTestSource,
+        'tests/mock_compliant.test.ts',
+        auditor
+      );
+      expect(errors.some((e) => e.includes('no verifica la construcción o metadatos'))).toBe(true);
     });
 
     it('detects missing clean verification in test file', () => {
@@ -316,8 +350,12 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         });
       `;
 
-      const errors = validateAuditorTestFileContent(invalidTestSource, 'tests/mock_compliant.test.ts', auditor);
-      expect(errors.some(e => e.includes('no verifica la ruta limpia'))).toBe(true);
+      const errors = validateAuditorTestFileContent(
+        invalidTestSource,
+        'tests/mock_compliant.test.ts',
+        auditor
+      );
+      expect(errors.some((e) => e.includes('no verifica la ruta limpia'))).toBe(true);
     });
 
     it('detects missing violation detection in test file', () => {
@@ -336,8 +374,14 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         });
       `;
 
-      const errors = validateAuditorTestFileContent(invalidTestSource, 'tests/mock_compliant.test.ts', auditor);
-      expect(errors.some(e => e.includes('no verifica la detección de errores o fallos'))).toBe(true);
+      const errors = validateAuditorTestFileContent(
+        invalidTestSource,
+        'tests/mock_compliant.test.ts',
+        auditor
+      );
+      expect(errors.some((e) => e.includes('no verifica la detección de errores o fallos'))).toBe(
+        true
+      );
     });
 
     it('detects untested declared rules', () => {
@@ -360,8 +404,14 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         });
       `;
 
-      const errors = validateAuditorTestFileContent(invalidTestSource, 'tests/mock_compliant.test.ts', auditor);
-      expect(errors.some(e => e.includes("no verifica la regla declarada 'test-rule-beta'"))).toBe(true);
+      const errors = validateAuditorTestFileContent(
+        invalidTestSource,
+        'tests/mock_compliant.test.ts',
+        auditor
+      );
+      expect(
+        errors.some((e) => e.includes("no verifica la regla declarada 'test-rule-beta'"))
+      ).toBe(true);
     });
 
     it('passes cleanly when test contains all 5 mandatory blocks and 100% of declared rules', () => {
@@ -384,7 +434,11 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         });
       `;
 
-      const errors = validateAuditorTestFileContent(validTestSource, 'tests/mock_compliant.test.ts', auditor);
+      const errors = validateAuditorTestFileContent(
+        validTestSource,
+        'tests/mock_compliant.test.ts',
+        auditor
+      );
       expect(errors).toHaveLength(0);
     });
   });
@@ -395,7 +449,9 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
       fs.mkdirSync(extDir, { recursive: true });
       fs.writeFileSync(path.join(extDir, 'validate_custom_host.test.ts'), '// test content\n');
 
-      const { testFileAbs, testFileRel } = findDedicatedTestFile(tempDir, 'validate_custom_host', ['tests']);
+      const { testFileAbs, testFileRel } = findDedicatedTestFile(tempDir, 'validate_custom_host', [
+        'tests'
+      ]);
       expect(testFileAbs).not.toBeNull();
       expect(testFileRel).toBe('tests/node/auditors/validate_custom_host.test.ts');
     });

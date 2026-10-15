@@ -73,10 +73,38 @@ describe('Audit Findings Grouped By File and Line Contract', () => {
 
   it('breaks ties using column number and severity', () => {
     const tieFindings: AuditFinding[] = [
-      { severity: 'warning', message: 'Warn at col 10', file: 'src/x.ts', line: 10, col: 10, ruleId: 'r2' },
-      { severity: 'error', message: 'Err at col 5', file: 'src/x.ts', line: 10, col: 5, ruleId: 'r1' },
-      { severity: 'warning', message: 'Warn at col 5', file: 'src/x.ts', line: 10, col: 5, ruleId: 'r3' },
-      { severity: 'error', message: 'Err at col 10', file: 'src/x.ts', line: 10, col: 10, ruleId: 'r4' }
+      {
+        severity: 'warning',
+        message: 'Warn at col 10',
+        file: 'src/x.ts',
+        line: 10,
+        col: 10,
+        ruleId: 'r2'
+      },
+      {
+        severity: 'error',
+        message: 'Err at col 5',
+        file: 'src/x.ts',
+        line: 10,
+        col: 5,
+        ruleId: 'r1'
+      },
+      {
+        severity: 'warning',
+        message: 'Warn at col 5',
+        file: 'src/x.ts',
+        line: 10,
+        col: 5,
+        ruleId: 'r3'
+      },
+      {
+        severity: 'error',
+        message: 'Err at col 10',
+        file: 'src/x.ts',
+        line: 10,
+        col: 10,
+        ruleId: 'r4'
+      }
     ];
 
     const sorted = sortFindingsByFileAndLine(tieFindings);

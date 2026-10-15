@@ -92,7 +92,7 @@ describe('DomainTypesAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'domain-untyped-collection');
+    const findings = result.findings.filter((f) => f.ruleId === 'domain-untyped-collection');
     expect(findings.length).toBeGreaterThanOrEqual(2);
     expect(findings[0]?.severity).toBe('error');
   });
@@ -110,15 +110,13 @@ describe('DomainTypesAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'domain-naked-string-primitive');
+    const findings = result.findings.filter((f) => f.ruleId === 'domain-naked-string-primitive');
     expect(findings.length).toBeGreaterThanOrEqual(2);
     expect(findings[0]?.severity).toBe('error');
   });
 
   it('fulfills point 3 & 5: detects domain-ambiguous-union violations', async () => {
-    const code = [
-      'export type InputStatus = "" | null;'
-    ].join('\n');
+    const code = ['export type InputStatus = "" | null;'].join('\n');
 
     await fs.writeFile(path.join(tempDir, 'src/ambiguous.ts'), code, 'utf-8');
 
@@ -126,15 +124,13 @@ describe('DomainTypesAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'domain-ambiguous-union');
+    const findings = result.findings.filter((f) => f.ruleId === 'domain-ambiguous-union');
     expect(findings.length).toBeGreaterThanOrEqual(1);
     expect(findings[0]?.severity).toBe('error');
   });
 
   it('fulfills point 3 & 5: detects domain-unbranded-id violations', async () => {
-    const code = [
-      'export type AccountId = string;'
-    ].join('\n');
+    const code = ['export type AccountId = string;'].join('\n');
 
     await fs.writeFile(path.join(tempDir, 'src/unbranded.ts'), code, 'utf-8');
 
@@ -142,7 +138,7 @@ describe('DomainTypesAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const findings = result.findings.filter(f => f.ruleId === 'domain-unbranded-id');
+    const findings = result.findings.filter((f) => f.ruleId === 'domain-unbranded-id');
     expect(findings.length).toBeGreaterThanOrEqual(1);
     expect(findings[0]?.severity).toBe('error');
   });
@@ -177,7 +173,9 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(filePath, code, 'utf-8');
     const findings = await auditFile(filePath);
-    const nullableParamFindings = findings.filter(f => f.pattern.includes('Domain ID parameter is nullable'));
+    const nullableParamFindings = findings.filter((f) =>
+      f.pattern.includes('Domain ID parameter is nullable')
+    );
     expect(nullableParamFindings).toHaveLength(1);
     expect(nullableParamFindings[0]?.line).toBe(9);
   });

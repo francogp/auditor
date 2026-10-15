@@ -9,7 +9,11 @@
  * 2. If an auditor declares `usesThirdPartyTool: true` but contains zero external tool invocations.
  */
 
-import type { HomebrewDetector, HomebrewFinding, HomebrewInspectionContext } from '../homebrewTypes.ts';
+import type {
+  HomebrewDetector,
+  HomebrewFinding,
+  HomebrewInspectionContext
+} from '../homebrewTypes.ts';
 
 const THIRD_PARTY_TOOL_TRIGGER_PATTERNS: readonly RegExp[] = [
   /\bexecuteNodeCli\s*\(/,
@@ -57,8 +61,17 @@ export const thirdPartyToolContractDetector: HomebrewDetector = {
   detect(context: HomebrewInspectionContext): HomebrewFinding[] {
     // Only inspect auditor suites and extensions (ignore analyzers and utility helpers)
     if (!context.isBuiltinSuite && !context.isExtension) return [];
-    if (context.filePath.includes('/analyzers/') || context.filePath.includes('/cli/') || context.filePath.includes('/core/')) return [];
-    if (!context.content.includes('class ') || (!context.content.includes('extends BaseAuditor') && !context.content.includes('extends FileScanAuditor'))) {
+    if (
+      context.filePath.includes('/analyzers/') ||
+      context.filePath.includes('/cli/') ||
+      context.filePath.includes('/core/')
+    )
+      return [];
+    if (
+      !context.content.includes('class ') ||
+      (!context.content.includes('extends BaseAuditor') &&
+        !context.content.includes('extends FileScanAuditor'))
+    ) {
       return [];
     }
     // Only inspect classes that declare a constructor with super({
@@ -71,7 +84,9 @@ export const thirdPartyToolContractDetector: HomebrewDetector = {
     const declaresFalse = /\busesThirdPartyTool\s*:\s*false\b/.test(context.content);
     const declaresPolicy = /\bthirdPartyToolPolicy\s*:\s*\{/.test(context.content);
 
-    const isClassHeader = (l: string) => l.includes('class ') && (l.includes('extends BaseAuditor') || l.includes('extends FileScanAuditor'));
+    const isClassHeader = (l: string) =>
+      l.includes('class ') &&
+      (l.includes('extends BaseAuditor') || l.includes('extends FileScanAuditor'));
 
     // Case 1: Invokes third-party tools but didn't declare usesThirdPartyTool: true or omitted policy
     if (invokesExternal && (!declaresTrue || !declaresPolicy)) {
@@ -90,7 +105,8 @@ export const thirdPartyToolContractDetector: HomebrewDetector = {
       return [
         createContractFinding(
           context,
-          (l: string) => l.includes('usesThirdPartyTool: true') || l.includes('usesThirdPartyTool:true'),
+          (l: string) =>
+            l.includes('usesThirdPartyTool: true') || l.includes('usesThirdPartyTool:true'),
           'El auditor declara usesThirdPartyTool: true pero no invoca herramientas de terceros en su código. Cambia a usesThirdPartyTool: false.',
           'redundant-third-party-tool-policy'
         )

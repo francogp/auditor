@@ -7,10 +7,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getPackageJson, clearPackageJsonCache, writePackageJson, type PackageJsonDTO } from '../src/core/packageJson.ts';
+import {
+  getPackageJson,
+  clearPackageJsonCache,
+  writePackageJson,
+  type PackageJsonDTO
+} from '../src/core/packageJson.ts';
 
 describe('packageJson core helper', () => {
-  const scratchDir = path.resolve(process.cwd(), 'scratch/test_package_json_' + crypto.randomUUID());
+  const scratchDir = path.resolve(
+    process.cwd(),
+    'scratch/test_package_json_' + crypto.randomUUID()
+  );
 
   beforeEach(() => {
     clearPackageJsonCache();

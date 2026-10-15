@@ -22,9 +22,7 @@ import {
   applyRuleFix,
   main
 } from '../src/suites/architecture/audit_project.ts';
-import {
-  resetAuditConfig
-} from '../src/core/auditConfig.ts';
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
 import { zeroTimerLogic, nodePrefix } from '../src/suites/architecture/audit_rules.ts';
 
 describe('ProjectArchitectureAuditor & Fallow Integration', () => {
@@ -197,7 +195,10 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
 
   describe('extractSelectedRules & filterActiveConfigRules', () => {
     it('extracts rules from rule/rules arguments and positionals', () => {
-      const selected = extractSelectedRules({ rule: 'zero-timer' }, ['dox', 'no-any,magic-numbers']);
+      const selected = extractSelectedRules({ rule: 'zero-timer' }, [
+        'dox',
+        'no-any,magic-numbers'
+      ]);
       expect(selected.has('zero-timer')).toBe(true);
       expect(selected.has('dox')).toBe(true);
       expect(selected.has('no-any')).toBe(true);

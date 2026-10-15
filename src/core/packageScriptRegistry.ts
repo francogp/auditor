@@ -263,6 +263,48 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     command: 'auditor speed=light fix',
     description: 'Reparación automática rápida de violaciones de linting',
     category: 'aliases'
+  },
+
+  // Vite+ Toolchain Invocations
+  {
+    name: 'check',
+    command: 'vp check',
+    description: 'Verificación estática y linting integral con Vite+ (Oxlint/Oxfmt)',
+    category: 'core',
+    isApplicable: (config) => config.vitePlusConfig?.enabled !== false
+  },
+  {
+    name: 'check:fix',
+    command: 'vp check --fix',
+    description: 'Reparación automática integral de reglas de sintaxis y tipado con Vite+',
+    category: 'core',
+    isApplicable: (config) => config.vitePlusConfig?.enabled !== false
+  },
+  {
+    name: 'fmt',
+    command: 'vp fmt',
+    description: 'Formateo automático de código en el proyecto mediante Oxfmt',
+    category: 'core',
+    isApplicable: (config) =>
+      config.vitePlusConfig?.enabled !== false && config.vitePlusConfig?.fmt?.enabled !== false
+  },
+  {
+    name: 'fmt:check',
+    command: 'vp fmt --check',
+    description: 'Comprobación de higiene de formato de código sin modificar archivos',
+    category: 'core',
+    isApplicable: (config) =>
+      config.vitePlusConfig?.enabled !== false && config.vitePlusConfig?.fmt?.enabled !== false
+  },
+  {
+    name: 'auditor:oxfmt',
+    command: 'auditor task=validate_oxfmt',
+    description: 'Auditoría y verificación de formateo estricto con Oxfmt',
+    category: 'core',
+    isApplicable: (config) =>
+      config.vitePlusConfig?.enabled !== false &&
+      config.vitePlusConfig?.fmt?.enabled !== false &&
+      config.oxfmt?.enabled !== false
   }
 ];
 

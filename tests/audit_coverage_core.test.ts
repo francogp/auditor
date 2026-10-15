@@ -39,7 +39,15 @@ const BASE_OPTIONS = {
   ruleDescriptions: { 'probe-rule': 'Regla sonda' },
   ruleRemediations: { 'probe-rule': 'Soluciona probe-rule ajustando la sonda.' },
   ruleCapabilities: {
-    'probe-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+    'probe-rule': {
+      speed: 'light',
+      phase: 'normal',
+      fix: 'none',
+      md: false,
+      ast: false,
+      changedOnly: false,
+      critical: false
+    }
   }
 } as const;
 
@@ -53,26 +61,47 @@ class ProbeAuditor extends BaseAuditor<'probe-rule'> {
 class ProbeFileScanAuditor extends FileScanAuditor<'probe-rule'> {
   protected override scanFile(relPath: string, content: string): void {
     if (content.includes('BAD')) {
-      this.addViolation({ ruleId: 'probe-rule', severity: 'error', file: relPath, line: 1, message: 'bad', context: 'BAD' });
+      this.addViolation({
+        ruleId: 'probe-rule',
+        severity: 'error',
+        file: relPath,
+        line: 1,
+        message: 'bad',
+        context: 'BAD'
+      });
     }
   }
 }
 
 describe('coverage declaration', () => {
   it('fails loudly when a direct BaseAuditor subclass omits coverage', () => {
-    expect(() => new ProbeAuditor({ ...BASE_OPTIONS, ruleIds: ['probe-rule'], ruleDescriptions: { 'probe-rule': 'Regla sonda' } }))
-      .toThrow(/must declare 'coverage/);
+    expect(
+      () =>
+        new ProbeAuditor({
+          ...BASE_OPTIONS,
+          ruleIds: ['probe-rule'],
+          ruleDescriptions: { 'probe-rule': 'Regla sonda' }
+        })
+    ).toThrow(/must declare 'coverage/);
   });
 
   it('rejects empty include, absolute and backslash globs, and unknown sources', () => {
     expect(() => validateCoverageDeclaration('x', { include: [] })).toThrow(/non-empty/);
-    expect(() => validateCoverageDeclaration('x', { include: ['/abs/**'] })).toThrow(/invalid coverage glob/);
-    expect(() => validateCoverageDeclaration('x', { include: ['src\\**'] })).toThrow(/invalid coverage glob/);
-    expect(() => validateCoverageDeclaration('x', { include: ['src/**'], source: 'magic' as 'runtime' })).toThrow(/unknown coverage source/);
+    expect(() => validateCoverageDeclaration('x', { include: ['/abs/**'] })).toThrow(
+      /invalid coverage glob/
+    );
+    expect(() => validateCoverageDeclaration('x', { include: ['src\\**'] })).toThrow(
+      /invalid coverage glob/
+    );
+    expect(() =>
+      validateCoverageDeclaration('x', { include: ['src/**'], source: 'magic' as 'runtime' })
+    ).toThrow(/unknown coverage source/);
   });
 
   it('accepts a valid declaration (clean path)', () => {
-    expect(() => validateCoverageDeclaration('x', { include: ['src/**/*.ts'], exclude: ['src/**/*.d.ts'] })).not.toThrow();
+    expect(() =>
+      validateCoverageDeclaration('x', { include: ['src/**/*.ts'], exclude: ['src/**/*.d.ts'] })
+    ).not.toThrow();
   });
 
   it('derives FileScanAuditor coverage from roots and extensions', () => {
@@ -80,7 +109,9 @@ describe('coverage declaration', () => {
     expect(decl.include).toEqual(['src/**/*.ts', 'tests/**/*.ts', '**/*.ts']);
     expect(isDeclaredByCoverage('src/core/a.ts', decl)).toBe(true);
     expect(isDeclaredByCoverage('src/core/a.js', { include: ['src/**/*.ts'] })).toBe(false);
-    expect(isDeclaredByCoverage('src/core/a.d.ts', { include: ['src/**/*.ts'], exclude: ['**/*.d.ts'] })).toBe(false);
+    expect(
+      isDeclaredByCoverage('src/core/a.d.ts', { include: ['src/**/*.ts'], exclude: ['**/*.d.ts'] })
+    ).toBe(false);
   });
 });
 
@@ -93,7 +124,12 @@ describe('CoverageRecorder', () => {
     recorder.markRuleEvaluated('r1');
     recorder.markRuleEvaluated('r1', 2);
     recorder.markRuleNotApplicable('r2', 'Sin archivos .vue en el proyecto');
-    const ledger = recorder.toLedger({ runId: 'run', suiteId: 's', skipped: false, ruleIds: ['r1', 'r2', 'r3'] });
+    const ledger = recorder.toLedger({
+      runId: 'run',
+      suiteId: 's',
+      skipped: false,
+      ruleIds: ['r1', 'r2', 'r3']
+    });
     expect(ledger.scanned).toEqual(['src/a.ts']);
     expect(ledger.ruleEvaluations).toEqual({ r1: 3, r2: 0, r3: 0 });
     expect(ledger.notApplicable).toEqual({ r2: 'Sin archivos .vue en el proyecto' });
@@ -101,8 +137,13 @@ describe('CoverageRecorder', () => {
   });
 
   it('only allows external scan counts for declared-only sources', () => {
-    expect(() => new CoverageRecorder('.', { include: ['**/*.ts'] }).recordExternalScanCount(3)).toThrow(/declared-only/);
-    const declaredOnly = new CoverageRecorder('.', { include: ['**/*.ts'], source: 'declared-only' });
+    expect(() =>
+      new CoverageRecorder('.', { include: ['**/*.ts'] }).recordExternalScanCount(3)
+    ).toThrow(/declared-only/);
+    const declaredOnly = new CoverageRecorder('.', {
+      include: ['**/*.ts'],
+      source: 'declared-only'
+    });
     declaredOnly.recordExternalScanCount(3);
     expect(declaredOnly.scannedCount).toBe(3);
   });
@@ -168,12 +209,19 @@ describe('ledger persistence', () => {
 });
 
 describe('coverage config anti-abuse', () => {
-  const base = { name: 'probe', paths: { srcRoots: ['src'], codeRoots: ['src'], testRoots: ['tests'] } };
+  const base = {
+    name: 'probe',
+    paths: { srcRoots: ['src'], codeRoots: ['src'], testRoots: ['tests'] }
+  };
   const reason = 'Artefactos compilados verificados por audit:build';
 
   it('is active by default with no exemptions (clean path)', () => {
     const config = defineAuditConfig(base);
-    expect(config.coverage).toEqual({ enabled: true, exemptGlobs: [], acknowledgedDegradations: [] });
+    expect(config.coverage).toEqual({
+      enabled: true,
+      exemptGlobs: [],
+      acknowledgedDegradations: []
+    });
   });
 
   it('accepts narrow, justified exemptions', () => {
@@ -181,7 +229,9 @@ describe('coverage config anti-abuse', () => {
       ...base,
       coverage: {
         exemptGlobs: [{ glob: 'dist/**', reason }],
-        acknowledgedDegradations: [{ policy: 'cli', glob: 'src/cli/**', reason: 'Los entrypoints CLI imprimen en consola' }]
+        acknowledgedDegradations: [
+          { policy: 'cli', glob: 'src/cli/**', reason: 'Los entrypoints CLI imprimen en consola' }
+        ]
       }
     });
     expect(config.coverage?.exemptGlobs).toHaveLength(1);
@@ -190,29 +240,47 @@ describe('coverage config anti-abuse', () => {
 
   it.each(['**', '**/*', '*', '**/*.ts', '*.*', 'src/**', 'src', 'tests/**/*.ts', '/abs/**'])(
     'rejects blanket glob %s',
-    glob => {
-      expect(() => defineAuditConfig({ ...base, coverage: { exemptGlobs: [{ glob, reason }] } })).toThrow(/Anti-Abuse/);
+    (glob) => {
+      expect(() =>
+        defineAuditConfig({ ...base, coverage: { exemptGlobs: [{ glob, reason }] } })
+      ).toThrow(/Anti-Abuse/);
     }
   );
 
   it('rejects short reasons and unknown policies', () => {
-    expect(() => defineAuditConfig({ ...base, coverage: { exemptGlobs: [{ glob: 'LICENSE', reason: 'corto' }] } })).toThrow(/reason/);
-    expect(() => defineAuditConfig({
-      ...base,
-      coverage: { acknowledgedDegradations: [{ policy: 'test' as 'cli', glob: 'tests/x/**', reason }] }
-    })).toThrow(/política desconocida/);
+    expect(() =>
+      defineAuditConfig({
+        ...base,
+        coverage: { exemptGlobs: [{ glob: 'LICENSE', reason: 'corto' }] }
+      })
+    ).toThrow(/reason/);
+    expect(() =>
+      defineAuditConfig({
+        ...base,
+        coverage: {
+          acknowledgedDegradations: [{ policy: 'test' as 'cli', glob: 'tests/x/**', reason }]
+        }
+      })
+    ).toThrow(/política desconocida/);
   });
 });
 
 describe('exemption policy registry', () => {
   it('classifies configured vs structural policies', () => {
-    const kinds = Object.fromEntries(EXEMPTION_POLICIES.map(p => [p.id, p.kind]));
+    const kinds = Object.fromEntries(EXEMPTION_POLICIES.map((p) => [p.id, p.kind]));
     expect(kinds).toMatchObject({ cli: 'configured', scripts: 'configured', test: 'structural' });
   });
 
   it('matches policies from configuration', () => {
-    const config = defineAuditConfig({ name: 'probe', paths: { cliRoots: ['src/cli'], testRoots: ['tests'] } });
-    expect(getMatchingExemptionPolicies('src/cli/run.ts', config).map(p => p.id)).toContain('cli');
-    expect(getMatchingExemptionPolicies('src/core/run.ts', config).map(p => p.id)).not.toContain('cli');
+    const config = defineAuditConfig({
+      name: 'probe',
+      paths: { cliRoots: ['src/cli'], testRoots: ['tests'] }
+    });
+    expect(getMatchingExemptionPolicies('src/cli/run.ts', config).map((p) => p.id)).toContain(
+      'cli'
+    );
+    expect(getMatchingExemptionPolicies('src/core/run.ts', config).map((p) => p.id)).not.toContain(
+      'cli'
+    );
   });
 });

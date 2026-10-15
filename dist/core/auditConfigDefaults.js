@@ -122,15 +122,32 @@ const DEFAULT_AUDIT_CONFIG = {
 		}
 	},
 	oxlint: { enabled: true },
+	oxfmt: { enabled: true },
 	vitePlusConfig: {
 		enabled: true,
 		fmt: {
+			enabled: true,
 			singleQuote: true,
 			semi: true,
 			trailingComma: "none",
-			printWidth: 100
+			printWidth: 100,
+			sortPackageJson: true
 		},
-		staged: { "*": "vp check --fix" }
+		lint: {
+			enabled: true,
+			typeAware: true,
+			typeCheck: true
+		},
+		staged: {
+			enabled: true,
+			rules: { "*": "vp check --fix" }
+		},
+		hooks: { enabled: true },
+		vscode: {
+			enabled: true,
+			formatOnSave: true,
+			defaultFormatter: "oxc.oxc-vscode"
+		}
 	},
 	bundle: {
 		enabled: true,
@@ -328,6 +345,7 @@ function collectDeclaredSubsystems(config) {
 		"styles",
 		"stylelint",
 		"oxlint",
+		"oxfmt",
 		"vitePlusConfig",
 		"valibot",
 		"pinia",
@@ -519,7 +537,10 @@ function buildConstantsAndDocConfig(config) {
 	return {
 		constants: buildConstantsSubConfig(config.constants),
 		documentation: buildDocumentationSubConfig(config.documentation),
-		pinia: { authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? [] },
+		pinia: {
+			enabled: config.pinia?.enabled ?? true,
+			authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
+		},
 		e2e: { idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false }
 	};
 }
@@ -725,13 +746,51 @@ function buildOxlintConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.oxlint;
 	return { enabled: (raw ?? {}).enabled ?? def?.enabled ?? true };
 }
+function buildOxfmtConfig(raw) {
+	const def = DEFAULT_AUDIT_CONFIG.oxfmt;
+	return { enabled: (raw ?? {}).enabled ?? def?.enabled ?? true };
+}
 function buildVitePlusConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.vitePlusConfig;
 	const v = raw ?? {};
+	const vFmt = v.fmt ?? {};
+	const vLint = v.lint ?? {};
 	return {
 		enabled: v.enabled ?? def?.enabled ?? true,
-		fmt: v.fmt ? { ...v.fmt } : def?.fmt,
-		staged: v.staged ? { ...v.staged } : def?.staged,
+		fmt: {
+			enabled: vFmt.enabled ?? def?.fmt?.enabled ?? true,
+			singleQuote: vFmt.singleQuote ?? def?.fmt?.singleQuote ?? true,
+			semi: vFmt.semi ?? def?.fmt?.semi ?? true,
+			trailingComma: vFmt.trailingComma ?? def?.fmt?.trailingComma ?? "none",
+			tabWidth: vFmt.tabWidth ?? def?.fmt?.tabWidth,
+			useTabs: vFmt.useTabs ?? def?.fmt?.useTabs,
+			printWidth: vFmt.printWidth ?? def?.fmt?.printWidth ?? 100,
+			sortPackageJson: vFmt.sortPackageJson ?? def?.fmt?.sortPackageJson ?? true,
+			ignorePatterns: vFmt.ignorePatterns ? [...vFmt.ignorePatterns] : def?.fmt?.ignorePatterns ?? [],
+			overrides: vFmt.overrides ? [...vFmt.overrides] : def?.fmt?.overrides ?? []
+		},
+		lint: {
+			enabled: vLint.enabled ?? def?.lint?.enabled ?? true,
+			typeAware: vLint.typeAware ?? def?.lint?.typeAware ?? true,
+			typeCheck: vLint.typeCheck ?? def?.lint?.typeCheck ?? true,
+			categories: vLint.categories ? { ...vLint.categories } : def?.lint?.categories,
+			rules: vLint.rules ? { ...vLint.rules } : def?.lint?.rules,
+			ignorePatterns: vLint.ignorePatterns ? [...vLint.ignorePatterns] : def?.lint?.ignorePatterns ?? [],
+			overrides: vLint.overrides ? [...vLint.overrides] : def?.lint?.overrides ?? []
+		},
+		staged: (() => {
+			const rawStaged = v.staged;
+			const isStagedObject = typeof rawStaged === "object" && rawStaged !== null;
+			const isStagedWithRules = isStagedObject && ("rules" in rawStaged || "enabled" in rawStaged);
+			const stagedObj = rawStaged;
+			const defStaged = def?.staged;
+			return {
+				enabled: isStagedWithRules && typeof stagedObj?.enabled === "boolean" ? stagedObj.enabled : typeof defStaged?.enabled === "boolean" ? defStaged.enabled : true,
+				rules: isStagedWithRules && stagedObj?.rules ? stagedObj.rules : isStagedObject && !("rules" in rawStaged) ? rawStaged : defStaged?.rules ? defStaged.rules : { "*": "vp check --fix" }
+			};
+		})(),
+		hooks: v.hooks ? { ...v.hooks } : def?.hooks,
+		vscode: v.vscode ? { ...v.vscode } : def?.vscode,
 		extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
 	};
 }
@@ -901,6 +960,7 @@ function defineAuditConfig(config) {
 			ignoreGlobs: []
 		},
 		oxlint: buildOxlintConfig(config.oxlint),
+		oxfmt: buildOxfmtConfig(config.oxfmt),
 		vitePlusConfig: buildVitePlusConfig(config.vitePlusConfig),
 		bundle: buildBundleConfig(config.bundle),
 		fallow: buildFallowConfig(config.fallow, config.security),
@@ -942,4 +1002,4 @@ function defineAuditConfig(config) {
 	};
 }
 //#endregion
-export { DEFAULT_AUDIT_CONFIG, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, collectDeclaredSubsystems, defineAuditConfig };
+export { DEFAULT_AUDIT_CONFIG, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildOxfmtConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, collectDeclaredSubsystems, defineAuditConfig };

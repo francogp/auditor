@@ -69,7 +69,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/Old.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'script-setup-required');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'script-setup-required'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -83,7 +85,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/NoSetup.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'script-setup-required');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'script-setup-required'
+      );
       expect(violation).toBeDefined();
     });
 
@@ -96,7 +100,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/Exported.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-script-setup-exports');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-script-setup-exports'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -112,7 +118,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/Quotes.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'vue-template-quote-escaping');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'vue-template-quote-escaping'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -127,7 +135,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/DirectCall.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-data-provider-in-template');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-data-provider-in-template'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -142,7 +152,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/DbTemplate.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-data-provider-in-template');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-data-provider-in-template'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -180,7 +192,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/PokemonSummaryTab.vue', sfc);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'no-data-provider-in-template');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'no-data-provider-in-template'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -194,7 +208,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/SignOutButton.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-data-provider-in-template');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-data-provider-in-template'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -210,7 +226,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/CalcPrice.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'vue-template-magic-calculation');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'vue-template-magic-calculation'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('* 1.21');
@@ -227,7 +245,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/CompareMagic.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'vue-template-magic-calculation');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'vue-template-magic-calculation'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('> 5');
@@ -249,7 +269,9 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/ValidTemplate.vue', sfc);
-      const violations = auditor.collectedViolations.filter(v => v.ruleId === 'vue-template-magic-calculation');
+      const violations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'vue-template-magic-calculation'
+      );
       expect(violations).toHaveLength(0);
     });
   });

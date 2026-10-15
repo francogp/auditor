@@ -43,17 +43,21 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('passes cleanly when all commands in scripts and workflows are valid and registered', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          test: 'vitest',
-          lint: 'eslint .',
-          build: 'tsc'
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            test: 'vitest',
+            lint: 'eslint .',
+            build: 'tsc'
+          },
+          devDependencies: {
+            vitest: '^3.0.0'
+          }
         },
-        devDependencies: {
-          vitest: '^3.0.0'
-        }
-      }, null, 2)
+        null,
+        2
+      )
     );
 
     // Shell script with valid commands
@@ -113,12 +117,16 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('detects unregistered npm run script in shell script', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          build: 'tsc'
-        }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            build: 'tsc'
+          }
+        },
+        null,
+        2
+      )
     );
 
     await fs.writeFile(
@@ -131,7 +139,7 @@ describe('ValidateScriptCommandsAuditor', () => {
 
     expect(result.summary.errors).toBeGreaterThan(0);
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
     expect(finding?.message).toContain('build:prod');
@@ -140,12 +148,16 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('detects unregistered npm run in GitHub workflow file', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          build: 'tsc'
-        }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            build: 'tsc'
+          }
+        },
+        null,
+        2
+      )
     );
 
     const workflowDir = path.join(tempDir, '.github', 'workflows');
@@ -159,7 +171,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('non-existent-deploy-step');
   });
@@ -167,24 +179,25 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('detects invalid direct npm commands instead of npm run in shell and batch scripts', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          compile: 'tsc'
-        }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            compile: 'tsc'
+          }
+        },
+        null,
+        2
+      )
     );
 
-    await fs.writeFile(
-      path.join(tempDir, 'build.sh'),
-      '#!/bin/bash\nnpm compile\n'
-    );
+    await fs.writeFile(path.join(tempDir, 'build.sh'), '#!/bin/bash\nnpm compile\n');
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const finding = result.findings.find(f => f.ruleId === 'script-cmd-invalid-npm-syntax');
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-invalid-npm-syntax');
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
     expect(finding?.message).toContain("debe ser 'npm run compile'");
@@ -193,10 +206,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('detects unregistered npx binaries invoked inside scripts', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        dependencies: {}
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          dependencies: {}
+        },
+        null,
+        2
+      )
     );
 
     await fs.writeFile(
@@ -208,7 +225,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npx');
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npx');
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
     expect(finding?.message).toContain('uninstalled-fancy-tool');
@@ -217,10 +234,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('allows npx binaries configured in audit.config.ts allowedNpxBinaries', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        dependencies: {}
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          dependencies: {}
+        },
+        null,
+        2
+      )
     );
 
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -249,10 +270,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('respects scriptCommands.exemptGlobs configuration', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { test: 'vitest' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { test: 'vitest' }
+        },
+        null,
+        2
+      )
     );
 
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -283,10 +308,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('respects scriptCommands.enabled = false configuration', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {}
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {}
+        },
+        null,
+        2
+      )
     );
 
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
@@ -300,10 +329,7 @@ describe('ValidateScriptCommandsAuditor', () => {
 };`
     );
 
-    await fs.writeFile(
-      path.join(tempDir, 'run.sh'),
-      '#!/bin/bash\nnpm run unregistered-script\n'
-    );
+    await fs.writeFile(path.join(tempDir, 'run.sh'), '#!/bin/bash\nnpm run unregistered-script\n');
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
@@ -315,10 +341,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('ignores echo messages, loops, and variable assignments in shell scripts without false positives', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { build: 'tsc' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { build: 'tsc' }
+        },
+        null,
+        2
+      )
     );
 
     const script = [
@@ -344,10 +374,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('ignores workflow step names and only audits commands in run: blocks in YAML workflows', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { test: 'vitest' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { test: 'vitest' }
+        },
+        null,
+        2
+      )
     );
 
     const workflowDir = path.join(tempDir, '.github', 'workflows');
@@ -379,10 +413,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('ignores Write-Host, Write-Error, and quoted strings in PowerShell scripts', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { 'env:post-setup': 'node post.js' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { 'env:post-setup': 'node post.js' }
+        },
+        null,
+        2
+      )
     );
 
     const psScript = [
@@ -407,16 +445,20 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('inspects process runner calls and ignores console.log / line.includes in TypeScript scripts', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: {
-          test: 'vitest',
-          build: 'tsc'
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: {
+            test: 'vitest',
+            build: 'tsc'
+          },
+          devDependencies: {
+            playwright: '^1.40.0'
+          }
         },
-        devDependencies: {
-          playwright: '^1.40.0'
-        }
-      }, null, 2)
+        null,
+        2
+      )
     );
 
     const scriptsDir = path.join(tempDir, 'scripts');
@@ -449,10 +491,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('detects violations in process runner calls inside TypeScript scripts', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { build: 'tsc' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { build: 'tsc' }
+        },
+        null,
+        2
+      )
     );
 
     const scriptsDir = path.join(tempDir, 'scripts');
@@ -470,7 +516,7 @@ describe('ValidateScriptCommandsAuditor', () => {
 
     expect(result.summary.errors).toBeGreaterThan(0);
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('non-existent-script');
   });
@@ -478,10 +524,14 @@ describe('ValidateScriptCommandsAuditor', () => {
   it('detects unregistered npm run in CLI help logs while ignoring syntax placeholders', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),
-      JSON.stringify({
-        name: 'test-pkg',
-        scripts: { 'db:migrate': 'node run.js' }
-      }, null, 2)
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          scripts: { 'db:migrate': 'node run.js' }
+        },
+        null,
+        2
+      )
     );
 
     const scriptsDir = path.join(tempDir, 'scripts');
@@ -499,9 +549,8 @@ describe('ValidateScriptCommandsAuditor', () => {
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'script-cmd-unregistered-npm');
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npm');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('database:update');
   });
 });
-

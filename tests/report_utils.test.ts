@@ -123,7 +123,9 @@ describe('reportUtils', () => {
     });
 
     it('throws error when throwOnError is true and json is malformed', () => {
-      expect(() => parseJsonArrayOutput('[{invalid}]', { throwOnError: true, toolName: 'test-tool' })).toThrow(/Error al procesar salida JSON/);
+      expect(() =>
+        parseJsonArrayOutput('[{invalid}]', { throwOnError: true, toolName: 'test-tool' })
+      ).toThrow(/Error al procesar salida JSON/);
     });
   });
 
@@ -141,7 +143,9 @@ describe('reportUtils', () => {
       expect(parseJsonObjectOutput('{"hello": "world"}')).toEqual({ hello: 'world' });
       expect(parseJsonObjectOutput(Buffer.from('{"buf": 1}'))).toEqual({ buf: 1 });
       expect(parseJsonObjectOutput({ stdout: '{"exec": true}' })).toEqual({ exec: true });
-      expect(parseJsonObjectOutput({ stdout: Buffer.from('{"execBuf": true}') })).toEqual({ execBuf: true });
+      expect(parseJsonObjectOutput({ stdout: Buffer.from('{"execBuf": true}') })).toEqual({
+        execBuf: true
+      });
     });
 
     it('returns null on invalid input or syntax error', () => {
@@ -179,12 +183,14 @@ describe('reportUtils', () => {
     });
 
     it('returns empty array when reports is empty or undefined', () => {
-      expect(parseLintResultsToFindings([], {
-        suiteId: 'test_suite',
-        suiteName: 'Test Suite',
-        ruleId: 'lint-issue',
-        ruleDescription: 'Lint issue'
-      })).toEqual([]);
+      expect(
+        parseLintResultsToFindings([], {
+          suiteId: 'test_suite',
+          suiteName: 'Test Suite',
+          ruleId: 'lint-issue',
+          ruleDescription: 'Lint issue'
+        })
+      ).toEqual([]);
     });
   });
 });

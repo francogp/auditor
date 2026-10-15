@@ -58,7 +58,10 @@ function collectRuleTokens(descriptor: RuleDescriptor | AuditRule): string[] {
   return tokens;
 }
 
-export function matchesRule(descriptor: RuleDescriptor | AuditRule, selectedRules: ReadonlySet<string>): boolean {
+export function matchesRule(
+  descriptor: RuleDescriptor | AuditRule,
+  selectedRules: ReadonlySet<string>
+): boolean {
   if (selectedRules.size === 0) return true;
   const tokens = collectRuleTokens(descriptor);
   for (const selected of selectedRules) {
@@ -75,10 +78,14 @@ export function normalizeFilePath(filePath: string): string {
   return normalizePosixPath(filePath).toLowerCase();
 }
 
-export function getLineAtMatch(content: string, matchIndex: number): { line: string; lineStartPos: number; lineEndPos: number; trimmed: string } {
+export function getLineAtMatch(
+  content: string,
+  matchIndex: number
+): { line: string; lineStartPos: number; lineEndPos: number; trimmed: string } {
   const lineStartPos = content.lastIndexOf('\n', matchIndex - 1) + 1;
   const lineEndPos = content.indexOf('\n', matchIndex);
-  const line = lineEndPos === -1 ? content.slice(lineStartPos) : content.slice(lineStartPos, lineEndPos);
+  const line =
+    lineEndPos === -1 ? content.slice(lineStartPos) : content.slice(lineStartPos, lineEndPos);
   return { line, lineStartPos, lineEndPos, trimmed: line.trim() };
 }
 

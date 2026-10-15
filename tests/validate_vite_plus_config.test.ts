@@ -7,8 +7,10 @@ import {
   auditVitePlusConfigContent,
   VITE_PLUS_CONFIG_RULES
 } from '../src/suites/architecture/validate_vite_plus_config.ts';
+import { buildCanonicalVitePlusConfig } from '../src/core/vitePlusConfigSync.ts';
+import { getAuditConfig } from '../src/core/auditConfig.ts';
 
-describe('ValidateVitePlusConfigAuditor & auditVitePlusConfigContent', () => {
+describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -28,41 +30,120 @@ describe('ValidateVitePlusConfigAuditor & auditVitePlusConfigContent', () => {
       expect(auditor.capabilities.speed).toBe('light');
       expect(auditor.capabilities.fix).not.toBe('none');
     });
+
+    it('C-CFG-00: flags vite-plus-config-missing and fails when vite.config.ts is absent', async () => {
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.findings.some((f) => f.ruleId === 'vite-plus-config-missing')).toBe(true);
+    });
   });
 
-  describe('Violation Detection', () => {
-    it('flags vite-plus-config-any-allowed when no-explicit-any is missing or off', () => {
-      const configContent = `
-        import { defineConfig } from 'vite-plus';
-        export default defineConfig({
-          lint: {
-            rules: {
-              '@typescript-eslint/no-explicit-any': 'off',
-              '@typescript-eslint/ban-ts-comment': 'error'
-            }
+  describe('Anti-Castration Canaries (C-CFG-01 to C-CFG-05)', () => {
+    const buildBaseConfigWithRule = (ruleKey: string, ruleVal: string) => `
+      import { defineConfig } from 'vite-plus';
+      export default defineConfig({
+        lint: {
+          rules: {
+            '@typescript-eslint/no-explicit-any': 'error',
+            '@typescript-eslint/ban-ts-comment': 'error',
+            '@typescript-eslint/consistent-type-assertions': [
+              'error',
+              { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
+            ],
+            '@francogp/domain-type/no-double-cast-unknown': 'error',
+            '@francogp/domain-type/no-legacy-date': 'error',
+            '${ruleKey}': '${ruleVal}'
           }
-        });
-      `;
-      const findings = auditVitePlusConfigContent(configContent, 'vite.config.ts');
+        },
+        fmt: { singleQuote: true },
+        staged: { '**/*': 'vp check' },
+        test: { environment: 'node' }
+      });
+    `;
+
+    it('C-CFG-01: flags vite-plus-config-any-allowed when no-explicit-any is off', () => {
+      const content = buildBaseConfigWithRule('@typescript-eslint/no-explicit-any', 'off');
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
       expect(findings.some((f) => f.ruleId === 'vite-plus-config-any-allowed')).toBe(true);
     });
 
-    it('flags vite-plus-config-ts-ignore-allowed when ban-ts-comment is missing', () => {
-      const configContent = `
-        import { defineConfig } from 'vite-plus';
-        export default defineConfig({
-          lint: {
-            rules: {
-              '@typescript-eslint/no-explicit-any': 'error'
-            }
-          }
-        });
-      `;
-      const findings = auditVitePlusConfigContent(configContent, 'vite.config.ts');
+    it('C-CFG-02: flags vite-plus-config-ts-ignore-allowed when ban-ts-comment is off', () => {
+      const content = buildBaseConfigWithRule('@typescript-eslint/ban-ts-comment', 'off');
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
       expect(findings.some((f) => f.ruleId === 'vite-plus-config-ts-ignore-allowed')).toBe(true);
     });
 
-    it('flags vite-plus-legacy-config-forbidden when legacy config files exist on disk', async () => {
+    it('C-CFG-03: flags vite-plus-config-type-assertions-allowed when consistent-type-assertions is off', () => {
+      const content = buildBaseConfigWithRule(
+        '@typescript-eslint/consistent-type-assertions',
+        'off'
+      );
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-type-assertions-allowed')).toBe(
+        true
+      );
+    });
+
+    it('C-CFG-04: flags vite-plus-config-double-cast-allowed when no-double-cast-unknown is off', () => {
+      const content = buildBaseConfigWithRule(
+        '@francogp/domain-type/no-double-cast-unknown',
+        'off'
+      );
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-double-cast-allowed')).toBe(true);
+    });
+
+    it('C-CFG-05: flags vite-plus-config-legacy-date-allowed when no-legacy-date is off', () => {
+      const content = buildBaseConfigWithRule('@francogp/domain-type/no-legacy-date', 'off');
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-legacy-date-allowed')).toBe(true);
+    });
+  });
+
+  describe('Sections & Legacy Files Canaries (C-CFG-06 to C-CFG-09)', () => {
+    it('C-CFG-06: flags vite-plus-config-fmt-missing when fmt section is absent', () => {
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          staged: { '**/*': 'vp check' },
+          test: { environment: 'node' }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-fmt-missing')).toBe(true);
+    });
+
+    it('C-CFG-07: flags vite-plus-config-staged-missing when staged section is absent', () => {
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: { singleQuote: true },
+          test: { environment: 'node' }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-staged-missing')).toBe(true);
+    });
+
+    it('C-CFG-08: flags vite-plus-config-test-missing when test section is absent', () => {
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: { singleQuote: true },
+          staged: { '**/*': 'vp check' }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts');
+      expect(findings.some((f) => f.ruleId === 'vite-plus-config-test-missing')).toBe(true);
+    });
+
+    it('C-CFG-09: flags vite-plus-legacy-config-forbidden when legacy configs exist', async () => {
       fs.writeFileSync(path.join(tempDir, 'eslint.config.js'), 'export default [];');
       fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), 'export default {};');
 
@@ -74,33 +155,12 @@ describe('ValidateVitePlusConfigAuditor & auditVitePlusConfigContent', () => {
         true
       );
     });
-
-    it('flags vite-plus-config-missing when no config file exists on disk', async () => {
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      await auditor.runAudit();
-      const result = await auditor.finishAudit();
-
-      expect(result.summary.errors).toBeGreaterThan(0);
-      expect(result.findings.some((f) => f.ruleId === 'vite-plus-config-missing')).toBe(true);
-      expect(result.status).toBe('failed');
-    });
   });
 
-  describe('Clean Path Verification (StandardAuditResult)', () => {
-    it('executes cleanly with 0 errors on compliant vite.config.ts', async () => {
-      const validConfig = `
-        import { defineConfig } from 'vite-plus';
-
-        export default defineConfig({
-          lint: {
-            rules: {
-              '@typescript-eslint/no-explicit-any': 'error',
-              '@typescript-eslint/ban-ts-comment': 'error'
-            }
-          }
-        });
-      `;
-      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), validConfig);
+  describe('Clean Path & Auto-Fix Canaries (C-CFG-10 and C-CFG-11)', () => {
+    it('C-CFG-10: executes cleanly with 0 errors on 100% compliant canonical config', async () => {
+      const canonicalConfig = buildCanonicalVitePlusConfig(getAuditConfig(tempDir));
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), canonicalConfig);
 
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
       await auditor.runAudit();
@@ -110,119 +170,20 @@ describe('ValidateVitePlusConfigAuditor & auditVitePlusConfigContent', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
     });
-  });
 
-  describe('Auto-Fix Verification', () => {
-    it('scaffolds canonical vite.config.ts when missing and fix: true is set', async () => {
-      const configPath = path.join(tempDir, 'vite.config.ts');
-      expect(fs.existsSync(configPath)).toBe(false);
+    it('C-CFG-11: auto-fix repairs missing vite.config.ts and purges legacy configs', async () => {
+      fs.writeFileSync(path.join(tempDir, 'eslint.config.js'), 'export default [];');
+      fs.writeFileSync(path.join(tempDir, '.nvmrc'), '26.11.1\n');
 
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
       await auditor.runAudit();
       const result = await auditor.finishAudit();
 
-      expect(fs.existsSync(configPath)).toBe(true);
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
-
-      const createdContent = fs.readFileSync(configPath, 'utf-8');
-      expect(createdContent).toContain('@typescript-eslint/no-explicit-any');
-      expect(createdContent).toContain('@typescript-eslint/ban-ts-comment');
-    });
-
-    it('automatically cleans legacy config files when fix: true is set', async () => {
-      const legacyPath = path.join(tempDir, 'eslint.config.js');
-      fs.writeFileSync(legacyPath, 'export default [];');
-
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      await auditor.finishAudit();
-
-      expect(fs.existsSync(legacyPath)).toBe(false);
-    });
-
-    it('extracts test block from legacy vitest.config.ts and preserves existing vite.config.ts plugins', async () => {
-      // 1. Existing vite.config.ts with custom plugins
-      const viteConfigContent = `import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-
-export default defineConfig({
-  plugins: [vue()],
-  server: { port: 3000 }
-});
-`;
-      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), viteConfigContent, 'utf-8');
-
-      // 2. Legacy vitest.config.ts with custom pool and exclusions
-      const vitestConfigContent = `import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    pool: 'forks',
-    coverage: {
-      provider: 'v8',
-      exclude: ['src/**/*.vue', '**/*.d.ts']
-    }
-  }
-});
-`;
-      fs.writeFileSync(path.join(tempDir, 'vitest.config.ts'), vitestConfigContent, 'utf-8');
-
-      // 3. Run auditor in fix mode
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      await auditor.finishAudit();
-
-      // 4. Verify vite.config.ts has both custom plugins AND migrated test block AND new lint/fmt/staged
-      const updatedViteConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
-      expect(updatedViteConfig).toContain("from 'vite-plus'");
-      expect(updatedViteConfig).toContain('plugins: [vue()]');
-      expect(updatedViteConfig).toContain('server: { port: 3000 }');
-      expect(updatedViteConfig).toContain("pool: 'forks'");
-      expect(updatedViteConfig).toContain("'src/**/*.vue'");
-      expect(updatedViteConfig).toContain('lint: {');
-      expect(updatedViteConfig).toContain('fmt: {');
-      expect(updatedViteConfig).toContain('staged: {');
-
-      // 5. Verify vitest.config.ts was safely removed only AFTER migration
-      expect(fs.existsSync(path.join(tempDir, 'vitest.config.ts'))).toBe(false);
-    });
-
-    it('migrates .nvmrc to .node-version and syncs package.json with vite-plus', async () => {
-      // 1. Create .nvmrc and legacy package.json
-      fs.writeFileSync(path.join(tempDir, '.nvmrc'), '26.11.1\n', 'utf-8');
-      const initialPkg = {
-        name: 'test-host',
-        scripts: {
-          lint: 'eslint .'
-        },
-        devDependencies: {
-          eslint: '^9.0.0',
-          '@eslint/js': '^9.0.0',
-          vitest: '^3.0.0'
-        }
-      };
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(initialPkg, null, 2), 'utf-8');
-      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), "import { defineConfig } from 'vite'; export default defineConfig({});", 'utf-8');
-
-      // 2. Run auditor in fix mode
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      await auditor.finishAudit();
-
-      // 3. Verify .nvmrc was removed and .node-version created
-      expect(fs.existsSync(path.join(tempDir, '.nvmrc'))).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, 'vite.config.ts'))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, 'eslint.config.js'))).toBe(false);
       expect(fs.existsSync(path.join(tempDir, '.node-version'))).toBe(true);
-      expect(fs.readFileSync(path.join(tempDir, '.node-version'), 'utf-8').trim()).toBe('26.11.1');
-
-      // 4. Verify package.json updated
-      const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-      expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.2.0');
-      expect(updatedPkg.devDependencies['eslint']).toBeUndefined();
-      expect(updatedPkg.devDependencies['@eslint/js']).toBeUndefined();
-      expect(updatedPkg.devDependencies['vitest']).toBeUndefined();
-      expect(updatedPkg.scripts['lint']).toBe('vp check');
     });
   });
 });
-

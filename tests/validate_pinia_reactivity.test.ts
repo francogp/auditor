@@ -64,7 +64,9 @@ describe('PiniaReactivityAuditor', () => {
       `;
 
       auditor.testScanFile('src/components/MyComponent.vue', badCode);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-store-destructuring-without-storetorefs');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-store-destructuring-without-storetorefs'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -91,7 +93,9 @@ describe('PiniaReactivityAuditor', () => {
       `;
 
       auditor.testScanFile('src/components/MyComponent.vue', badCode);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-store-destructuring-without-storetorefs');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-store-destructuring-without-storetorefs'
+      );
       expect(violation).toBeDefined();
     });
 
@@ -113,7 +117,9 @@ describe('PiniaReactivityAuditor', () => {
       `;
 
       auditor.testScanFile('src/components/Cheater.vue', badCode);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-direct-state-mutation-outside-actions');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-direct-state-mutation-outside-actions'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

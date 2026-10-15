@@ -33,7 +33,11 @@ describe('Package Hygiene Scripts Cross-Referencing (package-unused-dependency)'
           'unused-lib': '^1.0.0'
         }
       };
-      fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(pkgJson, null, 2), 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify(pkgJson, null, 2),
+        'utf-8'
+      );
 
       // Simulated Knip report where Knip missed indirect script usage
       const report: KnipReport = {
@@ -50,7 +54,7 @@ describe('Package Hygiene Scripts Cross-Referencing (package-unused-dependency)'
       };
 
       const findings = parseKnipIssues(report, tempDir);
-      const unusedNames = findings.map(f => f.context);
+      const unusedNames = findings.map((f) => f.context);
 
       expect(unusedNames).not.toContain('vue-tsc');
       expect(unusedNames).not.toContain('markdownlint-cli');

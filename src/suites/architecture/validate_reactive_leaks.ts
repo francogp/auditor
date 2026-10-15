@@ -23,10 +23,7 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export const REACTIVE_LEAK_RULES = [
-  'dom-event-leak',
-  'interval-leak'
-] as const;
+export const REACTIVE_LEAK_RULES = ['dom-event-leak', 'interval-leak'] as const;
 
 export type ReactiveLeakRuleId = (typeof REACTIVE_LEAK_RULES)[number];
 

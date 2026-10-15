@@ -238,6 +238,18 @@ export default defineAuditConfig({
     ignoreBinaries: [] // Binary script commands intentionally exempt
   },
 
+  oxlint: {
+    enabled: true // Ultra-fast syntax and code hygiene verification via Vite+ (Oxlint)
+  },
+
+  oxfmt: {
+    enabled: true // Source code formatting hygiene validation via Vite+ (Oxfmt)
+  },
+
+  vitePlusConfig: {
+    enabled: true // Unified Vite+ configuration governance and mandatory type safety in vite.config.ts
+  },
+
   environment: {
     enabled: true // Validates Node.js and npm engine compliance with package.json engines declaration
   },

@@ -105,7 +105,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
          .btn { transition: all 0.3s ease; }`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-css-animations');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-banned-css-animations'
+      );
       expect(violations.length).toBeGreaterThanOrEqual(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -120,7 +122,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-ui-timers');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-banned-ui-timers'
+      );
       expect(violations.length).toBeGreaterThanOrEqual(2);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -135,7 +139,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -148,7 +154,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
          gsapSleep(1.2);`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-named-timer-constants');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-named-timer-constants'
+      );
       expect(violations.length).toBe(2);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -160,7 +168,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `.fade-enter-active, .fade-leave-active { }`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-empty-vue-transitions');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-empty-vue-transitions'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -172,19 +182,20 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `.hero { transform: translateY(0) !important; }`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-important-transforms');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-important-transforms'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
     it('detects !important on filter properties in CSS', () => {
       const auditor = new TestableGsapAnimationsAuditor();
-      auditor.testScanFile(
-        'src/styles/filter.scss',
-        `.blur { filter: blur(5px) !important; }`
-      );
+      auditor.testScanFile('src/styles/filter.scss', `.blur { filter: blur(5px) !important; }`);
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-important-filters');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-important-filters'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -199,7 +210,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         }`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-gpu-layer-promotion');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-gpu-layer-promotion'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -211,7 +224,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `const tl = gsap.timeline({ duration: 2 });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-timeline-constructor-duration');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-timeline-constructor-duration'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -223,7 +238,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `gsap.to('.card', { 'background-color': '#fff' });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-kebab-case-properties');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-kebab-case-properties'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -235,7 +252,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `gsap.to('.box', { transform: 'translateX(20px)' });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-raw-transform-string');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-raw-transform-string'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -247,7 +266,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `gsap.to('#svg-circle', { svgOrigin: '100 100', transformOrigin: '50% 50%' });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-simultaneous-origin-conflict');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-simultaneous-origin-conflict'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -259,7 +280,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `gsap.to('.hero', { opacity: 1, ease: Power2.easeOut });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-legacy-ease-names');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-legacy-ease-names'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('error');
     });
@@ -273,7 +296,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-high-frequency-tween-creation');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-high-frequency-tween-creation'
+      );
       expect(violations.length).toBe(1);
       expect(violations[0]?.severity).toBe('warning');
     });
@@ -306,7 +331,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         </script>`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-ui-timers');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-banned-ui-timers'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -320,7 +347,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         }`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-css-animations');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-banned-css-animations'
+      );
       expect(violations).toHaveLength(1);
       expect(violations[0]?.message).toContain('ALERTA DE SABOTAJE');
       expect(violations[0]?.message).toContain('MIGRACIÓN OBLIGATORIA A GSAP');
@@ -334,7 +363,9 @@ describe('ValidateGsapAnimationsAuditor', () => {
         gsap.to('.shimmer', { backgroundPosition: '200% 0', duration: 1.5 });`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -345,18 +376,19 @@ describe('ValidateGsapAnimationsAuditor', () => {
         `gsap.delayedCall(0.25, () => {}); // delay-ok: one-off tick alignment`
       );
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-named-timer-constants');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-named-timer-constants'
+      );
       expect(violations).toHaveLength(0);
     });
 
     it('allows delayedCall(0, ...) as an idiomatic deferred microtask without error', () => {
       const auditor = new TestableGsapAnimationsAuditor();
-      auditor.testScanFile(
-        'src/features/deferral.ts',
-        `gsap.delayedCall(0, () => nextTick());`
-      );
+      auditor.testScanFile('src/features/deferral.ts', `gsap.delayedCall(0, () => nextTick());`);
 
-      const violations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-named-timer-constants');
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-named-timer-constants'
+      );
       expect(violations).toHaveLength(0);
     });
 
@@ -381,7 +413,9 @@ function animateEntry(el: HTMLElement) {
 </script>`;
 
       auditor.testScanFile('src/components/BattleGroundHazards.vue', vueSfc);
-      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      const layoutViolations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
       expect(layoutViolations).toHaveLength(0);
     });
 
@@ -396,7 +430,9 @@ const inlineComment = true; // No need for clearInterval here
 </script>`;
 
       auditor.testScanFile('src/components/BreedingSummary.vue', vueSfc);
-      const timerViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-banned-ui-timers');
+      const timerViolations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-banned-ui-timers'
+      );
       expect(timerViolations).toHaveLength(0);
     });
 
@@ -413,7 +449,9 @@ const inlineComment = true; // No need for clearInterval here
         });
       `;
       auditor.testScanFile('src/components/Modal.vue', code);
-      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      const layoutViolations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
       expect(layoutViolations).toHaveLength(0);
     });
 
@@ -434,14 +472,19 @@ const inlineComment = true; // No need for clearInterval here
         });
       `;
       auditor.testScanFile('src/components/Accordion.vue', code);
-      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      const layoutViolations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
       expect(layoutViolations).toHaveLength(0);
     });
 
     it('honors statement-level layout-ok authorization across huge multi-kilobyte fromTo tween configs', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       // Generate large dummy padding properties (> 1200 chars) to exceed legacy window limit
-      const dummyProps = Array.from({ length: 40 }, (_, idx) => `// comment padding line ${idx}\n          rotation: ${idx},`).join('\n');
+      const dummyProps = Array.from(
+        { length: 40 },
+        (_, idx) => `// comment padding line ${idx}\n          rotation: ${idx},`
+      ).join('\n');
       const code = `
         // layout-ok: extensive accordion animation with multiline justification
         gsap.fromTo(accordionRef.value, {
@@ -457,9 +500,10 @@ const inlineComment = true; // No need for clearInterval here
         });
       `;
       auditor.testScanFile('src/components/HugeAccordion.vue', code);
-      const layoutViolations = auditor.recordedViolations.filter(v => v.ruleId === 'gsap-no-layout-properties');
+      const layoutViolations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
       expect(layoutViolations).toHaveLength(0);
     });
   });
 });
-

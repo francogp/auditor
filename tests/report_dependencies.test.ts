@@ -13,10 +13,7 @@ import {
   evaluateProjectDependencies,
   getAuditorMinimumVersions
 } from '../src/core/auditorMinimums.ts';
-import {
-  parseCliArgs,
-  runDependenciesReport
-} from '../src/cli/report_dependencies.ts';
+import { parseCliArgs, runDependenciesReport } from '../src/cli/report_dependencies.ts';
 
 describe('auditor-dependencies CLI reporter', () => {
   let tempDir: string;
@@ -29,12 +26,18 @@ describe('auditor-dependencies CLI reporter', () => {
     pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> },
     locked?: Record<string, string>
   ): Promise<void> {
-    await fs.writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test-host', ...pkg }));
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'test-host', ...pkg })
+    );
     if (locked) {
       const packages = Object.fromEntries(
         Object.entries(locked).map(([n, v]) => [`node_modules/${n}`, { version: v }])
       );
-      await fs.writeFile(path.join(tempDir, 'package-lock.json'), JSON.stringify({ lockfileVersion: 3, packages }));
+      await fs.writeFile(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({ lockfileVersion: 3, packages })
+      );
     }
   }
 
@@ -83,13 +86,15 @@ describe('auditor-dependencies CLI reporter', () => {
     expect(report.prodInstallCommand).toBe(`npm install vue@${vueFloor}`);
     expect(report.devInstallCommand).toBe(`npm install -D html-validate@${htmlValidateFloor}`);
 
-    const vueEval = report.evaluated.find(e => e.name === 'vue');
+    const vueEval = report.evaluated.find((e) => e.name === 'vue');
     expect(vueEval?.status).toBe('outdated_range');
     expect(vueEval?.installCommand).toBe(`npm install vue@${vueFloor}`);
 
-    const htmlValidateEval = report.evaluated.find(e => e.name === 'html-validate');
+    const htmlValidateEval = report.evaluated.find((e) => e.name === 'html-validate');
     expect(htmlValidateEval?.status).toBe('outdated_range');
-    expect(htmlValidateEval?.installCommand).toBe(`npm install -D html-validate@${htmlValidateFloor}`);
+    expect(htmlValidateEval?.installCommand).toBe(
+      `npm install -D html-validate@${htmlValidateFloor}`
+    );
   });
 
   it('detects outdated installed lockfile version', async () => {
@@ -100,7 +105,7 @@ describe('auditor-dependencies CLI reporter', () => {
 
     const report = evaluateProjectDependencies(tempDir);
     expect(report.outdatedCount).toBe(1);
-    const htmlValidateEval = report.evaluated.find(e => e.name === 'html-validate');
+    const htmlValidateEval = report.evaluated.find((e) => e.name === 'html-validate');
     expect(htmlValidateEval?.status).toBe('outdated_installed');
     expect(report.devInstallCommand).toBe(`npm install -D html-validate@${htmlValidateFloor}`);
   });
@@ -108,9 +113,9 @@ describe('auditor-dependencies CLI reporter', () => {
   it('marks non-declared libraries as undeclared', async () => {
     await writeProject({ devDependencies: { 'html-validate': htmlValidateFloor } });
     const report = evaluateProjectDependencies(tempDir);
-    const undeclared = report.evaluated.filter(e => e.status === 'undeclared');
+    const undeclared = report.evaluated.filter((e) => e.status === 'undeclared');
     expect(undeclared.length).toBe(report.totalGoverned - 1);
-    const tsEval = undeclared.find(e => e.name === 'typescript');
+    const tsEval = undeclared.find((e) => e.name === 'typescript');
     expect(tsEval?.declaredRange).toBeNull();
   });
 
@@ -118,7 +123,12 @@ describe('auditor-dependencies CLI reporter', () => {
     await writeProject({ devDependencies: { 'html-validate': htmlValidateFloor } });
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {
-      const report = runDependenciesReport(tempDir, { json: true, commandsOnly: false, all: false, noFail: true });
+      const report = runDependenciesReport(tempDir, {
+        json: true,
+        commandsOnly: false,
+        all: false,
+        noFail: true
+      });
       expect(report.declaredCount).toBe(1);
       expect(spy).toHaveBeenCalled();
       const firstCall = spy.mock.calls[0]?.[0];
@@ -136,7 +146,12 @@ describe('auditor-dependencies CLI reporter', () => {
     });
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {
-      const report = runDependenciesReport(tempDir, { json: false, commandsOnly: true, all: false, noFail: true });
+      const report = runDependenciesReport(tempDir, {
+        json: false,
+        commandsOnly: true,
+        all: false,
+        noFail: true
+      });
       expect(report.outdatedCount).toBe(2);
       expect(spy).toHaveBeenCalledWith(`npm install vue@${vueFloor}`);
       expect(spy).toHaveBeenCalledWith(`npm install -D html-validate@${htmlValidateFloor}`);

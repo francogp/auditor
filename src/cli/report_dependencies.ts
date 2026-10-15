@@ -125,7 +125,8 @@ export function runDependenciesReport(
     undeclared: 3
   };
   const itemsToDisplay = [...rawItems].sort(
-    (a, b) => (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99) || a.name.localeCompare(b.name)
+    (a, b) =>
+      (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99) || a.name.localeCompare(b.name)
   );
 
   const bannerSubtitle = `Proyecto: ${path.basename(report.projectRoot)} | Gobernadas: ${report.totalGoverned} | Declaradas: ${report.declaredCount}`;

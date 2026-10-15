@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   AuditHeadersAuditor,
   scanFileForIllegalHeaders,
@@ -34,8 +34,10 @@ export function calculate(a: number, b: number): number {
 
     it('allows valid inline line-level escape hatches appended to code', () => {
       const codeWithInlineEscapes = [
-        'const name = getRawName(); // ' + 'domain-ok: Open dynamic text or non-domain string payload',
-        'let globalCache: Cache | null = null; // ' + 'singleton-ok: Global persistent singleton instance',
+        'const name = getRawName(); // ' +
+          'domain-ok: Open dynamic text or non-domain string payload',
+        'let globalCache: Cache | null = null; // ' +
+          'singleton-ok: Global persistent singleton instance',
         'const timeout = 1000; // ' + 'timer-ok: Explicit network latency debounce'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/helpers.ts', codeWithInlineEscapes);
@@ -69,7 +71,11 @@ export function calculate(a: number, b: number): number {
     });
 
     it('detects // fallow-ignore-file headers anywhere in file', () => {
-      const code = ['// ' + 'fallow-ignore-file security-sink', 'import fs from "node:fs";', 'export function readData() { return 1; }'].join('\n');
+      const code = [
+        '// ' + 'fallow-ignore-file security-sink',
+        'import fs from "node:fs";',
+        'export function readData() { return 1; }'
+      ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/loader.ts', code);
       expect(violations.length).toBe(1);
       expect(violations[0]?.ruleId).toBe('file-level-fallow-ignore');
@@ -78,7 +84,11 @@ export function calculate(a: number, b: number): number {
     });
 
     it('detects multiple fallow-ignore-file rules on same or different lines', () => {
-      const code = ['// ' + 'fallow-ignore-file security-sink unused-store-member', '// ' + 'fallow-ignore-file circular-dependencies', 'export const x = 1;'].join('\n');
+      const code = [
+        '// ' + 'fallow-ignore-file security-sink unused-store-member',
+        '// ' + 'fallow-ignore-file circular-dependencies',
+        'export const x = 1;'
+      ].join('\n');
       const violations = scanFileForIllegalHeaders('src/stores/myStore.ts', code);
       expect(violations.length).toBe(2);
       expect(violations[0]?.ruleId).toBe('file-level-fallow-ignore');
@@ -94,7 +104,12 @@ export function calculate(a: number, b: number): number {
     });
 
     it('detects file-level <!-- eslint-disable --> in Vue templates', () => {
-      const code = ['<template>', '  <!-' + '- eslint-disable vue/no-v-html -->', '  <div v-html="rawContent" />', '</template>'].join('\n');
+      const code = [
+        '<template>',
+        '  <!-' + '- eslint-disable vue/no-v-html -->',
+        '  <div v-html="rawContent" />',
+        '</template>'
+      ].join('\n');
       const violations = scanFileForIllegalHeaders('src/components/MyComp.vue', code);
       expect(violations.length).toBe(1);
       expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
@@ -106,6 +121,37 @@ export function calculate(a: number, b: number): number {
         '// ' + 'eslint-disable-next-line security/detect-non-literal-regexp',
         'const regex = new RegExp(input);',
         'const val = eval(code); // ' + 'eslint-disable-line no-eval'
+      ].join('\n');
+      const violations = scanFileForIllegalHeaders('src/logic/evaluator.ts', code);
+      expect(violations).toEqual([]);
+    });
+
+    it('C-HDR-01: detects file-level /* oxlint-disable */ headers', () => {
+      const code = ['/*' + ' oxlint-disable */', 'import { ref } from "vue";'].join('\n');
+      const violations = scanFileForIllegalHeaders('src/views/MyView.vue', code);
+      expect(violations.length).toBe(1);
+      expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
+      expect(violations[0]?.line).toBe(1);
+    });
+
+    it('C-HDR-02: detects file-level <!-- oxlint-disable --> in Vue templates', () => {
+      const code = [
+        '<template>',
+        '  <!-' + '- oxlint-disable no-console -->',
+        '  <div />',
+        '</template>'
+      ].join('\n');
+      const violations = scanFileForIllegalHeaders('src/components/MyComp.vue', code);
+      expect(violations.length).toBe(1);
+      expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
+      expect(violations[0]?.line).toBe(2);
+    });
+
+    it('C-HDR-03: allows line-level oxlint-disable-next-line and oxlint-disable-line', () => {
+      const code = [
+        '// ' + 'oxlint-disable-next-line @typescript-eslint/no-unused-vars',
+        'const unused = 1;',
+        'const val = eval(code); // ' + 'oxlint-disable-line no-eval'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/evaluator.ts', code);
       expect(violations).toEqual([]);
@@ -127,7 +173,11 @@ export function calculate(a: number, b: number): number {
     });
 
     it('detects standalone auditor escape hatches used as file headers', () => {
-      const code = ['// ' + 'domain-ok', '// ' + 'singleton-ok', 'export const someData = 123;'].join('\n');
+      const code = [
+        '// ' + 'domain-ok',
+        '// ' + 'singleton-ok',
+        'export const someData = 123;'
+      ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/standaloneEscapes.ts', code);
       expect(violations.length).toBe(2);
       expect(violations[0]?.ruleId).toBe('header-auditor-escape');

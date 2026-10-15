@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { fileWalkerDetector } from '../src/analyzers/homebrew/detectors/fileWalkerDetector.ts';
 import { type HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
 
-function createContext(content: string, filePath = 'src/suites/testSuite.ts'): HomebrewInspectionContext {
+function createContext(
+  content: string,
+  filePath = 'src/suites/testSuite.ts'
+): HomebrewInspectionContext {
   const lines = content.split('\n');
   return {
     filePath,

@@ -26,10 +26,16 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.rules['audit-config-missing-path']).toBe('Ruta configurada no existe');
     expect(manifest.rules['audit-config-missing-section']).toBe('Falta sección en audit.config');
     expect(manifest.rules['audit-config-missing-file']).toBe('Archivo configurado no existe');
-    expect(manifest.rules['audit-config-invalid-extension']).toBe('Extensión configurada no existe');
-    expect(manifest.rules['audit-config-missing-gitignore-entry']).toBe('Falta entrada en .gitignore');
+    expect(manifest.rules['audit-config-invalid-extension']).toBe(
+      'Extensión configurada no existe'
+    );
+    expect(manifest.rules['audit-config-missing-gitignore-entry']).toBe(
+      'Falta entrada en .gitignore'
+    );
     expect(manifest.rules['audit-config-unknown-field']).toBe('Campo no reconocido en config');
-    expect(manifest.rules['audit-config-critical-violation']).toBe('Violación a configuración crítica');
+    expect(manifest.rules['audit-config-critical-violation']).toBe(
+      'Violación a configuración crítica'
+    );
     expect(Object.keys(manifest.rules).length).toBe(7);
   });
 
@@ -39,18 +45,27 @@ describe('Auditor Manifest & Introspection Registry', () => {
         super({
           id: 'validate_invalid_desc',
           name: 'Invalid Description Auditor',
-          description: 'Esta es una descripción deliberadamente larguísima que excede los sesenta caracteres reglamentarios',
+          description:
+            'Esta es una descripción deliberadamente larguísima que excede los sesenta caracteres reglamentarios',
           icon: '⚠️',
           family: 'architecture',
           ruleIds: ['test-rule'],
           packageName: 'Test',
           ruleCapabilities: {
-            'test-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+            'test-rule': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
           },
           configKey: 'paths',
           defaultConfig: {},
           criticalConfig: {},
-      usesThirdPartyTool: false,
+          usesThirdPartyTool: false,
           ruleDescriptions: {
             'test-rule': 'Regla de prueba'
           },

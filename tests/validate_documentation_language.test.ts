@@ -131,7 +131,9 @@ describe('DocumentationLanguageAuditor', () => {
   it('detects language governance mandate across English and Spanish snippets', () => {
     expect(containsLanguageMandate(CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN, 'en')).toBe(true);
     expect(containsLanguageMandate(CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES, 'es')).toBe(true);
-    expect(containsLanguageMandate('Normal contract without mention of documentation language', 'en')).toBe(false);
+    expect(
+      containsLanguageMandate('Normal contract without mention of documentation language', 'en')
+    ).toBe(false);
     expect(containsLanguageMandate(CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES, 'en')).toBe(false);
   });
 
@@ -164,7 +166,9 @@ Another English paragraph describing the execution model and lifecycle hooks.
     expect(paragraphs[0]?.text).toBe('Architecture Overview');
     expect(paragraphs[1]?.text).toContain('architectural overview document written in English');
     expect(paragraphs[1]?.text).not.toContain('const a = 10');
-    expect(paragraphs[2]?.text).toContain('Another English paragraph describing the execution model');
+    expect(paragraphs[2]?.text).toContain(
+      'Another English paragraph describing the execution model'
+    );
   });
 
   it('correctly matches language exemption paths and globs', () => {
@@ -205,7 +209,7 @@ Los desarrolladores deben consultar las directrices antes de introducir dependen
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'docs-unauthorized-language');
+    const finding = result.findings.find((f) => f.ruleId === 'docs-unauthorized-language');
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
     expect(finding?.file).toBe('README.md');
@@ -280,7 +284,7 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');
-    const violation = result.findings.find(v => v.ruleId === 'docs-missing-language-mandate');
+    const violation = result.findings.find((v) => v.ruleId === 'docs-missing-language-mandate');
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
     expect(violation?.file).toBe('AGENTS.md');
@@ -304,7 +308,9 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
     await fixAuditor.execute();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-    expect(updatedContent).toContain('Universal English Documentation Default Mandate & Language Governance');
+    expect(updatedContent).toContain(
+      'Universal English Documentation Default Mandate & Language Governance'
+    );
     expect(updatedContent).toContain('learning_proposal.md');
     expect(updatedContent).toContain('Whenever in doubt');
 
@@ -364,11 +370,16 @@ Ingenieros de Arquitectura.
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), spanishAgentsWithoutMandate, 'utf8');
 
     // Run fix in Spanish mode
-    const fixAuditorEs = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'es' });
+    const fixAuditorEs = new DocumentationLanguageAuditor(scratchDir, {
+      fix: true,
+      language: 'es'
+    });
     await fixAuditorEs.execute();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-    expect(updatedContent).toContain('Mandato de Idioma de Documentación en Español y Gobernanza de Lenguaje');
+    expect(updatedContent).toContain(
+      'Mandato de Idioma de Documentación en Español y Gobernanza de Lenguaje'
+    );
     expect(updatedContent).toContain('learning_proposal.md');
 
     // Verification in Spanish mode passes cleanly
@@ -407,11 +418,16 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), englishAgentsWithSpanishMandate, 'utf8');
 
     // Running fix in English mode replaces the Spanish mandate with English
-    const fixAuditorEn = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+    const fixAuditorEn = new DocumentationLanguageAuditor(scratchDir, {
+      fix: true,
+      language: 'en'
+    });
     await fixAuditorEn.execute();
 
     const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-    expect(finalContent).toContain('Universal English Documentation Default Mandate & Language Governance');
+    expect(finalContent).toContain(
+      'Universal English Documentation Default Mandate & Language Governance'
+    );
     expect(finalContent).not.toContain('Mandato de Idioma de Documentación en Español');
 
     const verifyEn = new DocumentationLanguageAuditor(scratchDir, { language: 'en' });
@@ -428,7 +444,9 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
       await run1.execute();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
-      const matchesRun1 = contentAfterRun1.match(/Universal English Documentation Default Mandate & Language Governance/g);
+      const matchesRun1 = contentAfterRun1.match(
+        /Universal English Documentation Default Mandate & Language Governance/g
+      );
       expect(matchesRun1?.length).toBe(1);
 
       for (let i = 2; i <= 5; i++) {
@@ -436,7 +454,9 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
         await auditor.execute();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-        const matches = current.match(/Universal English Documentation Default Mandate & Language Governance/g);
+        const matches = current.match(
+          /Universal English Documentation Default Mandate & Language Governance/g
+        );
         expect(matches?.length).toBe(1);
         expect(current).toBe(contentAfterRun1);
       }
@@ -449,7 +469,9 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
       await run1.execute();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
-      const matchesRun1 = contentAfterRun1.match(/Universal English Documentation Default Mandate & Language Governance/g);
+      const matchesRun1 = contentAfterRun1.match(
+        /Universal English Documentation Default Mandate & Language Governance/g
+      );
       expect(matchesRun1?.length).toBe(1);
 
       for (let i = 2; i <= 5; i++) {
@@ -457,7 +479,9 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
         await auditor.execute();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-        const matches = current.match(/Universal English Documentation Default Mandate & Language Governance/g);
+        const matches = current.match(
+          /Universal English Documentation Default Mandate & Language Governance/g
+        );
         expect(matches?.length).toBe(1);
         expect(current).toBe(contentAfterRun1);
       }
@@ -478,20 +502,32 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), duplicatedContent, 'utf8');
 
       const beforeFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect((beforeFix.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(3);
+      expect(
+        (beforeFix.match(/Universal English Documentation Default Mandate/g) || []).length
+      ).toBe(3);
 
-      const fixAuditor = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+      const fixAuditor = new DocumentationLanguageAuditor(scratchDir, {
+        fix: true,
+        language: 'en'
+      });
       await fixAuditor.execute();
 
       const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect((afterFix.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(1);
+      expect(
+        (afterFix.match(/Universal English Documentation Default Mandate/g) || []).length
+      ).toBe(1);
 
       // Run fix again: must remain strictly 1
-      const fixAuditor2 = new DocumentationLanguageAuditor(scratchDir, { fix: true, language: 'en' });
+      const fixAuditor2 = new DocumentationLanguageAuditor(scratchDir, {
+        fix: true,
+        language: 'en'
+      });
       await fixAuditor2.execute();
 
       const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect((afterFix2.match(/Universal English Documentation Default Mandate/g) || []).length).toBe(1);
+      expect(
+        (afterFix2.match(/Universal English Documentation Default Mandate/g) || []).length
+      ).toBe(1);
       expect(afterFix2).toBe(afterFix);
     });
 
@@ -515,10 +551,11 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'code-comment-unauthorized-language');
+      const finding = result.findings.find(
+        (f) => f.ruleId === 'code-comment-unauthorized-language'
+      );
       expect(finding).toBeDefined();
       expect(finding?.file).toBe('src/module.ts');
     });
   });
 });
-

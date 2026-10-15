@@ -58,8 +58,24 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
     include: ['src/**/*.ts']
   },
   ruleCapabilities: {
-    'sample-rule-a': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
-    'sample-rule-b': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+    'sample-rule-a': {
+      speed: 'light',
+      phase: 'normal',
+      fix: 'none',
+      md: false,
+      ast: false,
+      changedOnly: false,
+      critical: false
+    },
+    'sample-rule-b': {
+      speed: 'light',
+      phase: 'normal',
+      fix: 'none',
+      md: false,
+      ast: false,
+      changedOnly: false,
+      critical: false
+    }
   }
 };
 
@@ -210,7 +226,8 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
       expect(() => {
         new TestSubAuditor({
           ...CANONICAL_VALID_OPTIONS,
-          description: 'Esta descripción supera ampliamente los sesenta caracteres máximos permitidos por el framework para mantener una salida limpia'
+          description:
+            'Esta descripción supera ampliamente los sesenta caracteres máximos permitidos por el framework para mantener una salida limpia'
         });
       }).toThrow(/description exceeds 60 characters/);
     });
@@ -302,8 +319,12 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
 
       // Verifies that both built-in and user extension configs are dynamically embedded
       expect(configContent).toContain("name: 'TestApp'");
-      expect(configContent).toContain('secretLeaks: {\n    enabled: true,\n    maskSecrets: true\n  }');
-      expect(configContent).toContain('customExtension: {\n    enabled: true,\n    maxRetries: 5\n  }');
+      expect(configContent).toContain(
+        'secretLeaks: {\n    enabled: true,\n    maskSecrets: true\n  }'
+      );
+      expect(configContent).toContain(
+        'customExtension: {\n    enabled: true,\n    maxRetries: 5\n  }'
+      );
     });
   });
 
@@ -315,7 +336,11 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
       } as unknown as AuditConfig;
 
       // Unconfigured or default: enabled
-      const statusActive = evaluateSuiteStatus('validate_unregistered_extension', config, 'unregisteredSubsystem.enabled');
+      const statusActive = evaluateSuiteStatus(
+        'validate_unregistered_extension',
+        config,
+        'unregisteredSubsystem.enabled'
+      );
       expect(statusActive.enabled).toBe(true);
 
       // Explicitly disabled in config
@@ -324,7 +349,11 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
         unregisteredSubsystem: { enabled: false }
       } as unknown as AuditConfig;
 
-      const statusDisabled = evaluateSuiteStatus('validate_unregistered_extension', configDisabled, 'unregisteredSubsystem.enabled');
+      const statusDisabled = evaluateSuiteStatus(
+        'validate_unregistered_extension',
+        configDisabled,
+        'unregisteredSubsystem.enabled'
+      );
       expect(statusDisabled.enabled).toBe(false);
       expect(statusDisabled.reason).toContain('unregisteredSubsystem.enabled = false');
       expect(statusDisabled.configKey).toBe('unregisteredSubsystem.enabled');

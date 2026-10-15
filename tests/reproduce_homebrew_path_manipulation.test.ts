@@ -18,7 +18,7 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
   });
 
   it('detects homemade regex character stripping on path variables', () => {
-    const stripCall = 'rawPath.' + 'replace(/[^a-zA-Z0-9_\\- /.:\\\\]/g, \'\');';
+    const stripCall = 'rawPath.' + "replace(/[^a-zA-Z0-9_\\- /.:\\\\]/g, '');";
     const code = `
       export function cleanPath(rawPath: string): string {
         const clean = ${stripCall}
@@ -26,34 +26,35 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
       }
     `;
     const violations = scanFileForNativePathViolations('src/utils/paths.ts', code);
-    const violation = violations.find(v => v.ruleId === 'homebrew-path-manipulation');
+    const violation = violations.find((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
     expect(violation?.message).toContain('node:path');
   });
 
   it('detects homemade path traversal regex stripping', () => {
-    const stripCall = 'p.' + 'replace(/(\\.\\.[\\/\\\\])+/g, \'\');';
+    const stripCall = 'p.' + "replace(/(\\.\\.[\\/\\\\])+/g, '');";
     const code = `
       export function sanitize(p: string): string {
         return ${stripCall}
       }
     `;
     const violations = scanFileForNativePathViolations('src/core/pathSanitize.ts', code);
-    const violation = violations.find(v => v.ruleId === 'homebrew-path-manipulation');
+    const violation = violations.find((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
   });
 
   it('detects naive string traversal checks like dot-dot path traversal', () => {
-    const checkCall = 'if (filePath.' + 'includes(\'..\')) { throw new Error(\'Directory traversal attempt\'); }';
+    const checkCall =
+      'if (filePath.' + "includes('..')) { throw new Error('Directory traversal attempt'); }";
     const code = `
       export function checkSafe(filePath: string): void {
         ${checkCall}
       }
     `;
     const violations = scanFileForNativePathViolations('src/core/check.ts', code);
-    const violation = violations.find(v => v.ruleId === 'homebrew-path-manipulation');
+    const violation = violations.find((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
   });
@@ -72,7 +73,7 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
       }
     `;
     const violations = scanFileForNativePathViolations('src/core/cleanPath.ts', code);
-    const homebrewViolations = violations.filter(v => v.ruleId === 'homebrew-path-manipulation');
+    const homebrewViolations = violations.filter((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(homebrewViolations.length).toBe(0);
   });
 
@@ -82,7 +83,7 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
       const scriptArg = relScriptPath.startsWith('..') ? path.resolve(fullPath).replace(/\\\\/g, '/') : relScriptPath;
     `;
     const violations = scanFileForNativePathViolations('src/cli/scanner.ts', code);
-    const homebrewViolations = violations.filter(v => v.ruleId === 'homebrew-path-manipulation');
+    const homebrewViolations = violations.filter((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(homebrewViolations.length).toBe(0);
   });
 
@@ -92,7 +93,7 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
       const detail = 'Elemento interactivo... Todo elemento debe tener ID';
     `;
     const violations = scanFileForNativePathViolations('src/rules/check.ts', code);
-    const homebrewViolations = violations.filter(v => v.ruleId === 'homebrew-path-manipulation');
+    const homebrewViolations = violations.filter((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(homebrewViolations.length).toBe(0);
   });
 
@@ -101,7 +102,7 @@ describe('Homebrew Path Manipulation Detection (homebrew-path-manipulation)', ()
       const fix = (match: string) => match.replace(/(['"])(\\.\\.?\\/[^'"]+)(?<!\\.[jt]s)(['"])/g, '$1$2.ts$3');
     `;
     const violations = scanFileForNativePathViolations('src/rules/fixer.ts', code);
-    const homebrewViolations = violations.filter(v => v.ruleId === 'homebrew-path-manipulation');
+    const homebrewViolations = violations.filter((v) => v.ruleId === 'homebrew-path-manipulation');
     expect(homebrewViolations.length).toBe(0);
   });
 });

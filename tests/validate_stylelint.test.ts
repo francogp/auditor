@@ -72,11 +72,17 @@ describe('StylelintAuditor Suite', () => {
 
     it('categorizes stylelint rule names accurately', () => {
       expect(categorizeStylelintRule('no-duplicate-selectors')).toBe('css-duplicate-selectors');
-      expect(categorizeStylelintRule('declaration-block-no-duplicate-properties')).toBe('css-duplicate-properties');
+      expect(categorizeStylelintRule('declaration-block-no-duplicate-properties')).toBe(
+        'css-duplicate-properties'
+      );
       expect(categorizeStylelintRule('block-no-empty')).toBe('css-empty-blocks');
       expect(categorizeStylelintRule('order/properties-order')).toBe('css-order-violation');
-      expect(categorizeStylelintRule('scss/no-duplicate-dollar-variables')).toBe('scss-syntax-issue');
-      expect(categorizeStylelintRule('scale-unlimited/declaration-strict-value')).toBe('scss-strict-values');
+      expect(categorizeStylelintRule('scss/no-duplicate-dollar-variables')).toBe(
+        'scss-syntax-issue'
+      );
+      expect(categorizeStylelintRule('scale-unlimited/declaration-strict-value')).toBe(
+        'scss-strict-values'
+      );
       expect(categorizeStylelintRule('unknown-rule')).toBe('stylelint-issue');
     });
   });
@@ -149,9 +155,11 @@ describe('StylelintAuditor Suite', () => {
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);
-      const duplicateSelectorFindings = result.findings.filter(f => f.ruleId === 'css-duplicate-selectors');
+      const duplicateSelectorFindings = result.findings.filter(
+        (f) => f.ruleId === 'css-duplicate-selectors'
+      );
       expect(duplicateSelectorFindings).toHaveLength(0);
-      const emptyBlockFindings = result.findings.filter(f => f.ruleId === 'css-empty-blocks');
+      const emptyBlockFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyBlockFindings).toHaveLength(0);
     });
 
@@ -183,7 +191,7 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const orderViolations = result.findings.filter(f => f.ruleId === 'css-order-violation');
+      const orderViolations = result.findings.filter((f) => f.ruleId === 'css-order-violation');
       expect(orderViolations).toHaveLength(0);
       expect(result.summary.errors).toBe(0);
     });
@@ -208,7 +216,7 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const dupFindings = result.findings.filter(f => f.ruleId === 'css-duplicate-selectors');
+      const dupFindings = result.findings.filter((f) => f.ruleId === 'css-duplicate-selectors');
       expect(dupFindings.length).toBeGreaterThanOrEqual(1);
       expect(dupFindings[0]?.message).toContain('.duplicate-card');
     });
@@ -224,7 +232,7 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const emptyFindings = result.findings.filter(f => f.ruleId === 'css-empty-blocks');
+      const emptyFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyFindings.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -236,7 +244,10 @@ describe('StylelintAuditor Suite', () => {
       await auditor.execute();
 
       const cachePath = path.join(tempDir, 'scratch/cache/stylelint_cache.json');
-      const cacheExists = await fs.stat(cachePath).then(() => true).catch(() => false);
+      const cacheExists = await fs
+        .stat(cachePath)
+        .then(() => true)
+        .catch(() => false);
       expect(cacheExists).toBe(true);
     });
 
@@ -250,7 +261,11 @@ describe('StylelintAuditor Suite', () => {
         stylelint: { enabled: false }
       };
       await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.json'),
+        JSON.stringify(auditConfig),
+        'utf-8'
+      );
 
       const scssFile = path.join(tempDir, 'src/empty.scss');
       await fs.writeFile(scssFile, '.empty {}', 'utf-8');
@@ -279,7 +294,11 @@ describe('StylelintAuditor Suite', () => {
         }
       };
       await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.json'),
+        JSON.stringify(auditConfig),
+        'utf-8'
+      );
 
       const scssFile = path.join(tempDir, 'src/empty.scss');
       await fs.writeFile(scssFile, '.empty {}', 'utf-8');
@@ -287,7 +306,7 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const emptyFindings = result.findings.filter(f => f.ruleId === 'css-empty-blocks');
+      const emptyFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyFindings).toHaveLength(0);
     });
 
@@ -303,7 +322,11 @@ describe('StylelintAuditor Suite', () => {
         }
       };
       await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.json'), JSON.stringify(auditConfig), 'utf-8');
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.json'),
+        JSON.stringify(auditConfig),
+        'utf-8'
+      );
 
       const legacyDir = path.join(tempDir, 'src/legacy');
       await fs.mkdir(legacyDir, { recursive: true });
@@ -312,7 +335,7 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const emptyFindings = result.findings.filter(f => f.ruleId === 'css-empty-blocks');
+      const emptyFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyFindings).toHaveLength(0);
     });
   });
@@ -343,10 +366,12 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const collisionFindings = result.findings.filter(f => f.ruleId === 'scss-sass-collision-casing');
+      const collisionFindings = result.findings.filter(
+        (f) => f.ruleId === 'scss-sass-collision-casing'
+      );
       expect(collisionFindings.length).toBeGreaterThanOrEqual(2);
-      expect(collisionFindings.some(f => f.message.includes('Scale'))).toBe(true);
-      expect(collisionFindings.some(f => f.message.includes('Saturate'))).toBe(true);
+      expect(collisionFindings.some((f) => f.message.includes('Scale'))).toBe(true);
+      expect(collisionFindings.some((f) => f.message.includes('Saturate'))).toBe(true);
     });
 
     it('auto-repairs colliding lowercase functions to PascalCase/CamelCase in fix mode', async () => {
@@ -390,9 +415,13 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
-      const functionCaseErrors = result.findings.filter(f => f.message.includes('function-name-case'));
+      const functionCaseErrors = result.findings.filter((f) =>
+        f.message.includes('function-name-case')
+      );
       expect(functionCaseErrors).toHaveLength(0);
-      const collisionFindings = result.findings.filter(f => f.ruleId === 'scss-sass-collision-casing');
+      const collisionFindings = result.findings.filter(
+        (f) => f.ruleId === 'scss-sass-collision-casing'
+      );
       expect(collisionFindings).toHaveLength(0);
     });
   });
@@ -427,7 +456,7 @@ describe('StylelintAuditor Suite', () => {
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
         expect(result.summary.errors).toBeGreaterThan(0);
-        expect(result.findings.some(f => f.severity === 'error')).toBe(true);
+        expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }
@@ -460,7 +489,7 @@ describe('StylelintAuditor Suite', () => {
         const auditor = new StylelintAuditor({ projectRoot: tempDir });
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
-        const strictFindings = result.findings.filter(f => f.ruleId === 'scss-strict-values');
+        const strictFindings = result.findings.filter((f) => f.ruleId === 'scss-strict-values');
         expect(strictFindings.length).toBe(13);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
@@ -495,7 +524,7 @@ describe('StylelintAuditor Suite', () => {
         );
         const auditor = new StylelintAuditor({ projectRoot: tempDir });
         const result = await auditor.execute();
-        const strictFindings = result.findings.filter(f => f.ruleId === 'scss-strict-values');
+        const strictFindings = result.findings.filter((f) => f.ruleId === 'scss-strict-values');
         expect(strictFindings).toHaveLength(0);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
@@ -503,4 +532,3 @@ describe('StylelintAuditor Suite', () => {
     });
   });
 });
-

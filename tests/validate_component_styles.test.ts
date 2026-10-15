@@ -45,17 +45,33 @@ describe('ComponentStylesAuditor', () => {
 
     const auditor = new ComponentStylesAuditor();
     expect(auditor.ruleDescriptions).toBeDefined();
-    expect(auditor.ruleDescriptions?.['broken-style-link']).toBe('Enlace de estilo roto o inexistente');
-    expect(auditor.ruleDescriptions?.['missing-style-tag']).toBe('Componente sin bloque de estilos');
-    expect(auditor.ruleDescriptions?.['banned-style-inherited']).toBe('Marcador style-inherited prohibido');
+    expect(auditor.ruleDescriptions?.['broken-style-link']).toBe(
+      'Enlace de estilo roto o inexistente'
+    );
+    expect(auditor.ruleDescriptions?.['missing-style-tag']).toBe(
+      'Componente sin bloque de estilos'
+    );
+    expect(auditor.ruleDescriptions?.['banned-style-inherited']).toBe(
+      'Marcador style-inherited prohibido'
+    );
     expect(auditor.ruleDescriptions?.['orphaned-scss']).toBe('Archivo SCSS huérfano sin uso');
-    expect(auditor.ruleDescriptions?.['ad-hoc-button-styles']).toBe('Clase de botón fuera de estándar');
-    expect(auditor.ruleDescriptions?.['banned-plain-css-style']).toBe('Bloque <style> sin lang="scss"');
+    expect(auditor.ruleDescriptions?.['ad-hoc-button-styles']).toBe(
+      'Clase de botón fuera de estándar'
+    );
+    expect(auditor.ruleDescriptions?.['banned-plain-css-style']).toBe(
+      'Bloque <style> sin lang="scss"'
+    );
     expect(auditor.ruleDescriptions?.['banned-raw-css-file']).toBe('Archivo CSS plano sin SCSS');
     expect(auditor.packageName).toBe('Estilos');
-    expect(auditor.formatRuleDescription('broken-style-link')).toBe('Estilos: Enlace de estilo roto o inexistente');
-    expect(auditor.formatRuleDescription('banned-plain-css-style')).toBe('Estilos: Bloque <style> sin lang="scss"');
-    expect(auditor.formatRuleDescription('banned-raw-css-file')).toBe('Estilos: Archivo CSS plano sin SCSS');
+    expect(auditor.formatRuleDescription('broken-style-link')).toBe(
+      'Estilos: Enlace de estilo roto o inexistente'
+    );
+    expect(auditor.formatRuleDescription('banned-plain-css-style')).toBe(
+      'Estilos: Bloque <style> sin lang="scss"'
+    );
+    expect(auditor.formatRuleDescription('banned-raw-css-file')).toBe(
+      'Estilos: Archivo CSS plano sin SCSS'
+    );
   });
 
   it('runs audit and reports scan counts in workspace', () => {
@@ -181,7 +197,7 @@ describe('ComponentStylesAuditor', () => {
         const result = await auditor.execute();
 
         expect(result.summary.errors).toBeGreaterThanOrEqual(4);
-        const ruleIds = result.findings.map(f => f.ruleId);
+        const ruleIds = result.findings.map((f) => f.ruleId);
         expect(ruleIds).toContain('broken-style-link');
         expect(ruleIds).toContain('banned-style-inherited');
         expect(ruleIds).toContain('orphaned-scss');
@@ -268,7 +284,7 @@ describe('ComponentStylesAuditor', () => {
         expect(result.summary.errors).toBe(2);
         expect(result.status).toBe('failed');
         const violations = auditor.getViolations();
-        expect(violations.filter(v => v.type === 'banned_plain_css_style')).toHaveLength(2);
+        expect(violations.filter((v) => v.type === 'banned_plain_css_style')).toHaveLength(2);
         expect(auditor.getFixableErrors()).toBe(2);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });

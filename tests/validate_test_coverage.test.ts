@@ -229,7 +229,9 @@ describe('ValidateTestCoverageAuditor', () => {
     const result = await auditor.finishAudit();
 
     expect(result.summary.warnings).toBe(1);
-    const untrackedFinding = result.findings.find(f => f.ruleId === 'test-coverage-untracked-files');
+    const untrackedFinding = result.findings.find(
+      (f) => f.ruleId === 'test-coverage-untracked-files'
+    );
     expect(untrackedFinding).toBeDefined();
     expect(result.status).toBe('passed');
   });

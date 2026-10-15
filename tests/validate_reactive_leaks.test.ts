@@ -66,7 +66,7 @@ describe('ReactiveLeaksAuditor', () => {
       `;
 
       auditor.testScanFile('src/components/LeakTest.vue', badCode);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'dom-event-leak');
+      const violation = auditor.collectedViolations.find((v) => v.ruleId === 'dom-event-leak');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -109,7 +109,7 @@ describe('ReactiveLeaksAuditor', () => {
       `;
 
       auditor.testScanFile('src/components/IntervalLeak.vue', badCode);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'interval-leak');
+      const violation = auditor.collectedViolations.find((v) => v.ruleId === 'interval-leak');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

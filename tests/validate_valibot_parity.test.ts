@@ -311,15 +311,21 @@ export function createInitialUser() {
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
 
-      const schemaViolation = result.findings.find(f => f.ruleId === 'valibot-schema-missing-field' && f.context === 'name');
+      const schemaViolation = result.findings.find(
+        (f) => f.ruleId === 'valibot-schema-missing-field' && f.context === 'name'
+      );
       expect(schemaViolation).toBeDefined();
       expect(schemaViolation?.severity).toBe('error');
 
-      const serializerViolation = result.findings.find(f => f.ruleId === 'valibot-serializer-missing-field' && f.context === 'name');
+      const serializerViolation = result.findings.find(
+        (f) => f.ruleId === 'valibot-serializer-missing-field' && f.context === 'name'
+      );
       expect(serializerViolation).toBeDefined();
       expect(serializerViolation?.severity).toBe('error');
 
-      const initialViolation = result.findings.find(f => f.ruleId === 'valibot-initial-state-missing-field' && f.context === 'name');
+      const initialViolation = result.findings.find(
+        (f) => f.ruleId === 'valibot-initial-state-missing-field' && f.context === 'name'
+      );
       expect(initialViolation).toBeDefined();
       expect(initialViolation?.severity).toBe('error');
     });
@@ -386,7 +392,9 @@ export const settingsSchema = object({
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const nestedViolation = result.findings.find(f => f.ruleId === 'valibot-nested-missing-field' && f.context === 'notifications');
+      const nestedViolation = result.findings.find(
+        (f) => f.ruleId === 'valibot-nested-missing-field' && f.context === 'notifications'
+      );
       expect(nestedViolation).toBeDefined();
       expect(nestedViolation?.severity).toBe('error');
     });
@@ -441,7 +449,9 @@ export const profileSchema = object({
       const result = await auditor.execute();
 
       expect(result.status).toBe('failed');
-      const unknownViolation = result.findings.find(f => f.ruleId === 'valibot-domain-type-violation' && f.context === 'metadata');
+      const unknownViolation = result.findings.find(
+        (f) => f.ruleId === 'valibot-domain-type-violation' && f.context === 'metadata'
+      );
       expect(unknownViolation).toBeDefined();
       expect(unknownViolation?.severity).toBe('error');
     });
@@ -498,7 +508,9 @@ export const profileSchema = object({
       const result = await auditor.execute();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
-      const warningFinding = result.findings.find(f => f.ruleId === 'valibot-redundant-nullability' && f.context === 'bio');
+      const warningFinding = result.findings.find(
+        (f) => f.ruleId === 'valibot-redundant-nullability' && f.context === 'bio'
+      );
       expect(warningFinding).toBeDefined();
       expect(warningFinding?.severity).toBe('warning');
     });

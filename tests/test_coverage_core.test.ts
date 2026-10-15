@@ -241,11 +241,11 @@ describe('testCoverageCore', () => {
       const dirs = computeDirectoryBreakdown(files, ['src']);
       expect(dirs).toHaveLength(2);
 
-      const cliDir = dirs.find(d => d.directory === 'src/cli')!;
+      const cliDir = dirs.find((d) => d.directory === 'src/cli')!;
       expect(cliDir.fileCount).toBe(1);
       expect(cliDir.statements.pct).toBe(0);
 
-      const coreDir = dirs.find(d => d.directory === 'src/core')!;
+      const coreDir = dirs.find((d) => d.directory === 'src/core')!;
       expect(coreDir.fileCount).toBe(2);
       expect(coreDir.statements.total).toBe(20);
       expect(coreDir.statements.covered).toBe(12);
@@ -287,7 +287,7 @@ describe('testCoverageCore', () => {
 
       const complexityMap = new Map<string, number>([
         ['src/a.ts', 50], // risk: 50 * 0.1 = 5.0
-        ['src/b.ts', 40]  // risk: 40 * 0.8 = 32.0
+        ['src/b.ts', 40] // risk: 40 * 0.8 = 32.0
       ]);
 
       const hotspots = correlateComplexityHotspots(files, complexityMap);

@@ -37,7 +37,10 @@ interface DoxHierarchyScan {
   doxFilesMap: Map<string, string>;
 }
 
-function checkDirContainsCodeOrAgentsMd(entries: readonly Dirent[]): { hasCode: boolean; hasAgentsMd: boolean } {
+function checkDirContainsCodeOrAgentsMd(entries: readonly Dirent[]): {
+  hasCode: boolean;
+  hasAgentsMd: boolean;
+} {
   let hasCode = false;
   let hasAgentsMd = false;
   for (const entry of entries) {
@@ -209,7 +212,17 @@ function validateChildRegistration(
   return violations;
 }
 
-const ALLOWED_CODE_EXTS = new Set(['.ts', '.vue', '.js', '.cjs', '.mjs', '.jsx', '.tsx', '.scss', '.css']);
+const ALLOWED_CODE_EXTS = new Set([
+  '.ts',
+  '.vue',
+  '.js',
+  '.cjs',
+  '.mjs',
+  '.jsx',
+  '.tsx',
+  '.scss',
+  '.css'
+]);
 
 function isIndexableCodeFile(
   fileName: string,
@@ -273,7 +286,9 @@ async function validateUnindexedCodeFiles(
   const violations: Violation[] = [];
   for (const [dirPath, content] of doxFilesMap.entries()) {
     if (dirPath === rootDir) continue;
-    violations.push(...(await checkDirUnindexedCodeFiles(dirPath, content, rootDir, gitIgnoreMatcher)));
+    violations.push(
+      ...(await checkDirUnindexedCodeFiles(dirPath, content, rootDir, gitIgnoreMatcher))
+    );
   }
   return violations;
 }
@@ -347,7 +362,7 @@ const DOX_SECTION_RANK = {
 } as const;
 
 function maskCodeBlocksPreservingLines(content: string): string {
-  return content.replace(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g, match => {
+  return content.replace(/(```[\s\S]*?```|~~~[\s\S]*?~~~)/g, (match) => {
     return match.replace(/[^\n]/g, ' ');
   });
 }
@@ -365,16 +380,23 @@ function isGarbageOrEmptyContent(rawContent: string): boolean {
     .trim();
   if (PLACEHOLDER_KEYWORDS.has(cleanOneLiner)) return true;
 
-  if (cleanOneLiner.startsWith('todo') || cleanOneLiner.startsWith('tbd') || cleanOneLiner.startsWith('pendiente')) {
+  if (
+    cleanOneLiner.startsWith('todo') ||
+    cleanOneLiner.startsWith('tbd') ||
+    cleanOneLiner.startsWith('pendiente')
+  ) {
     const alphaNumericOnly = stripped.replace(/[^a-z0-9áéíóúñ]/gi, '');
     if (alphaNumericOnly.length < MIN_TODO_STUB_CHARS) return true;
   }
 
   // If every non-empty line is a placeholder or filler
-  const lines = stripped.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = stripped
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length === 0) return true;
 
-  const allLinesPlaceholder = lines.every(line => {
+  const allLinesPlaceholder = lines.every((line) => {
     const cleaned = line
       .toLowerCase()
       .replace(/^[-*_\s]+/, '')
@@ -440,7 +462,7 @@ function checkMandatoryDoxSections(
   const violations: Violation[] = [];
   for (const mandatory of MANDATORY_DOX_SECTIONS) {
     const found = headerInfos.find(
-      h => h.level === mandatory.level && h.normalizedTitle === mandatory.normalized
+      (h) => h.level === mandatory.level && h.normalizedTitle === mandatory.normalized
     );
     if (!found) {
       violations.push({

@@ -22,10 +22,7 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export const REACTIVE_PURITY_RULES = [
-  'computed-state-mutation',
-  'computed-side-effect'
-] as const;
+export const REACTIVE_PURITY_RULES = ['computed-state-mutation', 'computed-side-effect'] as const;
 
 export type ReactivePurityRuleId = (typeof REACTIVE_PURITY_RULES)[number];
 

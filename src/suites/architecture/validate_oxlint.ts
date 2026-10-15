@@ -17,7 +17,7 @@ import path from 'node:path';
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getVitePlusDefaultExcludeGlobs } from '../../core/vitePlusConfigSync.ts';
 import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
 import {
   parseLintResultsToFindings,
@@ -161,13 +161,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       },
       coverage: {
         include: ['**/*.{js,ts,mjs,cjs,vue}'],
-        exclude: [
-          'node_modules/**',
-          'dist/**',
-          'scratch/**',
-          '.agents/**',
-          ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? [])
-        ],
+        exclude: getVitePlusDefaultExcludeGlobs(effectiveRoot),
         source: 'declared-only'
       },
       projectRoot: effectiveRoot
@@ -175,14 +169,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    const config = getAuditConfig(this.projectRoot);
-    const excludeGlobs = [
-      'node_modules/**',
-      'dist/**',
-      'scratch/**',
-      '.agents/**',
-      ...(config.paths.ignoreGlobs ?? [])
-    ];
+    const excludeGlobs = getVitePlusDefaultExcludeGlobs(this.projectRoot);
     this.redeclareCoverage({
       include: ['**/*.{js,ts,mjs,cjs,vue}'],
       exclude: excludeGlobs,

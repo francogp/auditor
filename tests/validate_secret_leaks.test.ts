@@ -38,8 +38,12 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       expect(auditor.id).toBe('validate_secret_leaks');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Secretos');
-      expect(auditor.ruleDescriptions['secret-leak-detected']).toBe('Token, secreto o credencial expuesta');
-      expect(auditor.ruleDescriptions['secret-leak-private-key']).toBe('Clave criptográfica privada expuesta');
+      expect(auditor.ruleDescriptions['secret-leak-detected']).toBe(
+        'Token, secreto o credencial expuesta'
+      );
+      expect(auditor.ruleDescriptions['secret-leak-private-key']).toBe(
+        'Clave criptográfica privada expuesta'
+      );
     });
   });
 
@@ -113,7 +117,7 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const leak = result.findings.find(f => f.ruleId === 'secret-leak-detected');
+      const leak = result.findings.find((f) => f.ruleId === 'secret-leak-detected');
       expect(leak).toBeDefined();
       expect(leak?.severity).toBe('error');
       expect(leak?.file).toContain('apiClient.ts');
@@ -124,9 +128,18 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       const srcDir = path.join(tempDir, 'src');
       fs.mkdirSync(srcDir, { recursive: true });
 
-      const base64Body = 'MIICXAIBAAKCAQEA0G9d3Z9e5Z6Y0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdef';
-      const keyContent = 'export const privateKey = ' +
-        JSON.stringify('-----BEGIN ' + 'RSA PRIVATE KEY-----\n' + base64Body + '\n-----END ' + 'RSA PRIVATE KEY-----\n') + ';';
+      const base64Body =
+        'MIICXAIBAAKCAQEA0G9d3Z9e5Z6Y0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdef';
+      const keyContent =
+        'export const privateKey = ' +
+        JSON.stringify(
+          '-----BEGIN ' +
+            'RSA PRIVATE KEY-----\n' +
+            base64Body +
+            '\n-----END ' +
+            'RSA PRIVATE KEY-----\n'
+        ) +
+        ';';
 
       fs.writeFileSync(path.join(srcDir, 'cryptoKeys.ts'), keyContent);
 
@@ -149,7 +162,7 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
 
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBe(1);
-      const pkFinding = result.findings.find(f => f.ruleId === 'secret-leak-private-key');
+      const pkFinding = result.findings.find((f) => f.ruleId === 'secret-leak-private-key');
       expect(pkFinding).toBeDefined();
       expect(pkFinding?.severity).toBe('error');
       expect(pkFinding?.file).toContain('cryptoKeys.ts');
@@ -180,7 +193,7 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       const result = await auditor.finishAudit();
 
       expect(result.status).toBe('failed');
-      const leak = result.findings.find(f => f.ruleId === 'secret-leak-detected');
+      const leak = result.findings.find((f) => f.ruleId === 'secret-leak-detected');
       expect(leak).toBeDefined();
       expect(leak?.message).toContain(tokenPart);
     });

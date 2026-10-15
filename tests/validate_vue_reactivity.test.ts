@@ -108,7 +108,9 @@ const sorted = computed(() => {
 </script>`;
 
       auditor.testScanFile('src/components/BadSort.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-side-effects-in-computed');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-side-effects-in-computed'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('sort');
@@ -126,7 +128,9 @@ const double = computed(() => {
 </script>`;
 
       auditor.testScanFile('src/components/BadRefAssign.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-side-effects-in-computed');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-side-effects-in-computed'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('count.value =');
@@ -143,7 +147,9 @@ watch(props.modelValue, (val) => {
 </script>`;
 
       auditor.testScanFile('src/components/BadWatch.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'watch-reactive-property-getter');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'watch-reactive-property-getter'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('watch');
@@ -160,7 +166,9 @@ const userProfile = computed(async () => {
 </script>`;
 
       auditor.testScanFile('src/components/AsyncComputed.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-async-in-computed');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-async-in-computed'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -173,7 +181,9 @@ const { count, name } = reactive({ count: 0, name: 'Ash' });
 </script>`;
 
       auditor.testScanFile('src/components/DestructuredReactive.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-destructured-reactive');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-destructured-reactive'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });

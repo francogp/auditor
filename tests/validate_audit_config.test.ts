@@ -5,19 +5,29 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 import { migrateLegacyAuditConfig } from '../src/cli/migrateAuditConfig.ts';
-import { resetAuditConfig, defineAuditConfig, assertNoLegacyRootConfig, loadAuditConfig } from '../src/core/auditConfig.ts';
+import {
+  resetAuditConfig,
+  defineAuditConfig,
+  assertNoLegacyRootConfig,
+  loadAuditConfig
+} from '../src/core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
 import { collectAllPackageScriptRequirements } from '../src/cli/auditScanner.ts';
 
-const AUDIT_CONFIG_MODULE_PATH = path.resolve(import.meta.dirname, '../src/core/auditConfig.ts').replace(/\\/g, '/');
-const BASE_AUDITOR_PATH = path.resolve(import.meta.dirname, '../src/core/auditorBase.ts').replace(/\\/g, '/');
+const AUDIT_CONFIG_MODULE_PATH = path
+  .resolve(import.meta.dirname, '../src/core/auditConfig.ts')
+  .replace(/\\/g, '/');
+const BASE_AUDITOR_PATH = path
+  .resolve(import.meta.dirname, '../src/core/auditorBase.ts')
+  .replace(/\\/g, '/');
 
 const BASE_TEST_CONFIG_SECTIONS = `
   persistence: { engine: 'none', schemaQualified: false },
   styles: { zLayersEnabled: false },
   valibot: { enabled: true, targets: [] },
   oxlint: { enabled: true },
+  oxfmt: { enabled: true },
   vitePlusConfig: { enabled: true },
   htmlValidate: { enabled: true },
   pinia: { enabled: false },
@@ -56,7 +66,9 @@ describe('ValidateAuditConfigAuditor', () => {
     GitIgnoreRegistry.reset();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audit-config-test-'));
     // Git sandbox whose origin/main resolves, satisfying the default ratchet production ref
-    const git = (...args: string[]): void => { execFileSync('git', args, { cwd: tempDir, stdio: 'ignore' }); };
+    const git = (...args: string[]): void => {
+      execFileSync('git', args, { cwd: tempDir, stdio: 'ignore' });
+    };
     git('init', '-q');
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
     git('update-ref', 'refs/remotes/origin/main', 'HEAD');
@@ -121,14 +133,19 @@ describe('ValidateAuditConfigAuditor', () => {
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBe(1);
-    const missingFinding = result.findings.find(f => f.ruleId === 'audit-config-missing-file');
+    const missingFinding = result.findings.find((f) => f.ruleId === 'audit-config-missing-file');
     expect(missingFinding).toBeDefined();
     expect(missingFinding?.message).toContain('.auditor/audit.config.ts does not exist');
   });
 
   it('scaffolds default .auditor/audit.config.ts when missing in fix mode', async () => {
     const configPath = path.join(tempDir, '.auditor', 'audit.config.ts');
-    expect(await fs.access(configPath).then(() => true).catch(() => false)).toBe(false);
+    expect(
+      await fs
+        .access(configPath)
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(false);
 
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
@@ -137,7 +154,12 @@ describe('ValidateAuditConfigAuditor', () => {
     const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
     await auditor.execute();
 
-    expect(await fs.access(configPath).then(() => true).catch(() => false)).toBe(true);
+    expect(
+      await fs
+        .access(configPath)
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true);
     const content = await fs.readFile(configPath, 'utf-8');
     expect(content).toContain('defineAuditConfig');
     expect(content).toContain("language: 'en'");
@@ -162,7 +184,9 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const missingGitignore = result.findings.find(f => f.file === '.gitignore' && f.ruleId === 'audit-config-missing-file');
+    const missingGitignore = result.findings.find(
+      (f) => f.file === '.gitignore' && f.ruleId === 'audit-config-missing-file'
+    );
     expect(missingGitignore).toBeDefined();
     expect(missingGitignore?.message).toContain('.gitignore does not exist');
   });
@@ -187,9 +211,11 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const missingEntries = result.findings.filter(f => f.ruleId === 'audit-config-missing-gitignore-entry');
+    const missingEntries = result.findings.filter(
+      (f) => f.ruleId === 'audit-config-missing-gitignore-entry'
+    );
     expect(missingEntries.length).toBeGreaterThan(0);
-    const contexts = missingEntries.map(f => f.context);
+    const contexts = missingEntries.map((f) => f.context);
     expect(contexts).toContain('scratch/');
     expect(contexts).toContain('.oxlintcache');
     expect(contexts).toContain('*.log');
@@ -221,7 +247,9 @@ export default defineAuditConfig({
     // Re-running in normal mode should pass without gitignore errors
     const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
     const checkResult = await checkAuditor.execute();
-    const gitignoreFindings = checkResult.findings.filter(f => f.ruleId === 'audit-config-missing-gitignore-entry');
+    const gitignoreFindings = checkResult.findings.filter(
+      (f) => f.ruleId === 'audit-config-missing-gitignore-entry'
+    );
     expect(gitignoreFindings.length).toBe(0);
   });
 
@@ -280,7 +308,7 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const customMissing = result.findings.find(f => f.context === '.custom-tool-cache/');
+    const customMissing = result.findings.find((f) => f.context === '.custom-tool-cache/');
     expect(customMissing).toBeDefined();
     expect(customMissing?.ruleId).toBe('audit-config-missing-gitignore-entry');
     expect(customMissing?.message).toContain('Caché de herramienta extendida por el usuario');
@@ -326,8 +354,8 @@ export default defineAuditConfig({
     expect(result.summary.errors).toBe(2);
 
     const missingPaths = result.findings
-      .filter(f => f.ruleId === 'audit-config-missing-path')
-      .map(f => f.context);
+      .filter((f) => f.ruleId === 'audit-config-missing-path')
+      .map((f) => f.context);
     expect(missingPaths).toContain('non_existent_src');
     expect(missingPaths).toContain('src/non_existent_components');
   });
@@ -358,10 +386,10 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const missingMigration = result.findings.find(f => f.context === 'supabase/migrations');
+    const missingMigration = result.findings.find((f) => f.context === 'supabase/migrations');
     expect(missingMigration).toBeDefined();
 
-    const missingSaveFile = result.findings.find(f => f.context === 'src/missing_store.ts');
+    const missingSaveFile = result.findings.find((f) => f.context === 'src/missing_store.ts');
     expect(missingSaveFile).toBeDefined();
     expect(missingSaveFile?.ruleId).toBe('audit-config-missing-file');
   });
@@ -390,11 +418,11 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const extFinding = result.findings.find(f => f.ruleId === 'audit-config-invalid-extension');
+    const extFinding = result.findings.find((f) => f.ruleId === 'audit-config-invalid-extension');
     expect(extFinding).toBeDefined();
     expect(extFinding?.context).toBe('scripts/auditors/missing_ext.ts');
 
-    const scssFinding = result.findings.find(f => f.context === 'src/styles/missing_base.scss');
+    const scssFinding = result.findings.find((f) => f.context === 'src/styles/missing_base.scss');
     expect(scssFinding).toBeDefined();
     expect(scssFinding?.ruleId).toBe('audit-config-missing-file');
   });
@@ -475,9 +503,15 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
   });
 
   it('throws a loud error when ratchet.baselineFile escapes the project or is not JSON', () => {
-    expect(() => defineAuditConfig({ name: 'x', ratchet: { baselineFile: '../baseline.json' } })).toThrow(/ratchet\.baselineFile/);
-    expect(() => defineAuditConfig({ name: 'x', ratchet: { baselineFile: 'baseline.txt' } })).toThrow(/ratchet\.baselineFile/);
-    expect(() => defineAuditConfig({ name: 'x', ratchet: { productionRef: '--upload-pack=x' } })).toThrow(/ratchet\.productionRef/);
+    expect(() =>
+      defineAuditConfig({ name: 'x', ratchet: { baselineFile: '../baseline.json' } })
+    ).toThrow(/ratchet\.baselineFile/);
+    expect(() =>
+      defineAuditConfig({ name: 'x', ratchet: { baselineFile: 'baseline.txt' } })
+    ).toThrow(/ratchet\.baselineFile/);
+    expect(() =>
+      defineAuditConfig({ name: 'x', ratchet: { productionRef: '--upload-pack=x' } })
+    ).toThrow(/ratchet\.productionRef/);
   });
 
   it('throws a loud error when packageScripts.recommendedScripts is not a boolean (e.g. string "off")', () => {
@@ -520,12 +554,14 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const missingSections = result.findings.filter(f => f.ruleId === 'audit-config-missing-section');
+    const missingSections = result.findings.filter(
+      (f) => f.ruleId === 'audit-config-missing-section'
+    );
     expect(missingSections.length).toBeGreaterThan(0);
-    expect(missingSections.some(f => f.context === 'valibot')).toBe(true);
-    expect(missingSections.some(f => f.context === 'oxlint')).toBe(true);
-    expect(missingSections.some(f => f.context === 'pinia')).toBe(true);
-    expect(missingSections.some(f => f.context === 'htmlValidate')).toBe(true);
+    expect(missingSections.some((f) => f.context === 'valibot')).toBe(true);
+    expect(missingSections.some((f) => f.context === 'oxlint')).toBe(true);
+    expect(missingSections.some((f) => f.context === 'pinia')).toBe(true);
+    expect(missingSections.some((f) => f.context === 'htmlValidate')).toBe(true);
   });
 
   it('automatically appends missing configuration sections in fix mode', async () => {
@@ -540,13 +576,21 @@ export default defineAuditConfig({
     // Remove valibot from config
     const configWithoutValibot = configContent.replace(/valibot:\s*\{[^}]*\},/g, '');
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
-    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configWithoutValibot, 'utf-8');
+    await fs.writeFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      configWithoutValibot,
+      'utf-8'
+    );
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // Verify it fails in check mode
     const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
     const checkResult = await checkAuditor.execute();
-    expect(checkResult.findings.some(f => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot')).toBe(true);
+    expect(
+      checkResult.findings.some(
+        (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot'
+      )
+    ).toBe(true);
 
     // Run in fix mode
     resetAuditConfig();
@@ -554,7 +598,10 @@ export default defineAuditConfig({
     await fixAuditor.execute();
 
     // Verify valibot was added to audit.config.ts
-    const updatedContent = await fs.readFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'utf-8');
+    const updatedContent = await fs.readFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      'utf-8'
+    );
     expect(updatedContent).toContain('valibot:');
     expect(updatedContent).toContain('enabled: true');
 
@@ -562,7 +609,9 @@ export default defineAuditConfig({
     resetAuditConfig();
     const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
     const recheckResult = await recheckAuditor.execute();
-    const valibotFinding = recheckResult.findings.find(f => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot');
+    const valibotFinding = recheckResult.findings.find(
+      (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot'
+    );
     expect(valibotFinding).toBeUndefined();
   });
 
@@ -617,7 +666,9 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const extFinding = result.findings.find(f => f.ruleId === 'audit-config-missing-section' && f.context === 'customExt');
+    const extFinding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'customExt'
+    );
     expect(extFinding).toBeDefined();
     expect(extFinding?.message).toContain('customExt');
 
@@ -625,7 +676,10 @@ export default defineAuditConfig({
     const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
     await fixAuditor.execute();
 
-    const repairedContent = await fs.readFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'utf-8');
+    const repairedContent = await fs.readFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      'utf-8'
+    );
     expect(repairedContent).toContain('customExt:');
     expect(repairedContent).toContain('customOption');
   });
@@ -648,9 +702,13 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'unknownLegacySection');
+    const finding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-unknown-field' && f.context === 'unknownLegacySection'
+    );
     expect(finding).toBeDefined();
-    expect(finding?.message).toContain('Unknown or legacy top-level section "unknownLegacySection"');
+    expect(finding?.message).toContain(
+      'Unknown or legacy top-level section "unknownLegacySection"'
+    );
   });
 
   it('detects legacy paths.constantsRoots and reports audit-config-unknown-field', async () => {
@@ -673,7 +731,9 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'paths.constantsRoots');
+    const finding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-unknown-field' && f.context === 'paths.constantsRoots'
+    );
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('Unknown or legacy field "paths.constantsRoots"');
   });
@@ -698,7 +758,9 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'constants.exemptGlobs');
+    const finding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-unknown-field' && f.context === 'constants.exemptGlobs'
+    );
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('Unknown or legacy field "constants.exemptGlobs"');
   });
@@ -726,7 +788,9 @@ export default defineAuditConfig({
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const finding = result.findings.find(f => f.ruleId === 'audit-config-unknown-field' && f.context === 'bundle.budgets.pattern');
+    const finding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-unknown-field' && f.context === 'bundle.budgets.pattern'
+    );
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('Unknown field "bundle.budgets[0].pattern"');
   });
@@ -746,7 +810,11 @@ describe('migrateLegacyAuditConfig', () => {
   });
 
   it('fails loudly while a configuration remains at the project root', async () => {
-    await fs.writeFile(path.join(root, 'audit.config.ts'), 'export default { name: "x" };\n', 'utf-8');
+    await fs.writeFile(
+      path.join(root, 'audit.config.ts'),
+      'export default { name: "x" };\n',
+      'utf-8'
+    );
     expect(() => assertNoLegacyRootConfig(root)).toThrow(/auditor fix/);
     await expect(loadAuditConfig(root)).rejects.toThrow(/no longer supported/);
   });
@@ -754,7 +822,7 @@ describe('migrateLegacyAuditConfig', () => {
   it('moves the config into .auditor/ and rebases relative imports via the AST', async () => {
     const code = [
       "import { defineAuditConfig } from './src/core/auditConfig.ts';",
-      "export { helper } from \"./scripts/helper.ts\";",
+      'export { helper } from "./scripts/helper.ts";',
       "import pkg from '@francogp/auditor';",
       "const lazy = () => import('./scripts/lazy.ts');",
       "export default defineAuditConfig({ name: './not-a-module.ts' });",

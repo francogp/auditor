@@ -187,19 +187,35 @@ flowchart TD
 When synthesizing or validating `vite.config.ts`, `validate_vite_plus_config` enforces an immutable minimum baseline of Oxlint rules:
 
 ```ts
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
-  oxlint: {
+  lint: {
+    options: {
+      typeAware: true,
+      typeCheck: true
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/ban-ts-comment': 'error'
-    }
+      '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/consistent-type-assertions': [
+        'error',
+        { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
+      ]
+    },
+    ignorePatterns: ['dist/**', 'node_modules/**', 'scratch/**']
+  },
+  fmt: {
+    singleQuote: true,
+    semi: true,
+    trailingComma: 'none',
+    printWidth: 100,
+    ignorePatterns: ['dist/**', 'node_modules/**', 'scratch/**']
   }
 });
 ```
 
-Omitting or downgrading any mandatory rule triggers `vite-plus-config-defect` (`severity: 'error'`). In `--fix` mode, the orchestrator automatically injects and repairs these rules without losing existing project configuration.
+Omitting or downgrading any mandatory rule triggers `vite-plus-config-defect` (`severity: 'error'`). In `--fix` mode, the orchestrator automatically injects and repairs these rules and dynamically synchronizes `ignorePatterns` from `audit.config.ts` (`paths.ignoreGlobs`) without losing existing project configuration.
 
 ---
 
@@ -240,4 +256,82 @@ vp pack
 
 # 5. Execute full architectural auditor
 npm run auditor:full
+```
+
+---
+
+## 8. Production Lessons & Edge-Case Architecture Guide (Lessons from Large Codebases)
+
+During large-scale production migrations (such as Poké Vicio with 431 test suites, 7,100+ assertions, Vue 3, Pinia, and GSAP), several edge cases and TypeScript architectural boundaries were discovered and resolved:
+
+### 8.1 TypeScript Plugin Type Recursion ("Excessive stack depth comparing types")
+
+In complex configurations combining multiple third-party Vite plugins (e.g. `vite-plugin-pwa`, `rollup-plugin-visualizer`) alongside inline custom plugins with closures, TypeScript can fail with `Excessive stack depth comparing types 'Plugin<any>' and 'Plugin<any>'` (TS2321 / TS2589) when all plugins are defined inline inside `defineConfig({ plugins: [...] })`.
+
+**Root Cause**: Recursive structural comparison between Vite core types bundled in `vite-plus` and upstream plugin Rollup types.
+
+**Canonical Solution**:
+
+1. **Extract Plugins Array**: Declare the plugins array outside `defineConfig` using the canonical `PluginOption[]` interface:
+
+   ```ts
+   import { defineConfig, type PluginOption } from 'vite';
+   import vue from '@vitejs/plugin-vue';
+   import { VitePWA } from 'vite-plugin-pwa';
+
+   const plugins: PluginOption[] = [
+     vue(),
+     VitePWA({ ... })
+   ];
+
+   export default defineConfig({
+     plugins,
+     // ... rest of config
+   });
+   ```
+
+2. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core:
+
+   ```json
+   "overrides": {
+     "vite": "npm:@voidzero-dev/vite-plus-core@1.2.0",
+     "vitest": "5.0.4"
+   }
+   ```
+
+### 8.2 Eradication of Obsolete `environmentMatchGlobs`
+
+In Vitest 3+ and Vite+, `environmentMatchGlobs` in project configurations is deprecated and silently ignored or triggers runtime warnings.
+
+**Canonical Solution**:
+
+- Scoped project tests declare their execution environment via the official docblock directive on line 1:
+
+  ```ts
+  // @vitest-environment jsdom
+  import { describe, it, expect } from 'vite-plus/test';
+  ```
+
+- Centralized node projects (`tests/node/`) run under the default `'node'` environment without needing file-level annotations.
+
+### 8.3 ANSI Terminal Escapes in Test Log Assertions
+
+Node.js 26+ native styling (`styleText` from `node:util`) injects ANSI VT sequences (`\u001b[...m`). Tests spying on `console.warn` or `console.error` that perform exact string comparisons will fail due to terminal color codes.
+
+**Canonical Solution**:
+
+- Use regex matching or strip ANSI sequences before assertion:
+
+  ```ts
+  expect(warnSpy).toHaveBeenCalledWith(
+    expect.stringMatching(/⚠️ \[Warning\] Target message/)
+  );
+  ```
+
+### 8.4 Clean Test Import Architecture
+
+Never retain dual imports or direct `'vitest'` dependencies. Ensure 100% of test files import primitives from `'vite-plus/test'`:
+
+```ts
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 ```

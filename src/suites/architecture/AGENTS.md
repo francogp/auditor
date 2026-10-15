@@ -85,6 +85,7 @@ Architecture & Tooling Engineers.
 - [`validate_constant_hygiene.ts`](./validate_constant_hygiene.ts): Constant hygiene, duplicate/divergent detection, magic numbers, and identifier naming standards.
 - [`validate_ephemeral_storage_isolation.ts`](./validate_ephemeral_storage_isolation.ts): Strict isolation of temporary files in `scratch/`.
 - [`validate_oxlint.ts`](./validate_oxlint.ts): Oxlint execution and code hygiene violation formatting.
+- [`validate_oxfmt.ts`](./validate_oxfmt.ts): Oxfmt execution and code formatting hygiene validator via Vite+ (`vp fmt`).
 - [`validate_vite_plus_config.ts`](./validate_vite_plus_config.ts): Vite+ configuration governance and legacy config prohibition.
 - [`validate_fallow.ts`](./validate_fallow.ts): Standalone Fallow static intelligence, dead code, CWE security sinks, and refactoring targets auditor.
 - [`validate_fallow_config.ts`](./validate_fallow_config.ts): Fallow configuration file integrity verifier.

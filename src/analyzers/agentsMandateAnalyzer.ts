@@ -88,7 +88,7 @@ export function injectOrUpdateMandateInAgentsMd(options: InjectMandateOptions): 
     return;
   }
 
-  const contractHeaderIndex = lines.findIndex(l => l.trim().startsWith('## Local Contracts'));
+  const contractHeaderIndex = lines.findIndex((l) => l.trim().startsWith('## Local Contracts'));
   if (contractHeaderIndex !== -1) {
     if (lines[contractHeaderIndex + 1] === '') {
       lines.splice(contractHeaderIndex + 2, 0, canonicalSnippet);
@@ -108,6 +108,6 @@ export function injectOrUpdateMandateInAgentsMd(options: InjectMandateOptions): 
  */
 export function findLocalContractsHeaderLine(content: string): number {
   const fileLines = content.split('\n');
-  const index = fileLines.findIndex(line => line.trim().startsWith('## Local Contracts'));
+  const index = fileLines.findIndex((line) => line.trim().startsWith('## Local Contracts'));
   return index !== -1 ? index + 1 : 1;
 }

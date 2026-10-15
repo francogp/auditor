@@ -220,6 +220,16 @@ function extractProjectCanonicalDomains(files, projectRoot) {
 	for (const { file, content } of sortedFiles) {
 		if (file.endsWith(".d.ts")) continue;
 		const lines = content.split("\n");
+		const resolveDomainContext = (rawMatch) => {
+			const domain = extractValidDomainSignature(rawMatch);
+			if (!domain) return null;
+			const isContract = typesRoots.some((r) => file.startsWith(r)) || dataRoots.some((r) => file.startsWith(r));
+			return {
+				literals: domain.literals,
+				signature: domain.signature,
+				isContract
+			};
+		};
 		forEachValidDomainMatch(content, P_CANONICAL_ARRAY, lines, (match, lineNum, col, line) => {
 			const name = match[1];
 			if ([
@@ -231,10 +241,9 @@ function extractProjectCanonicalDomains(files, projectRoot) {
 				"THEMES",
 				"MODALS"
 			].includes(name)) return;
-			const domain = extractValidDomainSignature(match[0]);
-			if (!domain) return;
-			const { literals, signature } = domain;
-			const isContract = typesRoots.some((r) => file.startsWith(r)) || dataRoots.some((r) => file.startsWith(r));
+			const domainCtx = resolveDomainContext(match[0]);
+			if (!domainCtx) return;
+			const { literals, signature, isContract } = domainCtx;
 			const existing = bySignature.get(signature);
 			if (existing) {
 				if (existing.file !== file && !hasEscapeHatch(line) && !hasEscapeHatch(existing.file)) collisions.push({
@@ -249,10 +258,9 @@ function extractProjectCanonicalDomains(files, projectRoot) {
 		});
 		forEachValidDomainMatch(content, P_CANONICAL_TYPE, lines, (match, lineNum, col) => {
 			const name = match[1];
-			const domain = extractValidDomainSignature(match[0]);
-			if (!domain) return;
-			const { literals, signature } = domain;
-			const isContract = typesRoots.some((r) => file.startsWith(r)) || dataRoots.some((r) => file.startsWith(r));
+			const domainCtx = resolveDomainContext(match[0]);
+			if (!domainCtx) return;
+			const { literals, signature, isContract } = domainCtx;
 			if (!bySignature.has(signature)) registerDomain(name, file, lineNum, col, signature, literals, isContract);
 		});
 	}

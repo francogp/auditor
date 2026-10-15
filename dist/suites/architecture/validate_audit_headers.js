@@ -35,8 +35,8 @@ const HEADER_RULES = [
 ];
 const FALLOW_IGNORE_FILE_REGEX = /^\s*\/\/\s*fallow-ignore-file\b/i;
 const TS_SUPPRESSION_REGEX = /^\s*\/\/\s*@ts-(?:nocheck|ignore|expect-error)\b/i;
-const ESLINT_DISABLE_BLOCK_REGEX = /^\s*\/\*\s*eslint-disable\b(?!\s*-(?:next-line|line)\b)/i;
-const ESLINT_DISABLE_TEMPLATE_REGEX = /^\s*<!--\s*eslint-disable\b(?!\s*-(?:next-line|line)\b)/i;
+const ESLINT_DISABLE_BLOCK_REGEX = /^\s*\/\*\s*(?:eslint|oxlint)-disable\b(?!\s*-(?:next-line|line)\b)/i;
+const ESLINT_DISABLE_TEMPLATE_REGEX = /^\s*<!--\s*(?:eslint|oxlint)-disable\b(?!\s*-(?:next-line|line)\b)/i;
 const BANNED_MAGIC_SUPPRESSION_REGEX = /\/\/\s*(?:no-magic|magic-ok|number-ok)\b/i;
 const BANNED_STYLE_SUPPRESSION_REGEX = /\/\/\s*(?:style-inherited|style-ok)\b/i;
 const STANDALONE_ESCAPE_HATCHES_REGEX = /^\s*\/\/\s*(?:domain-ok|singleton-ok|string-ok|any-ok|boolean-ok|type-ok|value-ok|const-ok|o1-ok|linear-search-ok|map-ok|promise-ok|import-ok|result-ok|brand-ok|no-domain|text-ok)\s*$/i;
@@ -230,7 +230,18 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "file-level-eslint-disable",
-						message: `Bloque '/* eslint-disable */' a nivel de archivo detectado. Usa 'eslint-disable-next-line' acotado a la línea específica únicamente cuando esté estrictamente justificado.`,
+						message: `Bloque '/* eslint-disable */' o '/* oxlint-disable */' a nivel de archivo detectado. Usa directivas acotadas a la línea específica únicamente cuando esté estrictamente justificado.`,
+						context: line.trim(),
+						severity: "error"
+					};
+					this.collectedViolations.push(v);
+					this.addViolation(v);
+				} else if (ESLINT_DISABLE_TEMPLATE_REGEX.test(line)) {
+					const v = {
+						file: relPath,
+						line: i + 1,
+						ruleId: "file-level-eslint-disable",
+						message: `Directiva '<!-- eslint-disable -->' o '<!-- oxlint-disable -->' a nivel de template detectada. Evita deshabilitar reglas en templates enteros.`,
 						context: line.trim(),
 						severity: "error"
 					};

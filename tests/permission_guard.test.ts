@@ -81,7 +81,12 @@ describe('permissionGuard Core Utility', () => {
       });
 
       try {
-        const missing = checkRequiredPermissions({ child: true, worker: true, fsRead: ['src'], fsWrite: ['dist'] });
+        const missing = checkRequiredPermissions({
+          child: true,
+          worker: true,
+          fsRead: ['src'],
+          fsWrite: ['dist']
+        });
         expect(missing).toEqual([]);
       } finally {
         Object.defineProperty(process, 'permission', {

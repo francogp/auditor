@@ -94,6 +94,41 @@ function checkSpecialGating(suiteId: string, config: AuditConfig): SuiteGatingSt
       };
     }
   }
+  if (suiteId === 'validate_oxlint') {
+    if (
+      config.oxlint?.enabled === false ||
+      config.vitePlusConfig?.enabled === false ||
+      config.vitePlusConfig?.lint?.enabled === false
+    ) {
+      return {
+        enabled: false,
+        reason: 'Desactivado en config (oxlint / vitePlusConfig.lint = false)',
+        configKey: 'vitePlusConfig.lint.enabled'
+      };
+    }
+  }
+  if (suiteId === 'validate_oxfmt') {
+    if (
+      config.oxfmt?.enabled === false ||
+      config.vitePlusConfig?.enabled === false ||
+      config.vitePlusConfig?.fmt?.enabled === false
+    ) {
+      return {
+        enabled: false,
+        reason: 'Desactivado en config (oxfmt / vitePlusConfig.fmt = false)',
+        configKey: 'vitePlusConfig.fmt.enabled'
+      };
+    }
+  }
+  if (suiteId === 'validate_vite_plus_config') {
+    if (config.vitePlusConfig?.enabled === false) {
+      return {
+        enabled: false,
+        reason: 'Desactivado en config (vitePlusConfig.enabled = false)',
+        configKey: 'vitePlusConfig.enabled'
+      };
+    }
+  }
   return null;
 }
 
@@ -184,14 +219,19 @@ const SIMPLE_GATING_SPECS: Record<string, SuiteGatingSpec> = {
     path: ['pinia', 'enabled']
   },
   validate_oxlint: {
-    configKey: 'vitePlus.enabled',
-    reason: 'Desactivado en config (vitePlus.enabled = false)',
-    path: ['vitePlus', 'enabled']
+    configKey: 'vitePlusConfig.lint.enabled',
+    reason: 'Desactivado en config (oxlint / vitePlusConfig.lint)',
+    path: ['vitePlusConfig', 'enabled']
+  },
+  validate_oxfmt: {
+    configKey: 'vitePlusConfig.fmt.enabled',
+    reason: 'Desactivado en config (oxfmt / vitePlusConfig.fmt)',
+    path: ['vitePlusConfig', 'enabled']
   },
   validate_vite_plus_config: {
-    configKey: 'vitePlus.enabled',
-    reason: 'Desactivado en config (vitePlus.enabled = false)',
-    path: ['vitePlus', 'enabled']
+    configKey: 'vitePlusConfig.enabled',
+    reason: 'Desactivado en config (vitePlusConfig.enabled = false)',
+    path: ['vitePlusConfig', 'enabled']
   }
 };
 

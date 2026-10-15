@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { bootstrapCliProject, stripProjectCliArgs, resolvePackageBin } from '../src/cli/cliUtils.ts';
+import {
+  bootstrapCliProject,
+  stripProjectCliArgs,
+  resolvePackageBin
+} from '../src/cli/cliUtils.ts';
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
 
 describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
@@ -70,7 +74,11 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   });
 
   it('switches working directory cleanly when targeting a valid project with --project=<path>', () => {
-    fs.writeFileSync(path.join(tempSandboxDir, 'package.json'), JSON.stringify({ name: 'remote-host-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempSandboxDir, 'package.json'),
+      JSON.stringify({ name: 'remote-host-app' }),
+      'utf-8'
+    );
 
     const res = bootstrapCliProject(['node', 'auditor', `--project=${tempSandboxDir}`]);
 
@@ -83,7 +91,11 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   });
 
   it('supports alternative CLI flag formats: --project <path>, project=<path>, -p <path>, -p=<path>', () => {
-    fs.writeFileSync(path.join(tempSandboxDir, 'package.json'), JSON.stringify({ name: 'remote-host-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempSandboxDir, 'package.json'),
+      JSON.stringify({ name: 'remote-host-app' }),
+      'utf-8'
+    );
 
     const flagVariants = [
       ['node', 'auditor', '--project', tempSandboxDir],
@@ -105,7 +117,11 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   });
 
   it('discovers builtin auditor suites from auditor directory while executing inside remote project', async () => {
-    fs.writeFileSync(path.join(tempSandboxDir, 'package.json'), JSON.stringify({ name: 'remote-host-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempSandboxDir, 'package.json'),
+      JSON.stringify({ name: 'remote-host-app' }),
+      'utf-8'
+    );
     const auditorDir = path.join(tempSandboxDir, '.auditor');
     fs.mkdirSync(auditorDir, { recursive: true });
     fs.writeFileSync(
@@ -120,9 +136,9 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     const tasks = await discoverAuditors({ projectRoot: tempSandboxDir });
     expect(tasks.length).toBeGreaterThan(30);
 
-    const hasAuditProject = tasks.some(t => t.id === 'audit_project');
-    const hasGsap = tasks.some(t => t.id === 'validate_gsap_animations');
-    const hasOxlint = tasks.some(t => t.id === 'validate_oxlint');
+    const hasAuditProject = tasks.some((t) => t.id === 'audit_project');
+    const hasGsap = tasks.some((t) => t.id === 'validate_gsap_animations');
+    const hasOxlint = tasks.some((t) => t.id === 'validate_oxlint');
 
     expect(hasAuditProject).toBe(true);
     expect(hasGsap).toBe(true);
@@ -130,7 +146,18 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   });
 
   it('strips project flags cleanly via stripProjectCliArgs', () => {
-    const raw = ['node', 'auditor', '--project=../target', 'category=dupes', '--project', '../target2', '-p=../p1', '-p', '../p2', 'breakdown'];
+    const raw = [
+      'node',
+      'auditor',
+      '--project=../target',
+      'category=dupes',
+      '--project',
+      '../target2',
+      '-p=../p1',
+      '-p',
+      '../p2',
+      'breakdown'
+    ];
     const stripped = stripProjectCliArgs(raw);
 
     expect(stripped).toEqual(['node', 'auditor', 'category=dupes', 'breakdown']);
@@ -143,7 +170,11 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   });
 
   it('resolves package binaries using AUDITOR_HOME_DIR fallback when not present in host', () => {
-    fs.writeFileSync(path.join(tempSandboxDir, 'package.json'), JSON.stringify({ name: 'remote-host-app' }), 'utf-8');
+    fs.writeFileSync(
+      path.join(tempSandboxDir, 'package.json'),
+      JSON.stringify({ name: 'remote-host-app' }),
+      'utf-8'
+    );
     bootstrapCliProject(['node', 'auditor', `--project=${tempSandboxDir}`]);
 
     // Looking up stylelint should resolve from AUDITOR_HOME_DIR because tempSandboxDir has no node_modules
@@ -152,4 +183,3 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     expect(fs.existsSync(resolvedBin!)).toBe(true);
   });
 });
-

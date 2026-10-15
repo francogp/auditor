@@ -83,14 +83,22 @@ describe('report_coverage_map', () => {
         {
           file: 'src/core/utils.ts',
           status: 'covered',
-          coveringSuites: ['validate_eslint', 'validate_types', 'validate_ast', 'validate_misc'],
+          coveringSuites: ['validate_oxlint', 'validate_types', 'validate_ast', 'validate_misc'],
           degradedPolicies: []
         },
         {
           file: 'src/core/legacy.ts',
           status: 'degraded',
-          coveringSuites: ['validate_eslint'],
-          degradedPolicies: [{ id: 'exemptFiles', kind: 'configured', configKey: 'paths.exemptFiles', silences: 'todo', matches: () => true }]
+          coveringSuites: ['validate_oxlint'],
+          degradedPolicies: [
+            {
+              id: 'exemptFiles',
+              kind: 'configured',
+              configKey: 'paths.exemptFiles',
+              silences: 'todo',
+              matches: () => true
+            }
+          ]
         },
         {
           file: 'scratch.txt',

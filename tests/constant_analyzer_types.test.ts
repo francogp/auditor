@@ -36,8 +36,8 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
-    const identical = result.findings.filter(f => f.ruleId === 'duplicate-constant-identical');
-    const divergent = result.findings.filter(f => f.ruleId === 'duplicate-constant-divergent');
+    const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
+    const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
 
     expect(divergent.length).toBe(0);
     expect(identical.length).toBe(2);
@@ -56,8 +56,8 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
-    const identical = result.findings.filter(f => f.ruleId === 'duplicate-constant-identical');
-    const divergent = result.findings.filter(f => f.ruleId === 'duplicate-constant-divergent');
+    const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
+    const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
 
     expect(divergent.length).toBe(0);
     expect(identical.length).toBe(2);
@@ -75,8 +75,8 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
     const result = await auditor.execute();
 
-    const identical = result.findings.filter(f => f.ruleId === 'duplicate-constant-identical');
-    const divergent = result.findings.filter(f => f.ruleId === 'duplicate-constant-divergent');
+    const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
+    const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
 
     expect(identical.length).toBe(0);
     expect(divergent.length).toBe(2);

@@ -146,7 +146,11 @@ describe('HtmlValidateAuditor & parseHtmlValidateResults', () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-html-test-'));
       try {
         fs.mkdirSync(path.join(tempDir, 'src'), { recursive: true });
-        fs.writeFileSync(path.join(tempDir, 'src/clean.html'), '<!DOCTYPE html>\n<html lang="en"><head><title>App</title></head><body><h1>Hello</h1></body></html>\n', 'utf-8');
+        fs.writeFileSync(
+          path.join(tempDir, 'src/clean.html'),
+          '<!DOCTYPE html>\n<html lang="en"><head><title>App</title></head><body><h1>Hello</h1></body></html>\n',
+          'utf-8'
+        );
         const auditor = new HtmlValidateAuditor();
         Object.defineProperty(auditor, 'projectRoot', { value: tempDir });
         await auditor.runAudit();
@@ -157,4 +161,3 @@ describe('HtmlValidateAuditor & parseHtmlValidateResults', () => {
     });
   });
 });
-

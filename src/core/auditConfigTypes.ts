@@ -215,6 +215,7 @@ export interface AuditDocumentationConfig {
 }
 
 export interface AuditPiniaConfig {
+  readonly enabled?: boolean;
   readonly authorizedMutationFiles?: readonly string[];
 }
 
@@ -503,16 +504,85 @@ export interface AuditScssArchitectureConfig {
   readonly exemptPaths?: readonly string[];
 }
 
-export interface AuditVitePlusConfig {
-  readonly enabled?: boolean;
-  readonly fmt?: {
+export type OxlintCategorySeverity = 'error' | 'warn' | 'off'; // lib-duplicate-ok: Vite+ Oxlint category severity levels
+
+export interface OxlintCategoriesConfig {
+  readonly correctness?: OxlintCategorySeverity;
+  readonly suspicious?: OxlintCategorySeverity;
+  readonly pedantic?: OxlintCategorySeverity;
+  readonly perf?: OxlintCategorySeverity;
+  readonly style?: OxlintCategorySeverity;
+  readonly restriction?: OxlintCategorySeverity;
+  readonly nursery?: OxlintCategorySeverity;
+  readonly a11y?: OxlintCategorySeverity;
+}
+
+export interface VitePlusFmtOverrideConfig {
+  readonly files: readonly string[];
+  readonly options: {
+    readonly tabWidth?: number;
     readonly singleQuote?: boolean;
     readonly semi?: boolean;
-    readonly trailingComma?: 'none' | 'all' | 'es5';
     readonly printWidth?: number;
   };
-  readonly staged?: Record<string, string>;
+}
+
+export interface AuditVitePlusFmtConfig {
+  readonly enabled?: boolean;
+  readonly singleQuote?: boolean;
+  readonly semi?: boolean;
+  readonly trailingComma?: 'none' | 'all' | 'es5';
+  readonly tabWidth?: number;
+  readonly useTabs?: boolean;
+  readonly printWidth?: number;
+  readonly sortPackageJson?: boolean;
+  readonly ignorePatterns?: readonly string[];
+  readonly overrides?: readonly VitePlusFmtOverrideConfig[];
+}
+
+export interface VitePlusLintOverrideConfig {
+  readonly files: readonly string[];
+  readonly rules: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
+}
+
+export interface AuditVitePlusLintConfig {
+  readonly enabled?: boolean;
+  readonly typeAware?: boolean;
+  readonly typeCheck?: boolean;
+  readonly categories?: OxlintCategoriesConfig;
+  readonly rules?: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
+  readonly ignorePatterns?: readonly string[];
+  readonly overrides?: readonly VitePlusLintOverrideConfig[];
+}
+
+export interface AuditVitePlusStagedConfig {
+  readonly enabled?: boolean;
+  readonly rules?: Record<string, string>;
+}
+
+export interface AuditVitePlusHooksConfig {
+  readonly enabled?: boolean;
+}
+
+export interface AuditVitePlusVSCodeConfig {
+  readonly enabled?: boolean;
+  readonly formatOnSave?: boolean;
+  readonly defaultFormatter?: string;
+  readonly unwantedRecommendations?: readonly string[];
+}
+
+export interface AuditVitePlusConfig {
+  readonly enabled?: boolean;
+  readonly fmt?: AuditVitePlusFmtConfig;
+  readonly lint?: AuditVitePlusLintConfig;
+  readonly staged?: AuditVitePlusStagedConfig | Record<string, string>;
+  readonly hooks?: AuditVitePlusHooksConfig;
+  readonly vscode?: AuditVitePlusVSCodeConfig;
   readonly extraLintRules?: Record<string, 'error' | 'warn' | 'off'>;
+}
+
+export interface AuditOxfmtConfig {
+  readonly enabled?: boolean;
 }
 
 export type DeepPartial<T> = {
@@ -524,6 +594,7 @@ export type DeepPartial<T> = {
 };
 
 export interface AuditEngineConfig {
+  readonly [key: string]: unknown;
   readonly name: string;
   readonly auditorVersion?: string;
   readonly ratchet?: AuditRatchetConfig;
@@ -540,6 +611,7 @@ export interface AuditEngineConfig {
   readonly styles?: AuditStylesConfig;
   readonly stylelint?: AuditStylelintConfig;
   readonly oxlint?: AuditOxlintConfig;
+  readonly oxfmt?: AuditOxfmtConfig;
   readonly vitePlusConfig?: AuditVitePlusConfig;
   readonly htmlValidate?: AuditHtmlValidateConfig;
   readonly bundle?: AuditBundleConfig;

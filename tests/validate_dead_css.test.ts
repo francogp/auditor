@@ -11,10 +11,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {
-  DeadCssAuditor,
-  DEAD_CSS_RULES
-} from '../src/suites/architecture/validate_dead_css.ts';
+import { DeadCssAuditor, DEAD_CSS_RULES } from '../src/suites/architecture/validate_dead_css.ts';
 
 describe('DeadCssAuditor', () => {
   let tempDir: string;
@@ -61,7 +58,7 @@ describe('DeadCssAuditor', () => {
       const auditor = new DeadCssAuditor(tempDir);
       const result = await auditor.execute();
 
-      const deadClass = result.findings.find(f => f.ruleId === 'dead-scoped-css');
+      const deadClass = result.findings.find((f) => f.ruleId === 'dead-scoped-css');
       expect(deadClass).toBeDefined();
       expect(deadClass?.severity).toBe('error');
       expect(deadClass?.context).toContain('completely-unused-class');
@@ -84,7 +81,7 @@ describe('DeadCssAuditor', () => {
       const auditor = new DeadCssAuditor(tempDir);
       const result = await auditor.execute();
 
-      const deadClass = result.findings.find(f => f.ruleId === 'dead-scoped-css');
+      const deadClass = result.findings.find((f) => f.ruleId === 'dead-scoped-css');
       expect(deadClass).toBeUndefined();
     });
 

@@ -36,11 +36,21 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
       expect(auditor.packageName).toBe('DBQuery');
       expect(auditor.icon).toBe('⚡');
       expect(auditor.ruleIds).toEqual([...QUERY_PERFORMANCE_RULES]);
-      expect(auditor.ruleDescriptions['unindexed-foreign-keys']).toBe('Clave foránea sin índice secundario');
-      expect(auditor.ruleDescriptions['select-star-in-queries']).toBe('SELECT * en repositorio o servicio');
-      expect(auditor.ruleDescriptions['unpaginated-queries']).toBe('Consulta sin LIMIT ni paginación');
-      expect(auditor.ruleDescriptions['n-plus-one-patterns']).toBe('Consulta a base de datos en bucle');
-      expect(auditor.ruleDescriptions['heavy-count-queries']).toBe('SELECT COUNT(*) sin filtro en tabla');
+      expect(auditor.ruleDescriptions['unindexed-foreign-keys']).toBe(
+        'Clave foránea sin índice secundario'
+      );
+      expect(auditor.ruleDescriptions['select-star-in-queries']).toBe(
+        'SELECT * en repositorio o servicio'
+      );
+      expect(auditor.ruleDescriptions['unpaginated-queries']).toBe(
+        'Consulta sin LIMIT ni paginación'
+      );
+      expect(auditor.ruleDescriptions['n-plus-one-patterns']).toBe(
+        'Consulta a base de datos en bucle'
+      );
+      expect(auditor.ruleDescriptions['heavy-count-queries']).toBe(
+        'SELECT COUNT(*) sin filtro en tabla'
+      );
       expect(auditor.ruleDescriptions['unindexed-order-by']).toBe('Paginación con OFFSET alto');
 
       const constructionErrors = validateAuditorConstruction(auditor);
@@ -99,7 +109,7 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'unindexed-foreign-keys');
+      const finding = result.findings.find((f) => f.ruleId === 'unindexed-foreign-keys');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -113,21 +123,22 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'select-star-in-queries');
+      const finding = result.findings.find((f) => f.ruleId === 'select-star-in-queries');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
 
     it('detects unpaginated-queries when collection query omits limit or range', async () => {
       const auditor = new ValidateQueryPerformanceAuditor({ projectRoot: tempDir });
-      const snippet = 'const logs = await supabase.' + 'from("audit_logs").' + 'select("id, action");';
+      const snippet =
+        'const logs = await supabase.' + 'from("audit_logs").' + 'select("id, action");';
 
       auditor.testScanFile('src/services/logService.ts', snippet);
       const result = await auditor.finishAudit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'unpaginated-queries');
+      const finding = result.findings.find((f) => f.ruleId === 'unpaginated-queries');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -145,7 +156,7 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'n-plus-one-patterns');
+      const finding = result.findings.find((f) => f.ruleId === 'n-plus-one-patterns');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -159,7 +170,7 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'heavy-count-queries');
+      const finding = result.findings.find((f) => f.ruleId === 'heavy-count-queries');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -173,7 +184,7 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'unindexed-order-by');
+      const finding = result.findings.find((f) => f.ruleId === 'unindexed-order-by');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });

@@ -15,31 +15,44 @@ export const hardcodedConfigDetector = createLineDetector({
     if (trimmed.includes('hardcoded-config-ok') || trimmed.includes('homebrew-ok')) return null;
 
     // 1. Literal candidate directory arrays: e.g. ['migrations', 'supabase/migrations'] or ['src', 'app']
-    const hasCandidateArray = /\[\s*['"`](?:migrations|supabase\/migrations|database\/migrations|src['"`]\s*,\s*['"`]app)['"`]/i.test(trimmed);
+    const hasCandidateArray =
+      /\[\s*['"`](?:migrations|supabase\/migrations|database\/migrations|src['"`]\s*,\s*['"`]app)['"`]/i.test(
+        trimmed
+      );
     if (hasCandidateArray) {
       return "Array de rutas candidatas hardcodeadas detectado. Resuelve las rutas dinámicamente desde 'config.paths' o 'audit.config.ts'.";
     }
 
     // 2. Hardcoded fallback directory arrays in nullish coalescing or unshift: e.g. unshift('supabase/migrations') or ?? ['migrations']
-    const hasCandidatePush = /(?:\.push|\.unshift|\?\?)\s*(?:\(\s*)?['"`](?:supabase\/migrations|database\/migrations)['"`]/i.test(trimmed);
+    const hasCandidatePush =
+      /(?:\.push|\.unshift|\?\?)\s*(?:\(\s*)?['"`](?:supabase\/migrations|database\/migrations)['"`]/i.test(
+        trimmed
+      );
     if (hasCandidatePush) {
       return "Ruta de directorio fallback hardcodeada detectada. Usa únicamente la ruta configurada en 'config.paths.migrationsDir'.";
     }
 
     // 3. Candidate files array or magic file literals: e.g. ['visuals.ts', 'zLayers.ts'] or CANDIDATE_FILES = [...]
-    const hasCandidateFiles = /(?:CANDIDATE_PATHS|FALLBACK_PATHS|CANDIDATE_FILES)\s*:\s*(?:readonly\s*)?string\[\]\s*=\s*\[/i.test(trimmed);
+    const hasCandidateFiles =
+      /(?:CANDIDATE_PATHS|FALLBACK_PATHS|CANDIDATE_FILES)\s*:\s*(?:readonly\s*)?string\[\]\s*=\s*\[/i.test(
+        trimmed
+      );
     if (hasCandidateFiles) {
-      return "Lista fija de archivos candidatos hardcodeada detectada. Resuelve las rutas desde la configuración.";
+      return 'Lista fija de archivos candidatos hardcodeada detectada. Resuelve las rutas desde la configuración.';
     }
 
     // 4. Hardcoded path bypasses like relPath.includes('migrations') or relPath.startsWith('migrations') without consulting config
-    const hasHardcodedPathExemption = /relPath\.(?:includes|startsWith)\s*\(\s*['"`](?:migrations|supabase\/migrations|database\/migrations)['"`]\s*\)/i.test(trimmed);
+    const hasHardcodedPathExemption =
+      /relPath\.(?:includes|startsWith)\s*\(\s*['"`](?:migrations|supabase\/migrations|database\/migrations)['"`]\s*\)/i.test(
+        trimmed
+      );
     if (hasHardcodedPathExemption && !trimmed.includes('config.')) {
       return "Exclusión de ruta hardcodeada detectada en el escáner. Consulta dinámicamente 'config.paths.migrationsDir' o 'config.exemptPaths'.";
     }
 
     // 5. Fallback path arrays on config.paths: e.g. config.paths.srcRoots ?? ['src']
-    const hasFallbackRootsArray = /(?:config|cfg|paths)\.(?:paths\.)?\w+Roots\s*\?\?\s*\[\s*['"`]/i.test(trimmed);
+    const hasFallbackRootsArray =
+      /(?:config|cfg|paths)\.(?:paths\.)?\w+Roots\s*\?\?\s*\[\s*['"`]/i.test(trimmed);
     if (hasFallbackRootsArray) {
       return "Array de rutas fallback hardcodeadas detectado. Resuelve las rutas directamente desde 'config.paths' sin fallback hardcodeado.";
     }

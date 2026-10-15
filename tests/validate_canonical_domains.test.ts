@@ -95,7 +95,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const collisions = result.findings.filter(f => f.ruleId === 'canonical-domain-collision');
+    const collisions = result.findings.filter((f) => f.ruleId === 'canonical-domain-collision');
     expect(collisions.length).toBeGreaterThanOrEqual(1);
     expect(collisions[0]?.severity).toBe('error');
     expect(collisions[0]?.message).toContain('Canonical domain collision');
@@ -112,14 +112,15 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const repeated = result.findings.filter(f => f.ruleId === 'canonical-domain-repeated-union');
+    const repeated = result.findings.filter((f) => f.ruleId === 'canonical-domain-repeated-union');
     expect(repeated.length).toBeGreaterThanOrEqual(2);
     expect(repeated[0]?.severity).toBe('error');
     expect(repeated[0]?.message).toContain('Repeated ad-hoc string literal union');
   });
 
   it('fulfills point 3 & 5: detects canonical-domain-subset-mismatch', async () => {
-    const canonical = 'export const HTTP_METHODS = ["DELETE", "GET", "PATCH", "POST", "PUT"] as const;';
+    const canonical =
+      'export const HTTP_METHODS = ["DELETE", "GET", "PATCH", "POST", "PUT"] as const;';
     const consumer = 'export const SAFE_METHODS = ["GET", "PATCH", "POST"];';
 
     await fs.writeFile(path.join(tempDir, 'src/http.ts'), canonical, 'utf-8');
@@ -129,7 +130,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const subsets = result.findings.filter(f => f.ruleId === 'canonical-domain-subset-mismatch');
+    const subsets = result.findings.filter((f) => f.ruleId === 'canonical-domain-subset-mismatch');
     expect(subsets.length).toBeGreaterThanOrEqual(1);
     expect(subsets[0]?.severity).toBe('error');
     expect(subsets[0]?.message).toContain('Sub-collection of canonical domain');
@@ -137,7 +138,10 @@ describe('ValidateCanonicalDomainsAuditor', () => {
 
   it('fulfills point 3 & 5: detects canonical-domain-library-duplicate', async () => {
     const libraryTypes = new Map([
-      ['alpha|beta|gamma', { typeName: 'GreekLevel', pkgName: '@vendor/greek', signature: 'alpha|beta|gamma' }]
+      [
+        'alpha|beta|gamma',
+        { typeName: 'GreekLevel', pkgName: '@vendor/greek', signature: 'alpha|beta|gamma' }
+      ]
     ]);
 
     const files = [
@@ -172,7 +176,10 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const emptySubDir = path.join(tempDir, 'empty');
     await fs.mkdir(emptySubDir, { recursive: true });
 
-    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir, roots: [emptySubDir] });
+    const auditor = new ValidateCanonicalDomainsAuditor({
+      projectRoot: tempDir,
+      roots: [emptySubDir]
+    });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);
@@ -271,9 +278,13 @@ describe('ValidateCanonicalDomainsAuditor', () => {
 
     const findings = detectLibraryDomainTypeDuplicates(scanned, libMap);
     expect(findings.length).toBe(3); // array, prop, type (keyof is skipped)
-    expect(findings.some(f => f.message.includes("WIDGET_LIST' duplicates 'WidgetStatus"))).toBe(true);
-    expect(findings.some(f => f.message.includes("status' duplicates 'WidgetStatus"))).toBe(true);
-    expect(findings.some(f => f.message.includes("MyStatus' duplicates 'WidgetStatus"))).toBe(true);
+    expect(findings.some((f) => f.message.includes("WIDGET_LIST' duplicates 'WidgetStatus"))).toBe(
+      true
+    );
+    expect(findings.some((f) => f.message.includes("status' duplicates 'WidgetStatus"))).toBe(true);
+    expect(findings.some((f) => f.message.includes("MyStatus' duplicates 'WidgetStatus"))).toBe(
+      true
+    );
   });
 
   it('handles missing package.json gracefully in extractLibraryDomainTypes', async () => {
@@ -292,7 +303,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     await fs.writeFile(
       path.join(tempDir, 'src/types/account.ts'),
       'export const TIERS = ["basic", "enterprise", "premium"] as const;\n' +
-      'export const ROUTES = ["home", "settings"] as const;\n', // Ignored name
+        'export const ROUTES = ["home", "settings"] as const;\n', // Ignored name
       'utf-8'
     );
 
@@ -328,13 +339,13 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
-    const typeDup = result.findings.find(f => f.message.includes('Duplicate domain type union'));
+    const typeDup = result.findings.find((f) => f.message.includes('Duplicate domain type union'));
     expect(typeDup).toBeDefined();
     expect(typeDup?.message).toContain('LocalPriority');
     expect(typeDup?.message).toContain('Priority');
 
     // ROUTES should not have been registered or collided
-    const routeCollisions = result.findings.filter(f => f.message.includes('ROUTES'));
+    const routeCollisions = result.findings.filter((f) => f.message.includes('ROUTES'));
     expect(routeCollisions).toHaveLength(0);
   });
 
@@ -385,4 +396,3 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     expect(findings[1]?.message).toContain('SMALL_SUBSET');
   });
 });
-

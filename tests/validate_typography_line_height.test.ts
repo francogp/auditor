@@ -69,7 +69,7 @@ describe('TypographyLineHeightAuditor', () => {
       }
     `;
     auditor.testScanFile('src/test.scss', badScss);
-    const violation = auditor.collectedViolations.find(v => v.ruleId === 'line-height-overlap');
+    const violation = auditor.collectedViolations.find((v) => v.ruleId === 'line-height-overlap');
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
   });

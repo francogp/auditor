@@ -41,8 +41,12 @@ describe('ValidatePackageTypesAuditor & parseAttwProblems', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Distribución');
       expect(auditor.ruleDescriptions['pkg-types-resolution']).toBe('Resolución de tipos inválida');
-      expect(auditor.ruleDescriptions['pkg-types-dual-hazard']).toBe('Incompatibilidad dual ESM y CJS');
-      expect(auditor.ruleDescriptions['pkg-types-missing-dts']).toBe('Entrypoint sin tipos declarados');
+      expect(auditor.ruleDescriptions['pkg-types-dual-hazard']).toBe(
+        'Incompatibilidad dual ESM y CJS'
+      );
+      expect(auditor.ruleDescriptions['pkg-types-missing-dts']).toBe(
+        'Entrypoint sin tipos declarados'
+      );
     });
   });
 
@@ -160,7 +164,7 @@ describe('ValidatePackageTypesAuditor & parseAttwProblems', () => {
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
 
-      const errorFinding = result.findings.find(f => f.severity === 'error');
+      const errorFinding = result.findings.find((f) => f.severity === 'error');
       expect(errorFinding).toBeDefined();
       expect(PACKAGE_TYPES_RULES).toContain(errorFinding?.ruleId);
     });
@@ -209,7 +213,7 @@ describe('ValidatePackageTypesAuditor & parseAttwProblems', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBeGreaterThan(0);
 
-      const warnFinding = result.findings.find(f => f.severity === 'warning');
+      const warnFinding = result.findings.find((f) => f.severity === 'warning');
       expect(warnFinding).toBeDefined();
       expect(PACKAGE_TYPES_RULES).toContain(warnFinding?.ruleId);
     });

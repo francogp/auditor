@@ -112,9 +112,9 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       expect(result.summary.errors).toBe(3);
       expect(result.status).toBe('failed');
 
-      const filemodeFinding = result.findings.find(f => f.ruleId === 'git-config-filemode');
-      const autocrlfFinding = result.findings.find(f => f.ruleId === 'git-config-autocrlf');
-      const eolFinding = result.findings.find(f => f.ruleId === 'git-config-eol');
+      const filemodeFinding = result.findings.find((f) => f.ruleId === 'git-config-filemode');
+      const autocrlfFinding = result.findings.find((f) => f.ruleId === 'git-config-autocrlf');
+      const eolFinding = result.findings.find((f) => f.ruleId === 'git-config-eol');
 
       expect(filemodeFinding).toBeDefined();
       expect(filemodeFinding?.severity).toBe('error');

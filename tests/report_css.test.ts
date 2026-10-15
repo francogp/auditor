@@ -27,7 +27,9 @@ describe('report_css CLI Tool', () => {
     await runCssReport();
 
     expect(consoleLogSpy).toHaveBeenCalled();
-    const jsonCall = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).find((s: string) => s.trim().startsWith('{'));
+    const jsonCall = consoleLogSpy.mock.calls
+      .map((c: unknown[]) => String(c[0]))
+      .find((s: string) => s.trim().startsWith('{'));
     expect(jsonCall).toBeDefined();
     const parsed = JSON.parse(jsonCall!);
     expect(parsed).toHaveProperty('summary');
@@ -41,7 +43,9 @@ describe('report_css CLI Tool', () => {
     await runCssReport();
 
     expect(consoleLogSpy).toHaveBeenCalled();
-    const jsonCall = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).find((s: string) => s.trim().startsWith('{'));
+    const jsonCall = consoleLogSpy.mock.calls
+      .map((c: unknown[]) => String(c[0]))
+      .find((s: string) => s.trim().startsWith('{'));
     expect(jsonCall).toBeDefined();
     const parsed = JSON.parse(jsonCall!);
     expect(Array.isArray(parsed.findings)).toBe(true);
@@ -88,7 +92,8 @@ describe('report_css CLI Tool', () => {
           severity: 'error',
           file: 'src/styles/very_long_path_to_stylesheet_component_style_test.scss',
           line: 10,
-          message: 'This is an extremely long stylelint error message explaining that a duplicate selector was found in this block'
+          message:
+            'This is an extremely long stylelint error message explaining that a duplicate selector was found in this block'
         },
         {
           ruleId: 'css-duplicate-properties',
@@ -141,4 +146,3 @@ describe('report_css CLI Tool', () => {
     expect(output).toContain('COMPLEJIDAD');
   });
 });
-

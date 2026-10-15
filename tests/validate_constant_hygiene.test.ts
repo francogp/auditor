@@ -8,7 +8,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { ValidateConstantHygieneAuditor, CONSTANT_HYGIENE_RULES } from '../src/suites/architecture/validate_constant_hygiene.ts';
+import {
+  ValidateConstantHygieneAuditor,
+  CONSTANT_HYGIENE_RULES
+} from '../src/suites/architecture/validate_constant_hygiene.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
@@ -64,26 +67,42 @@ describe('ValidateConstantHygieneAuditor', () => {
 
   describe('Violation Path: 100% Rule ID Verification', () => {
     it('detects duplicate identical constants across separate files (duplicate-constant-identical)', async () => {
-      await fs.writeFile(path.join(srcDir, 'modA.ts'), 'export const GLOBAL_SHARED_TOKEN = "VALID_TOKEN";\n', 'utf-8');
-      await fs.writeFile(path.join(srcDir, 'modB.ts'), 'export const GLOBAL_SHARED_TOKEN = "VALID_TOKEN";\n', 'utf-8');
+      await fs.writeFile(
+        path.join(srcDir, 'modA.ts'),
+        'export const GLOBAL_SHARED_TOKEN = "VALID_TOKEN";\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(srcDir, 'modB.ts'),
+        'export const GLOBAL_SHARED_TOKEN = "VALID_TOKEN";\n',
+        'utf-8'
+      );
 
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const finding = result.findings.find(f => f.ruleId === 'duplicate-constant-identical');
+      const finding = result.findings.find((f) => f.ruleId === 'duplicate-constant-identical');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('idéntico');
     });
 
     it('detects duplicate divergent constants across separate files (duplicate-constant-divergent)', async () => {
-      await fs.writeFile(path.join(srcDir, 'modA.ts'), 'export const DIVERGENT_LIMIT_COUNT = 150;\n', 'utf-8');
-      await fs.writeFile(path.join(srcDir, 'modB.ts'), 'export const DIVERGENT_LIMIT_COUNT = 300;\n', 'utf-8');
+      await fs.writeFile(
+        path.join(srcDir, 'modA.ts'),
+        'export const DIVERGENT_LIMIT_COUNT = 150;\n',
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(srcDir, 'modB.ts'),
+        'export const DIVERGENT_LIMIT_COUNT = 300;\n',
+        'utf-8'
+      );
 
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const finding = result.findings.find(f => f.ruleId === 'duplicate-constant-divergent');
+      const finding = result.findings.find((f) => f.ruleId === 'duplicate-constant-divergent');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
       expect(finding?.message).toContain('diferentes');
@@ -96,19 +115,23 @@ describe('ValidateConstantHygieneAuditor', () => {
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const finding = result.findings.find(f => f.ruleId === 'constant-bad-names');
+      const finding = result.findings.find((f) => f.ruleId === 'constant-bad-names');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
 
     it('detects redundant 1:1 constant aliases (constant-no-alias)', async () => {
       const aliasFile = path.join(srcDir, 'alias.ts');
-      await fs.writeFile(aliasFile, 'export const ORIGINAL_VAL = 10;\nexport const REDUNDANT_ALIAS = ORIGINAL_VAL;\n', 'utf-8');
+      await fs.writeFile(
+        aliasFile,
+        'export const ORIGINAL_VAL = 10;\nexport const REDUNDANT_ALIAS = ORIGINAL_VAL;\n',
+        'utf-8'
+      );
 
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const finding = result.findings.find(f => f.ruleId === 'constant-no-alias');
+      const finding = result.findings.find((f) => f.ruleId === 'constant-no-alias');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -120,7 +143,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const finding = result.findings.find(f => f.ruleId === 'constant-no-literal-suffix');
+      const finding = result.findings.find((f) => f.ruleId === 'constant-no-literal-suffix');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -137,7 +160,9 @@ describe('ValidateConstantHygieneAuditor', () => {
       const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
       const result = await auditor.execute();
 
-      const aliasFindings = result.findings.filter(f => f.ruleId === 'constant-no-alias' && f.file?.includes('dataCatalog.ts'));
+      const aliasFindings = result.findings.filter(
+        (f) => f.ruleId === 'constant-no-alias' && f.file?.includes('dataCatalog.ts')
+      );
       expect(aliasFindings).toHaveLength(0);
     });
   });

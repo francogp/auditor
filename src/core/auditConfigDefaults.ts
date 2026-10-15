@@ -17,7 +17,9 @@ import {
   type AuditStylesConfig,
   type AuditStylelintConfig,
   type AuditOxlintConfig,
+  type AuditOxfmtConfig,
   type AuditVitePlusConfig,
+  type AuditVitePlusStagedConfig,
   type AuditBundleConfig,
   type AuditAgentPluginConfig,
   type AuditAnimationConfig,
@@ -172,16 +174,37 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   oxlint: {
     enabled: true
   },
+  oxfmt: {
+    enabled: true
+  },
   vitePlusConfig: {
     enabled: true,
     fmt: {
+      enabled: true,
       singleQuote: true,
       semi: true,
       trailingComma: 'none',
-      printWidth: 100
+      printWidth: 100,
+      sortPackageJson: true
+    },
+    lint: {
+      enabled: true,
+      typeAware: true,
+      typeCheck: true
     },
     staged: {
-      '*': 'vp check --fix'
+      enabled: true,
+      rules: {
+        '*': 'vp check --fix'
+      }
+    },
+    hooks: {
+      enabled: true
+    },
+    vscode: {
+      enabled: true,
+      formatOnSave: true,
+      defaultFormatter: 'oxc.oxc-vscode'
     }
   },
   bundle: {
@@ -383,6 +406,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'styles',
     'stylelint',
     'oxlint',
+    'oxfmt',
     'vitePlusConfig',
     'valibot',
     'pinia',
@@ -643,6 +667,7 @@ export function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig
     constants: buildConstantsSubConfig(config.constants),
     documentation: buildDocumentationSubConfig(config.documentation),
     pinia: {
+      enabled: config.pinia?.enabled ?? true,
       authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
     },
     e2e: {
@@ -979,13 +1004,73 @@ export function buildOxlintConfig(raw?: DeepPartial<AuditOxlintConfig>): AuditOx
   };
 }
 
+export function buildOxfmtConfig(raw?: DeepPartial<AuditOxfmtConfig>): AuditOxfmtConfig {
+  const def = DEFAULT_AUDIT_CONFIG.oxfmt;
+  const o = raw ?? {};
+  return {
+    enabled: o.enabled ?? def?.enabled ?? true
+  };
+}
+
 export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): AuditVitePlusConfig {
   const def = DEFAULT_AUDIT_CONFIG.vitePlusConfig;
   const v = raw ?? {};
+  const vFmt = v.fmt ?? {};
+  const vLint = v.lint ?? {};
   return {
     enabled: v.enabled ?? def?.enabled ?? true,
-    fmt: v.fmt ? { ...v.fmt } : def?.fmt,
-    staged: v.staged ? { ...v.staged } : def?.staged,
+    fmt: {
+      enabled: vFmt.enabled ?? def?.fmt?.enabled ?? true,
+      singleQuote: vFmt.singleQuote ?? def?.fmt?.singleQuote ?? true,
+      semi: vFmt.semi ?? def?.fmt?.semi ?? true,
+      trailingComma: vFmt.trailingComma ?? def?.fmt?.trailingComma ?? 'none',
+      tabWidth: vFmt.tabWidth ?? def?.fmt?.tabWidth,
+      useTabs: vFmt.useTabs ?? def?.fmt?.useTabs,
+      printWidth: vFmt.printWidth ?? def?.fmt?.printWidth ?? 100,
+      sortPackageJson: vFmt.sortPackageJson ?? def?.fmt?.sortPackageJson ?? true,
+      ignorePatterns: vFmt.ignorePatterns
+        ? [...vFmt.ignorePatterns]
+        : (def?.fmt?.ignorePatterns ?? []),
+      overrides: vFmt.overrides ? [...vFmt.overrides] : (def?.fmt?.overrides ?? [])
+    },
+    lint: {
+      enabled: vLint.enabled ?? def?.lint?.enabled ?? true,
+      typeAware: vLint.typeAware ?? def?.lint?.typeAware ?? true,
+      typeCheck: vLint.typeCheck ?? def?.lint?.typeCheck ?? true,
+      categories: vLint.categories ? { ...vLint.categories } : def?.lint?.categories,
+      rules: vLint.rules ? { ...vLint.rules } : def?.lint?.rules,
+      ignorePatterns: vLint.ignorePatterns
+        ? [...vLint.ignorePatterns]
+        : (def?.lint?.ignorePatterns ?? []),
+      overrides: vLint.overrides ? [...vLint.overrides] : (def?.lint?.overrides ?? [])
+    },
+    staged: (() => {
+      const rawStaged = v.staged;
+      const isStagedObject = typeof rawStaged === 'object' && rawStaged !== null;
+      const isStagedWithRules = isStagedObject && ('rules' in rawStaged || 'enabled' in rawStaged);
+      const stagedObj = rawStaged as AuditVitePlusStagedConfig | undefined;
+      const defStaged = def?.staged as AuditVitePlusStagedConfig | undefined;
+      const stagedEnabled =
+        isStagedWithRules && typeof stagedObj?.enabled === 'boolean'
+          ? stagedObj.enabled
+          : typeof defStaged?.enabled === 'boolean'
+            ? defStaged.enabled
+            : true;
+      const stagedRules: Record<string, string> =
+        isStagedWithRules && stagedObj?.rules
+          ? (stagedObj.rules as Record<string, string>)
+          : isStagedObject && !('rules' in rawStaged)
+            ? (rawStaged as Record<string, string>)
+            : defStaged?.rules
+              ? (defStaged.rules as Record<string, string>)
+              : { '*': 'vp check --fix' };
+      return {
+        enabled: stagedEnabled,
+        rules: stagedRules
+      };
+    })(),
+    hooks: v.hooks ? { ...v.hooks } : def?.hooks,
+    vscode: v.vscode ? { ...v.vscode } : def?.vscode,
     extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
   };
 }
@@ -1215,6 +1300,7 @@ export function defineAuditConfig(
           ignoreGlobs: []
         },
     oxlint: buildOxlintConfig(config.oxlint),
+    oxfmt: buildOxfmtConfig(config.oxfmt),
     vitePlusConfig: buildVitePlusConfig(config.vitePlusConfig),
     bundle: buildBundleConfig(config.bundle),
     fallow: buildFallowConfig(config.fallow, config.security),

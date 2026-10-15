@@ -191,15 +191,18 @@ graph TD
 - `npm run build`: Chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`.
 - `npm run build:deploy` (`auditor-build-deploy`): Runs `npm run build` under `AUDITOR_ENV=production` for Docker/CI/deploy environments.
 
-### 22. Strict Vite+ (`vp`) Unified Configuration & Domain-Type-First Type Integrity (`validate_vite_plus_config`, `validate_oxlint`)
+### 22. Strict Vite+ (`vp`) Unified Configuration & Code Hygiene Governance (`validate_vite_plus_config`, `validate_oxlint`, `validate_oxfmt`)
 
 - Eradicates standalone `eslint.config.*`, `vitest.config.*`, `tsdown.config.*`, `tsconfig.build.json`, and `.nvmrc` across all projects in favor of unified **Vite+ (`vite-plus` / CLI `vp`)**.
 - Governs `vite.config.ts` (`defineConfig` from `'vite-plus'`) enforcing:
-  1. `lint`: Oxlint + tsgolint type-aware rules (`options: { typeAware: true, typeCheck: true }`), JS plugin `@francogp/auditor/domain-type-plugin` enforcing the 4 `/domain-type-first` rules, `@typescript-eslint/no-explicit-any: 'error'`, `@typescript-eslint/ban-ts-comment: 'error'`, and banning double casting `as unknown as T` or uncoordinated `Date` constructors without explicit domain wrappers.
+  1. `lint`: Oxlint + type-aware rules (`options: { typeAware: true, typeCheck: true }`), JS plugin `@francogp/auditor/domain-type-plugin` enforcing the `/domain-type-first` rules, `@typescript-eslint/no-explicit-any: 'error'`, `@typescript-eslint/ban-ts-comment: 'error'`, `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`, and banning double casting `as unknown as T` or uncoordinated `Date` constructors without explicit domain wrappers.
   2. `test`: Vitest runner importing from `'vite-plus/test'`, supporting multi-project configurations and V8 coverage.
-  3. `fmt`: Oxfmt formatting (`singleQuote: true`, `semi: true`, `trailingComma: 'none'`, `printWidth: 100`).
+  3. `fmt`: Oxfmt formatting (`singleQuote: true`, `semi: true`, `trailingComma: 'none'`, `printWidth: 100`), audited and validated by `validate_oxfmt`.
   4. `staged`: Native git hooks (`{ '*': 'vp check --fix' }`).
   5. `pack`: Tsdown library packaging when `packageDistribution.enabled: true`.
+  6. `dynamic exclusion sync`: `syncViteConfigWithAuditConfig` dynamically projects `config.paths.ignoreGlobs` into `lint.ignorePatterns` and `fmt.ignorePatterns`.
+- **Mandatory Injected Rule & Configuration Canary Verification**:
+  Every rule injected or mandated by Vite+ (Oxlint, Oxfmt, domain-types) must have active automated canary tests asserting positive failure detection, clean compliance, and auto-fix behavior. Furthermore, all auditor configuration options must have canaries verifying both active state and disabled state (`enabled: false`).
 - **Non-Destructive Auto-Fix Migration Workflow (`auditor fix`)**:
   When migrating a legacy project, `auditor fix` executes the strict 5-stage non-destructive protocol:
   1. **Preserve & Merge Configs**: Reads existing `vitest.config.*` (extracting `test: { ... }` blocks, projects, and custom pools) and merges them into `vite.config.ts`, preserving 100% of existing application plugins, aliases, and server configs.

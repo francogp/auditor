@@ -115,7 +115,9 @@ router.beforeEach((to, from, next) => {
 });
 `;
       auditor.testScanFile('src/router/guard.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-deprecated-router-next');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-deprecated-router-next'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('next');
@@ -133,7 +135,9 @@ const routes = [
 ];
 `;
       auditor.testScanFile('src/router/routes.ts', code);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-define-async-component-in-router');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-define-async-component-in-router'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
     });
@@ -146,7 +150,9 @@ function goToProfile() {
 }
 </script>`;
       auditor.testScanFile('src/views/ProfileButton.vue', sfc);
-      const violation = auditor.collectedViolations.find(v => v.ruleId === 'no-window-location-navigation');
+      const violation = auditor.collectedViolations.find(
+        (v) => v.ruleId === 'no-window-location-navigation'
+      );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
       expect(violation?.message).toContain('window.location');

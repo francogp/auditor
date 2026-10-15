@@ -8,7 +8,7 @@ import { enableCompileCache } from "node:module";
 //#region src/suites/domain_data/validate_o1_data_structures.ts
 /**
 * scripts/auditors/domain_data/validate_o1_data_structures.ts
-* 
+*
 * O(1) DATA STRUCTURE & LINEAR SEARCH AUDITOR (Node.js 26+ Native)
 * Scans codebase to detect anti-patterns of linear search O(N) and nested loops O(N^2)
 * where an O(1) indexed data structure (Record, ReadonlySet, Map) is available.
@@ -200,9 +200,7 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 		});
 	}
 	scanCatalogLookups(relPath, lines, normalizedPath, catalogPatterns) {
-		for (let index = 0; index < lines.length; index++) {
-			const lineText = lines[index];
-			if (shouldIgnoreLine(lineText) || lineText.trim().startsWith("//") || lineText.trim().startsWith("*") || lineText.trim().startsWith("/*")) continue;
+		this.forEachCodeLine(lines, (lineText, line) => {
 			for (const catalog of catalogPatterns) {
 				if (normalizedPath.endsWith(catalog.definingFile)) continue;
 				catalog.pattern.lastIndex = 0;
@@ -210,17 +208,23 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 					ruleId: "o1-catalog-lookup",
 					severity: "error",
 					file: relPath,
-					line: index + 1,
+					line,
 					message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
 					context: lineText.trim()
 				});
 			}
+		});
+	}
+	forEachCodeLine(lines, callback) {
+		for (let index = 0; index < lines.length; index++) {
+			const lineText = lines[index];
+			const trimmed = lineText.trim();
+			if (shouldIgnoreLine(lineText) || trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+			callback(lineText, index + 1);
 		}
 	}
 	scanLinearMembership(relPath, lines) {
-		for (let index = 0; index < lines.length; index++) {
-			const lineText = lines[index];
-			if (shouldIgnoreLine(lineText) || lineText.trim().startsWith("//") || lineText.trim().startsWith("*") || lineText.trim().startsWith("/*")) continue;
+		this.forEachCodeLine(lines, (lineText, line) => {
 			P_STATIC_ARRAY_INCLUDES.lastIndex = 0;
 			let match;
 			while ((match = P_STATIC_ARRAY_INCLUDES.exec(lineText)) !== null) {
@@ -229,47 +233,41 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 					ruleId: "o1-linear-membership",
 					severity: "error",
 					file: relPath,
-					line: index + 1,
+					line,
 					message: `Linear O(N) membership check with '.includes()' on '${arrayName}'. Derive a 'ReadonlySet<T>' and use '.has()'`,
 					context: lineText.trim()
 				});
 			}
-		}
+		});
 	}
 	scanObjectScan(relPath, lines) {
-		for (let index = 0; index < lines.length; index++) {
-			const lineText = lines[index];
-			if (shouldIgnoreLine(lineText) || lineText.trim().startsWith("//") || lineText.trim().startsWith("*") || lineText.trim().startsWith("/*")) continue;
+		this.forEachCodeLine(lines, (lineText, line) => {
 			P_OBJECT_SCAN_LOOKUP.lastIndex = 0;
 			if (P_OBJECT_SCAN_LOOKUP.test(lineText)) this.addViolation({
 				ruleId: "o1-object-scan",
 				severity: "error",
 				file: relPath,
-				line: index + 1,
+				line,
 				message: "Linear search using 'Object.keys/values/entries().find()'. Index data directly in a Record/Map for O(1) key access",
 				context: lineText.trim()
 			});
-		}
+		});
 	}
 	scanJsonClone(relPath, lines) {
-		for (let index = 0; index < lines.length; index++) {
-			const lineText = lines[index];
-			if (shouldIgnoreLine(lineText) || lineText.trim().startsWith("//") || lineText.trim().startsWith("*") || lineText.trim().startsWith("/*")) continue;
+		this.forEachCodeLine(lines, (lineText, line) => {
 			P_JSON_CLONE.lastIndex = 0;
 			if (P_JSON_CLONE.test(lineText)) this.addViolation({
 				ruleId: "o1-json-clone",
 				severity: "error",
 				file: relPath,
-				line: index + 1,
+				line,
 				message: "Forbidden 'JSON.parse(JSON.stringify(...))' deep clone Anti-pattern. Use native 'structuredClone(obj)' or 'cloneReactive(obj)'",
 				context: lineText.trim()
 			});
-		}
+		});
 	}
 	scanRedundantSpreadReturn(relPath, lines) {
-		for (let index = 0; index < lines.length; index++) {
-			const lineText = lines[index];
-			if (shouldIgnoreLine(lineText) || lineText.trim().startsWith("//") || lineText.trim().startsWith("*") || lineText.trim().startsWith("/*")) continue;
+		this.forEachCodeLine(lines, (lineText, line) => {
 			P_REDUNDANT_SPREAD_RETURN.lastIndex = 0;
 			const spreadMatch = P_REDUNDANT_SPREAD_RETURN.exec(lineText);
 			if (spreadMatch && spreadMatch[1]) {
@@ -278,12 +276,12 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 					ruleId: "o1-redundant-spread-return",
 					severity: "error",
 					file: relPath,
-					line: index + 1,
+					line,
 					message: `Redundant array spread 'return [...${target}]'. Return the collection directly typed as 'readonly T[]' to prevent unnecessary heap allocations and GC churn.`,
 					context: lineText.trim()
 				});
 			}
-		}
+		});
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new O1DataStructuresAuditor());

@@ -100,7 +100,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
-      const finding = result.findings.find(f => f.ruleId === 'environment-engines-missing');
+      const finding = result.findings.find((f) => f.ruleId === 'environment-engines-missing');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -116,7 +116,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
-      const finding = result.findings.find(f => f.ruleId === 'environment-engines-missing');
+      const finding = result.findings.find((f) => f.ruleId === 'environment-engines-missing');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -143,7 +143,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
-      const finding = result.findings.find(f => f.ruleId === 'environment-engines-below-floor');
+      const finding = result.findings.find((f) => f.ruleId === 'environment-engines-below-floor');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -170,7 +170,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
-      const finding = result.findings.find(f => f.ruleId === 'environment-runtime-mismatch');
+      const finding = result.findings.find((f) => f.ruleId === 'environment-runtime-mismatch');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
     });
@@ -265,7 +265,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       });
       const result = await auditor.execute();
 
-      const finding = result.findings.find(f => f.ruleId === 'environment-runtime-mismatch');
+      const finding = result.findings.find((f) => f.ruleId === 'environment-runtime-mismatch');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain(expectedSetup);
       expect(finding?.message).toContain(expectedUpdate);

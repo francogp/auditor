@@ -45,8 +45,8 @@ Another paragraph.
 `;
       const sections = extractContractSections(markdown);
       expect(sections.length).toBeGreaterThanOrEqual(4);
-      expect(sections.some(s => s.includes('Contract 1'))).toBe(true);
-      expect(sections.some(s => s.includes('Contract 2'))).toBe(true);
+      expect(sections.some((s) => s.includes('Contract 1'))).toBe(true);
+      expect(sections.some((s) => s.includes('Contract 2'))).toBe(true);
     });
   });
 
@@ -55,15 +55,36 @@ Another paragraph.
     const esTokens = /prohibido|consultar/i;
 
     it('returns true when language matches english without spanish tokens', () => {
-      expect(matchesMandateLanguage('You must consult developers before making changes.', 'en', enTokens, esTokens)).toBe(true);
+      expect(
+        matchesMandateLanguage(
+          'You must consult developers before making changes.',
+          'en',
+          enTokens,
+          esTokens
+        )
+      ).toBe(true);
     });
 
     it('returns false when language is english but contains spanish tokens', () => {
-      expect(matchesMandateLanguage('You must consult developers pero esto está prohibido.', 'en', enTokens, esTokens)).toBe(false);
+      expect(
+        matchesMandateLanguage(
+          'You must consult developers pero esto está prohibido.',
+          'en',
+          enTokens,
+          esTokens
+        )
+      ).toBe(false);
     });
 
     it('returns true when language is spanish and contains spanish tokens', () => {
-      expect(matchesMandateLanguage('Está prohibido realizar cambios sin consultar.', 'es', enTokens, esTokens)).toBe(true);
+      expect(
+        matchesMandateLanguage(
+          'Está prohibido realizar cambios sin consultar.',
+          'es',
+          enTokens,
+          esTokens
+        )
+      ).toBe(true);
     });
 
     it('returns true when expectedLanguage is undefined', () => {
@@ -81,7 +102,7 @@ Another paragraph.
         agentsMdPath,
         content: initialContent,
         canonicalSnippet: '- Canonical mandate text',
-        isExistingLine: line => line.includes('Old mandate text')
+        isExistingLine: (line) => line.includes('Old mandate text')
       });
 
       const updated = fs.readFileSync(agentsMdPath, 'utf8');
@@ -99,7 +120,7 @@ Another paragraph.
         agentsMdPath,
         content: initialContent,
         canonicalSnippet: '- Canonical mandate text',
-        isExistingLine: line => line.includes('Old mandate text')
+        isExistingLine: (line) => line.includes('Old mandate text')
       });
 
       const updated = fs.readFileSync(agentsMdPath, 'utf8');
@@ -116,7 +137,7 @@ Another paragraph.
         agentsMdPath,
         content: initialContent,
         canonicalSnippet: '- Canonical mandate text',
-        isExistingLine: line => line.includes('Old mandate text')
+        isExistingLine: (line) => line.includes('Old mandate text')
       });
 
       const updated = fs.readFileSync(agentsMdPath, 'utf8');

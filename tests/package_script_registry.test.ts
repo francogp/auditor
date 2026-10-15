@@ -24,7 +24,15 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
-        'dummy-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+        'dummy-rule': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
       },
       coverage: { include: ['src/**'] },
       ruleIds: ['dummy-rule'],
@@ -57,7 +65,15 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
-        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+        'custom-rule': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
       },
       coverage: { include: ['src/**'] },
       ruleIds: ['custom-rule'],
@@ -144,7 +160,9 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
 
     expect(() => {
       PackageScriptRegistry.register(customReq2, 'subauditor_beta');
-    }).toThrow(/El comando de script 'auditor:unique-tool' está duplicado entre 'subauditor_alpha'/);
+    }).toThrow(
+      /El comando de script 'auditor:unique-tool' está duplicado entre 'subauditor_alpha'/
+    );
   });
 
   it('automatically derives canonical package scripts in BaseAuditor when scripts option is omitted', () => {
@@ -158,7 +176,9 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
     expect(derived.description).toBe('Valida componentes simulados para pruebas de scripts');
 
     expect(PackageScriptRegistry.has('auditor:dummy-component')).toBe(true);
-    expect(PackageScriptRegistry.get('auditor:dummy-component')?.command).toBe('auditor task=validate_dummy_component');
+    expect(PackageScriptRegistry.get('auditor:dummy-component')?.command).toBe(
+      'auditor task=validate_dummy_component'
+    );
   });
 
   it('honors explicitly declared custom scripts in BaseAuditor', () => {
@@ -186,9 +206,17 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             configKey: 'core',
             defaultConfig: { enabled: true },
             criticalConfig: {},
-      usesThirdPartyTool: false,
+            usesThirdPartyTool: false,
             ruleCapabilities: {
-              'rule-1': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+              'rule-1': {
+                speed: 'light',
+                phase: 'normal',
+                fix: 'none',
+                md: false,
+                ast: false,
+                changedOnly: false,
+                critical: false
+              }
             },
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],

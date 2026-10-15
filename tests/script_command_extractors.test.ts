@@ -48,23 +48,19 @@ describe('scriptCommandExtractors', () => {
     });
 
     it('extracts nested commands from if statements and pipelines', () => {
-      const code = [
-        'if true; then',
-        '  npm ci && npm run test | tee out.txt',
-        'fi'
-      ].join('\n');
+      const code = ['if true; then', '  npm ci && npm run test | tee out.txt', 'fi'].join('\n');
 
       const commands = extractCommandsFromShell(code);
-      expect(commands.some(c => c.target === 'ci')).toBe(true);
-      expect(commands.some(c => c.target === 'test' && c.type === 'npm-run')).toBe(true);
+      expect(commands.some((c) => c.target === 'ci')).toBe(true);
+      expect(commands.some((c) => c.target === 'test' && c.type === 'npm-run')).toBe(true);
     });
 
     it('extracts subshell and command substitution expressions', () => {
       const code = 'OUT=$(npm run build); BACK=`npx eslint .`; (npm test)';
       const commands = extractCommandsFromShell(code);
-      expect(commands.some(c => c.target === 'build' && c.type === 'npm-run')).toBe(true);
-      expect(commands.some(c => c.target === 'eslint' && c.type === 'npx')).toBe(true);
-      expect(commands.some(c => c.target === 'test' && c.type === 'npm-direct')).toBe(true);
+      expect(commands.some((c) => c.target === 'build' && c.type === 'npm-run')).toBe(true);
+      expect(commands.some((c) => c.target === 'eslint' && c.type === 'npx')).toBe(true);
+      expect(commands.some((c) => c.target === 'test' && c.type === 'npm-direct')).toBe(true);
     });
 
     it('ignores echo and loop variables', () => {
@@ -98,11 +94,11 @@ describe('scriptCommandExtractors', () => {
       ].join('\n');
 
       const commands = extractCommandsFromYaml(yaml);
-      expect(commands.some(c => c.target === 'install')).toBe(true);
-      expect(commands.some(c => c.target === 'ci')).toBe(true);
-      expect(commands.some(c => c.target === 'test' && c.type === 'npm-run')).toBe(true);
+      expect(commands.some((c) => c.target === 'install')).toBe(true);
+      expect(commands.some((c) => c.target === 'ci')).toBe(true);
+      expect(commands.some((c) => c.target === 'test' && c.type === 'npm-run')).toBe(true);
       // Ensure "npm to" from step name was completely ignored
-      expect(commands.some(c => c.target === 'to')).toBe(false);
+      expect(commands.some((c) => c.target === 'to')).toBe(false);
     });
   });
 
@@ -118,9 +114,9 @@ describe('scriptCommandExtractors', () => {
       ].join('\n');
 
       const commands = extractCommandsFromDockerfile(dockerfile);
-      expect(commands.some(c => c.target === 'ci')).toBe(true);
-      expect(commands.some(c => c.target === 'build' && c.type === 'npm-run')).toBe(true);
-      expect(commands.some(c => c.target === 'vitest' && c.type === 'npx')).toBe(true);
+      expect(commands.some((c) => c.target === 'ci')).toBe(true);
+      expect(commands.some((c) => c.target === 'build' && c.type === 'npm-run')).toBe(true);
+      expect(commands.some((c) => c.target === 'vitest' && c.type === 'npx')).toBe(true);
     });
 
     it('extracts commands from RUN heredoc blocks', () => {
@@ -133,8 +129,8 @@ describe('scriptCommandExtractors', () => {
       ].join('\n');
 
       const commands = extractCommandsFromDockerfile(dockerfile);
-      expect(commands.some(c => c.target === 'ci')).toBe(true);
-      expect(commands.some(c => c.target === 'build')).toBe(true);
+      expect(commands.some((c) => c.target === 'ci')).toBe(true);
+      expect(commands.some((c) => c.target === 'build')).toBe(true);
     });
   });
 
@@ -171,8 +167,8 @@ describe('scriptCommandExtractors', () => {
       ].join('\n');
 
       const commands = extractCommandsFromPowerShell(bat, '.bat');
-      expect(commands.some(c => c.target === 'ci')).toBe(true);
-      expect(commands.some(c => c.target === 'build')).toBe(true);
+      expect(commands.some((c) => c.target === 'ci')).toBe(true);
+      expect(commands.some((c) => c.target === 'build')).toBe(true);
     });
   });
 
@@ -199,7 +195,7 @@ describe('scriptCommandExtractors', () => {
       expect(commands[3]?.target).toBe('setup');
       expect(commands[3]?.type).toBe('npm-run');
       // <comando> placeholder is ignored
-      expect(commands.some(c => c.target === '<comando>')).toBe(false);
+      expect(commands.some((c) => c.target === '<comando>')).toBe(false);
     });
   });
 
@@ -230,7 +226,13 @@ describe('scriptCommandExtractors', () => {
 
     it('handles flags like --prefix and --workspace', () => {
       const out: ExtractedCommand[] = [];
-      inspectCommandTokens('npm', ['--prefix', './app', 'run', 'build'], 1, 'npm --prefix ./app run build', out);
+      inspectCommandTokens(
+        'npm',
+        ['--prefix', './app', 'run', 'build'],
+        1,
+        'npm --prefix ./app run build',
+        out
+      );
       expect(out).toHaveLength(1);
       expect(out[0]?.type).toBe('npm-run');
       expect(out[0]?.target).toBe('build');

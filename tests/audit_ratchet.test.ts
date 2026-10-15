@@ -3,22 +3,28 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { runWarningRatchet, initWarningBaseline, resolveGitCommit } from '../src/cli/auditRatchet.ts';
+import {
+  runWarningRatchet,
+  initWarningBaseline,
+  resolveGitCommit
+} from '../src/cli/auditRatchet.ts';
 import { buildRatchetConfig } from '../src/core/auditConfig.ts';
 import type { AuditFinding, StandardAuditResult } from '../src/core/auditContract.ts';
 
 const RATCHET = buildRatchetConfig({});
 
 function result(findings: AuditFinding[]): StandardAuditResult[] {
-  return [{
-    id: 'validate_demo',
-    name: 'Demo',
-    family: 'architecture',
-    status: 'passed',
-    durationMs: 1,
-    summary: { errors: 0, warnings: findings.length, info: 0 },
-    findings
-  } as StandardAuditResult];
+  return [
+    {
+      id: 'validate_demo',
+      name: 'Demo',
+      family: 'architecture',
+      status: 'passed',
+      durationMs: 1,
+      summary: { errors: 0, warnings: findings.length, info: 0 },
+      findings
+    } as StandardAuditResult
+  ];
 }
 
 function warning(file: string, line: number, ruleId = 'demo-rule'): AuditFinding {
@@ -32,7 +38,17 @@ describe('auditRatchet', () => {
   };
   const publish = (): void => {
     git('add', '-A');
-    git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'publish');
+    git(
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'publish'
+    );
     git('update-ref', 'refs/remotes/origin/main', 'HEAD');
   };
 
@@ -65,7 +81,11 @@ describe('auditRatchet', () => {
   it('keeps fingerprints stable when the warned line only moves', async () => {
     initWarningBaseline(root, RATCHET, result([warning('a.ts', 1)]));
     publish();
-    await fs.writeFile(path.join(root, 'a.ts'), '// header\n\nconst a = 1;\nconst b = 2;\n', 'utf-8');
+    await fs.writeFile(
+      path.join(root, 'a.ts'),
+      '// header\n\nconst a = 1;\nconst b = 2;\n',
+      'utf-8'
+    );
 
     const outcome = runWarningRatchet(root, RATCHET, result([warning('a.ts', 3)]), true);
     expect(outcome.newWarnings).toHaveLength(0);
@@ -76,7 +96,12 @@ describe('auditRatchet', () => {
     publish();
     await fs.writeFile(path.join(root, 'a.ts'), 'const a = 1;\nconst a = 1;\n', 'utf-8');
 
-    const outcome = runWarningRatchet(root, RATCHET, result([warning('a.ts', 1), warning('a.ts', 2), warning('a.ts', 2, 'other-rule')]), true);
+    const outcome = runWarningRatchet(
+      root,
+      RATCHET,
+      result([warning('a.ts', 1), warning('a.ts', 2), warning('a.ts', 2, 'other-rule')]),
+      true
+    );
     expect(outcome.newWarnings).toHaveLength(2);
     expect(outcome.baselineUpdated).toBe(false);
   });
@@ -108,7 +133,12 @@ describe('auditRatchet', () => {
     publish();
     const file = path.join(root, RATCHET.baselineFile);
     const local = JSON.parse(await fs.readFile(file, 'utf-8'));
-    local.warnings.push({ fingerprint: '0123456789abcdef', suiteId: 'validate_demo', ruleId: 'demo-rule', file: 'a.ts' });
+    local.warnings.push({
+      fingerprint: '0123456789abcdef',
+      suiteId: 'validate_demo',
+      ruleId: 'demo-rule',
+      file: 'a.ts'
+    });
     await fs.writeFile(file, JSON.stringify(local), 'utf-8');
 
     expect(() => runWarningRatchet(root, RATCHET, result([]), true)).toThrow(/can only shrink/);

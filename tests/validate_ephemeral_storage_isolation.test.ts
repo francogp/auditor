@@ -52,8 +52,10 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
-      expect(violations.some(v => v.file?.includes('src/logic/temp'))).toBe(true);
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
+      expect(violations.some((v) => v.file?.includes('src/logic/temp'))).toBe(true);
       expect(result.summary.errors).toBeGreaterThan(0);
     });
 
@@ -63,8 +65,10 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
-      expect(violations.some(v => v.file?.includes('scripts/tmp_fixtures'))).toBe(true);
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
+      expect(violations.some((v) => v.file?.includes('scripts/tmp_fixtures'))).toBe(true);
     });
 
     it('detects forbidden temp_supabase directory inside supabase/', async () => {
@@ -73,8 +77,10 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
-      expect(violations.some(v => v.file?.includes('supabase/temp_supabase'))).toBe(true);
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
+      expect(violations.some((v) => v.file?.includes('supabase/temp_supabase'))).toBe(true);
     });
 
     it('passes cleanly when source trees contain only canonical folders', async () => {
@@ -85,7 +91,9 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
       expect(violations.length).toBe(0);
       expect(result.summary.errors).toBe(0);
     });
@@ -99,7 +107,9 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
       expect(violations.length).toBe(0);
       expect(result.summary.errors).toBe(0);
     });
@@ -111,10 +121,12 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-dirs');
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
       expect(violations.length).toBe(2);
-      expect(violations.some(v => v.file === 'database/unknown_folder')).toBe(true);
-      expect(violations.some(v => v.file === 'database/stray_file.txt')).toBe(true);
+      expect(violations.some((v) => v.file === 'database/unknown_folder')).toBe(true);
+      expect(violations.some((v) => v.file === 'database/stray_file.txt')).toBe(true);
     });
   });
 
@@ -132,8 +144,10 @@ supabase/temp_supabase/
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-gitignore-source-temp');
-      expect(violations.some(v => v.file === '.gitignore')).toBe(true);
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
+      );
+      expect(violations.some((v) => v.file === '.gitignore')).toBe(true);
       expect(violations[0]?.message).toContain('supabase/temp_supabase');
     });
 
@@ -150,8 +164,10 @@ src/temp/
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-gitignore-source-temp');
-      expect(violations.some(v => v.file === '.gitignore')).toBe(true);
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
+      );
+      expect(violations.some((v) => v.file === '.gitignore')).toBe(true);
     });
 
     it('permits clean .gitignore ignoring scratch/ and node_modules/', async () => {
@@ -168,7 +184,9 @@ dist/
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-gitignore-source-temp');
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
+      );
       expect(violations.length).toBe(0);
     });
   });
@@ -185,8 +203,10 @@ dist/
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-references');
-      expect(violations.some(v => v.file === 'supabase/setup_clone.ts')).toBe(true);
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-references'
+      );
+      expect(violations.some((v) => v.file === 'supabase/setup_clone.ts')).toBe(true);
     });
 
     it('permits isolated paths targeting scratch/supabase_clone', async () => {
@@ -200,7 +220,9 @@ dist/
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-references');
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-references'
+      );
       expect(violations.length).toBe(0);
       expect(result.summary.errors).toBe(0);
     });
@@ -216,7 +238,9 @@ dist/
       const auditor = new EphemeralStorageIsolationAuditor(tempDir);
       const result = await auditor.execute();
 
-      const violations = result.findings.filter(f => f.ruleId === 'ephemeral-no-source-temp-references');
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-references'
+      );
       expect(violations.length).toBe(0);
     });
   });

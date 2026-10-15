@@ -44,7 +44,9 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     `;
     auditor.testScanFile('src/components/MyForm.vue', content);
 
-    const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+    const violations = auditor.collectedViolations.filter(
+      (v) => v.ruleId === 'template-missing-input-id'
+    );
     expect(violations).toEqual([]);
   });
 
@@ -59,7 +61,9 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     `;
     auditor.testScanFile('src/components/BoundForm.vue', content);
 
-    const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+    const violations = auditor.collectedViolations.filter(
+      (v) => v.ruleId === 'template-missing-input-id'
+    );
     expect(violations.length).toBe(0);
   });
 
@@ -74,7 +78,9 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     `;
     auditor.testScanFile('src/components/HiddenForm.vue', content);
 
-    const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+    const violations = auditor.collectedViolations.filter(
+      (v) => v.ruleId === 'template-missing-input-id'
+    );
     expect(violations.length).toBe(0);
   });
 
@@ -93,7 +99,9 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     `;
     auditor.testScanFile('src/components/MultilineForm.vue', content);
 
-    const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+    const violations = auditor.collectedViolations.filter(
+      (v) => v.ruleId === 'template-missing-input-id'
+    );
     expect(violations.length).toBe(0);
   });
 
@@ -108,7 +116,9 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     `;
     auditor.testScanFile('src/components/MissingId.vue', content);
 
-    const violations = auditor.collectedViolations.filter(v => v.ruleId === 'template-missing-input-id');
+    const violations = auditor.collectedViolations.filter(
+      (v) => v.ruleId === 'template-missing-input-id'
+    );
     expect(violations.length).toBe(1);
     expect(violations[0]?.ruleId).toBe('template-missing-input-id');
   });

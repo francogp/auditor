@@ -8,7 +8,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { ZIndexAuditor, fixZIndexLiteralMatch } from '../src/suites/architecture/validate_z_index.ts';
+import {
+  ZIndexAuditor,
+  fixZIndexLiteralMatch
+} from '../src/suites/architecture/validate_z_index.ts';
 import { Z_LAYERS } from '../src/suites/architecture/audit_rules.ts';
 import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
 
@@ -75,7 +78,7 @@ describe('ZIndexAuditor', () => {
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const missing = result.findings.find(e => e.ruleId === 'z-index-missing-var');
+    const missing = result.findings.find((e) => e.ruleId === 'z-index-missing-var');
     expect(missing).toBeDefined();
     expect(missing?.severity).toBe('error');
   });
@@ -86,7 +89,7 @@ describe('ZIndexAuditor', () => {
     const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
     const result = await auditor.execute();
 
-    const mismatch = result.findings.find(e => e.ruleId === 'z-index-mismatch');
+    const mismatch = result.findings.find((e) => e.ruleId === 'z-index-mismatch');
     expect(mismatch).toBeDefined();
     expect(mismatch?.severity).toBe('error');
   });
@@ -96,7 +99,7 @@ describe('ZIndexAuditor', () => {
     const auditor = new ZIndexAuditor(nonExistentPath, [tempDir], tempDir);
     const result = await auditor.execute();
 
-    const readError = result.findings.find(e => e.ruleId === 'z-index-read-error');
+    const readError = result.findings.find((e) => e.ruleId === 'z-index-read-error');
     expect(readError).toBeDefined();
     expect(readError?.severity).toBe('error');
   });
@@ -113,7 +116,7 @@ describe('ZIndexAuditor', () => {
     const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
     const result = await auditor.execute();
 
-    const hardcoded = result.findings.find(e => e.ruleId === 'z-index-hardcoded-literal');
+    const hardcoded = result.findings.find((e) => e.ruleId === 'z-index-hardcoded-literal');
     expect(hardcoded).toBeDefined();
     expect(hardcoded?.message).toContain('Z_LAYERS.MODAL');
     expect(hardcoded?.message).toContain('var(--z-modal)');
@@ -131,9 +134,11 @@ describe('ZIndexAuditor', () => {
     const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
     const result = await auditor.execute();
 
-    const isolated = result.findings.find(e => e.ruleId === 'z-index-isolated-constant');
+    const isolated = result.findings.find((e) => e.ruleId === 'z-index-isolated-constant');
     expect(isolated).toBeDefined();
-    expect(isolated?.message).toContain('PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS');
+    expect(isolated?.message).toContain(
+      'PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS'
+    );
   });
 
   it('fixes CSS z-index and JS zIndex literals with fixZIndexLiteralMatch', () => {
@@ -144,10 +149,12 @@ describe('ZIndexAuditor', () => {
   });
 
   it('skips gracefully when explicitly disabled with styles.zLayersEnabled: false', async () => {
-    setAuditConfig(defineAuditConfig({
-      name: 'test-app',
-      styles: { zLayersEnabled: false }
-    }));
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'test-app',
+        styles: { zLayersEnabled: false }
+      })
+    );
 
     const auditor = new ZIndexAuditor();
     const result = await auditor.execute();
