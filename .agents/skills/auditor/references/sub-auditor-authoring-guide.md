@@ -975,18 +975,22 @@ if (isSkippedByEnvironment()) {
 
 ---
 
-## 14. Anti-Abuse Protection for `constants.exemptGlobs`
+## 14. Anti-Abuse Protection for `coverage.exemptGlobs`
 
-When configuring path-based constant exceptions, host projects configure `constants.exemptGlobs`:
+When configuring path-based coverage exemptions, host projects configure `coverage.exemptGlobs` with narrow patterns and explicit technical justifications:
 
 ```typescript
-constants: {
+coverage: {
   exemptGlobs: [
-    'scripts/maintenance/**',
-    'src/data/seed/**'
+    {
+      glob: 'scripts/fixtures/**',
+      reason: 'Temporary test fixtures generated during hermetic integration runs'
+    }
   ]
 }
 ```
+
+Broad wildcards (`*`, `**`, `src/**`, `scripts/**`) or whole code roots are strictly rejected by the configuration anti-abuse engine.
 
 ---
 

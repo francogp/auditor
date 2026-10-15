@@ -13,6 +13,8 @@ coverage/
 scratch/
 *.log
 
-# OS Metadata
+# OS & Editor Metadata
 .DS_Store
 Thumbs.db
+.vscode/
+

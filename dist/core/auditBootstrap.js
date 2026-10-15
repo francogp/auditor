@@ -27,7 +27,7 @@ import fs from "node:fs";
 *   3. Automatically registers the auditor plugin and skills in .agents/plugins.json
 *      and .agents/skills.json so Antigravity AI agents immediately discover capabilities.
 *   4. Ensures required .gitignore entries exist (scratch/, .auditor/audit-baseline.json).
-*   5. Ensures .npmrc contains allow-git=all so plain `npm update` resolves github:...#semver:* on npm 12+.
+*   5. Ensures .npmrc contains allow-git=all so plain `npm install` and `npm update` resolve Git-hosted dependencies on npm 12+.
 *
 * Runs transparently during pre-flight in local environments while strictly
 * respecting CI environments (never mutating files unexpectedly during CI runs).
@@ -142,7 +142,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "8.5.0-build.20261015-122721")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "8.6.0-build.20261015-142947")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

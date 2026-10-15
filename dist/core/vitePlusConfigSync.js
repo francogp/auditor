@@ -92,6 +92,15 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		}
 		testIgnores.push("**/*.spec.ts", "**/*.test.ts", "**/*.simulation.ts");
 	}
+	const degradationIgnores = (config.coverage?.acknowledgedDegradations ?? []).map((d) => d.glob);
+	const coverageExemptIgnores = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
+	const testCoverageExemptIgnores = config.testCoverage?.exemptGlobs ?? [];
+	const dataDemoIgnores = [];
+	if (target === "lint") {
+		const dataRoots = (config.paths?.dataRoots ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
+		const demoRoots = (config.paths?.demoRoots ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
+		dataDemoIgnores.push(...dataRoots, ...demoRoots);
+	}
 	const legacyIgnores = projectRoot ? findLegacyEslintIgnores(projectRoot) : [];
 	const specificTargetIgnores = target === "lint" ? config.vitePlusConfig?.lint?.ignorePatterns ?? [] : config.vitePlusConfig?.fmt?.ignorePatterns ?? [];
 	return Array.from(/* @__PURE__ */ new Set([
@@ -100,6 +109,10 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		...dirIgnores,
 		...patternIgnores,
 		...exemptFiles,
+		...degradationIgnores,
+		...coverageExemptIgnores,
+		...testCoverageExemptIgnores,
+		...dataDemoIgnores,
 		...testIgnores,
 		...legacyIgnores,
 		...specificTargetIgnores
@@ -476,6 +489,75 @@ function ensureLintPlugins(content) {
 		modified: false
 	};
 }
+function applyConfiguredRule(content, rule, targetValue) {
+	const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const existingRuleRegex = new RegExp(`(['"]${escaped}['"]\\s*:\\s*)(['"][^'"]+['"]|\\[[^\\]]+\\])`, "m");
+	const match = existingRuleRegex.exec(content);
+	if (!match) {
+		if (content.includes("rules: {")) return {
+			content: content.replace(/rules:\s*\{/, `rules: {\n      '${rule}': ${targetValue},`),
+			modified: true
+		};
+		return {
+			content,
+			modified: false
+		};
+	}
+	if (match[2]?.trim() !== targetValue.trim()) return {
+		content: content.replace(existingRuleRegex, `$1${targetValue}`),
+		modified: true
+	};
+	return {
+		content,
+		modified: false
+	};
+}
+function serializeLintOverrides(overrides) {
+	return `[\n${overrides.map((ov) => {
+		return `      {\n        files: ${JSON.stringify(ov.files)},\n        rules: {\n${Object.entries(ov.rules ?? {}).map(([k, v]) => `        '${k}': ${typeof v === "string" ? `'${v}'` : JSON.stringify(v)}`).join(",\n")}\n        }\n      }`;
+	}).join(",\n")}\n    ]`;
+}
+function ensureLintOverrides(content, config) {
+	const overrides = config.vitePlusConfig?.lint?.overrides;
+	if (!overrides || overrides.length === 0) return {
+		content,
+		modified: false
+	};
+	const lintBlock = extractObjectPropertyBlock(content, "lint");
+	if (!lintBlock) return {
+		content,
+		modified: false
+	};
+	const serialized = serializeLintOverrides(overrides);
+	if (lintBlock.includes("overrides: [")) {
+		const existingOverridesMatch = /(^|\s)overrides:\s*\[[\s\S]*?\n\s*\]/m.exec(lintBlock);
+		if (existingOverridesMatch) {
+			const targetOverridesStr = `overrides: ${serialized}`;
+			if (existingOverridesMatch[0].trim() !== targetOverridesStr.trim()) {
+				const updatedBlock = lintBlock.replace(existingOverridesMatch[0], `\n    ${targetOverridesStr}`);
+				return {
+					content: content.replace(lintBlock, updatedBlock),
+					modified: true
+				};
+			}
+		}
+		return {
+			content,
+			modified: false
+		};
+	}
+	const closingBraceIndex = lintBlock.lastIndexOf("}");
+	if (closingBraceIndex === -1) return {
+		content,
+		modified: false
+	};
+	const beforeClose = lintBlock.slice(0, closingBraceIndex).trimEnd();
+	const updatedBlock = `${beforeClose}${beforeClose.endsWith(",") ? "\n" : ",\n"}    overrides: ${serialized}\n  ${lintBlock.slice(closingBraceIndex)}`;
+	return {
+		content: content.replace(lintBlock, updatedBlock),
+		modified: true
+	};
+}
 function ensureLintRules(content, config) {
 	let updated = content;
 	let modified = false;
@@ -488,6 +570,14 @@ function ensureLintRules(content, config) {
 	}
 	if (config.vitePlusConfig?.extraLintRules) for (const [ruleName, ruleLevel] of Object.entries(config.vitePlusConfig.extraLintRules)) {
 		const res = applyStrictRule(updated, ruleName, `'${ruleLevel}'`);
+		if (res.modified) {
+			updated = res.content;
+			modified = true;
+		}
+	}
+	if (config.vitePlusConfig?.lint?.rules) for (const [ruleName, ruleLevel] of Object.entries(config.vitePlusConfig.lint.rules)) {
+		const valStr = typeof ruleLevel === "string" ? `'${ruleLevel}'` : JSON.stringify(ruleLevel);
+		const res = applyConfiguredRule(updated, ruleName, valStr);
 		if (res.modified) {
 			updated = res.content;
 			modified = true;
@@ -527,6 +617,11 @@ function ensureLintBlock(content, auditConfig, projectRoot) {
 	const ignoreStep = ensureIgnorePatterns(updated, "lint", config, projectRoot);
 	if (ignoreStep.modified) {
 		updated = ignoreStep.content;
+		modified = true;
+	}
+	const overridesStep = ensureLintOverrides(updated, config);
+	if (overridesStep.modified) {
+		updated = overridesStep.content;
 		modified = true;
 	}
 	return {

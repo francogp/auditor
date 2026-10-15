@@ -13,6 +13,8 @@ Architecture & Tooling Engineers.
 - **Dynamic Domain Token Exemption**: `validate_domain_types.ts` derives case-normalization exempt tokens from `config.domain.caseNormalizationExemptTokens` alongside standard web/UI tokens, eliminating hardcoded game or billing dictionaries.
 - **Configurable Store Setter Prefixes**: Store setter action validation checks `config.domain.allowedStoreSetterPrefixes` dynamically.
 - **O(1) Efficiency**: Linear searches (`.includes()`, `find()`) in catalogs and cyclic object iterations are banned in favor of `Set.has()` and `Map.get()`.
+- **AST Architecture & Node-Level Escape Hatches**: `validate_domain_types.ts` and `validate_o1_data_structures.ts` operate strictly under TypeScript AST (`ast: true`), inspecting `SourceFile` nodes rather than line-based regexes. Multiline collections (`new Set([\n ...\n])`) and multiline method calls resolve cleanly via `AuditedDocument.hasEscapeHatchForNode`.
+- **3-Tier Canary Test Protocol**: Every domain and O(1) rule enforces a 3-tier canary suite (Active Negative Canary, Multiline/Preceding Escape Hatch Canary, and Clean Positive Canary).
 
 ## Key Files
 
@@ -25,6 +27,7 @@ Architecture & Tooling Engineers.
 - Domain suites must strictly derive domain vocabularies dynamically from configuration (`config.domain`).
 - Prohibit hardcoded host entity identifiers across AST scanners and heuristics.
 - Ensure linear iteration bans in `validate_o1_data_structures.ts` do not produce false positives on tiny fixed tuples.
+- Maintain AST node-level escape hatch detection (`doc.hasEscapeHatchForNode(node, ruleId, ast)`) on all AST visitors to support multiline expressions.
 
 ## Verification
 

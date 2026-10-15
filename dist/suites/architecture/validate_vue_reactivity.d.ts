@@ -5,6 +5,10 @@ export declare const VUE_REACTIVITY_RULES: readonly VueReactivityRuleId[];
 export declare class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string);
   protected scanFile(relPath: string, content: string): void;
+  private checkAsyncInComputed;
+  private checkWatchPropertyGetter;
+  private checkDestructuredReactive;
+  private scanAst;
   private reportComputedViolation;
   private auditDirectMutations;
   private evalLocalIdentifierMutation;

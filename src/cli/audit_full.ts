@@ -345,6 +345,7 @@ export function determineRunMode(
     changedOnly?: unknown;
   }
 ): AuditRunMode {
+  if (targetPreset === 'full') return 'full';
   if (targetPreset) return 'preset';
   if (targetSuites && targetSuites.length > 1) return 'suites';
   if (taskArg || (targetSuites && targetSuites.length === 1)) return 'single';

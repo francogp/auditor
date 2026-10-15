@@ -79,18 +79,20 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v8.5.0`):
+
 ```bash
-npm install -D github:francogp/auditor#semver:* --allow-git=all
+npm install -D github:francogp/auditor#v8.5.0 --allow-git=all
 ```
 
-The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so `npm install` and `npm update` work without flags. Alternatively, create `.npmrc` with `allow-git=all` before installing.
+The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
 
-Or declare it directly in `package.json`:
+Or declare it directly in `package.json` using a **pinned release tag** (floating `#semver:*` ranges and branch references are strictly prohibited to ensure deterministic `npm ci` deploys):
 
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#semver:*"
+    "@francogp/auditor": "github:francogp/auditor#v8.5.0"
   }
 }
 ```
@@ -109,12 +111,12 @@ In **npm 12+**, lifecycle installation scripts (`preinstall`, `postinstall`) are
 2. **Existing / Older Projects**: Detects newly added sub-auditors or missing configuration sections, automatically injecting them via TypeScript Compiler AST (`appendMissingSectionsToConfigFile`) without altering any existing user settings.
 3. **Antigravity AI Agent Discovery**: Automatically registers `.agents/plugins.json` and `.agents/skills.json` so Antigravity AI agents instantly discover all 52+ skills without duplicating files.
 4. **Git Hygiene**: Automatically synchronizes required `.gitignore` tool cache entries (`scratch/`, etc.).
-5. **npm 12+ git dependencies**: Ensures `.npmrc` contains `allow-git=all` (idempotent, preserves other lines) so plain `npm update` resolves `#semver:*` without flags.
+5. **npm 12+ git dependencies**: Ensures `.npmrc` contains `allow-git=all` (idempotent, preserves other lines) for git dependencies resolution without flags.
 6. **CI/CD Safety**: In automated CI environments (`process.env.CI = 'true'`), auto-mutation is cleanly inhibited to ensure deterministic and immutable build gates.
 
 ### Updating from GitHub (`auditor-update`)
 
-To update `@francogp/auditor` to the latest version across your project:
+To update `@francogp/auditor` across your project, use the dedicated native updater. By default, it automatically discovers and installs the latest release tag from GitHub upstream:
 
 ```bash
 npm run auditor:update
@@ -122,15 +124,15 @@ npm run auditor:update
 auditor-update
 ```
 
-Or manually update via npm:
+You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm install -D github:francogp/auditor#semver:* --allow-git=all
+npm run auditor:update -- v9.0.0
+# or directly:
+auditor-update v9.0.0
 ```
 
-**Required for plain `npm update` (npm 12+):** npm 12 blocks git dependencies by default (`allow-git=none`, error `EALLOWGIT`). The host project MUST contain a `.npmrc` with `allow-git=all`; `auditor-update` writes it automatically. With it, `npm install` and `npm update` (no flags) resolve the latest tag.
-
-`#semver:*` resolves the highest SemVer git tag. Every release MUST therefore be tagged `vX.Y.Z` (e.g. `v7.1.2`) without the `-build.*` suffix, since npm excludes prereleases from `*`. Untagged commits are never installed.
+`auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
 
 ### Mandatory Minimum Library Versions (`validate_dependency_minimums`)
 
@@ -227,7 +229,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` (`"github:francogp/auditor#semver:*"`).
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v8.5.0"`), or install via `npm install -D github:francogp/auditor#v8.5.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 

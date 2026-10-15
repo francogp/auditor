@@ -12,7 +12,7 @@
  *   3. Automatically registers the auditor plugin and skills in .agents/plugins.json
  *      and .agents/skills.json so Antigravity AI agents immediately discover capabilities.
  *   4. Ensures required .gitignore entries exist (scratch/, .auditor/audit-baseline.json).
- *   5. Ensures .npmrc contains allow-git=all so plain `npm update` resolves github:...#semver:* on npm 12+.
+ *   5. Ensures .npmrc contains allow-git=all so plain `npm install` and `npm update` resolve Git-hosted dependencies on npm 12+.
  *
  * Runs transparently during pre-flight in local environments while strictly
  * respecting CI environments (never mutating files unexpectedly during CI runs).

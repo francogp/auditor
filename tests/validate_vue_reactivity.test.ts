@@ -247,4 +247,54 @@ const sorted = computed(() => {
       expect(auditor.collectedViolations).toHaveLength(0);
     });
   });
+
+  describe('3-Tier Canary Verification (AST & Escape Hatch Parity)', () => {
+    it('Escape Canary: permits multiline computed(async () => ...) when escape hatch is on closing line', () => {
+      const auditor = new TestableVueReactivityAuditor();
+      const sfc = `<script setup lang="ts">
+import { computed } from 'vue';
+export const data = computed(
+  async () => {
+    return Promise.resolve(42);
+  }
+); // reactivity-ok: SSR pre-hydration asynchronous computed bridge
+</script>`;
+
+      auditor.testScanFile('src/components/CanaryClosing.vue', sfc);
+      expect(auditor.collectedViolations).toHaveLength(0);
+    });
+
+    it('Escape Canary: permits multiline watch(props.foo, ...) when escape hatch is on preceding line', () => {
+      const auditor = new TestableVueReactivityAuditor();
+      const sfc = `<script setup lang="ts">
+import { watch } from 'vue';
+const props = defineProps<{ title: string }>();
+
+// reactivity-ok: Special reactive proxy watch handler
+watch(
+  props.title,
+  (val) => console.log(val)
+);
+</script>`;
+
+      auditor.testScanFile('src/components/CanaryPreceding.vue', sfc);
+      expect(auditor.collectedViolations).toHaveLength(0);
+    });
+
+    it('Active Canary: flags multiline computed(async () => ...) when no escape hatch is present', () => {
+      const auditor = new TestableVueReactivityAuditor();
+      const sfc = `<script setup lang="ts">
+import { computed } from 'vue';
+export const data = computed(
+  async () => {
+    return Promise.resolve(42);
+  }
+);
+</script>`;
+
+      auditor.testScanFile('src/components/CanaryActive.vue', sfc);
+      expect(auditor.collectedViolations).toHaveLength(1);
+      expect(auditor.collectedViolations[0]?.ruleId).toBe('no-async-in-computed');
+    });
+  });
 });

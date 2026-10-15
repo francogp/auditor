@@ -235,10 +235,10 @@ var AuditedDocument = class {
 			const tokens = (m[1] ?? "").split(",").map((t) => t.trim().toLowerCase());
 			for (const tok of tokens) if (tok) this.fileDisabledRules.add(tok);
 		}
-		const hatchRegex = /(?:\/\/|\/\*)\s*(?:([\w-]+)-ok|(?:auditor-ignore|audit-ignore)(?::|\s+)([\w-]+))\s*:?\s*([^\n*]*)/gi;
+		const hatchRegex = /(?:\/\/|\/\*)\s*(?:([\w-]+)-ok\b|(?:auditor-ignore|audit-ignore)(?::|\s+)([\w-]+)|([\w-]+):)\s*:?\s*([^\n*]*)/gi;
 		while ((m = hatchRegex.exec(this.rawContent)) !== null) {
-			const ruleToken = (m[1] ?? m[2] ?? "").trim().toLowerCase();
-			const reason = m[3]?.trim();
+			const ruleToken = (m[1] ?? m[2] ?? m[3] ?? "").trim().toLowerCase();
+			const reason = m[4]?.trim();
 			const line = this.getLineAndColumn(m.index).line;
 			matches.push({
 				line,
@@ -251,13 +251,9 @@ var AuditedDocument = class {
 		return matches;
 	}
 	/**
-	* Determines whether an escape hatch suppresses the specified rule at the given line or offset.
+	* Resolves accepted escape hatch rule tokens including common domain, o1, and reactivity aliases.
 	*/
-	hasEscapeHatch(lineOrOffset, ruleId) {
-		const targetLine = lineOrOffset > this.lines.length && lineOrOffset <= this.rawContent.length ? this.getLineAndColumn(lineOrOffset).line : lineOrOffset;
-		this.getEscapeHatches();
-		const ruleLower = ruleId.toLowerCase();
-		if (this.fileDisabledRules.has("all") || this.fileDisabledRules.has(ruleLower)) return true;
+	resolveAcceptedRuleTokens(ruleLower) {
 		const acceptedTokens = /* @__PURE__ */ new Set([ruleLower]);
 		if (ruleLower.includes("layout")) {
 			acceptedTokens.add("layout");
@@ -270,17 +266,107 @@ var AuditedDocument = class {
 		}
 		if (ruleLower.includes("storage") || ruleLower.includes("persistence")) acceptedTokens.add("storage");
 		if (ruleLower.includes("path")) acceptedTokens.add("path");
-		if (ruleLower.includes("type")) acceptedTokens.add("type");
+		if (ruleLower.includes("type") || ruleLower.includes("assertion")) {
+			acceptedTokens.add("type");
+			acceptedTokens.add("cast");
+			acceptedTokens.add("double-cast");
+			acceptedTokens.add("any");
+			acceptedTokens.add("literal");
+			acceptedTokens.add("promise");
+			acceptedTokens.add("void");
+			acceptedTokens.add("array");
+			acceptedTokens.add("no-domain");
+			acceptedTokens.add("open-record");
+		}
 		if (ruleLower.includes("catch")) acceptedTokens.add("catch");
+		if (ruleLower.includes("domain")) {
+			acceptedTokens.add("domain");
+			acceptedTokens.add("no-domain");
+			acceptedTokens.add("runtime-set");
+			acceptedTokens.add("runtime-map");
+			acceptedTokens.add("open-record");
+			acceptedTokens.add("infra-id");
+			acceptedTokens.add("string");
+			acceptedTokens.add("dto");
+		}
+		if (ruleLower.includes("o1") || ruleLower.includes("linear")) {
+			acceptedTokens.add("o1");
+			acceptedTokens.add("linear-search");
+			acceptedTokens.add("clone");
+			acceptedTokens.add("spread");
+		}
+		if (ruleLower.includes("reactiv") || ruleLower.includes("computed") || ruleLower.includes("watch")) {
+			acceptedTokens.add("reactivity");
+			acceptedTokens.add("sfc");
+		}
 		const parts = ruleLower.split("-");
 		if (parts.length > 1) {
 			acceptedTokens.add(parts.slice(1).join("-"));
 			acceptedTokens.add(parts[parts.length - 1]);
 		}
-		for (const hatch of this.cachedEscapeHatches ?? []) if (hatch.line >= targetLine - 2 && hatch.line <= targetLine) {
-			if (acceptedTokens.has(hatch.ruleToken)) return true;
+		return acceptedTokens;
+	}
+	isLineOnlyComments(lineNum) {
+		return (this.lines[lineNum - 1] ?? "").replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "").trim().length === 0;
+	}
+	hasIndexedEscapeHatchInRange(startLine, endLine, acceptedTokens) {
+		for (const hatch of this.cachedEscapeHatches ?? []) {
+			if (hatch.line < startLine - 2 || hatch.line > endLine + 1) continue;
+			if (!acceptedTokens.has(hatch.ruleToken)) continue;
+			if (hatch.line < startLine || hatch.line > endLine) {
+				if (!this.isLineOnlyComments(hatch.line)) continue;
+			}
+			return true;
 		}
 		return false;
+	}
+	hasNodeDirectCommentsHatch(node, enclosing, sf, acceptedTokens) {
+		const text = sf.text;
+		const leading = [...ts.getLeadingCommentRanges(text, node.pos) ?? [], ...ts.getLeadingCommentRanges(text, enclosing.pos) ?? []];
+		const trailing = [...ts.getTrailingCommentRanges(text, node.end) ?? [], ...ts.getTrailingCommentRanges(text, enclosing.end) ?? []];
+		for (const comment of [...leading, ...trailing]) {
+			const commentText = text.slice(comment.pos, comment.end);
+			for (const token of acceptedTokens) if (commentText.includes(`// ${token}:`) || commentText.includes(`/* ${token}:`) || commentText.includes(`// ${token}-ok`) || commentText.includes(`/* ${token}-ok`) || commentText.includes(`// ${token}`)) return true;
+		}
+		return false;
+	}
+	getAuthorizedRuleTokens(ruleId) {
+		this.getEscapeHatches();
+		const ruleLower = ruleId.toLowerCase();
+		if (this.fileDisabledRules.has("all") || this.fileDisabledRules.has(ruleLower)) return null;
+		return this.resolveAcceptedRuleTokens(ruleLower);
+	}
+	/**
+	* Determines whether an escape hatch suppresses the specified rule at the given line or offset.
+	*/
+	hasEscapeHatch(lineOrOffset, ruleId) {
+		const targetLine = lineOrOffset > this.lines.length && lineOrOffset <= this.rawContent.length ? this.getLineAndColumn(lineOrOffset).line : lineOrOffset;
+		const acceptedTokens = this.getAuthorizedRuleTokens(ruleId);
+		if (!acceptedTokens) return true;
+		return this.hasIndexedEscapeHatchInRange(targetLine, targetLine, acceptedTokens);
+	}
+	/**
+	* Determines whether an AST node or its enclosing statement has an authorized escape hatch.
+	* Checks:
+	* 1. Line range of the node from (startLine - 2) to (endLine + 1).
+	* 2. Leading and trailing comment ranges from TypeScript AST if sourceFile is provided.
+	*/
+	hasEscapeHatchForNode(node, ruleId, sourceFile) {
+		const sf = sourceFile ?? this.getAst();
+		if (!sf) return false;
+		let enclosing = node;
+		while (enclosing.parent && !ts.isSourceFile(enclosing.parent)) {
+			enclosing = enclosing.parent;
+			if (ts.isStatement(enclosing)) break;
+		}
+		const startPos = Math.min(node.getStart(sf), enclosing.getStart(sf));
+		const endPos = Math.max(node.getEnd(), enclosing.getEnd());
+		const startLine = sf.getLineAndCharacterOfPosition(startPos).line + 1;
+		const endLine = sf.getLineAndCharacterOfPosition(endPos).line + 1;
+		const acceptedTokens = this.getAuthorizedRuleTokens(ruleId);
+		if (!acceptedTokens) return true;
+		if (this.hasIndexedEscapeHatchInRange(startLine, endLine, acceptedTokens)) return true;
+		return this.hasNodeDirectCommentsHatch(node, enclosing, sf, acceptedTokens);
 	}
 	/**
 	* Convenience helper to check escape hatch at a specific character offset.

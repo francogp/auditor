@@ -9,5 +9,7 @@ export interface ValidateTypeAssertionHygieneOptions {
 export declare class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAssertionRuleId> {
   constructor(options?: string | ValidateTypeAssertionHygieneOptions);
   scanFile(filePath: string, content: string): Promise<void>;
+  private scanAst;
+  private scanRegexFallback;
 }
 //#endregion

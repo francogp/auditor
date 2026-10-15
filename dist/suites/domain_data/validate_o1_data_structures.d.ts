@@ -38,11 +38,5 @@ export declare class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
   constructor(roots?: readonly string[], projectRoot?: string);
   runAudit(astContext?: SharedAstContext): Promise<void>;
   protected scanFile(relPath: string, content: string): void;
-  private scanCatalogLookups;
-  private forEachCodeLine;
-  private scanLinearMembership;
-  private scanObjectScan;
-  private scanJsonClone;
-  private scanRedundantSpreadReturn;
 }
 //#endregion

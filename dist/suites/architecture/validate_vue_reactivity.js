@@ -1,8 +1,10 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
+import ts from "typescript";
 //#region src/suites/architecture/validate_vue_reactivity.ts
 /**
 * packages/auditor/src/suites/architecture/validate_vue_reactivity.ts
@@ -37,6 +39,18 @@ const WATCH_PROP_NAKED_REGEX = /\bwatch\s*\(\s*(props\.[\w$]+(?:\.[\w$]+)*)\s*,/
 const DESTRUCTURED_REACTIVE_REGEX = /const\s+\{[^}]+\}\s*=\s*reactive\s*(?:<[^>]+>\s*)?\(/g;
 const DIRECT_REACTIVE_MUTATION_REGEX = /\b(?:(?:props|store)\.(?!value\b)[\w$]+(?:\.[\w$]+)*|[\w$]+\.value)\s*\??\.(?:sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 const LOCAL_IDENTIFIER_MUTATION_REGEX = /\b([\w$]+)\s*\??\.(sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
+function getCallNameAndFirstArg(node, ast) {
+	if (!ts.isCallExpression(node)) return null;
+	let callee = node.expression;
+	while (ts.isParenthesizedExpression(callee)) callee = callee.expression;
+	if (node.arguments.length === 0) return null;
+	let arg0 = node.arguments[0];
+	while (ts.isParenthesizedExpression(arg0)) arg0 = arg0.expression;
+	return {
+		calleeName: callee.getText(ast),
+		arg0
+	};
+}
 var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 	constructor(roots, projectRoot) {
 		const config = getAuditConfig(projectRoot);
@@ -53,7 +67,7 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 				phase: "normal",
 				fix: "none",
 				md: false,
-				ast: false,
+				ast: true,
 				changedOnly: false,
 				critical: false
 			}),
@@ -89,6 +103,12 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 		});
 	}
 	scanFile(relPath, content) {
+		const doc = new AuditedDocument(relPath, content, relPath);
+		const ast = doc.getAst();
+		if (ast) {
+			this.scanAst(doc, ast, relPath, content);
+			return;
+		}
 		const scriptContent = extractVueScriptOrRaw(relPath, content);
 		if (!scriptContent) return;
 		this.scanRegexMatches(scriptContent, ASYNC_COMPUTED_REGEX, relPath, "no-async-in-computed", ["reactivity-ok", "sfc-ok"], "Asynchronous callback passed to computed(). computed cannot unwrap promises; use watchEffect or computedAsync from VueUse.", void 0, content);
@@ -96,6 +116,79 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 		this.scanRegexMatches(scriptContent, DESTRUCTURED_REACTIVE_REGEX, relPath, "no-destructured-reactive", ["reactivity-ok", "sfc-ok"], "Destructuring reactive() object directly causes reactivity loss. Wrap with toRefs() before destructuring.", void 0, content);
 		this.runSubAuditorSync("no-side-effects-in-computed", () => {
 			this.auditComputedSideEffects(relPath, content, scriptContent);
+		});
+	}
+	checkAsyncInComputed(node, ast, doc, relPath) {
+		const callInfo = getCallNameAndFirstArg(node, ast);
+		if (!callInfo || callInfo.calleeName !== "computed") return;
+		const { arg0 } = callInfo;
+		if (!ts.isArrowFunction(arg0) && !ts.isFunctionExpression(arg0)) return;
+		if (!(arg0.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword)) return;
+		if (doc.hasEscapeHatchForNode(node, "no-async-in-computed", ast)) return;
+		const { line } = doc.getNodeLineAndColumn(node, ast);
+		this.runSubAuditorSync("no-async-in-computed", () => {
+			this.addViolation({
+				ruleId: "no-async-in-computed",
+				severity: "error",
+				file: relPath,
+				line,
+				message: "Asynchronous callback passed to computed(). computed cannot unwrap promises; use watchEffect or computedAsync from VueUse.",
+				context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
+			});
+		});
+	}
+	checkWatchPropertyGetter(node, ast, doc, relPath) {
+		const callInfo = getCallNameAndFirstArg(node, ast);
+		if (!callInfo || callInfo.calleeName !== "watch") return;
+		const { arg0 } = callInfo;
+		if (!ts.isPropertyAccessExpression(arg0)) return;
+		let root = arg0;
+		while (ts.isPropertyAccessExpression(root)) root = root.expression;
+		if (!ts.isIdentifier(root) || root.text !== "props") return;
+		if (doc.hasEscapeHatchForNode(node, "watch-reactive-property-getter", ast)) return;
+		const { line } = doc.getNodeLineAndColumn(node, ast);
+		this.runSubAuditorSync("watch-reactive-property-getter", () => {
+			this.addViolation({
+				ruleId: "watch-reactive-property-getter",
+				severity: "error",
+				file: relPath,
+				line,
+				message: "Watching reactive property directly as value instead of a getter. Use watch(() => props.prop, ...) to preserve reactivity.",
+				context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
+			});
+		});
+	}
+	checkDestructuredReactive(node, ast, doc, relPath) {
+		if (!ts.isVariableDeclaration(node)) return;
+		if (!ts.isObjectBindingPattern(node.name)) return;
+		if (!node.initializer || !ts.isCallExpression(node.initializer)) return;
+		let initCallee = node.initializer.expression;
+		while (ts.isParenthesizedExpression(initCallee)) initCallee = initCallee.expression;
+		if (initCallee.getText(ast) !== "reactive") return;
+		if (doc.hasEscapeHatchForNode(node, "no-destructured-reactive", ast)) return;
+		const { line } = doc.getNodeLineAndColumn(node, ast);
+		this.runSubAuditorSync("no-destructured-reactive", () => {
+			this.addViolation({
+				ruleId: "no-destructured-reactive",
+				severity: "error",
+				file: relPath,
+				line,
+				message: "Destructuring reactive() object directly causes reactivity loss. Wrap with toRefs() before destructuring.",
+				context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
+			});
+		});
+	}
+	scanAst(doc, ast, relPath, fullContent) {
+		const visit = (node) => {
+			this.checkAsyncInComputed(node, ast, doc, relPath);
+			this.checkWatchPropertyGetter(node, ast, doc, relPath);
+			this.checkDestructuredReactive(node, ast, doc, relPath);
+			ts.forEachChild(node, visit);
+		};
+		visit(ast);
+		const scriptContent = extractVueScriptOrRaw(relPath, fullContent) ?? fullContent;
+		this.runSubAuditorSync("no-side-effects-in-computed", () => {
+			this.auditComputedSideEffects(relPath, fullContent, scriptContent);
 		});
 	}
 	reportComputedViolation(relPath, fullContent, startIdx, needle, message) {

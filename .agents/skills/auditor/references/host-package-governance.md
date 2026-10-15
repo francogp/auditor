@@ -9,12 +9,12 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#semver:* --allow-git=all
+npm install -D github:francogp/auditor#v8.5.0 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
 - **Pre-Compiled Artifacts in Git**: The `dist/` directory is pre-compiled and tracked directly in the repository with executable permissions (`100755`), ensuring immediate availability in `node_modules/.bin/` without requiring local compilation or install hooks.
-- **npm 12+ Zero-Setup Pre-Flight Auto-Bootstrap**: In npm 12+, dependency lifecycle scripts (`postinstall`) are disabled by default. `@francogp/auditor` features an automated pre-flight bootstrap engine (`ensureProjectBootstrapped`) that executes transparently whenever `auditor` or `npm run auditor` is called. It scaffolds `.auditor/audit.config.ts` on virgin projects, automatically injects missing configuration sections via AST on older projects, registers `.agents/skills.json` and `.agents/plugins.json`, and synchronizes `.gitignore` entries. It also persists `allow-git=all` in the host `.npmrc` (`ensureNpmrcAllowGit`), required by npm 12+ for plain `npm update` to resolve `github:francogp/auditor#semver:*`.
+- **npm 12+ Zero-Setup Pre-Flight Auto-Bootstrap**: In npm 12+, dependency lifecycle scripts (`postinstall`) are disabled by default. `@francogp/auditor` features an automated pre-flight bootstrap engine (`ensureProjectBootstrapped`) that executes transparently whenever `auditor` or `npm run auditor` is called. It scaffolds `.auditor/audit.config.ts` on virgin projects, automatically injects missing configuration sections via AST on older projects, registers `.agents/skills.json` and `.agents/plugins.json`, and synchronizes `.gitignore` entries. It also persists `allow-git=all` in the host `.npmrc` (`ensureNpmrcAllowGit`), required by npm 12+ for Git-hosted dependencies.
 - **Antigravity Skills & Plugin Registration**: Generated automatically during pre-flight bootstrap (or manually via `auditor-init-agent`), declaring:
 
   ```json
@@ -59,11 +59,12 @@ auditor-update
 
 Under the hood, `auditor-update`:
 
-1. Executes `npm update @francogp/auditor` to resolve the latest commit and update `package-lock.json`.
-2. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
-3. Renders a Box-Drawing verification table confirming successful synchronization.
-4. All bundled skills (`.agents/skills/*`) and agent rules (`AGENTS.md`) located in `node_modules/@francogp/auditor` are instantly updated on disk. Because the host's `.agents/skills.json` and `.agents/plugins.json` point to `node_modules/@francogp/auditor`, Antigravity immediately discovers the latest skills without needing manual copy operations or links.
-5. Commit the updated `package-lock.json` to lock the audited version for the entire team and CI.
+1. Queries upstream release tags via `git ls-remote --sort=-v:refname` (or accepts an explicit target tag via `npm run auditor:update -- [targetVersion]`).
+2. Updates `package.json` with the exact pinned tag (`github:francogp/auditor#vX.Y.Z`) and executes `npm install -D github:francogp/auditor#<targetTag>` to update `package-lock.json` hermetically.
+3. Synchronizes Antigravity agent skills in `.agents/skills/` and setup scripts (`setup-windows.ps1`, `setup-linux.sh`).
+4. Executes `auditor fix` to apply any new configuration minimums or script definitions.
+5. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
+6. Commit the updated `package.json` and `package-lock.json` to lock the audited version for the entire team and CI.
 
 ---
 
@@ -170,8 +171,8 @@ When authoring or maintaining host extensions in `scripts/auditors/`:
    Every host extension sub-auditor extending `BaseAuditor` or `FileScanAuditor` **MUST** declare `icon: string` (e.g. `icon: '⚔️'`, `icon: '🎮'`, `icon: '🎒'`). If omitted or empty, `validateAuditorOptions` throws an explicit, loud runtime `Error`. Generic cogs (`⚙️`) are reserved exclusively for internal configuration validators.
 2. **Strict Booleans in `.auditor/audit.config.ts`**:
    Configurations MUST use strict compile-time booleans (`true` / `false`). Legacy string values like `'off'`, `'on'`, `'essential'` have zero backward compatibility and will fail validation immediately.
-3. **Anti-Abuse in `constants.exemptGlobs`**:
-   Glob patterns must target specific maintenance scripts or tabular seed data. Broad directory wildcards like `**/*` or `src/**` are rejected.
+3. **Anti-Abuse in `coverage.exemptGlobs`**:
+   Broad wildcards (`*`, `**`, `src/**`, `scripts/**`) or whole code roots are strictly rejected. Exemption patterns must be narrow, specific, and declare an explicit technical `reason` of at least 15 characters.
 4. **Declarative Configuration File Requirements (`configFiles`, `AuditorConfigFileRequirement`)**:
    Host extensions or sub-auditors requiring external configuration files declare them declaratively via `AuditorOptions.configFiles` without ad-hoc file write scripts. `verifyAndFixConfigFiles()` auto-creates canonical configurations in `--fix` mode.
 5. **Primary Documentation Language Contract (`documentation.language`)**:

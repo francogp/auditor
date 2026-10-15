@@ -200,6 +200,7 @@ function parseAuditFullCliArgs(activeFamilies, rawArgs = process.argv.slice(2)) 
 	};
 }
 function determineRunMode(targetPreset, targetSuites, taskArg, targetFamily, extraOptions) {
+	if (targetPreset === "full") return "full";
 	if (targetPreset) return "preset";
 	if (targetSuites && targetSuites.length > 1) return "suites";
 	if (taskArg || targetSuites && targetSuites.length === 1) return "single";

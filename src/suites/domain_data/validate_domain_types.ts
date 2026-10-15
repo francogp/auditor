@@ -17,13 +17,19 @@ import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
-import { isPositionInsideFunctionParams } from '../../core/scannerUtils.ts';
+import { isPositionInsideFunctionParams, stripComments } from '../../core/scannerUtils.ts';
+import ts from 'typescript';
 
 enableCompileCache();
+
+function isCommentOnlyLine(lineText: string): boolean {
+  return stripComments(lineText).trim().length === 0;
+}
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const ROOT = process.cwd();
@@ -174,6 +180,27 @@ function isOpenUnknownDictionary(line: string): boolean {
   );
 }
 
+function isRangeEscaped(
+  doc: AuditedDocument,
+  lines: readonly string[],
+  startLine: number,
+  endLine: number,
+  ruleId: string
+): boolean {
+  if (hasEscapeHatch(lines[startLine - 1] ?? '')) return true;
+
+  for (let l = Math.max(1, startLine - 2); l <= endLine + 1; l++) {
+    if (l < startLine || l > endLine) {
+      const lineText = lines[l - 1] ?? '';
+      if (!isCommentOnlyLine(lineText)) continue;
+    }
+    if (doc.hasEscapeHatch(l, ruleId) || hasEscapeHatch(lines[l - 1] ?? '')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function findMatches(
   content: string,
   file: string,
@@ -189,6 +216,7 @@ function findMatches(
   const findings: Finding[] = [];
   const lines = content.split('\n');
   pattern.lastIndex = 0;
+  const doc = new AuditedDocument(file, content, file);
 
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(content)) !== null) {
@@ -200,7 +228,12 @@ function findMatches(
     const col = matchStart - lastNl;
     const line = lines[lineNum - 1] ?? '';
 
-    if (isCommentLine(line) || isTestFile(file) || (!overrideEscapeHatch && hasEscapeHatch(line)))
+    const matchEnd = match.index + match[0].length;
+    const endLineNum = (content.slice(0, matchEnd).match(/\n/g) ?? []).length + 1;
+
+    const isEscaped = !overrideEscapeHatch && isRangeEscaped(doc, lines, lineNum, endLineNum, ruleId);
+
+    if (isCommentLine(line) || isTestFile(file) || isEscaped)
       continue;
     if (filter && !filter(match, line, file)) continue;
 
@@ -218,6 +251,109 @@ function findMatches(
   return findings;
 }
 
+function auditDomainCollectionsAst(
+  doc: AuditedDocument,
+  ast: ts.SourceFile,
+  rel: string,
+  ruleFilter?: DomainTypesRuleId
+): Finding[] {
+  if (ruleFilter && ruleFilter !== 'domain-untyped-collection') return [];
+  const findings: Finding[] = [];
+  const NON_DOMAIN_SET_PATTERN =
+    /\b\w*(?:FLAGS|DIRS|ROOTS|PATHS|COMMANDS|TAGS|ELEMENTS|SELECTORS|TOKENS|KEYWORDS|CHARS|GLOBS|FILES|EXTENSIONS|NAMES|KEYS|WORDS|ALIASES|SKILLS|SKIP|VARIANTS|CLASSES|BUILTINS|PACKAGES|ENTRIES|LINES|CHUNKS|ATTRIBUTES|PROPERTIES)\b/i;
+
+  function isExemptCollectionName(node: ts.Node): boolean {
+    let p: ts.Node | undefined = node.parent;
+    while (p && !ts.isStatement(p)) {
+      if (ts.isVariableDeclaration(p) || ts.isPropertyAssignment(p)) {
+        const name = p.name.getText(ast);
+        if (name === 'allowedExtensions' || NON_DOMAIN_SET_PATTERN.test(name)) {
+          return true;
+        }
+      }
+      p = p.parent;
+    }
+    return false;
+  }
+
+  function auditSetDomainCollection(node: ts.NewExpression): void {
+    if (!node.arguments || node.arguments.length === 0) return;
+    const arg0 = node.arguments[0];
+    if (!arg0 || !ts.isArrayLiteralExpression(arg0)) return;
+
+    const hasStringLiterals = arg0.elements.some(
+      (el) => ts.isStringLiteral(el) || ts.isNoSubstitutionTemplateLiteral(el)
+    );
+    if (!hasStringLiterals) return;
+
+    const allExtensions =
+      arg0.elements.length > 0 &&
+      arg0.elements.every((el) => {
+        if (ts.isStringLiteral(el) || ts.isNoSubstitutionTemplateLiteral(el)) {
+          return el.text.startsWith('.');
+        }
+        return true;
+      });
+    if (allExtensions) return;
+
+    reportUntypedCollection(
+      node,
+      'Set used as finite-domain storage/validator (use `as const` array + derived type)'
+    );
+  }
+
+  function reportUntypedCollection(node: ts.NewExpression, pattern: string): void {
+    if (isExemptCollectionName(node)) return;
+    if (doc.hasEscapeHatchForNode(node, 'domain-untyped-collection', ast)) return;
+
+    const { line, column } = doc.getNodeLineAndColumn(node, ast);
+    findings.push({
+      file: rel,
+      line,
+      col: column,
+      pattern,
+      snippet: node.getText(ast).slice(0, 100).replace(/\n/g, '↵'),
+      severity: 'ERROR',
+      ruleId: 'domain-untyped-collection'
+    });
+  }
+
+  function auditMapDomainCollection(node: ts.NewExpression): void {
+    if (!node.arguments || node.arguments.length === 0) return;
+    const arg0 = node.arguments[0];
+    if (!arg0 || !ts.isArrayLiteralExpression(arg0)) return;
+
+    const hasStringKey = arg0.elements.some((el) => {
+      if (ts.isArrayLiteralExpression(el) && el.elements.length > 0) {
+        const k = el.elements[0];
+        return k && (ts.isStringLiteral(k) || ts.isNoSubstitutionTemplateLiteral(k));
+      }
+      return false;
+    });
+    if (!hasStringKey) return;
+
+    reportUntypedCollection(
+      node,
+      'Map with string/domain keys used as finite-domain map (use typed object/Record with union keys)'
+    );
+  }
+
+  function visit(node: ts.Node) {
+    if (ts.isNewExpression(node)) {
+      const callee = node.expression.getText(ast);
+      if (callee === 'Set') {
+        auditSetDomainCollection(node);
+      } else if (callee === 'Map') {
+        auditMapDomainCollection(node);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(ast);
+  return findings;
+}
+
 export function auditFileContent(
   filePath: string,
   content: string,
@@ -227,51 +363,58 @@ export function auditFileContent(
   if (rel.endsWith('validate_domain_types.ts')) return [];
   const findings: Finding[] = [];
 
-  // 1. Sets & Maps used for finite domains
-  findings.push(
-    ...findMatches(
-      content,
-      rel,
-      P_SET_STRING,
-      'Set used as finite-domain storage/validator (use `as const` array + derived type)',
-      'ERROR',
-      'domain-untyped-collection',
-      (match, line) => {
-        if (/\ballowedExtensions\s*:\s*new\s+Set/.test(line)) return false;
-        const NON_DOMAIN_SET_PATTERN =
-          /\b\w*(?:FLAGS|DIRS|ROOTS|PATHS|COMMANDS|TAGS|ELEMENTS|SELECTORS|TOKENS|KEYWORDS|CHARS|GLOBS|FILES|EXTENSIONS|NAMES|KEYS|WORDS|ALIASES|SKILLS|SKIP|VARIANTS|CLASSES|BUILTINS|PACKAGES|ENTRIES|LINES|CHUNKS|ATTRIBUTES|PROPERTIES)\b/i;
-        if (NON_DOMAIN_SET_PATTERN.test(line)) return false;
-        if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(line)) return false;
-        if (
-          line.includes('--') ||
-          line.includes('// runtime-set:') ||
-          line.includes('// no-domain:')
-        )
-          return false;
-        const matchIdx = match.index;
-        const prefix = content.slice(
-          Math.max(0, matchIdx - DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS),
-          matchIdx
-        );
-        if (/allowedExtensions\s*:\s*$/i.test(prefix.trim())) return false;
-        if (NON_DOMAIN_SET_PATTERN.test(prefix.trim())) return false;
-        const suffix = content.slice(matchIdx, matchIdx + DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS);
-        if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(suffix)) return false;
-        return true;
-      }
-    )
-  );
+  const doc = new AuditedDocument(filePath, content, filePath);
+  const ast = doc.getAst();
 
-  findings.push(
-    ...findMatches(
-      content,
-      rel,
-      P_MAP_STRING,
-      'Map with string/domain keys used as finite-domain map (use typed object/Record with union keys)',
-      'ERROR',
-      'domain-untyped-collection'
-    )
-  );
+  // 1. Sets & Maps used for finite domains (AST-grounded)
+  if (ast) {
+    findings.push(...auditDomainCollectionsAst(doc, ast, rel, ruleFilter));
+  } else {
+    findings.push(
+      ...findMatches(
+        content,
+        rel,
+        P_SET_STRING,
+        'Set used as finite-domain storage/validator (use `as const` array + derived type)',
+        'ERROR',
+        'domain-untyped-collection',
+        (match, line) => {
+          if (/\ballowedExtensions\s*:\s*new\s+Set/.test(line)) return false;
+          const NON_DOMAIN_SET_PATTERN =
+            /\b\w*(?:FLAGS|DIRS|ROOTS|PATHS|COMMANDS|TAGS|ELEMENTS|SELECTORS|TOKENS|KEYWORDS|CHARS|GLOBS|FILES|EXTENSIONS|NAMES|KEYS|WORDS|ALIASES|SKILLS|SKIP|VARIANTS|CLASSES|BUILTINS|PACKAGES|ENTRIES|LINES|CHUNKS|ATTRIBUTES|PROPERTIES)\b/i;
+          if (NON_DOMAIN_SET_PATTERN.test(line)) return false;
+          if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(line)) return false;
+          if (
+            line.includes('--') ||
+            line.includes('// runtime-set:') ||
+            line.includes('// no-domain:')
+          )
+            return false;
+          const matchIdx = match.index;
+          const prefix = content.slice(
+            Math.max(0, matchIdx - DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS),
+            matchIdx
+          );
+          if (/allowedExtensions\s*:\s*$/i.test(prefix.trim())) return false;
+          if (NON_DOMAIN_SET_PATTERN.test(prefix.trim())) return false;
+          const suffix = content.slice(matchIdx, matchIdx + DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS);
+          if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(suffix)) return false;
+          return true;
+        }
+      )
+    );
+
+    findings.push(
+      ...findMatches(
+        content,
+        rel,
+        P_MAP_STRING,
+        'Map with string/domain keys used as finite-domain map (use typed object/Record with union keys)',
+        'ERROR',
+        'domain-untyped-collection'
+      )
+    );
+  }
 
   const NON_DOMAIN_COLLECTION_REGEX =
     /\b(?:let|const|var)\s+\w*(?:lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details|dirs|paths|roots|globs|labels|violations|items|commands|scripts|headers|steps|rules|types|extensions|modules|sections|subtitles|names|codes|tags|candidates|res|list|arr|output|buffer|elements|records|sources|targets|params|values|keys|props|attributes|variants|aliases|skills)\b/i;
@@ -622,7 +765,7 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: true
       }),

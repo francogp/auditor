@@ -50,7 +50,7 @@ In `.stylelintrc.json`, `order/order` partitions `@include` mixins by `hasBlock`
 
 ## 2. AST Magic Numbers & Sentinels Governance
 
-The `validate_magic_numbers` suite inspects the TypeScript Compiler AST using `SharedAstContext` (`capabilities: { ast: true }`):
+The `validate_magic_numbers` suite inspects the TypeScript Compiler AST using `SharedAstContext` (with rule capability `ast: true`):
 
 - **Zero Directory Ignores**: Constant data structures (`const`, `as const`, arrays, matrices, dictionaries, enums, literal types, readonly class fields, default parameter values) are recognized semantically without requiring directory ignore lists.
 - **Built-in Sentinels**: Built-in base, calendar, and geometry sentinels (`-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024`) and next-tick delay `0` are permitted without false alarms.

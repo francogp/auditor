@@ -309,4 +309,41 @@ describe('O1DataStructuresAuditor', () => {
       expect(result.status).toBe('passed');
     });
   });
+
+  describe('3-Tier Canary Verification (AST & Escape Hatch Parity)', () => {
+    it('Escape Canary: permits multiline JSON.parse(JSON.stringify) when escape hatch is on closing line', async () => {
+      const code = `
+export const copy = JSON.parse(
+  JSON.stringify(payload)
+); // o1-ok: Specialized JSON clone bridge
+      `.trim();
+
+      const issues = scanFileForO1Issues('src/logic/canaryClosing.ts', code);
+      expect(issues).toHaveLength(0);
+    });
+
+    it('Escape Canary: permits multiline return [...items] when escape hatch is on preceding line', async () => {
+      const code = `
+// o1-ok: Defensive array cloning
+return [
+  ...items
+];
+      `.trim();
+
+      const issues = scanFileForO1Issues('src/logic/canaryPreceding.ts', code);
+      expect(issues).toHaveLength(0);
+    });
+
+    it('Active Canary: flags multiline return [...items] when no escape hatch is present', async () => {
+      const code = `
+return [
+  ...items
+];
+      `.trim();
+
+      const issues = scanFileForO1Issues('src/logic/canaryActive.ts', code);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]?.ruleId).toBe('o1-redundant-spread-return');
+    });
+  });
 });

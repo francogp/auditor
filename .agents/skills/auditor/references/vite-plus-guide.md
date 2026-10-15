@@ -169,10 +169,13 @@ flowchart TD
         C4["Verify vite.config.ts syntax & compile validity"]
     end
     
-    subgraph S3 ["Phase 3: Safe Purge"]
-        D1["Delete eslint.config.js / vitest.config.ts"]
+    subgraph S3 ["Phase 3: Migration-First Safe Purge"]
+        D0{"Migration-First Gate: Are test, lint, and pack present in vite.config.ts?"}
+        D1["Delete eslint.config.js / vitest.config.ts (Only if gate passes)"]
         D2["Remove obsolete devDependencies (eslint, vitest, etc.)"]
         D3["Synchronize .gitignore (drop eslintcache, keep cache)"]
+        D0 -->|Yes| D1
+        D0 -->|No| D_HOLD["Preserve legacy configuration files intact"]
     end
 
     B --> S1
@@ -181,6 +184,9 @@ flowchart TD
     S2 --> D
     D --> S3
 ```
+
+> [!CAUTION]
+> **Migration-First, Delete-Last Mandate**: The `cleanLegacyConfigFiles` routine in `vitePlusConfigSync.ts` strictly validates that `vite.config.ts` exists on disk and actively contains all equivalent blocks (`hasTest`, `hasLint`, `hasPack`) before authorizing the deletion of `vitest.config.ts`, `eslint.config.js`, or `tsdown.config.ts`. If any section is missing or the migration process is interrupted, legacy configuration files are preserved intact.
 
 ### 5.2 Mandatory Minimum Oxlint Baseline
 

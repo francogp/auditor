@@ -22,6 +22,8 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import ts from 'typescript';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
@@ -51,6 +53,19 @@ const DIRECT_REACTIVE_MUTATION_REGEX =
 const LOCAL_IDENTIFIER_MUTATION_REGEX =
   /\b([\w$]+)\s*\??\.(sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 
+function getCallNameAndFirstArg(
+  node: ts.Node,
+  ast: ts.SourceFile
+): { calleeName: string; arg0: ts.Expression } | null {
+  if (!ts.isCallExpression(node)) return null;
+  let callee: ts.Expression = node.expression;
+  while (ts.isParenthesizedExpression(callee)) callee = callee.expression;
+  if (node.arguments.length === 0) return null;
+  let arg0 = node.arguments[0]!;
+  while (ts.isParenthesizedExpression(arg0)) arg0 = arg0.expression;
+  return { calleeName: callee.getText(ast), arg0 };
+}
+
 export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
@@ -68,7 +83,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
@@ -105,6 +120,14 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
   }
 
   protected override scanFile(relPath: string, content: string): void {
+    const doc = new AuditedDocument(relPath, content, relPath);
+    const ast = doc.getAst();
+
+    if (ast) {
+      this.scanAst(doc, ast, relPath, content);
+      return;
+    }
+
     const scriptContent = extractVueScriptOrRaw(relPath, content);
     if (!scriptContent) return;
 
@@ -143,6 +166,117 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
 
     this.runSubAuditorSync('no-side-effects-in-computed', () => {
       this.auditComputedSideEffects(relPath, content, scriptContent);
+    });
+  }
+
+  private checkAsyncInComputed(
+    node: ts.Node,
+    ast: ts.SourceFile,
+    doc: AuditedDocument,
+    relPath: string
+  ): void {
+    const callInfo = getCallNameAndFirstArg(node, ast);
+    if (!callInfo || callInfo.calleeName !== 'computed') return;
+    const { arg0 } = callInfo;
+    if (!ts.isArrowFunction(arg0) && !ts.isFunctionExpression(arg0)) return;
+
+    const isAsync = (arg0.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
+    if (!isAsync) return;
+    if (doc.hasEscapeHatchForNode(node, 'no-async-in-computed', ast)) return;
+
+    const { line } = doc.getNodeLineAndColumn(node, ast);
+    this.runSubAuditorSync('no-async-in-computed', () => {
+      this.addViolation({
+        ruleId: 'no-async-in-computed',
+        severity: 'error',
+        file: relPath,
+        line,
+        message:
+          'Asynchronous callback passed to computed(). computed cannot unwrap promises; use watchEffect or computedAsync from VueUse.',
+        context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
+      });
+    });
+  }
+
+  private checkWatchPropertyGetter(
+    node: ts.Node,
+    ast: ts.SourceFile,
+    doc: AuditedDocument,
+    relPath: string
+  ): void {
+    const callInfo = getCallNameAndFirstArg(node, ast);
+    if (!callInfo || callInfo.calleeName !== 'watch') return;
+    const { arg0 } = callInfo;
+    if (!ts.isPropertyAccessExpression(arg0)) return;
+
+    let root: ts.Expression = arg0;
+    while (ts.isPropertyAccessExpression(root)) {
+      root = root.expression;
+    }
+    if (!ts.isIdentifier(root) || root.text !== 'props') return;
+    if (doc.hasEscapeHatchForNode(node, 'watch-reactive-property-getter', ast)) return;
+
+    const { line } = doc.getNodeLineAndColumn(node, ast);
+    this.runSubAuditorSync('watch-reactive-property-getter', () => {
+      this.addViolation({
+        ruleId: 'watch-reactive-property-getter',
+        severity: 'error',
+        file: relPath,
+        line,
+        message:
+          'Watching reactive property directly as value instead of a getter. Use watch(() => props.prop, ...) to preserve reactivity.',
+        context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
+      });
+    });
+  }
+
+  private checkDestructuredReactive(
+    node: ts.Node,
+    ast: ts.SourceFile,
+    doc: AuditedDocument,
+    relPath: string
+  ): void {
+    if (!ts.isVariableDeclaration(node)) return;
+    if (!ts.isObjectBindingPattern(node.name)) return;
+    if (!node.initializer || !ts.isCallExpression(node.initializer)) return;
+
+    let initCallee: ts.Expression = node.initializer.expression;
+    while (ts.isParenthesizedExpression(initCallee)) initCallee = initCallee.expression;
+    if (initCallee.getText(ast) !== 'reactive') return;
+    if (doc.hasEscapeHatchForNode(node, 'no-destructured-reactive', ast)) return;
+
+    const { line } = doc.getNodeLineAndColumn(node, ast);
+    this.runSubAuditorSync('no-destructured-reactive', () => {
+      this.addViolation({
+        ruleId: 'no-destructured-reactive',
+        severity: 'error',
+        file: relPath,
+        line,
+        message:
+          'Destructuring reactive() object directly causes reactivity loss. Wrap with toRefs() before destructuring.',
+        context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
+      });
+    });
+  }
+
+  private scanAst(
+    doc: AuditedDocument,
+    ast: ts.SourceFile,
+    relPath: string,
+    fullContent: string
+  ): void {
+    const visit = (node: ts.Node) => {
+      this.checkAsyncInComputed(node, ast, doc, relPath);
+      this.checkWatchPropertyGetter(node, ast, doc, relPath);
+      this.checkDestructuredReactive(node, ast, doc, relPath);
+      ts.forEachChild(node, visit);
+    };
+
+    visit(ast);
+
+    const scriptContent = extractVueScriptOrRaw(relPath, fullContent) ?? fullContent;
+    this.runSubAuditorSync('no-side-effects-in-computed', () => {
+      this.auditComputedSideEffects(relPath, fullContent, scriptContent);
     });
   }
 

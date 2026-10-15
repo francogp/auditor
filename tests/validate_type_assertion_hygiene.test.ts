@@ -174,4 +174,56 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
   });
+
+  describe('3-Tier Canary Verification (AST & Escape Hatch Parity)', () => {
+    it('Escape Canary: permits multiline double-cast when escape hatch is on preceding line', async () => {
+      const code = `
+// double-cast-ok: Unsafe external payload decoding
+export const parsed = (
+  rawPayload
+) as unknown as NormalizedRecord;
+      `.trim();
+
+      await fs.writeFile(path.join(tempDir, 'src/canaryPreceding.ts'), code, 'utf-8');
+
+      const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('Escape Canary: permits multiline cast when escape hatch is on closing line', async () => {
+      const code = `
+export const parsed = (
+  rawPayload
+) as any; // any-ok: Dynamic vendor bridge object
+      `.trim();
+
+      await fs.writeFile(path.join(tempDir, 'src/canaryClosing.ts'), code, 'utf-8');
+
+      const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+
+    it('Active Canary: flags multiline cast when no escape hatch is present', async () => {
+      const code = `
+export const parsed = (
+  rawPayload
+) as any;
+      `.trim();
+
+      await fs.writeFile(path.join(tempDir, 'src/canaryActive.ts'), code, 'utf-8');
+
+      const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('failed');
+      expect(result.summary.errors).toBe(1);
+      expect(result.findings[0]?.ruleId).toBe('type-assertion-zero-any');
+    });
+  });
 });

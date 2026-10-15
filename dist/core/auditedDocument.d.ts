@@ -108,9 +108,24 @@ export declare class AuditedDocument {
    */
   getEscapeHatches(): readonly EscapeHatchMatch[];
   /**
+   * Resolves accepted escape hatch rule tokens including common domain, o1, and reactivity aliases.
+   */
+  resolveAcceptedRuleTokens(ruleLower: string): Set<string>;
+  private isLineOnlyComments;
+  private hasIndexedEscapeHatchInRange;
+  private hasNodeDirectCommentsHatch;
+  private getAuthorizedRuleTokens;
+  /**
    * Determines whether an escape hatch suppresses the specified rule at the given line or offset.
    */
   hasEscapeHatch(lineOrOffset: number, ruleId: string): boolean;
+  /**
+   * Determines whether an AST node or its enclosing statement has an authorized escape hatch.
+   * Checks:
+   * 1. Line range of the node from (startLine - 2) to (endLine + 1).
+   * 2. Leading and trailing comment ranges from TypeScript AST if sourceFile is provided.
+   */
+  hasEscapeHatchForNode(node: ts.Node, ruleId: string, sourceFile?: ts.SourceFile): boolean;
   /**
    * Convenience helper to check escape hatch at a specific character offset.
    */

@@ -251,6 +251,29 @@ describe('audit_full CLI orchestration helpers', () => {
       ).toBe('preset');
     });
 
+    it('returns full when targetPreset is full or speed is full (canary: prevents coverage skip in auditor:full)', () => {
+      expect(determineRunMode('full', undefined, undefined, undefined)).toBe('full');
+      expect(determineRunMode(undefined, undefined, undefined, undefined, { speed: 'full' })).toBe(
+        'full'
+      );
+      const cliOptions = parseAuditFullCliArgs(activeFamilies, ['speed=full']);
+      expect(cliOptions.targetPreset).toBe('full');
+      expect(
+        determineRunMode(
+          cliOptions.targetPreset,
+          cliOptions.targetSuites,
+          cliOptions.values.task,
+          cliOptions.targetFamily,
+          {
+            speed: cliOptions.speed,
+            onlySpeed: cliOptions.onlySpeed,
+            phase: cliOptions.phase,
+            changedOnly: cliOptions.values['changed-since']
+          }
+        )
+      ).toBe('full');
+    });
+
     it('returns full when no specific filter is provided', () => {
       expect(determineRunMode(undefined, undefined, undefined, undefined)).toBe('full');
     });

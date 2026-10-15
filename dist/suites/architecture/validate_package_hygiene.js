@@ -394,7 +394,27 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		]));
 		const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];
 		const ownBinaries = Array.from(extractOwnPackageBinaries(this.projectRoot));
-		const allIgnoredBinaries = Array.from(/* @__PURE__ */ new Set([...customIgnoredBinaries, ...ownBinaries]));
+		const vitePlusConfigExists = fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts"));
+		let hasVitePlusDependency = false;
+		const pkgJsonPath = path.resolve(this.projectRoot, "package.json");
+		if (fs.existsSync(pkgJsonPath)) try {
+			const pkgRaw = fs.readFileSync(pkgJsonPath, "utf-8");
+			const parsed = JSON.parse(pkgRaw);
+			hasVitePlusDependency = Boolean(parsed.dependencies?.["vite-plus"] || parsed.devDependencies?.["vite-plus"]);
+		} catch {}
+		const vitePlusBinaries = vitePlusConfigExists || hasVitePlusDependency ? [
+			"vite",
+			"vitest",
+			"tsdown",
+			"oxlint",
+			"oxfmt",
+			"vp"
+		] : [];
+		const allIgnoredBinaries = Array.from(/* @__PURE__ */ new Set([
+			...customIgnoredBinaries,
+			...ownBinaries,
+			...vitePlusBinaries
+		]));
 		const customEntry = config.packageHygiene?.entry;
 		const effectiveEntry = customEntry && customEntry.length > 0 ? [...customEntry] : fallowEntries.length > 0 ? fallowEntries : [
 			"src/index.{ts,js}",

@@ -197,4 +197,53 @@ describe('DomainTypesAuditor', () => {
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
   });
+
+  describe('Multiline Escape Hatch Canaries (PokeBorrador Reproduction & Safety)', () => {
+    it('Escape Canary: permits multiline new Set with // runtime-set: on closing line', async () => {
+      const filePath = path.join(tempDir, 'src/multilineTrailingEscape.ts');
+      const code = `
+export const VALID_STATUSES = new Set([
+  'active',
+  'inactive',
+  'pending'
+]); // runtime-set: Fast O(1) dynamic membership validation
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      expect(findings).toHaveLength(0);
+    });
+
+    it('Escape Canary: permits multiline new Set with // runtime-set: on preceding line', async () => {
+      const filePath = path.join(tempDir, 'src/multilinePrecedingEscape.ts');
+      const code = `
+// runtime-set: Fast O(1) dynamic membership validation
+export const VALID_STATUSES = new Set([
+  'active',
+  'inactive',
+  'pending'
+]);
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      expect(findings).toHaveLength(0);
+    });
+
+    it('Active Canary: flags multiline new Set when no escape hatch is present', async () => {
+      const filePath = path.join(tempDir, 'src/multilineNoEscape.ts');
+      const code = `
+export const VALID_STATUSES = new Set([
+  'active',
+  'inactive',
+  'pending'
+]);
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      expect(findings.length).toBeGreaterThanOrEqual(1);
+      expect(findings[0]?.ruleId).toBe('domain-untyped-collection');
+    });
+  });
 });

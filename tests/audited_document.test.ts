@@ -128,6 +128,46 @@ describe('AuditedDocument', () => {
       const tweenOffset = code.indexOf('gsap.to');
       expect(doc.hasEscapeHatch(tweenOffset, 'gsap-no-layout-properties')).toBe(true);
     });
+
+    it('hasEscapeHatchForNode: recognizes trailing escape comment on multiline statement', () => {
+      const code = `const SET = new Set([
+  'first',
+  'second'
+]); // runtime-set: dynamic validation set`;
+      const doc = new AuditedDocument('multiline_set.ts', code);
+      const ast = doc.getAst()!;
+      expect(ast).toBeDefined();
+
+      const stmt = ast.statements[0]!;
+      expect(doc.hasEscapeHatchForNode(stmt, 'domain-untyped-collection', ast)).toBe(true);
+    });
+
+    it('hasEscapeHatchForNode: recognizes preceding escape comment above multiline statement', () => {
+      const code = `// runtime-set: dynamic validation set
+const SET = new Set([
+  'first',
+  'second'
+]);`;
+      const doc = new AuditedDocument('preceding_set.ts', code);
+      const ast = doc.getAst()!;
+      expect(ast).toBeDefined();
+
+      const stmt = ast.statements[0]!;
+      expect(doc.hasEscapeHatchForNode(stmt, 'domain-untyped-collection', ast)).toBe(true);
+    });
+
+    it('hasEscapeHatchForNode: returns false when no escape hatch is present on node (Active Canary)', () => {
+      const code = `const SET = new Set([
+  'first',
+  'second'
+]);`;
+      const doc = new AuditedDocument('no_escape_set.ts', code);
+      const ast = doc.getAst()!;
+      expect(ast).toBeDefined();
+
+      const stmt = ast.statements[0]!;
+      expect(doc.hasEscapeHatchForNode(stmt, 'domain-untyped-collection', ast)).toBe(false);
+    });
   });
 
   describe('Vue SFC Block Extraction', () => {

@@ -336,6 +336,52 @@ describe('validate_audit_coverage Suite', () => {
       expect(result.findings?.length).toBe(0);
     });
 
+    it('CANARY: executes and evaluates coverage rules in full mode without skipping', async () => {
+      process.env[COVERAGE_RUN_ID_ENV] = 'test-canary-full';
+      process.env[COVERAGE_RUN_MODE_ENV] = 'full';
+      process.env[COVERAGE_EXPECTED_SUITES_ENV] = 'suite-demo';
+
+      const coverageDir = path.join(tempDir, 'scratch/audits/coverage');
+      await fs.mkdir(coverageDir, { recursive: true });
+
+      const ledger: CoverageLedger = {
+        runId: 'test-canary-full',
+        suiteId: 'suite-demo',
+        skipped: false,
+        declared: { include: ['.auditor/audit.config.ts'], source: 'runtime' },
+        source: 'runtime',
+        scanned: ['.auditor/audit.config.ts'],
+        ruleIds: ['demo-rule'],
+        ruleEvaluations: { 'demo-rule': 1 },
+        notApplicable: {}
+      };
+      await fs.writeFile(
+        path.join(coverageDir, 'suite-demo.json'),
+        JSON.stringify(ledger),
+        'utf-8'
+      );
+      await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, '.auditor', 'audit.config.ts'),
+        'export default { coverage: { enabled: true } };',
+        'utf-8'
+      );
+
+      const { execFileSync } = await import('node:child_process');
+      execFileSync('git', ['init'], { cwd: tempDir });
+      execFileSync('git', ['config', 'user.name', 'Auditor Test'], { cwd: tempDir });
+      execFileSync('git', ['config', 'user.email', 'test@auditor.local'], { cwd: tempDir });
+      execFileSync('git', ['add', '.auditor/audit.config.ts'], { cwd: tempDir });
+      execFileSync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
+
+      const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      expect(result.status).not.toBe('skipped');
+      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBe(0);
+    });
+
     it('skips gracefully when coverage is explicitly disabled in config', async () => {
       process.env[COVERAGE_RUN_ID_ENV] = 'test-run';
       process.env[COVERAGE_RUN_MODE_ENV] = 'full';

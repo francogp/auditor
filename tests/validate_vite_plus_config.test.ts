@@ -437,5 +437,106 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       expect(fs.existsSync(vitestPath)).toBe(false);
       expect(fs.existsSync(tsdownPath)).toBe(false);
     });
+
+    it('C-CFG-20: resolves coverage degradations, coverage exempt globs, and dataRoots into ignorePatterns', () => {
+      const mockAuditConfig = defineAuditConfig({
+        name: 'Exemption Globs Test',
+        paths: {
+          dataRoots: ['data', 'fixtures'],
+          demoRoots: ['demo']
+        },
+        coverage: {
+          acknowledgedDegradations: [
+            { policy: 'scripts', glob: 'scripts/**', reason: 'Maintenance scripts' }
+          ],
+          exemptGlobs: [{ glob: 'src/generated/**', reason: 'Auto-generated files' }]
+        },
+        testCoverage: {
+          exemptGlobs: ['src/legacy/**']
+        }
+      });
+
+      const globs = resolveAuditConfigIgnoreGlobs(mockAuditConfig, 'lint', tempDir);
+
+      expect(globs).toContain('scripts/**');
+      expect(globs).toContain('src/generated/**');
+      expect(globs).toContain('src/legacy/**');
+      expect(globs).toContain('data/**');
+      expect(globs).toContain('fixtures/**');
+      expect(globs).toContain('demo/**');
+    });
+
+    it('C-CFG-21: synchronizes custom vitePlusConfig.lint.rules (e.g. no-record-string-key: off) to vite.config.ts', () => {
+      const mockAuditConfig = defineAuditConfig({
+        name: 'Custom Lint Rules Test',
+        vitePlusConfig: {
+          lint: {
+            rules: {
+              '@francogp/domain-type/no-record-string-key': 'off',
+              'no-console': 'warn'
+            }
+          }
+        }
+      });
+
+      const initialViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {
+              '@typescript-eslint/no-explicit-any': 'error',
+              '@francogp/domain-type/no-record-string-key': 'error'
+            }
+          }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), initialViteConfig);
+      setAuditConfig(mockAuditConfig, tempDir);
+
+      syncViteConfigWithAuditConfig(tempDir);
+
+      const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(synced).toContain("'@francogp/domain-type/no-record-string-key': 'off'");
+      expect(synced).toContain("'no-console': 'warn'");
+    });
+
+    it('C-CFG-22: synchronizes vitePlusConfig.lint.overrides to vite.config.ts', () => {
+      const mockAuditConfig = defineAuditConfig({
+        name: 'Lint Overrides Test',
+        vitePlusConfig: {
+          lint: {
+            overrides: [
+              {
+                files: ['scripts/**', 'data/**'],
+                rules: {
+                  '@francogp/domain-type/no-record-string-key': 'off'
+                }
+              }
+            ]
+          }
+        }
+      });
+
+      const initialViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {
+              '@typescript-eslint/no-explicit-any': 'error'
+            }
+          }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), initialViteConfig);
+      setAuditConfig(mockAuditConfig, tempDir);
+
+      syncViteConfigWithAuditConfig(tempDir);
+
+      const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(synced).toContain('overrides: [');
+      expect(synced).toContain('scripts/**');
+      expect(synced).toContain('data/**');
+      expect(synced).toContain("'@francogp/domain-type/no-record-string-key': 'off'");
+    });
   });
 });
