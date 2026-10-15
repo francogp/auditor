@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import "../core/permissionGuard.js";
 import { isMainModule } from "./cliUtils.js";
-import { spawnSync } from "node:child_process";
+import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 //#region src/cli/build_deploy.ts
 /**
 * src/cli/build_deploy.ts
@@ -14,18 +14,15 @@ import { spawnSync } from "node:child_process";
 */
 function runBuildDeploy(extraArgs = []) {
 	process.env.AUDITOR_ENV = "production";
-	const isWindows = process.platform === "win32";
-	const npmCmd = isWindows ? "npm.cmd" : "npm";
 	const args = [
 		"run",
 		"build",
 		...extraArgs
 	];
-	return spawnSync(npmCmd, args, {
+	return runNpmCommandSync(args, {
 		stdio: "inherit",
 		cwd: process.cwd(),
-		env: process.env,
-		shell: isWindows
+		env: process.env
 	}).status ?? 0;
 }
 if (isMainModule(import.meta.url)) {

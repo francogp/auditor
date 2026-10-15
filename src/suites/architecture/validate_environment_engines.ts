@@ -12,7 +12,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { spawnSync } from 'node:child_process';
 import {
   BaseAuditor,
   type AuditorOptions,
@@ -26,6 +25,7 @@ import {
   type AuditorEngineSpecs
 } from '../../cli/check_environment.ts';
 import { getPackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
+import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 
 enableCompileCache();
 
@@ -58,7 +58,7 @@ export function detectNpmVersion(): string {
     return match[1];
   }
   try {
-    const res = spawnSync('npm', ['--version'], { encoding: 'utf8', shell: true });
+    const res = runNpmCommandSync(['--version'], { encoding: 'utf8' });
     if (res.status === 0 && res.stdout) {
       return res.stdout.trim();
     }

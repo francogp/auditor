@@ -1,6 +1,7 @@
 import { getPackageJson } from "./packageJson.js";
 import path from "node:path";
 import fs from "node:fs";
+import childProcess from "node:child_process";
 //#region src/core/npmCommandUtils.ts
 /**
 * src/core/npmCommandUtils.ts
@@ -310,5 +311,33 @@ function evaluateGenericCommandViolation(cmd, env) {
 		default: return null;
 	}
 }
+/**
+* Resolves the platform-specific npm executable and shell requirement.
+* On Windows, npm is a batch script ('npm.cmd'). Node.js spawnSync requires 'npm.cmd'
+* with shell: true to prevent EINVAL (CVE-2024-27980 mitigation) or ENOENT errors.
+*/
+function getNpmCommand() {
+	const isWindows = process.platform === "win32";
+	return {
+		binary: isWindows ? "npm.cmd" : "npm",
+		shell: isWindows
+	};
+}
+/**
+* Standardized cross-platform synchronous execution of npm commands.
+* Automatically resolves 'npm.cmd' and 'shell: true' on Windows.
+*/
+function runNpmCommandSync(args, options = {}) {
+	const { binary, shell } = getNpmCommand();
+	return childProcess.spawnSync(binary, [...args], {
+		cwd: options.cwd ?? process.cwd(),
+		stdio: options.stdio ?? "pipe",
+		encoding: options.encoding ?? "utf-8",
+		timeout: options.timeout,
+		maxBuffer: options.maxBuffer,
+		shell,
+		env: options.env ?? process.env
+	});
+}
 //#endregion
-export { COMMAND_INVOCATION_TYPES, KNOWN_OPTIONAL_ENVIRONMENT_HOOKS, KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET, NPM_DIRECT_REGEX, NPM_RUN_REGEX, NPX_REGEX, VALID_NPM_BUILTINS, VALID_VP_BUILTINS, VP_DIRECT_REGEX, VP_DLX_REGEX, VP_RUN_REGEX, cleanTarget, evaluateGenericCommandViolation, extractCommandsFromLine, isPlaceholder, loadPackageScriptsAndBins };
+export { COMMAND_INVOCATION_TYPES, KNOWN_OPTIONAL_ENVIRONMENT_HOOKS, KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET, NPM_DIRECT_REGEX, NPM_RUN_REGEX, NPX_REGEX, VALID_NPM_BUILTINS, VALID_VP_BUILTINS, VP_DIRECT_REGEX, VP_DLX_REGEX, VP_RUN_REGEX, cleanTarget, evaluateGenericCommandViolation, extractCommandsFromLine, getNpmCommand, isPlaceholder, loadPackageScriptsAndBins, runNpmCommandSync };

@@ -159,27 +159,46 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
         JSON.stringify({ name: 'vulnerable-project', lockfileVersion: 3 }, null, 2)
       );
 
-      vi.spyOn(childProcess, 'execFileSync').mockImplementation((cmd, args) => {
-        if (cmd === 'npm' && Array.isArray(args) && args.includes('audit')) {
-          return JSON.stringify({
-            vulnerabilities: {
-              'malicious-pkg': {
-                name: 'malicious-pkg',
-                severity: 'critical',
-                isDirect: true,
-                via: [
-                  {
-                    title: 'Remote Code Execution in malicious-pkg',
-                    url: 'https://example.com/cve-test'
-                  }
-                ],
-                range: '<1.0.0',
-                effects: []
+      vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd, args) => {
+        if (
+          typeof cmd === 'string' &&
+          cmd.includes('npm') &&
+          Array.isArray(args) &&
+          args.includes('audit')
+        ) {
+          return {
+            stdout: JSON.stringify({
+              vulnerabilities: {
+                'malicious-pkg': {
+                  name: 'malicious-pkg',
+                  severity: 'critical',
+                  isDirect: true,
+                  via: [
+                    {
+                      title: 'Remote Code Execution in malicious-pkg',
+                      url: 'https://example.com/cve-test'
+                    }
+                  ],
+                  range: '<1.0.0',
+                  effects: []
+                }
               }
-            }
-          });
+            }),
+            stderr: '',
+            status: 0,
+            pid: 1234,
+            output: [],
+            signal: null
+          } as unknown as childProcess.SpawnSyncReturns<string>;
         }
-        return '';
+        return {
+          stdout: '',
+          stderr: '',
+          status: 0,
+          pid: 1234,
+          output: [],
+          signal: null
+        } as unknown as childProcess.SpawnSyncReturns<string>;
       });
 
       setAuditConfig(
@@ -220,22 +239,41 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
         JSON.stringify({ name: 'moderate-project', lockfileVersion: 3 }, null, 2)
       );
 
-      vi.spyOn(childProcess, 'execFileSync').mockImplementation((cmd, args) => {
-        if (cmd === 'npm' && Array.isArray(args) && args.includes('audit')) {
-          return JSON.stringify({
-            vulnerabilities: {
-              'semver-regex': {
-                name: 'semver-regex',
-                severity: 'moderate',
-                isDirect: false,
-                via: [{ title: 'Regular Expression Denial of Service in semver-regex' }],
-                range: '<3.1.4',
-                effects: []
+      vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd, args) => {
+        if (
+          typeof cmd === 'string' &&
+          cmd.includes('npm') &&
+          Array.isArray(args) &&
+          args.includes('audit')
+        ) {
+          return {
+            stdout: JSON.stringify({
+              vulnerabilities: {
+                'semver-regex': {
+                  name: 'semver-regex',
+                  severity: 'moderate',
+                  isDirect: false,
+                  via: [{ title: 'Regular Expression Denial of Service in semver-regex' }],
+                  range: '<3.1.4',
+                  effects: []
+                }
               }
-            }
-          });
+            }),
+            stderr: '',
+            status: 0,
+            pid: 1234,
+            output: [],
+            signal: null
+          } as unknown as childProcess.SpawnSyncReturns<string>;
         }
-        return '';
+        return {
+          stdout: '',
+          stderr: '',
+          status: 0,
+          pid: 1234,
+          output: [],
+          signal: null
+        } as unknown as childProcess.SpawnSyncReturns<string>;
       });
 
       setAuditConfig(
@@ -276,22 +314,41 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
         JSON.stringify({ name: 'high-project', lockfileVersion: 3 }, null, 2)
       );
 
-      vi.spyOn(childProcess, 'execFileSync').mockImplementation((cmd, args) => {
-        if (cmd === 'npm' && Array.isArray(args) && args.includes('audit')) {
-          return JSON.stringify({
-            vulnerabilities: {
-              'tar-pkg': {
-                name: 'tar-pkg',
-                severity: 'high',
-                isDirect: true,
-                via: [{ title: 'Arbitrary File Overwrite' }],
-                range: '<6.1.11',
-                effects: []
+      vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd, args) => {
+        if (
+          typeof cmd === 'string' &&
+          cmd.includes('npm') &&
+          Array.isArray(args) &&
+          args.includes('audit')
+        ) {
+          return {
+            stdout: JSON.stringify({
+              vulnerabilities: {
+                'tar-pkg': {
+                  name: 'tar-pkg',
+                  severity: 'high',
+                  isDirect: true,
+                  via: [{ title: 'Arbitrary File Overwrite' }],
+                  range: '<6.1.11',
+                  effects: []
+                }
               }
-            }
-          });
+            }),
+            stderr: '',
+            status: 0,
+            pid: 1234,
+            output: [],
+            signal: null
+          } as unknown as childProcess.SpawnSyncReturns<string>;
         }
-        return '';
+        return {
+          stdout: '',
+          stderr: '',
+          status: 0,
+          pid: 1234,
+          output: [],
+          signal: null
+        } as unknown as childProcess.SpawnSyncReturns<string>;
       });
 
       setAuditConfig(
@@ -321,7 +378,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
     });
 
     it('handles offline mode gracefully without throwing or reporting errors', async () => {
-      vi.spyOn(childProcess, 'execFileSync').mockImplementation(() => {
+      vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
         throw new Error('ENOTFOUND registry.npmjs.org');
       });
 

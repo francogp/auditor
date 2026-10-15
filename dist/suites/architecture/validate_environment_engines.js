@@ -1,10 +1,10 @@
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { compareVersions, getAuditorEngines, parseSemver } from "../../cli/check_environment.js";
 import { getPackageJson } from "../../core/packageJson.js";
+import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-import { spawnSync } from "node:child_process";
 //#region src/suites/architecture/validate_environment_engines.ts
 /**
 * src/suites/architecture/validate_environment_engines.ts
@@ -26,10 +26,7 @@ function detectNpmVersion() {
 	const match = (process.env.npm_config_user_agent || "").match(/npm\/([0-9.]+)/);
 	if (match?.[1]) return match[1];
 	try {
-		const res = spawnSync("npm", ["--version"], {
-			encoding: "utf8",
-			shell: true
-		});
+		const res = runNpmCommandSync(["--version"], { encoding: "utf8" });
 		if (res.status === 0 && res.stdout) return res.stdout.trim();
 	} catch {}
 	return "0.0.0";

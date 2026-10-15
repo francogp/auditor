@@ -7,8 +7,12 @@ import {
   auditVitePlusConfigContent,
   VITE_PLUS_CONFIG_RULES
 } from '../src/suites/architecture/validate_vite_plus_config.ts';
-import { buildCanonicalVitePlusConfig } from '../src/core/vitePlusConfigSync.ts';
-import { getAuditConfig } from '../src/core/auditConfig.ts';
+import {
+  buildCanonicalVitePlusConfig,
+  resolveAuditConfigIgnoreGlobs,
+  syncViteConfigWithAuditConfig
+} from '../src/core/vitePlusConfigSync.ts';
+import { getAuditConfig, defineAuditConfig, setAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
   let tempDir: string;
@@ -184,6 +188,67 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       expect(fs.existsSync(path.join(tempDir, 'vite.config.ts'))).toBe(true);
       expect(fs.existsSync(path.join(tempDir, 'eslint.config.js'))).toBe(false);
       expect(fs.existsSync(path.join(tempDir, '.node-version'))).toBe(true);
+    });
+
+    it('C-CFG-12: resolves audit config ignore globs (SSoT) and synchronizes them to vite.config.ts', () => {
+      const mockAuditConfig = defineAuditConfig({
+        name: 'SSoT Ignore Globs Test Project',
+        paths: {
+          ignoreGlobs: ['supabase/**', 'custom-folder/**'],
+          ignoredDirs: ['build-cache', 'temp_data'],
+          includeTestsInCodeAudit: false,
+          testRoots: ['tests', 'test_aventura/tests'],
+          e2eRoots: ['e2e']
+        }
+      });
+
+      fs.writeFileSync(
+        path.join(tempDir, 'eslint.config.js'),
+        "export default [{ ignores: ['legacy_legacy/**'] }];"
+      );
+
+      const globs = resolveAuditConfigIgnoreGlobs(mockAuditConfig, 'lint', tempDir);
+
+      expect(globs).toContain('supabase/**');
+      expect(globs).toContain('custom-folder/**');
+      expect(globs).toContain('build-cache/**');
+      expect(globs).toContain('temp_data/**');
+      expect(globs).toContain('tests/**');
+      expect(globs).toContain('test_aventura/tests/**');
+      expect(globs).toContain('e2e/**');
+      expect(globs).toContain('legacy_legacy/**');
+      expect(globs).toContain('**/*.test.ts');
+      expect(globs).toContain('dist/**');
+
+      // Test synchronization with existing vite.config.ts
+      const initialViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {
+              '@typescript-eslint/no-explicit-any': 'error',
+              '@typescript-eslint/ban-ts-comment': 'error',
+              '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }],
+              '@francogp/domain-type/no-double-cast-unknown': 'error',
+              '@francogp/domain-type/no-legacy-date': 'error'
+            }
+          },
+          fmt: { singleQuote: true },
+          staged: { '**/*': 'vp check' },
+          test: { environment: 'node' }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), initialViteConfig);
+
+      setAuditConfig(mockAuditConfig, tempDir);
+
+      syncViteConfigWithAuditConfig(tempDir);
+
+      const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(synced).toContain('ignorePatterns: [');
+      expect(synced).toContain("'supabase/**'");
+      expect(synced).toContain("'tests/**'");
+      expect(synced).toContain("'build-cache/**'");
     });
   });
 });

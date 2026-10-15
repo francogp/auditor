@@ -9,7 +9,8 @@ import {
   buildCanonicalVitePlusConfig,
   repairVitePlusProject,
   LEGACY_CONFIG_FILES,
-  cleanLegacyConfigFiles
+  cleanLegacyConfigFiles,
+  syncViteConfigWithAuditConfig
 } from '../../core/vitePlusConfigSync.ts';
 
 enableCompileCache();
@@ -322,6 +323,10 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
     const ensured = await this.runSubAuditor('vite-plus-config-missing', async () => {
       return await this.ensureConfigFile(requirement);
     });
+
+    if (this.isFixActive() && fs.existsSync(path.resolve(this.projectRoot, 'vite.config.ts'))) {
+      syncViteConfigWithAuditConfig(this.projectRoot);
+    }
 
     if (!ensured) {
       this.markRuleNotApplicable(

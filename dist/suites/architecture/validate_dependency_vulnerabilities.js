@@ -1,10 +1,10 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-import childProcess from "node:child_process";
 import crypto from "node:crypto";
 //#region src/suites/architecture/validate_dependency_vulnerabilities.ts
 /**
@@ -33,8 +33,9 @@ const DEPENDENCY_VULNERABILITIES_RULES = [
 function runNpmAudit(projectRoot, omitDev = true) {
 	const args = ["audit", "--json"];
 	if (omitDev) args.push("--omit=dev");
+	let proc;
 	try {
-		return { stdout: childProcess.execFileSync("npm", args, {
+		proc = runNpmCommandSync(args, {
 			cwd: projectRoot,
 			encoding: "utf-8",
 			stdio: [
@@ -44,15 +45,30 @@ function runNpmAudit(projectRoot, omitDev = true) {
 			],
 			timeout: NPM_AUDIT_TIMEOUT_MS,
 			maxBuffer: NPM_AUDIT_MAX_BUFFER_BYTES
-		}) };
+		});
 	} catch (err) {
-		const execErr = err;
-		if (typeof execErr.stdout === "string" && execErr.stdout.trim().startsWith("{")) return { stdout: execErr.stdout };
 		return {
 			stdout: "",
 			error: err instanceof Error ? err : new Error(String(err))
 		};
 	}
+	const stdout = proc.stdout ? proc.stdout.trim() : "";
+	if (stdout.startsWith("{")) return { stdout };
+	if (proc.error) return {
+		stdout: "",
+		error: proc.error
+	};
+	if (proc.status !== 0) {
+		const errMsg = proc.stderr ? proc.stderr.trim() : `npm audit exit code ${proc.status}`;
+		return {
+			stdout: "",
+			error: new Error(errMsg)
+		};
+	}
+	return {
+		stdout,
+		error: void 0
+	};
 }
 function mapSeverityToRuleId(sev) {
 	if (sev === "critical") return "dependency-cve-critical";

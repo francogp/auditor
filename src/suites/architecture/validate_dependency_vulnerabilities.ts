@@ -12,12 +12,12 @@
  */
 
 import crypto from 'node:crypto';
-import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 import type { NpmAuditSeverityLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
 
@@ -60,22 +60,31 @@ export function runNpmAudit(
   if (omitDev) {
     args.push('--omit=dev');
   }
+  let proc;
   try {
-    const stdout = childProcess.execFileSync('npm', args, {
+    proc = runNpmCommandSync(args, {
       cwd: projectRoot,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: NPM_AUDIT_TIMEOUT_MS,
       maxBuffer: NPM_AUDIT_MAX_BUFFER_BYTES
     });
-    return { stdout };
   } catch (err: unknown) {
-    const execErr = err as { stdout?: string; stderr?: string; message?: string };
-    if (typeof execErr.stdout === 'string' && execErr.stdout.trim().startsWith('{')) {
-      return { stdout: execErr.stdout };
-    }
     return { stdout: '', error: err instanceof Error ? err : new Error(String(err)) };
   }
+
+  const stdout = proc.stdout ? proc.stdout.trim() : '';
+  if (stdout.startsWith('{')) {
+    return { stdout };
+  }
+  if (proc.error) {
+    return { stdout: '', error: proc.error };
+  }
+  if (proc.status !== 0) {
+    const errMsg = proc.stderr ? proc.stderr.trim() : `npm audit exit code ${proc.status}`;
+    return { stdout: '', error: new Error(errMsg) };
+  }
+  return { stdout, error: undefined };
 }
 
 function mapSeverityToRuleId(sev: NpmAuditSeverityLevel): DependencyVulnerabilitiesRuleId | null {

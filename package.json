@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.4.0-build.20261015-092018",
+  "version": "8.4.1-build.20261015-103151",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {

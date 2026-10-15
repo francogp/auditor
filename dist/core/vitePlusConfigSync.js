@@ -28,7 +28,80 @@ const LEGACY_CONFIG_FILES = [
 	".oxlintrc.json",
 	".oxfmtrc.json"
 ];
-function buildCanonicalVitePlusConfig(auditConfig) {
+/**
+* Scans for legacy ESLint configuration files and extracts globalIgnores entries.
+*/
+function findLegacyEslintIgnores(projectRoot) {
+	for (const candidate of [
+		"eslint.config.js",
+		"eslint.config.mjs",
+		"eslint.config.ts",
+		".eslintrc.json"
+	]) {
+		const candidatePath = path.resolve(projectRoot, candidate);
+		if (!fs.existsSync(candidatePath)) continue;
+		try {
+			const raw = fs.readFileSync(candidatePath, "utf-8");
+			const match = /(?:globalIgnores\s*\(\s*\[([\s\S]*?)\]\s*\)|ignores\s*:\s*\[([\s\S]*?)\])/m.exec(raw);
+			const capturedArray = match ? match[1] || match[2] : null;
+			if (!capturedArray) continue;
+			const globs = [];
+			const stringRegex = /['"]([^'"]+)['"]/g;
+			let m;
+			while ((m = stringRegex.exec(capturedArray)) !== null) if (m[1]) globs.push(m[1]);
+			if (globs.length > 0) return globs;
+		} catch {}
+	}
+	return [];
+}
+/**
+* Resolves all canonical ignore globs derived from audit.config.ts (SSoT).
+* Evaluates paths.ignoreGlobs, paths.ignoredDirs, paths.ignoredPatterns,
+* test roots (when paths.includeTestsInCodeAudit === false), legacy ESLint
+* globalIgnores, and target-specific exclusions (lint or fmt).
+*/
+function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
+	const baseIgnores = [
+		"dist/**",
+		"dev-dist/**",
+		"node_modules/**",
+		"scratch/**",
+		"tmp/**",
+		".agents/**",
+		"coverage/**",
+		"**/*.d.ts"
+	];
+	const projectIgnores = config.paths?.ignoreGlobs ?? [];
+	const dirIgnores = (config.paths?.ignoredDirs ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
+	const patternIgnores = config.paths?.ignoredPatterns ?? [];
+	const testIgnores = [];
+	if (target === "lint" && config.paths?.includeTestsInCodeAudit === false) {
+		const testRoots = config.paths.testRoots ?? ["tests"];
+		const e2eRoots = config.paths.e2eRoots ?? [];
+		const integrationRoots = config.paths.integrationRoots ?? [];
+		for (const r of [
+			...testRoots,
+			...e2eRoots,
+			...integrationRoots
+		]) {
+			const glob = r.endsWith("/**") ? r : `${r}/**`;
+			testIgnores.push(glob);
+		}
+		testIgnores.push("**/*.spec.ts", "**/*.test.ts", "**/*.simulation.ts");
+	}
+	const legacyIgnores = projectRoot ? findLegacyEslintIgnores(projectRoot) : [];
+	const specificTargetIgnores = target === "lint" ? config.vitePlusConfig?.lint?.ignorePatterns ?? [] : config.vitePlusConfig?.fmt?.ignorePatterns ?? [];
+	return Array.from(/* @__PURE__ */ new Set([
+		...baseIgnores,
+		...projectIgnores,
+		...dirIgnores,
+		...patternIgnores,
+		...testIgnores,
+		...legacyIgnores,
+		...specificTargetIgnores
+	]));
+}
+function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
 	const isLibrary = auditConfig.packageDistribution?.enabled !== false;
 	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
 	const packSection = isLibrary ? `  pack: {
@@ -62,28 +135,9 @@ function buildCanonicalVitePlusConfig(auditConfig) {
 		const rulesObj = "rules" in stagedCfg && stagedCfg.rules ? stagedCfg.rules : stagedCfg;
 		if (Object.keys(rulesObj).length > 0) stagedRules = JSON.stringify(rulesObj, null, 4).replace(/\n/g, "\n  ");
 	}
-	const defaultBaseIgnores = [
-		"dist/**",
-		"dev-dist/**",
-		"node_modules/**",
-		"scratch/**",
-		"tmp/**",
-		".agents/**",
-		"coverage/**",
-		"**/*.d.ts"
-	];
-	const projectIgnores = auditConfig.paths?.ignoreGlobs ?? [];
-	const mergedLintIgnores = Array.from(/* @__PURE__ */ new Set([
-		...defaultBaseIgnores,
-		...projectIgnores,
-		...lintCfg?.ignorePatterns ?? []
-	]));
+	const mergedLintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
 	const lintIgnoreStr = JSON.stringify(mergedLintIgnores, null, 6).replace(/\n/g, "\n    ");
-	const mergedFmtIgnores = Array.from(/* @__PURE__ */ new Set([
-		...defaultBaseIgnores,
-		...projectIgnores,
-		...fmtCfg?.ignorePatterns ?? []
-	]));
+	const mergedFmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
 	const fmtIgnoreStr = JSON.stringify(mergedFmtIgnores, null, 6).replace(/\n/g, "\n    ");
 	return `import { defineConfig } from 'vite-plus';
 
@@ -221,8 +275,8 @@ function findLegacyTestBlock(projectRoot) {
 	}
 	return null;
 }
-function scaffoldInitialViteConfig(viteConfigPath, config, legacyTestBlock) {
-	const canonicalContent = buildCanonicalVitePlusConfig(config);
+function scaffoldInitialViteConfig(viteConfigPath, config, legacyTestBlock, projectRoot) {
+	const canonicalContent = buildCanonicalVitePlusConfig(config, projectRoot);
 	let finalContent = canonicalContent;
 	if (legacyTestBlock) {
 		const defaultTestBlock = extractObjectPropertyBlock(canonicalContent, "test");
@@ -295,10 +349,10 @@ function applyStrictRule(content, rule) {
 		modified: false
 	};
 }
-function ensureLintBlock(content, auditConfig) {
-	const config = auditConfig ?? getAuditConfig();
+function ensureLintBlock(content, auditConfig, projectRoot) {
+	const config = auditConfig ?? getAuditConfig(projectRoot);
 	if (!/(^|\s)lint\s*:\s*\{/m.test(content)) {
-		const extractedLint = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config), "lint");
+		const extractedLint = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config, projectRoot), "lint");
 		if (extractedLint) return {
 			content: injectBlockBeforeConfigEnd(content, extractedLint),
 			modified: true
@@ -322,7 +376,7 @@ function ensureLintBlock(content, auditConfig) {
 			modified = true;
 		}
 	}
-	const ignoreStep = ensureIgnorePatterns(updated, "lint", config);
+	const ignoreStep = ensureIgnorePatterns(updated, "lint", config, projectRoot);
 	if (ignoreStep.modified) {
 		updated = ignoreStep.content;
 		modified = true;
@@ -332,18 +386,8 @@ function ensureLintBlock(content, auditConfig) {
 		modified
 	};
 }
-function ensureIgnorePatterns(content, blockName, config) {
-	const globsToEnsure = Array.from(/* @__PURE__ */ new Set([
-		"dist/**",
-		"dev-dist/**",
-		"node_modules/**",
-		"scratch/**",
-		"tmp/**",
-		".agents/**",
-		"coverage/**",
-		"**/*.d.ts",
-		...config.paths?.ignoreGlobs ?? []
-	]));
+function ensureIgnorePatterns(content, blockName, config, projectRoot) {
+	const globsToEnsure = resolveAuditConfigIgnoreGlobs(config, blockName, projectRoot);
 	const block = extractObjectPropertyBlock(content, blockName);
 	if (!block) return {
 		content,
@@ -372,24 +416,24 @@ function ensureIgnorePatterns(content, blockName, config) {
 		modified: false
 	};
 }
-function ensureFmtAndStagedBlocks(content, auditConfig) {
-	const config = auditConfig ?? getAuditConfig();
+function ensureFmtAndStagedBlocks(content, auditConfig, projectRoot) {
+	const config = auditConfig ?? getAuditConfig(projectRoot);
 	let updated = content;
 	let modified = false;
 	if (!/(^|\s)fmt\s*:\s*\{/m.test(updated)) {
-		const extractedFmt = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config), "fmt");
+		const extractedFmt = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config, projectRoot), "fmt");
 		if (extractedFmt) {
 			updated = injectBlockBeforeConfigEnd(updated, extractedFmt);
 			modified = true;
 		}
 	}
-	const fmtIgnoreStep = ensureIgnorePatterns(updated, "fmt", config);
+	const fmtIgnoreStep = ensureIgnorePatterns(updated, "fmt", config, projectRoot);
 	if (fmtIgnoreStep.modified) {
 		updated = fmtIgnoreStep.content;
 		modified = true;
 	}
 	if (!updated.includes("staged:")) {
-		const extractedStaged = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config), "staged");
+		const extractedStaged = extractObjectPropertyBlock(buildCanonicalVitePlusConfig(config, projectRoot), "staged");
 		if (extractedStaged) {
 			updated = injectBlockBeforeConfigEnd(updated, extractedStaged);
 			modified = true;
@@ -404,7 +448,7 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	const config = auditConfig ?? getAuditConfig(projectRoot);
 	const viteConfigPath = path.resolve(projectRoot, "vite.config.ts");
 	const legacyTestBlock = findLegacyTestBlock(projectRoot);
-	if (!fs.existsSync(viteConfigPath)) return scaffoldInitialViteConfig(viteConfigPath, config, legacyTestBlock);
+	if (!fs.existsSync(viteConfigPath)) return scaffoldInitialViteConfig(viteConfigPath, config, legacyTestBlock, projectRoot);
 	let content = fs.readFileSync(viteConfigPath, "utf-8");
 	let modified = false;
 	if (!content.includes("from 'vite-plus'")) {
@@ -414,10 +458,10 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	const testStep = ensureTestBlock(content, legacyTestBlock, config);
 	content = testStep.content;
 	if (testStep.modified) modified = true;
-	const lintStep = ensureLintBlock(content, config);
+	const lintStep = ensureLintBlock(content, config, projectRoot);
 	content = lintStep.content;
 	if (lintStep.modified) modified = true;
-	const fmtStagedStep = ensureFmtAndStagedBlocks(content, config);
+	const fmtStagedStep = ensureFmtAndStagedBlocks(content, config, projectRoot);
 	content = fmtStagedStep.content;
 	if (fmtStagedStep.modified) modified = true;
 	if (modified) fs.writeFileSync(viteConfigPath, content, "utf-8");
@@ -495,13 +539,7 @@ function migrateNodeVersion(projectRoot) {
 	return migrated;
 }
 function getVitePlusDefaultExcludeGlobs(projectRoot) {
-	return [
-		"node_modules/**",
-		"dist/**",
-		"scratch/**",
-		".agents/**",
-		...getAuditConfig(projectRoot).paths?.ignoreGlobs ?? []
-	];
+	return resolveAuditConfigIgnoreGlobs(getAuditConfig(projectRoot), "lint", projectRoot);
 }
 const LEGACY_DEPS_TO_REMOVE = [
 	"eslint",
@@ -640,4 +678,4 @@ function repairVitePlusProject(projectRoot) {
 	};
 }
 //#endregion
-export { LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, extractObjectPropertyBlock, getVitePlusDefaultExcludeGlobs, migrateNodeVersion, repairVitePlusProject, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };
+export { LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, extractObjectPropertyBlock, findLegacyEslintIgnores, getVitePlusDefaultExcludeGlobs, migrateNodeVersion, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };

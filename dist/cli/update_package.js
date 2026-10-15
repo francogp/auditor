@@ -6,6 +6,7 @@ import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { initAgentSkill } from "./init_agent.js";
 import { syncEnvScripts } from "./sync_env_scripts.js";
 import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";
+import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -82,13 +83,10 @@ function updateAuditorPackage(options = {}) {
 		console.log(renderBanner("@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE", `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`));
 		console.log(styleText("cyan", `📦 Ejecutando actualización nativa vía npm ${npmArgs.join(" ")}...\n`));
 	}
-	const isWindows = process.platform === "win32";
-	const npmBinary = isWindows ? "npm.cmd" : "npm";
-	const proc = childProcess.spawnSync(npmBinary, npmArgs, {
+	const proc = runNpmCommandSync(npmArgs, {
 		cwd: projectRoot,
 		stdio: options.silent ? "pipe" : "inherit",
-		encoding: "utf-8",
-		shell: isWindows
+		encoding: "utf-8"
 	});
 	if (proc.error || proc.status !== 0) return {
 		success: false,

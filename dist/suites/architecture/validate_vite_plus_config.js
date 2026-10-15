@@ -3,7 +3,7 @@ import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
-import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, repairVitePlusProject } from "../../core/vitePlusConfigSync.js";
+import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, repairVitePlusProject, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -224,6 +224,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 		const ensured = await this.runSubAuditor("vite-plus-config-missing", async () => {
 			return await this.ensureConfigFile(requirement);
 		});
+		if (this.isFixActive() && fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts"))) syncViteConfigWithAuditConfig(this.projectRoot);
 		if (!ensured) {
 			this.markRuleNotApplicable("vite-plus-config-any-allowed", "Archivo de configuración no encontrado");
 			this.markRuleNotApplicable("vite-plus-config-ts-ignore-allowed", "Archivo de configuración no encontrado");

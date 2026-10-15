@@ -11,9 +11,14 @@ import { runBuildDeploy } from '../src/cli/build_deploy.ts';
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof childProcess>();
+  const mockSpawn = vi.fn();
   return {
     ...actual,
-    spawnSync: vi.fn()
+    spawnSync: mockSpawn,
+    default: {
+      ...actual,
+      spawnSync: mockSpawn
+    }
   };
 });
 

@@ -1,11 +1,5 @@
+import { SpawnSyncReturns, StdioOptions } from "node:child_process";
 //#region src/core/npmCommandUtils.d.ts
-/**
- * src/core/npmCommandUtils.ts
- *
- * CANONICAL VITE+ (vp), NPM & NPX COMMAND UTILITIES (Node.js 26+)
- * Provides shared parsers, package scripts / binaries resolvers, and violation evaluators
- * for both documentation auditors (Markdown) and executable script auditors (Shell, PowerShell, Docker, CI).
- */
 export declare const VALID_NPM_BUILTINS: ReadonlySet<string>;
 export declare const VALID_VP_BUILTINS: ReadonlySet<string>;
 export declare const COMMAND_INVOCATION_TYPES: readonly ["npm-run", "npm-direct", "npx", "vp-run", "vp-direct", "vp-dlx"];
@@ -50,4 +44,27 @@ export interface GenericCommandViolation {
   readonly line: number;
 }
 export declare function evaluateGenericCommandViolation(cmd: ExtractedCommand, env: NpmCommandValidationEnv): GenericCommandViolation | null;
+export interface NpmCommandSpec {
+  readonly binary: string;
+  readonly shell: boolean;
+}
+/**
+ * Resolves the platform-specific npm executable and shell requirement.
+ * On Windows, npm is a batch script ('npm.cmd'). Node.js spawnSync requires 'npm.cmd'
+ * with shell: true to prevent EINVAL (CVE-2024-27980 mitigation) or ENOENT errors.
+ */
+export declare function getNpmCommand(): NpmCommandSpec;
+export interface RunNpmCommandOptions {
+  readonly cwd?: string;
+  readonly stdio?: StdioOptions;
+  readonly encoding?: BufferEncoding;
+  readonly timeout?: number;
+  readonly maxBuffer?: number;
+  readonly env?: NodeJS.ProcessEnv;
+}
+/**
+ * Standardized cross-platform synchronous execution of npm commands.
+ * Automatically resolves 'npm.cmd' and 'shell: true' on Windows.
+ */
+export declare function runNpmCommandSync(args: readonly string[], options?: RunNpmCommandOptions): SpawnSyncReturns<string>;
 //#endregion

@@ -14,6 +14,7 @@ import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { ensureNpmrcAllowGit } from '../core/npmrcAllowGit.ts';
 import { isSelfProviderProject } from '../core/auditConfig.ts';
+import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { initAgentSkill } from './init_agent.ts';
 import { syncEnvScripts } from './sync_env_scripts.ts';
 
@@ -123,13 +124,10 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
     );
   }
 
-  const isWindows = process.platform === 'win32';
-  const npmBinary = isWindows ? 'npm.cmd' : 'npm';
-  const proc = childProcess.spawnSync(npmBinary, npmArgs, {
+  const proc = runNpmCommandSync(npmArgs, {
     cwd: projectRoot,
     stdio: options.silent ? 'pipe' : 'inherit',
-    encoding: 'utf-8',
-    shell: isWindows
+    encoding: 'utf-8'
   });
 
   if (proc.error || proc.status !== 0) {

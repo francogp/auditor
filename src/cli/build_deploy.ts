@@ -9,22 +9,19 @@
  * styles, and post-build bundle budget verification gates.
  */
 
-import { spawnSync } from 'node:child_process';
+import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { isMainModule } from './cliUtils.ts';
 import '../core/permissionGuard.ts';
 
 export function runBuildDeploy(extraArgs: readonly string[] = []): number {
   process.env.AUDITOR_ENV = 'production';
 
-  const isWindows = process.platform === 'win32';
-  const npmCmd = isWindows ? 'npm.cmd' : 'npm';
   const args = ['run', 'build', ...extraArgs];
 
-  const result = spawnSync(npmCmd, args, {
+  const result = runNpmCommandSync(args, {
     stdio: 'inherit',
     cwd: process.cwd(),
-    env: process.env,
-    shell: isWindows
+    env: process.env
   });
 
   return result.status ?? 0;

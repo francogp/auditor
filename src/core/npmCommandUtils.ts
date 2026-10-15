@@ -8,6 +8,7 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
+import childProcess, { type SpawnSyncReturns, type StdioOptions } from 'node:child_process';
 import { getPackageJson } from './packageJson.ts';
 
 export const VALID_NPM_BUILTINS: ReadonlySet<string> = new Set([
@@ -490,4 +491,51 @@ export function evaluateGenericCommandViolation(
     default:
       return null;
   }
+}
+
+export interface NpmCommandSpec {
+  readonly binary: string;
+  readonly shell: boolean;
+}
+
+/**
+ * Resolves the platform-specific npm executable and shell requirement.
+ * On Windows, npm is a batch script ('npm.cmd'). Node.js spawnSync requires 'npm.cmd'
+ * with shell: true to prevent EINVAL (CVE-2024-27980 mitigation) or ENOENT errors.
+ */
+export function getNpmCommand(): NpmCommandSpec {
+  const isWindows = process.platform === 'win32';
+  return {
+    binary: isWindows ? 'npm.cmd' : 'npm',
+    shell: isWindows
+  };
+}
+
+export interface RunNpmCommandOptions {
+  readonly cwd?: string;
+  readonly stdio?: StdioOptions;
+  readonly encoding?: BufferEncoding;
+  readonly timeout?: number;
+  readonly maxBuffer?: number;
+  readonly env?: NodeJS.ProcessEnv;
+}
+
+/**
+ * Standardized cross-platform synchronous execution of npm commands.
+ * Automatically resolves 'npm.cmd' and 'shell: true' on Windows.
+ */
+export function runNpmCommandSync(
+  args: readonly string[],
+  options: RunNpmCommandOptions = {}
+): SpawnSyncReturns<string> {
+  const { binary, shell } = getNpmCommand();
+  return childProcess.spawnSync(binary, [...args], {
+    cwd: options.cwd ?? process.cwd(),
+    stdio: options.stdio ?? 'pipe',
+    encoding: options.encoding ?? 'utf-8',
+    timeout: options.timeout,
+    maxBuffer: options.maxBuffer,
+    shell,
+    env: options.env ?? process.env
+  });
 }
