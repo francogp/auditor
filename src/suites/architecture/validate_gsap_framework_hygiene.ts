@@ -17,8 +17,13 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from '../../core/auditConfig.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  getAuditConfig,
+  isInCodeRoots,
+  isExemptFile,
+  matchesAnyRoot
+} from '../../core/auditConfig.ts';
 import { normalizePosixPath as normalizeFilePath } from '../../core/safePath.ts';
 import { scanBalancedParens } from '../../core/scannerUtils.ts';
 
@@ -60,7 +65,7 @@ export function findGsapScopeRanges(content: string): readonly GsapScopeRange[] 
 }
 
 function isInsideAnyScopeRange(index: number, ranges: readonly GsapScopeRange[]): boolean {
-  return ranges.some(r => index >= r.start && index < r.end);
+  return ranges.some((r) => index >= r.start && index < r.end);
 }
 
 export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
@@ -85,7 +90,8 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.jsx']),
@@ -97,11 +103,15 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         'gsap-banned-devtools-production': 'Herramienta devtools en producción'
       },
       ruleRemediations: {
-        'gsap-unscoped-component-selectors': 'Guía de diagnóstico y remediación para gsap-unscoped-component-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-missing-context-revert': 'Guía de diagnóstico y remediación para gsap-missing-context-revert. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-missing-plugin-registration': 'Guía de diagnóstico y remediación para gsap-missing-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-banned-devtools-production': 'Guía de diagnóstico y remediación para gsap-banned-devtools-production. Revisa la incidencia detectada y ajusta el código correspondiente.',
-      },
+        'gsap-unscoped-component-selectors':
+          'Guía de diagnóstico y remediación para gsap-unscoped-component-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-missing-context-revert':
+          'Guía de diagnóstico y remediación para gsap-missing-context-revert. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-missing-plugin-registration':
+          'Guía de diagnóstico y remediación para gsap-missing-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-banned-devtools-production':
+          'Guía de diagnóstico y remediación para gsap-banned-devtools-production. Revisa la incidencia detectada y ajusta el código correspondiente.'
+      }
     });
   }
 
@@ -129,21 +139,24 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
   }
 
   private isCodeFile(norm: string): boolean {
-    return norm.endsWith('.ts') || norm.endsWith('.vue') || norm.endsWith('.tsx') || norm.endsWith('.jsx');
+    return (
+      norm.endsWith('.ts') ||
+      norm.endsWith('.vue') ||
+      norm.endsWith('.tsx') ||
+      norm.endsWith('.jsx')
+    );
   }
 
   private isUiComponent(norm: string): boolean {
     const config = getAuditConfig(this.projectRoot);
-    const uiRoots = [
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? [])
-    ];
+    const uiRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
     return norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
   }
 
   private scanUnscopedSelectors(relPath: string, content: string): void {
     const scopeRanges = findGsapScopeRanges(content);
-    const unscopedRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(\s*['"]([.#][\w\s>+~.:#-]+)['"]/g;
+    const unscopedRegex =
+      /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(\s*['"]([.#][\w\s>+~.:#-]+)['"]/g;
     let m: RegExpExecArray | null;
     while ((m = unscopedRegex.exec(content)) !== null) {
       const selector = m[1];
@@ -180,18 +193,22 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         filePath: relPath,
         content,
         matchIndex: content.indexOf('gsap.context'),
-        message: "Uso de 'gsap.context()' en componente UI sin llamar a 'revert()' en 'onUnmounted' / 'onScopeDispose'.",
+        message:
+          "Uso de 'gsap.context()' en componente UI sin llamar a 'revert()' en 'onUnmounted' / 'onScopeDispose'.",
         severity: 'error'
       });
     }
   }
 
   private scanPluginRegistration(relPath: string, content: string): void {
-    const pluginImportRegex = /import\s*\{[^}]*\b(ScrollTrigger|Flip|Draggable|SplitText|Observer|ScrollSmoother|InertiaPlugin|MotionPathPlugin)\b[^}]*\}\s*from\s*['"]gsap\/[a-zA-Z0-9]+['"]/g;
+    const pluginImportRegex =
+      /import\s*\{[^}]*\b(ScrollTrigger|Flip|Draggable|SplitText|Observer|ScrollSmoother|InertiaPlugin|MotionPathPlugin)\b[^}]*\}\s*from\s*['"]gsap\/[a-zA-Z0-9]+['"]/g;
     let pluginMatch: RegExpExecArray | null;
     while ((pluginMatch = pluginImportRegex.exec(content)) !== null) {
       const pluginName = pluginMatch[1];
-      const hasRegister = new RegExp(`gsap\\.registerPlugin\\s*\\([^)]*\\b${pluginName}\\b`).test(content);
+      const hasRegister = new RegExp(`gsap\\.registerPlugin\\s*\\([^)]*\\b${pluginName}\\b`).test(
+        content
+      );
       const hasPluginOk = /\/\/\s*plugin-ok:\s*\S+/i.test(content);
 
       if (!hasRegister && !hasPluginOk) {
@@ -216,7 +233,9 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         Math.max(0, devtoolsMatch.index - DEVTOOLS_GUARD_WINDOW_PRE_CHARS),
         Math.min(content.length, devtoolsMatch.index + DEVTOOLS_GUARD_WINDOW_POST_CHARS)
       );
-      const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(windowAround);
+      const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(
+        windowAround
+      );
       const hasDevtoolsOk = /\/\/\s*devtools-ok:\s*\S+/i.test(windowAround);
 
       if (!hasDevGuard && !hasDevtoolsOk) {

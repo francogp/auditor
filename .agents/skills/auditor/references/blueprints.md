@@ -36,7 +36,7 @@ All configurations and subsystems in `@francogp/auditor` are **ACTIVATED BY DEFA
 26. `environment`: Node.js and npm engine declaration and runtime compliance governance (defaults to `enabled: true`).
 27. `testCoverage`: Istanbul/C8 coverage analysis, thresholds, and untracked file detection (defaults to `enabled: true`, `threshold: 80`, `enforceInAudit: true`).
 28. `auditorHygiene`: Anti-pattern and homebrew helper governance across core sub-auditors and host extensions (defaults to `enabled: true`).
-29. `eslint`: ESLint flat configuration integrity and Domain-Type-First type safety governance (defaults to `enabled: true`).
+29. `oxlint`: Vite+ Oxlint configuration integrity and Domain-Type-First type safety governance (defaults to `enabled: true`).
 30. `htmlValidate`: Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation (defaults to `enabled: true`).
 31. `ratchet`: Warning ratchet baseline governance preventing warning degradation (defaults to `enabled: true`, `productionRef: 'origin/main'`, `baselineFile: '.auditor/audit-baseline.json'`).
 32. `webPerformance`: Frontend web performance hygiene (defaults to `enabled: true`, `maxDomDepth: 32`, `maxInlineSvgBytes: 4096`, `maxUncompressedVideoBytes: 10485760`, `exemptSvgPaths: []`, `exemptImgClasses: []`, `exemptPaths: []`).

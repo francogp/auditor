@@ -50,7 +50,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   ];
 
   // Optional custom package script aliases:
-  // By default, BaseAuditor automatically derives "audit:<short-id>" (auditor task=<id>)
+  // By default, BaseAuditor automatically derives "auditor:<short-id>" (auditor task=<id>)
   // from your auditor id, description, and family with zero boilerplate.
   // Custom scripts are only declared here when you require non-standard aliases or CLI flags.
   public static readonly scripts: readonly AuditorPackageScriptRequirement[] = [];

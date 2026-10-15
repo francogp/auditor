@@ -1,8 +1,8 @@
 /**
  * scripts/audit_project.ts
- * 
+ *
  * STABLE PROJECT AUDIT ENGINE (Node.js 26+)
- * 
+ *
  * Final Safe Version: Context-aware GPU checking.
  */
 
@@ -12,7 +12,13 @@ import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
-import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH, CANONICAL_IGNORE_DIRS, isPathIgnored , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  MAX_AUDITOR_DESCRIPTION_LENGTH,
+  CANONICAL_IGNORE_DIRS,
+  isPathIgnored,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import {
   type AuditRule,
   type Violation,
@@ -35,7 +41,7 @@ const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md'])
 async function getFilesToAudit(dir: string): Promise<string[]> {
   const files: string[] = []; // no-domain: Non-domain utility collection or data structure
   const pattern = `**/*{${Array.from(AUDIT_EXTENSIONS).join(',')}}`;
-  
+
   for await (const entry of fs.glob(pattern, {
     cwd: dir,
     exclude: (p: string) => isPathIgnored(p)
@@ -68,14 +74,21 @@ function auditVueScriptBlocks(params: {
   let modified = false;
   const scriptBlocks = extractAllBlocks(content, 'script');
   const rules = params.candidateRules.filter(
-    r => !params.allStyleRules.includes(r) && r !== config.functionCallsInTemplates
+    (r) => !params.allStyleRules.includes(r) && r !== config.functionCallsInTemplates
   );
 
   if (rules.length === 0) return { content, modified };
 
   for (let i = scriptBlocks.length - 1; i >= 0; i--) {
     const block = scriptBlocks[i]!;
-    let newBlock = runRules(params.filePath, block.content, rules, params.violations, params.fix, block.startLine);
+    let newBlock = runRules(
+      params.filePath,
+      block.content,
+      rules,
+      params.violations,
+      params.fix,
+      block.startLine
+    );
 
     if (params.fix && newBlock !== block.content) {
       newBlock = prependRequiredImports(newBlock, rules);
@@ -95,11 +108,9 @@ function auditVueTemplateBlocks(
 ): void {
   const templateBlocks = extractAllBlocks(content, 'template');
   for (const block of templateBlocks) {
-    const candidateTemplateRules: AuditRule[] = [
-      config.functionCallsInTemplates
-    ];
+    const candidateTemplateRules: AuditRule[] = [config.functionCallsInTemplates];
     const templateRules: AuditRule[] = activeConfigRules
-      ? candidateTemplateRules.filter(r => activeConfigRules.has(r))
+      ? candidateTemplateRules.filter((r) => activeConfigRules.has(r))
       : candidateTemplateRules;
 
     if (templateRules.length > 0) {
@@ -119,7 +130,7 @@ function auditLogicFile(params: {
   let { content } = params;
   let modified = false;
   const rules = params.candidateRules.filter(
-    r => !params.allStyleRules.includes(r) && r !== config.functionCallsInTemplates
+    (r) => !params.allStyleRules.includes(r) && r !== config.functionCallsInTemplates
   );
 
   if (rules.length > 0) {
@@ -146,7 +157,14 @@ function auditVueStyleBlocks(params: {
 
   for (let i = styleBlocks.length - 1; i >= 0; i--) {
     const block = styleBlocks[i]!;
-    const newBlock = runRules(params.filePath, block.content, params.styleRules as AuditRule[], params.violations, params.fix, block.startLine);
+    const newBlock = runRules(
+      params.filePath,
+      block.content,
+      params.styleRules as AuditRule[],
+      params.violations,
+      params.fix,
+      block.startLine
+    );
     if (params.fix && newBlock !== block.content) {
       content = content.substring(0, block.startIdx) + newBlock + content.substring(block.endIdx);
       modified = true;
@@ -165,7 +183,14 @@ function auditStyleFile(params: {
 }): { content: string; modified: boolean } {
   let { content } = params;
   let modified = false;
-  const newBlock = runRules(params.filePath, content, params.styleRules as AuditRule[], params.violations, params.violations.length > 0 ? false : params.fix, 0);
+  const newBlock = runRules(
+    params.filePath,
+    content,
+    params.styleRules as AuditRule[],
+    params.violations,
+    params.violations.length > 0 ? false : params.fix,
+    0
+  );
   if (params.fix && newBlock !== content) {
     content = newBlock;
     modified = true;
@@ -186,7 +211,7 @@ function auditLogicOrVueScript(params: {
   let modified = false;
   const allConfigRules: AuditRule[] = Object.values(config) as AuditRule[];
   const candidateRules = params.activeConfigRules
-    ? allConfigRules.filter(r => params.activeConfigRules!.has(r))
+    ? allConfigRules.filter((r) => params.activeConfigRules!.has(r))
     : allConfigRules;
 
   if (params.isVue) {
@@ -252,8 +277,8 @@ function auditStylesOrVueStyles(params: {
 }
 
 async function auditFile(
-  filePath: string, 
-  fix: boolean, 
+  filePath: string,
+  fix: boolean,
   activeConfigRules?: ReadonlySet<AuditRule>
 ): Promise<Violation[]> {
   const violations: Violation[] = [];
@@ -264,22 +289,34 @@ async function auditFile(
   const isLogic = filePath.endsWith('.ts') || filePath.endsWith('.js');
   const isStyle = filePath.endsWith('.scss') || filePath.endsWith('.css');
 
-  const ALL_STYLE_RULES: AuditRule[] = [
-    config.viewport,
-    config.noSassAtImport
-  ];
+  const ALL_STYLE_RULES: AuditRule[] = [config.viewport, config.noSassAtImport];
   const STYLE_RULES: AuditRule[] = activeConfigRules
-    ? ALL_STYLE_RULES.filter(r => activeConfigRules.has(r))
+    ? ALL_STYLE_RULES.filter((r) => activeConfigRules.has(r))
     : ALL_STYLE_RULES;
 
   if (isLogic || isVue) {
-    const logicRes = auditLogicOrVueScript({ filePath, content, isVue, activeConfigRules, allStyleRules: ALL_STYLE_RULES, fix, violations });
+    const logicRes = auditLogicOrVueScript({
+      filePath,
+      content,
+      isVue,
+      activeConfigRules,
+      allStyleRules: ALL_STYLE_RULES,
+      fix,
+      violations
+    });
     content = logicRes.content;
     if (logicRes.modified) modified = true;
   }
 
   if ((isStyle || isVue) && STYLE_RULES.length > 0) {
-    const styleRes = auditStylesOrVueStyles({ filePath, content, isVue, styleRules: STYLE_RULES, fix, violations });
+    const styleRes = auditStylesOrVueStyles({
+      filePath,
+      content,
+      isVue,
+      styleRules: STYLE_RULES,
+      fix,
+      violations
+    });
     content = styleRes.content;
     if (styleRes.modified) modified = true;
   }
@@ -371,9 +408,13 @@ export function applyRuleFix(rule: AuditRule, content: string, filePath: string)
   if (rule.appliesTo && !rule.appliesTo(filePath)) return content;
   const fixer = rule.fix;
   if (!fixer) return content;
-  const gRegex = new RegExp(rule.regex.source, rule.regex.flags.includes('g') ? rule.regex.flags : rule.regex.flags + 'g');
+  const gRegex = new RegExp(
+    rule.regex.source,
+    rule.regex.flags.includes('g') ? rule.regex.flags : rule.regex.flags + 'g'
+  );
   return content.replace(gRegex, (match, ...args) => {
-    const matchIdx = typeof args[args.length - 2] === 'number' ? (args[args.length - 2] as number) : 0;
+    const matchIdx =
+      typeof args[args.length - 2] === 'number' ? (args[args.length - 2] as number) : 0;
     if (isInsideComment(content, matchIdx)) return match;
     if (rule.check) {
       const checkRegex = new RegExp(rule.regex.source, rule.regex.flags.replace('g', ''));
@@ -389,7 +430,14 @@ export function applyRuleFix(rule: AuditRule, content: string, filePath: string)
 
 export const activeProjectRuleTimings = new Map<string, number>();
 
-export function runRules(filePath: string, content: string, rules: AuditRule[], violations: Violation[], fix: boolean, offset: number): string {
+export function runRules(
+  filePath: string,
+  content: string,
+  rules: AuditRule[],
+  violations: Violation[],
+  fix: boolean,
+  offset: number
+): string {
   let result = content;
   const getLineNo = createLineLocator(content, offset);
 
@@ -411,7 +459,6 @@ export function runRules(filePath: string, content: string, rules: AuditRule[], 
   }
   return result;
 }
-
 
 export interface VueBlock {
   content: string;
@@ -443,14 +490,27 @@ export function extractAllBlocks(content: string, tag: string): VueBlock[] {
 
 function getChangedFiles(ref: string): string[] {
   try {
-    const output = execSync(`git diff --name-only ${ref}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    const output = execSync(`git diff --name-only ${ref}`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    });
     return output
       .split('\n')
-      .map(f => f.trim())
-      .filter(f => f !== '' && AUDIT_EXTENSIONS.has(path.extname(f)) && !Array.from(CANONICAL_IGNORE_DIRS).some(d => f.split(/[/\\]/).includes(d)))
-      .map(f => path.resolve(process.cwd(), f));
-  } catch (_e) {
-    process.stderr.write(styleText('yellow', `⚠️ No se pudo obtener la lista de archivos modificados desde git para ref: '${ref}'. Se auditará el proyecto completo.\n`));
+      .map((f) => f.trim())
+      .filter(
+        (f) =>
+          f !== '' &&
+          AUDIT_EXTENSIONS.has(path.extname(f)) &&
+          !Array.from(CANONICAL_IGNORE_DIRS).some((d) => f.split(/[/\\]/).includes(d))
+      )
+      .map((f) => path.resolve(process.cwd(), f));
+  } catch {
+    process.stderr.write(
+      styleText(
+        'yellow',
+        `⚠️ No se pudo obtener la lista de archivos modificados desde git para ref: '${ref}'. Se auditará el proyecto completo.\n`
+      )
+    );
     return [];
   }
 }
@@ -473,7 +533,11 @@ const MAX_FILES_TO_SHOW_IN_TERMINAL = 25;
 const MAX_VIOLATIONS_PER_FILE_IN_TERMINAL = 10;
 function sanitizeContext(ctx?: string): string {
   if (!ctx) return '';
-  return ctx.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CONTEXT_SNIPPET_LENGTH);
+  return ctx
+    .replace(/\r?\n/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_CONTEXT_SNIPPET_LENGTH);
 }
 
 interface ProjectCliContext {
@@ -483,12 +547,17 @@ interface ProjectCliContext {
   isHumanMode: boolean;
 }
 
-export function extractSelectedRules(values: Record<string, unknown>, positionals: string[]): Set<string> {
+export function extractSelectedRules(
+  values: Record<string, unknown>,
+  positionals: string[]
+): Set<string> {
   const collectedRules = [
     ...(Array.isArray(values.rule) ? values.rule : [values.rule]),
     ...(Array.isArray(values.rules) ? values.rules : [values.rules]),
-    ...positionals.filter(p => p.toLowerCase() === 'dox' || p.includes(','))
-  ].filter(Boolean).map(String);
+    ...positionals.filter((p) => p.toLowerCase() === 'dox' || p.includes(','))
+  ]
+    .filter(Boolean)
+    .map(String);
 
   const selectedRules = new Set<string>();
   for (const raw of collectedRules) {
@@ -512,9 +581,10 @@ export function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRu
 
 function parseProjectCliContext(cliArgs?: string[]): ProjectCliContext {
   const rawCliArgs = cliArgs || process.argv.slice(2);
-  const normalizedCliArgs = rawCliArgs.map(cliParam => {
+  const normalizedCliArgs = rawCliArgs.map((cliParam) => {
     if (cliParam.includes('=') && !cliParam.startsWith('-')) return `--${cliParam}`;
-    if (['fix', 'summary', 'json', 'human', 'pretty', 'errors-only', 'css-only'].includes(cliParam)) return `--${cliParam}`;
+    if (['fix', 'summary', 'json', 'human', 'pretty', 'errors-only', 'css-only'].includes(cliParam))
+      return `--${cliParam}`;
     return cliParam;
   });
 
@@ -565,10 +635,17 @@ async function runAstFileScans(
 
   if (changedSince) {
     files = getChangedFiles(changedSince);
-    logProgress(styleText('cyan', `[3/6] 🔍 Auditando archivos modificados desde: '${changedSince}' (${files.length} archivos)...`));
+    logProgress(
+      styleText(
+        'cyan',
+        `[3/6] 🔍 Auditando archivos modificados desde: '${changedSince}' (${files.length} archivos)...`
+      )
+    );
   } else {
     files = await getFilesToAudit(path.resolve(process.cwd(), ctx.values.path as string));
-    logProgress(styleText('cyan', `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`));
+    logProgress(
+      styleText('cyan', `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`)
+    );
   }
 
   let processed = 0;
@@ -577,9 +654,16 @@ async function runAstFileScans(
   for (const f of files) {
     processed++;
     if (processed % AST_PROGRESS_BATCH_SIZE === 0 || processed === total) {
-      logProgress(styleText('cyan', `   ⏳ Progreso AST: ${processed}/${total} archivos (${Math.round((processed / total) * 100)}%)`));
+      logProgress(
+        styleText(
+          'cyan',
+          `   ⏳ Progreso AST: ${processed}/${total} archivos (${Math.round((processed / total) * 100)}%)`
+        )
+      );
     }
-    violations = violations.concat(await auditFile(f, Boolean(ctx.values.fix), ctx.activeConfigRules));
+    violations = violations.concat(
+      await auditFile(f, Boolean(ctx.values.fix), ctx.activeConfigRules)
+    );
   }
   return { violations, files };
 }
@@ -587,20 +671,24 @@ async function runAstFileScans(
 export function filterAndGroupViolations(
   rawViolations: Violation[],
   ctx: ProjectCliContext
-): { all: Violation[]; fileGroups: Record<string, Violation[]>; typeGroups: Record<string, number> } {
+): {
+  all: Violation[];
+  fileGroups: Record<string, Violation[]>;
+  typeGroups: Record<string, number>;
+} {
   let all = rawViolations;
 
   if (ctx.values.path) {
     const normPath = path.normalize(ctx.values.path as string);
-    all = all.filter(v => path.normalize(v.file).includes(normPath));
+    all = all.filter((v) => path.normalize(v.file).includes(normPath));
   }
 
   if (ctx.values['errors-only']) {
-    all = all.filter(v => v.severity === 'error');
+    all = all.filter((v) => v.severity === 'error');
   }
 
   if (ctx.selectedRules.size > 0) {
-    all = all.filter(v => {
+    all = all.filter((v) => {
       const category = getViolationCategory(v);
       const desc: RuleDescriptor = {
         id: v.ruleId || category,
@@ -648,15 +736,17 @@ function renderHumanSummaryView(
     });
 
   printTerminal(`\nTop ${topLimit} archivos con más problemas:`);
-  topFiles.forEach(f => {
+  topFiles.forEach((f) => {
     printTerminal(`  - ${f.file}: ${f.total} violaciones (${f.errors} ❌, ${f.warnings} ⚠️)`);
   });
 }
 
 function renderHumanFileViolations(file: string, violations: Violation[]): void {
-  const fileErrors = violations.filter(v => v.severity === 'error').length;
-  const fileWarns = violations.filter(v => v.severity === 'warning').length;
-  printTerminal(`\n📁 ${styleText('bold', file)} (${violations.length} avisos: ${fileErrors} ❌, ${fileWarns} ⚠️)`);
+  const fileErrors = violations.filter((v) => v.severity === 'error').length;
+  const fileWarns = violations.filter((v) => v.severity === 'warning').length;
+  printTerminal(
+    `\n📁 ${styleText('bold', file)} (${violations.length} avisos: ${fileErrors} ❌, ${fileWarns} ⚠️)`
+  );
 
   for (const v of violations.slice(0, MAX_VIOLATIONS_PER_FILE_IN_TERMINAL)) {
     const icon = v.severity === 'error' ? '❌ ERROR' : '⚠️ WARN ';
@@ -664,10 +754,17 @@ function renderHumanFileViolations(file: string, violations: Violation[]): void 
     const lineStr = `L${v.line}`.padEnd(5);
     const snippet = sanitizeContext(v.context);
     const snippetStr = snippet ? ` ("${snippet}")` : '';
-    printTerminal(`  ${lineStr} ${styleText(color, icon)} [${getViolationCategory(v)}] ${v.message}${snippetStr}`);
+    printTerminal(
+      `  ${lineStr} ${styleText(color, icon)} [${getViolationCategory(v)}] ${v.message}${snippetStr}`
+    );
   }
   if (violations.length > MAX_VIOLATIONS_PER_FILE_IN_TERMINAL) {
-    printTerminal(styleText('cyan', `  ... y ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} aviso(s) más en este archivo.`));
+    printTerminal(
+      styleText(
+        'cyan',
+        `  ... y ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} aviso(s) más en este archivo.`
+      )
+    );
   }
 }
 
@@ -681,8 +778,18 @@ function renderHumanDetailView(fileGroups: Record<string, Violation[]>): void {
   }
 
   if (entries.length > MAX_FILES_TO_SHOW_IN_TERMINAL) {
-    printTerminal(styleText('cyan', `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`));
-    printTerminal(styleText('cyan', `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`));
+    printTerminal(
+      styleText(
+        'cyan',
+        `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`
+      )
+    );
+    printTerminal(
+      styleText(
+        'cyan',
+        `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`
+      )
+    );
   }
 }
 
@@ -703,9 +810,16 @@ function renderHumanTerminalReport(
   }
 
   printTerminal(styleText('bold', '\n======================================================'));
-  printTerminal(`📊 TOTAL: ${errorsCount === 0 ? styleText('green', '0 Errores') : styleText('red', `${errorsCount} Errores`)} | ${styleText('yellow', `${warningsCount} Advertencias`)} | ${Object.keys(fileGroups).length} Archivos`);
+  printTerminal(
+    `📊 TOTAL: ${errorsCount === 0 ? styleText('green', '0 Errores') : styleText('red', `${errorsCount} Errores`)} | ${styleText('yellow', `${warningsCount} Advertencias`)} | ${Object.keys(fileGroups).length} Archivos`
+  );
   printTerminal('======================================================');
-  printTerminal(styleText('dim', `💾 Reporte detallado guardado en: ${path.relative(process.cwd(), archJsonPath)}\n`));
+  printTerminal(
+    styleText(
+      'dim',
+      `💾 Reporte detallado guardado en: ${path.relative(process.cwd(), archJsonPath)}\n`
+    )
+  );
 }
 
 async function exportProjectReportOutput(
@@ -739,16 +853,19 @@ async function exportProjectReportOutput(
       });
 
     md += `\n## 📁 Top Archivos con Más Avisos\n\n| Archivo | Errores | Advertencias | Total |\n| :--- | :---: | :---: | :---: |\n`;
-    topFiles.forEach(f => {
+    topFiles.forEach((f) => {
       md += `| \`${f.file}\` | ${f.errors} | ${f.warnings} | ${f.total} |\n`;
     });
 
     await fs.writeFile(outputPath, md, 'utf-8');
   } else {
-    const lines = all.map(v => `[${v.severity.toUpperCase()}] ${path.relative(process.cwd(), v.file)}:${v.line} -> [${getViolationCategory(v)}] ${v.message} ("${sanitizeContext(v.context)}")`);
+    const lines = all.map(
+      (v) =>
+        `[${v.severity.toUpperCase()}] ${path.relative(process.cwd(), v.file)}:${v.line} -> [${getViolationCategory(v)}] ${v.message} ("${sanitizeContext(v.context)}")`
+    );
     await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
   }
-  logProgress(styleText('cyan', `✨ Reporte completo escrito en: ${values.output}`));
+  logProgress(styleText('cyan', `✨ Reporte completo escrito en: ${outputPath}`));
 }
 
 async function executeProjectAuditPhases(
@@ -763,8 +880,8 @@ export function buildProjectTopFiles(fileGroups: Record<string, Violation[]>, to
   return Object.entries(fileGroups)
     .map(([file, violations]) => ({
       file,
-      errors: violations.filter(v => v.severity === 'error').length,
-      warnings: violations.filter(v => v.severity === 'warning').length,
+      errors: violations.filter((v) => v.severity === 'error').length,
+      warnings: violations.filter((v) => v.severity === 'warning').length,
       total: violations.length
     }))
     .sort((a, b) => b.total - a.total)
@@ -781,7 +898,8 @@ function buildProjectJsonReport(params: {
   warningsCount: number;
   durationMs: number;
 }) {
-  const { all, files, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, durationMs } = params;
+  const { all, files, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, durationMs } =
+    params;
   return {
     id: 'audit_project',
     name: 'Project Architecture & Style Rules',
@@ -792,7 +910,7 @@ function buildProjectJsonReport(params: {
       'Archivos Escaneados': files.length,
       'Archivos Afectados': Object.keys(fileGroups).length
     },
-    findings: all.map(v => ({
+    findings: all.map((v) => ({
       severity: v.severity,
       message: v.message,
       file: v.file,
@@ -814,7 +932,7 @@ function buildProjectJsonReport(params: {
     files: Object.fromEntries(
       Object.entries(fileGroups).map(([file, violations]) => [
         file,
-        violations.map(v => ({
+        violations.map((v) => ({
           line: v.line,
           severity: v.severity,
           category: getViolationCategory(v),
@@ -826,11 +944,16 @@ function buildProjectJsonReport(params: {
   };
 }
 
-async function persistProjectReports(jsonReport: object): Promise<{ archJsonPath: string; jsonReportStr: string }> {
+async function persistProjectReports(
+  jsonReport: object
+): Promise<{ archJsonPath: string; jsonReportStr: string }> {
   const scratchArchDir = path.resolve(process.cwd(), 'scratch/audits/architecture');
   await fs.mkdir(scratchArchDir, { recursive: true });
   const archJsonPath = path.join(scratchArchDir, 'audit_project.json');
-  const latestArchJsonPath = path.resolve(process.cwd(), 'scratch/audits/latest_audit_project.json');
+  const latestArchJsonPath = path.resolve(
+    process.cwd(),
+    'scratch/audits/latest_audit_project.json'
+  );
   const jsonReportStr = JSON.stringify(jsonReport, null, 2);
   await fs.writeFile(archJsonPath, jsonReportStr, 'utf-8');
   await fs.writeFile(latestArchJsonPath, jsonReportStr, 'utf-8');
@@ -855,7 +978,12 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
 
   logProgress(styleText('bold', '--- 🔎 REGLAS DE CÓDIGO Y ESTRUCTURA DOX (audit_project.ts) ---'));
   if (ctx.selectedRules.size > 0) {
-    logProgress(styleText('cyan', `🎯 Ejecución selectiva de reglas: [ ${Array.from(ctx.selectedRules).join(', ')} ]`));
+    logProgress(
+      styleText(
+        'cyan',
+        `🎯 Ejecución selectiva de reglas: [ ${Array.from(ctx.selectedRules).join(', ')} ]`
+      )
+    );
   }
 
   const { all: rawAll, files } = await executeProjectAuditPhases(ctx, logProgress);
@@ -864,8 +992,8 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
   const topLimit = ctx.values.top ? parseInt(ctx.values.top as string, 10) : DEFAULT_TOP_LIMIT;
   const topFiles = buildProjectTopFiles(fileGroups, topLimit);
 
-  const errorsCount = all.filter(v => v.severity === 'error').length;
-  const warningsCount = all.filter(v => v.severity === 'warning').length;
+  const errorsCount = all.filter((v) => v.severity === 'error').length;
+  const warningsCount = all.filter((v) => v.severity === 'warning').length;
 
   const jsonReport = buildProjectJsonReport({
     all,
@@ -882,13 +1010,32 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
 
   if (process.env.AUDIT_SUBPROCESS !== 'true') {
     if (ctx.isHumanMode) {
-      renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount, warningsCount, topLimit, ctx.values, archJsonPath);
+      renderHumanTerminalReport(
+        fileGroups,
+        typeGroups,
+        topFiles,
+        errorsCount,
+        warningsCount,
+        topLimit,
+        ctx.values,
+        archJsonPath
+      );
     } else {
       printTerminal(jsonReportStr);
     }
   }
 
-  await exportProjectReportOutput(ctx.values, jsonReport, all, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, logProgress);
+  await exportProjectReportOutput(
+    ctx.values,
+    jsonReport,
+    all,
+    fileGroups,
+    typeGroups,
+    topFiles,
+    errorsCount,
+    warningsCount,
+    logProgress
+  );
 
   if (ctx.values.fix) logProgress(styleText('cyan', '✨ Correcciones aplicadas.'));
 
@@ -911,20 +1058,30 @@ export function getProjectArchitectureRuleDescriptions(): Record<string, string>
 export function getProjectArchitectureRuleRemediations(): Record<string, string> {
   const remediations: Record<string, string> = {
     viewport: 'Configura o respeta las etiquetas de viewport estándar y responsive.',
-    hardcodedTimezone: 'Evita zonas horarias hardcodeadas; utiliza la configuración regional canónica.',
+    hardcodedTimezone:
+      'Evita zonas horarias hardcodeadas; utiliza la configuración regional canónica.',
     nodePrefix: 'Usa el prefijo "node:" al importar módulos nativos (ej. "node:fs", "node:path").',
     esmExtensions: 'Asegura extensiones explícitas (.ts, .js) en imports relativos bajo ESM.',
-    timersPromises: 'Usa "node:timers/promises" (setTimeout) en lugar de callbacks para esperas asíncronas.',
-    explicitResource: 'Gestiona recursos y handles explícitamente cerrando descriptores de archivo o conexiones.',
-    zeroTimerLogic: 'Evita setTimeout(..., 0) en lógica de UI; usa la API de animación o nextTick() canónico.',
-    jsonStringifyInWatch: 'Evita JSON.stringify en watchers reactivos de Vue para no degradar el rendimiento.',
-    intersectionObserverRoot: 'Provee un contenedor raíz explícito en observadores de intersección.',
-    functionCallsInTemplates: 'Evita invocar funciones pesadas directamente en plantillas de Vue; usa computeds.',
+    timersPromises:
+      'Usa "node:timers/promises" (setTimeout) en lugar de callbacks para esperas asíncronas.',
+    explicitResource:
+      'Gestiona recursos y handles explícitamente cerrando descriptores de archivo o conexiones.',
+    zeroTimerLogic:
+      'Evita setTimeout(..., 0) en lógica de UI; usa la API de animación o nextTick() canónico.',
+    jsonStringifyInWatch:
+      'Evita JSON.stringify en watchers reactivos de Vue para no degradar el rendimiento.',
+    intersectionObserverRoot:
+      'Provee un contenedor raíz explícito en observadores de intersección.',
+    functionCallsInTemplates:
+      'Evita invocar funciones pesadas directamente en plantillas de Vue; usa computeds.',
     forbiddenFallbacks: 'Elimina fallbacks no autorizados y propaga errores de forma determinista.',
     noDomainIdFallbacks: 'No asignes IDs ficticios o fallbacks vacíos a entidades del dominio.',
-    noInlineTypeImports: 'Usa "import type { ... }" a nivel de declaración en lugar de imports inline mezclados.',
-    noRawJsonImportsOutsideData: 'Centraliza la carga de JSON en capas de datos autorizadas en lugar de componentes.',
-    noSassAtImport: 'Migra directivas @import obsoletas a @use o @forward en hojas de estilo SCSS/Sass.'
+    noInlineTypeImports:
+      'Usa "import type { ... }" a nivel de declaración en lugar de imports inline mezclados.',
+    noRawJsonImportsOutsideData:
+      'Centraliza la carga de JSON en capas de datos autorizadas en lugar de componentes.',
+    noSassAtImport:
+      'Migra directivas @import obsoletas a @use o @forward en hojas de estilo SCSS/Sass.'
   };
 
   return remediations;
@@ -936,19 +1093,27 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
     const ruleRemediations = getProjectArchitectureRuleRemediations();
     const ruleIds = Object.keys(ruleDescriptions);
     const fixableRuleIds = Object.entries(config)
-      .filter(([_, rule]) => typeof (rule as AuditRule).fix === 'function' || (rule as AuditRule).fixable === true)
+      .filter(
+        ([, rule]) =>
+          typeof (rule as AuditRule).fix === 'function' || (rule as AuditRule).fixable === true
+      )
       .map(([key, rule]) => (rule as AuditRule).id || key);
 
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(ruleIds, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: true,
-        ast: true,
-        changedOnly: true, critical: false
-      }, fixableRuleIds),
+      ruleCapabilities: createRuleCapabilities(
+        ruleIds,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: true,
+          ast: true,
+          changedOnly: true,
+          critical: false
+        },
+        fixableRuleIds
+      ),
       fixableRuleIds,
       ruleIds,
       ruleDescriptions,
@@ -987,7 +1152,9 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
     }
     for (const v of violations) {
       const relFile = v.file
-        ? normalizePosixPath(path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file)
+        ? normalizePosixPath(
+            path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file
+          )
         : '';
       this.addViolation({
         ruleId: v.ruleId || getViolationCategory(v),

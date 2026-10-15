@@ -15,10 +15,13 @@ function collectRelativeSpecifiers(source: ts.SourceFile): ts.StringLiteralLike[
   const found: ts.StringLiteralLike[] = [];
   const visit = (node: ts.Node): void => {
     const specifier =
-      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
-        : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0]
+      ts.isImportDeclaration(node) || ts.isExportDeclaration(node)
+        ? node.moduleSpecifier
+        : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+          ? node.arguments[0]
           : undefined;
-    if (specifier && ts.isStringLiteralLike(specifier) && specifier.text.startsWith('.')) found.push(specifier);
+    if (specifier && ts.isStringLiteralLike(specifier) && specifier.text.startsWith('.'))
+      found.push(specifier);
     ts.forEachChild(node, visit);
   };
   visit(source);
@@ -30,8 +33,19 @@ function rebaseSpecifier(specifier: string, fromDir: string, toDir: string): str
   return relative.startsWith('.') ? relative : `./${relative}`;
 }
 
-function rewriteRelativeImports(code: string, fileName: string, fromDir: string, toDir: string): string {
-  const source = ts.createSourceFile(fileName, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function rewriteRelativeImports(
+  code: string,
+  fileName: string,
+  fromDir: string,
+  toDir: string
+): string {
+  const source = ts.createSourceFile(
+    fileName,
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
   return collectRelativeSpecifiers(source)
     .sort((a, b) => b.getStart(source) - a.getStart(source))
     .reduce((acc, literal) => {
@@ -50,10 +64,14 @@ export function migrateLegacyAuditConfig(projectRoot: string): string[] {
     if (!fs.existsSync(legacyPath)) continue;
     const targetPath = path.join(targetDir, fileName);
     if (fs.existsSync(targetPath)) {
-      throw new Error(`[AuditConfig] Both '${fileName}' and '${AUDITOR_DIR}/${fileName}' exist. Remove the stale copy manually before running 'auditor fix'.`);
+      throw new Error(
+        `[AuditConfig] Both '${fileName}' and '${AUDITOR_DIR}/${fileName}' exist. Remove the stale copy manually before running 'auditor fix'.`
+      );
     }
     const code = fs.readFileSync(legacyPath, 'utf-8');
-    const migrated = fileName.endsWith('.ts') ? rewriteRelativeImports(code, fileName, projectRoot, targetDir) : code;
+    const migrated = fileName.endsWith('.ts')
+      ? rewriteRelativeImports(code, fileName, projectRoot, targetDir)
+      : code;
     fs.mkdirSync(targetDir, { recursive: true });
     fs.writeFileSync(targetPath, migrated, 'utf-8');
     fs.rmSync(legacyPath);

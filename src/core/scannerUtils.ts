@@ -156,7 +156,11 @@ function scanStringLiteral(
   return { output, nextIndex: i };
 }
 
-function scanComment(content: string, start: number, limit: number): { output: string; nextIndex: number } {
+function scanComment(
+  content: string,
+  start: number,
+  limit: number
+): { output: string; nextIndex: number } {
   const nextChar = content[start + 1];
   if (nextChar === '/') {
     let i = start + 2;
@@ -332,6 +336,7 @@ export function hasLineSuppression(
   suppressionRegex: RegExp,
   lookbackLines = 3
 ): boolean {
-  return hasPrecedingComment(lines, targetLine, suppressionRegex, { maxLookbackLines: lookbackLines });
+  return hasPrecedingComment(lines, targetLine, suppressionRegex, {
+    maxLookbackLines: lookbackLines
+  });
 }
-

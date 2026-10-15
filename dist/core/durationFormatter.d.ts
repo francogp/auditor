@@ -1,3 +1,4 @@
+//#region src/core/durationFormatter.d.ts
 /**
  * packages/auditor/src/core/durationFormatter.ts
  *
@@ -19,4 +20,4 @@ export declare const MIN_CANONICAL_DURATION_MS = 0.05;
  */
 export declare function formatDurationMs(ms: number): string;
 export declare function formatDuration(ms: number): string;
-//# sourceMappingURL=durationFormatter.d.ts.map
+//#endregion

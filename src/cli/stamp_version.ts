@@ -22,7 +22,10 @@ export interface StampVersionResult {
 /**
  * Generates an elegant build ID and updates package.json and version.ts.
  */
-export function stampVersion(projectRoot?: string, customNow?: Temporal.ZonedDateTime): StampVersionResult {
+export function stampVersion(
+  projectRoot?: string,
+  customNow?: Temporal.ZonedDateTime
+): StampVersionResult {
   const root = projectRoot ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../');
   const pkgPath = path.join(root, 'package.json');
   const versionTsPath = path.join(root, 'src/core/version.ts');

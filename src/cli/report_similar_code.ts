@@ -10,9 +10,18 @@
 
 import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
-import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner, type TableColumn } from '../core/unifiedTheme.ts';
+import {
+  renderBanner,
+  renderBoxTable,
+  renderSimilarCodeWarningBanner,
+  type TableColumn
+} from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
-import { isMainModule, DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject } from './cliUtils.ts';
+import {
+  isMainModule,
+  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+  bootstrapCliProject
+} from './cliUtils.ts';
 import {
   resolveFallowBinary,
   checkOrInitializeModel,
@@ -39,7 +48,10 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   const { values } = parseArgs({
     args: process.argv.slice(2),
     options: {
-      threshold: { type: 'string', default: String(fallowCfg?.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD) },
+      threshold: {
+        type: 'string',
+        default: String(fallowCfg?.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD)
+      },
       'min-lines': { type: 'string', default: String(fallowCfg?.minLines ?? 3) },
       'include-same-file': { type: 'boolean', default: false },
       json: { type: 'boolean', default: false }
@@ -66,9 +78,15 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   }
 
   if (!isJson) {
-    renderBanner('REPORTE DE SIMILITUD SEMÁNTICA (FALLOW SIMILAR-CODE)', 'Embeddings vectoriales de funciones');
+    renderBanner(
+      'REPORTE DE SIMILITUD SEMÁNTICA (FALLOW SIMILAR-CODE)',
+      'Embeddings vectoriales de funciones'
+    );
     console.log(
-      styleText('dim', `🔍 Analizando similitud (Umbral: ${(threshold * 100).toFixed(0)}%, Min-Lines: ${minLines}, Excluir mismo archivo: ${ignoreSameFile ? 'Sí' : 'No'})...\n`)
+      styleText(
+        'dim',
+        `🔍 Analizando similitud (Umbral: ${(threshold * 100).toFixed(0)}%, Min-Lines: ${minLines}, Excluir mismo archivo: ${ignoreSameFile ? 'Sí' : 'No'})...\n`
+      )
     );
   }
 
@@ -88,12 +106,14 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
       candidates = parsed.candidates ?? [];
     }
   } catch (err) {
-    console.error(styleText('red', `❌ Error al ejecutar fallow similar-code: ${(err as Error).message}`));
+    console.error(
+      styleText('red', `❌ Error al ejecutar fallow similar-code: ${(err as Error).message}`)
+    );
     process.exit(1);
   }
 
   if (ignoreSameFile) {
-    candidates = candidates.filter(c => {
+    candidates = candidates.filter((c) => {
       const leftPath = (c.left?.path || '').replace(/\\/g, '/');
       const rightPath = (c.right?.path || '').replace(/\\/g, '/');
       return leftPath !== rightPath;
@@ -106,7 +126,12 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   }
 
   if (candidates.length === 0) {
-    console.log(styleText('green', `✨ No se detectaron duplicados semánticos de código con umbral >= ${(threshold * 100).toFixed(0)}%.\n`));
+    console.log(
+      styleText(
+        'green',
+        `✨ No se detectaron duplicados semánticos de código con umbral >= ${(threshold * 100).toFixed(0)}%.\n`
+      )
+    );
     return;
   }
 
@@ -122,7 +147,10 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
 
   const rows: SimilarCodeRow[] = candidates.map((c, idx) => {
     const pct = `${(c.similarity * 100).toFixed(1)}%`;
-    const simFormatted = c.similarity >= DEFAULT_SIMILAR_CODE_THRESHOLD ? styleText('red', pct) : styleText('yellow', pct);
+    const simFormatted =
+      c.similarity >= DEFAULT_SIMILAR_CODE_THRESHOLD
+        ? styleText('red', pct)
+        : styleText('yellow', pct);
     const leftFile = c.left.path.split('/').pop() || c.left.path;
     const rightFile = c.right.path.split('/').pop() || c.right.path;
     const loc = `${leftFile}:${c.left.start_line} ~ ${rightFile}:${c.right.start_line}`;
@@ -130,9 +158,16 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
     return {
       index: String(idx + 1),
       similarity: simFormatted,
-      funcA: c.left.name.length > MAX_FUNCTION_NAME_COL_WIDTH ? c.left.name.slice(0, MAX_FUNCTION_NAME_COL_WIDTH - 1) + '…' : c.left.name,
-      funcB: c.right.name.length > MAX_FUNCTION_NAME_COL_WIDTH ? c.right.name.slice(0, MAX_FUNCTION_NAME_COL_WIDTH - 1) + '…' : c.right.name,
-      location: loc.length > MAX_LOCATION_COL_WIDTH ? loc.slice(0, MAX_LOCATION_COL_WIDTH - 1) + '…' : loc
+      funcA:
+        c.left.name.length > MAX_FUNCTION_NAME_COL_WIDTH
+          ? c.left.name.slice(0, MAX_FUNCTION_NAME_COL_WIDTH - 1) + '…'
+          : c.left.name,
+      funcB:
+        c.right.name.length > MAX_FUNCTION_NAME_COL_WIDTH
+          ? c.right.name.slice(0, MAX_FUNCTION_NAME_COL_WIDTH - 1) + '…'
+          : c.right.name,
+      location:
+        loc.length > MAX_LOCATION_COL_WIDTH ? loc.slice(0, MAX_LOCATION_COL_WIDTH - 1) + '…' : loc
     };
   });
 

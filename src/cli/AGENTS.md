@@ -48,7 +48,7 @@ Architecture & Tooling Engineers.
 - [`report_css.ts`](./report_css.ts): Interactive CLI tool (`auditor-css`) reporting CSS duplication, similar selectors, and token hygiene.
 - [`report_dependencies.ts`](./report_dependencies.ts): Mandatory minimum library versions inspector (`auditor-dependencies`, `auditor dependencies`) comparing package.json and package-lock.json against auditor peerDependencies.
 - [`report_fallow.ts`](./report_fallow.ts): Consolidated Fallow static analysis reporter.
-- [`report_findings.ts`](./report_findings.ts): Interactive query tool (`auditor-findings`, `auditor-by-file`) for inspecting audit findings filtered by category, severity, directory, and hierarchical file/line tree view (`audit:by-file`).
+- [`report_findings.ts`](./report_findings.ts): Interactive query tool (`auditor-findings`, `auditor-by-file`) for inspecting audit findings filtered by category, severity, directory, and hierarchical file/line tree view (`auditor:by-file`).
 - [`report_flags.ts`](./report_flags.ts): Feature flags usage, single-read sites, and retirement analysis CLI (`auditor-flags`).
 - [`report_guard.ts`](./report_guard.ts): Pre-flight architecture boundaries and import guard CLI (`auditor-guard`).
 - [`report_review.ts`](./report_review.ts): Differential architectural review tool leveraging Fallow code-review graphs.
@@ -67,9 +67,9 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run full audit CLI: `node --experimental-strip-types src/cli/audit_full.ts preset=md`
-- Run list flag: `node --experimental-strip-types src/cli/audit_full.ts --list`
-- Run unit tests: `npm test -- tests/audit_full.test.ts`
+- Run markdown audit CLI: `npm run auditor:md`
+- Run list flag: `auditor --list` (or `npm run auditor -- --list`)
+- Run unit tests: `vp test tests/audit_full.test.ts` (or `npm test -- tests/audit_full.test.ts`)
 
 ## Child DOX Index
 

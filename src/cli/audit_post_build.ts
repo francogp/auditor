@@ -21,12 +21,7 @@ export async function runAuditPostBuild(extraArgs: readonly string[] = []): Prom
   const fullAuditorJsPath = path.resolve(currentDir, 'audit_full.js');
   const targetScript = fs.existsSync(fullAuditorPath) ? fullAuditorPath : fullAuditorJsPath;
 
-  const nodeArgs = [
-    ...DEFAULT_PERMISSIONS,
-    targetScript,
-    'phase=post-build',
-    ...extraArgs
-  ];
+  const nodeArgs = [...DEFAULT_PERMISSIONS, targetScript, 'phase=post-build', ...extraArgs];
 
   return new Promise<number>((resolve) => {
     const child = spawn(process.execPath, nodeArgs, {

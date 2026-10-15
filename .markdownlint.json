@@ -3,9 +3,7 @@
   "MD013": false,
   "MD060": false,
   "MD033": {
-    "allowed_elements": [
-      "br"
-    ]
+    "allowed_elements": ["br"]
   },
   "MD024": {
     "siblings_only": true

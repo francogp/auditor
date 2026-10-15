@@ -25,7 +25,10 @@ import {
 } from './auditConfig.ts';
 
 export const STRUCTURAL_EXEMPTION_POLICIES = ['test'] as const;
-export const EXEMPTION_POLICY_IDS = [...ACKNOWLEDGEABLE_EXEMPTION_POLICIES, ...STRUCTURAL_EXEMPTION_POLICIES] as const;
+export const EXEMPTION_POLICY_IDS = [
+  ...ACKNOWLEDGEABLE_EXEMPTION_POLICIES,
+  ...STRUCTURAL_EXEMPTION_POLICIES
+] as const;
 export type ExemptionPolicyId = (typeof EXEMPTION_POLICY_IDS)[number];
 
 export const EXEMPTION_POLICY_KINDS = ['configured', 'structural'] as const;
@@ -65,14 +68,14 @@ export const EXEMPTION_POLICIES: readonly ExemptionPolicy[] = [
     kind: 'configured',
     configKey: 'paths.dataRoots',
     silences: 'complejidad, LOC y números mágicos',
-    matches: p => isCodeFile(p) && isDataPath(p)
+    matches: (p) => isCodeFile(p) && isDataPath(p)
   },
   {
     id: 'demo',
     kind: 'configured',
     configKey: 'paths.demoRoots',
     silences: 'complejidad, LOC y números mágicos',
-    matches: p => isCodeFile(p) && isDemoPath(p)
+    matches: (p) => isCodeFile(p) && isDemoPath(p)
   },
   {
     id: 'exemptFiles',
@@ -86,7 +89,7 @@ export const EXEMPTION_POLICIES: readonly ExemptionPolicy[] = [
     kind: 'structural',
     configKey: 'paths.testRoots',
     silences: 'reglas de código de producción',
-    matches: p => isCodeFile(p) && isTestPath(p)
+    matches: (p) => isCodeFile(p) && isTestPath(p)
   }
 ];
 
@@ -95,5 +98,5 @@ export function getMatchingExemptionPolicies(
   relPosixPath: string,
   config: AuditEngineConfig = getAuditConfig()
 ): ExemptionPolicy[] {
-  return EXEMPTION_POLICIES.filter(policy => policy.matches(relPosixPath, config));
+  return EXEMPTION_POLICIES.filter((policy) => policy.matches(relPosixPath, config));
 }

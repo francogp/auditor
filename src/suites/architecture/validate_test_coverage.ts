@@ -6,7 +6,7 @@
 
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, buildTestCoverageConfig } from '../../core/auditConfig.ts';
 import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
@@ -48,9 +48,12 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
         'test-coverage-untracked-files': 'Archivos en disco sin testear'
       },
       ruleRemediations: {
-        'test-coverage-below-threshold': 'Guía de diagnóstico y remediación para test-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'test-coverage-missing-report': 'Guía de diagnóstico y remediación para test-coverage-missing-report. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'test-coverage-untracked-files': 'Guía de diagnóstico y remediación para test-coverage-untracked-files. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'test-coverage-below-threshold':
+          'Guía de diagnóstico y remediación para test-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'test-coverage-missing-report':
+          'Guía de diagnóstico y remediación para test-coverage-missing-report. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'test-coverage-untracked-files':
+          'Guía de diagnóstico y remediación para test-coverage-untracked-files. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -62,7 +65,8 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       projectRoot: effectiveRoot
     });

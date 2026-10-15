@@ -1,11 +1,8 @@
-/**
- * src/core/safePath.ts
- *
- * Centralized path resolution, sanitization, POSIX conversion, and URL security helper.
- * Prevents directory traversal attacks (CWE-22) and SSRF (CWE-918).
- */
-import { sanitizePath } from './auditConfig.ts';
-export { sanitizePath };
+import { sanitizePath } from "./auditConfigLoader.js";
+import { toPosixRelative } from "./auditCoverage.js";
+import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
+import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills } from "./auditorBase.js";
+//#region src/core/safePath.d.ts
 /**
  * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
  * Prevents directory traversal attacks (CWE-22).
@@ -36,10 +33,6 @@ export declare function safeFetch(rawUrl: string, options?: RequestInit, allowed
  * Uses WHATWG URL standard API without fragile homebrew regexes.
  */
 export declare function safeDevUrl(endpoint: string, params?: Record<string, string>, baseOrigin?: string): string;
-import { toPosixRelative } from './auditCoverage.ts';
-export { toPosixRelative };
-import { normalizePosixPath } from './reportUtils.ts';
-export { normalizePosixPath };
 /**
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
  * relative to baseDir. Strips redundant leading `./`.
@@ -50,11 +43,10 @@ export declare function toPosixPath(filePath: string, baseDir?: string): string;
  * Returns true if candidateChild resides inside parentDir without directory traversal.
  */
 export declare function isPathContained(parentDir: string, candidateChild: string): boolean;
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, isPathIgnored, loadFallowIgnorePatterns, collectRepositoryFiles, loadLockedSkills, isLockedSkillPath, clearLockedSkillsCache } from './auditorBase.ts';
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.
  * Ignores common build/temporary directories.
  */
 export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (fullPath: string) => boolean): Map<string, string[]>;
-export { isPathExempt } from './reportUtils.ts';
-//# sourceMappingURL=safePath.d.ts.map
+//#endregion
+export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathExempt, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills, normalizePosixPath, sanitizePath, toPosixRelative };

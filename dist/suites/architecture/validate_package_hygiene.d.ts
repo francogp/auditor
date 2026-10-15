@@ -1,24 +1,25 @@
-import { BaseAuditor } from '../../core/auditorBase.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import { AuditFinding } from "../../core/auditContract.js";
+import { BaseAuditor } from "../../core/auditorBase.js";
+//#region src/suites/architecture/validate_package_hygiene.d.ts
 export declare const PACKAGE_HYGIENE_RULES: readonly ["package-unused-dependency", "package-unlisted-dependency", "package-unused-binary", "package-lockfile-integrity"];
 export type PackageHygieneRuleId = (typeof PACKAGE_HYGIENE_RULES)[number];
 export interface KnipIssueItem {
-    readonly name: string;
-    readonly line?: number;
-    readonly col?: number;
-    readonly pos?: number;
+  readonly name: string;
+  readonly line?: number;
+  readonly col?: number;
+  readonly pos?: number;
 }
 export interface KnipFileIssues {
-    readonly file: string;
-    readonly dependencies?: readonly KnipIssueItem[];
-    readonly devDependencies?: readonly KnipIssueItem[];
-    readonly optionalPeerDependencies?: readonly KnipIssueItem[];
-    readonly unlisted?: readonly KnipIssueItem[];
-    readonly binaries?: readonly KnipIssueItem[];
-    readonly unresolved?: readonly KnipIssueItem[];
+  readonly file: string;
+  readonly dependencies?: readonly KnipIssueItem[];
+  readonly devDependencies?: readonly KnipIssueItem[];
+  readonly optionalPeerDependencies?: readonly KnipIssueItem[];
+  readonly unlisted?: readonly KnipIssueItem[];
+  readonly binaries?: readonly KnipIssueItem[];
+  readonly unresolved?: readonly KnipIssueItem[];
 }
 export interface KnipReport {
-    readonly issues?: readonly KnipFileIssues[];
+  readonly issues?: readonly KnipFileIssues[];
 }
 export declare function extractReferencedScriptDependencies(projectRoot: string): Set<string>;
 export declare function extractOwnPackageBinaries(projectRoot: string): Set<string>;
@@ -31,13 +32,13 @@ export declare function parseKnipIssues(report: KnipReport | readonly KnipFileIs
  */
 export declare function verifyLockfileIntegrity(projectRoot: string): AuditFinding[];
 export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
-    constructor(options?: {
-        projectRoot?: string;
-        fix?: boolean;
-    });
-    runAudit(): Promise<void>;
-    private readFallowConfigData;
-    private buildEphemeralKnipConfig;
-    private executeKnip;
+  constructor(options?: {
+    projectRoot?: string;
+    fix?: boolean;
+  });
+  runAudit(): Promise<void>;
+  private readFallowConfigData;
+  private buildEphemeralKnipConfig;
+  private executeKnip;
 }
-//# sourceMappingURL=validate_package_hygiene.d.ts.map
+//#endregion

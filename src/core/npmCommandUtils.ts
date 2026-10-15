@@ -1,7 +1,7 @@
 /**
  * src/core/npmCommandUtils.ts
  *
- * CANONICAL NPM & NPX COMMAND UTILITIES (Node.js 26+)
+ * CANONICAL VITE+ (vp), NPM & NPX COMMAND UTILITIES (Node.js 26+)
  * Provides shared parsers, package scripts / binaries resolvers, and violation evaluators
  * for both documentation auditors (Markdown) and executable script auditors (Shell, PowerShell, Docker, CI).
  */
@@ -10,22 +10,124 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import { getPackageJson } from './packageJson.ts';
 
-export const VALID_NPM_BUILTINS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
-  'access', 'adduser', 'audit', 'bugs', 'cache', 'ci', 'completion',
-  'config', 'dedupe', 'deprecate', 'diff', 'dist-tag', 'docs', 'doctor',
-  'edit', 'empty', 'exec', 'explain', 'explore', 'find-dupes', 'fund',
-  'get', 'help', 'hook', 'init', 'install', 'install-ci-test', 'install-test',
-  'link', 'll', 'login', 'logout', 'ls', 'org', 'outdated', 'owner',
-  'pack', 'ping', 'pkg', 'prefix', 'profile', 'prune', 'publish', 'rebuild',
-  'repo', 'restart', 'root', 'run', 'run-script', 'search', 'set', 'set-script',
-  'shrinkwrap', 'star', 'stars', 'start', 'stop', 'team', 'test', 'token',
-  'uninstall', 'unpublish', 'unstar', 'update', 'version', 'view', 'whoami',
-  'info', 'show', 'why', 'query',
-  // short aliases:
-  'c', 'i', 'r', 'rb', 'rm', 's', 'se', 't', 'tst', 'up', 'v'
+export const VALID_NPM_BUILTINS: ReadonlySet<string> = new Set([
+  'access',
+  'adduser',
+  'audit',
+  'bugs',
+  'cache',
+  'ci',
+  'completion',
+  'config',
+  'dedupe',
+  'deprecate',
+  'diff',
+  'dist-tag',
+  'docs',
+  'doctor',
+  'edit',
+  'empty',
+  'exec',
+  'explain',
+  'explore',
+  'find-dupes',
+  'fund',
+  'get',
+  'help',
+  'hook',
+  'init',
+  'install',
+  'install-ci-test',
+  'install-test',
+  'link',
+  'll',
+  'login',
+  'logout',
+  'ls',
+  'org',
+  'outdated',
+  'owner',
+  'pack',
+  'ping',
+  'pkg',
+  'prefix',
+  'profile',
+  'prune',
+  'publish',
+  'rebuild',
+  'repo',
+  'restart',
+  'root',
+  'run',
+  'run-script',
+  'search',
+  'set',
+  'set-script',
+  'shrinkwrap',
+  'star',
+  'stars',
+  'start',
+  'stop',
+  'team',
+  'test',
+  'token',
+  'uninstall',
+  'unpublish',
+  'unstar',
+  'update',
+  'version',
+  'view',
+  'whoami',
+  'info',
+  'show',
+  'why',
+  'query',
+  'c',
+  'i',
+  'r',
+  'rb',
+  'rm',
+  's',
+  'se',
+  't',
+  'tst',
+  'up',
+  'v'
 ]);
 
-export const COMMAND_INVOCATION_TYPES = ['npm-run', 'npm-direct', 'npx'] as const;
+export const VALID_VP_BUILTINS: ReadonlySet<string> = new Set([
+  'dev',
+  'build',
+  'preview',
+  'test',
+  'check',
+  'lint',
+  'fmt',
+  'pack',
+  'run',
+  'exec',
+  'dlx',
+  'create',
+  'migrate',
+  'env',
+  'toolchain',
+  'upgrade',
+  'install',
+  'add',
+  'remove',
+  'update',
+  'config',
+  'help'
+]);
+
+export const COMMAND_INVOCATION_TYPES = [
+  'npm-run',
+  'npm-direct',
+  'npx',
+  'vp-run',
+  'vp-direct',
+  'vp-dlx'
+] as const;
 export type CommandInvocationType = (typeof COMMAND_INVOCATION_TYPES)[number];
 
 export interface ExtractedCommand {
@@ -74,7 +176,10 @@ export function isPlaceholder(token: string): boolean {
   );
 }
 
-function addPackageDependenciesToBins(deps: Record<string, string> | undefined, declaredBins: Set<string>): void {
+function addPackageDependenciesToBins(
+  deps: Record<string, string> | undefined,
+  declaredBins: Set<string>
+): void {
   for (const dep of Object.keys(deps ?? {})) {
     declaredBins.add(dep);
     if (dep.startsWith('@')) {
@@ -84,7 +189,11 @@ function addPackageDependenciesToBins(deps: Record<string, string> | undefined, 
   }
 }
 
-function populateBinsFromPackageJson(rootDir: string, scripts: Set<string>, declaredBins: Set<string>): void {
+function populateBinsFromPackageJson(
+  rootDir: string,
+  scripts: Set<string>,
+  declaredBins: Set<string>
+): void {
   const pkg = getPackageJson(rootDir);
   if (!pkg) return;
 
@@ -116,6 +225,9 @@ function populateInstalledBins(binDir: string, installedBins: Set<string>): void
   installedBins.add('npm');
   installedBins.add('npx');
   installedBins.add('git');
+  installedBins.add('vp');
+  installedBins.add('vpr');
+  installedBins.add('vpx');
 }
 
 export function loadPackageScriptsAndBins(rootDir: string): {
@@ -133,12 +245,11 @@ export function loadPackageScriptsAndBins(rootDir: string): {
   return { scripts, declaredBins, installedBins };
 }
 
-export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS = [
-  'env:post-setup',
-  'env:pre-setup'
-] as const;
+export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS = ['env:post-setup', 'env:pre-setup'] as const;
 export type KnownOptionalEnvironmentHook = (typeof KNOWN_OPTIONAL_ENVIRONMENT_HOOKS)[number];
-export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET: ReadonlySet<string> = new Set(KNOWN_OPTIONAL_ENVIRONMENT_HOOKS); // runtime-set: Fast O(1) membership lookup set
+export const KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET: ReadonlySet<string> = new Set(
+  KNOWN_OPTIONAL_ENVIRONMENT_HOOKS
+);
 
 export function cleanTarget(raw: string): string {
   let cleaned = raw.trim();
@@ -174,12 +285,32 @@ function extractMatchingCommands(
   }
 }
 
+export const VP_RUN_REGEX = /\b(?:vp\s+run|vpr)\s+([^\s;&|'"`]+)/g;
+export const VP_DIRECT_REGEX = /\bvp\s+([^\s;&|'"`]+)/g;
+export const VP_DLX_REGEX = /\b(?:vp\s+dlx|vpx)\s+(?:-[\w-]+(?:=\S+)?\s+)*([^\s;&|'"`]+)/g;
+
 export const NPM_RUN_REGEX = /\b(?:npm|pnpm|bun|yarn)\s+run\s+([^\s;&|'"`]+)/g;
 export const NPM_DIRECT_REGEX = /\bnpm\s+([^\s;&|'"`]+)/g;
-export const NPX_REGEX = /\b(?:npx|pnpm\s+dlx|yarn\s+dlx|bunx)\s+(?:-[\w-]+(?:=\S+)?\s+)*([^\s;&|'"`]+)/g;
+export const NPX_REGEX =
+  /\b(?:npx|pnpm\s+dlx|yarn\s+dlx|bunx)\s+(?:-[\w-]+(?:=\S+)?\s+)*([^\s;&|'"`]+)/g;
+
+const VP_IGNORED_DIRECT_COMMANDS: ReadonlySet<string> = new Set(['run', 'dlx', 'exec']); // runtime-set: CLI ignore set
+const NPM_IGNORED_DIRECT_COMMANDS: ReadonlySet<string> = new Set(['run']); // runtime-set: CLI ignore set
+
+function isValidDirectCliCommand(
+  target: string,
+  match: RegExpExecArray,
+  line: string,
+  ignoredSubcommands: ReadonlySet<string>
+): boolean {
+  if (ignoredSubcommands.has(target)) return false;
+  if (/[=<>&|!]/.test(target)) return false;
+  const prefix = line.slice(Math.max(0, match.index - 5), match.index);
+  return !/run\s*$/i.test(prefix);
+}
 
 /**
- * Extracts npm and npx invocations from a single line of text (used in documentation code blocks).
+ * Extracts Vite+ (vp), npm, and npx invocations from a single line of text.
  */
 export function extractCommandsFromLine(
   line: string,
@@ -190,21 +321,40 @@ export function extractCommandsFromLine(
   if (!line) return;
   const rawText = overrideRawText ?? line.trim();
 
-  // 1. Invocations of npm run / pnpm run / bun run / yarn run <target>
+  // 1. Invocations of vp run / vpr <target>
+  extractMatchingCommands(VP_RUN_REGEX, line, lineNum, 'vp-run', out, rawText);
+
+  // 2. Direct vp <cmd>
+  extractMatchingCommands(
+    VP_DIRECT_REGEX,
+    line,
+    lineNum,
+    'vp-direct',
+    out,
+    rawText,
+    (target, match) => isValidDirectCliCommand(target, match, line, VP_IGNORED_DIRECT_COMMANDS)
+  );
+
+  // 3. Invocations of vp dlx / vpx <bin>
+  extractMatchingCommands(VP_DLX_REGEX, line, lineNum, 'vp-dlx', out, rawText);
+
+  // 4. Invocations of npm run / pnpm run / bun run / yarn run <target>
   extractMatchingCommands(NPM_RUN_REGEX, line, lineNum, 'npm-run', out, rawText);
 
-  // 2. Direct npm <cmd> (avoiding false matches when target is 'run' or flags)
-  extractMatchingCommands(NPM_DIRECT_REGEX, line, lineNum, 'npm-direct', out, rawText, (target, match) => {
-    if (target === 'run') return false;
-    if (/[=<>&|!]/.test(target)) return false;
-    const prefix = line.slice(Math.max(0, match.index - 5), match.index);
-    return !/run\s*$/i.test(prefix);
-  });
+  // 5. Direct npm <cmd> (avoiding false matches when target is 'run' or flags)
+  extractMatchingCommands(
+    NPM_DIRECT_REGEX,
+    line,
+    lineNum,
+    'npm-direct',
+    out,
+    rawText,
+    (target, match) => isValidDirectCliCommand(target, match, line, NPM_IGNORED_DIRECT_COMMANDS)
+  );
 
-  // 3. Invocations of npx <bin>
+  // 6. Invocations of npx <bin>
   extractMatchingCommands(NPX_REGEX, line, lineNum, 'npx', out, rawText);
 }
-
 
 export type GenericCommandViolationKind =
   | 'unregistered-npm'
@@ -218,71 +368,126 @@ export interface GenericCommandViolation {
   readonly line: number;
 }
 
+function evaluateBinaryExecution(
+  cmd: ExtractedCommand,
+  env: NpmCommandValidationEnv,
+  runnerName: 'vp dlx / vpx' | 'npx'
+): GenericCommandViolation | null {
+  const binName = cmd.target.startsWith('@') ? cmd.target.split('/')[1] || cmd.target : cmd.target;
+  const isKnownBin =
+    env.installedBins.has(binName) ||
+    env.declaredBins.has(cmd.target) ||
+    env.declaredBins.has(binName) ||
+    env.allowedNpx.has(cmd.target) ||
+    env.allowedNpx.has(binName);
+
+  if (!isKnownBin) {
+    const detail =
+      runnerName === 'npx'
+        ? `no existe en node_modules/.bin ni está declarado en package.json ni en allowedNpxBinaries.`
+        : `no existe ni está declarado en dependencias.`;
+    return {
+      kind: 'unregistered-npx',
+      message: `El binario '${cmd.target}' ejecutado vía ${runnerName} ${detail}`,
+      context: cmd.rawText,
+      line: cmd.lineNum
+    };
+  }
+  return null;
+}
+
+function evaluateVpDirectCommand(
+  cmd: ExtractedCommand,
+  env: NpmCommandValidationEnv
+): GenericCommandViolation | null {
+  if (VALID_VP_BUILTINS.has(cmd.target)) return null;
+  if (env.scripts.has(cmd.target)) {
+    return {
+      kind: 'invalid-npm-syntax',
+      message: `Sintaxis incorrecta: '${cmd.target}' es un script de proyecto, no un comando nativo de Vite+. Usa 'vp run ${cmd.target}' o 'vpr ${cmd.target}'.`,
+      context: cmd.rawText,
+      line: cmd.lineNum
+    };
+  }
+  return {
+    kind: 'invalid-npm-syntax',
+    message: `'vp ${cmd.target}' no es un comando nativo de Vite+ (${Array.from(VALID_VP_BUILTINS).join(', ')}).`,
+    context: cmd.rawText,
+    line: cmd.lineNum
+  };
+}
+
+function evaluateNpmDirectCommand(
+  cmd: ExtractedCommand,
+  env: NpmCommandValidationEnv
+): GenericCommandViolation | null {
+  if (VALID_NPM_BUILTINS.has(cmd.target)) {
+    if (cmd.target === 'test' && !env.scripts.has('test')) {
+      return {
+        kind: 'unregistered-npm',
+        message: `El comando 'npm test' requiere un script 'test' en package.json.`,
+        context: cmd.rawText,
+        line: cmd.lineNum
+      };
+    }
+    return null;
+  }
+  if (env.scripts.has(cmd.target)) {
+    return {
+      kind: 'invalid-npm-syntax',
+      message: `Sintaxis incorrecta: se ejecutó 'npm ${cmd.target}', pero debe ser 'npm run ${cmd.target}'.`,
+      context: cmd.rawText,
+      line: cmd.lineNum
+    };
+  }
+  return {
+    kind: 'invalid-npm-syntax',
+    message: `'npm ${cmd.target}' no es un comando nativo de npm ni un script registrado.`,
+    context: cmd.rawText,
+    line: cmd.lineNum
+  };
+}
+
 export function evaluateGenericCommandViolation(
   cmd: ExtractedCommand,
   env: NpmCommandValidationEnv
 ): GenericCommandViolation | null {
   if (isPlaceholder(cmd.target)) return null;
 
-  if (cmd.type === 'npm-run') {
-    if (env.scripts.has(cmd.target)) return null;
-    if (KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET.has(cmd.target)) return null;
-    return {
-      kind: 'unregistered-npm',
-      message: `El comando 'npm run ${cmd.target}' no está registrado en package.json.scripts.`,
-      context: cmd.rawText,
-      line: cmd.lineNum
-    };
-  }
+  switch (cmd.type) {
+    case 'vp-run':
+      if (env.scripts.has(cmd.target) || KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET.has(cmd.target))
+        return null;
+      return {
+        kind: 'unregistered-npm',
+        message: `El comando 'vp run ${cmd.target}' (o 'vpr ${cmd.target}') no está registrado en package.json.scripts ni en run.tasks.`,
+        context: cmd.rawText,
+        line: cmd.lineNum
+      };
 
-  if (cmd.type === 'npm-direct') {
-    if (VALID_NPM_BUILTINS.has(cmd.target)) {
-      if (cmd.target === 'test' && !env.scripts.has('test')) {
-        return {
-          kind: 'unregistered-npm',
-          message: `El comando 'npm test' requiere un script 'test' en package.json.`,
-          context: cmd.rawText,
-          line: cmd.lineNum
-        };
-      }
+    case 'vp-direct':
+      return evaluateVpDirectCommand(cmd, env);
+
+    case 'vp-dlx':
+      return evaluateBinaryExecution(cmd, env, 'vp dlx / vpx');
+
+    case 'npm-run':
+      if (env.scripts.has(cmd.target) || KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET.has(cmd.target))
+        return null;
+      return {
+        kind: 'unregistered-npm',
+        message: `El comando 'npm run ${cmd.target}' no está registrado en package.json.scripts.`,
+        context: cmd.rawText,
+        line: cmd.lineNum
+      };
+
+    case 'npm-direct':
+      return evaluateNpmDirectCommand(cmd, env);
+
+    case 'npx':
+      return evaluateBinaryExecution(cmd, env, 'npx');
+
+    default:
       return null;
-    }
-
-    if (env.scripts.has(cmd.target)) {
-      return {
-        kind: 'invalid-npm-syntax',
-        message: `Sintaxis incorrecta: se ejecutó 'npm ${cmd.target}', pero debe ser 'npm run ${cmd.target}'.`,
-        context: cmd.rawText,
-        line: cmd.lineNum
-      };
-    }
-
-    return {
-      kind: 'invalid-npm-syntax',
-      message: `'npm ${cmd.target}' no es un comando nativo de npm ni un script registrado.`,
-      context: cmd.rawText,
-      line: cmd.lineNum
-    };
   }
-
-  if (cmd.type === 'npx') {
-    const binName = cmd.target.startsWith('@') ? (cmd.target.split('/')[1] || cmd.target) : cmd.target;
-    const isKnownBin =
-      env.installedBins.has(binName) ||
-      env.declaredBins.has(cmd.target) ||
-      env.declaredBins.has(binName) ||
-      env.allowedNpx.has(cmd.target) ||
-      env.allowedNpx.has(binName);
-
-    if (!isKnownBin) {
-      return {
-        kind: 'unregistered-npx',
-        message: `El binario 'npx ${cmd.target}' no existe en node_modules/.bin ni está declarado en package.json ni en allowedNpxBinaries.`,
-        context: cmd.rawText,
-        line: cmd.lineNum
-      };
-    }
-  }
-
-  return null;
 }

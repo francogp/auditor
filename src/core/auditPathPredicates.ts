@@ -34,7 +34,6 @@ export function isDemoPath(filePath: string): boolean {
   return matchesAnyRoot(norm, demoRoots);
 }
 
-
 /**
  * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
  */
@@ -42,7 +41,7 @@ export function isExemptFile(filePath: string, config = getAuditConfig()): boole
   if (!filePath) return false;
   const norm = filePath.split('\\').join('/').toLowerCase();
   const exemptFiles = config?.paths?.exemptFiles ?? [];
-  return exemptFiles.some(f => {
+  return exemptFiles.some((f) => {
     const clean = f.replace(/^\/+|\/+$/g, '').toLowerCase();
     return norm === clean || norm.endsWith('/' + clean);
   });
@@ -60,8 +59,9 @@ export function isInCodeRoots(filePath: string, config = getAuditConfig()): bool
   const codeRoots = config?.paths?.codeRoots ?? ['src', 'scripts'];
   if (!matchesAnyRoot(norm, codeRoots)) return false;
 
-  const includesTests = config?.paths?.includeTestsInCodeAudit === true ||
-    (config?.paths?.testRoots ?? []).some(tr => codeRoots.includes(tr));
+  const includesTests =
+    config?.paths?.includeTestsInCodeAudit === true ||
+    (config?.paths?.testRoots ?? []).some((tr) => codeRoots.includes(tr));
 
   if (!includesTests && isTestPath(filePath)) {
     return false;

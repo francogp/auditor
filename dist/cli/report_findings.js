@@ -1,577 +1,561 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import "../core/auditConfigTypes.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
+import "../core/auditConfig.js";
+import { ONE_MINUTE_MS, groupFindingsByFileMap, sortFindingsByFileAndLine } from "../core/auditContract.js";
+import { renderFindingsByFileTree } from "../core/fileTreeRenderer.js";
+import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
+import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
+import path from "node:path";
+import fs from "node:fs";
+import { styleText } from "node:util";
+//#region src/cli/report_findings.ts
 /**
- * src/cli/report_findings.ts
- */
-import fs from 'node:fs';
-import path from 'node:path';
-import { styleText } from 'node:util';
-import { ONE_MINUTE_MS, sortFindingsByFileAndLine, groupFindingsByFileMap } from "../core/auditContract.js";
-import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from "../core/auditConfig.js";
-import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings, renderFindingsByFileTree } from "../core/unifiedTheme.js";
-import { isMainModule, bootstrapCliProject } from "./cliUtils.js";
+* src/cli/report_findings.ts
+*/
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
-const ERROR_WEIGHT_FACTOR = 1000;
-export const SEVERITY_FILTERS = ['all', 'error', 'warning'];
-export const REPORT_SCOPES = ['all', 'host', 'packages'];
-const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
-const SUMMARY_FLAGS = new Set(['summary', '--summary', 'summary=true']);
-const FILES_FLAGS = new Set(['files', '--files', 'files=true']);
-const BREAKDOWN_FLAGS = new Set(['breakdown', '--breakdown', 'breakdown=true', 'by-dir', 'dirs']);
-const BY_FILE_FLAGS = new Set(['by-file', '--by-file', 'by_file', 'group=file', 'group-by=file', 'byfile']);
-const STALE_FLAGS = new Set(['allow-stale', '--allow-stale', 'stale']);
-const PARTIAL_FLAGS = new Set(['allow-partial', '--allow-partial', 'partial']);
-const FIX_FLAGS = new Set(['fix', '--fix', 'fix-report', '--fix-report']);
+const ERROR_WEIGHT_FACTOR = 1e3;
+const SEVERITY_FILTERS = [
+	"all",
+	"error",
+	"warning"
+];
+const REPORT_SCOPES = [
+	"all",
+	"host",
+	"packages"
+];
+const JSON_FLAGS = /* @__PURE__ */ new Set([
+	"json",
+	"--json",
+	"json=true"
+]);
+const SUMMARY_FLAGS = /* @__PURE__ */ new Set([
+	"summary",
+	"--summary",
+	"summary=true"
+]);
+const FILES_FLAGS = /* @__PURE__ */ new Set([
+	"files",
+	"--files",
+	"files=true"
+]);
+const BREAKDOWN_FLAGS = /* @__PURE__ */ new Set([
+	"breakdown",
+	"--breakdown",
+	"breakdown=true",
+	"by-dir",
+	"dirs"
+]);
+const BY_FILE_FLAGS = /* @__PURE__ */ new Set([
+	"by-file",
+	"--by-file",
+	"by_file",
+	"group=file",
+	"group-by=file",
+	"byfile"
+]);
+const STALE_FLAGS = /* @__PURE__ */ new Set([
+	"allow-stale",
+	"--allow-stale",
+	"stale"
+]);
+const PARTIAL_FLAGS = /* @__PURE__ */ new Set([
+	"allow-partial",
+	"--allow-partial",
+	"partial"
+]);
+const FIX_FLAGS = /* @__PURE__ */ new Set([
+	"fix",
+	"--fix",
+	"fix-report",
+	"--fix-report"
+]);
 function isInvokedAsByFile() {
-    const scriptArg = process.argv[1] ?? '';
-    const scriptName = path.basename(scriptArg).toLowerCase();
-    return scriptName.includes('auditor-by-file');
+	const scriptArg = process.argv[1] ?? "";
+	return path.basename(scriptArg).toLowerCase().includes("auditor-by-file");
 }
 function parseFlagArg(arg, opts) {
-    if (JSON_FLAGS.has(arg)) {
-        opts.jsonOutput = true;
-        return true;
-    }
-    if (SUMMARY_FLAGS.has(arg)) {
-        opts.summaryOnly = true;
-        return true;
-    }
-    if (FILES_FLAGS.has(arg)) {
-        opts.filesOnly = true;
-        return true;
-    }
-    if (BREAKDOWN_FLAGS.has(arg)) {
-        opts.breakdown = true;
-        return true;
-    }
-    if (BY_FILE_FLAGS.has(arg)) {
-        opts.byFile = true;
-        return true;
-    }
-    if (STALE_FLAGS.has(arg)) {
-        opts.allowStale = true;
-        return true;
-    }
-    if (PARTIAL_FLAGS.has(arg)) {
-        opts.allowPartial = true;
-        return true;
-    }
-    if (FIX_FLAGS.has(arg)) {
-        opts.inspectFix = true;
-        opts.allowPartial = true;
-        return true;
-    }
-    return false;
+	if (JSON_FLAGS.has(arg)) {
+		opts.jsonOutput = true;
+		return true;
+	}
+	if (SUMMARY_FLAGS.has(arg)) {
+		opts.summaryOnly = true;
+		return true;
+	}
+	if (FILES_FLAGS.has(arg)) {
+		opts.filesOnly = true;
+		return true;
+	}
+	if (BREAKDOWN_FLAGS.has(arg)) {
+		opts.breakdown = true;
+		return true;
+	}
+	if (BY_FILE_FLAGS.has(arg)) {
+		opts.byFile = true;
+		return true;
+	}
+	if (STALE_FLAGS.has(arg)) {
+		opts.allowStale = true;
+		return true;
+	}
+	if (PARTIAL_FLAGS.has(arg)) {
+		opts.allowPartial = true;
+		return true;
+	}
+	if (FIX_FLAGS.has(arg)) {
+		opts.inspectFix = true;
+		opts.allowPartial = true;
+		return true;
+	}
+	return false;
 }
 function parseScopeArg(arg, opts) {
-    if (arg === 'host' || arg === 'scope=host') {
-        opts.scope = 'host';
-        return true;
-    }
-    if (arg === 'packages' || arg === 'scope=packages' || arg === 'pkg') {
-        opts.scope = 'packages';
-        return true;
-    }
-    if (arg.startsWith('scope=')) {
-        const val = arg.slice(6).toLowerCase();
-        if (val === 'host' || val === 'packages' || val === 'all') {
-            opts.scope = val;
-        }
-        return true;
-    }
-    return false;
+	if (arg === "host" || arg === "scope=host") {
+		opts.scope = "host";
+		return true;
+	}
+	if (arg === "packages" || arg === "scope=packages" || arg === "pkg") {
+		opts.scope = "packages";
+		return true;
+	}
+	if (arg.startsWith("scope=")) {
+		const val = arg.slice(6).toLowerCase();
+		if (val === "host" || val === "packages" || val === "all") opts.scope = val;
+		return true;
+	}
+	return false;
 }
 function parseSeverityArg(arg, opts) {
-    if (arg === 'errors' || arg === 'error' || arg === 'severity=error') {
-        opts.severity = 'error';
-        return true;
-    }
-    if (arg === 'warnings' || arg === 'warning' || arg === 'severity=warning') {
-        opts.severity = 'warning';
-        return true;
-    }
-    if (arg.startsWith('severity=')) {
-        const val = arg.slice(9).toLowerCase();
-        if (val === 'error' || val === 'warning' || val === 'all') {
-            opts.severity = val;
-        }
-        return true;
-    }
-    return false;
+	if (arg === "errors" || arg === "error" || arg === "severity=error") {
+		opts.severity = "error";
+		return true;
+	}
+	if (arg === "warnings" || arg === "warning" || arg === "severity=warning") {
+		opts.severity = "warning";
+		return true;
+	}
+	if (arg.startsWith("severity=")) {
+		const val = arg.slice(9).toLowerCase();
+		if (val === "error" || val === "warning" || val === "all") opts.severity = val;
+		return true;
+	}
+	return false;
 }
 function parseScopeAndSeverity(arg, opts) {
-    return parseScopeArg(arg, opts) || parseSeverityArg(arg, opts);
+	return parseScopeArg(arg, opts) || parseSeverityArg(arg, opts);
 }
 function parseFilterAndValue(arg, opts) {
-    if (arg.startsWith('dir=')) {
-        opts.dirPattern = arg.slice(4).toLowerCase();
-        return true;
-    }
-    if (arg.startsWith('folder=')) {
-        opts.dirPattern = arg.slice(7).toLowerCase();
-        return true;
-    }
-    if (arg.startsWith('category=')) {
-        opts.category = arg.slice(9).toLowerCase();
-        return true;
-    }
-    if (arg.startsWith('search=')) {
-        opts.search = arg.slice(7).toLowerCase();
-        return true;
-    }
-    if (arg.startsWith('file=') || arg.startsWith('f=')) {
-        const prefixLen = arg.startsWith('file=') ? 5 : 2;
-        opts.filePattern = arg.slice(prefixLen).toLowerCase();
-        return true;
-    }
-    if (arg.startsWith('top=')) {
-        const topVal = arg.slice(4).toLowerCase();
-        opts.top = topVal === 'all' || topVal === '0' ? 'all' : (parseInt(topVal, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT);
-        return true;
-    }
-    return false;
+	if (arg.startsWith("dir=")) {
+		opts.dirPattern = arg.slice(4).toLowerCase();
+		return true;
+	}
+	if (arg.startsWith("folder=")) {
+		opts.dirPattern = arg.slice(7).toLowerCase();
+		return true;
+	}
+	if (arg.startsWith("category=")) {
+		opts.category = arg.slice(9).toLowerCase();
+		return true;
+	}
+	if (arg.startsWith("search=")) {
+		opts.search = arg.slice(7).toLowerCase();
+		return true;
+	}
+	if (arg.startsWith("file=") || arg.startsWith("f=")) {
+		const prefixLen = arg.startsWith("file=") ? 5 : 2;
+		opts.filePattern = arg.slice(prefixLen).toLowerCase();
+		return true;
+	}
+	if (arg.startsWith("top=")) {
+		const topVal = arg.slice(4).toLowerCase();
+		opts.top = topVal === "all" || topVal === "0" ? "all" : parseInt(topVal, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
+		return true;
+	}
+	return false;
 }
 function parseReportOptions() {
-    const argv = process.argv.slice(2);
-    const opts = {
-        category: 'all',
-        severity: 'all',
-        search: '',
-        filePattern: '',
-        dirPattern: '',
-        scope: 'all',
-        breakdown: false,
-        byFile: isInvokedAsByFile(),
-        top: DEFAULT_TOP_LIMIT,
-        jsonOutput: false,
-        summaryOnly: false,
-        filesOnly: false,
-        allowStale: false,
-        allowPartial: false,
-        inspectFix: false
-    };
-    for (const arg of argv) {
-        if (parseFlagArg(arg, opts) || parseScopeAndSeverity(arg, opts) || parseFilterAndValue(arg, opts)) {
-            continue;
-        }
-        if (!arg.startsWith('-')) {
-            if (arg.toLowerCase() === 'by-file' || arg.toLowerCase() === 'byfile') {
-                opts.byFile = true;
-            }
-            else {
-                opts.category = arg.toLowerCase();
-            }
-        }
-    }
-    return opts;
+	const argv = process.argv.slice(2);
+	const opts = {
+		category: "all",
+		severity: "all",
+		search: "",
+		filePattern: "",
+		dirPattern: "",
+		scope: "all",
+		breakdown: false,
+		byFile: isInvokedAsByFile(),
+		top: DEFAULT_TOP_LIMIT,
+		jsonOutput: false,
+		summaryOnly: false,
+		filesOnly: false,
+		allowStale: false,
+		allowPartial: false,
+		inspectFix: false
+	};
+	for (const arg of argv) {
+		if (parseFlagArg(arg, opts) || parseScopeAndSeverity(arg, opts) || parseFilterAndValue(arg, opts)) continue;
+		if (!arg.startsWith("-")) {
+			if (arg.toLowerCase() === "by-file" || arg.toLowerCase() === "byfile") opts.byFile = true;
+			else opts.category = arg.toLowerCase();
+		}
+	}
+	return opts;
 }
 function loadAuditReport(inspectFix = false) {
-    const targetFileName = inspectFix ? 'latest_fix_audit.json' : 'latest_audit.json';
-    const reportPath = path.resolve(process.cwd(), `scratch/audits/${targetFileName}`);
-    if (!fs.existsSync(reportPath)) {
-        if (inspectFix) {
-            console.error('❌ No se encontró scratch/audits/latest_fix_audit.json. Ejecuta primero "npm run auditor:fix".');
-        }
-        else {
-            console.error('❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero "npm run auditor".');
-        }
-        return null;
-    }
-    try {
-        const raw = fs.readFileSync(reportPath, 'utf8');
-        const parsed = JSON.parse(raw);
-        if (!parsed.meta) {
-            console.error(`❌ scratch/audits/${targetFileName} no contiene la cabecera de metadatos "meta". Ejecuta "npm run auditor" para regenerarlo.`);
-            return null;
-        }
-        return parsed;
-    }
-    catch (e) {
-        console.error(`❌ Error al parsear scratch/audits/${targetFileName}: ${e.message}`);
-        return null;
-    }
+	const targetFileName = inspectFix ? "latest_fix_audit.json" : "latest_audit.json";
+	const reportPath = path.resolve(process.cwd(), `scratch/audits/${targetFileName}`);
+	if (!fs.existsSync(reportPath)) {
+		if (inspectFix) console.error("❌ No se encontró scratch/audits/latest_fix_audit.json. Ejecuta primero \"npm run auditor:fix\".");
+		else console.error("❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero \"npm run auditor\".");
+		return null;
+	}
+	try {
+		const raw = fs.readFileSync(reportPath, "utf8");
+		const parsed = JSON.parse(raw);
+		if (!parsed.meta) {
+			console.error(`❌ scratch/audits/${targetFileName} no contiene la cabecera de metadatos "meta". Ejecuta "npm run auditor" para regenerarlo.`);
+			return null;
+		}
+		return parsed;
+	} catch (e) {
+		console.error(`❌ Error al parsear scratch/audits/${targetFileName}: ${e.message}`);
+		return null;
+	}
 }
 function getNormalizedRelPath(filePath) {
-    if (!filePath)
-        return 'General';
-    const rel = path.isAbsolute(filePath) ? path.relative(process.cwd(), filePath) : filePath;
-    return rel.split(path.sep).join(path.posix.sep);
+	if (!filePath) return "General";
+	return (path.isAbsolute(filePath) ? path.relative(process.cwd(), filePath) : filePath).split(path.sep).join(path.posix.sep);
 }
 function getDirectoryBucket(filePath) {
-    const rel = getNormalizedRelPath(filePath);
-    if (rel === 'General')
-        return 'General';
-    const parts = rel.split('/');
-    return parts.length > 1 ? `${parts[0]}/` : rel;
+	const rel = getNormalizedRelPath(filePath);
+	if (rel === "General") return "General";
+	const parts = rel.split("/");
+	return parts.length > 1 ? `${parts[0]}/` : rel;
 }
 function sortFindingsEntries(entries) {
-    return entries.sort((a, b) => {
-        const totalB = b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings;
-        const totalA = a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings;
-        return totalB - totalA;
-    });
+	return entries.sort((a, b) => {
+		return b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings - (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings);
+	});
 }
 function aggregateAndSortFindings(findings, keyExtractor) {
-    const map = {};
-    for (const f of findings) {
-        const key = keyExtractor(f);
-        if (!map[key]) {
-            map[key] = { errors: 0, warnings: 0 };
-        }
-        if (f.severity === 'error') {
-            map[key].errors++;
-        }
-        else {
-            map[key].warnings++;
-        }
-    }
-    return sortFindingsEntries(Object.entries(map));
+	const map = {};
+	for (const f of findings) {
+		const key = keyExtractor(f);
+		if (!map[key]) map[key] = {
+			errors: 0,
+			warnings: 0
+		};
+		if (f.severity === "error") map[key].errors++;
+		else map[key].warnings++;
+	}
+	return sortFindingsEntries(Object.entries(map));
 }
 function validateReportFreshnessAndScope(report, args) {
-    const targetFileName = args.inspectFix ? 'latest_fix_audit.json' : 'latest_audit.json';
-    try {
-        const auditInstant = Temporal.Instant.from(report.meta.timestamp);
-        const now = Temporal.Now.instant();
-        const elapsedMs = now.since(auditInstant).total({ unit: 'millisecond' });
-        const config = getAuditConfig();
-        const configuredMinutes = config.runner?.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES;
-        const effectiveMaxAgeMs = configuredMinutes * ONE_MINUTE_MS;
-        if (!args.allowStale && elapsedMs > effectiveMaxAgeMs) {
-            const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
-            const limitMins = configuredMinutes;
-            console.error(styleText('red', `❌ scratch/audits/${targetFileName} está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min).\n`) +
-                styleText('yellow', `   El código fuente pudo haber cambiado desde la última auditoría.\n`) +
-                styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
-            process.exit(1);
-        }
-    }
-    catch (err) {
-        if (err.message.includes('OBSOLETO'))
-            throw err;
-        console.error(styleText('red', `❌ scratch/audits/${targetFileName} contiene un timestamp inválido ('${report.meta.timestamp}').\n`) +
-            styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
-        process.exit(1);
-    }
-    if (report.meta.isFullAudit)
-        return;
-    if (!args.allowPartial) {
-        if (args.category === 'all') {
-            console.error(styleText('red', `❌ scratch/audits/${targetFileName} proviene de una auditoría PARCIAL (${report.meta.runMode}, ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites ejecutadas).\n`) +
-                styleText('yellow', `   No es posible emitir reportes globales de hallazgos sobre una corrida parcial.\n`) +
-                styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' (completo) o agregar 'partial' para inspeccionar esta corrida.`));
-            process.exit(1);
-        }
-        const matchesExecutedSuite = report.meta.executedSuites.some((s) => s.toLowerCase().includes(args.category.toLowerCase()) ||
-            args.category.toLowerCase().includes(s.toLowerCase()));
-        const matchesExecutedFinding = Object.values(report.families).some(fam => {
-            if (!fam)
-                return false;
-            const lowerCat = args.category.toLowerCase();
-            return fam.suites.some(suite => suite.findings.some(f => {
-                const ruleDescMatches = typeof f.ruleDescription === 'string' && f.ruleDescription.toLowerCase().includes(lowerCat);
-                const ruleIdMatches = typeof f.ruleId === 'string' && f.ruleId.toLowerCase().includes(lowerCat);
-                const suiteDescMatches = typeof suite.description === 'string' && suite.description.toLowerCase().includes(lowerCat);
-                const suiteNameMatches = typeof suite.name === 'string' && suite.name.toLowerCase().includes(lowerCat);
-                return ruleDescMatches || ruleIdMatches || suiteDescMatches || suiteNameMatches;
-            }));
-        });
-        if (!matchesExecutedSuite && !matchesExecutedFinding) {
-            console.error(styleText('red', `❌ La categoría solicitada ('${args.category}') NO fue auditada en la última corrida parcial.\n`) +
-                styleText('yellow', `   Suites ejecutadas en esta corrida: ${report.meta.executedSuites.join(', ')}\n`) +
-                styleText('yellow', `   Suites omitidas: ${report.meta.omittedSuites.length} suites.\n`) +
-                styleText('cyan', `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${args.category}' primero.`));
-            process.exit(1);
-        }
-    }
-    else {
-        console.log(styleText('yellow', `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(', ')}).\n`));
-    }
+	const targetFileName = args.inspectFix ? "latest_fix_audit.json" : "latest_audit.json";
+	try {
+		const auditInstant = Temporal.Instant.from(report.meta.timestamp);
+		const now = Temporal.Now.instant();
+		const elapsedMs = now.since(auditInstant).total({ unit: "millisecond" });
+		const configuredMinutes = getAuditConfig().runner?.maxStalenessMinutes ?? 5;
+		const effectiveMaxAgeMs = configuredMinutes * ONE_MINUTE_MS;
+		if (!args.allowStale && elapsedMs > effectiveMaxAgeMs) {
+			const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: "minute" })));
+			console.error(styleText("red", `❌ scratch/audits/${targetFileName} está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${configuredMinutes} min).\n`) + styleText("yellow", `   El código fuente pudo haber cambiado desde la última auditoría.\n`) + styleText("cyan", `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
+			process.exit(1);
+		}
+	} catch (err) {
+		if (err.message.includes("OBSOLETO")) throw err;
+		console.error(styleText("red", `❌ scratch/audits/${targetFileName} contiene un timestamp inválido ('${report.meta.timestamp}').\n`) + styleText("cyan", `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
+		process.exit(1);
+	}
+	if (report.meta.isFullAudit) return;
+	if (!args.allowPartial) {
+		if (args.category === "all") {
+			console.error(styleText("red", `❌ scratch/audits/${targetFileName} proviene de una auditoría PARCIAL (${report.meta.runMode}, ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites ejecutadas).\n`) + styleText("yellow", `   No es posible emitir reportes globales de hallazgos sobre una corrida parcial.\n`) + styleText("cyan", `👉 DEBES ejecutar 'npm run auditor' (completo) o agregar 'partial' para inspeccionar esta corrida.`));
+			process.exit(1);
+		}
+		const matchesExecutedSuite = report.meta.executedSuites.some((s) => s.toLowerCase().includes(args.category.toLowerCase()) || args.category.toLowerCase().includes(s.toLowerCase()));
+		const matchesExecutedFinding = Object.values(report.families).some((fam) => {
+			if (!fam) return false;
+			const lowerCat = args.category.toLowerCase();
+			return fam.suites.some((suite) => suite.findings.some((f) => {
+				const ruleDescMatches = typeof f.ruleDescription === "string" && f.ruleDescription.toLowerCase().includes(lowerCat);
+				const ruleIdMatches = typeof f.ruleId === "string" && f.ruleId.toLowerCase().includes(lowerCat);
+				const suiteDescMatches = typeof suite.description === "string" && suite.description.toLowerCase().includes(lowerCat);
+				const suiteNameMatches = typeof suite.name === "string" && suite.name.toLowerCase().includes(lowerCat);
+				return ruleDescMatches || ruleIdMatches || suiteDescMatches || suiteNameMatches;
+			}));
+		});
+		if (!matchesExecutedSuite && !matchesExecutedFinding) {
+			console.error(styleText("red", `❌ La categoría solicitada ('${args.category}') NO fue auditada en la última corrida parcial.\n`) + styleText("yellow", `   Suites ejecutadas en esta corrida: ${report.meta.executedSuites.join(", ")}\n`) + styleText("yellow", `   Suites omitidas: ${report.meta.omittedSuites.length} suites.\n`) + styleText("cyan", `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${args.category}' primero.`));
+			process.exit(1);
+		}
+	} else console.log(styleText("yellow", `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(", ")}).\n`));
 }
 function recordFindingInCategory(finding, suiteDesc, categoryCounts) {
-    const catKey = finding.ruleDescription || suiteDesc || finding.ruleId || 'Sin Categoría';
-    const entry = categoryCounts[catKey] ?? (categoryCounts[catKey] = { errors: 0, warnings: 0, findings: [] });
-    if (finding.severity === 'error') {
-        entry.errors++;
-    }
-    else {
-        entry.warnings++;
-    }
-    entry.findings.push(finding);
+	const catKey = finding.ruleDescription || suiteDesc || finding.ruleId || "Sin Categoría";
+	const entry = categoryCounts[catKey] ?? (categoryCounts[catKey] = {
+		errors: 0,
+		warnings: 0,
+		findings: []
+	});
+	if (finding.severity === "error") entry.errors++;
+	else entry.warnings++;
+	entry.findings.push(finding);
 }
 function collectReportCategoryCounts(report) {
-    const categoryCounts = {};
-    const allFindings = [];
-    for (const fam of Object.values(report.families)) {
-        if (!fam)
-            continue;
-        for (const suite of fam.suites) {
-            const suiteDesc = suite.description || suite.name || '';
-            for (const finding of suite.findings) {
-                recordFindingInCategory(finding, suiteDesc, categoryCounts);
-                allFindings.push(finding);
-            }
-        }
-    }
-    return { categoryCounts, allFindings };
+	const categoryCounts = {};
+	const allFindings = [];
+	for (const fam of Object.values(report.families)) {
+		if (!fam) continue;
+		for (const suite of fam.suites) {
+			const suiteDesc = suite.description || suite.name || "";
+			for (const finding of suite.findings) {
+				recordFindingInCategory(finding, suiteDesc, categoryCounts);
+				allFindings.push(finding);
+			}
+		}
+	}
+	return {
+		categoryCounts,
+		allFindings
+	};
 }
 function matchesPathFilters(f, args) {
-    const relPath = getNormalizedRelPath(f.file);
-    if (args.scope === 'host' && relPath.startsWith('packages/'))
-        return false;
-    if (args.scope === 'packages' && !relPath.startsWith('packages/'))
-        return false;
-    if (args.dirPattern) {
-        const cleanDir = args.dirPattern.replace(/^\.?\/+/, '').toLowerCase();
-        const lowerRel = relPath.toLowerCase();
-        if (!lowerRel.startsWith(cleanDir) && !lowerRel.includes(`/${cleanDir}`)) {
-            return false;
-        }
-    }
-    if (args.filePattern && (!f.file || !f.file.toLowerCase().includes(args.filePattern))) {
-        return false;
-    }
-    return true;
+	const relPath = getNormalizedRelPath(f.file);
+	if (args.scope === "host" && relPath.startsWith("packages/")) return false;
+	if (args.scope === "packages" && !relPath.startsWith("packages/")) return false;
+	if (args.dirPattern) {
+		const cleanDir = args.dirPattern.replace(/^\.?\/+/, "").toLowerCase();
+		const lowerRel = relPath.toLowerCase();
+		if (!lowerRel.startsWith(cleanDir) && !lowerRel.includes(`/${cleanDir}`)) return false;
+	}
+	if (args.filePattern && (!f.file || !f.file.toLowerCase().includes(args.filePattern))) return false;
+	return true;
 }
 function matchesSearchFilter(f, catKey, search) {
-    const inMsg = f.message.toLowerCase().includes(search);
-    const inFile = f.file ? f.file.toLowerCase().includes(search) : false;
-    const inRule = (f.ruleId && f.ruleId.toLowerCase().includes(search)) ||
-        (f.ruleDescription && f.ruleDescription.toLowerCase().includes(search)) ||
-        catKey.toLowerCase().includes(search);
-    return inMsg || inFile || Boolean(inRule);
+	const inMsg = f.message.toLowerCase().includes(search);
+	const inFile = f.file ? f.file.toLowerCase().includes(search) : false;
+	const inRule = f.ruleId && f.ruleId.toLowerCase().includes(search) || f.ruleDescription && f.ruleDescription.toLowerCase().includes(search) || catKey.toLowerCase().includes(search);
+	return inMsg || inFile || Boolean(inRule);
 }
 function checkFindingMatchesFilter(f, catKey, args) {
-    if (args.category !== 'all') {
-        const cleanArg = args.category.replace(/[-_]/g, ' ').toLowerCase();
-        const cleanCat = catKey.replace(/[-_]/g, ' ').toLowerCase();
-        if (!cleanCat.includes(cleanArg))
-            return false;
-    }
-    if (args.severity !== 'all' && f.severity !== args.severity)
-        return false;
-    if (!matchesPathFilters(f, args))
-        return false;
-    if (args.search && !matchesSearchFilter(f, catKey, args.search))
-        return false;
-    return true;
+	if (args.category !== "all") {
+		const cleanArg = args.category.replace(/[-_]/g, " ").toLowerCase();
+		if (!catKey.replace(/[-_]/g, " ").toLowerCase().includes(cleanArg)) return false;
+	}
+	if (args.severity !== "all" && f.severity !== args.severity) return false;
+	if (!matchesPathFilters(f, args)) return false;
+	if (args.search && !matchesSearchFilter(f, catKey, args.search)) return false;
+	return true;
 }
 function filterMatchingFindings(categoryCounts, args) {
-    const filteredCategories = {};
-    const matchingFindings = [];
-    for (const [catName, data] of Object.entries(categoryCounts)) {
-        const matchingInCat = data.findings.filter(f => checkFindingMatchesFilter(f, catName, args));
-        if (matchingInCat.length > 0) {
-            filteredCategories[catName] = {
-                errors: matchingInCat.filter(f => f.severity === 'error').length,
-                warnings: matchingInCat.filter(f => f.severity === 'warning').length,
-                findings: matchingInCat
-            };
-            matchingFindings.push(...matchingInCat);
-        }
-    }
-    return { filteredCategories, matchingFindings };
+	const filteredCategories = {};
+	const matchingFindings = [];
+	for (const [catName, data] of Object.entries(categoryCounts)) {
+		const matchingInCat = data.findings.filter((f) => checkFindingMatchesFilter(f, catName, args));
+		if (matchingInCat.length > 0) {
+			filteredCategories[catName] = {
+				errors: matchingInCat.filter((f) => f.severity === "error").length,
+				warnings: matchingInCat.filter((f) => f.severity === "warning").length,
+				findings: matchingInCat
+			};
+			matchingFindings.push(...matchingInCat);
+		}
+	}
+	return {
+		filteredCategories,
+		matchingFindings
+	};
 }
 function renderFindingsJson(matchingFindings, filteredCategories, report, args) {
-    const fileMap = {};
-    const dirMap = {};
-    for (const f of matchingFindings) {
-        const relPath = getNormalizedRelPath(f.file);
-        const bucket = getDirectoryBucket(f.file);
-        if (!fileMap[relPath])
-            fileMap[relPath] = { errors: 0, warnings: 0 };
-        if (!dirMap[bucket])
-            dirMap[bucket] = { errors: 0, warnings: 0 };
-        if (f.severity === 'error') {
-            fileMap[relPath].errors++;
-            dirMap[bucket].errors++;
-        }
-        else {
-            fileMap[relPath].warnings++;
-            dirMap[bucket].warnings++;
-        }
-    }
-    console.log(JSON.stringify({
-        summary: report.summary,
-        filteredTotal: matchingFindings.length,
-        findings: args.top === 'all' ? matchingFindings : matchingFindings.slice(0, args.top),
-        categories: filteredCategories,
-        breakdownByDir: dirMap,
-        ...(args.filesOnly ? { files: fileMap } : {})
-    }, null, 2));
+	const fileMap = {};
+	const dirMap = {};
+	for (const f of matchingFindings) {
+		const relPath = getNormalizedRelPath(f.file);
+		const bucket = getDirectoryBucket(f.file);
+		if (!fileMap[relPath]) fileMap[relPath] = {
+			errors: 0,
+			warnings: 0
+		};
+		if (!dirMap[bucket]) dirMap[bucket] = {
+			errors: 0,
+			warnings: 0
+		};
+		if (f.severity === "error") {
+			fileMap[relPath].errors++;
+			dirMap[bucket].errors++;
+		} else {
+			fileMap[relPath].warnings++;
+			dirMap[bucket].warnings++;
+		}
+	}
+	console.log(JSON.stringify({
+		summary: report.summary,
+		filteredTotal: matchingFindings.length,
+		findings: args.top === "all" ? matchingFindings : matchingFindings.slice(0, args.top),
+		categories: filteredCategories,
+		breakdownByDir: dirMap,
+		...args.filesOnly ? { files: fileMap } : {}
+	}, null, 2));
+}
+function formatFindingLocation(finding) {
+	if (!finding.file) return "General";
+	const rel = path.relative(process.cwd(), finding.file);
+	return finding.line ? `${rel}:${finding.line}` : rel;
 }
 function renderCategoryDetailSample(target, categoryArg, sortedCategories, args) {
-    if (target) {
-        const [catName, data] = target;
-        const filtered = data.findings.filter(f => checkFindingMatchesFilter(f, catName, args));
-        const limit = args.top === 'all' ? filtered.length : args.top;
-        console.log(`\n🔍 Muestra de hallazgos para categoría "${catName}" (Mostrando ${Math.min(limit, filtered.length)} de ${filtered.length}):\n`);
-        const sample = filtered.slice(0, limit);
-        sample.forEach((f, idx) => {
-            const fileLoc = f.file ? `${path.relative(process.cwd(), f.file)}${f.line ? `:${f.line}` : ''}` : 'General';
-            console.log(`  ${idx + 1}. [${f.severity.toUpperCase()}] ${fileLoc}`);
-            console.log(`     ${f.message}`);
-            if (f.context)
-                console.log(`     Contexto: ${f.context}`);
-        });
-        console.log('');
-    }
-    else {
-        console.log(`\n⚠️  No se encontraron hallazgos para la categoría "${categoryArg}". Categorías disponibles:`);
-        sortedCategories.forEach(([name]) => console.log(`  • ${name}`));
-        console.log('');
-    }
+	if (target) {
+		const [catName, data] = target;
+		const filtered = data.findings.filter((f) => checkFindingMatchesFilter(f, catName, args));
+		const limit = args.top === "all" ? filtered.length : args.top;
+		console.log(`\n🔍 Muestra de hallazgos para categoría "${catName}" (Mostrando ${Math.min(limit, filtered.length)} de ${filtered.length}):\n`);
+		filtered.slice(0, limit).forEach((f, idx) => {
+			console.log(`  ${idx + 1}. [${f.severity.toUpperCase()}] ${formatFindingLocation(f)}`);
+			console.log(`     ${f.message}`);
+			if (f.context) console.log(`     Contexto: ${f.context}`);
+		});
+		console.log("");
+	} else {
+		console.log(`\n⚠️  No se encontraron hallazgos para la categoría "${categoryArg}". Categorías disponibles:`);
+		sortedCategories.forEach(([name]) => console.log(`  • ${name}`));
+		console.log("");
+	}
 }
 function renderFilteredDetailSample(matchingFindings, args) {
-    const limit = args.top === 'all' ? matchingFindings.length : args.top;
-    const filterInfo = [
-        args.severity !== 'all' ? `severity=${args.severity}` : null,
-        args.dirPattern ? `dir="${args.dirPattern}"` : null,
-        args.scope !== 'all' ? `scope=${args.scope}` : null,
-        args.search ? `search="${args.search}"` : null,
-        args.filePattern ? `file="${args.filePattern}"` : null
-    ].filter(Boolean).join(', ');
-    console.log(`\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n`);
-    const sample = matchingFindings.slice(0, limit);
-    sample.forEach((f, idx) => {
-        const fileLoc = f.file ? `${path.relative(process.cwd(), f.file)}${f.line ? `:${f.line}` : ''}` : 'General';
-        const ruleTag = f.ruleDescription ? `[${f.ruleDescription}] ` : (f.ruleId ? `[${f.ruleId}] ` : '');
-        console.log(`  ${idx + 1}. [${f.severity.toUpperCase()}] ${fileLoc}: ${ruleTag}${f.message}`);
-    });
-    console.log('');
+	const limit = args.top === "all" ? matchingFindings.length : args.top;
+	const filterInfo = [
+		args.severity !== "all" ? `severity=${args.severity}` : null,
+		args.dirPattern ? `dir="${args.dirPattern}"` : null,
+		args.scope !== "all" ? `scope=${args.scope}` : null,
+		args.search ? `search="${args.search}"` : null,
+		args.filePattern ? `file="${args.filePattern}"` : null
+	].filter(Boolean).join(", ");
+	console.log(`\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n`);
+	matchingFindings.slice(0, limit).forEach((f, idx) => {
+		const loc = formatFindingLocation(f);
+		const ruleTag = f.ruleDescription ? `[${f.ruleDescription}] ` : f.ruleId ? `[${f.ruleId}] ` : "";
+		console.log(`  ${idx + 1}. [${f.severity.toUpperCase()}] ${loc}: ${ruleTag}${f.message}`);
+	});
+	console.log("");
 }
 function renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args) {
-    if (args.category !== 'all') {
-        const cleanArg = args.category.replace(/[-_]/g, ' ').toLowerCase();
-        const target = sortedCategories.find(([name]) => name.toLowerCase().replace(/[-_]/g, ' ').includes(cleanArg));
-        renderCategoryDetailSample(target, args.category, sortedCategories, args);
-    }
-    else if (args.search || args.filePattern || args.dirPattern || args.scope !== 'all' || args.severity !== 'all') {
-        renderFilteredDetailSample(matchingFindings, args);
-    }
-    else {
-        const allErrors = allFindings.filter(f => f.severity === 'error');
-        if (allErrors.length > 0) {
-            const limit = args.top === 'all' ? allErrors.length : (typeof args.top === 'number' ? args.top : DEFAULT_SAMPLE_ERROR_LIMIT);
-            console.log(renderSampleFindings(allErrors, limit));
-        }
-    }
+	if (args.category !== "all") {
+		const cleanArg = args.category.replace(/[-_]/g, " ").toLowerCase();
+		renderCategoryDetailSample(sortedCategories.find(([name]) => name.toLowerCase().replace(/[-_]/g, " ").includes(cleanArg)), args.category, sortedCategories, args);
+	} else if (args.search || args.filePattern || args.dirPattern || args.scope !== "all" || args.severity !== "all") renderFilteredDetailSample(matchingFindings, args);
+	else {
+		const allErrors = allFindings.filter((f) => f.severity === "error");
+		if (allErrors.length > 0) {
+			const limit = args.top === "all" ? allErrors.length : typeof args.top === "number" ? args.top : DEFAULT_SAMPLE_ERROR_LIMIT;
+			console.log(renderSampleFindings(allErrors, limit));
+		}
+	}
 }
 function renderBreakdownView(matchingFindings, args) {
-    const sortedDirs = aggregateAndSortFindings(matchingFindings, f => getDirectoryBucket(f.file));
-    const bannerTitle = args.category !== 'all'
-        ? `DISTRIBUCIÓN POR DIRECTORIO (${args.category})`
-        : 'DISTRIBUCIÓN POR DIRECTORIO / ÁMBITO';
-    console.log('\n' + renderBanner(bannerTitle, `Total hallazgos: ${matchingFindings.length} | Directorios afectados: ${sortedDirs.length}`));
-    console.log('\n' + renderFindingsBreakdownTable(sortedDirs, 'DIRECTORIO / ÁMBITO') + '\n');
+	const sortedDirs = aggregateAndSortFindings(matchingFindings, (f) => getDirectoryBucket(f.file));
+	const bannerTitle = args.category !== "all" ? `DISTRIBUCIÓN POR DIRECTORIO (${args.category})` : "DISTRIBUCIÓN POR DIRECTORIO / ÁMBITO";
+	console.log("\n" + renderBanner(bannerTitle, `Total hallazgos: ${matchingFindings.length} | Directorios afectados: ${sortedDirs.length}`));
+	console.log("\n" + renderFindingsBreakdownTable(sortedDirs, "DIRECTORIO / ÁMBITO") + "\n");
 }
 function renderFilesOnlyView(matchingFindings, report, args) {
-    const sortedFiles = aggregateAndSortFindings(matchingFindings, f => getNormalizedRelPath(f.file));
-    const filesToDisplay = args.top === 'all' ? sortedFiles : sortedFiles.slice(0, args.top);
-    const bannerTitle = args.category !== 'all'
-        ? `ARCHIVOS CON HALLAZGOS (${args.category})`
-        : 'ARCHIVOS CON HALLAZGOS DE AUDITORÍA';
-    console.log('\n' + renderBanner(bannerTitle, `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Archivos afectados: ${sortedFiles.length}`));
-    console.log('\n' + renderFindingsBreakdownTable(filesToDisplay, 'ARCHIVO AFECTADO') + '\n');
+	const sortedFiles = aggregateAndSortFindings(matchingFindings, (f) => getNormalizedRelPath(f.file));
+	const filesToDisplay = args.top === "all" ? sortedFiles : sortedFiles.slice(0, args.top);
+	const bannerTitle = args.category !== "all" ? `ARCHIVOS CON HALLAZGOS (${args.category})` : "ARCHIVOS CON HALLAZGOS DE AUDITORÍA";
+	console.log("\n" + renderBanner(bannerTitle, `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Archivos afectados: ${sortedFiles.length}`));
+	console.log("\n" + renderFindingsBreakdownTable(filesToDisplay, "ARCHIVO AFECTADO") + "\n");
 }
 function renderByFileView(matchingFindings, report, args) {
-    const sortedFindings = sortFindingsByFileAndLine(matchingFindings);
-    const fileSummaryMap = groupFindingsByFileMap(sortedFindings);
-    const fileSummaries = Object.values(fileSummaryMap);
-    fileSummaries.sort((a, b) => {
-        const scoreB = b.errors * ERROR_WEIGHT_FACTOR + b.warnings;
-        const scoreA = a.errors * ERROR_WEIGHT_FACTOR + a.warnings;
-        if (scoreB !== scoreA)
-            return scoreB - scoreA;
-        return a.file.localeCompare(b.file);
-    });
-    const totalErrors = matchingFindings.filter(f => f.severity === 'error').length;
-    const totalWarnings = matchingFindings.filter(f => f.severity === 'warning').length;
-    if (args.jsonOutput) {
-        const byFileReport = {
-            meta: report.meta,
-            status: report.status,
-            summary: {
-                ...report.summary,
-                totalViolations: matchingFindings.length,
-                errors: totalErrors,
-                warnings: totalWarnings
-            },
-            totalAffectedFiles: fileSummaries.length,
-            files: Object.fromEntries(fileSummaries.map(fs => [fs.file, fs]))
-        };
-        console.log(JSON.stringify(byFileReport, null, 2));
-        return;
-    }
-    const filterLabels = [];
-    if (args.filePattern)
-        filterLabels.push(`archivo: "${args.filePattern}"`);
-    if (args.category !== 'all')
-        filterLabels.push(`categoría: "${args.category}"`);
-    if (args.severity !== 'all')
-        filterLabels.push(`severidad: ${args.severity}`);
-    if (args.dirPattern)
-        filterLabels.push(`directorio: "${args.dirPattern}"`);
-    if (args.search)
-        filterLabels.push(`búsqueda: "${args.search}"`);
-    const subtitle = filterLabels.length > 0
-        ? `Filtros: ${filterLabels.join(', ')} | Archivos: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`
-        : `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Archivos afectados: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`;
-    console.log('\n' + renderBanner('HALLAZGOS DE AUDITORÍA AGRUPADOS POR ARCHIVO Y LÍNEA', subtitle));
-    if (fileSummaries.length === 0) {
-        console.log(styleText('green', '\n✨ No se encontraron incidencias que coincidan con los filtros activos.\n'));
-        return;
-    }
-    if (fileSummaries.length > 1 && !args.filePattern) {
-        const tableEntries = fileSummaries.map(fs => [
-            fs.file,
-            { errors: fs.errors, warnings: fs.warnings }
-        ]);
-        const tableLimit = typeof args.top === 'number' ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
-        console.log('\n' + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), 'ARCHIVO AFECTADO') + '\n');
-    }
-    const treeOutput = renderFindingsByFileTree(fileSummaries, {
-        maxFiles: args.top,
-        maxFindingsPerFile: 'all'
-    });
-    console.log(treeOutput + '\n');
+	const sortedFindings = sortFindingsByFileAndLine(matchingFindings);
+	const fileSummaryMap = groupFindingsByFileMap(sortedFindings);
+	const fileSummaries = Object.values(fileSummaryMap);
+	fileSummaries.sort((a, b) => {
+		const scoreB = b.errors * ERROR_WEIGHT_FACTOR + b.warnings;
+		const scoreA = a.errors * ERROR_WEIGHT_FACTOR + a.warnings;
+		if (scoreB !== scoreA) return scoreB - scoreA;
+		return a.file.localeCompare(b.file);
+	});
+	const totalErrors = matchingFindings.filter((f) => f.severity === "error").length;
+	const totalWarnings = matchingFindings.filter((f) => f.severity === "warning").length;
+	if (args.jsonOutput) {
+		const byFileReport = {
+			meta: report.meta,
+			status: report.status,
+			summary: {
+				...report.summary,
+				totalViolations: matchingFindings.length,
+				errors: totalErrors,
+				warnings: totalWarnings
+			},
+			totalAffectedFiles: fileSummaries.length,
+			files: Object.fromEntries(fileSummaries.map((fs) => [fs.file, fs]))
+		};
+		console.log(JSON.stringify(byFileReport, null, 2));
+		return;
+	}
+	const filterLabels = [];
+	if (args.filePattern) filterLabels.push(`archivo: "${args.filePattern}"`);
+	if (args.category !== "all") filterLabels.push(`categoría: "${args.category}"`);
+	if (args.severity !== "all") filterLabels.push(`severidad: ${args.severity}`);
+	if (args.dirPattern) filterLabels.push(`directorio: "${args.dirPattern}"`);
+	if (args.search) filterLabels.push(`búsqueda: "${args.search}"`);
+	const subtitle = filterLabels.length > 0 ? `Filtros: ${filterLabels.join(", ")} | Archivos: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}` : `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Archivos afectados: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`;
+	console.log("\n" + renderBanner("HALLAZGOS DE AUDITORÍA AGRUPADOS POR ARCHIVO Y LÍNEA", subtitle));
+	if (fileSummaries.length === 0) {
+		console.log(styleText("green", "\n✨ No se encontraron incidencias que coincidan con los filtros activos.\n"));
+		return;
+	}
+	if (fileSummaries.length > 1 && !args.filePattern) {
+		const tableEntries = fileSummaries.map((fs) => [fs.file, {
+			errors: fs.errors,
+			warnings: fs.warnings
+		}]);
+		const tableLimit = typeof args.top === "number" ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
+		console.log("\n" + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), "ARCHIVO AFECTADO") + "\n");
+	}
+	const treeOutput = renderFindingsByFileTree(fileSummaries, {
+		maxFiles: args.top,
+		maxFindingsPerFile: "all"
+	});
+	console.log(treeOutput + "\n");
 }
-export function runReport() {
-    const args = parseReportOptions();
-    const report = loadAuditReport(args.inspectFix);
-    if (!report)
-        process.exit(1);
-    validateReportFreshnessAndScope(report, args);
-    const { categoryCounts, allFindings } = collectReportCategoryCounts(report);
-    const { filteredCategories, matchingFindings } = filterMatchingFindings(categoryCounts, args);
-    if (args.byFile) {
-        renderByFileView(matchingFindings, report, args);
-        return;
-    }
-    if (args.jsonOutput) {
-        renderFindingsJson(matchingFindings, filteredCategories, report, args);
-        return;
-    }
-    if (args.breakdown) {
-        renderBreakdownView(matchingFindings, args);
-        return;
-    }
-    if (args.filesOnly) {
-        renderFilesOnlyView(matchingFindings, report, args);
-        return;
-    }
-    console.log('\n' + renderBanner('REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES', `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`));
-    const categoriesToRender = (args.category !== 'all' || args.severity !== 'all' || args.search || args.filePattern || args.dirPattern || args.scope !== 'all')
-        ? filteredCategories
-        : categoryCounts;
-    const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
-    console.log('\n' + renderFindingsBreakdownTable(sortedCategories, 'CATEGORÍA / REGLA DE AUDITORÍA') + '\n');
-    if (args.summaryOnly)
-        return;
-    renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
+function runReport() {
+	const args = parseReportOptions();
+	const report = loadAuditReport(args.inspectFix);
+	if (!report) process.exit(1);
+	validateReportFreshnessAndScope(report, args);
+	const { categoryCounts, allFindings } = collectReportCategoryCounts(report);
+	const { filteredCategories, matchingFindings } = filterMatchingFindings(categoryCounts, args);
+	if (args.byFile) {
+		renderByFileView(matchingFindings, report, args);
+		return;
+	}
+	if (args.jsonOutput) {
+		renderFindingsJson(matchingFindings, filteredCategories, report, args);
+		return;
+	}
+	if (args.breakdown) {
+		renderBreakdownView(matchingFindings, args);
+		return;
+	}
+	if (args.filesOnly) {
+		renderFilesOnlyView(matchingFindings, report, args);
+		return;
+	}
+	console.log("\n" + renderBanner("REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES", `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`));
+	const categoriesToRender = args.category !== "all" || args.severity !== "all" || args.search || args.filePattern || args.dirPattern || args.scope !== "all" ? filteredCategories : categoryCounts;
+	const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
+	console.log("\n" + renderFindingsBreakdownTable(sortedCategories, "CATEGORÍA / REGLA DE AUDITORÍA") + "\n");
+	if (args.summaryOnly) return;
+	renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 }
 if (isMainModule(import.meta.url)) {
-    bootstrapCliProject();
-    runReport();
+	bootstrapCliProject();
+	runReport();
 }
-//# sourceMappingURL=report_findings.js.map
+//#endregion
+export { REPORT_SCOPES, SEVERITY_FILTERS, runReport };

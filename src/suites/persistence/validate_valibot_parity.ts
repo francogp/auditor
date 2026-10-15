@@ -1,6 +1,6 @@
 /**
  * src/suites/persistence/validate_valibot_parity.ts
- * 
+ *
  * VALIBOT SCHEMA & PERSISTENCE PARITY SUB-AUDITOR (Node.js 26+ Native)
  *
  * Enforces 100% bidirectional parity between:
@@ -26,10 +26,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
-import type { ValibotNestedParityTarget, ValibotParityTarget } from '../../core/auditConfigTypes.ts';
+import type {
+  ValibotNestedParityTarget,
+  ValibotParityTarget
+} from '../../core/auditConfigTypes.ts';
 
 enableCompileCache();
 
@@ -73,7 +76,10 @@ function getPropName(prop: ts.ObjectLiteralElementLike): string | undefined {
  * Extracts interface property keys using TypeScript AST.
  * Correctly handles optional, readonly, and string/identifier keys.
  */
-export function extractInterfaceKeys(sourceFile: ts.SourceFile, interfaceName: string): Set<string> {
+export function extractInterfaceKeys(
+  sourceFile: ts.SourceFile,
+  interfaceName: string
+): Set<string> {
   const keys = new Set<string>();
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isInterfaceDeclaration(node) && node.name.text === interfaceName) {
@@ -92,7 +98,10 @@ export function extractInterfaceKeys(sourceFile: ts.SourceFile, interfaceName: s
 /**
  * Extracts string literal types from a type alias union.
  */
-export function extractEphemeralKeys(sourceFile: ts.SourceFile, typeAliasName?: string): Set<string> {
+export function extractEphemeralKeys(
+  sourceFile: ts.SourceFile,
+  typeAliasName?: string
+): Set<string> {
   const keys = new Set<string>();
   if (!typeAliasName) return keys;
 
@@ -167,7 +176,9 @@ function findVariableDeclaration(
 }
 
 /** Extracts the first object literal argument of a function call initializer. */
-function extractCallFirstObjectArg(decl?: ts.VariableDeclaration): ts.ObjectLiteralExpression | undefined {
+function extractCallFirstObjectArg(
+  decl?: ts.VariableDeclaration
+): ts.ObjectLiteralExpression | undefined {
   if (!decl?.initializer || !ts.isCallExpression(decl.initializer)) return undefined;
   const firstArg = decl.initializer.arguments[0];
   if (!firstArg || !ts.isObjectLiteralExpression(firstArg)) return undefined;
@@ -190,11 +201,18 @@ export function extractSchemaKeys(
 /**
  * Extracts all property keys returned by serializer functions matching functionNameOrPrefix.
  */
-export function extractSerializerKeys(sourceFile: ts.SourceFile, functionNameOrPrefix: string = 'serialize'): Set<string> {
+export function extractSerializerKeys(
+  sourceFile: ts.SourceFile,
+  functionNameOrPrefix: string = 'serialize'
+): Set<string> {
   const keys = new Set<string>();
 
   ts.forEachChild(sourceFile, (node) => {
-    if (ts.isFunctionDeclaration(node) && node.name?.text.startsWith(functionNameOrPrefix) && node.body) {
+    if (
+      ts.isFunctionDeclaration(node) &&
+      node.name?.text.startsWith(functionNameOrPrefix) &&
+      node.body
+    ) {
       const visit = (child: ts.Node): void => {
         if (ts.isReturnStatement(child) && child.expression) {
           const expr = unwrapParenthesized(child.expression);
@@ -240,7 +258,11 @@ export function extractInitialStateKeys(
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name?.text === functionName && node.body) {
       for (const statement of node.body.statements) {
-        if (ts.isReturnStatement(statement) && statement.expression && ts.isObjectLiteralExpression(statement.expression)) {
+        if (
+          ts.isReturnStatement(statement) &&
+          statement.expression &&
+          ts.isObjectLiteralExpression(statement.expression)
+        ) {
           collectInitialProps(statement.expression, topLevelKeys, nestedKeys);
         }
       }
@@ -258,7 +280,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
   constructor(options: ValibotParityAuditorOptions = {}) {
     const config = getAuditConfig(options.projectRoot);
     const declaredTargets = config.valibot?.targets ?? [];
-    const targetFiles = declaredTargets.flatMap(t => [
+    const targetFiles = declaredTargets.flatMap((t) => [
       t.typesFile,
       t.schemaFile,
       ...(t.serializerFile ? [t.serializerFile] : []),
@@ -273,7 +295,8 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_valibot_parity',
       name: 'Valibot Schema & Persistence Parity Auditor',
@@ -297,15 +320,24 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
         'valibot-redundant-nullability': 'optional(nullable) redundante'
       },
       ruleRemediations: {
-        'valibot-schema-missing-field': 'Guía de diagnóstico y remediación para valibot-schema-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'valibot-serializer-missing-field': 'Guía de diagnóstico y remediación para valibot-serializer-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'valibot-initial-state-missing-field': 'Guía de diagnóstico y remediación para valibot-initial-state-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'valibot-nested-missing-field': 'Guía de diagnóstico y remediación para valibot-nested-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'valibot-domain-type-violation': 'Guía de diagnóstico y remediación para valibot-domain-type-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'valibot-redundant-nullability': 'Guía de diagnóstico y remediación para valibot-redundant-nullability. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'valibot-schema-missing-field':
+          'Guía de diagnóstico y remediación para valibot-schema-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'valibot-serializer-missing-field':
+          'Guía de diagnóstico y remediación para valibot-serializer-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'valibot-initial-state-missing-field':
+          'Guía de diagnóstico y remediación para valibot-initial-state-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'valibot-nested-missing-field':
+          'Guía de diagnóstico y remediación para valibot-nested-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'valibot-domain-type-violation':
+          'Guía de diagnóstico y remediación para valibot-domain-type-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'valibot-redundant-nullability':
+          'Guía de diagnóstico y remediación para valibot-redundant-nullability. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
-        include: targetFiles.length > 0 ? targetFiles : ['src/types/**/*.ts', 'src/logic/**/*.ts', 'src/stores/**/*.ts']
+        include:
+          targetFiles.length > 0
+            ? targetFiles
+            : ['src/types/**/*.ts', 'src/logic/**/*.ts', 'src/stores/**/*.ts']
       },
       projectRoot: options.projectRoot
     });
@@ -318,7 +350,10 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     if (targets.length === 0) {
       this.markSkipped('No se configuraron objetivos en valibot.targets');
       for (const rule of VALIBOT_PARITY_RULES) {
-        this.markRuleNotApplicable(rule, 'No hay objetivos de paridad Valibot configurados en audit.config.ts');
+        this.markRuleNotApplicable(
+          rule,
+          'No hay objetivos de paridad Valibot configurados en audit.config.ts'
+        );
       }
       this.context.setMetric('Objetivos Auditados', 0);
       return;
@@ -386,7 +421,11 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     return expected;
   }
 
-  private auditSchemaParity(target: ValibotParityTarget, expectedKeys: Set<string>, schemaAst: ts.SourceFile): void {
+  private auditSchemaParity(
+    target: ValibotParityTarget,
+    expectedKeys: Set<string>,
+    schemaAst: ts.SourceFile
+  ): void {
     const { keys: schemaKeys } = extractSchemaKeys(schemaAst, target.schemaVarName);
     for (const key of expectedKeys) {
       if (!schemaKeys.has(key)) {
@@ -402,7 +441,11 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     }
   }
 
-  private auditSerializerParity(target: ValibotParityTarget, expectedKeys: Set<string>, astEngine: SharedAstContext): void {
+  private auditSerializerParity(
+    target: ValibotParityTarget,
+    expectedKeys: Set<string>,
+    astEngine: SharedAstContext
+  ): void {
     if (!target.serializerFile) return;
     const absPath = path.resolve(this.projectRoot, target.serializerFile);
     if (!fs.existsSync(absPath)) return;
@@ -436,7 +479,10 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
 
     this.recordScanned(target.initialStateFile);
     const initialAst = astEngine.getSourceFile(absPath);
-    const { topLevelKeys, nestedKeys } = extractInitialStateKeys(initialAst, target.initialStateFunctionName ?? 'createInitialGameState');
+    const { topLevelKeys, nestedKeys } = extractInitialStateKeys(
+      initialAst,
+      target.initialStateFunctionName ?? 'createInitialGameState'
+    );
 
     for (const key of expectedKeys) {
       if (!topLevelKeys.has(key)) {
@@ -550,7 +596,6 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     });
   }
 
-
   private checkUnknownUsage(
     target: ValibotParityTarget,
     propName: string,
@@ -559,10 +604,19 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     allowedUnknown: ReadonlySet<string>
   ): void {
     let expr = initializer;
-    if (ts.isCallExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === 'optional' && expr.arguments[0]) {
+    if (
+      ts.isCallExpression(expr) &&
+      ts.isIdentifier(expr.expression) &&
+      expr.expression.text === 'optional' &&
+      expr.arguments[0]
+    ) {
       expr = expr.arguments[0]!;
     }
-    if (ts.isCallExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === 'unknown') {
+    if (
+      ts.isCallExpression(expr) &&
+      ts.isIdentifier(expr.expression) &&
+      expr.expression.text === 'unknown'
+    ) {
       if (!allowedUnknown.has(propName)) {
         this.addViolation({
           ruleId: 'valibot-domain-type-violation',
@@ -583,9 +637,18 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     line: number,
     allowedNullable: ReadonlySet<string>
   ): void {
-    if (ts.isCallExpression(initializer) && ts.isIdentifier(initializer.expression) && initializer.expression.text === 'optional') {
+    if (
+      ts.isCallExpression(initializer) &&
+      ts.isIdentifier(initializer.expression) &&
+      initializer.expression.text === 'optional'
+    ) {
       const inner = initializer.arguments[0];
-      if (inner && ts.isCallExpression(inner) && ts.isIdentifier(inner.expression) && inner.expression.text === 'nullable') {
+      if (
+        inner &&
+        ts.isCallExpression(inner) &&
+        ts.isIdentifier(inner.expression) &&
+        inner.expression.text === 'nullable'
+      ) {
         if (!allowedNullable.has(propName)) {
           this.addViolation({
             ruleId: 'valibot-redundant-nullability',

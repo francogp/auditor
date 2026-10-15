@@ -254,10 +254,6 @@ export default defineAuditConfig({
     enforceInAudit: true // Promotes coverage threshold drops to blocking errors during full audit
   },
 
-  eslint: {
-    enabled: true // Flat config governance and Domain-Type-First compliance verification
-  },
-
   htmlValidate: {
     enabled: true // Living Standard W3C/WHATWG HTML5 template markup validation
   },
@@ -281,7 +277,7 @@ export default defineAuditConfig({
   },
 
   packageTypes: {
-    enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires audit:build)
+    enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires build)
   },
 
   webPerformance: {

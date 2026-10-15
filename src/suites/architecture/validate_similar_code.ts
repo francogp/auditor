@@ -22,36 +22,43 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import type { AuditorCapabilities } from '../../core/auditContract.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
-import { getAuditConfig, isTestPath, type AuditFallowSimilarCodeConfig } from '../../core/auditConfig.ts';
+import {
+  getAuditConfig,
+  isTestPath,
+  type AuditFallowSimilarCodeConfig
+} from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, resolvePackageBin } from '../../cli/cliUtils.ts';
+import {
+  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+  DEFAULT_SUBPROCESS_TIMEOUT_MS,
+  resolvePackageBin
+} from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
-export const SIMILAR_CODE_RULES = [
-  'fallow-similar-code',
-  'fallow-similar-code-failed'
-] as const;
+export const SIMILAR_CODE_RULES = ['fallow-similar-code', 'fallow-similar-code-failed'] as const;
 
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 
 export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCapabilities> = {
   'fallow-similar-code': {
-        speed: 'heavy',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      },
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: false,
+    critical: false
+  },
   'fallow-similar-code-failed': {
-        speed: 'heavy',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'normal',
+    md: false,
+    ast: false,
+    changedOnly: false,
+    critical: false
+  }
 };
 
 export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
@@ -90,10 +97,7 @@ export function resolveFallowBinary(projectRoot: string = process.cwd()): string
 
 export function isFastPresetActive(): boolean {
   const args = process.argv.join(' ');
-  return (
-    args.includes('--preset=lint') ||
-    args.includes('--preset=md')
-  );
+  return args.includes('--preset=lint') || args.includes('--preset=md');
 }
 
 export function isSimilarCodeSkipped(): boolean {
@@ -109,7 +113,9 @@ export function isSimilarCodeSkipped(): boolean {
 export function resolveFallowUserCacheDir(): string {
   if (process.platform === 'win32') {
     const rawLocal = process.env.LOCALAPPDATA;
-    const localAppData = rawLocal ? path.resolve(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
+    const localAppData = rawLocal
+      ? path.resolve(rawLocal)
+      : path.join(os.homedir(), 'AppData', 'Local');
     return path.join(localAppData, 'fallow', 'similar-code');
   }
   if (process.platform === 'darwin') {
@@ -136,7 +142,11 @@ export function ensureSimilarCodeCacheDir(_projectRoot?: string): string {
   return cacheDir;
 }
 
-export function checkOrInitializeModel(fallowBin: string, projectRoot: string, isFix: boolean = false): boolean {
+export function checkOrInitializeModel(
+  fallowBin: string,
+  projectRoot: string,
+  isFix: boolean = false
+): boolean {
   ensureSimilarCodeCacheDir(projectRoot);
 
   if (isFix && process.platform === 'win32') {
@@ -159,12 +169,15 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string, i
   }
 
   try {
-    const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
-      cwd: projectRoot,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-      timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
-    });
+    const statusOut = childProcess.execSync(
+      `node "${fallowBin}" similar-code status --format json`,
+      {
+        cwd: projectRoot,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+        timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
+      }
+    );
     const parsed = JSON.parse(statusOut) as SimilarCodeStatusOutput;
     if (parsed.model_ready === true) {
       return true;
@@ -174,7 +187,10 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string, i
   }
 
   process.stdout.write(
-    styleText('cyan', '📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n')
+    styleText(
+      'cyan',
+      '📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n'
+    )
   );
 
   try {
@@ -187,7 +203,10 @@ export function checkOrInitializeModel(fallowBin: string, projectRoot: string, i
     return true;
   } catch (err) {
     process.stderr.write(
-      styleText('yellow', `⚠️ No se pudo inicializar el modelo de similar-code: ${(err as Error).message}. Se omitirá el análisis vectorial.\n`)
+      styleText(
+        'yellow',
+        `⚠️ No se pudo inicializar el modelo de similar-code: ${(err as Error).message}. Se omitirá el análisis vectorial.\n`
+      )
     );
     return false;
   }
@@ -208,8 +227,13 @@ interface CandidatePairIgnoreOptions {
 
 function isCandidatePairIgnored(options: CandidatePairIgnoreOptions): boolean {
   if (options.ignoreSameFile && options.leftPath === options.rightPath) return true;
-  if (options.auditor.isPathIgnored(options.leftPath) || options.auditor.isPathIgnored(options.rightPath)) return true;
-  if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath))) return true;
+  if (
+    options.auditor.isPathIgnored(options.leftPath) ||
+    options.auditor.isPathIgnored(options.rightPath)
+  )
+    return true;
+  if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath)))
+    return true;
   return false;
 }
 
@@ -250,13 +274,15 @@ export function evaluateSimilarCodeCandidates(
     const leftPath = normalizeRelativeCandidatePath(c.left?.path, auditor.projectRoot);
     const rightPath = normalizeRelativeCandidatePath(c.right?.path, auditor.projectRoot);
 
-    if (isCandidatePairIgnored({
-      leftPath,
-      rightPath,
-      ignoreSameFile,
-      auditor,
-      includeTests: Boolean(config.paths?.includeTestsInCodeAudit)
-    })) {
+    if (
+      isCandidatePairIgnored({
+        leftPath,
+        rightPath,
+        ignoreSameFile,
+        auditor,
+        includeTests: Boolean(config.paths?.includeTestsInCodeAudit)
+      })
+    ) {
       continue;
     }
 
@@ -268,15 +294,15 @@ export function evaluateSimilarCodeCandidates(
 }
 
 export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
-constructor(targetPath?: string) {
+  constructor(targetPath?: string) {
     const projectRoot = targetPath || process.cwd();
 
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "Fallow",
-        fallbackBehavior: "violation",
-        fallbackRuleId: "fallow-similar-code-failed"
+        toolName: 'Fallow',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'fallow-similar-code-failed'
       },
       ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
       fixableRuleIds: ['fallow-similar-code-failed'],
@@ -287,7 +313,11 @@ constructor(targetPath?: string) {
       ruleIds: SIMILAR_CODE_RULES,
       packageName: 'Fallow',
       configKey: 'fallow.similarCode.enabled',
-      defaultConfig: { enabled: true, threshold: DEFAULT_SIMILAR_CODE_THRESHOLD, ignoreSameFile: true },
+      defaultConfig: {
+        enabled: true,
+        threshold: DEFAULT_SIMILAR_CODE_THRESHOLD,
+        ignoreSameFile: true
+      },
       criticalConfig: {},
       icon: '🔍',
       ruleDescriptions: {
@@ -295,8 +325,10 @@ constructor(targetPath?: string) {
         'fallow-similar-code-failed': 'Salud del motor similar-code'
       },
       ruleRemediations: {
-        'fallow-similar-code': 'Guía de diagnóstico y remediación para fallow-similar-code. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-similar-code-failed': 'Guía de diagnóstico y remediación para fallow-similar-code-failed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-similar-code':
+          'Guía de diagnóstico y remediación para fallow-similar-code. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-similar-code-failed':
+          'Guía de diagnóstico y remediación para fallow-similar-code-failed. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -314,7 +346,8 @@ constructor(targetPath?: string) {
         severity: 'error',
         file: '.fallowrc.json',
         line: 1,
-        message: 'Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.',
+        message:
+          'Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.',
         context: 'binary-missing'
       });
       return null;
@@ -328,7 +361,8 @@ constructor(targetPath?: string) {
         severity: 'warning',
         file: '.fallowrc.json',
         line: 1,
-        message: 'No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.',
+        message:
+          'No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.',
         context: 'manual-setup-required'
       });
       return null;
@@ -342,7 +376,10 @@ constructor(targetPath?: string) {
     const minLines = similarCfg.minLines ?? 3;
     const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
 
-    const rawOutputFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/similar-code-raw.json');
+    const rawOutputFile = path.resolve(
+      this.projectRoot,
+      'scratch/audits/architecture/similar-code-raw.json'
+    );
     if (!fs.existsSync(path.dirname(rawOutputFile))) {
       fs.mkdirSync(path.dirname(rawOutputFile), { recursive: true });
     }
@@ -382,7 +419,8 @@ constructor(targetPath?: string) {
         severity: 'error',
         file: '.fallowrc.json',
         line: 1,
-        message: 'fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.',
+        message:
+          'fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.',
         context: 'missing-output-file'
       });
       return;
@@ -439,7 +477,9 @@ constructor(targetPath?: string) {
     }
 
     if (isSimilarCodeSkipped()) {
-      this.markSkipped('Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)');
+      this.markSkipped(
+        'Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)'
+      );
       return;
     }
 
@@ -454,7 +494,10 @@ constructor(targetPath?: string) {
     });
     if (!fallowBin) {
       this.runSubAuditorSync('fallow-similar-code', () => {
-        this.markRuleNotApplicable('fallow-similar-code', 'Binario o modelo de Fallow no disponible');
+        this.markRuleNotApplicable(
+          'fallow-similar-code',
+          'Binario o modelo de Fallow no disponible'
+        );
       });
       return;
     }

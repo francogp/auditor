@@ -21,7 +21,8 @@ import {
   type CommandInvocationType
 } from './npmCommandUtils.ts';
 
-const SHELL_PREFIX_RUNNERS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+const SHELL_PREFIX_RUNNERS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
   'sudo',
   'command',
   'builtin',
@@ -31,7 +32,8 @@ const SHELL_PREFIX_RUNNERS: ReadonlySet<string> = new Set([ // runtime-set: Fast
   'time'
 ]);
 
-const PROCESS_RUNNER_NAMES: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+const PROCESS_RUNNER_NAMES: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
   'execSync',
   'exec',
   'spawnSync',
@@ -48,7 +50,8 @@ const PROCESS_RUNNER_NAMES: ReadonlySet<string> = new Set([ // runtime-set: Fast
   '$'
 ]);
 
-const LOG_CMDLETS = /^\s*(?:Write-Host|Write-Output|Write-Warning|Write-Error|Write-Verbose|Write-Debug|Write-Information|echo|@echo)\b/i;
+const LOG_CMDLETS =
+  /^\s*(?:Write-Host|Write-Output|Write-Warning|Write-Error|Write-Verbose|Write-Debug|Write-Information|echo|@echo)\b/i;
 
 function pushCleanCommand(
   rawTarget: string | undefined,
@@ -72,7 +75,7 @@ function inspectNpmFamilyTokens(
   out: ExtractedCommand[]
 ): void {
   if ((bin === 'pnpm' || bin === 'yarn') && words[0] === 'dlx') {
-    const target = words.slice(1).find(w => !w.startsWith('-'));
+    const target = words.slice(1).find((w) => !w.startsWith('-'));
     pushCleanCommand(target, 'npx', lineNum, rawText, out);
     return;
   }
@@ -90,7 +93,7 @@ function inspectNpmFamilyTokens(
 
   const sub = words[idx]!;
   if (sub === 'run' || sub === 'run-script') {
-    const targetWord = words.slice(idx + 1).find(w => !w.startsWith('-'));
+    const targetWord = words.slice(idx + 1).find((w) => !w.startsWith('-'));
     pushCleanCommand(targetWord, 'npm-run', lineNum, rawText, out);
     return;
   }
@@ -161,8 +164,8 @@ function inspectBashCommandNode(
   if (!name || isPlaceholder(name)) return;
 
   const rawSuffix = node.suffix || [];
-  const wordNodes = rawSuffix.filter(s => s && s.type === 'Word');
-  const words = wordNodes.map(s => String(s.value ?? s.text ?? '')).filter(Boolean);
+  const wordNodes = rawSuffix.filter((s) => s && s.type === 'Word');
+  const words = wordNodes.map((s) => String(s.value ?? s.text ?? '')).filter(Boolean);
 
   if (SHELL_PREFIX_RUNNERS.has(name)) {
     while (words.length > 0 && (words[0]!.startsWith('-') || words[0]!.includes('='))) {
@@ -262,7 +265,9 @@ function processYamlRunPair(
   commands: ExtractedCommand[]
 ): void {
   const pairKey = pair.key as { value?: unknown; range?: readonly number[] } | undefined;
-  const pairVal = pair.value as { value?: unknown; type?: string; range?: readonly number[] } | undefined;
+  const pairVal = pair.value as
+    | { value?: unknown; type?: string; range?: readonly number[] }
+    | undefined;
 
   if (pairKey?.value !== 'run' || !pairVal || typeof pairVal.value !== 'string') {
     return;
@@ -270,9 +275,12 @@ function processYamlRunPair(
 
   const keyRange = pairKey.range;
   const valRange = pairVal.range;
-  const keyPos = Array.isArray(keyRange) && typeof keyRange[0] === 'number'
-    ? keyRange[0]
-    : (Array.isArray(valRange) && typeof valRange[0] === 'number' ? valRange[0] : 0);
+  const keyPos =
+    Array.isArray(keyRange) && typeof keyRange[0] === 'number'
+      ? keyRange[0]
+      : Array.isArray(valRange) && typeof valRange[0] === 'number'
+        ? valRange[0]
+        : 0;
 
   const baseLineNum = (content.slice(0, keyPos).match(/\n/g) || []).length + 1;
   const isBlock = pairVal.type === 'BLOCK_LITERAL' || pairVal.type === 'BLOCK_FOLDED';
@@ -305,7 +313,12 @@ export function extractCommandsFromYaml(content: string): ExtractedCommand[] {
   return commands;
 }
 
-function parseExecJsonRun(body: string, startLine: number, rawLines: readonly string[], out: ExtractedCommand[]): boolean {
+function parseExecJsonRun(
+  body: string,
+  startLine: number,
+  rawLines: readonly string[],
+  out: ExtractedCommand[]
+): boolean {
   if (!body.startsWith('[') || !body.endsWith(']')) return false;
   try {
     const parsed: unknown = JSON.parse(body);
@@ -415,9 +428,12 @@ function stripScriptComment(line: string, isBatch: boolean): string | null {
  * Extracts npm and npx commands from PowerShell (.ps1) and Windows Batch (.bat, .cmd) scripts
  * using a sentence-level lexical parser with string masking and comment filtering.
  */
-export function extractCommandsFromPowerShell(content: string, ext: string = '.ps1'): ExtractedCommand[] {
+export function extractCommandsFromPowerShell(
+  content: string,
+  ext: string = '.ps1'
+): ExtractedCommand[] {
   const commands: ExtractedCommand[] = [];
-  const cleanBlock = content.replace(/<#[\s\S]*?#>/g, m => ' '.repeat(m.length));
+  const cleanBlock = content.replace(/<#[\s\S]*?#>/g, (m) => ' '.repeat(m.length));
   const lines = cleanBlock.split('\n');
   const isBatch = ext === '.bat' || ext === '.cmd';
   const delimiter = isBatch ? /[;&|]/ : /[;|]/;
@@ -512,12 +528,16 @@ function handleTaggedTemplate(
   appendOffsetShellCommands(node.template.text, getNodeLine(node, sf), rawLines, commands);
 }
 
-function collectStringLiterals(node: ts.Node, out: { text: string; line: number }[], sf: ts.SourceFile): void {
+function collectStringLiterals(
+  node: ts.Node,
+  out: { text: string; line: number }[],
+  sf: ts.SourceFile
+): void {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     out.push({ text: node.text, line: getNodeLine(node, sf) });
   } else if (ts.isTemplateExpression(node)) {
     const line = getNodeLine(node, sf);
-    const fullText = node.head.text + node.templateSpans.map(s => ` ${s.literal.text}`).join('');
+    const fullText = node.head.text + node.templateSpans.map((s) => ` ${s.literal.text}`).join('');
     out.push({ text: fullText, line });
   } else if (ts.isCallExpression(node)) {
     for (const arg of node.arguments) {
@@ -541,10 +561,18 @@ function isConsoleCall(node: ts.CallExpression): boolean {
 }
 
 function isErrorInstantiation(node: ts.Node): boolean {
-  if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text.endsWith('Error')) {
+  if (
+    ts.isNewExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    node.expression.text.endsWith('Error')
+  ) {
     return true;
   }
-  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text.endsWith('Error')) {
+  if (
+    ts.isCallExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    node.expression.text.endsWith('Error')
+  ) {
     return true;
   }
   return false;
@@ -592,7 +620,10 @@ function handleHelpOrDiagnosticLogs(
  * Extracts npm and npx commands from TypeScript and JavaScript maintenance scripts
  * using TypeScript Compiler AST (inspecting process runner calls and CLI help/diagnostic logs).
  */
-export function extractCommandsFromTypeScript(content: string, filePath: string): ExtractedCommand[] {
+export function extractCommandsFromTypeScript(
+  content: string,
+  filePath: string
+): ExtractedCommand[] {
   const commands: ExtractedCommand[] = [];
   const sf = ts.createSourceFile(path.basename(filePath), content, ts.ScriptTarget.Latest, true);
   const rawLines = content.split('\n');
@@ -601,7 +632,12 @@ export function extractCommandsFromTypeScript(content: string, filePath: string)
     if (ts.isCallExpression(node)) {
       const callee = getCalleeName(node.expression);
       if (callee && PROCESS_RUNNER_NAMES.has(callee) && node.arguments.length > 0) {
-        if (callee === 'spawn' || callee === 'spawnSync' || callee === 'execFile' || callee === 'execFileSync') {
+        if (
+          callee === 'spawn' ||
+          callee === 'spawnSync' ||
+          callee === 'execFile' ||
+          callee === 'execFileSync'
+        ) {
           handleSpawnCall(node, sf, rawLines, commands);
         } else {
           handleExecCall(node, sf, rawLines, commands);

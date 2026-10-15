@@ -98,7 +98,7 @@ Update the closest owning `AGENTS.md` when a change affects:
 Create a child `AGENTS.md` when a folder becomes a durable boundary with its own purpose, rules, responsibilities, workflow, materials, or quality standards.
 
 - **Work Guidance**: Must reflect the current operational standards of the project, subsystem practices, or development instructions. Leaving it empty, whitespace-only, or filled with placeholder/garbage text (`TODO`, `TBD`, `N/A`, `...`) is strictly prohibited (`dox-empty-section`).
-- **Verification**: Must document concrete verification checks and execution commands (e.g. `npm test -- ...`, `npm run auditor:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
+- **Verification**: Must document concrete verification checks and execution commands (e.g. `vp test ...`, `npm test -- ...`, `npm run auditor:...`). Leaving it empty or using placeholder stubs is strictly prohibited (`dox-empty-section`).
 
 **Default section order:**
 

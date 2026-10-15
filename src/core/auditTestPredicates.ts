@@ -14,17 +14,19 @@ function hasTestFileExtensionOrPattern(base: string, customPatterns: readonly st
   if (TEST_FILE_REGEX.test(base)) {
     return true;
   }
-  return customPatterns.some(pat => base.includes(pat.toLowerCase()));
+  return customPatterns.some((pat) => base.includes(pat.toLowerCase()));
 }
 
-function matchesConfiguredOrFallbackTestRoots(norm: string, configuredRoots: readonly string[]): boolean {
+function matchesConfiguredOrFallbackTestRoots(
+  norm: string,
+  configuredRoots: readonly string[]
+): boolean {
   if (matchesAnyRoot(norm, configuredRoots)) {
     return true;
   }
   const isFallbackRoot = norm.startsWith('tests/') || norm.includes('/tests/');
   return configuredRoots.length === 0 && isFallbackRoot;
 }
-
 
 /**
  * Determines whether a file path belongs to a test, spec, mock, or e2e directory
@@ -49,7 +51,6 @@ export function isTestPath(filePath: string): boolean {
 
   return matchesConfiguredOrFallbackTestRoots(norm, configuredRoots);
 }
-
 
 /**
  * Determines whether a file path is a test file that should be skipped during source code audits,

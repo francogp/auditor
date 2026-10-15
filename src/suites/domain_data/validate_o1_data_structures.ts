@@ -14,7 +14,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import type { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig, isTestPath } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
@@ -235,7 +236,7 @@ id: 'validate_o1_data_structures',
     });
   }
 
-  public override async runAudit(astContext?: any): Promise<void> {
+  public override async runAudit(astContext?: SharedAstContext): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     const catalogPatterns = config.domain?.o1CatalogPatterns ?? [];
     if (catalogPatterns.length === 0) {

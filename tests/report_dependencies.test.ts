@@ -21,8 +21,8 @@ import {
 describe('auditor-dependencies CLI reporter', () => {
   let tempDir: string;
   const minimums = getAuditorMinimumVersions();
-  const eslintFloor = minimums['eslint'] as string;
-  const eslintMin = eslintFloor.replace('^', '');
+  const htmlValidateFloor = minimums['html-validate'] as string;
+  const htmlValidateMin = htmlValidateFloor.replace('^', '');
   const vueFloor = minimums['vue'] as string;
 
   async function writeProject(
@@ -61,8 +61,8 @@ describe('auditor-dependencies CLI reporter', () => {
 
   it('evaluates clean project with zero outdated dependencies', async () => {
     await writeProject(
-      { devDependencies: { eslint: eslintFloor } },
-      { eslint: eslintMin }
+      { devDependencies: { 'html-validate': htmlValidateFloor } },
+      { 'html-validate': htmlValidateMin }
     );
     const report = evaluateProjectDependencies(tempDir);
     expect(report.declaredCount).toBe(1);
@@ -75,38 +75,38 @@ describe('auditor-dependencies CLI reporter', () => {
   it('detects outdated declared range and groups prod/dev install commands', async () => {
     await writeProject({
       dependencies: { vue: '^3.0.0' },
-      devDependencies: { eslint: '^9.0.0' }
+      devDependencies: { 'html-validate': '^9.0.0' }
     });
 
     const report = evaluateProjectDependencies(tempDir);
     expect(report.outdatedCount).toBe(2);
     expect(report.prodInstallCommand).toBe(`npm install vue@${vueFloor}`);
-    expect(report.devInstallCommand).toBe(`npm install -D eslint@${eslintFloor}`);
+    expect(report.devInstallCommand).toBe(`npm install -D html-validate@${htmlValidateFloor}`);
 
     const vueEval = report.evaluated.find(e => e.name === 'vue');
     expect(vueEval?.status).toBe('outdated_range');
     expect(vueEval?.installCommand).toBe(`npm install vue@${vueFloor}`);
 
-    const eslintEval = report.evaluated.find(e => e.name === 'eslint');
-    expect(eslintEval?.status).toBe('outdated_range');
-    expect(eslintEval?.installCommand).toBe(`npm install -D eslint@${eslintFloor}`);
+    const htmlValidateEval = report.evaluated.find(e => e.name === 'html-validate');
+    expect(htmlValidateEval?.status).toBe('outdated_range');
+    expect(htmlValidateEval?.installCommand).toBe(`npm install -D html-validate@${htmlValidateFloor}`);
   });
 
   it('detects outdated installed lockfile version', async () => {
     await writeProject(
-      { devDependencies: { eslint: eslintFloor } },
-      { eslint: '9.0.0' }
+      { devDependencies: { 'html-validate': htmlValidateFloor } },
+      { 'html-validate': '9.0.0' }
     );
 
     const report = evaluateProjectDependencies(tempDir);
     expect(report.outdatedCount).toBe(1);
-    const eslintEval = report.evaluated.find(e => e.name === 'eslint');
-    expect(eslintEval?.status).toBe('outdated_installed');
-    expect(report.devInstallCommand).toBe(`npm install -D eslint@${eslintFloor}`);
+    const htmlValidateEval = report.evaluated.find(e => e.name === 'html-validate');
+    expect(htmlValidateEval?.status).toBe('outdated_installed');
+    expect(report.devInstallCommand).toBe(`npm install -D html-validate@${htmlValidateFloor}`);
   });
 
   it('marks non-declared libraries as undeclared', async () => {
-    await writeProject({ devDependencies: { eslint: eslintFloor } });
+    await writeProject({ devDependencies: { 'html-validate': htmlValidateFloor } });
     const report = evaluateProjectDependencies(tempDir);
     const undeclared = report.evaluated.filter(e => e.status === 'undeclared');
     expect(undeclared.length).toBe(report.totalGoverned - 1);
@@ -115,7 +115,7 @@ describe('auditor-dependencies CLI reporter', () => {
   });
 
   it('runDependenciesReport outputs json mode without crashing', async () => {
-    await writeProject({ devDependencies: { eslint: eslintFloor } });
+    await writeProject({ devDependencies: { 'html-validate': htmlValidateFloor } });
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {
       const report = runDependenciesReport(tempDir, { json: true, commandsOnly: false, all: false, noFail: true });
@@ -132,14 +132,14 @@ describe('auditor-dependencies CLI reporter', () => {
   it('runDependenciesReport outputs commands mode cleanly', async () => {
     await writeProject({
       dependencies: { vue: '^3.0.0' },
-      devDependencies: { eslint: '^9.0.0' }
+      devDependencies: { 'html-validate': '^9.0.0' }
     });
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {
       const report = runDependenciesReport(tempDir, { json: false, commandsOnly: true, all: false, noFail: true });
       expect(report.outdatedCount).toBe(2);
       expect(spy).toHaveBeenCalledWith(`npm install vue@${vueFloor}`);
-      expect(spy).toHaveBeenCalledWith(`npm install -D eslint@${eslintFloor}`);
+      expect(spy).toHaveBeenCalledWith(`npm install -D html-validate@${htmlValidateFloor}`);
     } finally {
       spy.mockRestore();
     }

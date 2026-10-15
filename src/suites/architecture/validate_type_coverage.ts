@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
@@ -91,9 +91,9 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "type-coverage",
-        fallbackBehavior: "violation",
-        fallbackRuleId: "type-coverage-below-threshold"
+        toolName: 'type-coverage',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'type-coverage-below-threshold'
       },
       ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
         speed: ['heavy', 'full'],
@@ -119,8 +119,10 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
         'type-coverage-untyped-identifier': 'Identificador untyped any detectado'
       },
       ruleRemediations: {
-        'type-coverage-below-threshold': 'Guía de diagnóstico y remediación para type-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'type-coverage-untyped-identifier': 'Guía de diagnóstico y remediación para type-coverage-untyped-identifier. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-coverage-below-threshold':
+          'Guía de diagnóstico y remediación para type-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-coverage-untyped-identifier':
+          'Guía de diagnóstico y remediación para type-coverage-untyped-identifier. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -187,9 +189,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       baseFlags.push('--strict');
     }
 
-    const cliFlags = tier === 'full'
-      ? [...baseFlags, '--detail', '--ignore-catch']
-      : baseFlags;
+    const cliFlags = tier === 'full' ? [...baseFlags, '--detail', '--ignore-catch'] : baseFlags;
 
     for (const ignoreFile of ignoreFiles) {
       cliFlags.push('--ignore-files', ignoreFile);
@@ -212,7 +212,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
   }
 
   private applyCoverageMetricsAndFindings(report: TypeCoverageReport, threshold: number): void {
-    const percentStr = report.percentString ?? (report.percent?.toFixed(2) ?? '0.00');
+    const percentStr = report.percentString ?? report.percent?.toFixed(2) ?? '0.00';
     const correct = report.correctCount ?? 0;
     const total = report.totalCount ?? 0;
 
@@ -223,7 +223,8 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
     for (const ruleId of TYPE_COVERAGE_RULES) {
       this.runSubAuditorSync(ruleId, () => {
         for (const finding of findings) {
-          const targetRule = (finding.ruleId as TypeCoverageRuleId) ?? 'type-coverage-below-threshold';
+          const targetRule =
+            (finding.ruleId as TypeCoverageRuleId) ?? 'type-coverage-below-threshold';
           if (targetRule !== ruleId) continue;
           this.addViolation({
             ruleId,

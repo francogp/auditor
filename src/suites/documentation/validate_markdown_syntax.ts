@@ -21,10 +21,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import {
-  FileScanAuditor,
-  BaseAuditor
-, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -37,7 +34,8 @@ export const MARKDOWN_SYNTAX_RULES: readonly MarkdownSyntaxRuleId[] = [
   'markdown-table-preceding-blank-line'
 ] as const;
 
-const FORBIDDEN_DOC_COMMAND_REGEX = /\b(?:node\s+scripts\/|npx\s+tsx\s+scripts\/|node\s+-e\s+["']|python\s+\.agents\/|npx\s+vite\s+build\b)/;
+const FORBIDDEN_DOC_COMMAND_REGEX =
+  /\b(?:node\s+scripts\/|npx\s+tsx\s+scripts\/|node\s+-e\s+["']|python\s+\.agents\/|npx\s+vite\s+build\b)/;
 const TABLE_SEPARATOR_REGEX = /^\s*\|\s*[:-][-| :]*\|\s*$/;
 const TABLE_ROW_REGEX = /^\s*\|.+?\|\s*$/;
 
@@ -48,7 +46,7 @@ function isTablePrecededProperly(prevLine: string): boolean {
 }
 
 export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId> {
-constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
+  constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     super({
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(MARKDOWN_SYNTAX_RULES, {
@@ -57,7 +55,8 @@ constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
         fix: 'none',
         md: true,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_markdown_syntax',
       name: 'Markdown Syntax & NPM Script SSoT Validator',
@@ -74,8 +73,10 @@ constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
         'markdown-table-preceding-blank-line': 'Falta línea en blanco antes de tabla'
       },
       ruleRemediations: {
-        'npm-script-exclusivity-in-docs': 'Guía de diagnóstico y remediación para npm-script-exclusivity-in-docs. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'markdown-table-preceding-blank-line': 'Guía de diagnóstico y remediación para markdown-table-preceding-blank-line. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'npm-script-exclusivity-in-docs':
+          'Guía de diagnóstico y remediación para npm-script-exclusivity-in-docs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-table-preceding-blank-line':
+          'Guía de diagnóstico y remediación para markdown-table-preceding-blank-line. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots,
       allowedExtensions: new Set(['.md']),
@@ -84,7 +85,12 @@ constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     });
   }
 
-  private checkNpmScriptViolation(line: string, trimmed: string, lineNum: number, relPath: string): void {
+  private checkNpmScriptViolation(
+    line: string,
+    trimmed: string,
+    lineNum: number,
+    relPath: string
+  ): void {
     const match = FORBIDDEN_DOC_COMMAND_REGEX.exec(line);
     if (!match) return;
 
@@ -106,7 +112,11 @@ constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
   ): void {
     if (index === 0) return;
     const nextLine = lines[index + 1]?.trim() || '';
-    if (!TABLE_ROW_REGEX.test(trimmed) || index + 1 >= lines.length || !TABLE_SEPARATOR_REGEX.test(nextLine)) {
+    if (
+      !TABLE_ROW_REGEX.test(trimmed) ||
+      index + 1 >= lines.length ||
+      !TABLE_SEPARATOR_REGEX.test(nextLine)
+    ) {
       return;
     }
 
@@ -117,7 +127,8 @@ constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
         severity: 'warning',
         file: relPath,
         line: index + 1,
-        message: 'Markdown table header must be preceded by a blank empty line for standard GFM compliance.',
+        message:
+          'Markdown table header must be preceded by a blank empty line for standard GFM compliance.',
         context: trimmed
       });
     }

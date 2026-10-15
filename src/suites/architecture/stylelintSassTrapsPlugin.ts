@@ -64,7 +64,7 @@ const ruleFunction: stylelint.RuleBase = (primary, _secondary, _context) => {
             word: node.value,
             fix: () => {
               node.value = expected;
-              const formatted = parsed.toString();
+              const formatted = valueParser.stringify(parsed.nodes);
               if (decl.raws && (decl.raws as { value?: { raw: string } }).value) {
                 (decl.raws as { value: { raw: string } }).value.raw = formatted;
               }
@@ -86,7 +86,4 @@ export const sassTrapsRule: stylelint.Rule = Object.assign(ruleFunction, {
   }
 });
 
-export const sassTrapsPlugin = stylelint.createPlugin(
-  SASS_TRAPS_RULE_NAME,
-  sassTrapsRule
-);
+export const sassTrapsPlugin = stylelint.createPlugin(SASS_TRAPS_RULE_NAME, sassTrapsRule);

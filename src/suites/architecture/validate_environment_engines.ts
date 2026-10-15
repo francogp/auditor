@@ -13,7 +13,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { BaseAuditor, type AuditorOptions , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  type AuditorOptions,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import {
   parseSemver,
   compareVersions,
@@ -70,16 +74,27 @@ export function extractBaseNodeVersion(engineStr: string): string {
   return `${v.major}.${v.minor}.${v.patch}`;
 }
 
-export function syncNvmrc(projectRoot: string, targetNodeEngine: string): boolean {
+export function syncNodeVersion(projectRoot: string, targetNodeEngine: string): boolean {
   const baseVersion = extractBaseNodeVersion(targetNodeEngine);
   if (!baseVersion) return false;
-  const nvmrcPath = path.resolve(projectRoot, '.nvmrc');
-  const currentContent = fs.existsSync(nvmrcPath) ? fs.readFileSync(nvmrcPath, 'utf8').trim() : '';
+  const nodeVersionPath = path.resolve(projectRoot, '.node-version');
+  const currentContent = fs.existsSync(nodeVersionPath)
+    ? fs.readFileSync(nodeVersionPath, 'utf8').trim()
+    : '';
+  let updated = false;
   if (currentContent !== baseVersion) {
-    fs.writeFileSync(nvmrcPath, `${baseVersion}\n`, 'utf8');
-    return true;
+    fs.writeFileSync(nodeVersionPath, `${baseVersion}\n`, 'utf8');
+    updated = true;
   }
-  return false;
+  const legacyNvmrc = path.resolve(projectRoot, '.nvmrc');
+  if (fs.existsSync(legacyNvmrc)) {
+    try {
+      fs.rmSync(legacyNvmrc, { force: true });
+    } catch {
+      // catch-ok
+    }
+  }
+  return updated;
 }
 
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
@@ -92,7 +107,8 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_environment_engines',
       name: 'Environment Engines & Runtime Validator',
@@ -110,9 +126,12 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         'environment-runtime-mismatch': 'Versión activa no coincide con engines'
       },
       ruleRemediations: {
-        'environment-engines-missing': 'Guía de diagnóstico y remediación para environment-engines-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'environment-engines-below-floor': 'Guía de diagnóstico y remediación para environment-engines-below-floor. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'environment-runtime-mismatch': 'Guía de diagnóstico y remediación para environment-runtime-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'environment-engines-missing':
+          'Guía de diagnóstico y remediación para environment-engines-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'environment-engines-below-floor':
+          'Guía de diagnóstico y remediación para environment-engines-below-floor. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'environment-runtime-mismatch':
+          'Guía de diagnóstico y remediación para environment-runtime-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: { include: ['package.json'] },
       ...options
@@ -220,7 +239,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
           `Entorno de ejecución desalineado. ` +
           `Detectado Node v${process.versions.node} / npm ${rawNpmVer}, ` +
           `requerido Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}. ` +
-          `Ejecuta ${setupScript} (o nvm use) para alinear tu terminal, o ${updateScript} para actualizar a la última versión.`,
+          `Ejecuta ${setupScript} (o vp env use) para alinear tu terminal, o ${updateScript} para actualizar a la última versión.`,
         severity: 'error'
       });
     }
@@ -238,15 +257,22 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     if (!pkg) {
       this.runSubAuditorSync('environment-engines-missing', () => {});
       this.runSubAuditorSync('environment-engines-below-floor', () => {
-        this.markRuleNotApplicable('environment-engines-below-floor', 'package.json ausente o inválido');
+        this.markRuleNotApplicable(
+          'environment-engines-below-floor',
+          'package.json ausente o inválido'
+        );
       });
       this.runSubAuditorSync('environment-runtime-mismatch', () => {
-        this.markRuleNotApplicable('environment-runtime-mismatch', 'package.json ausente o inválido');
+        this.markRuleNotApplicable(
+          'environment-runtime-mismatch',
+          'package.json ausente o inválido'
+        );
       });
       return;
     }
 
-    const hasNodeEngine = typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
+    const hasNodeEngine =
+      typeof pkg.engines?.node === 'string' && pkg.engines.node.trim().length > 0;
     const hasNpmEngine = typeof pkg.engines?.npm === 'string' && pkg.engines.npm.trim().length > 0;
 
     this.runSubAuditorSync('environment-engines-missing', () => {
@@ -265,7 +291,14 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     });
 
     this.runSubAuditorSync('environment-runtime-mismatch', () => {
-      this.auditRuntimeMismatch(pkg, auditorEngines, belowFloorResult.nodeReq, belowFloorResult.npmReq, minNodeReq, minNpmReq);
+      this.auditRuntimeMismatch(
+        pkg,
+        auditorEngines,
+        belowFloorResult.nodeReq,
+        belowFloorResult.npmReq,
+        minNodeReq,
+        minNpmReq
+      );
     });
   }
 }

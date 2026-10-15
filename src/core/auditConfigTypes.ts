@@ -130,7 +130,7 @@ export interface AuditStylelintConfig {
   readonly order?: AuditStylelintOrderConfig;
 }
 
-export interface AuditEslintConfig {
+export interface AuditOxlintConfig {
   readonly enabled?: boolean;
 }
 
@@ -251,7 +251,14 @@ export interface AuditFallowVizConfig {
   readonly outputPath?: string;
 }
 
-export const FALLOW_TARGET_PRIORITIES = ['critical', 'high', 'medium', 'moderate', 'low', 'all'] as const;
+export const FALLOW_TARGET_PRIORITIES = [
+  'critical',
+  'high',
+  'medium',
+  'moderate',
+  'low',
+  'all'
+] as const;
 export type FallowTargetPriorityNamed = (typeof FALLOW_TARGET_PRIORITIES)[number];
 export type FallowTargetPriority = FallowTargetPriorityNamed | number;
 
@@ -365,7 +372,13 @@ export interface AuditDependencyVulnerabilitiesConfig {
   readonly includeDev?: boolean;
 }
 
-export const ACKNOWLEDGEABLE_EXEMPTION_POLICIES = ['cli', 'scripts', 'data', 'demo', 'exemptFiles'] as const;
+export const ACKNOWLEDGEABLE_EXEMPTION_POLICIES = [
+  'cli',
+  'scripts',
+  'data',
+  'demo',
+  'exemptFiles'
+] as const;
 export type AcknowledgeableExemptionPolicy = (typeof ACKNOWLEDGEABLE_EXEMPTION_POLICIES)[number];
 
 export interface AuditCoverageExemption {
@@ -490,6 +503,18 @@ export interface AuditScssArchitectureConfig {
   readonly exemptPaths?: readonly string[];
 }
 
+export interface AuditVitePlusConfig {
+  readonly enabled?: boolean;
+  readonly fmt?: {
+    readonly singleQuote?: boolean;
+    readonly semi?: boolean;
+    readonly trailingComma?: 'none' | 'all' | 'es5';
+    readonly printWidth?: number;
+  };
+  readonly staged?: Record<string, string>;
+  readonly extraLintRules?: Record<string, 'error' | 'warn' | 'off'>;
+}
+
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends readonly (infer U)[]
     ? readonly U[]
@@ -514,7 +539,8 @@ export interface AuditEngineConfig {
   readonly templates?: AuditTemplatesConfig;
   readonly styles?: AuditStylesConfig;
   readonly stylelint?: AuditStylelintConfig;
-  readonly eslint?: AuditEslintConfig;
+  readonly oxlint?: AuditOxlintConfig;
+  readonly vitePlusConfig?: AuditVitePlusConfig;
   readonly htmlValidate?: AuditHtmlValidateConfig;
   readonly bundle?: AuditBundleConfig;
   readonly agentPlugin?: AuditAgentPluginConfig;

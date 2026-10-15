@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
@@ -28,14 +28,25 @@ enableCompileCache();
 
 export type DeadCssRuleId = 'dead-scoped-css';
 
-export const DEAD_CSS_RULES: readonly DeadCssRuleId[] = [
-  'dead-scoped-css'
-] as const;
+export const DEAD_CSS_RULES: readonly DeadCssRuleId[] = ['dead-scoped-css'] as const;
 
 export const DEFAULT_GLOBAL_UTILITY_CLASSES = new Set([
-  'clickable', 'flex', 'hidden', 'active', 'disabled',
-  'w-full', 'h-full', 'truncate', 'pointer-events-none', 'pointer-events-auto', 'select-none',
-  'custom-scrollbar', 'empty-state', 'scrollable-content', 'modal-footer', 'emoji',
+  'clickable',
+  'flex',
+  'hidden',
+  'active',
+  'disabled',
+  'w-full',
+  'h-full',
+  'truncate',
+  'pointer-events-none',
+  'pointer-events-auto',
+  'select-none',
+  'custom-scrollbar',
+  'empty-state',
+  'scrollable-content',
+  'modal-footer',
+  'emoji',
   'tabular-nums'
 ]);
 
@@ -124,10 +135,13 @@ function collectGlobalCodeTokens(projectRoot: string, srcFiles: readonly string[
   return globalTokens;
 }
 
-function extractComponentLogic(rawContent: string): { componentLogic: string; dynamicPrefixes: Set<string> } {
+function extractComponentLogic(rawContent: string): {
+  componentLogic: string;
+  dynamicPrefixes: Set<string>;
+} {
   const sfc = parseVueSfc(rawContent);
   const templateContent = sfc.template?.content ?? '';
-  const scriptsContent = sfc.scripts.map(s => s.content).join('\n');
+  const scriptsContent = sfc.scripts.map((s) => s.content).join('\n');
   const componentLogic = `${templateContent}\n${scriptsContent}`;
   const dynamicPrefixes = new Set<string>();
 
@@ -151,18 +165,24 @@ function isClassExempt(
   dynamicPrefixes: ReadonlySet<string>
 ): boolean {
   if (globalUtilityClasses.has(className)) return true;
-  if (VUE_TRANSITION_SUFFIXES.some(suffix => className.endsWith(suffix))) return true;
-  if (Array.from(dynamicPrefixes).some(prefix => className.startsWith(prefix))) return true;
+  if (VUE_TRANSITION_SUFFIXES.some((suffix) => className.endsWith(suffix))) return true;
+  if (Array.from(dynamicPrefixes).some((prefix) => className.startsWith(prefix))) return true;
   return false;
 }
 
-function isRuleExemptByComments(rule: ParsedScopedCssRule, contentLines: readonly string[]): boolean {
+function isRuleExemptByComments(
+  rule: ParsedScopedCssRule,
+  contentLines: readonly string[]
+): boolean {
   if (rule.rawBlock.includes('css-ok') || rule.rawBlock.includes('dead-css-ok')) return true;
   const lineIdx = rule.line - 1;
   const blockLineCount = rule.rawBlock.split('\n').length;
   const endLineIdx = lineIdx + blockLineCount;
-  const surroundingLines = contentLines.slice(Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES), endLineIdx);
-  return surroundingLines.some(l => l.includes('css-ok') || l.includes('dead-css-ok'));
+  const surroundingLines = contentLines.slice(
+    Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES),
+    endLineIdx
+  );
+  return surroundingLines.some((l) => l.includes('css-ok') || l.includes('dead-css-ok'));
 }
 
 function auditSingleRuleClasses(
@@ -179,7 +199,10 @@ function auditSingleRuleClasses(
   let count = 0;
   const classNames = extractClassNamesFromSelector(rule.selector);
   for (const className of classNames) {
-    if (EXCLUDED_EXTENSIONS.has(className) || isClassExempt(className, params.globalUtilityClasses, dynamicPrefixes)) {
+    if (
+      EXCLUDED_EXTENSIONS.has(className) ||
+      isClassExempt(className, params.globalUtilityClasses, dynamicPrefixes)
+    ) {
       continue;
     }
     count++;
@@ -218,12 +241,9 @@ function auditComponentScopedCss(params: {
 }
 
 export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
-constructor(projectRoot: string = process.cwd()) {
+  constructor(projectRoot: string = process.cwd()) {
     const config = getAuditConfig(projectRoot);
-    const compRoots = [
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? [])
-    ];
+    const compRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
 
     super({
       usesThirdPartyTool: false,
@@ -233,7 +253,8 @@ constructor(projectRoot: string = process.cwd()) {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_dead_css',
       name: 'Scoped Dead CSS Auditor',
@@ -249,7 +270,8 @@ constructor(projectRoot: string = process.cwd()) {
         'dead-scoped-css': 'Clase scoped huérfana sin uso'
       },
       ruleRemediations: {
-        'dead-scoped-css': 'Guía de diagnóstico y remediación para dead-scoped-css. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dead-scoped-css':
+          'Guía de diagnóstico y remediación para dead-scoped-css. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), projectRoot).include
@@ -262,21 +284,21 @@ constructor(projectRoot: string = process.cwd()) {
     const config = getAuditConfig(this.projectRoot);
     const globalUtilityClasses = getEffectiveGlobalUtilityClasses(this.projectRoot);
     const srcRoots = config.paths.srcRoots ?? [];
-    const allSrcFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.json']));
+    const allSrcFiles = this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.json']));
     const globalTokens = collectGlobalCodeTokens(this.projectRoot, allSrcFiles);
 
-    const compRoots = [
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? [])
-    ];
+    const compRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
     this.redeclareCoverage({
       include: deriveCoverageFromRoots(compRoots, new Set(['.vue']), this.projectRoot).include
     });
-    const componentFiles = await this.context.collectFiles(compRoots, new Set(['.vue']));
+    const componentFiles = this.context.collectFiles(compRoots, new Set(['.vue']));
 
     if (componentFiles.length === 0) {
       this.runSubAuditorSync('dead-scoped-css', () => {
-        this.markRuleNotApplicable('dead-scoped-css', 'No se encontraron componentes .vue en el proyecto');
+        this.markRuleNotApplicable(
+          'dead-scoped-css',
+          'No se encontraron componentes .vue en el proyecto'
+        );
       });
       return;
     }

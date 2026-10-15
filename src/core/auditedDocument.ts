@@ -24,7 +24,13 @@ export interface LineColumnPosition {
   readonly lineText: string;
 }
 
-export type LexicalRangeKind = 'comment_line' | 'comment_block' | 'comment_html' | 'string_single' | 'string_double' | 'string_template';
+export type LexicalRangeKind =
+  | 'comment_line'
+  | 'comment_block'
+  | 'comment_html'
+  | 'string_single'
+  | 'string_double'
+  | 'string_template';
 
 export interface LexicalRange {
   readonly start: number;
@@ -95,7 +101,7 @@ function binarySearchLineIndex(lineOffsets: readonly number[], offset: number): 
     const mid = (low + high) >> 1;
     const current = lineOffsets[mid]!;
     if (current <= offset) {
-      if (mid === lineOffsets.length - 1 || (lineOffsets[mid + 1]! > offset)) {
+      if (mid === lineOffsets.length - 1 || lineOffsets[mid + 1]! > offset) {
         return mid;
       }
       low = mid + 1;
@@ -107,7 +113,10 @@ function binarySearchLineIndex(lineOffsets: readonly number[], offset: number): 
 }
 
 /** Binary search to find if an offset falls within any sorted non-overlapping lexical range */
-function binarySearchLexicalRange(ranges: readonly LexicalRange[], offset: number): LexicalRange | undefined {
+function binarySearchLexicalRange(
+  ranges: readonly LexicalRange[],
+  offset: number
+): LexicalRange | undefined {
   let low = 0;
   let high = ranges.length - 1;
   while (low <= high) {
@@ -137,7 +146,11 @@ interface RawTagMatch {
   readonly attrs: string;
 }
 
-function extractRawTagMatches(content: string, tagName: string, doc: AuditedDocument): RawTagMatch[] {
+function extractRawTagMatches(
+  content: string,
+  tagName: string,
+  doc: AuditedDocument
+): RawTagMatch[] {
   const matches: RawTagMatch[] = [];
   const regex = new RegExp(`<${tagName}\\b([^>]*)>([\\s\\S]*?)<\\/${tagName}>`, 'gi');
   let m: RegExpExecArray | null;
@@ -191,7 +204,12 @@ function scanHtmlComment(content: string, start: number, limit: number): Lexical
   return { start, end: Math.min(limit, i + 3), kind: 'comment_html' };
 }
 
-function scanQuotedString(content: string, start: number, limit: number, quote: "'" | '"'): LexicalRange {
+function scanQuotedString(
+  content: string,
+  start: number,
+  limit: number,
+  quote: "'" | '"'
+): LexicalRange {
   let i = start + 1;
   while (i < limit) {
     if (content[i] === '\\') {
@@ -261,7 +279,12 @@ export class AuditedDocument {
   private readonly fileDisabledRules: Set<string> = new Set();
   private readonly replacements: DocumentReplacement[] = [];
 
-  constructor(filePath: string, rawContent: string, relPath?: string, astContext?: SharedAstContext) {
+  constructor(
+    filePath: string,
+    rawContent: string,
+    relPath?: string,
+    astContext?: SharedAstContext
+  ) {
     this.filePath = filePath;
     this.rawContent = rawContent;
     this.relPath = relPath ?? filePath;
@@ -300,7 +323,6 @@ export class AuditedDocument {
     const lineStart = this.lineOffsets[lineIdx] ?? 0;
     return lineStart + Math.max(0, column - 1);
   }
-
 
   /**
    * Computes or returns cached sorted lexical ranges for comments and strings.
@@ -377,13 +399,14 @@ export class AuditedDocument {
     let m: RegExpExecArray | null;
 
     while ((m = disableRegex.exec(this.rawContent)) !== null) {
-      const tokens = (m[1] ?? '').split(',').map(t => t.trim().toLowerCase());
+      const tokens = (m[1] ?? '').split(',').map((t) => t.trim().toLowerCase());
       for (const tok of tokens) {
         if (tok) this.fileDisabledRules.add(tok);
       }
     }
 
-    const hatchRegex = /(?:\/\/|\/\*)\s*(?:([\w-]+)-ok|(?:auditor-ignore|audit-ignore)(?::|\s+)([\w-]+))\s*:?\s*([^\n*]*)/gi;
+    const hatchRegex =
+      /(?:\/\/|\/\*)\s*(?:([\w-]+)-ok|(?:auditor-ignore|audit-ignore)(?::|\s+)([\w-]+))\s*:?\s*([^\n*]*)/gi;
     while ((m = hatchRegex.exec(this.rawContent)) !== null) {
       const ruleToken = (m[1] ?? m[2] ?? '').trim().toLowerCase();
       const reason = m[3]?.trim();
@@ -404,9 +427,10 @@ export class AuditedDocument {
    * Determines whether an escape hatch suppresses the specified rule at the given line or offset.
    */
   public hasEscapeHatch(lineOrOffset: number, ruleId: string): boolean {
-    const targetLine = lineOrOffset > this.lines.length && lineOrOffset <= this.rawContent.length
-      ? this.getLineAndColumn(lineOrOffset).line
-      : lineOrOffset;
+    const targetLine =
+      lineOrOffset > this.lines.length && lineOrOffset <= this.rawContent.length
+        ? this.getLineAndColumn(lineOrOffset).line
+        : lineOrOffset;
 
     this.getEscapeHatches(); // Ensure index is populated
 
@@ -481,7 +505,7 @@ export class AuditedDocument {
 
     // Extract scripts via generic tag parser
     const scriptMatches = extractRawTagMatches(content, 'script', this);
-    const scripts: VueScriptBlock[] = scriptMatches.map(m => {
+    const scripts: VueScriptBlock[] = scriptMatches.map((m) => {
       const { attrs, ...base } = m;
       return {
         ...base,
@@ -501,7 +525,7 @@ export class AuditedDocument {
 
     // Extract styles
     const styleMatches = extractRawTagMatches(content, 'style', this);
-    const styles: VueStyleBlock[] = styleMatches.map(m => {
+    const styles: VueStyleBlock[] = styleMatches.map((m) => {
       const { attrs, ...base } = m;
       return {
         ...base,
@@ -556,9 +580,11 @@ export class AuditedDocument {
 
     if (isVue) {
       const blocks = this.getVueBlocks();
-      const primaryScript = blocks?.scripts.find(s => s.isSetup) ?? blocks?.scripts[0];
+      const primaryScript = blocks?.scripts.find((s) => s.isSetup) ?? blocks?.scripts[0];
       if (!primaryScript) return undefined;
-      const linesBefore = (this.rawContent.substring(0, primaryScript.contentStart).match(/\n/g) ?? []).length;
+      const linesBefore = (
+        this.rawContent.substring(0, primaryScript.contentStart).match(/\n/g) ?? []
+      ).length;
       codeToParse = '\n'.repeat(linesBefore) + primaryScript.content;
     }
 

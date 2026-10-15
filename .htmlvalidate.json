@@ -1,14 +1,7 @@
 {
-  "elements": [
-    "html5"
-  ],
-  "plugins": [
-    "html-validate-vue"
-  ],
-  "extends": [
-    "html-validate:recommended",
-    "html-validate-vue:recommended"
-  ],
+  "elements": ["html5"],
+  "plugins": ["html-validate-vue"],
+  "extends": ["html-validate:recommended", "html-validate-vue:recommended"],
   "transform": {
     "^.*\\.vue$": "html-validate-vue"
   },

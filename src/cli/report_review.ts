@@ -48,7 +48,10 @@ export function runReviewReport(projectRoot: string = process.cwd()): void {
   }
 
   if (!isJson) {
-    renderBanner('REVISIÓN DE CAMBIOS (FALLOW REVIEW)', 'Decisiones estructurales y radio de impacto');
+    renderBanner(
+      'REVISIÓN DE CAMBIOS (FALLOW REVIEW)',
+      'Decisiones estructurales y radio de impacto'
+    );
   }
 
   const result = spawnSync('node', [fallowBin, ...args], {

@@ -26,8 +26,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run performance suite tests: `npm test -- tests/validate_web_performance.test.ts tests/validate_query_performance.test.ts`
-- Run general performance audit: `node --experimental-strip-types src/cli/audit_full.ts family=performance`
+- Run performance suite tests: `vp test tests/validate_web_performance.test.ts tests/validate_query_performance.test.ts` (or `npm test -- tests/validate_web_performance.test.ts tests/validate_query_performance.test.ts`)
+- Run general performance audit: `auditor family=performance` (or `npm run auditor -- family=performance`)
 
 ## Child DOX Index
 

@@ -16,7 +16,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   getAuditConfig,
@@ -127,7 +127,17 @@ export function auditZIndexParity(
       if (res.wasModified) modified = true;
     } else {
       const parsed = parseInt(match[1]!, 10);
-      const res = checkOrFixMismatchVar(varName, value, parsed, match[1]!, regex, content, isFixMode, errors, violations);
+      const res = checkOrFixMismatchVar(
+        varName,
+        value,
+        parsed,
+        match[1]!,
+        regex,
+        content,
+        isFixMode,
+        errors,
+        violations
+      );
       content = res.updatedContent;
       if (res.wasModified) modified = true;
     }
@@ -137,7 +147,8 @@ export function auditZIndexParity(
 }
 
 export const HARDCODED_Z_INDEX_REGEX = /(?:z-index|zIndex)\s*:\s*(-?\d+)\b/gi;
-export const ISOLATED_Z_INDEX_CONST_REGEX = /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi;
+export const ISOLATED_Z_INDEX_CONST_REGEX =
+  /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi;
 
 export { fixZIndexLiteral as fixZIndexLiteralMatch } from '../../analyzers/zIndexRules.ts';
 
@@ -151,23 +162,20 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
 
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(Z_INDEX_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [
-        'z-index-missing-var',
-        'z-index-mismatch',
-        'z-index-hardcoded-literal'
-      ]),
-      fixableRuleIds: [
-        'z-index-missing-var',
-        'z-index-mismatch',
-        'z-index-hardcoded-literal'
-      ],
+      ruleCapabilities: createRuleCapabilities(
+        Z_INDEX_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['z-index-missing-var', 'z-index-mismatch', 'z-index-hardcoded-literal']
+      ),
+      fixableRuleIds: ['z-index-missing-var', 'z-index-mismatch', 'z-index-hardcoded-literal'],
       id: 'validate_z_index',
       name: 'Z-Index Consistency Validator',
       description: 'Valida paridad entre Z_LAYERS y variables CSS (SCSS)',
@@ -188,11 +196,16 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
         'z-index-isolated-constant': 'Constante aislada fuera de Z_LAYERS'
       },
       ruleRemediations: {
-        'z-index-missing-var': 'Guía de diagnóstico y remediación para z-index-missing-var. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'z-index-mismatch': 'Guía de diagnóstico y remediación para z-index-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'z-index-read-error': 'Guía de diagnóstico y remediación para z-index-read-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'z-index-hardcoded-literal': 'Guía de diagnóstico y remediación para z-index-hardcoded-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'z-index-isolated-constant': 'Guía de diagnóstico y remediación para z-index-isolated-constant. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'z-index-missing-var':
+          'Guía de diagnóstico y remediación para z-index-missing-var. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'z-index-mismatch':
+          'Guía de diagnóstico y remediación para z-index-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'z-index-read-error':
+          'Guía de diagnóstico y remediación para z-index-read-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'z-index-hardcoded-literal':
+          'Guía de diagnóstico y remediación para z-index-hardcoded-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'z-index-isolated-constant':
+          'Guía de diagnóstico y remediación para z-index-isolated-constant. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       projectRoot
     });
@@ -254,7 +267,8 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       if (norm.endsWith('.ts') || norm.endsWith('.tsx') || norm.endsWith('.vue')) {
         const auditConfig = getAuditConfig(this.projectRoot);
         const zFile = auditConfig.styles?.zLayersTsFile ?? auditConfig.domain?.zLayersFile;
-        const isZLayersDeclFile = zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, '').toLowerCase());
+        const isZLayersDeclFile =
+          zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, '').toLowerCase());
 
         if (!isZLayersDeclFile && !norm.includes('node_modules')) {
           ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;
@@ -293,11 +307,17 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           severity: 'error',
           file: AUDIT_CONFIG_FILE,
           line: 1,
-          message: "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
+          message:
+            "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
           context: AUDIT_CONFIG_FILE
         });
       });
-      for (const r of ['z-index-missing-var', 'z-index-mismatch', 'z-index-hardcoded-literal', 'z-index-isolated-constant'] as const) {
+      for (const r of [
+        'z-index-missing-var',
+        'z-index-mismatch',
+        'z-index-hardcoded-literal',
+        'z-index-isolated-constant'
+      ] as const) {
         this.runSubAuditorSync(r, () => {
           this.markRuleNotApplicable(r, 'Z-Layers no configurado en proyecto');
         });
@@ -305,7 +325,10 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       return;
     }
 
-    const relTarget = path.relative(this.projectRoot, this.scssPath).split(path.sep).join(path.posix.sep);
+    const relTarget = path
+      .relative(this.projectRoot, this.scssPath)
+      .split(path.sep)
+      .join(path.posix.sep);
     const rootsCoverage = deriveCoverageFromRoots(this.roots, this.allowedExtensions);
     this.redeclareCoverage({
       include: Array.from(new Set([relTarget, ...rootsCoverage.include])),
@@ -330,7 +353,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           severity: 'error',
           file: this.scssPath!,
           line: 1,
-          message: `Error leyendo _base.scss: ${(readErr as Error).message || String(readErr)}`,
+          message: `Error leyendo _base.scss: ${readErr instanceof Error ? readErr.message : typeof readErr === 'string' ? readErr : JSON.stringify(readErr)}`,
           context: this.scssPath!
         });
       }
@@ -341,7 +364,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       const result = auditZIndexParity(scssContent, isFixMode, effectiveLayers);
 
       this.runSubAuditorSync('z-index-missing-var', () => {
-        const missingVars = result.violations.filter(v => v.ruleId === 'z-index-missing-var');
+        const missingVars = result.violations.filter((v) => v.ruleId === 'z-index-missing-var');
         for (const v of missingVars) {
           this.addViolation({
             ruleId: 'z-index-missing-var',
@@ -356,7 +379,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       });
 
       this.runSubAuditorSync('z-index-mismatch', () => {
-        const mismatches = result.violations.filter(v => v.ruleId === 'z-index-mismatch');
+        const mismatches = result.violations.filter((v) => v.ruleId === 'z-index-mismatch');
         for (const v of mismatches) {
           this.addViolation({
             ruleId: 'z-index-mismatch',

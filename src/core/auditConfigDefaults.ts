@@ -16,7 +16,8 @@ import {
   type AuditTemplatesConfig,
   type AuditStylesConfig,
   type AuditStylelintConfig,
-  type AuditEslintConfig,
+  type AuditOxlintConfig,
+  type AuditVitePlusConfig,
   type AuditBundleConfig,
   type AuditAgentPluginConfig,
   type AuditAnimationConfig,
@@ -119,7 +120,17 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     fallbackIdPatterns: [],
     o1CatalogPatterns: [],
     allowedNumericConstantPrefixes: [
-      'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'
+      'GEN_',
+      'ISO_',
+      'UTF_8',
+      'BASE_64',
+      'RGB_',
+      'RGBA_',
+      'WASM_',
+      'HTML_5',
+      'CSS_3',
+      'HTTP_',
+      'D3_'
     ],
     caseNormalizationExemptTokens: [],
     allowedStoreSetterPrefixes: ['set', 'update', 'clear']
@@ -158,8 +169,20 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
       enforceHasBlockPartitioning: true
     }
   },
-  eslint: {
+  oxlint: {
     enabled: true
+  },
+  vitePlusConfig: {
+    enabled: true,
+    fmt: {
+      singleQuote: true,
+      semi: true,
+      trailingComma: 'none',
+      printWidth: 100
+    },
+    staged: {
+      '*': 'vp check --fix'
+    }
   },
   bundle: {
     enabled: true,
@@ -359,7 +382,8 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'scriptExtensions',
     'styles',
     'stylelint',
-    'eslint',
+    'oxlint',
+    'vitePlusConfig',
     'valibot',
     'pinia',
     'htmlValidate',
@@ -388,7 +412,8 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'queryPerformance',
     'securityHardening',
     'codeSimplification',
-    'scssArchitecture'
+    'scssArchitecture',
+    'vitePlusConfig'
   ] as const;
   for (const k of keys) {
     if (config[k] !== undefined) declared.add(k);
@@ -407,7 +432,9 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
   return declared;
 }
 
-export function buildPathsConfig(raw?: DeepPartial<AuditEngineConfig['paths']>): AuditEngineConfig['paths'] {
+export function buildPathsConfig(
+  raw?: DeepPartial<AuditEngineConfig['paths']>
+): AuditEngineConfig['paths'] {
   const p = raw ?? {};
   return {
     ...DEFAULT_AUDIT_CONFIG.paths,
@@ -418,19 +445,23 @@ export function buildPathsConfig(raw?: DeepPartial<AuditEngineConfig['paths']>):
   };
 }
 
-export function buildPersistenceConfig(raw?: DeepPartial<AuditPersistenceConfig>): AuditPersistenceConfig {
+export function buildPersistenceConfig(
+  raw?: DeepPartial<AuditPersistenceConfig>
+): AuditPersistenceConfig {
   const p = raw ?? {};
   return {
     ...DEFAULT_AUDIT_CONFIG.persistence,
     ...p,
     forbiddenMockModules: p.forbiddenMockModules ?? [],
     positionalArrayColumns: p.positionalArrayColumns ?? [],
-    allowedDatabaseDirs: p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0
-      ? Array.from(new Set(['backups', 'migrations', 'schemas', ...p.allowedDatabaseDirs]))
-      : ['backups', 'migrations', 'schemas'],
-    allowedDatabaseFiles: p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0
-      ? Array.from(new Set(['AGENTS.md', '.gitkeep', ...p.allowedDatabaseFiles]))
-      : ['AGENTS.md', '.gitkeep'],
+    allowedDatabaseDirs:
+      p.allowedDatabaseDirs && p.allowedDatabaseDirs.length > 0
+        ? Array.from(new Set(['backups', 'migrations', 'schemas', ...p.allowedDatabaseDirs]))
+        : ['backups', 'migrations', 'schemas'],
+    allowedDatabaseFiles:
+      p.allowedDatabaseFiles && p.allowedDatabaseFiles.length > 0
+        ? Array.from(new Set(['AGENTS.md', '.gitkeep', ...p.allowedDatabaseFiles]))
+        : ['AGENTS.md', '.gitkeep'],
     allowedHosts: p.allowedHosts ?? ['localhost', '127.0.0.1'],
     prohibitedTemplateIdentifiers: p.prohibitedTemplateIdentifiers ?? []
   };
@@ -445,11 +476,16 @@ export function buildDomainConfig(raw?: DeepPartial<AuditDomainConfig>): AuditDo
     o1CatalogPatterns: (d.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? [],
     caseNormalizationExemptTokens: d.caseNormalizationExemptTokens ?? [],
     allowedStoreSetterPrefixes: d.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'],
-    allowedNumericConstantPrefixes: d.allowedNumericConstantPrefixes ?? DEFAULT_AUDIT_CONFIG.domain?.allowedNumericConstantPrefixes ?? []
+    allowedNumericConstantPrefixes:
+      d.allowedNumericConstantPrefixes ??
+      DEFAULT_AUDIT_CONFIG.domain?.allowedNumericConstantPrefixes ??
+      []
   };
 }
 
-export function buildTemplatesConfig(raw?: DeepPartial<AuditTemplatesConfig>): AuditTemplatesConfig {
+export function buildTemplatesConfig(
+  raw?: DeepPartial<AuditTemplatesConfig>
+): AuditTemplatesConfig {
   const t = raw ?? {};
   return {
     ...DEFAULT_AUDIT_CONFIG.templates,
@@ -461,15 +497,17 @@ export function buildTemplatesConfig(raw?: DeepPartial<AuditTemplatesConfig>): A
   };
 }
 
-function buildStylelintSubConfig(
-  rawSl?: DeepPartial<AuditStylelintConfig>
-): AuditStylelintConfig {
-  const parsedRules: Record<string, unknown> | undefined = rawSl?.rules ? { ...rawSl.rules } : undefined;
-  const strictValues = rawSl?.strictValues ? {
-    properties: rawSl.strictValues.properties ? [...rawSl.strictValues.properties] : [],
-    ignoreValues: rawSl.strictValues.ignoreValues ? { ...rawSl.strictValues.ignoreValues } : {},
-    ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
-  } : undefined;
+function buildStylelintSubConfig(rawSl?: DeepPartial<AuditStylelintConfig>): AuditStylelintConfig {
+  const parsedRules: Record<string, unknown> | undefined = rawSl?.rules
+    ? { ...rawSl.rules }
+    : undefined;
+  const strictValues = rawSl?.strictValues
+    ? {
+        properties: rawSl.strictValues.properties ? [...rawSl.strictValues.properties] : [],
+        ignoreValues: rawSl.strictValues.ignoreValues ? { ...rawSl.strictValues.ignoreValues } : {},
+        ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
+      }
+    : undefined;
 
   const order = {
     enabled: rawSl?.order?.enabled ?? true,
@@ -534,12 +572,18 @@ export function buildBundleConfig(raw?: DeepPartial<AuditBundleConfig>): AuditBu
     statsFile: b.statsFile ?? DEFAULT_AUDIT_CONFIG.bundle?.statsFile,
     distDir: b.distDir ?? DEFAULT_AUDIT_CONFIG.bundle?.distDir,
     exemptChunkPrefixes: b.exemptChunkPrefixes ?? [],
-    maxClientChunkWarnBytes: b.maxClientChunkWarnBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkWarnBytes,
-    maxClientChunkErrorBytes: b.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
+    maxClientChunkWarnBytes:
+      b.maxClientChunkWarnBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkWarnBytes,
+    maxClientChunkErrorBytes:
+      b.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
     budgets: (b.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
-    duplicateModuleThresholdBytes: b.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
+    duplicateModuleThresholdBytes:
+      b.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
     topModulesLimit: b.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit,
-    forbiddenUiImports: (b.forbiddenUiImports as readonly { readonly module: string; readonly reason: string }[] | undefined) ?? []
+    forbiddenUiImports:
+      (b.forbiddenUiImports as
+        | readonly { readonly module: string; readonly reason: string }[]
+        | undefined) ?? []
   };
 }
 
@@ -548,7 +592,11 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
   security: AuditSecurityConfig;
   animation: AuditAnimationConfig;
 } {
-  const secEnabled = config.fallow?.security?.enabled ?? config.security?.enabled ?? DEFAULT_AUDIT_CONFIG.security?.enabled ?? true;
+  const secEnabled =
+    config.fallow?.security?.enabled ??
+    config.security?.enabled ??
+    DEFAULT_AUDIT_CONFIG.security?.enabled ??
+    true;
   return {
     agentPlugin: {
       enabled: config.agentPlugin?.enabled ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
@@ -571,7 +619,9 @@ function buildConstantsSubConfig(c?: DeepPartial<AuditConstantsConfig>): AuditCo
   };
 }
 
-function buildDocumentationSubConfig(d?: DeepPartial<AuditDocumentationConfig>): AuditDocumentationConfig {
+function buildDocumentationSubConfig(
+  d?: DeepPartial<AuditDocumentationConfig>
+): AuditDocumentationConfig {
   return {
     knownValidAbstractPaths: d?.knownValidAbstractPaths ?? [],
     skillsRoots: d?.skillsRoots ?? [],
@@ -660,7 +710,9 @@ export function buildFallowConfig(
       mode: f.duplicates?.mode ?? def?.duplicates?.mode ?? 'strict',
       ...(f.duplicates?.minTokens !== undefined ? { minTokens: f.duplicates.minTokens } : {}),
       ...(f.duplicates?.minLines !== undefined ? { minLines: f.duplicates.minLines } : {}),
-      ...(f.duplicates?.minOccurrences !== undefined ? { minOccurrences: f.duplicates.minOccurrences } : {})
+      ...(f.duplicates?.minOccurrences !== undefined
+        ? { minOccurrences: f.duplicates.minOccurrences }
+        : {})
     },
     viz: {
       enabled: f.viz?.enabled ?? def?.viz?.enabled ?? true,
@@ -669,19 +721,25 @@ export function buildFallowConfig(
   };
 }
 
-export function buildPackageHygieneConfig(raw?: DeepPartial<AuditPackageHygieneConfig>): AuditPackageHygieneConfig {
+export function buildPackageHygieneConfig(
+  raw?: DeepPartial<AuditPackageHygieneConfig>
+): AuditPackageHygieneConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageHygiene;
   const p = raw ?? {};
   return {
     enabled: p.enabled ?? def?.enabled ?? true,
-    ignoreDependencies: p.ignoreDependencies ? [...p.ignoreDependencies] : (def?.ignoreDependencies ?? []),
+    ignoreDependencies: p.ignoreDependencies
+      ? [...p.ignoreDependencies]
+      : (def?.ignoreDependencies ?? []),
     ignoreBinaries: p.ignoreBinaries ? [...p.ignoreBinaries] : (def?.ignoreBinaries ?? []),
     entry: p.entry ? [...p.entry] : undefined,
     project: p.project ? [...p.project] : undefined
   };
 }
 
-export function buildEnvironmentConfig(raw?: DeepPartial<AuditEnvironmentConfig>): AuditEnvironmentConfig {
+export function buildEnvironmentConfig(
+  raw?: DeepPartial<AuditEnvironmentConfig>
+): AuditEnvironmentConfig {
   const def = DEFAULT_AUDIT_CONFIG.environment;
   const p = raw ?? {};
   return {
@@ -689,17 +747,23 @@ export function buildEnvironmentConfig(raw?: DeepPartial<AuditEnvironmentConfig>
   };
 }
 
-export function buildAuditorHygieneConfig(raw?: DeepPartial<AuditAuditorHygieneConfig>): AuditAuditorHygieneConfig {
+export function buildAuditorHygieneConfig(
+  raw?: DeepPartial<AuditAuditorHygieneConfig>
+): AuditAuditorHygieneConfig {
   const def = DEFAULT_AUDIT_CONFIG.auditorHygiene;
   const p = raw ?? {};
   return {
     enabled: p.enabled ?? def?.enabled ?? true,
     exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? []),
-    disabledDetectors: p.disabledDetectors ? [...p.disabledDetectors] : (def?.disabledDetectors ?? [])
+    disabledDetectors: p.disabledDetectors
+      ? [...p.disabledDetectors]
+      : (def?.disabledDetectors ?? [])
   };
 }
 
-export function buildScriptExtensionsConfig(raw?: DeepPartial<AuditScriptExtensionsConfig>): AuditScriptExtensionsConfig {
+export function buildScriptExtensionsConfig(
+  raw?: DeepPartial<AuditScriptExtensionsConfig>
+): AuditScriptExtensionsConfig {
   const def = DEFAULT_AUDIT_CONFIG.scriptExtensions;
   const p = raw ?? {};
   return {
@@ -712,7 +776,9 @@ export function buildScriptExtensionsConfig(raw?: DeepPartial<AuditScriptExtensi
   };
 }
 
-export function buildPackageDistributionConfig(raw?: DeepPartial<AuditPackageDistributionConfig>): AuditPackageDistributionConfig {
+export function buildPackageDistributionConfig(
+  raw?: DeepPartial<AuditPackageDistributionConfig>
+): AuditPackageDistributionConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
   const p = raw ?? {};
   return {
@@ -722,52 +788,76 @@ export function buildPackageDistributionConfig(raw?: DeepPartial<AuditPackageDis
   };
 }
 
-export function buildPackageScriptsConfig(raw?: DeepPartial<AuditPackageScriptsConfig>): AuditPackageScriptsConfig {
+export function buildPackageScriptsConfig(
+  raw?: DeepPartial<AuditPackageScriptsConfig>
+): AuditPackageScriptsConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageScripts;
   const p = raw ?? {};
   if (p.recommendedScripts !== undefined && typeof p.recommendedScripts !== 'boolean') {
     throw new Error(
       `[AuditConfig] Error de tipo en 'packageScripts.recommendedScripts': se recibió '${String(p.recommendedScripts)}'. ` +
-      `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'essential' está estrictamente prohibido.`
+        `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'essential' está estrictamente prohibido.`
     );
   }
   if (p.enforceBuildAudit !== undefined && typeof p.enforceBuildAudit !== 'boolean') {
     throw new Error(
       `[AuditConfig] Error de tipo en 'packageScripts.enforceBuildAudit': se recibió '${String(p.enforceBuildAudit)}'. ` +
-      `Debe ser un valor booleano estricto (true o false).`
+        `Debe ser un valor booleano estricto (true o false).`
     );
   }
   return {
     enabled: p.enabled ?? def?.enabled ?? true,
     enforceBuildAudit: p.enforceBuildAudit ?? def?.enforceBuildAudit ?? true,
     recommendedScripts: p.recommendedScripts ?? def?.recommendedScripts ?? true,
-    extraRequiredScripts: p.extraRequiredScripts ? [...p.extraRequiredScripts] : (def?.extraRequiredScripts ?? [])
+    extraRequiredScripts: p.extraRequiredScripts
+      ? [...p.extraRequiredScripts]
+      : (def?.extraRequiredScripts ?? [])
   };
 }
 
-export function buildScriptCommandsConfig(raw?: DeepPartial<AuditScriptCommandsConfig>): AuditScriptCommandsConfig {
+export function buildScriptCommandsConfig(
+  raw?: DeepPartial<AuditScriptCommandsConfig>
+): AuditScriptCommandsConfig {
   const def = DEFAULT_AUDIT_CONFIG.scriptCommands;
   const p = raw ?? {};
   return {
     enabled: p.enabled ?? def?.enabled ?? true,
     exemptGlobs: p.exemptGlobs ? [...p.exemptGlobs] : (def?.exemptGlobs ?? []),
-    allowedNpxBinaries: p.allowedNpxBinaries ? [...p.allowedNpxBinaries] : (def?.allowedNpxBinaries ?? [])
+    allowedNpxBinaries: p.allowedNpxBinaries
+      ? [...p.allowedNpxBinaries]
+      : (def?.allowedNpxBinaries ?? [])
   };
 }
 
-export function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Required<AuditRatchetConfig> {
+export function buildRatchetConfig(
+  raw?: DeepPartial<AuditRatchetConfig>
+): Required<AuditRatchetConfig> {
   const r = raw ?? {};
   if (r.enabled !== undefined && typeof r.enabled !== 'boolean') {
-    throw new Error(`[AuditConfig] 'ratchet.enabled' must be a strict boolean, received '${String(r.enabled)}'.`);
+    throw new Error(
+      `[AuditConfig] 'ratchet.enabled' must be a strict boolean, received '${String(r.enabled)}'.`
+    );
   }
-  const productionRef = r.productionRef ?? DEFAULT_AUDIT_CONFIG.ratchet?.productionRef ?? 'origin/main';
+  const productionRef =
+    r.productionRef ?? DEFAULT_AUDIT_CONFIG.ratchet?.productionRef ?? 'origin/main';
   if (productionRef.trim() === '' || /\s/u.test(productionRef) || productionRef.startsWith('-')) {
-    throw new Error(`[AuditConfig] 'ratchet.productionRef' must be a non-empty git ref without whitespace or leading '-', received '${productionRef}'.`);
+    throw new Error(
+      `[AuditConfig] 'ratchet.productionRef' must be a non-empty git ref without whitespace or leading '-', received '${productionRef}'.`
+    );
   }
-  const baselineFile = r.baselineFile ?? DEFAULT_AUDIT_CONFIG.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
+  const baselineFile =
+    r.baselineFile ??
+    DEFAULT_AUDIT_CONFIG.ratchet?.baselineFile ??
+    path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
   const normalized = path.posix.normalize(baselineFile.replaceAll('\\', '/'));
-  if (path.isAbsolute(baselineFile) || normalized.startsWith('..') || path.extname(baselineFile) !== '.json') {
-    throw new Error(`[AuditConfig] 'ratchet.baselineFile' must be a repository-relative '.json' path inside the project, received '${baselineFile}'.`);
+  if (
+    path.isAbsolute(baselineFile) ||
+    normalized.startsWith('..') ||
+    path.extname(baselineFile) !== '.json'
+  ) {
+    throw new Error(
+      `[AuditConfig] 'ratchet.baselineFile' must be a repository-relative '.json' path inside the project, received '${baselineFile}'.`
+    );
   }
   return {
     enabled: r.enabled ?? DEFAULT_AUDIT_CONFIG.ratchet?.enabled ?? true,
@@ -778,26 +868,47 @@ export function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): Requi
 
 function validateTestCoverageRaw(t: DeepPartial<AuditTestCoverageConfig>): void {
   if (t.enabled !== undefined && typeof t.enabled !== 'boolean') {
-    throw new Error(`[AuditConfig] 'testCoverage.enabled' must be a strict boolean, received '${String(t.enabled)}'.`);
+    throw new Error(
+      `[AuditConfig] 'testCoverage.enabled' must be a strict boolean, received '${String(t.enabled)}'.`
+    );
   }
-  if (t.threshold !== undefined && (typeof t.threshold !== 'number' || Number.isNaN(t.threshold) || t.threshold < 0 || t.threshold > 100)) {
-    throw new Error(`[AuditConfig] 'testCoverage.threshold' must be a number between 0 and 100, received '${String(t.threshold)}'.`);
+  if (
+    t.threshold !== undefined &&
+    (typeof t.threshold !== 'number' ||
+      Number.isNaN(t.threshold) ||
+      t.threshold < 0 ||
+      t.threshold > 100)
+  ) {
+    throw new Error(
+      `[AuditConfig] 'testCoverage.threshold' must be a number between 0 and 100, received '${String(t.threshold)}'.`
+    );
   }
   if (t.enforceInAudit !== undefined && typeof t.enforceInAudit !== 'boolean') {
-    throw new Error(`[AuditConfig] 'testCoverage.enforceInAudit' must be a strict boolean, received '${String(t.enforceInAudit)}'.`);
+    throw new Error(
+      `[AuditConfig] 'testCoverage.enforceInAudit' must be a strict boolean, received '${String(t.enforceInAudit)}'.`
+    );
   }
 }
 
-function resolveTestCoverageCollections(t: DeepPartial<AuditTestCoverageConfig>, def?: AuditTestCoverageConfig) {
+function resolveTestCoverageCollections(
+  t: DeepPartial<AuditTestCoverageConfig>,
+  def?: AuditTestCoverageConfig
+) {
   return {
     roots: t.roots ? [...t.roots] : (def?.roots ?? ['src']),
-    extensions: t.extensions ? [...t.extensions] : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
+    extensions: t.extensions
+      ? [...t.extensions]
+      : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
     exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : (def?.exemptGlobs ?? []),
-    directoryThresholds: t.directoryThresholds ? { ...t.directoryThresholds } : (def?.directoryThresholds ?? {})
+    directoryThresholds: t.directoryThresholds
+      ? { ...t.directoryThresholds }
+      : (def?.directoryThresholds ?? {})
   };
 }
 
-export function buildTestCoverageConfig(raw?: DeepPartial<AuditTestCoverageConfig>): Required<AuditTestCoverageConfig> {
+export function buildTestCoverageConfig(
+  raw?: DeepPartial<AuditTestCoverageConfig>
+): Required<AuditTestCoverageConfig> {
   const def = DEFAULT_AUDIT_CONFIG.testCoverage;
   const t = raw ?? {};
   validateTestCoverageRaw(t);
@@ -812,7 +923,9 @@ export function buildTestCoverageConfig(raw?: DeepPartial<AuditTestCoverageConfi
   };
 }
 
-export function buildAccessibilityConfig(raw?: DeepPartial<AuditAccessibilityConfig>): AuditAccessibilityConfig {
+export function buildAccessibilityConfig(
+  raw?: DeepPartial<AuditAccessibilityConfig>
+): AuditAccessibilityConfig {
   const def = DEFAULT_AUDIT_CONFIG.accessibility;
   const a = raw ?? {};
   const parsedRules: Record<string, boolean> = {};
@@ -821,7 +934,7 @@ export function buildAccessibilityConfig(raw?: DeepPartial<AuditAccessibilityCon
     if (typeof val !== 'boolean') {
       throw new Error(
         `[AuditConfig] Error de tipo en 'accessibility.rules.${key}': se recibió '${String(val)}'. ` +
-        `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'error' está estrictamente prohibido.`
+          `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'error' está estrictamente prohibido.`
       );
     }
     parsedRules[key] = val;
@@ -832,7 +945,9 @@ export function buildAccessibilityConfig(raw?: DeepPartial<AuditAccessibilityCon
   };
 }
 
-export function buildTypeCoverageConfig(raw?: DeepPartial<AuditTypeCoverageConfig>): AuditTypeCoverageConfig {
+export function buildTypeCoverageConfig(
+  raw?: DeepPartial<AuditTypeCoverageConfig>
+): AuditTypeCoverageConfig {
   const def = DEFAULT_AUDIT_CONFIG.typeCoverage;
   const t = raw ?? {};
   return {
@@ -843,20 +958,35 @@ export function buildTypeCoverageConfig(raw?: DeepPartial<AuditTypeCoverageConfi
   };
 }
 
-export function buildGitIgnoreConfig(raw?: DeepPartial<AuditGitIgnoreConfig>): AuditGitIgnoreConfig {
+export function buildGitIgnoreConfig(
+  raw?: DeepPartial<AuditGitIgnoreConfig>
+): AuditGitIgnoreConfig {
   const def = DEFAULT_AUDIT_CONFIG.gitIgnore;
   const g = raw ?? {};
   return {
     enabled: g.enabled ?? def?.enabled ?? true,
-    extraRequiredEntries: g.extraRequiredEntries ? [...g.extraRequiredEntries] : (def?.extraRequiredEntries ?? [])
+    extraRequiredEntries: g.extraRequiredEntries
+      ? [...g.extraRequiredEntries]
+      : (def?.extraRequiredEntries ?? [])
   };
 }
 
-export function buildEslintConfig(raw?: DeepPartial<AuditEslintConfig>): AuditEslintConfig {
-  const def = DEFAULT_AUDIT_CONFIG.eslint;
-  const e = raw ?? {};
+export function buildOxlintConfig(raw?: DeepPartial<AuditOxlintConfig>): AuditOxlintConfig {
+  const def = DEFAULT_AUDIT_CONFIG.oxlint;
+  const o = raw ?? {};
   return {
-    enabled: e.enabled ?? def?.enabled ?? true
+    enabled: o.enabled ?? def?.enabled ?? true
+  };
+}
+
+export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): AuditVitePlusConfig {
+  const def = DEFAULT_AUDIT_CONFIG.vitePlusConfig;
+  const v = raw ?? {};
+  return {
+    enabled: v.enabled ?? def?.enabled ?? true,
+    fmt: v.fmt ? { ...v.fmt } : def?.fmt,
+    staged: v.staged ? { ...v.staged } : def?.staged,
+    extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
   };
 }
 
@@ -865,12 +995,17 @@ export function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): Audit
   const v = raw ?? {};
   return {
     enabled: v.enabled ?? def?.enabled ?? true,
-    autoSyncPublicVersionJson: v.autoSyncPublicVersionJson ?? def?.autoSyncPublicVersionJson ?? true,
-    syncTargets: v.syncTargets ? [...v.syncTargets] as readonly (string | AuditVersionTargetConfig)[] : (def?.syncTargets ?? [])
+    autoSyncPublicVersionJson:
+      v.autoSyncPublicVersionJson ?? def?.autoSyncPublicVersionJson ?? true,
+    syncTargets: v.syncTargets
+      ? ([...v.syncTargets] as readonly (string | AuditVersionTargetConfig)[])
+      : (def?.syncTargets ?? [])
   };
 }
 
-export function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeaksConfig>): AuditSecretLeaksConfig {
+export function buildSecretLeaksConfig(
+  raw?: DeepPartial<AuditSecretLeaksConfig>
+): AuditSecretLeaksConfig {
   const def = DEFAULT_AUDIT_CONFIG.secretLeaks;
   const s = raw ?? {};
   return {
@@ -881,7 +1016,9 @@ export function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeaksConfig>
   };
 }
 
-export function buildDependencyVulnerabilitiesConfig(raw?: DeepPartial<AuditDependencyVulnerabilitiesConfig>): AuditDependencyVulnerabilitiesConfig {
+export function buildDependencyVulnerabilitiesConfig(
+  raw?: DeepPartial<AuditDependencyVulnerabilitiesConfig>
+): AuditDependencyVulnerabilitiesConfig {
   const def = DEFAULT_AUDIT_CONFIG.dependencyVulnerabilities;
   const d = raw ?? {};
   return {
@@ -918,13 +1055,12 @@ function resolveAcknowledgedDegradations(
     if (!policy || !ACKNOWLEDGEABLE_EXEMPTION_POLICIES.includes(policy)) {
       throw new Error(
         `[AuditConfig] 'coverage.acknowledgedDegradations' declara una política desconocida '${String(policy)}'. ` +
-        `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`
+          `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`
       );
     }
     const exemptRoots = getExemptRootsForPolicy(policy, paths);
-    const effectiveProtectedRoots = exemptRoots.length > 0
-      ? filterOutExemptRoots(protectedRoots, exemptRoots)
-      : protectedRoots;
+    const effectiveProtectedRoots =
+      exemptRoots.length > 0 ? filterOutExemptRoots(protectedRoots, exemptRoots) : protectedRoots;
     assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, effectiveProtectedRoots);
     assertCoverageReason('coverage.acknowledgedDegradations', glob, entry?.reason);
     acknowledgedDegradations.push({ policy, glob, reason: entry!.reason! });
@@ -937,15 +1073,17 @@ export function buildCoverageConfig(
   paths: AuditEngineConfig['paths']
 ): AuditCoverageConfig {
   const c = raw ?? {};
-  const protectedRoots = Array.from(new Set([
-    ...(paths.srcRoots ?? []),
-    ...(paths.codeRoots ?? []),
-    ...(paths.testRoots ?? [])
-  ]));
+  const protectedRoots = Array.from(
+    new Set([...(paths.srcRoots ?? []), ...(paths.codeRoots ?? []), ...(paths.testRoots ?? [])])
+  );
   return {
     enabled: c.enabled ?? DEFAULT_AUDIT_CONFIG.coverage?.enabled ?? true,
     exemptGlobs: resolveCoverageExemptGlobs(c.exemptGlobs, protectedRoots),
-    acknowledgedDegradations: resolveAcknowledgedDegradations(c.acknowledgedDegradations, paths, protectedRoots)
+    acknowledgedDegradations: resolveAcknowledgedDegradations(
+      c.acknowledgedDegradations,
+      paths,
+      protectedRoots
+    )
   };
 }
 
@@ -982,7 +1120,9 @@ export function buildQueryPerformanceConfig(
   return {
     enabled: q.enabled ?? def.enabled,
     excludeMigrationsDir: q.excludeMigrationsDir ?? def.excludeMigrationsDir,
-    exemptSelectStarPaths: q.exemptSelectStarPaths ? [...q.exemptSelectStarPaths] : def.exemptSelectStarPaths,
+    exemptSelectStarPaths: q.exemptSelectStarPaths
+      ? [...q.exemptSelectStarPaths]
+      : def.exemptSelectStarPaths,
     exemptPaths: q.exemptPaths ? [...q.exemptPaths] : def.exemptPaths
   };
 }
@@ -1021,13 +1161,17 @@ export function buildScssArchitectureConfig(
     maxNestingDepth: s.maxNestingDepth ?? def.maxNestingDepth,
     scopedMaxNestingDepth: s.scopedMaxNestingDepth ?? def.scopedMaxNestingDepth,
     allowPixelArtSpacing: s.allowPixelArtSpacing ?? def.allowPixelArtSpacing,
-    allowedSpacingUnits: s.allowedSpacingUnits ? [...s.allowedSpacingUnits] : def.allowedSpacingUnits,
+    allowedSpacingUnits: s.allowedSpacingUnits
+      ? [...s.allowedSpacingUnits]
+      : def.allowedSpacingUnits,
     allowScopedColors: s.allowScopedColors ?? def.allowScopedColors,
     exemptPaths: s.exemptPaths ? [...s.exemptPaths] : def.exemptPaths
   };
 }
 
-export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { name: string }): AuditEngineConfig {
+export function defineAuditConfig(
+  config: DeepPartial<AuditEngineConfig> & { name: string }
+): AuditEngineConfig {
   const declared = collectDeclaredSubsystems(config);
   const agentAndSecurity = buildAgentAndSecurityConfig(config);
   const constantsAndDoc = buildConstantsAndDocConfig(config);
@@ -1045,22 +1189,33 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
     templates: buildTemplatesConfig(config.templates),
     styles: buildStylesConfig(config.styles, config.stylelint),
-    stylelint: config.stylelint ? {
-      enabled: config.stylelint.enabled ?? true,
-      configFile: config.stylelint.configFile,
-      rules: config.stylelint.rules ? Object.assign({}, config.stylelint.rules) : undefined,
-      ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : [],
-      strictValues: config.stylelint.strictValues ? {
-        properties: config.stylelint.strictValues.properties ? [...config.stylelint.strictValues.properties] : [],
-        ignoreValues: config.stylelint.strictValues.ignoreValues ? { ...config.stylelint.strictValues.ignoreValues } : {},
-        ignoreAtRules: config.stylelint.strictValues.ignoreAtRules ? [...config.stylelint.strictValues.ignoreAtRules] : []
-      } : undefined
-    } : {
-      enabled: true,
-      rules: {},
-      ignoreGlobs: []
-    },
-    eslint: buildEslintConfig(config.eslint),
+    stylelint: config.stylelint
+      ? {
+          enabled: config.stylelint.enabled ?? true,
+          configFile: config.stylelint.configFile,
+          rules: config.stylelint.rules ? Object.assign({}, config.stylelint.rules) : undefined,
+          ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : [],
+          strictValues: config.stylelint.strictValues
+            ? {
+                properties: config.stylelint.strictValues.properties
+                  ? [...config.stylelint.strictValues.properties]
+                  : [],
+                ignoreValues: config.stylelint.strictValues.ignoreValues
+                  ? { ...config.stylelint.strictValues.ignoreValues }
+                  : {},
+                ignoreAtRules: config.stylelint.strictValues.ignoreAtRules
+                  ? [...config.stylelint.strictValues.ignoreAtRules]
+                  : []
+              }
+            : undefined
+        }
+      : {
+          enabled: true,
+          rules: {},
+          ignoreGlobs: []
+        },
+    oxlint: buildOxlintConfig(config.oxlint),
+    vitePlusConfig: buildVitePlusConfig(config.vitePlusConfig),
     bundle: buildBundleConfig(config.bundle),
     fallow: buildFallowConfig(config.fallow, config.security),
     packageHygiene: buildPackageHygieneConfig(config.packageHygiene),
@@ -1075,7 +1230,9 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     testCoverage: buildTestCoverageConfig(config.testCoverage),
     version: buildVersionConfig(config.version),
     secretLeaks: buildSecretLeaksConfig(config.secretLeaks),
-    dependencyVulnerabilities: buildDependencyVulnerabilitiesConfig(config.dependencyVulnerabilities),
+    dependencyVulnerabilities: buildDependencyVulnerabilitiesConfig(
+      config.dependencyVulnerabilities
+    ),
     coverage: buildCoverageConfig(config.coverage, paths),
     webPerformance: buildWebPerformanceConfig(config.webPerformance),
     queryPerformance: buildQueryPerformanceConfig(config.queryPerformance),
@@ -1087,11 +1244,14 @@ export function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & { nam
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
     presets: config.presets ?? {},
-    runner: config.runner ? {
-      timeoutMs: config.runner.timeoutMs ?? 0,
-      concurrency: config.runner.concurrency,
-      maxStalenessMinutes: config.runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
-    } : { timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
+    runner: config.runner
+      ? {
+          timeoutMs: config.runner.timeoutMs ?? 0,
+          concurrency: config.runner.concurrency,
+          maxStalenessMinutes:
+            config.runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+        }
+      : { timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
     _declaredSubsystems: declared,
     _rawPaths: rawPaths,
     _rawConfig: rawConfig

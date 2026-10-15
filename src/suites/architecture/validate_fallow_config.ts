@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
@@ -58,7 +58,7 @@ export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
 
 export const BANNED_ENTRY_GLOBS: readonly string[] = getBannedEntryGlobs();
 
-export const escapeRegExp = RegExp.escape;
+export const escapeRegExp = (s: string): string => RegExp.escape(s);
 
 /**
  * Checks whether a symbol is exported from file content.
@@ -74,10 +74,10 @@ export function isSymbolExportedInContent(content: string, symbol: string, isVue
 
   const exportRegex = new RegExp(
     `export\\s+(?:const|let|var|function|async\\s+function|type|interface|enum|class|abstract\\s+class)\\s+${escaped}\\b|` +
-    `export\\s+(?:const|let|var)\\s+\\{[^}]*\\b${escaped}\\b|` +
-    `export\\s+(?:const|let|var)\\s+\\[[^\\]]*\\b${escaped}\\b|` +
-    `export\\s+(?:type\\s+)?\\{[^}]*\\b${escaped}\\b|` +
-    `export\\s+\\*\\s+as\\s+${escaped}\\b`
+      `export\\s+(?:const|let|var)\\s+\\{[^}]*\\b${escaped}\\b|` +
+      `export\\s+(?:const|let|var)\\s+\\[[^\\]]*\\b${escaped}\\b|` +
+      `export\\s+(?:type\\s+)?\\{[^}]*\\b${escaped}\\b|` +
+      `export\\s+\\*\\s+as\\s+${escaped}\\b`
   );
   return exportRegex.test(content);
 }
@@ -111,32 +111,31 @@ export interface FallowConfigSchema {
 }
 
 export function createDefaultFallowConfigContent(): string {
-  return JSON.stringify(
-    {
-      $schema: 'https://fallow.tools/schema/config.json',
-      entry: [
-        'src/index.ts'
-      ],
-      ignorePatterns: [
-        'dist/**',
-        'scratch/**',
-        'tests/**'
-      ],
-      typeAware: true,
-      duplicates: {
-        nearMiss: true,
-        mode: 'strict'
+  return (
+    JSON.stringify(
+      {
+        $schema: 'https://fallow.tools/schema/config.json',
+        entry: ['src/index.ts'],
+        ignorePatterns: ['dist/**', 'scratch/**', 'tests/**'],
+        typeAware: true,
+        duplicates: {
+          nearMiss: true,
+          mode: 'strict'
+        },
+        health: {
+          maxCrap: 0
+        }
       },
-      health: {
-        maxCrap: 0
-      }
-    },
-    null,
-    2
-  ) + '\n';
+      null,
+      2
+    ) + '\n'
+  );
 }
 
-function loadFallowConfig(configPath: string, auditor: ValidateFallowConfigAuditor): FallowConfigSchema | null {
+function loadFallowConfig(
+  configPath: string,
+  auditor: ValidateFallowConfigAuditor
+): FallowConfigSchema | null {
   if (!fs.existsSync(configPath)) {
     return null;
   }
@@ -390,8 +389,11 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         : path.resolve(projectRoot, '.fallowrc.json');
       fix = Boolean(targetPathOrOptions.fix);
     } else {
-      const isJsonFile = typeof targetPathOrOptions === 'string' && targetPathOrOptions.endsWith('.json');
-      projectRoot = isJsonFile ? path.dirname(targetPathOrOptions) : (targetPathOrOptions || process.cwd());
+      const isJsonFile =
+        typeof targetPathOrOptions === 'string' && targetPathOrOptions.endsWith('.json');
+      projectRoot = isJsonFile
+        ? path.dirname(targetPathOrOptions)
+        : targetPathOrOptions || process.cwd();
       configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, '.fallowrc.json');
     }
 
@@ -409,14 +411,19 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         fallbackBehavior: 'violation',
         fallbackRuleId: 'fallow-config-workspace-diagnostic'
       },
-      ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, ['fallow-config-missing']),
+      ruleCapabilities: createRuleCapabilities(
+        FALLOW_CONFIG_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['fallow-config-missing']
+      ),
       fixableRuleIds: ['fallow-config-missing'],
       configFiles: [configRequirement],
       fix,
@@ -441,14 +448,22 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-config-workspace-diagnostic': 'Diagnóstico de workspace'
       },
       ruleRemediations: {
-        'fallow-config-missing': 'Guía de diagnóstico y remediación para fallow-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-config-syntax': 'Guía de diagnóstico y remediación para fallow-config-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-banned-entry-glob': 'Guía de diagnóstico y remediación para fallow-banned-entry-glob. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-stale-file': 'Guía de diagnóstico y remediación para fallow-stale-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-stale-export': 'Guía de diagnóstico y remediación para fallow-stale-export. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-empty-export-list': 'Guía de diagnóstico y remediación para fallow-empty-export-list. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-duplicate-entry': 'Guía de diagnóstico y remediación para fallow-duplicate-entry. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'fallow-config-workspace-diagnostic': 'Guía de diagnóstico y remediación para fallow-config-workspace-diagnostic. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-config-missing':
+          'Guía de diagnóstico y remediación para fallow-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-config-syntax':
+          'Guía de diagnóstico y remediación para fallow-config-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-banned-entry-glob':
+          'Guía de diagnóstico y remediación para fallow-banned-entry-glob. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-stale-file':
+          'Guía de diagnóstico y remediación para fallow-stale-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-stale-export':
+          'Guía de diagnóstico y remediación para fallow-stale-export. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-empty-export-list':
+          'Guía de diagnóstico y remediación para fallow-empty-export-list. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-duplicate-entry':
+          'Guía de diagnóstico y remediación para fallow-duplicate-entry. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'fallow-config-workspace-diagnostic':
+          'Guía de diagnóstico y remediación para fallow-config-workspace-diagnostic. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['.fallowrc.json']
@@ -484,7 +499,11 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       this.markRuleNotApplicable('fallow-stale-file', 'Sin ignoreExports en .fallowrc.json');
       this.markRuleNotApplicable('fallow-stale-export', 'Sin ignoreExports en .fallowrc.json');
     } else {
-      const { fileCount, exportCount } = validateFallowIgnoreExports(validConfig.ignoreExports, this.projectRoot, this);
+      const { fileCount, exportCount } = validateFallowIgnoreExports(
+        validConfig.ignoreExports,
+        this.projectRoot,
+        this
+      );
 
       this.context.setMetric('Archivos en ignoreExports', fileCount);
       this.context.setMetric('Exports Validados', exportCount);
@@ -496,14 +515,19 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           path.resolve(this.projectRoot, 'node_modules/fallow/bin/fallow'),
           path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow')
         ];
-        const fallowBin = candidates.find(c => fs.existsSync(c));
+        const fallowBin = candidates.find((c) => fs.existsSync(c));
         if (fallowBin) {
-          const stdout = execSync(`node "${fallowBin}" list --workspaces --format json --root "${this.projectRoot}"`, {
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore'],
-            timeout: 10000
-          });
-          const parsed = JSON.parse(stdout) as { workspace_diagnostics?: FallowWorkspaceDiagnosticItem[] };
+          const stdout = execSync(
+            `node "${fallowBin}" list --workspaces --format json --root "${this.projectRoot}"`,
+            {
+              encoding: 'utf8',
+              stdio: ['pipe', 'pipe', 'ignore'],
+              timeout: 10000
+            }
+          );
+          const parsed = JSON.parse(stdout) as {
+            workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
+          };
           validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this);
         }
       } catch {

@@ -1,3 +1,4 @@
+//#region src/core/auditTestPredicates.d.ts
 /**
  * packages/auditor/src/core/auditTestPredicates.ts
  *
@@ -13,4 +14,4 @@ export declare function isTestPath(filePath: string): boolean;
  * honoring config.paths.includeTestsInCodeAudit.
  */
 export declare function isTestFileForCodeAudit(filePath: string, projectRoot?: string): boolean;
-//# sourceMappingURL=auditTestPredicates.d.ts.map
+//#endregion

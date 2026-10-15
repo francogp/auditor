@@ -122,11 +122,11 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
 
     const hasAuditProject = tasks.some(t => t.id === 'audit_project');
     const hasGsap = tasks.some(t => t.id === 'validate_gsap_animations');
-    const hasEslint = tasks.some(t => t.id === 'validate_eslint');
+    const hasOxlint = tasks.some(t => t.id === 'validate_oxlint');
 
     expect(hasAuditProject).toBe(true);
     expect(hasGsap).toBe(true);
-    expect(hasEslint).toBe(true);
+    expect(hasOxlint).toBe(true);
   });
 
   it('strips project flags cleanly via stripProjectCliArgs', () => {
@@ -146,8 +146,8 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     fs.writeFileSync(path.join(tempSandboxDir, 'package.json'), JSON.stringify({ name: 'remote-host-app' }), 'utf-8');
     bootstrapCliProject(['node', 'auditor', `--project=${tempSandboxDir}`]);
 
-    // Looking up eslint should resolve from AUDITOR_HOME_DIR because tempSandboxDir has no node_modules
-    const resolvedBin = resolvePackageBin('eslint', { projectRoot: tempSandboxDir });
+    // Looking up stylelint should resolve from AUDITOR_HOME_DIR because tempSandboxDir has no node_modules
+    const resolvedBin = resolvePackageBin('stylelint', { projectRoot: tempSandboxDir });
     expect(resolvedBin).toBeDefined();
     expect(fs.existsSync(resolvedBin!)).toBe(true);
   });

@@ -17,19 +17,17 @@
 
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export type ReactivePurityRuleId =
-  | 'computed-state-mutation'
-  | 'computed-side-effect';
-
-export const REACTIVE_PURITY_RULES: readonly ReactivePurityRuleId[] = [
+export const REACTIVE_PURITY_RULES = [
   'computed-state-mutation',
   'computed-side-effect'
 ] as const;
+
+export type ReactivePurityRuleId = (typeof REACTIVE_PURITY_RULES)[number];
 
 const IMPURE_CALL_PATTERNS = [
   'scheduleSave',
@@ -41,7 +39,10 @@ const IMPURE_CALL_PATTERNS = [
   'window.location'
 ] as const;
 
-function extractGetterFromObjectLiteral(expr: ts.ObjectLiteralExpression, sf: ts.SourceFile): ts.Node | null {
+function extractGetterFromObjectLiteral(
+  expr: ts.ObjectLiteralExpression,
+  sf: ts.SourceFile
+): ts.Node | null {
   for (const prop of expr.properties) {
     if (ts.isPropertyAssignment(prop) && prop.name.getText(sf) === 'get') {
       if (ts.isArrowFunction(prop.initializer) || ts.isFunctionExpression(prop.initializer)) {
@@ -63,7 +64,7 @@ function extractComputedGetterBody(firstArg: ts.Node, sf: ts.SourceFile): ts.Nod
 }
 
 export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
       ...(config.paths.storesRoots ?? []),
@@ -77,9 +78,10 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_reactive_purity',
+      id: 'validate_reactive_purity',
       name: 'Reactive Computed Purity Auditor',
       description: 'Verifica pureza reactiva y ausencia de efectos en computeds',
       family: 'architecture',
@@ -94,8 +96,10 @@ id: 'validate_reactive_purity',
         'computed-side-effect': 'Efecto secundario prohibido'
       },
       ruleRemediations: {
-        'computed-state-mutation': 'Guía de diagnóstico y remediación para computed-state-mutation. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'computed-side-effect': 'Guía de diagnóstico y remediación para computed-side-effect. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'computed-state-mutation':
+          'Guía de diagnóstico y remediación para computed-state-mutation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'computed-side-effect':
+          'Guía de diagnóstico y remediación para computed-side-effect. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
@@ -182,7 +186,8 @@ id: 'validate_reactive_purity',
       if (!this.activeTargetRule || this.activeTargetRule === 'computed-state-mutation') {
         if (ts.isBinaryExpression(child)) {
           const op = child.operatorToken.kind;
-          const isAssignment = op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment;
+          const isAssignment =
+            op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment;
           if (isAssignment) {
             const leftText = child.left.getText(sourceFile);
             const isReactiveMutation =
@@ -209,7 +214,7 @@ id: 'validate_reactive_purity',
       if (!this.activeTargetRule || this.activeTargetRule === 'computed-side-effect') {
         if (ts.isCallExpression(child)) {
           const callText = child.expression.getText(sourceFile);
-          const isImpureCall = IMPURE_CALL_PATTERNS.some(pat => callText.includes(pat));
+          const isImpureCall = IMPURE_CALL_PATTERNS.some((pat) => callText.includes(pat));
           if (isImpureCall) {
             this.reportComputedViolation(
               child,
@@ -232,7 +237,7 @@ id: 'validate_reactive_purity',
   private hasPuritySuppression(content: string, lineIndex: number): boolean {
     const lines = content.split('\n');
     const targetLine = lines[lineIndex] || '';
-    const prevLine = lineIndex > 0 ? (lines[lineIndex - 1] || '') : '';
+    const prevLine = lineIndex > 0 ? lines[lineIndex - 1] || '' : '';
     const suppressionRegex = /\/\/\s*purity-ok:\s*\S+/i;
     return suppressionRegex.test(targetLine) || suppressionRegex.test(prevLine);
   }

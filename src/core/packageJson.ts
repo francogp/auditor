@@ -42,7 +42,10 @@ const packageJsonCache = new Map<string, PackageJsonDTO | null>();
  * Returns the parsed package.json object for the specified project root with memory caching.
  * Returns null if the file does not exist or contains invalid JSON syntax.
  */
-export function getPackageJson(projectRoot?: string, forceReload: boolean = false): PackageJsonDTO | null {
+export function getPackageJson(
+  projectRoot?: string,
+  forceReload: boolean = false
+): PackageJsonDTO | null {
   const root = projectRoot ? path.resolve(projectRoot) : process.cwd();
   const pkgPath = path.join(root, 'package.json');
 

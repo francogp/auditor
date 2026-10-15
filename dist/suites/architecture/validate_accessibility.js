@@ -1,230 +1,360 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { enableCompileCache } from 'node:module';
-import { ESLint } from 'eslint';
-import vueParser from 'vue-eslint-parser';
-import vueA11y from 'eslint-plugin-vuejs-accessibility';
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
+import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
-import { getAuditConfig } from "../../core/auditConfig.js";
-import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { toPosixRelative } from "../../core/safePath.js";
+import "../../core/safePath.js";
+import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
+import { enableCompileCache } from "node:module";
+import path from "node:path";
+import fs from "node:fs";
+//#region src/suites/architecture/validate_accessibility.ts
 enableCompileCache();
-const INDEX_HTML_FILE = 'index.html';
-const VUE_EXTENSIONS = new Set(['.vue']);
-export const ACCESSIBILITY_RULES = [
-    'a11y-img-alt',
-    'a11y-form-control-has-label',
-    'a11y-interactive-supports-focus',
-    'a11y-anchor-has-content',
-    'a11y-aria-role-invalid',
-    'a11y-viewport-zoom-lock'
+const INDEX_HTML_FILE = "index.html";
+const VUE_EXTENSIONS = /* @__PURE__ */ new Set([".vue"]);
+const ACCESSIBILITY_RULES = [
+	"a11y-img-alt",
+	"a11y-form-control-has-label",
+	"a11y-interactive-supports-focus",
+	"a11y-anchor-has-content",
+	"a11y-aria-role-invalid",
+	"a11y-viewport-zoom-lock"
 ];
-/** Canonical rules evaluated through the ESLint vuejs-accessibility engine (all except the index.html viewport check). */
-const ESLINT_BACKED_RULES = ACCESSIBILITY_RULES.filter(id => id !== 'a11y-viewport-zoom-lock');
+const TEMPLATE_BACKED_RULES = ACCESSIBILITY_RULES.filter((id) => id !== "a11y-viewport-zoom-lock");
 const A11Y_RULE_ID_MAP = {
-    'alt-text': 'a11y-img-alt',
-    'form-control-has-label': 'a11y-form-control-has-label',
-    'label-has-for': 'a11y-form-control-has-label',
-    'interactive-supports-focus': 'a11y-interactive-supports-focus',
-    'click-events-have-key-events': 'a11y-interactive-supports-focus',
-    'mouse-events-have-key-events': 'a11y-interactive-supports-focus',
-    'anchor-has-content': 'a11y-anchor-has-content',
-    'heading-has-content': 'a11y-anchor-has-content',
-    'aria-props': 'a11y-aria-role-invalid',
-    'aria-role': 'a11y-aria-role-invalid',
-    'aria-unsupported-elements': 'a11y-aria-role-invalid',
-    'role-has-required-aria-props': 'a11y-aria-role-invalid',
-    'no-redundant-roles': 'a11y-aria-role-invalid',
-    'no-role-presentation-on-focusable': 'a11y-aria-role-invalid'
+	"alt-text": "a11y-img-alt",
+	"form-control-has-label": "a11y-form-control-has-label",
+	"label-has-for": "a11y-form-control-has-label",
+	"interactive-supports-focus": "a11y-interactive-supports-focus",
+	"click-events-have-key-events": "a11y-interactive-supports-focus",
+	"mouse-events-have-key-events": "a11y-interactive-supports-focus",
+	"anchor-has-content": "a11y-anchor-has-content",
+	"heading-has-content": "a11y-anchor-has-content",
+	"aria-props": "a11y-aria-role-invalid",
+	"aria-role": "a11y-aria-role-invalid",
+	"aria-unsupported-elements": "a11y-aria-role-invalid",
+	"role-has-required-aria-props": "a11y-aria-role-invalid",
+	"no-redundant-roles": "a11y-aria-role-invalid",
+	"no-role-presentation-on-focusable": "a11y-aria-role-invalid"
 };
+const VALID_WAI_ARIA_ROLES = /* @__PURE__ */ new Set([
+	"alert",
+	"alertdialog",
+	"application",
+	"article",
+	"banner",
+	"button",
+	"cell",
+	"checkbox",
+	"columnheader",
+	"combobox",
+	"complementary",
+	"contentinfo",
+	"definition",
+	"dialog",
+	"directory",
+	"document",
+	"feed",
+	"figure",
+	"form",
+	"grid",
+	"gridcell",
+	"group",
+	"heading",
+	"img",
+	"link",
+	"list",
+	"listbox",
+	"listitem",
+	"log",
+	"main",
+	"marquee",
+	"math",
+	"menu",
+	"menubar",
+	"menuitem",
+	"menuitemcheckbox",
+	"menuitemradio",
+	"navigation",
+	"none",
+	"note",
+	"option",
+	"presentation",
+	"progressbar",
+	"radio",
+	"radiogroup",
+	"region",
+	"row",
+	"rowgroup",
+	"rowheader",
+	"scrollbar",
+	"search",
+	"searchbox",
+	"separator",
+	"slider",
+	"spinbutton",
+	"status",
+	"switch",
+	"tab",
+	"table",
+	"tablist",
+	"tabpanel",
+	"term",
+	"textbox",
+	"timer",
+	"toolbar",
+	"tooltip",
+	"tree",
+	"treegrid",
+	"treeitem"
+]);
 /**
- * Maps an eslint-plugin-vuejs-accessibility rule to canonical AccessibilityRuleId.
- */
-export function mapA11yRuleId(eslintRuleId) {
-    const bare = eslintRuleId.replace(/^vuejs-accessibility\//, '');
-    return A11Y_RULE_ID_MAP[bare] ?? 'a11y-aria-role-invalid';
+* Maps an eslint-plugin-vuejs-accessibility rule to canonical AccessibilityRuleId.
+*/
+function mapA11yRuleId(eslintRuleId) {
+	const bare = eslintRuleId.replace(/^vuejs-accessibility\//, "");
+	return A11Y_RULE_ID_MAP[bare] ?? "a11y-aria-role-invalid";
 }
-export class ValidateAccessibilityAuditor extends BaseAuditor {
-    constructor(options = {}) {
-        const effectiveRoot = options.projectRoot ?? process.cwd();
-        super({
-            usesThirdPartyTool: false,
-            ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
-                speed: 'light',
-                phase: 'normal',
-                fix: 'normal',
-                md: false,
-                ast: false,
-                changedOnly: false, critical: false
-            }, [...ACCESSIBILITY_RULES]),
-            fixableRuleIds: [...ACCESSIBILITY_RULES],
-            fix: options.fix,
-            id: 'validate_accessibility',
-            name: 'Vue & Web Accessibility Standards Auditor',
-            description: 'Valida estándares WCAG 2.1/2.2 y accesibilidad',
-            family: 'architecture',
-            packageName: 'A11y',
-            configKey: 'accessibility.enabled',
-            defaultConfig: { enabled: true },
-            criticalConfig: {},
-            icon: '♿',
-            ruleIds: ACCESSIBILITY_RULES,
-            ruleDescriptions: {
-                'a11y-img-alt': 'Imagen sin atributo alt accesible',
-                'a11y-form-control-has-label': 'Control de formulario sin label',
-                'a11y-interactive-supports-focus': 'Elemento interactivo sin foco',
-                'a11y-anchor-has-content': 'Enlace o botón sin texto o label',
-                'a11y-aria-role-invalid': 'Rol o atributo ARIA no conforme',
-                'a11y-viewport-zoom-lock': 'Bloqueo de zoom en viewport HTML'
-            },
-            ruleRemediations: {
-                'a11y-img-alt': 'Guía de diagnóstico y remediación para a11y-img-alt. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'a11y-form-control-has-label': 'Guía de diagnóstico y remediación para a11y-form-control-has-label. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'a11y-interactive-supports-focus': 'Guía de diagnóstico y remediación para a11y-interactive-supports-focus. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'a11y-anchor-has-content': 'Guía de diagnóstico y remediación para a11y-anchor-has-content. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'a11y-aria-role-invalid': 'Guía de diagnóstico y remediación para a11y-aria-role-invalid. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'a11y-viewport-zoom-lock': 'Guía de diagnóstico y remediación para a11y-viewport-zoom-lock. Revisa la incidencia detectada y ajusta el código correspondiente.',
-            },
-            projectRoot: effectiveRoot,
-            coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }
-        });
-    }
-    async runAudit() {
-        if (this.isSuiteGatingDisabled('Accesibilidad desactivada en config')) {
-            return;
-        }
-        const config = getAuditConfig(this.projectRoot);
-        const scannableRoots = [
-            ...(config.paths.componentsRoots ?? []),
-            ...(config.paths.viewsRoots ?? []),
-            ...(config.paths.srcRoots ?? [])
-        ];
-        this.redeclareCoverage({
-            include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include]
-        });
-        this.runSubAuditorSync('a11y-viewport-zoom-lock', () => {
-            this.auditIndexViewport();
-        });
-        const vueFiles = this.context.collectFiles(scannableRoots, new Set(['.vue']));
-        if (vueFiles.length === 0) {
-            for (const ruleId of ESLINT_BACKED_RULES) {
-                this.runSubAuditorSync(ruleId, () => {
-                    this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
-                });
-            }
-            return;
-        }
-        const effectiveRules = this.buildEffectiveRules(config.accessibility?.rules ?? {});
-        const results = await this.executeEslintOnVueFiles(vueFiles, effectiveRules);
-        this.processLintResults(results, effectiveRules);
-    }
-    buildEffectiveRules(customRules) {
-        const normalized = {};
-        for (const [key, val] of Object.entries(customRules)) {
-            normalized[key] = val ? 'error' : 'off';
-        }
-        return {
-            'vuejs-accessibility/alt-text': 'error',
-            'vuejs-accessibility/anchor-has-content': 'error',
-            'vuejs-accessibility/aria-props': 'error',
-            'vuejs-accessibility/aria-role': 'error',
-            'vuejs-accessibility/aria-unsupported-elements': 'error',
-            'vuejs-accessibility/click-events-have-key-events': 'error',
-            'vuejs-accessibility/form-control-has-label': 'error',
-            'vuejs-accessibility/heading-has-content': 'error',
-            'vuejs-accessibility/interactive-supports-focus': 'error',
-            'vuejs-accessibility/no-autofocus': 'error',
-            'vuejs-accessibility/no-redundant-roles': 'error',
-            'vuejs-accessibility/role-has-required-aria-props': 'error',
-            'vuejs-accessibility/tabindex-no-positive': 'error',
-            ...normalized
-        };
-    }
-    async executeEslintOnVueFiles(vueFiles, rules) {
-        const eslint = new ESLint({
-            cwd: this.projectRoot,
-            fix: this.fixMode,
-            overrideConfigFile: true,
-            overrideConfig: [
-                {
-                    files: ['**/*.vue'],
-                    languageOptions: { parser: vueParser },
-                    plugins: { 'vuejs-accessibility': vueA11y },
-                    rules
-                }
-            ]
-        });
-        const results = await eslint.lintFiles([...vueFiles]);
-        if (this.fixMode) {
-            await ESLint.outputFixes(results);
-        }
-        return results;
-    }
-    processLintResults(results, effectiveRules) {
-        for (const res of results) {
-            const relFile = toPosixRelative(this.projectRoot, res.filePath);
-            this.recordScanned(relFile);
-        }
-        const activeRules = new Set();
-        for (const [eslintRuleId, level] of Object.entries(effectiveRules)) {
-            if (level !== 'off')
-                activeRules.add(mapA11yRuleId(eslintRuleId));
-        }
-        for (const ruleId of ESLINT_BACKED_RULES) {
-            if (!activeRules.has(ruleId)) {
-                this.markRuleNotApplicable(ruleId, 'Todas sus reglas ESLint están en off (config.accessibility.rules)');
-                continue;
-            }
-            this.runSubAuditorSync(ruleId, () => {
-                for (const res of results) {
-                    const relFile = toPosixRelative(this.projectRoot, res.filePath);
-                    for (const msg of res.messages) {
-                        if (!msg.ruleId || !msg.ruleId.startsWith('vuejs-accessibility/'))
-                            continue;
-                        if (mapA11yRuleId(msg.ruleId) !== ruleId)
-                            continue;
-                        this.addViolation({
-                            ruleId,
-                            severity: 'error',
-                            file: relFile,
-                            line: msg.line,
-                            context: msg.ruleId,
-                            message: msg.message,
-                            fixable: Boolean(msg.fix)
-                        });
-                    }
-                }
-            });
-        }
-    }
-    auditIndexViewport() {
-        const indexPath = path.resolve(this.projectRoot, INDEX_HTML_FILE);
-        if (!fs.existsSync(indexPath)) {
-            this.markRuleNotApplicable('a11y-viewport-zoom-lock', `No existe ${INDEX_HTML_FILE} en la raíz del proyecto`);
-            return;
-        }
-        const content = fs.readFileSync(indexPath, 'utf-8');
-        this.recordScanned(INDEX_HTML_FILE);
-        const viewportMatch = content.match(/<meta\s+name=["']viewport["'][^>]*>/i);
-        if (!viewportMatch)
-            return;
-        const tag = viewportMatch[0];
-        const userScalableNo = /user-scalable\s*=\s*(?:no|0)/i.test(tag);
-        const maxScaleOne = /maximum-scale\s*=\s*1(?:\.0+)?(?:\b|[,;\s])/i.test(tag);
-        if (userScalableNo || maxScaleOne) {
-            const lines = content.slice(0, viewportMatch.index).split('\n');
-            const lineNum = lines.length;
-            this.addViolation({
-                ruleId: 'a11y-viewport-zoom-lock',
-                severity: 'error',
-                file: INDEX_HTML_FILE,
-                line: lineNum,
-                context: tag.trim(),
-                message: 'Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.',
-                fixable: false
-            });
-        }
-    }
-}
+var ValidateAccessibilityAuditor = class extends BaseAuditor {
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot ?? process.cwd();
+		super({
+			usesThirdPartyTool: false,
+			ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
+				speed: "light",
+				phase: "normal",
+				fix: "normal",
+				md: false,
+				ast: false,
+				changedOnly: false,
+				critical: false
+			}, [...ACCESSIBILITY_RULES]),
+			fixableRuleIds: [...ACCESSIBILITY_RULES],
+			fix: options.fix,
+			id: "validate_accessibility",
+			name: "Vue & Web Accessibility Standards Auditor",
+			description: "Valida estándares WCAG 2.1/2.2 y accesibilidad",
+			family: "architecture",
+			packageName: "A11y",
+			configKey: "accessibility.enabled",
+			defaultConfig: { enabled: true },
+			criticalConfig: {},
+			icon: "♿",
+			ruleIds: ACCESSIBILITY_RULES,
+			ruleDescriptions: {
+				"a11y-img-alt": "Imagen sin atributo alt accesible",
+				"a11y-form-control-has-label": "Control de formulario sin label",
+				"a11y-interactive-supports-focus": "Elemento interactivo sin foco",
+				"a11y-anchor-has-content": "Enlace o botón sin texto o label",
+				"a11y-aria-role-invalid": "Rol o atributo ARIA no conforme",
+				"a11y-viewport-zoom-lock": "Bloqueo de zoom en viewport HTML"
+			},
+			ruleRemediations: {
+				"a11y-img-alt": "Guía de diagnóstico y remediación para a11y-img-alt. Revisa la incidencia detectada y añade el atributo alt correspondiente.",
+				"a11y-form-control-has-label": "Guía de diagnóstico y remediación para a11y-form-control-has-label. Revisa la incidencia detectada y asocia un label o aria-label.",
+				"a11y-interactive-supports-focus": "Guía de diagnóstico y remediación para a11y-interactive-supports-focus. Revisa la incidencia detectada y añade tabindex o rol interactivo con teclado.",
+				"a11y-anchor-has-content": "Guía de diagnóstico y remediación para a11y-anchor-has-content. Revisa la incidencia detectada y añade texto o aria-label al enlace o botón.",
+				"a11y-aria-role-invalid": "Guía de diagnóstico y remediación para a11y-aria-role-invalid. Revisa la incidencia detectada y ajusta el rol ARIA conforme a la especificación W3C.",
+				"a11y-viewport-zoom-lock": "Guía de diagnóstico y remediación para a11y-viewport-zoom-lock. Revisa la incidencia detectada y remueve user-scalable=no o maximum-scale=1.0 de index.html."
+			},
+			projectRoot: effectiveRoot,
+			coverage: { include: [INDEX_HTML_FILE, "src/**/*.vue"] }
+		});
+	}
+	async runAudit() {
+		if (this.isSuiteGatingDisabled("Accesibilidad desactivada en config")) return;
+		const config = getAuditConfig(this.projectRoot);
+		const scannableRoots = [
+			...config.paths.componentsRoots ?? [],
+			...config.paths.viewsRoots ?? [],
+			...config.paths.srcRoots ?? []
+		];
+		this.redeclareCoverage({ include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, VUE_EXTENSIONS).include] });
+		this.runSubAuditorSync("a11y-viewport-zoom-lock", () => {
+			this.auditIndexViewport();
+		});
+		const vueFiles = this.context.collectFiles(scannableRoots, /* @__PURE__ */ new Set([".vue"]));
+		if (vueFiles.length === 0) {
+			for (const ruleId of TEMPLATE_BACKED_RULES) this.runSubAuditorSync(ruleId, () => {
+				this.markRuleNotApplicable(ruleId, "No hay archivos .vue en las raíces configuradas");
+			});
+			return;
+		}
+		for (const ruleId of TEMPLATE_BACKED_RULES) this.runSubAuditorSync(ruleId, () => {
+			for (const absFile of vueFiles) {
+				const relFile = toPosixRelative(this.projectRoot, absFile);
+				this.recordScanned(relFile);
+				this.auditVueFileForRule(absFile, relFile, ruleId);
+			}
+		});
+	}
+	auditVueFileForRule(absPath, relPath, ruleId) {
+		let content = "";
+		try {
+			content = fs.readFileSync(absPath, "utf-8");
+		} catch {
+			return;
+		}
+		const blocks = parseVueSfcBlocks(content);
+		if (!blocks.template) return;
+		const templateContent = blocks.template.content;
+		const linesBeforeTemplate = Math.max(0, blocks.template.contentStartLine - 1);
+		switch (ruleId) {
+			case "a11y-img-alt":
+				this.auditImgAlt(templateContent, relPath, linesBeforeTemplate);
+				break;
+			case "a11y-form-control-has-label":
+				this.auditFormControlLabel(templateContent, relPath, linesBeforeTemplate);
+				break;
+			case "a11y-interactive-supports-focus":
+				this.auditInteractiveFocus(templateContent, relPath, linesBeforeTemplate);
+				break;
+			case "a11y-anchor-has-content":
+				this.auditAnchorContent(templateContent, relPath, linesBeforeTemplate);
+				break;
+			case "a11y-aria-role-invalid": this.auditAriaRole(templateContent, relPath, linesBeforeTemplate);
+		}
+	}
+	auditImgAlt(template, relPath, lineOffset) {
+		const imgRegex = /<img\b([^>]*)>/gi;
+		let match;
+		while ((match = imgRegex.exec(template)) !== null) {
+			const attrs = match[1] ?? "";
+			const hasAlt = /\b(?:alt|:alt|v-bind:alt)\s*=/i.test(attrs);
+			const isAriaHidden = /aria-hidden\s*=\s*["']true["']/i.test(attrs);
+			const isPresentation = /role\s*=\s*["'](?:presentation|none)["']/i.test(attrs);
+			if (!hasAlt && !isAriaHidden && !isPresentation) {
+				const lineNum = lineOffset + template.slice(0, match.index).split("\n").length;
+				this.addViolation({
+					ruleId: "a11y-img-alt",
+					severity: "error",
+					file: relPath,
+					line: lineNum,
+					context: match[0],
+					message: "Elemento <img> no posee atributo alt accesible. Viola WCAG 1.1.1 Non-text Content.",
+					fixable: true
+				});
+			}
+		}
+	}
+	auditFormControlLabel(template, relPath, lineOffset) {
+		const inputRegex = /<(?:input|select|textarea)\b([^>]*)>/gi;
+		let match;
+		while ((match = inputRegex.exec(template)) !== null) {
+			const attrs = match[1] ?? "";
+			if (/type\s*=\s*["'](?:hidden|submit|button|reset|image)["']/i.test(attrs)) continue;
+			const hasAriaLabel = /\b(?:aria-label|aria-labelledby|:aria-label|:aria-labelledby)\s*=/i.test(attrs);
+			const hasId = /\bid\s*=\s*["']([^"']+)["']/i.exec(attrs);
+			let hasAssociatedLabel = false;
+			if (hasId && hasId[1]) {
+				const idVal = hasId[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+				hasAssociatedLabel = new RegExp(`<label[^>]*\\s(?:for|:for)\\s*=\\s*["']${idVal}["']`, "i").test(template);
+			}
+			if (!hasAriaLabel && !hasAssociatedLabel) {
+				const lineNum = lineOffset + template.slice(0, match.index).split("\n").length;
+				this.addViolation({
+					ruleId: "a11y-form-control-has-label",
+					severity: "error",
+					file: relPath,
+					line: lineNum,
+					context: match[0],
+					message: "Control de formulario sin label asociado ni aria-label. Viola WCAG 1.3.1 Info and Relationships.",
+					fixable: false
+				});
+			}
+		}
+	}
+	auditInteractiveFocus(template, relPath, lineOffset) {
+		const nonInteractiveClickRegex = /<(div|span|p|li|section|article)\b([^>]*(?:@click|v-on:click|@mousedown|v-on:mousedown)[^>]*)>/gi;
+		let match;
+		while ((match = nonInteractiveClickRegex.exec(template)) !== null) {
+			const attrs = match[2] ?? "";
+			const hasTabIndex = /\btabindex\s*=/i.test(attrs);
+			const hasRoleButton = /role\s*=\s*["']button["']/i.test(attrs);
+			const hasKeyListeners = /@(keydown|keyup|keypress)\b/i.test(attrs);
+			if (!hasTabIndex && !hasRoleButton && !hasKeyListeners) {
+				const lineNum = lineOffset + template.slice(0, match.index).split("\n").length;
+				this.addViolation({
+					ruleId: "a11y-interactive-supports-focus",
+					severity: "error",
+					file: relPath,
+					line: lineNum,
+					context: match[0],
+					message: `Elemento no interactivo <${match[1]}> con manejador de clic sin soporte de foco ni teclado. Viola WCAG 2.1.1 Keyboard.`,
+					fixable: false
+				});
+			}
+		}
+	}
+	auditAnchorContent(template, relPath, lineOffset) {
+		const tagRegex = /<(a|button)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+		let match;
+		while ((match = tagRegex.exec(template)) !== null) {
+			const tag = match[1] ?? "";
+			const attrs = match[2] ?? "";
+			const inner = match[3] ?? "";
+			const hasAriaLabel = /\b(?:aria-label|aria-labelledby|:aria-label|:aria-labelledby)\s*=/i.test(attrs);
+			const hasText = inner.replace(/<[^>]*>/g, "").trim().length > 0;
+			const hasAccessibleInner = /<(?:img|svg)\b[^>]*(?:alt|aria-label|title)=/i.test(inner);
+			if (!hasAriaLabel && !hasText && !hasAccessibleInner) {
+				const lineNum = lineOffset + template.slice(0, match.index).split("\n").length;
+				this.addViolation({
+					ruleId: "a11y-anchor-has-content",
+					severity: "error",
+					file: relPath,
+					line: lineNum,
+					context: match[0].slice(0, 100),
+					message: `Elemento <${tag}> carece de contenido textual accesible o aria-label. Viola WCAG 2.4.4 Link Purpose.`,
+					fixable: false
+				});
+			}
+		}
+	}
+	auditAriaRole(template, relPath, lineOffset) {
+		const roleRegex = /\brole\s*=\s*["']([^"']+)["']/gi;
+		let match;
+		while ((match = roleRegex.exec(template)) !== null) {
+			const roleVal = match[1]?.trim().toLowerCase() ?? "";
+			if (!VALID_WAI_ARIA_ROLES.has(roleVal)) {
+				const lineNum = lineOffset + template.slice(0, match.index).split("\n").length;
+				this.addViolation({
+					ruleId: "a11y-aria-role-invalid",
+					severity: "error",
+					file: relPath,
+					line: lineNum,
+					context: match[0],
+					message: `El rol ARIA '${roleVal}' no es un rol WAI-ARIA válido conforme a W3C.`,
+					fixable: false
+				});
+			}
+		}
+	}
+	auditIndexViewport() {
+		const indexPath = path.resolve(this.projectRoot, INDEX_HTML_FILE);
+		if (!fs.existsSync(indexPath)) {
+			this.markRuleNotApplicable("a11y-viewport-zoom-lock", `No existe ${INDEX_HTML_FILE} en la raíz del proyecto`);
+			return;
+		}
+		const content = fs.readFileSync(indexPath, "utf-8");
+		this.recordScanned(INDEX_HTML_FILE);
+		const viewportMatch = content.match(/<meta\s+name=["']viewport["'][^>]*>/i);
+		if (!viewportMatch) return;
+		const tag = viewportMatch[0];
+		const userScalableNo = /user-scalable\s*=\s*(?:no|0)/i.test(tag);
+		const maxScaleOne = /maximum-scale\s*=\s*1(?:\.0+)?(?:\b|[,;\s])/i.test(tag);
+		if (userScalableNo || maxScaleOne) {
+			const lineNum = content.slice(0, viewportMatch.index).split("\n").length;
+			this.addViolation({
+				ruleId: "a11y-viewport-zoom-lock",
+				severity: "error",
+				file: INDEX_HTML_FILE,
+				line: lineNum,
+				context: tag.trim(),
+				message: "Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.",
+				fixable: false
+			});
+		}
+	}
+};
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAccessibilityAuditor());
-//# sourceMappingURL=validate_accessibility.js.map
+//#endregion
+export { ACCESSIBILITY_RULES, ValidateAccessibilityAuditor, mapA11yRuleId };

@@ -56,7 +56,9 @@ function parseZLayersFromTs(tsPath: string): Record<string, number> | null {
   if (!fs.existsSync(tsPath)) return null;
   try {
     const content = fs.readFileSync(tsPath, 'utf-8');
-    const objMatch = content.match(/(?:export\s+)?const\s+Z_LAYERS\s*=\s*\{([\s\S]*?)\}(?:\s*as\s+const)?\s*;/);
+    const objMatch = content.match(
+      /(?:export\s+)?const\s+Z_LAYERS\s*=\s*\{([\s\S]*?)\}(?:\s*as\s+const)?\s*;/
+    );
     if (!objMatch?.[1]) return null;
 
     const parsed: Record<string, number> = {};

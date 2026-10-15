@@ -29,10 +29,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  FileScanAuditor,
-  BaseAuditor
-, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { SharedAstContext } from '../../core/astContext.ts';
 
@@ -59,14 +56,16 @@ export function getForbiddenIntegrationMockTargets(): readonly string[] {
   return config.persistence?.forbiddenMockModules ?? [];
 }
 
-const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /:has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=/;
+const PLAYWRIGHT_TEXT_LOCATOR_REGEX =
+  /:has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=/;
 const FORCE_CLICK_REGEX = /\.(?:click|dblclick)\s*\(\s*\{[^}]*\bforce\s*:\s*true/;
 const WAIT_FOR_TIMEOUT_REGEX = /\bpage\.waitForTimeout\s*\(/;
-const TIMEOUT_INFLATION_REGEX = /testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:it|test)\s*\([^,]+,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\},\s*([3-9]\d{4,}|\d{6,})\)/;
+const TIMEOUT_INFLATION_REGEX =
+  /testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:it|test)\s*\([^,]+,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\},\s*([3-9]\d{4,}|\d{6,})\)/;
 const VI_MOCK_REGEX = /vi\.mock\(\s*['"]([^'"]+)['"]/g;
 
 export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
-constructor() {
+  constructor() {
     const config = getAuditConfig();
     const testRoots = [
       ...config.paths.integrationRoots,
@@ -82,9 +81,10 @@ constructor() {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_test_hygiene',
+      id: 'validate_test_hygiene',
       name: 'Test Hygiene & Simulation Integrity Validator',
       description: 'Audita higiene en tests, mocks y locators de Playwright',
       family: 'architecture',
@@ -102,11 +102,16 @@ id: 'validate_test_hygiene',
         'no-playwright-polling-waits': 'Uso de page.waitForTimeout()'
       },
       ruleRemediations: {
-        'no-tautological-integration-mocks': 'Guía de diagnóstico y remediación para no-tautological-integration-mocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'playwright-id-locators-only': 'Guía de diagnóstico y remediación para playwright-id-locators-only. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-playwright-force-click': 'Guía de diagnóstico y remediación para no-playwright-force-click. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-test-timeout-inflation': 'Guía de diagnóstico y remediación para no-test-timeout-inflation. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-playwright-polling-waits': 'Guía de diagnóstico y remediación para no-playwright-polling-waits. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-tautological-integration-mocks':
+          'Guía de diagnóstico y remediación para no-tautological-integration-mocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'playwright-id-locators-only':
+          'Guía de diagnóstico y remediación para playwright-id-locators-only. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-playwright-force-click':
+          'Guía de diagnóstico y remediación para no-playwright-force-click. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-test-timeout-inflation':
+          'Guía de diagnóstico y remediación para no-test-timeout-inflation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-playwright-polling-waits':
+          'Guía de diagnóstico y remediación para no-playwright-polling-waits. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: testRoots.length > 0 ? testRoots : ['tests'],
       allowedExtensions: new Set(['.ts', '.js'])
@@ -115,8 +120,8 @@ id: 'validate_test_hygiene',
 
   protected override scanFile(relPath: string, content: string): void {
     const config = getAuditConfig();
-    const isIntegration = config.paths.integrationRoots.some(r => relPath.startsWith(r));
-    const isE2e = config.paths.e2eRoots.some(r => relPath.startsWith(r));
+    const isIntegration = config.paths.integrationRoots.some((r) => relPath.startsWith(r));
+    const isE2e = config.paths.e2eRoots.some((r) => relPath.startsWith(r));
 
     // 1. Tautological mocks (integration only)
     if (isIntegration) {
@@ -149,15 +154,28 @@ id: 'validate_test_hygiene',
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
     await super.runAudit(astContext);
     const config = getAuditConfig(this.projectRoot);
-    const hasIntegration = (config.paths?.integrationRoots ?? []).some(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+    const hasIntegration = (config.paths?.integrationRoots ?? []).some((r) =>
+      fs.existsSync(path.resolve(this.projectRoot, r))
+    );
     if (!hasIntegration) {
-      this.markRuleNotApplicable('no-tautological-integration-mocks', 'No existing integrationRoots found on disk');
+      this.markRuleNotApplicable(
+        'no-tautological-integration-mocks',
+        'No existing integrationRoots found on disk'
+      );
     }
-    const hasE2e = (config.paths?.e2eRoots ?? []).some(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+    const hasE2e = (config.paths?.e2eRoots ?? []).some((r) =>
+      fs.existsSync(path.resolve(this.projectRoot, r))
+    );
     if (!hasE2e) {
-      this.markRuleNotApplicable('playwright-id-locators-only', 'No existing e2eRoots found on disk');
+      this.markRuleNotApplicable(
+        'playwright-id-locators-only',
+        'No existing e2eRoots found on disk'
+      );
       this.markRuleNotApplicable('no-playwright-force-click', 'No existing e2eRoots found on disk');
-      this.markRuleNotApplicable('no-playwright-polling-waits', 'No existing e2eRoots found on disk');
+      this.markRuleNotApplicable(
+        'no-playwright-polling-waits',
+        'No existing e2eRoots found on disk'
+      );
     }
   }
 
@@ -227,7 +245,8 @@ id: 'validate_test_hygiene',
       'playwright-id-locators-only',
       PLAYWRIGHT_TEXT_LOCATOR_REGEX,
       ['locator-ok'],
-      () => `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`
+      () =>
+        `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`
     );
   }
 
@@ -238,7 +257,8 @@ id: 'validate_test_hygiene',
       'no-playwright-force-click',
       FORCE_CLICK_REGEX,
       ['force-ok'],
-      () => `Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.`
+      () =>
+        `Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.`
     );
   }
 
@@ -249,7 +269,8 @@ id: 'validate_test_hygiene',
       'no-playwright-polling-waits',
       WAIT_FOR_TIMEOUT_REGEX,
       ['wait-ok'],
-      () => `Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.`
+      () =>
+        `Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.`
     );
   }
 
@@ -266,7 +287,6 @@ id: 'validate_test_hygiene',
       }
     );
   }
-
 }
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────

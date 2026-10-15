@@ -45,14 +45,29 @@ export {
   type CommandInvocationType as DocumentedCommandType
 } from '../../core/npmCommandUtils.ts';
 
-const SHELL_BLOCK_LANGS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
-  'bash', 'sh', 'shell', 'zsh', 'cmd', 'powershell', 'ps1', 'terminal', 'console'
+const SHELL_BLOCK_LANGS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
+  'bash',
+  'sh',
+  'shell',
+  'zsh',
+  'cmd',
+  'powershell',
+  'ps1',
+  'terminal',
+  'console'
 ]);
 
-function parseBlockCommandLine(trimmed: string, isShellBlock: boolean, lineNum: number, commands: ExtractedCommand[]): void {
-  const hasShellPrompt = /^[$>#]\s+/.test(trimmed);
+function parseBlockCommandLine(
+  trimmed: string,
+  isShellBlock: boolean,
+  lineNum: number,
+  commands: ExtractedCommand[]
+): void {
+  if (isShellBlock && trimmed.startsWith('#')) return;
+  const hasShellPrompt = /^[$>]\s+/.test(trimmed);
   if (!isShellBlock && !hasShellPrompt) return;
-  const cleanLine = trimmed.replace(/^[$>#]\s+/, '');
+  const cleanLine = trimmed.replace(/^[$>]\s+/, '');
   if (!cleanLine || cleanLine.startsWith('#')) return;
 
   const segments = cleanLine.split(/&&|\|\||;/);
@@ -118,9 +133,10 @@ export function evaluateCommandViolation(
 
   if (genericViolation.kind === 'unregistered-npm') {
     ruleId = 'documented-cmd-unregistered-npm';
-    message = cmd.type === 'npm-run'
-      ? `El comando documentado 'npm run ${cmd.target}' no está registrado en package.json.scripts.`
-      : `El comando documentado 'npm test' requiere un script 'test' en package.json.`;
+    message =
+      cmd.type === 'npm-run'
+        ? `El comando documentado 'npm run ${cmd.target}' no está registrado en package.json.scripts.`
+        : `El comando documentado 'npm test' requiere un script 'test' en package.json.`;
   } else if (genericViolation.kind === 'invalid-npm-syntax') {
     ruleId = 'documented-cmd-invalid-npm-syntax';
     message = genericViolation.message;
@@ -172,9 +188,12 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         'documented-cmd-unregistered-npx': 'Binario npx no registrado'
       },
       ruleRemediations: {
-        'documented-cmd-unregistered-npm': 'Guía de diagnóstico y remediación para documented-cmd-unregistered-npm. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'documented-cmd-invalid-npm-syntax': 'Guía de diagnóstico y remediación para documented-cmd-invalid-npm-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'documented-cmd-unregistered-npx': 'Guía de diagnóstico y remediación para documented-cmd-unregistered-npx. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'documented-cmd-unregistered-npm':
+          'Guía de diagnóstico y remediación para documented-cmd-unregistered-npm. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'documented-cmd-invalid-npm-syntax':
+          'Guía de diagnóstico y remediación para documented-cmd-invalid-npm-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'documented-cmd-unregistered-npx':
+          'Guía de diagnóstico y remediación para documented-cmd-unregistered-npx. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['**/*.md']
@@ -197,7 +216,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
     }
 
     const config = getAuditConfig(this.rootDir);
-    const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map(e => e.glob);
+    const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
     const allowedNpx = new Set(config.documentation?.allowedNpxBinaries ?? []);
     const env: NpmCommandValidationEnv = { scripts, declaredBins, installedBins, allowedNpx };
 
@@ -209,7 +228,10 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
     const extractedFiles: ExtractedDocFile[] = [];
     for (const absFile of mdFiles) {
       const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
-      if (!isAuditableCodebaseFile(relPosix, customExemptGlobs) || this.gitIgnoreMatcher.isIgnored(absFile)) {
+      if (
+        !isAuditableCodebaseFile(relPosix, customExemptGlobs) ||
+        this.gitIgnoreMatcher.isIgnored(absFile)
+      ) {
         continue;
       }
       this.recordScanned(relPosix);

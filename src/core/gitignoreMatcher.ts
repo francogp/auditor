@@ -98,7 +98,12 @@ export class GitIgnoreMatcher {
       }
 
       // If simple directory prefix without glob wildcards, record fast lookup prefix
-      if (!isNegative && !pattern.includes('*') && !pattern.includes('?') && !pattern.includes('[')) {
+      if (
+        !isNegative &&
+        !pattern.includes('*') &&
+        !pattern.includes('?') &&
+        !pattern.includes('[')
+      ) {
         this.ignoredDirPrefixes.push(pattern + '/');
         this.ignoredDirPrefixes.push(pattern);
       }
@@ -109,7 +114,7 @@ export class GitIgnoreMatcher {
         isNegative,
         isDirectoryOnly,
         isRootRelative,
-        regex,
+        regex
       });
     }
   }
@@ -139,7 +144,10 @@ export class GitIgnoreMatcher {
 
     // Fast-path for directory prefixes (e.g. scratch/, dist/, node_modules/)
     for (const prefix of this.ignoredDirPrefixes) {
-      if (normalized === prefix || normalized.startsWith(prefix.endsWith('/') ? prefix : prefix + '/')) {
+      if (
+        normalized === prefix ||
+        normalized.startsWith(prefix.endsWith('/') ? prefix : prefix + '/')
+      ) {
         return true;
       }
     }
@@ -158,14 +166,13 @@ export class GitIgnoreMatcher {
 /**
  * Finds all gitignore requirements that are not currently covered by .gitignore.
  */
-export function findMissingGitIgnoreRequirements<T extends { pattern: string; samplePath?: string }>(
-  projectRoot: string,
-  gitignorePath: string,
-  requirements: readonly T[]
-): T[] {
+export function findMissingGitIgnoreRequirements<
+  T extends { pattern: string; samplePath?: string }
+>(projectRoot: string, gitignorePath: string, requirements: readonly T[]): T[] {
   const matcher = new GitIgnoreMatcher(projectRoot, gitignorePath);
-  return requirements.filter(req => {
-    const probe = req.samplePath ?? (req.pattern.endsWith('/') ? `${req.pattern}probe.tmp` : req.pattern);
+  return requirements.filter((req) => {
+    const probe =
+      req.samplePath ?? (req.pattern.endsWith('/') ? `${req.pattern}probe.tmp` : req.pattern);
     return !matcher.isIgnored(probe);
   });
 }
@@ -173,20 +180,13 @@ export function findMissingGitIgnoreRequirements<T extends { pattern: string; sa
 /**
  * Appends missing gitignore entry patterns to the specified .gitignore file.
  */
-export function appendGitIgnoreEntries(
-  gitignorePath: string,
-  patterns: readonly string[]
-): void {
+export function appendGitIgnoreEntries(gitignorePath: string, patterns: readonly string[]): void {
   let existingContent = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf8') : '';
   if (existingContent.length > 0 && !existingContent.endsWith('\n')) {
     existingContent += '\n';
   }
   // no-domain: Gitignore cache header lines
-  const additionLines = [
-    '# Auditor tool caches (Added by @francogp/auditor)',
-    ...patterns,
-    ''
-  ];
+  const additionLines = ['# Auditor tool caches (Added by @francogp/auditor)', ...patterns, ''];
   const separator = existingContent.length === 0 || existingContent.endsWith('\n\n') ? '' : '\n';
   fs.writeFileSync(gitignorePath, existingContent + separator + additionLines.join('\n'), 'utf8');
 }

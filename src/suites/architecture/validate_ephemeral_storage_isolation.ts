@@ -26,7 +26,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveScannableRoots , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  getEffectiveScannableRoots,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -42,7 +46,14 @@ export const EPHEMERAL_STORAGE_RULES: readonly EphemeralStorageRuleId[] = [
   'ephemeral-no-source-temp-references'
 ] as const;
 
-export const CANONICAL_SOURCE_ROOTS = ['src', 'scripts', 'tests', 'supabase', 'data', 'database'] as const;
+export const CANONICAL_SOURCE_ROOTS = [
+  'src',
+  'scripts',
+  'tests',
+  'supabase',
+  'data',
+  'database'
+] as const;
 
 export function getEffectiveSourceRoots(projectRoot?: string): readonly string[] {
   const config = getAuditConfig(projectRoot);
@@ -60,14 +71,19 @@ const FORBIDDEN_DIR_PREFIXES = ['temp_', 'tmp_'] as const;
 
 function isForbiddenDirName(name: string): boolean {
   const lower = name.toLowerCase();
-  return FORBIDDEN_DIR_NAMES.has(lower) || FORBIDDEN_DIR_PREFIXES.some(prefix => lower.startsWith(prefix));
+  return (
+    FORBIDDEN_DIR_NAMES.has(lower) ||
+    FORBIDDEN_DIR_PREFIXES.some((prefix) => lower.startsWith(prefix))
+  );
 }
 
 const DEFAULT_ALLOWED_DATABASE_DIRS = new Set(['backups', 'migrations', 'schemas']);
 const DEFAULT_ALLOWED_DATABASE_FILES = new Set(['AGENTS.md', '.gitkeep']);
 
-const FORBIDDEN_CODE_REF_REGEX = /(?:['"`]|path\.(?:resolve|join)\([^)]*)\b(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|temp_\w+|tmp_\w+)\b/;
-const GITIGNORE_FORBIDDEN_REGEX = /(?:^|\/)(?:src|scripts|tests|supabase|data|database)\/(?:\.?temp|\.?tmp)/;
+const FORBIDDEN_CODE_REF_REGEX =
+  /(?:['"`]|path\.(?:resolve|join)\([^)]*)\b(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|temp_\w+|tmp_\w+)\b/;
+const GITIGNORE_FORBIDDEN_REGEX =
+  /(?:^|\/)(?:src|scripts|tests|supabase|data|database)\/(?:\.?temp|\.?tmp)/;
 
 export interface EphemeralStorageIsolationAuditorOptions {
   projectRoot?: string;
@@ -106,14 +122,12 @@ function scanLinesForEphemeralRefs(
 }
 
 export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStorageRuleId> {
-private readonly allowedDatabaseDirs: ReadonlySet<string>;
+  private readonly allowedDatabaseDirs: ReadonlySet<string>;
   private readonly allowedDatabaseFiles: ReadonlySet<string>;
 
   constructor(optionsOrRoot?: EphemeralStorageIsolationAuditorOptions | string) {
     const options: EphemeralStorageIsolationAuditorOptions =
-      typeof optionsOrRoot === 'string'
-        ? { projectRoot: optionsOrRoot }
-        : (optionsOrRoot ?? {});
+      typeof optionsOrRoot === 'string' ? { projectRoot: optionsOrRoot } : (optionsOrRoot ?? {});
 
     const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 
@@ -125,9 +139,10 @@ private readonly allowedDatabaseDirs: ReadonlySet<string>;
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_ephemeral_storage_isolation',
+      id: 'validate_ephemeral_storage_isolation',
       name: 'Ephemeral Storage & Scratch Isolation Validator',
       description: 'Aislamiento estricto de archivos temporales en scratch/',
       family: 'architecture',
@@ -143,15 +158,15 @@ id: 'validate_ephemeral_storage_isolation',
         'ephemeral-no-source-temp-references': 'Referencia a carpeta temporal'
       },
       ruleRemediations: {
-        'ephemeral-no-source-temp-dirs': 'Guía de diagnóstico y remediación para ephemeral-no-source-temp-dirs. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'ephemeral-no-gitignore-source-temp': 'Guía de diagnóstico y remediación para ephemeral-no-gitignore-source-temp. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'ephemeral-no-source-temp-references': 'Guía de diagnóstico y remediación para ephemeral-no-source-temp-references. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ephemeral-no-source-temp-dirs':
+          'Guía de diagnóstico y remediación para ephemeral-no-source-temp-dirs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ephemeral-no-gitignore-source-temp':
+          'Guía de diagnóstico y remediación para ephemeral-no-gitignore-source-temp. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ephemeral-no-source-temp-references':
+          'Guía de diagnóstico y remediación para ephemeral-no-source-temp-references. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
-        include: [
-          '.gitignore',
-          ...effectiveRoots.map(r => `${r}/**/*.{ts,vue,js,sql,sh}`)
-        ],
+        include: ['.gitignore', ...effectiveRoots.map((r) => `${r}/**/*.{ts,vue,js,sql,sh}`)],
         exclude: [
           'src/suites/architecture/validate_ephemeral_storage_isolation.ts',
           'tests/validate_ephemeral_storage_isolation.test.ts'
@@ -166,8 +181,16 @@ id: 'validate_ephemeral_storage_isolation',
     const configuredDbDirs = config.persistence?.allowedDatabaseDirs;
     const configuredDbFiles = config.persistence?.allowedDatabaseFiles;
 
-    this.allowedDatabaseDirs = options.allowedDatabaseDirs ?? (configuredDbDirs && configuredDbDirs.length > 0 ? new Set(configuredDbDirs) : DEFAULT_ALLOWED_DATABASE_DIRS);
-    this.allowedDatabaseFiles = options.allowedDatabaseFiles ?? (configuredDbFiles && configuredDbFiles.length > 0 ? new Set(configuredDbFiles) : DEFAULT_ALLOWED_DATABASE_FILES);
+    this.allowedDatabaseDirs =
+      options.allowedDatabaseDirs ??
+      (configuredDbDirs && configuredDbDirs.length > 0
+        ? new Set(configuredDbDirs)
+        : DEFAULT_ALLOWED_DATABASE_DIRS);
+    this.allowedDatabaseFiles =
+      options.allowedDatabaseFiles ??
+      (configuredDbFiles && configuredDbFiles.length > 0
+        ? new Set(configuredDbFiles)
+        : DEFAULT_ALLOWED_DATABASE_FILES);
   }
 
   public override runAudit(): void {
@@ -203,7 +226,11 @@ id: 'validate_ephemeral_storage_isolation',
           context: `database/${entry.name}`
         });
       }
-    } else if (entry.isFile() && !entry.name.startsWith('.') && !this.allowedDatabaseFiles.has(entry.name)) {
+    } else if (
+      entry.isFile() &&
+      !entry.name.startsWith('.') &&
+      !this.allowedDatabaseFiles.has(entry.name)
+    ) {
       this.addViolation({
         ruleId: 'ephemeral-no-source-temp-dirs',
         severity: 'error',
@@ -221,7 +248,10 @@ id: 'validate_ephemeral_storage_isolation',
     }
 
     const subPath = path.join(currentDir, entry.name);
-    const relSubPath = path.relative(this.projectRoot, subPath).split(path.sep).join(path.posix.sep);
+    const relSubPath = path
+      .relative(this.projectRoot, subPath)
+      .split(path.sep)
+      .join(path.posix.sep);
 
     if (isForbiddenDirName(entry.name)) {
       this.addViolation({
@@ -246,7 +276,10 @@ id: 'validate_ephemeral_storage_isolation',
       return;
     }
 
-    const relToRoot = path.relative(this.projectRoot, currentDir).split(path.sep).join(path.posix.sep);
+    const relToRoot = path
+      .relative(this.projectRoot, currentDir)
+      .split(path.sep)
+      .join(path.posix.sep);
 
     if (rootName === 'database' && relToRoot === 'database') {
       for (const entry of entries) {
@@ -292,19 +325,27 @@ id: 'validate_ephemeral_storage_isolation',
   }
 
   private scanSourceCodeReferences(): void {
-    const existingRoots = this.roots.filter(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+    const existingRoots = this.roots.filter((r) =>
+      fs.existsSync(path.resolve(this.projectRoot, r))
+    );
     const scannableFiles = this.context.collectFiles(
       existingRoots,
       new Set(['.ts', '.vue', '.js', '.sql', '.sh'])
     );
 
     if (scannableFiles.length === 0) {
-      this.markRuleNotApplicable('ephemeral-no-source-temp-references', 'No se encontraron archivos de código fuente');
+      this.markRuleNotApplicable(
+        'ephemeral-no-source-temp-references',
+        'No se encontraron archivos de código fuente'
+      );
       return;
     }
 
     for (const filePath of scannableFiles) {
-      const relPath = path.relative(this.projectRoot, filePath).split(path.sep).join(path.posix.sep);
+      const relPath = path
+        .relative(this.projectRoot, filePath)
+        .split(path.sep)
+        .join(path.posix.sep);
       if (isSelfReferentialFile(relPath)) continue;
 
       this.recordScanned(relPath);

@@ -61,7 +61,11 @@ function ensurePluginsDirectory(targetDir: string, dryRun?: boolean): void {
   fs.writeFileSync(path.join(pluginsDir, '01_sample.ps1.sample'), samplePs1, 'utf8');
 }
 
-export function syncEnvScripts(options: SyncEnvOptions = {}): { success: boolean; filesUpdated: string[]; message: string } {
+export function syncEnvScripts(options: SyncEnvOptions = {}): {
+  success: boolean;
+  filesUpdated: string[];
+  message: string;
+} {
   const targetDir = path.resolve(options.targetDir || process.cwd());
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const packageRootDir = path.resolve(currentDir, '../../');

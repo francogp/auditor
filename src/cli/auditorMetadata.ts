@@ -38,7 +38,11 @@ type MutableExtractedAuditorMetadata = {
 };
 
 export function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata {
-  const result: { capabilities: AuditorCapabilities; gitIgnoreEntries: readonly GitIgnoreRequirement[]; icon?: string } = {
+  const result: {
+    capabilities: AuditorCapabilities;
+    gitIgnoreEntries: readonly GitIgnoreRequirement[];
+    icon?: string;
+  } = {
     capabilities: DEFAULT_AUDITOR_CAPABILITIES,
     gitIgnoreEntries: []
   };
@@ -75,7 +79,10 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
       phase,
       fix,
       md: content.includes('md: true'),
-      ast: content.includes('ast: true') || content.includes('requiresAst: true') || content.includes('AST_RULE_CAPABILITIES'),
+      ast:
+        content.includes('ast: true') ||
+        content.includes('requiresAst: true') ||
+        content.includes('AST_RULE_CAPABILITIES'),
       changedOnly: content.includes('changedOnly: true'),
       critical: content.includes('critical: true')
     };
@@ -145,10 +152,7 @@ function extractMetadataFromAuditorInstance(
   }
 }
 
-function extractMetadataFromFunction(
-  val: unknown,
-  result: MutableExtractedAuditorMetadata
-): void {
+function extractMetadataFromFunction(val: unknown, result: MutableExtractedAuditorMetadata): void {
   if (typeof val !== 'function') return;
 
   const withStatic = val as {
@@ -179,7 +183,9 @@ function extractMetadataFromFunction(
   }
 }
 
-export async function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata> {
+export async function extractAuditorMetadataFromFile(
+  fullPath: string
+): Promise<ExtractedAuditorMetadata> {
   const result: MutableExtractedAuditorMetadata = {
     capabilities: DEFAULT_AUDITOR_CAPABILITIES,
     gitIgnoreEntries: []
@@ -199,7 +205,10 @@ export async function extractAuditorMetadataFromFile(fullPath: string): Promise<
   try {
     const fileUrl = pathToFileURL(fullPath).href;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Import timeout for ${fullPath}`)), DYNAMIC_IMPORT_TIMEOUT_MS);
+      timer = setTimeout(
+        () => reject(new Error(`Import timeout for ${fullPath}`)),
+        DYNAMIC_IMPORT_TIMEOUT_MS
+      );
       if (timer.unref) timer.unref();
     });
     const mod = (await Promise.race([import(fileUrl), timeoutPromise])) as Record<string, unknown>; // open-record: Generic dynamic ESM module namespace object

@@ -40,7 +40,7 @@ export function toPosixRelative(projectRoot: string, filePath: string): string {
 }
 
 export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean {
-  return globs.some(glob => {
+  return globs.some((glob) => {
     if (path.posix.matchesGlob(relPosixPath, glob)) return true;
     if (glob.startsWith('**') && relPosixPath.startsWith('.')) {
       const withoutLeadingDot = relPosixPath.replace(/^\.+[/\\]?/, '');
@@ -93,10 +93,36 @@ export const DEFAULT_NON_AUDITABLE_GLOBS: readonly string[] = Object.freeze([
 ]);
 
 export const FAST_NON_AUDITABLE_EXTENSIONS: ReadonlySet<string> = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.tiff', '.avif',
-  '.mp3', '.ogg', '.wav', '.flac', '.mp4', '.webm', '.avi', '.mov',
-  '.woff', '.woff2', '.ttf', '.eot', '.otf',
-  '.db', '.sqlite', '.sqlite3', '.wasm', '.zip', '.tar', '.gz', '.tgz'
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.ico',
+  '.bmp',
+  '.tiff',
+  '.avif',
+  '.mp3',
+  '.ogg',
+  '.wav',
+  '.flac',
+  '.mp4',
+  '.webm',
+  '.avi',
+  '.mov',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.otf',
+  '.db',
+  '.sqlite',
+  '.sqlite3',
+  '.wasm',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.tgz'
 ]);
 
 /** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
@@ -115,7 +141,10 @@ export function isAuditableCodebaseFile(
 }
 
 /** Whether a file falls inside the static coverage declaration of a suite. */
-export function isDeclaredByCoverage(relPosixPath: string, declaration: AuditorCoverageDeclaration): boolean {
+export function isDeclaredByCoverage(
+  relPosixPath: string,
+  declaration: AuditorCoverageDeclaration
+): boolean {
   if (!matchesAnyGlob(relPosixPath, declaration.include)) return false;
   return !matchesAnyGlob(relPosixPath, declaration.exclude ?? []);
 }
@@ -131,7 +160,11 @@ export function deriveCoverageFromRoots(
   for (const root of effectiveRoots) {
     let cleanRoot = path.posix.normalize(root.split('\\').join('/')).replace(/^\.\/?|\/+$/g, '');
     if (path.isAbsolute(cleanRoot)) {
-      cleanRoot = path.relative(projectRoot, cleanRoot).split('\\').join('/').replace(/^\.\/?|\/+$/g, '');
+      cleanRoot = path
+        .relative(projectRoot, cleanRoot)
+        .split('\\')
+        .join('/')
+        .replace(/^\.\/?|\/+$/g, '');
     }
     const prefix = cleanRoot === '' || cleanRoot === '.' ? '' : `${cleanRoot}/`;
     for (const ext of extensions) {
@@ -143,7 +176,7 @@ export function deriveCoverageFromRoots(
 
 function resolveDirectoryPatterns(rel: string, allowedExtensions?: ReadonlySet<string>): string[] {
   if (allowedExtensions && allowedExtensions.size > 0) {
-    return Array.from(allowedExtensions, ext => `${rel}/**/*${ext}`);
+    return Array.from(allowedExtensions, (ext) => `${rel}/**/*${ext}`);
   }
   return [`${rel}/**`];
 }
@@ -180,24 +213,38 @@ export function deriveCoverageFromRequiredFiles(
 }
 
 /** Fails loudly when a suite declares an invalid coverage contract. */
-export function validateCoverageDeclaration(suiteId: string, declaration: AuditorCoverageDeclaration | undefined): void {
+export function validateCoverageDeclaration(
+  suiteId: string,
+  declaration: AuditorCoverageDeclaration | undefined
+): void {
   if (!declaration || typeof declaration !== 'object') {
     throw new Error(
       `Auditor [${suiteId}] must declare 'coverage: { include: [...] }' (files it is responsible for). ` +
-      `Blind-spot detection requires every suite to declare its coverage.`
+        `Blind-spot detection requires every suite to declare its coverage.`
     );
   }
   if (!Array.isArray(declaration.include) || declaration.include.length === 0) {
-    throw new Error(`Auditor [${suiteId}] 'coverage.include' must be a non-empty array of POSIX globs.`);
+    throw new Error(
+      `Auditor [${suiteId}] 'coverage.include' must be a non-empty array of POSIX globs.`
+    );
   }
   const allGlobs = [...declaration.include, ...(declaration.exclude ?? [])];
   for (const glob of allGlobs) {
-    if (typeof glob !== 'string' || glob.trim().length === 0 || glob.includes('\\') || path.posix.isAbsolute(glob)) {
-      throw new Error(`Auditor [${suiteId}] declared an invalid coverage glob '${String(glob)}' (must be a relative POSIX glob).`);
+    if (
+      typeof glob !== 'string' ||
+      glob.trim().length === 0 ||
+      glob.includes('\\') ||
+      path.posix.isAbsolute(glob)
+    ) {
+      throw new Error(
+        `Auditor [${suiteId}] declared an invalid coverage glob '${String(glob)}' (must be a relative POSIX glob).`
+      );
     }
   }
   if (declaration.source !== undefined && !COVERAGE_SOURCES.includes(declaration.source)) {
-    throw new Error(`Auditor [${suiteId}] declared unknown coverage source '${String(declaration.source)}'.`);
+    throw new Error(
+      `Auditor [${suiteId}] declared unknown coverage source '${String(declaration.source)}'.`
+    );
   }
 }
 
@@ -220,10 +267,7 @@ export class CoverageRecorder {
   private externalScanCount = 0;
   private currentDeclaration: AuditorCoverageDeclaration;
 
-  constructor(
-    projectRoot: string,
-    declaration: AuditorCoverageDeclaration
-  ) {
+  constructor(projectRoot: string, declaration: AuditorCoverageDeclaration) {
     this.projectRoot = projectRoot;
     this.currentDeclaration = declaration;
   }
@@ -257,7 +301,9 @@ export class CoverageRecorder {
   /** Only valid for `declared-only` suites, whose engine reports a count but not a file list. */
   public recordExternalScanCount(count: number): void {
     if (this.source !== 'declared-only') {
-      throw new Error(`recordExternalScanCount() is only allowed for 'declared-only' coverage; record real files with recordScanned().`);
+      throw new Error(
+        `recordExternalScanCount() is only allowed for 'declared-only' coverage; record real files with recordScanned().`
+      );
     }
     this.externalScanCount = count;
   }
@@ -291,16 +337,23 @@ export class CoverageRecorder {
       source: this.source,
       scanned: Array.from(this.scanned).sort(),
       ruleIds: catalog,
-      ruleEvaluations: Object.fromEntries(catalog.map(id => [id, this.getEvaluations(id)])),
+      ruleEvaluations: Object.fromEntries(catalog.map((id) => [id, this.getEvaluations(id)])),
       notApplicable: Object.fromEntries(this.notApplicable)
     };
   }
 }
 
-export async function writeCoverageLedger(projectRoot: string, ledger: CoverageLedger): Promise<void> {
+export async function writeCoverageLedger(
+  projectRoot: string,
+  ledger: CoverageLedger
+): Promise<void> {
   const dir = path.resolve(projectRoot, COVERAGE_LEDGER_DIR);
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, `${ledger.suiteId}.json`), JSON.stringify(ledger, null, 2), 'utf-8');
+  await fs.writeFile(
+    path.join(dir, `${ledger.suiteId}.json`),
+    JSON.stringify(ledger, null, 2),
+    'utf-8'
+  );
 }
 
 export async function clearCoverageLedgers(projectRoot: string): Promise<void> {
@@ -308,7 +361,10 @@ export async function clearCoverageLedgers(projectRoot: string): Promise<void> {
 }
 
 /** Reads every ledger written during the given run (stale ledgers from previous runs are ignored). */
-export async function readCoverageLedgers(projectRoot: string, runId: string): Promise<CoverageLedger[]> {
+export async function readCoverageLedgers(
+  projectRoot: string,
+  runId: string
+): Promise<CoverageLedger[]> {
   const dir = path.resolve(projectRoot, COVERAGE_LEDGER_DIR);
   let entries: string[];
   try {
@@ -318,7 +374,7 @@ export async function readCoverageLedgers(projectRoot: string, runId: string): P
     return [];
   }
   const ledgers: CoverageLedger[] = [];
-  for (const entry of entries.filter(e => e.endsWith('.json')).sort()) {
+  for (const entry of entries.filter((e) => e.endsWith('.json')).sort()) {
     const ledger = JSON.parse(await fs.readFile(path.join(dir, entry), 'utf-8')) as CoverageLedger;
     if (ledger.runId === runId) ledgers.push(ledger);
   }
@@ -326,7 +382,9 @@ export async function readCoverageLedgers(projectRoot: string, runId: string): P
 }
 
 /** Reads all ledgers from the latest run in scratch/audits/coverage. */
-export async function readLatestCoverageLedgers(projectRoot: string): Promise<{ runId: string | null; ledgers: CoverageLedger[] }> {
+export async function readLatestCoverageLedgers(
+  projectRoot: string
+): Promise<{ runId: string | null; ledgers: CoverageLedger[] }> {
   const dir = path.resolve(projectRoot, COVERAGE_LEDGER_DIR);
   let entries: string[];
   try {
@@ -336,9 +394,11 @@ export async function readLatestCoverageLedgers(projectRoot: string): Promise<{ 
     return { runId: null, ledgers: [] };
   }
   const allLedgers: CoverageLedger[] = [];
-  for (const entry of entries.filter(e => e.endsWith('.json')).sort()) {
+  for (const entry of entries.filter((e) => e.endsWith('.json')).sort()) {
     try {
-      const ledger = JSON.parse(await fs.readFile(path.join(dir, entry), 'utf-8')) as CoverageLedger;
+      const ledger = JSON.parse(
+        await fs.readFile(path.join(dir, entry), 'utf-8')
+      ) as CoverageLedger;
       allLedgers.push(ledger);
     } catch {
       // catch-ok: corrupt or partial ledger file
@@ -346,7 +406,6 @@ export async function readLatestCoverageLedgers(projectRoot: string): Promise<{ 
   }
   if (allLedgers.length === 0) return { runId: null, ledgers: [] };
   const latestRunId = allLedgers[allLedgers.length - 1]!.runId;
-  const filtered = allLedgers.filter(l => l.runId === latestRunId);
+  const filtered = allLedgers.filter((l) => l.runId === latestRunId);
   return { runId: latestRunId, ledgers: filtered };
 }
-

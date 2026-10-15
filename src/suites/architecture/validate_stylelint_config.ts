@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import 'stylelint-declaration-strict-value';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
@@ -63,7 +63,7 @@ export const CANONICAL_ORDER_CONFIG: readonly unknown[] = [
 
 function findIncludeMixinIndex(order: readonly unknown[], hasBlock: boolean): number {
   return order.findIndex(
-    item =>
+    (item) =>
       typeof item === 'object' &&
       item !== null &&
       (item as { type?: string; name?: string; hasBlock?: boolean }).type === 'at-rule' &&
@@ -72,7 +72,10 @@ function findIncludeMixinIndex(order: readonly unknown[], hasBlock: boolean): nu
   );
 }
 
-export function validateOrderHasBlockPartitioning(order: unknown): { valid: boolean; reason?: string } {
+export function validateOrderHasBlockPartitioning(order: unknown): {
+  valid: boolean;
+  reason?: string;
+} {
   if (!Array.isArray(order)) {
     return { valid: false, reason: 'order/order no está configurado como un array' };
   }
@@ -88,14 +91,16 @@ export function validateOrderHasBlockPartitioning(order: unknown): { valid: bool
   if (blocklessIncludeIndex === -1) {
     return {
       valid: false,
-      reason: 'Falta at-rule @include con hasBlock: false (mixins sin bloque antes de declaraciones)'
+      reason:
+        'Falta at-rule @include con hasBlock: false (mixins sin bloque antes de declaraciones)'
     };
   }
 
   if (blockIncludeIndex === -1) {
     return {
       valid: false,
-      reason: 'Falta at-rule @include con hasBlock: true (mixins con bloque después de declaraciones)'
+      reason:
+        'Falta at-rule @include con hasBlock: true (mixins con bloque después de declaraciones)'
     };
   }
 
@@ -133,7 +138,9 @@ export const REQUIRED_STRICT_PROPERTIES = [
   'transition-timing-function'
 ] as const;
 
-const REQUIRED_STRICT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(REQUIRED_STRICT_PROPERTIES);
+const REQUIRED_STRICT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(
+  REQUIRED_STRICT_PROPERTIES
+);
 
 export const CANONICAL_IGNORE_AT_RULES = ['@font-face'] as const; // no-domain: CSS at-rules for Stylelint strict-value
 
@@ -163,7 +170,7 @@ export const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>
   ],
   'transition-duration': ['0', '0s', '0ms'],
   'animation-duration': ['0', '0s', '0ms'],
-  'gap': ['0', 'normal'],
+  gap: ['0', 'normal'],
   'row-gap': ['0', 'normal'],
   'column-gap': ['0', 'normal'],
   'font-weight': ['normal', 'bold', 'bolder', 'lighter'],
@@ -178,8 +185,12 @@ export const CANONICAL_IGNORE_VALUES: Readonly<Record<string, readonly string[]>
   ]
 } as const;
 
-export function getMergedStrictProperties(config?: ReturnType<typeof getAuditConfig>): readonly string[] {
-  const custom = config?.stylelint?.strictValues?.properties ?? config?.styles?.stylelint?.strictValues?.properties;
+export function getMergedStrictProperties(
+  config?: ReturnType<typeof getAuditConfig>
+): readonly string[] {
+  const custom =
+    config?.stylelint?.strictValues?.properties ??
+    config?.styles?.stylelint?.strictValues?.properties;
   const merged = new Set<string>(REQUIRED_STRICT_PROPERTIES);
   if (custom && Array.isArray(custom)) {
     for (const prop of custom) {
@@ -191,8 +202,13 @@ export function getMergedStrictProperties(config?: ReturnType<typeof getAuditCon
   return Array.from(merged);
 }
 
-export function getMergedIgnoreValues(config?: ReturnType<typeof getAuditConfig>): Record<string, readonly string[]> {
-  const custom = config?.stylelint?.strictValues?.ignoreValues ?? config?.styles?.stylelint?.strictValues?.ignoreValues ?? {};
+export function getMergedIgnoreValues(
+  config?: ReturnType<typeof getAuditConfig>
+): Record<string, readonly string[]> {
+  const custom =
+    config?.stylelint?.strictValues?.ignoreValues ??
+    config?.styles?.stylelint?.strictValues?.ignoreValues ??
+    {};
   const result: Record<string, readonly string[]> = {};
 
   for (const [prop, values] of Object.entries(CANONICAL_IGNORE_VALUES)) {
@@ -211,13 +227,20 @@ export function getMergedIgnoreValues(config?: ReturnType<typeof getAuditConfig>
   return result;
 }
 
-export function getMergedIgnoreAtRules(config?: ReturnType<typeof getAuditConfig>): readonly string[] {
-  const custom = config?.stylelint?.strictValues?.ignoreAtRules ?? config?.styles?.stylelint?.strictValues?.ignoreAtRules ?? [];
+export function getMergedIgnoreAtRules(
+  config?: ReturnType<typeof getAuditConfig>
+): readonly string[] {
+  const custom =
+    config?.stylelint?.strictValues?.ignoreAtRules ??
+    config?.styles?.stylelint?.strictValues?.ignoreAtRules ??
+    [];
   const merged = new Set<string>([...CANONICAL_IGNORE_AT_RULES, ...custom]);
   return Array.from(merged);
 }
 
-export function buildProjectStrictValueConfig(config?: ReturnType<typeof getAuditConfig>): unknown[] {
+export function buildProjectStrictValueConfig(
+  config?: ReturnType<typeof getAuditConfig>
+): unknown[] {
   const properties = getMergedStrictProperties(config);
   const ignoreValues = getMergedIgnoreValues(config);
   const ignoreAtRules = getMergedIgnoreAtRules(config);
@@ -237,19 +260,25 @@ export const CANONICAL_STRICT_VALUE_CONFIG = buildProjectStrictValueConfig();
 
 export const AUDITOR_STYLELINT_EXTENDS_PATH = './node_modules/@francogp/auditor/.stylelintrc.json';
 
-export const CANONICAL_STYLELINT_CONFIG_CONTENT = JSON.stringify(
-  {
-    $schema: 'https://json.schemastore.org/stylelintrc',
-    extends: [AUDITOR_STYLELINT_EXTENDS_PATH]
-  },
-  null,
-  2
-) + '\n';
+export const CANONICAL_STYLELINT_CONFIG_CONTENT =
+  JSON.stringify(
+    {
+      $schema: 'https://json.schemastore.org/stylelintrc',
+      extends: [AUDITOR_STYLELINT_EXTENDS_PATH]
+    },
+    null,
+    2
+  ) + '\n';
 
 export const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<StylelintConfigRuleId> = {
   id: 'stylelint-config',
   file: '.stylelintrc.json',
-  candidateFiles: ['.stylelintrc.json', '.stylelintrc.js', '.stylelintrc.cjs', 'stylelint.config.js'],
+  candidateFiles: [
+    '.stylelintrc.json',
+    '.stylelintrc.js',
+    '.stylelintrc.cjs',
+    'stylelint.config.js'
+  ],
   description: 'Configuración canónica de Stylelint en .stylelintrc.json',
   ruleId: 'stylelint-config-missing',
   generateDefaultContent: () => CANONICAL_STYLELINT_CONFIG_CONTENT,
@@ -259,27 +288,36 @@ export const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Stylelin
 
 export function extendsAuditorConfig(parsedConfig: Record<string, unknown>): boolean {
   const rawExtends = parsedConfig.extends;
-  const list = Array.isArray(rawExtends) ? rawExtends : (rawExtends ? [rawExtends] : []);
-  return list.some(item => typeof item === 'string' && item.includes('auditor'));
+  const list = Array.isArray(rawExtends) ? rawExtends : rawExtends ? [rawExtends] : [];
+  return list.some((item) => typeof item === 'string' && item.includes('auditor'));
 }
 
 export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigRuleId> {
-  constructor(rootsOrOptions?: readonly string[] | { projectRoot?: string; fix?: boolean }, maybeProjectRoot?: string) {
-    const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions)
-      ? (rootsOrOptions as { projectRoot?: string; fix?: boolean })
-      : undefined;
+  constructor(
+    rootsOrOptions?: readonly string[] | { projectRoot?: string; fix?: boolean },
+    maybeProjectRoot?: string
+  ) {
+    const optionsObj =
+      rootsOrOptions && !Array.isArray(rootsOrOptions)
+        ? (rootsOrOptions as { projectRoot?: string; fix?: boolean })
+        : undefined;
     const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
 
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(STYLELINT_CONFIG_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [...STYLELINT_CONFIG_RULES]),
+      ruleCapabilities: createRuleCapabilities(
+        STYLELINT_CONFIG_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        [...STYLELINT_CONFIG_RULES]
+      ),
       fixableRuleIds: [...STYLELINT_CONFIG_RULES],
       configFiles: [STYLELINT_CONFIG_REQUIREMENT],
       id: 'validate_stylelint_config',
@@ -311,10 +349,14 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
         'stylelint-config-missing-order': 'Falta regla order/order'
       },
       ruleRemediations: {
-        'stylelint-config-missing': 'Guía de diagnóstico y remediación para stylelint-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'stylelint-config-missing-plugin': 'Guía de diagnóstico y remediación para stylelint-config-missing-plugin. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'stylelint-config-missing-strict-value': 'Guía de diagnóstico y remediación para stylelint-config-missing-strict-value. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'stylelint-config-missing-order': 'Guía de diagnóstico y remediación para stylelint-config-missing-order. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing':
+          'Guía de diagnóstico y remediación para stylelint-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing-plugin':
+          'Guía de diagnóstico y remediación para stylelint-config-missing-plugin. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing-strict-value':
+          'Guía de diagnóstico y remediación para stylelint-config-missing-strict-value. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-config-missing-order':
+          'Guía de diagnóstico y remediación para stylelint-config-missing-order. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['.stylelintrc*']
@@ -331,7 +373,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     }
 
     const requiredPlugins = [REQUIRED_STYLELINT_PLUGIN, REQUIRED_ORDER_PLUGIN] as const;
-    const missingPlugins = requiredPlugins.filter(p => !plugins.includes(p));
+    const missingPlugins = requiredPlugins.filter((p) => !plugins.includes(p));
 
     if (missingPlugins.length === 0) {
       return false;
@@ -356,17 +398,15 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     return false;
   }
 
-  private auditOrderRule(
-    parsedConfig: Record<string, unknown>,
-    targetFile: string
-  ): boolean {
+  private auditOrderRule(parsedConfig: Record<string, unknown>, targetFile: string): boolean {
     if (extendsAuditorConfig(parsedConfig)) {
       return false;
     }
 
-    const rules = (typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null)
-      ? { ...(parsedConfig.rules as Record<string, unknown>) }
-      : {};
+    const rules =
+      typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null
+        ? { ...(parsedConfig.rules as Record<string, unknown>) }
+        : {};
 
     const orderRule = rules[REQUIRED_ORDER_RULE];
     const validation = validateOrderHasBlockPartitioning(orderRule);
@@ -397,13 +437,14 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     targetFile: string,
     config: ReturnType<typeof getAuditConfig>
   ): boolean {
-    const rules = (typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null)
-      ? { ...(parsedConfig.rules as Record<string, unknown>) }
-      : {};
+    const rules =
+      typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null
+        ? { ...(parsedConfig.rules as Record<string, unknown>) }
+        : {};
 
     const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
     const requiredProps = getMergedStrictProperties(config);
-    const hasCustomExtraProps = requiredProps.some(p => !REQUIRED_STRICT_PROPERTIES_SET.has(p));
+    const hasCustomExtraProps = requiredProps.some((p) => !REQUIRED_STRICT_PROPERTIES_SET.has(p));
 
     if (strictRule === undefined && extendsAuditorConfig(parsedConfig)) {
       if (!hasCustomExtraProps) {
@@ -418,7 +459,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       const configuredProps = new Set(
         strictRule[0].filter((item): item is string => typeof item === 'string')
       );
-      missingProperties = requiredProps.filter(p => !configuredProps.has(p));
+      missingProperties = requiredProps.filter((p) => !configuredProps.has(p));
     }
 
     if (isStrictRuleConfigured && missingProperties.length === 0) {
@@ -431,9 +472,10 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       return true;
     }
 
-    const detailMsg = missingProperties.length > 0
-      ? `La regla "${REQUIRED_STRICT_VALUE_RULE}" en ${path.basename(targetFile)} no cubre todas las propiedades canónicas (faltan: ${missingProperties.join(', ')}). Ejecuta "auditor fix" para sincronizarla.`
-      : `Falta la regla requerida "${REQUIRED_STRICT_VALUE_RULE}" en rules de ${path.basename(targetFile)}. Ejecuta "auditor fix" para inyectarla.`;
+    const detailMsg =
+      missingProperties.length > 0
+        ? `La regla "${REQUIRED_STRICT_VALUE_RULE}" en ${path.basename(targetFile)} no cubre todas las propiedades canónicas (faltan: ${missingProperties.join(', ')}). Ejecuta "auditor fix" para sincronizarla.`
+        : `Falta la regla requerida "${REQUIRED_STRICT_VALUE_RULE}" en rules de ${path.basename(targetFile)}. Ejecuta "auditor fix" para inyectarla.`;
 
     this.addViolation({
       ruleId: 'stylelint-config-missing-strict-value',
@@ -441,7 +483,8 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       file: toPosixRelative(this.projectRoot, targetFile),
       line: 1,
       message: detailMsg,
-      context: missingProperties.length > 0 ? missingProperties.join(', ') : REQUIRED_STRICT_VALUE_RULE
+      context:
+        missingProperties.length > 0 ? missingProperties.join(', ') : REQUIRED_STRICT_VALUE_RULE
     });
     return false;
   }
@@ -468,7 +511,11 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
         ensured = await this.ensureConfigFile(STYLELINT_CONFIG_REQUIREMENT);
       });
       if (!ensured) {
-        for (const r of ['stylelint-config-missing-plugin', 'stylelint-config-missing-strict-value', 'stylelint-config-missing-order'] as const) {
+        for (const r of [
+          'stylelint-config-missing-plugin',
+          'stylelint-config-missing-strict-value',
+          'stylelint-config-missing-order'
+        ] as const) {
           this.runSubAuditorSync(r, () => {
             this.markRuleNotApplicable(r, 'Configuración de stylelint ausente');
           });
@@ -485,7 +532,11 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       const content = fs.readFileSync(targetFile, 'utf-8');
       parsedConfig = JSON.parse(content);
     } catch {
-      for (const r of ['stylelint-config-missing-plugin', 'stylelint-config-missing-strict-value', 'stylelint-config-missing-order'] as const) {
+      for (const r of [
+        'stylelint-config-missing-plugin',
+        'stylelint-config-missing-strict-value',
+        'stylelint-config-missing-order'
+      ] as const) {
         this.runSubAuditorSync(r, () => {
           this.markRuleNotApplicable(r, 'Archivo .stylelintrc.json inválido o corrupto');
         });
@@ -503,7 +554,10 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
     });
 
-    const orderEnabled = config.stylelint?.order?.enforceHasBlockPartitioning ?? config.styles?.stylelint?.order?.enforceHasBlockPartitioning ?? true;
+    const orderEnabled =
+      config.stylelint?.order?.enforceHasBlockPartitioning ??
+      config.styles?.stylelint?.order?.enforceHasBlockPartitioning ??
+      true;
     let orderModified = false;
     if (orderEnabled !== false) {
       this.runSubAuditorSync('stylelint-config-missing-order', () => {
@@ -511,7 +565,10 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       });
     } else {
       this.runSubAuditorSync('stylelint-config-missing-order', () => {
-        this.markRuleNotApplicable('stylelint-config-missing-order', 'Orden de mixins desactivado en configuración');
+        this.markRuleNotApplicable(
+          'stylelint-config-missing-order',
+          'Orden de mixins desactivado en configuración'
+        );
       });
     }
 

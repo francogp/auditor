@@ -1,3 +1,4 @@
+//#region src/core/auditorEnvironment.d.ts
 /**
  * packages/auditor/src/core/auditorEnvironment.ts
  *
@@ -10,4 +11,4 @@
  * are cleanly omitted, while all other architectural and quality gates run with full rigor.
  */
 export declare function isProductionEnvironment(): boolean;
-//# sourceMappingURL=auditorEnvironment.d.ts.map
+//#endregion

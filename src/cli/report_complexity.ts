@@ -9,7 +9,12 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import {
+  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+  resolveCoverageArgs,
+  isMainModule,
+  bootstrapCliProject
+} from './cliUtils.ts';
 
 export const MAX_FUNCTION_NAME_CHARS = 18;
 export const MAX_RECOMMENDED_LOC = 60;
@@ -43,7 +48,7 @@ function extractLayerFromPath(relPath: string): string {
     }
   }
   const segments = relPath.split('/');
-  return (segments.length > 1 && segments[0]) ? segments[0] : 'root';
+  return segments.length > 1 && segments[0] ? segments[0] : 'root';
 }
 
 const DEFAULT_TOP_LIMIT = 20;
@@ -51,7 +56,7 @@ const RADIX_DECIMAL = 10;
 
 function parseCommandLineArgs() {
   const rawCliArgs = process.argv.slice(2);
-  const normalizedCliArgs = rawCliArgs.map(cliParam => {
+  const normalizedCliArgs = rawCliArgs.map((cliParam) => {
     if (cliParam.includes('=') && !cliParam.startsWith('-')) return `--${cliParam}`;
     return cliParam;
   });
@@ -75,12 +80,23 @@ function parseCommandLineArgs() {
 }
 
 interface FallowHealthRaw {
-  findings?: Array<{ path: string; name: string; line: number; cognitive: number; cyclomatic: number; line_count: number; exceeded: string }>;
+  findings?: Array<{
+    path: string;
+    name: string;
+    line: number;
+    cognitive: number;
+    cyclomatic: number;
+    line_count: number;
+    exceeded: string;
+  }>;
   large_functions?: Array<{ path: string; name: string; line: number; line_count: number }>;
   targets?: Array<{ path: string; priority: number; recommendation: string; category: string }>;
-  summary?: { average_maintainability?: number; maintainability_index?: number; analyzed_functions?: number };
+  summary?: {
+    average_maintainability?: number;
+    maintainability_index?: number;
+    analyzed_functions?: number;
+  };
 }
-
 
 function runFallowHealth(): FallowHealthRaw {
   try {
@@ -89,7 +105,7 @@ function runFallowHealth(): FallowHealthRaw {
       path.resolve(import.meta.dirname, '../../node_modules/fallow/bin/fallow'),
       path.resolve(import.meta.dirname, '../../../node_modules/fallow/bin/fallow')
     ];
-    const fallowBin = candidates.find(c => fs.existsSync(c)) || candidates[0]!;
+    const fallowBin = candidates.find((c) => fs.existsSync(c)) || candidates[0]!;
     if (!fs.existsSync(fallowBin)) return {};
     const covArgs = resolveCoverageArgs();
     const covPart = covArgs.length > 0 ? ` ${covArgs.join(' ')}` : '';
@@ -167,8 +183,15 @@ function ingestComplexityFindings(
   }
 }
 
-function parseAuditFindingContext(context?: string): { name: string; cog: number; cyc: number; lines: number } {
-  const match = (context || '').match(/^([^\s(]+)\s*\(cog:\s*(\d+),\s*cyc:\s*(\d+),\s*(\d+)\s*lines\)/);
+function parseAuditFindingContext(context?: string): {
+  name: string;
+  cog: number;
+  cyc: number;
+  lines: number;
+} {
+  const match = (context || '').match(
+    /^([^\s(]+)\s*\(cog:\s*(\d+),\s*cyc:\s*(\d+),\s*(\d+)\s*lines\)/
+  );
   return {
     name: match?.[1] || '<función>',
     cog: match?.[2] ? parseInt(match[2], RADIX_DECIMAL) : 0,
@@ -184,7 +207,9 @@ function ingestFallbackAuditFindings(findingsMap: Map<string, ComplexityFinding>
 
   try {
     const auditData = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
-    const compFindings = (auditData.allFindings || []).filter((f: { ruleId?: string }) => f.ruleId === 'fallow-refactoring-targets');
+    const compFindings = (auditData.allFindings || []).filter(
+      (f: { ruleId?: string }) => f.ruleId === 'fallow-refactoring-targets'
+    );
     for (const cf of compFindings) {
       const filePath = cf.file || '';
       const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
@@ -219,7 +244,11 @@ function sortComplexityFindings(findings: ComplexityFinding[]): ComplexityFindin
   });
 }
 
-function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Array<{ path: string; priority: number; recommendation: string; category: string }>; maintainability: number } {
+function loadComplexityFindings(): {
+  findings: ComplexityFinding[];
+  targets: Array<{ path: string; priority: number; recommendation: string; category: string }>;
+  maintainability: number;
+} {
   const healthData = runFallowHealth();
   const findingsMap = new Map<string, ComplexityFinding>();
 
@@ -232,7 +261,8 @@ function loadComplexityFindings(): { findings: ComplexityFinding[]; targets: Arr
   return {
     findings,
     targets: healthData.targets || [],
-    maintainability: healthData.summary?.average_maintainability ?? healthData.summary?.maintainability_index ?? 0
+    maintainability:
+      healthData.summary?.average_maintainability ?? healthData.summary?.maintainability_index ?? 0
   };
 }
 
@@ -244,14 +274,18 @@ function renderBoxReport(
   layerFilter?: string
 ): void {
   const filtered = layerFilter
-    ? findings.filter(f => f.layer.toLowerCase() === layerFilter.toLowerCase())
+    ? findings.filter((f) => f.layer.toLowerCase() === layerFilter.toLowerCase())
     : findings;
 
-  const subtitle = maintainability > 0
-    ? `Funciones fuera de umbral: ${findings.length} · Índice de mantenibilidad: ${maintainability.toFixed(1)}`
-    : `Funciones fuera de umbral: ${findings.length}`;
+  const subtitle =
+    maintainability > 0
+      ? `Funciones fuera de umbral: ${findings.length} · Índice de mantenibilidad: ${maintainability.toFixed(1)}`
+      : `Funciones fuera de umbral: ${findings.length}`;
 
-  console.log('\n' + renderBanner('COMPLEJIDAD CICLOMÁTICA, COGNITIVA Y TAMAÑO DE FUNCIONES (FALLOW)', subtitle));
+  console.log(
+    '\n' +
+      renderBanner('COMPLEJIDAD CICLOMÁTICA, COGNITIVA Y TAMAÑO DE FUNCIONES (FALLOW)', subtitle)
+  );
 
   const distribution: Record<string, number> = {};
   for (const f of findings) {
@@ -285,7 +319,9 @@ function renderBoxReport(
 
   console.log(renderBoxTable(layerCols, layerRows));
 
-  console.log(`\n🔥 TOP ${Math.min(topLimit, filtered.length)} HOTSPOTS (LÍNEAS Y COMPLEJIDAD) ${layerFilter ? `(Filtro: ${layerFilter})` : ''}:\n`);
+  console.log(
+    `\n🔥 TOP ${Math.min(topLimit, filtered.length)} HOTSPOTS (LÍNEAS Y COMPLEJIDAD) ${layerFilter ? `(Filtro: ${layerFilter})` : ''}:\n`
+  );
 
   interface HotspotRow {
     index: string;
@@ -307,17 +343,31 @@ function renderBoxReport(
 
   const hotspotRows: HotspotRow[] = filtered.slice(0, topLimit).map((f, idx) => ({
     index: String(idx + 1),
-    name: f.name.length > MAX_FUNCTION_NAME_CHARS ? f.name.slice(0, MAX_FUNCTION_NAME_CHARS - 1) + '…' : f.name,
+    name:
+      f.name.length > MAX_FUNCTION_NAME_CHARS
+        ? f.name.slice(0, MAX_FUNCTION_NAME_CHARS - 1) + '…'
+        : f.name,
     lines: styleText(f.lines > MAX_RECOMMENDED_LOC ? 'red' : 'green', String(f.lines)),
-    cog: f.cog > 0 ? styleText(f.cog > MAX_RECOMMENDED_COGNITIVE ? 'red' : 'yellow', String(f.cog)) : styleText('dim', '-'),
-    cyc: f.cyc > 0 ? styleText(f.cyc > MAX_RECOMMENDED_CYCLOMATIC ? 'red' : 'yellow', String(f.cyc)) : styleText('dim', '-'),
-    fileLoc: f.file.length > MAX_FILE_PATH_DISPLAY_LENGTH ? '…' + f.file.slice(-FILE_PATH_TAIL_CHARS) + `:${f.line}` : `${f.file}:${f.line}`
+    cog:
+      f.cog > 0
+        ? styleText(f.cog > MAX_RECOMMENDED_COGNITIVE ? 'red' : 'yellow', String(f.cog))
+        : styleText('dim', '-'),
+    cyc:
+      f.cyc > 0
+        ? styleText(f.cyc > MAX_RECOMMENDED_CYCLOMATIC ? 'red' : 'yellow', String(f.cyc))
+        : styleText('dim', '-'),
+    fileLoc:
+      f.file.length > MAX_FILE_PATH_DISPLAY_LENGTH
+        ? '…' + f.file.slice(-FILE_PATH_TAIL_CHARS) + `:${f.line}`
+        : `${f.file}:${f.line}`
   }));
 
   console.log(renderBoxTable(hotspotCols, hotspotRows));
 
   if (targets.length > 0) {
-    console.log(`\n🎯 OBJETIVOS DE REFACTORIZACIÓN PRIORITARIOS (FALLOW - TOP ${targets.length}):\n`);
+    console.log(
+      `\n🎯 OBJETIVOS DE REFACTORIZACIÓN PRIORITARIOS (FALLOW - TOP ${targets.length}):\n`
+    );
 
     interface TargetRow {
       index: string;
@@ -330,14 +380,22 @@ function renderBoxReport(
       { header: '#', width: 3, align: 'center', key: 'index' },
       { header: 'PRI', width: 5, align: 'right', key: 'pri' },
       { header: 'TIPO', width: 14, align: 'left', key: 'category' },
-      { header: 'RECOMENDACIÓN DE REFACTORIZACIÓN', width: MAX_RECOMMENDATION_CHARS, align: 'left', key: 'recommendation' }
+      {
+        header: 'RECOMENDACIÓN DE REFACTORIZACIÓN',
+        width: MAX_RECOMMENDATION_CHARS,
+        align: 'left',
+        key: 'recommendation'
+      }
     ];
 
     const targetRows: TargetRow[] = targets.map((t, idx) => ({
       index: String(idx + 1),
       pri: t.priority ? t.priority.toFixed(1) : '-',
       category: t.category.replace(/_/g, ' '),
-      recommendation: t.recommendation.length > MAX_RECOMMENDATION_CHARS ? t.recommendation.slice(0, MAX_RECOMMENDATION_CHARS - 1) + '…' : t.recommendation
+      recommendation:
+        t.recommendation.length > MAX_RECOMMENDATION_CHARS
+          ? t.recommendation.slice(0, MAX_RECOMMENDATION_CHARS - 1) + '…'
+          : t.recommendation
     }));
 
     console.log(renderBoxTable(targetCols, targetRows));
@@ -351,7 +409,13 @@ export function runComplexityReport(): void {
   const { findings, targets, maintainability } = loadComplexityFindings();
 
   if (jsonOutput) {
-    console.log(JSON.stringify({ total: findings.length, maintainability, findings: findings.slice(0, top), targets }, null, 2));
+    console.log(
+      JSON.stringify(
+        { total: findings.length, maintainability, findings: findings.slice(0, top), targets },
+        null,
+        2
+      )
+    );
     return;
   }
 

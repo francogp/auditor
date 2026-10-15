@@ -1,3 +1,4 @@
+//#region src/core/auditBootstrap.d.ts
 /**
  * src/core/auditBootstrap.ts
  *
@@ -17,18 +18,18 @@
  * respecting CI environments (never mutating files unexpectedly during CI runs).
  */
 export interface BootstrapResult {
-    readonly configCreated: boolean;
-    readonly configUpdated: boolean;
-    readonly versionUpdated: boolean;
-    readonly previousVersion?: string;
-    readonly currentVersion: string;
-    readonly agentsRegistered: boolean;
-    readonly gitIgnoreUpdated: boolean;
-    readonly sectionsInjected: readonly string[];
+  readonly configCreated: boolean;
+  readonly configUpdated: boolean;
+  readonly versionUpdated: boolean;
+  readonly previousVersion?: string;
+  readonly currentVersion: string;
+  readonly agentsRegistered: boolean;
+  readonly gitIgnoreUpdated: boolean;
+  readonly sectionsInjected: readonly string[];
 }
 export interface BootstrapOptions {
-    readonly projectRoot?: string;
-    readonly force?: boolean;
+  readonly projectRoot?: string;
+  readonly force?: boolean;
 }
 export declare function ensureProjectBootstrapped(options?: BootstrapOptions): Promise<BootstrapResult>;
-//# sourceMappingURL=auditBootstrap.d.ts.map
+//#endregion

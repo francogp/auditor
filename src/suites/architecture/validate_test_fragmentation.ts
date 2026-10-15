@@ -23,24 +23,18 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  FileScanAuditor,
-  BaseAuditor,
-  createRuleCapabilities
-} from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { renderBoxTable } from '../../core/unifiedTheme.ts';
 
 enableCompileCache();
 
-export type TestFragmentationRuleId =
-  | 'no-fragmented-tests'
-  | 'unnecessary-jsdom';
-
-export const TEST_FRAGMENTATION_RULES: readonly TestFragmentationRuleId[] = [
+export const TEST_FRAGMENTATION_RULES = [
   'no-fragmented-tests',
-  'unnecessary-jsdom',
+  'unnecessary-jsdom'
 ] as const;
+
+export type TestFragmentationRuleId = (typeof TEST_FRAGMENTATION_RULES)[number];
 
 export const MIN_TEST_FILE_LINES = 60;
 export const DISTRIBUTION_SMALL_MAX_LINES = 300;
@@ -54,17 +48,17 @@ export const DISTRIBUTION_OVERSIZED_MIN_LINES = 1200;
 export const TEST_FRAGMENTATION_WHITELIST: ReadonlySet<string> = new Set([]);
 
 export interface TestSuiteDistribution {
-  micro: number;       // < 60 lines
-  small: number;       // 60 - 299 lines
-  target: number;      // 300 - 800 lines (ideal)
-  oversized: number;   // > 1200 lines
-  other: number;       // 801 - 1200 lines
+  micro: number; // < 60 lines
+  small: number; // 60 - 299 lines
+  target: number; // 300 - 800 lines (ideal)
+  oversized: number; // > 1200 lines
+  other: number; // 801 - 1200 lines
   totalTestFiles: number;
   totalTestLines: number;
 }
 
 export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationRuleId> {
-private readonly minTestLines: number;
+  private readonly minTestLines: number;
   private readonly fragmentationWhitelist: ReadonlySet<string>;
   private distribution: TestSuiteDistribution = {
     micro: 0,
@@ -73,7 +67,7 @@ private readonly minTestLines: number;
     oversized: 0,
     other: 0,
     totalTestFiles: 0,
-    totalTestLines: 0,
+    totalTestLines: 0
   };
 
   constructor(roots?: readonly string[], projectRoot?: string) {
@@ -91,9 +85,10 @@ private readonly minTestLines: number;
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_test_fragmentation',
+      id: 'validate_test_fragmentation',
       name: 'Test Anti-Fragmentation Validator',
       description: 'Previene micro-tests (<60 líns) y JSDOM innecesario',
       family: 'architecture',
@@ -108,8 +103,10 @@ id: 'validate_test_fragmentation',
         'unnecessary-jsdom': 'JSDOM innecesario sin Vue/DOM'
       },
       ruleRemediations: {
-        'no-fragmented-tests': 'Guía de diagnóstico y remediación para no-fragmented-tests. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'unnecessary-jsdom': 'Guía de diagnóstico y remediación para unnecessary-jsdom. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-fragmented-tests':
+          'Guía de diagnóstico y remediación para no-fragmented-tests. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unnecessary-jsdom':
+          'Guía de diagnóstico y remediación para unnecessary-jsdom. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.js']),
@@ -181,7 +178,7 @@ id: 'validate_test_fragmentation',
       file: relPath,
       line: 1,
       message: `Test file is overly fragmented (${lineCount} lines < ${this.minTestLines} line minimum). Consolidate into a domain-cohesive test suite (300-800 lines) or annotate with // test-fragmentation-ok: <justification>.`,
-      context: `Lines: ${lineCount}`,
+      context: `Lines: ${lineCount}`
     });
   }
 
@@ -198,7 +195,10 @@ id: 'validate_test_fragmentation',
 
     // Legitimate browser/DOM indicators:
     const hasVueMount = /@vue\/test-utils|mount\(|shallowMount\(/.test(content);
-    const hasDomGlobals = /\b(?:document\.|window\.|localStorage|sessionStorage|navigator\.|HTMLElement|customElements|MutationObserver|ResizeObserver|IntersectionObserver)\b/.test(content);
+    const hasDomGlobals =
+      /\b(?:document\.|window\.|localStorage|sessionStorage|navigator\.|HTMLElement|customElements|MutationObserver|ResizeObserver|IntersectionObserver)\b/.test(
+        content
+      );
     const hasWorkerGlobals = /\bself\.(?:onmessage|postMessage|importScripts)\b/.test(content);
 
     if (!hasVueMount && !hasDomGlobals && !hasWorkerGlobals) {
@@ -209,7 +209,7 @@ id: 'validate_test_fragmentation',
         file: relPath,
         line,
         message: `Test file unnecessarily requests JSDOM environment without mounting Vue components or using DOM APIs. Remove "@vitest-environment jsdom" to run in native Node environment (~250ms faster), or annotate with // jsdom-ok: <justification>.`,
-        context: `@vitest-environment jsdom`,
+        context: `@vitest-environment jsdom`
       });
     }
   }
@@ -224,7 +224,9 @@ id: 'validate_test_fragmentation',
     this.context.setMetric('Total Archivos Test', this.distribution.totalTestFiles);
     this.context.setMetric('Total Líneas Test', this.distribution.totalTestLines);
 
-    const isSummaryRequested = process.argv.some(arg => arg.includes('summary=true') || arg === '--summary');
+    const isSummaryRequested = process.argv.some(
+      (arg) => arg.includes('summary=true') || arg === '--summary'
+    );
     if (isSummaryRequested) {
       this.printDistributionSummary();
     }

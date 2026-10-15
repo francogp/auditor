@@ -1,3 +1,4 @@
+//#region src/cli/migrateAuditConfig.d.ts
 /**
  * src/cli/migrateAuditConfig.ts
  *
@@ -7,4 +8,4 @@
  */
 /** Moves legacy root configuration files into `.auditor/`. Returns the moved file names. */
 export declare function migrateLegacyAuditConfig(projectRoot: string): string[];
-//# sourceMappingURL=migrateAuditConfig.d.ts.map
+//#endregion

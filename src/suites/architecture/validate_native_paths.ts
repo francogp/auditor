@@ -44,7 +44,12 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns, getEffectiveScannableRoots };
+export {
+  CANONICAL_IGNORE_DIRS,
+  isPathIgnored,
+  loadFallowIgnorePatterns,
+  getEffectiveScannableRoots
+};
 
 export type NativePathRuleId =
   | 'unsafe-path-concat'
@@ -77,14 +82,16 @@ export interface NativePathAuditResult {
   readonly countsByRule: Record<NativePathRuleId, number>;
 }
 
-const ESCAPE_HATCH_REGEX = /\/\/\s*(?:path-ok|url-ok|env-ok|cross-platform-ok|security-ok|string-ok|no-domain|fallow-ignore-next-line|test-ok)\b/i;
+const ESCAPE_HATCH_REGEX =
+  /\/\/\s*(?:path-ok|url-ok|env-ok|cross-platform-ok|security-ok|string-ok|no-domain|fallow-ignore-next-line|test-ok)\b/i;
 
-const FS_SINK_METHOD_REGEX = /\b(?:fs(?:\.promises)?|fsSync)?\.(?:readFileSync|readFile|writeFileSync|writeFile|existsSync|mkdirSync|mkdir|readdirSync|readdir|statSync|stat|lstatSync|lstat|unlinkSync|unlink|rmSync|rm|rmdirSync|rmdir|copyFileSync|copyFile|openSync|open|createReadStream|createWriteStream)\s*\(/;
+const FS_SINK_METHOD_REGEX =
+  /\b(?:fs(?:\.promises)?|fsSync)?\.(?:readFileSync|readFile|writeFileSync|writeFile|existsSync|mkdirSync|mkdir|readdirSync|readdir|statSync|stat|lstatSync|lstat|unlinkSync|unlink|rmSync|rm|rmdirSync|rmdir|copyFileSync|copyFile|openSync|open|createReadStream|createWriteStream)\s*\(/;
 
 const PATH_SINK_METHOD_REGEX = /\bpath\.(?:resolve|join)\s*\(/;
 
-const PATH_VAR_ASSIGN_REGEX = /(?:const|let|var)\s+(\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*)\s*=\s*(.*)/i;
-
+const PATH_VAR_ASSIGN_REGEX =
+  /(?:const|let|var)\s+(\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*)\s*=\s*(.*)/i;
 
 function updateArgParenDepth(char: string, depth: number): number {
   if (char === '(' || char === '[' || char === '{') return depth + 1;
@@ -92,7 +99,10 @@ function updateArgParenDepth(char: string, depth: number): number {
   return depth;
 }
 
-function handleEscapeAndString(char: string, state: { inString: string | null; escape: boolean }): boolean {
+function handleEscapeAndString(
+  char: string,
+  state: { inString: string | null; escape: boolean }
+): boolean {
   if (state.escape) {
     state.escape = false;
     return true;
@@ -161,7 +171,12 @@ function isNonPathString(str: string): boolean {
 /**
  * Scans a file content for path integrity and security violations.
  */
-function checkFsSinkConcat(rawLine: string, trimmed: string, filePath: string, lineNum: number): NativePathViolation | null {
+function checkFsSinkConcat(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number
+): NativePathViolation | null {
   if (!FS_SINK_METHOD_REGEX.test(rawLine)) return null;
 
   const fsCallMatch = rawLine.match(FS_SINK_METHOD_REGEX);
@@ -170,8 +185,10 @@ function checkFsSinkConcat(rawLine: string, trimmed: string, filePath: string, l
   const afterCall = rawLine.slice(rawLine.indexOf(fsCallMatch[0]) + fsCallMatch[0].length);
   const pathArg = extractFirstArgument(afterCall);
 
-  const hasTemplateWithSlash = /`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`|`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
-  const hasConcatWithSlash = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]|['"][^'"]+[/\\]['"]\s*\+/.test(pathArg);
+  const hasTemplateWithSlash =
+    /`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`|`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
+  const hasConcatWithSlash =
+    /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]|['"][^'"]+[/\\]['"]\s*\+/.test(pathArg);
 
   if ((hasTemplateWithSlash || hasConcatWithSlash) && !isNonPathString(pathArg)) {
     return {
@@ -186,17 +203,28 @@ function checkFsSinkConcat(rawLine: string, trimmed: string, filePath: string, l
   return null;
 }
 
-function checkPathVarAssignConcat(rawLine: string, trimmed: string, filePath: string, lineNum: number): NativePathViolation | null {
+function checkPathVarAssignConcat(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number
+): NativePathViolation | null {
   if (FS_SINK_METHOD_REGEX.test(rawLine)) return null;
   const assignMatch = rawLine.match(PATH_VAR_ASSIGN_REGEX);
   if (!assignMatch) return null;
 
   const rhs = assignMatch[2]?.replace(/;$/, '').trim() || '';
-  const hasTemplateSlash = /^`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`$|^`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
+  const hasTemplateSlash =
+    /^`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`$|^`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
   const hasBinaryConcat = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]/.test(rhs);
 
   if ((hasTemplateSlash || hasBinaryConcat) && !isNonPathString(rhs)) {
-    if (!rhs.includes('console.') && !rhs.includes('logger.') && !rhs.startsWith('`http') && !rhs.startsWith('`data:')) {
+    if (
+      !rhs.includes('console.') &&
+      !rhs.includes('logger.') &&
+      !rhs.startsWith('`http') &&
+      !rhs.startsWith('`data:')
+    ) {
       return {
         file: filePath,
         line: lineNum,
@@ -210,7 +238,12 @@ function checkPathVarAssignConcat(rawLine: string, trimmed: string, filePath: st
   return null;
 }
 
-function checkUnsafePathConcat(rawLine: string, trimmed: string, filePath: string, lineNum: number): NativePathViolation | null {
+function checkUnsafePathConcat(
+  rawLine: string,
+  trimmed: string,
+  filePath: string,
+  lineNum: number
+): NativePathViolation | null {
   const fsViolation = checkFsSinkConcat(rawLine, trimmed, filePath, lineNum);
   if (fsViolation) return fsViolation;
 
@@ -330,7 +363,11 @@ function checkHardcodedSlashPath(
   }
 
   if (/(['"`])[a-z]:(?:\\\\|\/)[^'"`\n]+\1/i.test(rawLine)) {
-    if (!rawLine.includes('// no-domain: Non-domain utility collection or data structure') && !rawLine.includes('// test-ok') && !rawLine.includes('// cross-platform-ok')) {
+    if (
+      !rawLine.includes('// no-domain: Non-domain utility collection or data structure') &&
+      !rawLine.includes('// test-ok') &&
+      !rawLine.includes('// cross-platform-ok')
+    ) {
       return {
         file: filePath,
         line: lineNum,
@@ -342,8 +379,16 @@ function checkHardcodedSlashPath(
     }
   }
 
-  if (/\b\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
-    if (!rawLine.includes('.split(path.sep)') && !rawLine.includes('.replace(') && !rawLine.includes('.join(')) {
+  if (
+    /\b\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(
+      rawLine
+    )
+  ) {
+    if (
+      !rawLine.includes('.split(path.sep)') &&
+      !rawLine.includes('.replace(') &&
+      !rawLine.includes('.join(')
+    ) {
       return {
         file: filePath,
         line: lineNum,
@@ -359,7 +404,13 @@ function checkHardcodedSlashPath(
 }
 
 function isIgnoredOrCommentLine(rawLine: string, trimmed: string, prevLine?: string): boolean {
-  if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*') || trimmed.startsWith('<!--')) {
+  if (
+    !trimmed ||
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('*') ||
+    trimmed.startsWith('/*') ||
+    trimmed.startsWith('<!--')
+  ) {
     return true;
   }
   return ESCAPE_HATCH_REGEX.test(rawLine) || (!!prevLine && ESCAPE_HATCH_REGEX.test(prevLine));
@@ -374,7 +425,8 @@ function checkHomebrewPathManipulation(
   // 1. Check for homemade regex sanitization on paths (character stripping or traversal stripping)
   // e.g. .replace(/[^a-zA-Z0-9_\- /.:\\]/g, '') or .replace(/(\.\.[/\\])+/g, '')
   if (rawLine.includes('.replace(')) {
-    const isSeparatorNormalization = /\.replace\s*\(\s*\/(?:\\\\|\/)\/[gi]*\s*,\s*['"][\\/]['"]\s*\)/.test(rawLine);
+    const isSeparatorNormalization =
+      /\.replace\s*\(\s*\/(?:\\\\|\/)\/[gi]*\s*,\s*['"][\\/]['"]\s*\)/.test(rawLine);
     if (!isSeparatorNormalization) {
       // Path variable check
       const isPathVar =
@@ -384,7 +436,8 @@ function checkHomebrewPathManipulation(
 
       // Traversal stripping via regex: targets '..' inside the regex replacing with empty string on path variables
       // e.g. .replace(/(\.\.[/\\])+/g, '') or .replace(/\.\./g, '')
-      const replaceRegexArgMatch = /\.replace\s*\(\s*(\/(?:\\.|[^/\\\n])+\/[gimsuy]*)\s*,\s*(?:""|'')\s*\)/.exec(rawLine);
+      const replaceRegexArgMatch =
+        /\.replace\s*\(\s*(\/(?:\\.|[^/\\\n])+\/[gimsuy]*)\s*,\s*(?:""|'')\s*\)/.exec(rawLine);
       const isTraversalStrip =
         isPathVar &&
         replaceRegexArgMatch &&
@@ -411,7 +464,9 @@ function checkHomebrewPathManipulation(
 
   // 2. Check for naive string traversal checks like filePath.includes('..')
   const hasNaiveTraversalCheck =
-    /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine);
+    /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(
+      rawLine
+    );
 
   if (hasNaiveTraversalCheck) {
     return {
@@ -458,12 +513,23 @@ function forEachActiveLine(
   }
 }
 
-export function scanFileForNativePathViolations(filePath: string, content: string): NativePathViolation[] {
+export function scanFileForNativePathViolations(
+  filePath: string,
+  content: string
+): NativePathViolation[] {
   const violations: NativePathViolation[] = [];
   const lines = content.split(/\r?\n/);
 
   forEachActiveLine(lines, (rawLine, trimmed, lineNum, lineIndex) => {
-    const violation = evaluateLineNativePathViolations(rawLine, trimmed, filePath, lineNum, lines, lineIndex, content);
+    const violation = evaluateLineNativePathViolations(
+      rawLine,
+      trimmed,
+      filePath,
+      lineNum,
+      lines,
+      lineIndex,
+      content
+    );
     if (violation) {
       violations.push(violation);
     }
@@ -481,8 +547,8 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
   const config = getAuditConfig(targetDir);
   const scannableRoots = getEffectiveScannableRoots(config);
   const rootsToScan = scannableRoots
-    .map(r => path.resolve(targetDir, r))
-    .filter(p => fs.existsSync(p));
+    .map((r) => path.resolve(targetDir, r))
+    .filter((p) => fs.existsSync(p));
 
   const allFiles: string[] = []; // no-domain: Non-domain utility collection or data structure
   for (const root of rootsToScan) {
@@ -532,7 +598,8 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
@@ -552,11 +619,16 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
         'homebrew-path-manipulation': 'Manipulación casera de rutas'
       },
       ruleRemediations: {
-        'unsafe-path-concat': 'Guía de diagnóstico y remediación para unsafe-path-concat. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'unsanitized-env-argv-path': 'Guía de diagnóstico y remediación para unsanitized-env-argv-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'untrusted-url-fetch': 'Guía de diagnóstico y remediación para untrusted-url-fetch. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'hardcoded-slash-path': 'Guía de diagnóstico y remediación para hardcoded-slash-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'homebrew-path-manipulation': 'Guía de diagnóstico y remediación para homebrew-path-manipulation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unsafe-path-concat':
+          'Guía de diagnóstico y remediación para unsafe-path-concat. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unsanitized-env-argv-path':
+          'Guía de diagnóstico y remediación para unsanitized-env-argv-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'untrusted-url-fetch':
+          'Guía de diagnóstico y remediación para untrusted-url-fetch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'hardcoded-slash-path':
+          'Guía de diagnóstico y remediación para hardcoded-slash-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'homebrew-path-manipulation':
+          'Guía de diagnóstico y remediación para homebrew-path-manipulation. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       projectRoot
@@ -564,7 +636,15 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
 
     const registerLineRule = (
       ruleId: NativePathRuleId,
-      checker: (rawLine: string, trimmed: string, relPath: string, lineNum: number, lines: readonly string[], index: number, doc: AuditedDocument) => NativePathViolation | null
+      checker: (
+        rawLine: string,
+        trimmed: string,
+        relPath: string,
+        lineNum: number,
+        lines: readonly string[],
+        index: number,
+        doc: AuditedDocument
+      ) => NativePathViolation | null
     ) => {
       this.declareFileSubAuditor(ruleId, (doc) => {
         forEachActiveLine(doc.lines, (rawLine, trimmed, lineNum, lineIndex) => {
@@ -574,11 +654,21 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
       });
     };
 
-    registerLineRule('homebrew-path-manipulation', (raw, trim, rel, num) => checkHomebrewPathManipulation(raw, trim, rel, num));
-    registerLineRule('unsafe-path-concat', (raw, trim, rel, num) => checkUnsafePathConcat(raw, trim, rel, num));
-    registerLineRule('unsanitized-env-argv-path', (raw, trim, rel, num, lines, i) => checkUnsanitizedEnvArgv(raw, trim, rel, num, lines, i));
-    registerLineRule('untrusted-url-fetch', (raw, trim, rel, num, _lines, _i, doc) => checkUntrustedUrlFetch(raw, trim, rel, num, doc.rawContent));
-    registerLineRule('hardcoded-slash-path', (raw, trim, rel, num) => checkHardcodedSlashPath(raw, trim, rel, num));
+    registerLineRule('homebrew-path-manipulation', (raw, trim, rel, num) =>
+      checkHomebrewPathManipulation(raw, trim, rel, num)
+    );
+    registerLineRule('unsafe-path-concat', (raw, trim, rel, num) =>
+      checkUnsafePathConcat(raw, trim, rel, num)
+    );
+    registerLineRule('unsanitized-env-argv-path', (raw, trim, rel, num, lines, i) =>
+      checkUnsanitizedEnvArgv(raw, trim, rel, num, lines, i)
+    );
+    registerLineRule('untrusted-url-fetch', (raw, trim, rel, num, _lines, _i, doc) =>
+      checkUntrustedUrlFetch(raw, trim, rel, num, doc.rawContent)
+    );
+    registerLineRule('hardcoded-slash-path', (raw, trim, rel, num) =>
+      checkHardcodedSlashPath(raw, trim, rel, num)
+    );
   }
 }
 

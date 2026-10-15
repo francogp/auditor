@@ -1,3 +1,4 @@
+//#region src/core/permissionGuard.d.ts
 /**
  * Polyfills fs.fsync / fs.fsyncSync / FileHandle.prototype.sync as safe no-ops under Node.js --permission model.
  * Under Node.js permission model, fsync is unconditionally disabled with ERR_ACCESS_DENIED,
@@ -5,10 +6,10 @@
  */
 export declare function polyfillPermissionModelFsync(): void;
 export interface PermissionRequirements {
-    fsRead?: string[];
-    fsWrite?: string[];
-    child?: boolean;
-    worker?: boolean;
+  fsRead?: string[];
+  fsWrite?: string[];
+  child?: boolean;
+  worker?: boolean;
 }
 /**
  * assertRequiredPermissions
@@ -18,4 +19,4 @@ export interface PermissionRequirements {
  */
 export declare function checkRequiredPermissions(requirements: PermissionRequirements): string[];
 export declare function assertRequiredPermissions(requirements: PermissionRequirements): void;
-//# sourceMappingURL=permissionGuard.d.ts.map
+//#endregion

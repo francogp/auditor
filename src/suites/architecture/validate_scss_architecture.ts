@@ -1,5 +1,11 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  LIGHT_RULE_CAPABILITIES,
+  resolveFileScanRoots
+} from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripCommentsAndStrings } from '../../core/scannerUtils.ts';
@@ -44,13 +50,21 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         'excessive-scss-nesting': 'Anidamiento SCSS superior a 3 niveles'
       },
       ruleRemediations: {
-        'raw-css-in-sfc': 'Guía de diagnóstico y remediación para raw-css-in-sfc. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'scss-deep-selector-abuse': 'Guía de diagnóstico y remediación para scss-deep-selector-abuse. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'non-standard-spacing-unit': 'Guía de diagnóstico y remediación para non-standard-spacing-unit. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'missing-theme-token-usage': 'Guía de diagnóstico y remediación para missing-theme-token-usage. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'excessive-scss-nesting': 'Guía de diagnóstico y remediación para excessive-scss-nesting. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'raw-css-in-sfc':
+          'Guía de diagnóstico y remediación para raw-css-in-sfc. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'scss-deep-selector-abuse':
+          'Guía de diagnóstico y remediación para scss-deep-selector-abuse. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'non-standard-spacing-unit':
+          'Guía de diagnóstico y remediación para non-standard-spacing-unit. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'missing-theme-token-usage':
+          'Guía de diagnóstico y remediación para missing-theme-token-usage. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'excessive-scss-nesting':
+          'Guía de diagnóstico y remediación para excessive-scss-nesting. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
-      ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(
+        SCSS_ARCHITECTURE_RULES,
+        LIGHT_RULE_CAPABILITIES
+      ),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.scssArchitecture?.exemptPaths
@@ -100,7 +114,9 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private extractStyleBlocks(content: string): Array<{ content: string; startLine: number; scoped: boolean }> {
+  private extractStyleBlocks(
+    content: string
+  ): Array<{ content: string; startLine: number; scoped: boolean }> {
     const blocks: Array<{ content: string; startLine: number; scoped: boolean }> = [];
     const styleRegex = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi;
     let match: RegExpExecArray | null;
@@ -137,7 +153,11 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private auditScssDeepSelectorAbuse(relPath: string, content: string, lineOffset: number = 1): void {
+  private auditScssDeepSelectorAbuse(
+    relPath: string,
+    content: string,
+    lineOffset: number = 1
+  ): void {
     if (content.includes('deep-selector-ok')) return;
 
     // 1. Detect nested :deep() e.g. :deep(...) :deep(...)
@@ -173,7 +193,11 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private auditNonStandardSpacingUnit(relPath: string, content: string, lineOffset: number = 1): void {
+  private auditNonStandardSpacingUnit(
+    relPath: string,
+    content: string,
+    lineOffset: number = 1
+  ): void {
     if (content.includes('spacing-unit-ok')) return;
     const config = getAuditConfig(this.projectRoot);
     if (config.scssArchitecture?.allowPixelArtSpacing) return;
@@ -181,7 +205,8 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     const allowedUnits = new Set(config.scssArchitecture?.allowedSpacingUnits ?? []);
 
     // Detect arbitrary odd pixel values like 11px, 13px, 15px, 17px, 19px, 21px, 23px, 27px in spacing
-    const arbitrarySpacingRegex = /(?:margin(?:-(?:top|bottom|left|right|inline|block))?|padding(?:-(?:top|bottom|left|right|inline|block))?|gap|row-gap|column-gap)\s*:[^;]*?\b(1[13579]|2[13579]|3[13579]|7|9|13|17|23|27)px\b/gi;
+    const arbitrarySpacingRegex =
+      /(?:margin(?:-(?:top|bottom|left|right|inline|block))?|padding(?:-(?:top|bottom|left|right|inline|block))?|gap|row-gap|column-gap)\s*:[^;]*?\b(1[13579]|2[13579]|3[13579]|7|9|13|17|23|27)px\b/gi;
     let match: RegExpExecArray | null;
     while ((match = arbitrarySpacingRegex.exec(content)) !== null) {
       const val = match[1]!;
@@ -199,17 +224,29 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private auditMissingThemeTokenUsage(relPath: string, content: string, lineOffset: number = 1, isScoped: boolean = false): void {
+  private auditMissingThemeTokenUsage(
+    relPath: string,
+    content: string,
+    lineOffset: number = 1,
+    isScoped: boolean = false
+  ): void {
     if (content.includes('theme-token-ok')) return;
     const config = getAuditConfig(this.projectRoot);
     if (isScoped && config.scssArchitecture?.allowScopedColors) return;
 
     // Detect hardcoded hex colors or rgb(...) in color properties without var(--...)
-    const hardcodedColorRegex = /(?:color|background-color|background|border-color|fill|stroke)\s*:\s*([^;{}]*)/gi;
+    const hardcodedColorRegex =
+      /(?:color|background-color|background|border-color|fill|stroke)\s*:\s*([^;{}]*)/gi;
     let match: RegExpExecArray | null;
     while ((match = hardcodedColorRegex.exec(content)) !== null) {
       const val = match[1] ?? '';
-      if (val.includes('var(') || val.includes('$') || val.includes('transparent') || val.includes('currentColor') || val.includes('inherit')) {
+      if (
+        val.includes('var(') ||
+        val.includes('$') ||
+        val.includes('transparent') ||
+        val.includes('currentColor') ||
+        val.includes('inherit')
+      ) {
         continue;
       }
       const hasHex = /#[0-9a-f]{3,8}\b/i.test(val);
@@ -219,7 +256,8 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         this.addViolation({
           ruleId: 'missing-theme-token-usage',
           severity: 'error',
-          message: 'Color hexadecimal o rgb hardcodeado sin utilizar variable o token del sistema de diseño',
+          message:
+            'Color hexadecimal o rgb hardcodeado sin utilizar variable o token del sistema de diseño',
           file: relPath,
           line
         });
@@ -247,7 +285,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         blockStack.push(isAtRule ? 'atrule' : 'selector');
 
         if (!isAtRule) {
-          const selectorDepth = blockStack.filter(b => b === 'selector').length;
+          const selectorDepth = blockStack.filter((b) => b === 'selector').length;
           if (selectorDepth > maxAllowedDepth) {
             onViolation(selectorDepth);
           }
@@ -258,7 +296,12 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private auditExcessiveScssNesting(relPath: string, content: string, lineOffset: number = 1, isScoped: boolean = false): void {
+  private auditExcessiveScssNesting(
+    relPath: string,
+    content: string,
+    lineOffset: number = 1,
+    isScoped: boolean = false
+  ): void {
     if (content.includes('scss-nesting-ok')) return;
 
     const config = getAuditConfig(this.projectRoot);

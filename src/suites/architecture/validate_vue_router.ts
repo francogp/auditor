@@ -19,7 +19,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
@@ -37,28 +37,34 @@ export const VUE_ROUTER_RULES: readonly VueRouterRuleId[] = [
 ] as const;
 
 // Detects beforeEach/beforeResolve with 3 arguments including 'next'
-const DEPRECATED_NEXT_GUARD_REGEX = /\b(?:beforeEach|beforeResolve)\s*\((?:async\s+)?\(\s*\w+\s*,\s*\w+\s*,\s*next\s*\)/g;
+const DEPRECATED_NEXT_GUARD_REGEX =
+  /\b(?:beforeEach|beforeResolve)\s*\((?:async\s+)?\(\s*\w+\s*,\s*\w+\s*,\s*next\s*\)/g;
 
 // Detects defineAsyncComponent inside route definitions
 const DEFINE_ASYNC_IN_ROUTER_REGEX = /\bcomponent:\s*defineAsyncComponent\s*\(/g;
 
 // Detects internal SPA route assignments to window.location.href or .assign
-const WINDOW_LOCATION_NAV_REGEX = /\bwindow\.location\.(?:href|assign)\s*=\s*['"](?!\/\/|https?:\/\/)([^'"]+)['"]/g;
+const WINDOW_LOCATION_NAV_REGEX =
+  /\bwindow\.location\.(?:href|assign)\s*=\s*['"](?!\/\/|https?:\/\/)([^'"]+)['"]/g;
 
 const VUE_ROUTER_EXTENSIONS = new Set(['.vue', '.ts', '.js']);
 
 export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? (
-      (config.paths.componentsRoots?.length || config.paths.viewsRoots?.length || config.paths.composablesRoots?.length)
-        ? Array.from(new Set([
-            ...(config.paths.componentsRoots ?? []),
-            ...(config.paths.viewsRoots ?? []),
-            ...(config.paths.composablesRoots ?? [])
-          ]))
-        : (config.paths.srcRoots ?? [])
-    );
+    const effectiveRoots =
+      roots ??
+      (config.paths.componentsRoots?.length ||
+      config.paths.viewsRoots?.length ||
+      config.paths.composablesRoots?.length
+        ? Array.from(
+            new Set([
+              ...(config.paths.componentsRoots ?? []),
+              ...(config.paths.viewsRoots ?? []),
+              ...(config.paths.composablesRoots ?? [])
+            ])
+          )
+        : (config.paths.srcRoots ?? []));
 
     super({
       usesThirdPartyTool: false,
@@ -74,7 +80,8 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       ruleIds: VUE_ROUTER_RULES,
       ruleDescriptions: {
@@ -83,9 +90,12 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
         'no-window-location-navigation': 'Navegación con window.location en SPA'
       },
       ruleRemediations: {
-        'no-deprecated-router-next': 'Guía de diagnóstico y remediación para no-deprecated-router-next. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-define-async-component-in-router': 'Guía de diagnóstico y remediación para no-define-async-component-in-router. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-window-location-navigation': 'Guía de diagnóstico y remediación para no-window-location-navigation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-deprecated-router-next':
+          'Guía de diagnóstico y remediación para no-deprecated-router-next. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-define-async-component-in-router':
+          'Guía de diagnóstico y remediación para no-define-async-component-in-router. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-window-location-navigation':
+          'Guía de diagnóstico y remediación para no-window-location-navigation. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       configKey: 'paths',
       defaultConfig: {},

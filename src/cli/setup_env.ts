@@ -11,10 +11,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isMainModule } from './cliUtils.ts';
 
-export function runSetup(args: string[] = process.argv.slice(2), targetDir: string = process.cwd()): number {
+export function runSetup(
+  args: string[] = process.argv.slice(2),
+  targetDir: string = process.cwd()
+): number {
   const isWindows = process.platform === 'win32';
-  const isUpdate = args.some(a => a === 'update' || a === '--update' || a === '-u' || a === '--update-version');
-  const forwardedArgs = args.filter(a => a !== 'update' && a !== '--update');
+  const isUpdate = args.some(
+    (a) => a === 'update' || a === '--update' || a === '-u' || a === '--update-version'
+  );
+  const forwardedArgs = args.filter((a) => a !== 'update' && a !== '--update');
 
   if (isWindows) {
     const targetScript = isUpdate ? 'update-windows.ps1' : 'setup-windows.ps1';

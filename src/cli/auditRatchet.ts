@@ -47,7 +47,11 @@ interface WarningRatchetOutcome {
 }
 
 function runGit(projectRoot: string, args: readonly string[]): { ok: boolean; stdout: string } {
-  const proc = spawnSync('git', args, { cwd: projectRoot, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const proc = spawnSync('git', args, {
+    cwd: projectRoot,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
   return { ok: proc.status === 0, stdout: proc.stdout ?? '' };
 }
 
@@ -79,17 +83,26 @@ function hashKey(key: string): string {
 }
 
 /** Fingerprints every warning of the run. Stable across line shifts, sensitive to content edits. */
-function fingerprintWarnings(results: readonly StandardAuditResult[], projectRoot: string): FingerprintedWarning[] {
+function fingerprintWarnings(
+  results: readonly StandardAuditResult[],
+  projectRoot: string
+): FingerprintedWarning[] {
   const readLine = createLineReader(projectRoot);
-  const keyed = results.flatMap(result =>
+  const keyed = results.flatMap((result) =>
     (result.findings ?? [])
-      .filter(f => f.severity === 'warning')
-      .map(finding => {
+      .filter((f) => f.severity === 'warning')
+      .map((finding) => {
         const ruleId = finding.ruleId ?? 'unknown-rule';
         const file = finding.file ? toPosixRelative(projectRoot, finding.file) : null;
         const lineText = file && finding.line ? readLine(file, finding.line) : null;
         const anchor = lineText ?? finding.context ?? finding.message;
-        return { suiteId: result.id, ruleId, file, finding, key: [result.id, ruleId, file ?? '', anchor].join('|') };
+        return {
+          suiteId: result.id,
+          ruleId,
+          file,
+          finding,
+          key: [result.id, ruleId, file ?? '', anchor].join('|')
+        };
       })
   );
   keyed.sort((a, b) => a.key.localeCompare(b.key) || (a.finding.line ?? 0) - (b.finding.line ?? 0));
@@ -103,19 +116,27 @@ function fingerprintWarnings(results: readonly StandardAuditResult[], projectRoo
 
 function isBaselineEntry(value: object): value is AuditBaselineEntry {
   const v = value as Partial<Record<keyof AuditBaselineEntry, string | null>>;
-  return typeof v.fingerprint === 'string' && FINGERPRINT_PATTERN.test(v.fingerprint) &&
-    typeof v.suiteId === 'string' && typeof v.ruleId === 'string' &&
-    (v.file === null || typeof v.file === 'string');
+  return (
+    typeof v.fingerprint === 'string' &&
+    FINGERPRINT_PATTERN.test(v.fingerprint) &&
+    typeof v.suiteId === 'string' &&
+    typeof v.ruleId === 'string' &&
+    (v.file === null || typeof v.file === 'string')
+  );
 }
 
 function parseBaseline(raw: string, origin: string): AuditBaseline {
   const data: object | null = JSON.parse(raw);
   const candidate = data as Partial<AuditBaseline> | null;
   if (
-    candidate === null || candidate.schemaVersion !== BASELINE_SCHEMA_VERSION || !Array.isArray(candidate.warnings) ||
-    !candidate.warnings.every(e => typeof e === 'object' && e !== null && isBaselineEntry(e))
+    candidate === null ||
+    candidate.schemaVersion !== BASELINE_SCHEMA_VERSION ||
+    !Array.isArray(candidate.warnings) ||
+    !candidate.warnings.every((e) => typeof e === 'object' && e !== null && isBaselineEntry(e))
   ) {
-    throw new Error(`[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`);
+    throw new Error(
+      `[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`
+    );
   }
   return candidate as AuditBaseline;
 }
@@ -132,22 +153,40 @@ export function describeBaselineDefect(projectRoot: string, baselineFile: string
   }
 }
 
-function readProductionBaseline(projectRoot: string, ratchet: ResolvedRatchetConfig): AuditBaseline | null {
+function readProductionBaseline(
+  projectRoot: string,
+  ratchet: ResolvedRatchetConfig
+): AuditBaseline | null {
   if (!resolveGitCommit(projectRoot, ratchet.productionRef)) {
-    throw new Error(`[Ratchet] Production ref '${ratchet.productionRef}' does not resolve to a commit. Run 'git fetch' or fix 'ratchet.productionRef' in audit.config.ts.`);
+    throw new Error(
+      `[Ratchet] Production ref '${ratchet.productionRef}' does not resolve to a commit. Run 'git fetch' or fix 'ratchet.productionRef' in audit.config.ts.`
+    );
   }
-  const listed = runGit(projectRoot, ['ls-tree', '--name-only', ratchet.productionRef, '--', ratchet.baselineFile]);
+  const listed = runGit(projectRoot, [
+    'ls-tree',
+    '--name-only',
+    ratchet.productionRef,
+    '--',
+    ratchet.baselineFile
+  ]);
   if (!listed.ok || listed.stdout.trim() === '') return null;
   const shown = runGit(projectRoot, ['show', `${ratchet.productionRef}:${ratchet.baselineFile}`]);
   if (!shown.ok) {
-    throw new Error(`[Ratchet] Failed to read '${ratchet.baselineFile}' from '${ratchet.productionRef}'.`);
+    throw new Error(
+      `[Ratchet] Failed to read '${ratchet.baselineFile}' from '${ratchet.productionRef}'.`
+    );
   }
   return parseBaseline(shown.stdout, `${ratchet.productionRef}:${ratchet.baselineFile}`);
 }
 
-function readLocalBaseline(projectRoot: string, ratchet: ResolvedRatchetConfig): AuditBaseline | null {
+function readLocalBaseline(
+  projectRoot: string,
+  ratchet: ResolvedRatchetConfig
+): AuditBaseline | null {
   const absolute = path.resolve(projectRoot, ratchet.baselineFile);
-  return fs.existsSync(absolute) ? parseBaseline(fs.readFileSync(absolute, 'utf-8'), ratchet.baselineFile) : null;
+  return fs.existsSync(absolute)
+    ? parseBaseline(fs.readFileSync(absolute, 'utf-8'), ratchet.baselineFile)
+    : null;
 }
 
 function loadAuthoritativeBaseline(
@@ -158,17 +197,23 @@ function loadAuthoritativeBaseline(
   const local = readLocalBaseline(projectRoot, ratchet);
   if (production === null) {
     if (local === null) {
-      throw new Error(`[Ratchet] No warning baseline found locally nor at '${ratchet.productionRef}'. Bootstrap it with 'npm run auditor -- --init-baseline' and commit '${ratchet.baselineFile}'.`);
+      throw new Error(
+        `[Ratchet] No warning baseline found locally nor at '${ratchet.productionRef}'. Bootstrap it with 'npm run auditor -- --init-baseline' and commit '${ratchet.baselineFile}'.`
+      );
     }
     return { baseline: local, source: 'local-bootstrap' };
   }
   if (local === null) {
-    throw new Error(`[Ratchet] '${ratchet.baselineFile}' exists at '${ratchet.productionRef}' but is missing locally. Restore it with 'git checkout ${ratchet.productionRef} -- ${ratchet.baselineFile}'.`);
+    throw new Error(
+      `[Ratchet] '${ratchet.baselineFile}' exists at '${ratchet.productionRef}' but is missing locally. Restore it with 'git checkout ${ratchet.productionRef} -- ${ratchet.baselineFile}'.`
+    );
   }
-  const productionSet = new Set(production.warnings.map(w => w.fingerprint));
-  const injected = local.warnings.filter(w => !productionSet.has(w.fingerprint));
+  const productionSet = new Set(production.warnings.map((w) => w.fingerprint));
+  const injected = local.warnings.filter((w) => !productionSet.has(w.fingerprint));
   if (injected.length > 0) {
-    throw new Error(`[Ratchet] Local '${ratchet.baselineFile}' contains ${injected.length} fingerprint(s) absent from '${ratchet.productionRef}'. The baseline can only shrink; new warnings must be fixed, never baselined.`);
+    throw new Error(
+      `[Ratchet] Local '${ratchet.baselineFile}' contains ${injected.length} fingerprint(s) absent from '${ratchet.productionRef}'. The baseline can only shrink; new warnings must be fixed, never baselined.`
+    );
   }
   return { baseline: production, source: 'production' };
 }
@@ -194,17 +239,20 @@ export function runWarningRatchet(
 ): WarningRatchetOutcome {
   const { baseline, source } = loadAuthoritativeBaseline(projectRoot, ratchet);
   const current = fingerprintWarnings(results, projectRoot);
-  const known = new Set(baseline.warnings.map(w => w.fingerprint));
+  const known = new Set(baseline.warnings.map((w) => w.fingerprint));
   // Skipped suites produced no findings this run: their baseline entries are carried over, never counted as resolved.
-  const skippedSuites = new Set(results.filter(r => r.status === 'skipped').map(r => r.id));
-  const carried = baseline.warnings.filter(w => skippedSuites.has(w.suiteId));
-  const currentSet = new Set(current.map(w => w.fingerprint));
-  const newWarnings = current.filter(w => !known.has(w.fingerprint)).map(w => w.finding);
-  const resolvedCount = baseline.warnings.filter(w => !skippedSuites.has(w.suiteId) && !currentSet.has(w.fingerprint)).length;
+  const skippedSuites = new Set(results.filter((r) => r.status === 'skipped').map((r) => r.id));
+  const carried = baseline.warnings.filter((w) => skippedSuites.has(w.suiteId));
+  const currentSet = new Set(current.map((w) => w.fingerprint));
+  const newWarnings = current.filter((w) => !known.has(w.fingerprint)).map((w) => w.finding);
+  const resolvedCount = baseline.warnings.filter(
+    (w) => !skippedSuites.has(w.suiteId) && !currentSet.has(w.fingerprint)
+  ).length;
 
   const absolute = path.resolve(projectRoot, ratchet.baselineFile);
   const serialized = serializeBaseline([...current, ...carried]);
-  const baselineUpdated = allowShrink && newWarnings.length === 0 && fs.readFileSync(absolute, 'utf-8') !== serialized;
+  const baselineUpdated =
+    allowShrink && newWarnings.length === 0 && fs.readFileSync(absolute, 'utf-8') !== serialized;
   if (baselineUpdated) fs.writeFileSync(absolute, serialized, 'utf-8');
 
   return { source, newWarnings, resolvedCount, baselineUpdated };
@@ -217,7 +265,9 @@ export function initWarningBaseline(
   results: readonly StandardAuditResult[]
 ): number {
   if (readProductionBaseline(projectRoot, ratchet) !== null) {
-    throw new Error(`[Ratchet] '${ratchet.baselineFile}' already exists at '${ratchet.productionRef}'. The baseline can only shrink; fix new warnings instead of re-initializing.`);
+    throw new Error(
+      `[Ratchet] '${ratchet.baselineFile}' already exists at '${ratchet.productionRef}'. The baseline can only shrink; fix new warnings instead of re-initializing.`
+    );
   }
   const current = fingerprintWarnings(results, projectRoot);
   const absolute = path.resolve(projectRoot, ratchet.baselineFile);

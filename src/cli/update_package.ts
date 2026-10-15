@@ -112,11 +112,15 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   const previousVersion = readInstalledAuditorVersion(projectRoot);
 
   if (!options.silent) {
-    console.log(renderBanner(
-      '@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE',
-      `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`
-    ));
-    console.log(styleText('cyan', `📦 Ejecutando actualización nativa vía npm ${npmArgs.join(' ')}...\n`));
+    console.log(
+      renderBanner(
+        '@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE',
+        `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}`
+      )
+    );
+    console.log(
+      styleText('cyan', `📦 Ejecutando actualización nativa vía npm ${npmArgs.join(' ')}...\n`)
+    );
   }
 
   const isWindows = process.platform === 'win32';
@@ -129,7 +133,10 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   });
 
   if (proc.error || proc.status !== 0) {
-    const errorMsg = proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} falló con código de salida ${proc.status}`;
+    const errorMsg =
+      proc.error?.message ||
+      proc.stderr?.toString() ||
+      `npm ${npmArgs[0]} falló con código de salida ${proc.status}`;
     return {
       success: false,
       projectRoot,
@@ -167,10 +174,18 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
   try {
     const isSelf = isSelfProviderProject(projectRoot);
     if (!silent) {
-      console.log(styleText('cyan', '🛠️ Ejecutando auditor fix automáticamente para sincronizar scripts y configuraciones...\n'));
+      console.log(
+        styleText(
+          'cyan',
+          '🛠️ Ejecutando auditor fix automáticamente para sincronizar scripts y configuraciones...\n'
+        )
+      );
     }
 
-    const hostAuditorPkg = path.join(projectRoot, 'node_modules/@francogp/auditor/dist/cli/audit_full.js');
+    const hostAuditorPkg = path.join(
+      projectRoot,
+      'node_modules/@francogp/auditor/dist/cli/audit_full.js'
+    );
 
     let cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     let args = ['run', 'auditor:fix'];
@@ -206,7 +221,9 @@ export function runCli(): void {
   const result = updateAuditorPackage();
 
   if (!result.success) {
-    console.error(styleText('red', `\n❌ Falló la actualización de @francogp/auditor: ${result.error}`));
+    console.error(
+      styleText('red', `\n❌ Falló la actualización de @francogp/auditor: ${result.error}`)
+    );
     process.exit(1);
   }
 
@@ -233,9 +250,19 @@ export function runCli(): void {
 
   console.log('\n' + renderBoxTable(columns, rows));
   if (result.updated) {
-    console.log(styleText('green', `\n✔ @francogp/auditor se actualizó correctamente de v${result.previousVersion} a v${result.newVersion}.\n`));
+    console.log(
+      styleText(
+        'green',
+        `\n✔ @francogp/auditor se actualizó correctamente de v${result.previousVersion} a v${result.newVersion}.\n`
+      )
+    );
   } else {
-    console.log(styleText('cyan', `\nℹ @francogp/auditor ya se encuentra en la última versión disponible (v${result.newVersion}).\n`));
+    console.log(
+      styleText(
+        'cyan',
+        `\nℹ @francogp/auditor ya se encuentra en la última versión disponible (v${result.newVersion}).\n`
+      )
+    );
   }
   process.exit(0);
 }

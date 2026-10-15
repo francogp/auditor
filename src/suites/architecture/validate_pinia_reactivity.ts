@@ -20,7 +20,7 @@
 
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
@@ -44,7 +44,9 @@ export function getAuthorizedStateMutationFiles(projectRoot?: string): ReadonlyS
   return new Set([...DEFAULT_AUTHORIZED_STATE_MUTATION_FILES, ...fromPersistence, ...fromPinia]);
 }
 
-export const AUTHORIZED_STATE_MUTATION_FILES: ReadonlySet<string> = new Set(DEFAULT_AUTHORIZED_STATE_MUTATION_FILES);
+export const AUTHORIZED_STATE_MUTATION_FILES: ReadonlySet<string> = new Set(
+  DEFAULT_AUTHORIZED_STATE_MUTATION_FILES
+);
 
 function isStoreCallExpression(expr: ts.Expression, sf: ts.SourceFile): boolean {
   if (!ts.isCallExpression(expr)) return false;
@@ -61,7 +63,10 @@ function isStoreDestructuring(
   return ts.isIdentifier(initializer) && storeVariables.has(initializer.text);
 }
 
-function resolvePiniaAuditRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
+function resolvePiniaAuditRoots(
+  roots?: readonly string[],
+  projectRoot?: string
+): readonly string[] {
   return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
 }
 
@@ -82,7 +87,8 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',
@@ -99,8 +105,10 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
         'no-direct-state-mutation-outside-actions': 'Mutación directa de $state'
       },
       ruleRemediations: {
-        'no-store-destructuring-without-storetorefs': 'Guía de diagnóstico y remediación para no-store-destructuring-without-storetorefs. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-direct-state-mutation-outside-actions': 'Guía de diagnóstico y remediación para no-direct-state-mutation-outside-actions. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-store-destructuring-without-storetorefs':
+          'Guía de diagnóstico y remediación para no-store-destructuring-without-storetorefs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-direct-state-mutation-outside-actions':
+          'Guía de diagnóstico y remediación para no-direct-state-mutation-outside-actions. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       allowedExtensions: new Set(['.vue', '.ts']),
       requiresAst: true
@@ -169,7 +177,11 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     storeVariables: ReadonlySet<string>,
     isAuthorized: boolean
   ): void {
-    if (isAuthorized || !ts.isBinaryExpression(node) || node.operatorToken.kind !== ts.SyntaxKind.EqualsToken) {
+    if (
+      isAuthorized ||
+      !ts.isBinaryExpression(node) ||
+      node.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+    ) {
       return;
     }
     if (ts.isPropertyAccessExpression(node.left) && node.left.name.text === '$state') {
@@ -195,11 +207,13 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       return;
     }
 
-    const isStoreFile = this.storesRoots.some(root => {
+    const isStoreFile = this.storesRoots.some((root) => {
       const normalizedRoot = normalizePosixPath(root).replace(/\/+$/, '') + '/';
       return normalizedPath.startsWith(normalizedRoot);
     });
-    const isAuthorized = this.authorizedStateMutationFiles.has(normalizedPath) || AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);
+    const isAuthorized =
+      this.authorizedStateMutationFiles.has(normalizedPath) ||
+      AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);
 
     const sf = sourceFile ?? this.context.getAst(relPath, content);
 
@@ -208,7 +222,14 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     this.runSubAuditorSync('no-store-destructuring-without-storetorefs', () => {
       const visitDestructuring = (node: ts.Node) => {
         if (ts.isVariableDeclaration(node)) {
-          this.checkStoreVariableDeclaration(node, sf, content, relPath, storeVariables, isStoreFile);
+          this.checkStoreVariableDeclaration(
+            node,
+            sf,
+            content,
+            relPath,
+            storeVariables,
+            isStoreFile
+          );
         }
         ts.forEachChild(node, visitDestructuring);
       };

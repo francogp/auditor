@@ -1,6 +1,6 @@
 /**
  * scripts/lib/auditorBase.ts
- * 
+ *
  * BASE AUDITOR FRAMEWORK (Node.js 26+ Native)
  * Mandatory base orchestrator for all sub-auditors in scripts/auditors/.
  * Enforces the StandardAuditResult contract:
@@ -78,7 +78,11 @@ import { evaluateSuiteStatus } from './suiteGating.ts';
 import type { SharedAstContext } from './astContext.ts';
 import ts from 'typescript';
 import { formatDurationMs } from './durationFormatter.ts';
-import { AuditedDocument, type DocumentReplacement, type LineColumnPosition } from './auditedDocument.ts';
+import {
+  AuditedDocument,
+  type DocumentReplacement,
+  type LineColumnPosition
+} from './auditedDocument.ts';
 import { isPathExempt } from './reportUtils.ts';
 
 export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, isPathExempt };
@@ -86,7 +90,8 @@ export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, isP
 enableCompileCache();
 
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
-export const ALWAYS_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+export const ALWAYS_IGNORE_DIRS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
   'node_modules',
   '.git',
   '.tsbuildinfo',
@@ -107,7 +112,8 @@ export const ALWAYS_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-set:
 ]);
 
 /** Additional directories ignored during code scanning (documentation/skills and static assets) */
-export const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+export const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
   '.agents',
   'skills',
   'public',
@@ -116,7 +122,8 @@ export const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-s
 ]);
 
 /** Canonical ignore directories for application code auditors (union of ALWAYS + CODE_ONLY) */
-export const CANONICAL_IGNORE_DIRS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+export const CANONICAL_IGNORE_DIRS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
   ...ALWAYS_IGNORE_DIRS,
   ...CODE_ONLY_IGNORE_DIRS
 ]);
@@ -150,13 +157,15 @@ export function getEffectiveUnignoreDirs(projectRoot = process.cwd()): readonly 
   return ['.agents', 'skills', 'docs'];
 }
 
-export const SCANNABLE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.js', '.vue', '.cjs', '.mjs']); // runtime-set: Fast O(1) membership lookup set
+export const SCANNABLE_EXTENSIONS: ReadonlySet<string> = new Set([
+  '.ts',
+  '.js',
+  '.vue',
+  '.cjs',
+  '.mjs'
+]); // runtime-set: Fast O(1) membership lookup set
 
-export const CANONICAL_SCANNABLE_ROOTS = [
-  'scripts',
-  'src',
-  'tests'
-] as const;
+export const CANONICAL_SCANNABLE_ROOTS = ['scripts', 'src', 'tests'] as const;
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
 
 function resolvePersistenceExtraRoots(config: ReturnType<typeof getAuditConfig>): string[] {
@@ -181,10 +190,9 @@ function resolveDeclaredPathRoots(paths?: AuditEngineConfig['paths']): string[] 
 }
 
 export function getEffectiveScannableRoots(config = getAuditConfig()): readonly string[] {
-  return Array.from(new Set([
-    ...resolveDeclaredPathRoots(config.paths),
-    ...resolvePersistenceExtraRoots(config)
-  ]));
+  return Array.from(
+    new Set([...resolveDeclaredPathRoots(config.paths), ...resolvePersistenceExtraRoots(config)])
+  );
 }
 
 /**
@@ -195,7 +203,6 @@ export function assertSafePathComponent(component: string): void {
     throw new Error(`Path traversal attempt detected in path component: ${component}`);
   }
 }
-
 
 /**
  * Loads directory ignore patterns from .fallowrc.json if present.
@@ -237,7 +244,7 @@ function parseLockedSkillsFile(skillsLockPath: string): string[] {
     const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
     const data = JSON.parse(raw) as { skills?: Record<string, unknown> };
     if (data?.skills && typeof data.skills === 'object') {
-      return Object.keys(data.skills).map(s => s.toLowerCase()); // no-domain: Skill name case-insensitive key
+      return Object.keys(data.skills).map((s) => s.toLowerCase()); // no-domain: Skill name case-insensitive key
     }
   } catch {
     // catch-ok: Ignore missing or malformed skills-lock.json candidate
@@ -285,9 +292,7 @@ export function isLockedSkillPath(filePath: string, projectRoot = process.cwd())
   const locked = loadLockedSkills(projectRoot);
   if (locked.size === 0) return false;
 
-  const rel = path.isAbsolute(filePath)
-    ? path.relative(projectRoot, filePath)
-    : filePath;
+  const rel = path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath;
 
   const normalized = rel.replace(/\\/g, '/').toLowerCase().replace(/^\/+/, '');
   const segments = normalized.split('/');
@@ -333,7 +338,11 @@ function matchesDirectorySegments(
         CODE_ONLY_IGNORE_DIRS.has(seg) ||
         (hasConfigIgnored &&
           configIgnoredDirs.some(
-            d => d === seg || normalized === d || normalized.startsWith(d + '/') || normalized.includes('/' + d + '/')
+            (d) =>
+              d === seg ||
+              normalized === d ||
+              normalized.startsWith(d + '/') ||
+              normalized.includes('/' + d + '/')
           ));
       if (isIgnored) {
         return true;
@@ -363,10 +372,7 @@ export function matchesSinglePattern(normalized: string, pattern: string): boole
     );
   }
 
-  return (
-    normalized === cleanPattern ||
-    normalized.startsWith(cleanPattern + '/')
-  );
+  return normalized === cleanPattern || normalized.startsWith(cleanPattern + '/');
 }
 
 /**
@@ -387,7 +393,12 @@ export function isPathIgnored(
   const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
 
   const rawConfigIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs ?? [];
-  const configIgnoredDirs = rawConfigIgnoredDirs.map(d => d.toLowerCase().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')); // no-domain: Non-domain utility collection or data structure
+  const configIgnoredDirs = rawConfigIgnoredDirs.map((d) =>
+    d
+      .toLowerCase()
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '')
+  ); // no-domain: Non-domain utility collection or data structure
 
   if (matchesDirectorySegments(normalized, segments, unignoreSet, configIgnoredDirs)) {
     return true;
@@ -399,7 +410,7 @@ export function isPathIgnored(
 
   for (const pattern of allPatterns) {
     if (matchesSinglePattern(normalized, pattern)) {
-      if (segments.some(seg => unignoreSet.has(seg))) {
+      if (segments.some((seg) => unignoreSet.has(seg))) {
         continue;
       }
       return true;
@@ -408,7 +419,6 @@ export function isPathIgnored(
 
   return false;
 }
-
 
 function collectSingleFile(
   filePath: string,
@@ -442,7 +452,13 @@ function processDirentEntry(
   }
 
   if (entry.isDirectory()) {
-    return collectRepositoryFiles(fullPath, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs);
+    return collectRepositoryFiles(
+      fullPath,
+      projectRoot,
+      extraIgnorePatterns,
+      allowedExtensions,
+      unignoreDirs
+    );
   }
 
   if (entry.isFile()) {
@@ -468,7 +484,13 @@ export function collectRepositoryFiles(
 
   const stat = nodeFs.statSync(dir);
   if (stat.isFile()) {
-    return collectSingleFile(dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs);
+    return collectSingleFile(
+      dir,
+      projectRoot,
+      extraIgnorePatterns,
+      allowedExtensions,
+      unignoreDirs
+    );
   }
 
   let entries: nodeFs.Dirent[];
@@ -481,7 +503,16 @@ export function collectRepositoryFiles(
 
   const results: string[] = [];
   for (const entry of entries) {
-    results.push(...processDirentEntry(entry, dir, projectRoot, extraIgnorePatterns, allowedExtensions, unignoreDirs));
+    results.push(
+      ...processDirentEntry(
+        entry,
+        dir,
+        projectRoot,
+        extraIgnorePatterns,
+        allowedExtensions,
+        unignoreDirs
+      )
+    );
   }
   return results;
 }
@@ -510,14 +541,37 @@ export interface AuditorContext {
   logProgress: (msg: string) => void;
   logStep: (stepNumber: number, totalSteps: number, description: string) => void;
   addFinding: (finding: AuditFinding) => void;
-  addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
-  addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
+  addError: (
+    message: string,
+    file?: string,
+    line?: number,
+    context?: string,
+    ruleId?: string,
+    ruleDescription?: string,
+    suiteId?: string,
+    suiteName?: string
+  ) => void;
+  addWarning: (
+    message: string,
+    file?: string,
+    line?: number,
+    context?: string,
+    ruleId?: string,
+    ruleDescription?: string,
+    suiteId?: string,
+    suiteName?: string
+  ) => void;
   setMetric: (key: string, value: number | string) => void;
   getAst: (relPath: string, content?: string) => ts.SourceFile;
   checkFiles: () => Promise<void>;
-  finish: (finalMetrics?: Record<string, number | string>, extra?: Partial<StandardAuditResult>) => Promise<StandardAuditResult>;
+  finish: (
+    finalMetrics?: Record<string, number | string>,
+    extra?: Partial<StandardAuditResult>
+  ) => Promise<StandardAuditResult>;
   getFindings: () => readonly AuditFinding[];
-  setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
+  setStepLogger?: (
+    logger: (stepNumber: number, totalSteps: number, description: string) => void
+  ) => void;
   setProgressLogger?: (logger: (msg: string) => void) => void;
 }
 
@@ -552,14 +606,22 @@ function renderConsoleSummary(
   config: AuditorConfig,
   targetJsonPath: string
 ): void {
-  console.log(renderBanner(config.name, `Familia: ${config.family.toUpperCase()}  |  ID: ${config.id}`));
+  console.log(
+    renderBanner(config.name, `Familia: ${config.family.toUpperCase()}  |  ID: ${config.id}`)
+  );
   console.log(renderAuditTaskRow(result));
 
   if (result.findings.length > 0) {
     console.log(renderFindingsDetail(result.findings));
   }
 
-  if (result.findings.some(f => f.ruleId === 'fallow-similar-code-failed' && (f.context === 'manual-setup-required' || f.context === 'model-not-ready'))) {
+  if (
+    result.findings.some(
+      (f) =>
+        f.ruleId === 'fallow-similar-code-failed' &&
+        (f.context === 'manual-setup-required' || f.context === 'model-not-ready')
+    )
+  ) {
     console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
   }
 
@@ -570,11 +632,16 @@ function renderConsoleSummary(
   }
 
   const relPath = path.relative(process.cwd(), targetJsonPath);
-  console.log(`\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`);
+  console.log(
+    `\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`
+  );
   console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
 }
 
-function normalizeAuditorFilePath(file: string | undefined, projectRoot: string): string | undefined | null {
+function normalizeAuditorFilePath(
+  file: string | undefined,
+  projectRoot: string
+): string | undefined | null {
   if (!file) return file;
   const normFile = path.isAbsolute(file)
     ? path.relative(projectRoot, file).replace(/\\/g, '/')
@@ -599,7 +666,9 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
 
   const startTime = performance.now();
   const args = process.argv.slice(2);
-  const normalized = args.map(a => a.includes('=') && !a.startsWith('-') ? `--${a}` : (['errors-only'].includes(a) ? `--${a}` : a));
+  const normalized = args.map((a) =>
+    a.includes('=') && !a.startsWith('-') ? `--${a}` : ['errors-only'].includes(a) ? `--${a}` : a
+  );
 
   const { values } = parseArgs({
     args: normalized,
@@ -614,26 +683,34 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
 
   const projectRoot = config.projectRoot || process.cwd();
   const scannableRoots = getEffectiveScannableRoots(getAuditConfig(projectRoot));
-  const fallowIgnores = loadFallowIgnorePatterns(projectRoot).filter(pat => {
+  const fallowIgnores = loadFallowIgnorePatterns(projectRoot).filter((pat) => {
     const norm = pat.replace(/\/\*\*?$/, '').replace(/^\/+/, '');
-    return !scannableRoots.some(r => r === norm || norm.startsWith(`${r}/`));
+    return !scannableRoots.some((r) => r === norm || norm.startsWith(`${r}/`));
   });
   const combinedIgnores = [...fallowIgnores, ...(config.extraIgnorePatterns || [])];
-  const unignoreDirs = config.unignoreDirs ?? (config.family === 'documentation' ? getEffectiveUnignoreDirs(projectRoot) : []);
+  const unignoreDirs =
+    config.unignoreDirs ??
+    (config.family === 'documentation' ? getEffectiveUnignoreDirs(projectRoot) : []);
 
   const isSubprocess = process.env.AUDIT_SUBPROCESS === 'true';
   const findings: AuditFinding[] = [];
   const metrics: Record<string, number | string> = {};
 
   let customLogProgress: ((msg: string) => void) | undefined;
-  let customLogStep: ((stepNumber: number, totalSteps: number, description: string) => void) | undefined;
+  let customLogStep:
+    | ((stepNumber: number, totalSteps: number, description: string) => void)
+    | undefined;
 
   return {
     values: values as AuditorContext['values'],
     ignorePatterns: combinedIgnores,
     unignoreDirs,
-    isPathIgnored: (relPath: string) => isPathIgnored(relPath, combinedIgnores, unignoreDirs, projectRoot),
-    collectFiles: (roots: readonly string[] = getEffectiveScannableRoots(), allowedExtensions = SCANNABLE_EXTENSIONS) => {
+    isPathIgnored: (relPath: string) =>
+      isPathIgnored(relPath, combinedIgnores, unignoreDirs, projectRoot),
+    collectFiles: (
+      roots: readonly string[] = getEffectiveScannableRoots(),
+      allowedExtensions = SCANNABLE_EXTENSIONS
+    ) => {
       const cacheKey = [
         projectRoot,
         [...roots].sort().join('|'),
@@ -652,7 +729,13 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       const all: string[] = []; // no-domain: Non-domain utility collection or data structure
       for (const root of roots) {
         const fullRoot = path.resolve(projectRoot, root);
-        for (const file of collectRepositoryFiles(fullRoot, projectRoot, combinedIgnores, allowedExtensions, unignoreDirs)) {
+        for (const file of collectRepositoryFiles(
+          fullRoot,
+          projectRoot,
+          combinedIgnores,
+          allowedExtensions,
+          unignoreDirs
+        )) {
           if (!seen.has(file)) {
             seen.add(file);
             all.push(file);
@@ -677,7 +760,9 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
       }
     },
-    setStepLogger: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => {
+    setStepLogger: (
+      logger: (stepNumber: number, totalSteps: number, description: string) => void
+    ) => {
       customLogStep = logger;
     },
     setProgressLogger: (logger: (msg: string) => void) => {
@@ -690,20 +775,58 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
       }
       findings.push({ ...f, file: normFile });
     },
-    addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => {
+    addError: (
+      message: string,
+      file?: string,
+      line?: number,
+      context?: string,
+      ruleId?: string,
+      ruleDescription?: string,
+      suiteId?: string,
+      suiteName?: string
+    ) => {
       const normFile = normalizeAuditorFilePath(file, projectRoot);
       if (normFile === null) {
         return;
       }
-      findings.push({ severity: 'error', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
+      findings.push({
+        severity: 'error',
+        message,
+        file: normFile,
+        line,
+        context,
+        ruleId,
+        ruleDescription,
+        suiteId,
+        suiteName
+      });
     },
-    addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => {
+    addWarning: (
+      message: string,
+      file?: string,
+      line?: number,
+      context?: string,
+      ruleId?: string,
+      ruleDescription?: string,
+      suiteId?: string,
+      suiteName?: string
+    ) => {
       if (!values['errors-only']) {
         const normFile = normalizeAuditorFilePath(file, projectRoot);
         if (normFile === null) {
           return;
         }
-        findings.push({ severity: 'warning', message, file: normFile, line, context, ruleId, ruleDescription, suiteId, suiteName });
+        findings.push({
+          severity: 'warning',
+          message,
+          file: normFile,
+          line,
+          context,
+          ruleId,
+          ruleDescription,
+          suiteId,
+          suiteName
+        });
       }
     },
     setMetric: (key: string, value: number | string) => {
@@ -711,7 +834,12 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     },
     getAst: (relPath: string, content?: string): ts.SourceFile => {
       const fullPath = path.isAbsolute(relPath) ? relPath : path.resolve(projectRoot, relPath);
-      const raw = content !== undefined ? content : (nodeFs.existsSync(fullPath) ? nodeFs.readFileSync(fullPath, 'utf-8') : '');
+      const raw =
+        content !== undefined
+          ? content
+          : nodeFs.existsSync(fullPath)
+            ? nodeFs.readFileSync(fullPath, 'utf-8')
+            : '';
       const doc = new AuditedDocument(fullPath, raw, relPath);
       const sf = doc.getAst();
       if (sf) return sf;
@@ -724,22 +852,33 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
           await fs.access(file);
         }
       } catch (_err) {
-        console.error(styleText('red', `❌ Archivos requeridos no encontrados o no accesibles:\n${config.requiredFiles.map(f => `   - ${f}`).join('\n')}`));
+        console.error(
+          styleText(
+            'red',
+            `❌ Archivos requeridos no encontrados o no accesibles:\n${config.requiredFiles.map((f) => `   - ${f}`).join('\n')}`
+          )
+        );
         if (isSubprocess) {
-          throw new Error(`Archivos requeridos no encontrados: ${config.requiredFiles.join(', ')}`, { cause: _err });
+          throw new Error(
+            `Archivos requeridos no encontrados: ${config.requiredFiles.join(', ')}`,
+            { cause: _err }
+          );
         }
         process.exit(1);
       }
     },
-    finish: async (finalMetrics?: Record<string, number | string>, extra?: Partial<StandardAuditResult>) => {
+    finish: async (
+      finalMetrics?: Record<string, number | string>,
+      extra?: Partial<StandardAuditResult>
+    ) => {
       if (finalMetrics) {
         Object.assign(metrics, finalMetrics);
       }
 
       const durationMs = Math.round(performance.now() - startTime);
-      const errorsCount = findings.filter(f => f.severity === 'error').length;
-      const warningsCount = findings.filter(f => f.severity === 'warning').length;
-      const infoCount = findings.filter(f => f.severity === 'info').length;
+      const errorsCount = findings.filter((f) => f.severity === 'error').length;
+      const warningsCount = findings.filter((f) => f.severity === 'warning').length;
+      const infoCount = findings.filter((f) => f.severity === 'info').length;
       const { fixableErrors, fixableWarnings } = countFixableFindings(findings);
 
       const result: StandardAuditResult = {
@@ -761,7 +900,11 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         ...extra
       };
 
-      const targetJsonPath = await persistAuditJsonReport(result, config, values.output as string | undefined);
+      const targetJsonPath = await persistAuditJsonReport(
+        result,
+        config,
+        values.output as string | undefined
+      );
 
       if (!isSubprocess) {
         renderConsoleSummary(result, config, targetJsonPath);
@@ -803,7 +946,7 @@ export function deriveSuiteCapabilities(
 
   const distinctSpeeds: AuditExecutionSpeed[] = [];
   for (const s of AUDIT_EXECUTION_SPEEDS) {
-    if (entries.some(c => normalizeSpeeds(c.speed).includes(s))) {
+    if (entries.some((c) => normalizeSpeeds(c.speed).includes(s))) {
       distinctSpeeds.push(s);
     }
   }
@@ -814,15 +957,15 @@ export function deriveSuiteCapabilities(
         ? distinctSpeeds[0]!
         : distinctSpeeds;
 
-  const effectivePhase: AuditExecutionPhase = entries.some(c => c.phase === 'post-build')
+  const effectivePhase: AuditExecutionPhase = entries.some((c) => c.phase === 'post-build')
     ? 'post-build'
-    : entries.some(c => c.phase === 'post-run')
+    : entries.some((c) => c.phase === 'post-run')
       ? 'post-run'
       : 'normal';
 
-  const effectiveFix: AuditFixCapability = entries.some(c => c.fix === 'priority')
+  const effectiveFix: AuditFixCapability = entries.some((c) => c.fix === 'priority')
     ? 'priority'
-    : entries.some(c => c.fix === 'normal')
+    : entries.some((c) => c.fix === 'normal')
       ? 'normal'
       : 'none';
 
@@ -830,10 +973,10 @@ export function deriveSuiteCapabilities(
     speed: effectiveSpeed,
     phase: effectivePhase,
     fix: effectiveFix,
-    md: entries.some(c => c.md),
-    ast: entries.some(c => c.ast),
-    changedOnly: entries.some(c => c.changedOnly),
-    critical: entries.some(c => c.critical)
+    md: entries.some((c) => c.md),
+    ast: entries.some((c) => c.ast),
+    changedOnly: entries.some((c) => c.changedOnly),
+    critical: entries.some((c) => c.critical)
   };
 }
 
@@ -1000,7 +1143,10 @@ function validateAuditorIdentity<TRuleId extends string>(options: AuditorOptions
   if (!options.description || options.description.trim().length === 0) {
     throw new Error(`Auditor [${options.id}] must define a human-friendly description`);
   }
-  if (options.description.length > MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH || options.description.includes('\n')) {
+  if (
+    options.description.length > MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH ||
+    options.description.includes('\n')
+  ) {
     throw new Error(
       `Auditor [${options.id}] description exceeds ${MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH} characters or contains newlines.`
     );
@@ -1015,7 +1161,9 @@ function validateAuditorConfigKey<TRuleId extends string>(options: AuditorOption
   }
 }
 
-function validateAuditorDefaultConfig<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+function validateAuditorDefaultConfig<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>
+): void {
   if (!options.defaultConfig || typeof options.defaultConfig !== 'object') {
     throw new Error(
       `Auditor [${options.id}] must define a mandatory 'defaultConfig' (object). Zero-configuration or optional configurations are prohibited; every suite must self-declare its defaults.`
@@ -1045,10 +1193,15 @@ function validateCriticalRationale(auditorId: string, criticalConfig: AuditorCri
   }
 }
 
-function validateCriticalMinimums(auditorId: string, requiredMinimums?: Record<string, readonly unknown[]>): void {
+function validateCriticalMinimums(
+  auditorId: string,
+  requiredMinimums?: Record<string, readonly unknown[]>
+): void {
   if (requiredMinimums === undefined) return;
   if (typeof requiredMinimums !== 'object' || requiredMinimums === null) {
-    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.requiredMinimums' must be an object.`);
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.requiredMinimums' must be an object.`
+    );
   }
   for (const [key, list] of Object.entries(requiredMinimums)) {
     if (!Array.isArray(list) || list.length === 0) {
@@ -1059,10 +1212,15 @@ function validateCriticalMinimums(auditorId: string, requiredMinimums?: Record<s
   }
 }
 
-function validateCriticalOverrides(auditorId: string, forbiddenOverrides?: Record<string, readonly unknown[]>): void {
+function validateCriticalOverrides(
+  auditorId: string,
+  forbiddenOverrides?: Record<string, readonly unknown[]>
+): void {
   if (forbiddenOverrides === undefined) return;
   if (typeof forbiddenOverrides !== 'object' || forbiddenOverrides === null) {
-    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.forbiddenOverrides' must be an object.`);
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.forbiddenOverrides' must be an object.`
+    );
   }
   for (const [key, list] of Object.entries(forbiddenOverrides)) {
     if (!Array.isArray(list) || list.length === 0) {
@@ -1075,26 +1233,38 @@ function validateCriticalOverrides(auditorId: string, forbiddenOverrides?: Recor
 
 function validateCriticalCallbacks(auditorId: string, validate?: unknown, repair?: unknown): void {
   if (validate !== undefined && typeof validate !== 'function') {
-    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.validate' must be a function.`);
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.validate' must be a function.`
+    );
   }
   if (repair !== undefined && typeof repair !== 'function') {
-    throw new Error(`[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.repair' must be a function.`);
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${auditorId}] 'criticalConfig.repair' must be a function.`
+    );
   }
 }
 
-function validateAuditorCriticalConfig<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+function validateAuditorCriticalConfig<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>
+): void {
   if (options.criticalConfig === undefined) {
     throw new Error(
       `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'criticalConfig' in its constructor (can be empty object {}, but cannot be undefined).`
     );
   }
   if (typeof options.criticalConfig !== 'object' || options.criticalConfig === null) {
-    throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] 'criticalConfig' must be an object.`);
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] 'criticalConfig' must be an object.`
+    );
   }
   validateCriticalRationale(options.id, options.criticalConfig);
   validateCriticalMinimums(options.id, options.criticalConfig.requiredMinimums);
   validateCriticalOverrides(options.id, options.criticalConfig.forbiddenOverrides);
-  validateCriticalCallbacks(options.id, options.criticalConfig.validate, options.criticalConfig.repair);
+  validateCriticalCallbacks(
+    options.id,
+    options.criticalConfig.validate,
+    options.criticalConfig.repair
+  );
 }
 
 export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
@@ -1107,28 +1277,29 @@ export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
   'critical'
 ] as const;
 
-export const MANDATORY_BOOLEAN_CAPABILITY_KEYS = [
-  'md',
-  'ast',
-  'changedOnly',
-  'critical'
-] as const;
+export const MANDATORY_BOOLEAN_CAPABILITY_KEYS = ['md', 'ast', 'changedOnly', 'critical'] as const;
 
 function isValidRuleSpeed(speed: unknown): boolean {
   if (typeof speed === 'string') {
-    return AUDIT_EXECUTION_SPEEDS.some(s => s === speed);
+    return AUDIT_EXECUTION_SPEEDS.some((s) => s === speed);
   }
   if (Array.isArray(speed) && speed.length > 0) {
-    return speed.every(s => typeof s === 'string' && AUDIT_EXECUTION_SPEEDS.some(x => x === s));
+    return speed.every((s) => typeof s === 'string' && AUDIT_EXECUTION_SPEEDS.some((x) => x === s));
   }
   return false;
 }
 
-function validateAuditorRuleCapabilities<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
-  if (options.ruleCapabilities === undefined || typeof options.ruleCapabilities !== 'object' || options.ruleCapabilities === null) {
+function validateAuditorRuleCapabilities<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>
+): void {
+  if (
+    options.ruleCapabilities === undefined ||
+    typeof options.ruleCapabilities !== 'object' ||
+    options.ruleCapabilities === null
+  ) {
     throw new Error(
       `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'ruleCapabilities' in its constructor. ` +
-      `Every sub-auditor / rule must declare individual capabilities.`
+        `Every sub-auditor / rule must declare individual capabilities.`
     );
   }
   for (const ruleId of options.ruleIds) {
@@ -1136,22 +1307,22 @@ function validateAuditorRuleCapabilities<TRuleId extends string>(options: Audito
     if (!caps || typeof caps !== 'object') {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] is missing 'ruleCapabilities' for declared rule '${ruleId}'. ` +
-        `Every sub-auditor must declare its individual capabilities.`
+          `Every sub-auditor must declare its individual capabilities.`
       );
     }
     if (!isValidRuleSpeed(caps.speed)) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.speed' as ${AUDIT_EXECUTION_SPEEDS.map(s => `'${s}'`).join(' | ')} (or a non-empty array of them).`
+        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.speed' as ${AUDIT_EXECUTION_SPEEDS.map((s) => `'${s}'`).join(' | ')} (or a non-empty array of them).`
       );
     }
-    if (typeof caps.phase !== 'string' || !AUDIT_EXECUTION_PHASES.some(p => p === caps.phase)) {
+    if (typeof caps.phase !== 'string' || !AUDIT_EXECUTION_PHASES.some((p) => p === caps.phase)) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.phase' as ${AUDIT_EXECUTION_PHASES.map(p => `'${p}'`).join(' | ')}.`
+        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.phase' as ${AUDIT_EXECUTION_PHASES.map((p) => `'${p}'`).join(' | ')}.`
       );
     }
-    if (typeof caps.fix !== 'string' || !AUDIT_FIX_CAPABILITIES.some(f => f === caps.fix)) {
+    if (typeof caps.fix !== 'string' || !AUDIT_FIX_CAPABILITIES.some((f) => f === caps.fix)) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.fix' as ${AUDIT_FIX_CAPABILITIES.map(f => `'${f}'`).join(' | ')}.`
+        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.fix' as ${AUDIT_FIX_CAPABILITIES.map((f) => `'${f}'`).join(' | ')}.`
       );
     }
     for (const key of MANDATORY_BOOLEAN_CAPABILITY_KEYS) {
@@ -1162,28 +1333,41 @@ function validateAuditorRuleCapabilities<TRuleId extends string>(options: Audito
       }
     }
     for (const key of Object.keys(caps)) {
-      if (!MANDATORY_AUDITOR_CAPABILITY_KEYS.includes(key as typeof MANDATORY_AUDITOR_CAPABILITY_KEYS[number])) {
-        throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared unknown capability '${key}' in rule '${ruleId}'.`);
+      if (
+        !MANDATORY_AUDITOR_CAPABILITY_KEYS.includes(
+          key as (typeof MANDATORY_AUDITOR_CAPABILITY_KEYS)[number]
+        )
+      ) {
+        throw new Error(
+          `[Auditor Contract Violation] Auditor [${options.id}] declared unknown capability '${key}' in rule '${ruleId}'.`
+        );
       }
     }
   }
   for (const ruleId of Object.keys(options.ruleCapabilities)) {
     if (!options.ruleIds.includes(ruleId as TRuleId)) {
-      throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declares 'ruleCapabilities' for rule '${ruleId}' which is not in 'ruleIds'.`);
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] declares 'ruleCapabilities' for rule '${ruleId}' which is not in 'ruleIds'.`
+      );
     }
   }
 }
 
-function validateAuditorFixContract<TRuleId extends string>(options: AuditorOptions<TRuleId>, capabilities: AuditorRuleCapabilities): void {
+function validateAuditorFixContract<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>,
+  capabilities: AuditorRuleCapabilities
+): void {
   const isFix = capabilities.fix !== 'none';
   const fixableList = options.fixableRuleIds ?? [];
-  const configFilesWithFix = (options.configFiles ?? []).filter(c => Boolean(c.ruleId && c.generateDefaultContent));
+  const configFilesWithFix = (options.configFiles ?? []).filter((c) =>
+    Boolean(c.ruleId && c.generateDefaultContent)
+  );
 
   if (isFix) {
     if (fixableList.length === 0 && configFilesWithFix.length === 0) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] declared capabilities.fix !== 'none' (${capabilities.fix}) but failed to explicitly initialize 'fixableRuleIds' in its constructor. ` +
-        `Every auto-repairing suite must explicitly declare which ruleIds it can mechanically fix.`
+          `Every auto-repairing suite must explicitly declare which ruleIds it can mechanically fix.`
       );
     }
     for (const ruleId of fixableList) {
@@ -1208,27 +1392,43 @@ function validateAuditorRules<TRuleId extends string>(options: AuditorOptions<TR
       `[Auditor Contract Violation] Auditor [${options.id}] must define a mandatory 'ruleIds' array containing at least one ruleId. Zero-rule suites or omitted rule catalogs are strictly prohibited.`
     );
   }
-  if (!options.ruleDescriptions || typeof options.ruleDescriptions !== 'object' || Object.keys(options.ruleDescriptions).length === 0) {
-    throw new Error(`Auditor [${options.id}] must define mandatory 'ruleDescriptions' covering all its declared rules.`);
+  if (
+    !options.ruleDescriptions ||
+    typeof options.ruleDescriptions !== 'object' ||
+    Object.keys(options.ruleDescriptions).length === 0
+  ) {
+    throw new Error(
+      `Auditor [${options.id}] must define mandatory 'ruleDescriptions' covering all its declared rules.`
+    );
   }
   const descriptions = options.ruleDescriptions as Record<string, string | undefined>;
   for (const ruleId of options.ruleIds) {
     if (!descriptions[ruleId]) {
-      throw new Error(`Auditor [${options.id}] is missing a rule description in 'ruleDescriptions' for declared rule '${ruleId}'.`);
+      throw new Error(
+        `Auditor [${options.id}] is missing a rule description in 'ruleDescriptions' for declared rule '${ruleId}'.`
+      );
     }
   }
   for (const ruleId of Object.keys(options.ruleDescriptions)) {
     if (!options.ruleIds.includes(ruleId as TRuleId)) {
-      throw new Error(`Auditor [${options.id}] defines description for rule '${ruleId}' in 'ruleDescriptions' that is not declared in 'ruleIds'.`);
+      throw new Error(
+        `Auditor [${options.id}] defines description for rule '${ruleId}' in 'ruleDescriptions' that is not declared in 'ruleIds'.`
+      );
     }
   }
 }
 
-function validateAuditorRuleRemediations<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
-  if (!options.ruleRemediations || typeof options.ruleRemediations !== 'object' || Object.keys(options.ruleRemediations).length === 0) {
+function validateAuditorRuleRemediations<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>
+): void {
+  if (
+    !options.ruleRemediations ||
+    typeof options.ruleRemediations !== 'object' ||
+    Object.keys(options.ruleRemediations).length === 0
+  ) {
     throw new Error(
       `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'ruleRemediations' covering all its declared rules. ` +
-      `Every sub-auditor and host extension is strictly required to expose on-demand diagnostic and remediation guides.`
+        `Every sub-auditor and host extension is strictly required to expose on-demand diagnostic and remediation guides.`
     );
   }
   const remediations = options.ruleRemediations as Record<string, string | undefined>;
@@ -1237,7 +1437,7 @@ function validateAuditorRuleRemediations<TRuleId extends string>(options: Audito
     if (!guide || typeof guide !== 'string' || guide.trim() === '') {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] is missing a mandatory remediation guide in 'ruleRemediations' for declared rule '${ruleId}'. ` +
-        `Every rule must provide actionable guidance on root cause and steps to resolve.`
+          `Every rule must provide actionable guidance on root cause and steps to resolve.`
       );
     }
   }
@@ -1254,27 +1454,39 @@ function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<
   if (!Array.isArray(options.scripts) || options.scripts.length === 0) {
     throw new Error(
       `Auditor [${options.id}] must define a mandatory 'scripts' contract (array of AuditorPackageScriptRequirement). ` +
-      `Every sub-auditor and host extension must explicitly declare the canonical package.json script and CLI command used to execute it.`
+        `Every sub-auditor and host extension must explicitly declare the canonical package.json script and CLI command used to execute it.`
     );
   }
   for (const script of options.scripts) {
     if (!script.name || typeof script.name !== 'string' || script.name.trim() === '') {
-      throw new Error(`Auditor [${options.id}] defines an invalid script requirement: 'name' must be a non-empty string.`);
+      throw new Error(
+        `Auditor [${options.id}] defines an invalid script requirement: 'name' must be a non-empty string.`
+      );
     }
     if (!script.command || typeof script.command !== 'string' || script.command.trim() === '') {
-      throw new Error(`Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'command' must be a non-empty string.`);
+      throw new Error(
+        `Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'command' must be a non-empty string.`
+      );
     }
-    if (!script.description || typeof script.description !== 'string' || script.description.trim() === '') {
-      throw new Error(`Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'description' must be a non-empty string.`);
+    if (
+      !script.description ||
+      typeof script.description !== 'string' ||
+      script.description.trim() === ''
+    ) {
+      throw new Error(
+        `Auditor [${options.id}] defines an invalid script requirement for '${script.name}': 'description' must be a non-empty string.`
+      );
     }
   }
 }
 
-function validateAuditorThirdPartyToolContract<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
+function validateAuditorThirdPartyToolContract<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>
+): void {
   if (typeof options.usesThirdPartyTool !== 'boolean') {
     throw new Error(
       `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'usesThirdPartyTool' as a boolean (true or false). ` +
-      `Every sub-auditor and host extension must explicitly declare whether it delegates to third-party tools or binaries.`
+        `Every sub-auditor and host extension must explicitly declare whether it delegates to third-party tools or binaries.`
     );
   }
 
@@ -1282,7 +1494,7 @@ function validateAuditorThirdPartyToolContract<TRuleId extends string>(options: 
     if (!options.thirdPartyToolPolicy || typeof options.thirdPartyToolPolicy !== 'object') {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: true but failed to provide mandatory 'thirdPartyToolPolicy'. ` +
-        `Every suite using third-party tools must declare what happens on failure or when output cannot be parsed.`
+          `Every suite using third-party tools must declare what happens on failure or when output cannot be parsed.`
       );
     }
     const policy = options.thirdPartyToolPolicy;
@@ -1312,13 +1524,16 @@ function validateAuditorThirdPartyToolContract<TRuleId extends string>(options: 
     if (options.thirdPartyToolPolicy !== undefined) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. ` +
-        `Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`
+          `Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`
       );
     }
   }
 }
 
-function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>, effectiveCapabilities: AuditorCapabilities): void {
+function validateAuditorOptions<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>,
+  effectiveCapabilities: AuditorCapabilities
+): void {
   validateAuditorIdentity(options);
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
@@ -1341,12 +1556,17 @@ function validateAuditorRuleDescriptions<TRuleId extends string>(
 ): void {
   if (!options.ruleDescriptions) return;
 
-  const declaredRules: readonly string[] = options.ruleIds && options.ruleIds.length > 0 ? options.ruleIds : Object.keys(options.ruleDescriptions);
+  const declaredRules: readonly string[] =
+    options.ruleIds && options.ruleIds.length > 0
+      ? options.ruleIds
+      : Object.keys(options.ruleDescriptions);
   for (const rawRuleId of declaredRules) {
     const ruleId = rawRuleId as TRuleId;
     const desc = options.ruleDescriptions[ruleId];
     if (!desc || typeof desc !== 'string' || !desc.trim()) {
-      throw new Error(`Auditor [${options.id}] is missing a rule description for rule '${ruleId}'.`);
+      throw new Error(
+        `Auditor [${options.id}] is missing a rule description for rule '${ruleId}'.`
+      );
     }
     const formatted = formatFn(ruleId, desc);
     if (formatted.length > MAX_AUDITOR_DESCRIPTION_LENGTH || formatted.includes('\n')) {
@@ -1462,11 +1682,14 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
    * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
    * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
    */
-  public async runSubAuditorsBatch(ruleIds: readonly TRuleId[], _action: () => Promise<void> | void): Promise<void> {
+  public async runSubAuditorsBatch(
+    ruleIds: readonly TRuleId[],
+    _action: () => Promise<void> | void
+  ): Promise<void> {
     throw new Error(
       `[BaseAuditor] 'runSubAuditorsBatch' is strictly prohibited under the Universal Empirical Individual Timing Contract. ` +
-      `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
-      `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
+        `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
+        `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
     );
   }
 
@@ -1477,8 +1700,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public runSubAuditorsBatchSync(ruleIds: readonly TRuleId[], _action: () => void): void {
     throw new Error(
       `[BaseAuditor] 'runSubAuditorsBatchSync' is strictly prohibited under the Universal Empirical Individual Timing Contract. ` +
-      `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
-      `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
+        `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
+        `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
     );
   }
 
@@ -1496,21 +1719,28 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
    * Resolves the active speed ceiling (`maxSpeed`) and optional exact speed filter (`onlySpeed`)
    * from environment variables or CLI arguments.
    */
-  public getExecutionSpeedOptions(): { maxSpeed: AuditExecutionSpeed; onlySpeed?: AuditExecutionSpeed; isSpeedSpecified?: boolean } {
+  public getExecutionSpeedOptions(): {
+    maxSpeed: AuditExecutionSpeed;
+    onlySpeed?: AuditExecutionSpeed;
+    isSpeedSpecified?: boolean;
+  } {
     const rawValues = this.context.values as Record<string, unknown> | undefined;
-    const rawOnly = (rawValues?.['only-speed'] as string | undefined) || process.env.AUDITOR_ONLY_SPEED;
-    const onlySpeed = (rawOnly && AUDIT_EXECUTION_SPEEDS.some(s => s === rawOnly))
-      ? (rawOnly as AuditExecutionSpeed)
-      : undefined;
+    const rawOnly =
+      (rawValues?.['only-speed'] as string | undefined) || process.env.AUDITOR_ONLY_SPEED;
+    const onlySpeed =
+      rawOnly && AUDIT_EXECUTION_SPEEDS.some((s) => s === rawOnly)
+        ? (rawOnly as AuditExecutionSpeed)
+        : undefined;
 
     const rawSpeed = (rawValues?.speed as string | undefined) || process.env.AUDITOR_SPEED;
-    if (rawSpeed && AUDIT_EXECUTION_SPEEDS.some(s => s === rawSpeed)) {
+    if (rawSpeed && AUDIT_EXECUTION_SPEEDS.some((s) => s === rawSpeed)) {
       return { maxSpeed: rawSpeed as AuditExecutionSpeed, onlySpeed, isSpeedSpecified: true };
     }
 
     const preset = process.env.AUDITOR_PRESET;
     if (preset === 'lint') return { maxSpeed: 'light', onlySpeed, isSpeedSpecified: true };
-    if (preset === 'full' || preset === 'precommit') return { maxSpeed: 'full', onlySpeed, isSpeedSpecified: true };
+    if (preset === 'full' || preset === 'precommit')
+      return { maxSpeed: 'full', onlySpeed, isSpeedSpecified: true };
     if (preset === 'critical') return { maxSpeed: 'light', onlySpeed, isSpeedSpecified: true };
     return { maxSpeed: 'heavy', onlySpeed, isSpeedSpecified: Boolean(onlySpeed) };
   }
@@ -1568,7 +1798,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       }
     }
 
-    return resolveEffectiveSpeed(this.capabilities.speed, speedOpts) ?? speedOpts.onlySpeed ?? speedOpts.maxSpeed;
+    return (
+      resolveEffectiveSpeed(this.capabilities.speed, speedOpts) ??
+      speedOpts.onlySpeed ??
+      speedOpts.maxSpeed
+    );
   }
 
   /**
@@ -1592,7 +1826,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     return this.resolveRuleEffectiveSpeed(ruleId) !== null;
   }
 
-  private isDualOrTieredProfile<TArgs>(val: unknown): val is DualCommandProfile<TArgs> | TieredCommandProfile<TArgs> {
+  private isDualOrTieredProfile<TArgs>(
+    val: unknown
+  ): val is DualCommandProfile<TArgs> | TieredCommandProfile<TArgs> {
     return typeof val === 'object' && val !== null && 'command' in val;
   }
 
@@ -1611,7 +1847,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     if (previousTier !== undefined) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${this.id}]: El comando '${profile.command}' ya fue resuelto/ejecutado con perfil '${previousTier}'. ` +
-        `Ejecutar o resolver múltiples variantes de velocidad del MISMO comando en la misma corrida está estrictamente prohibido.`
+          `Ejecutar o resolver múltiples variantes de velocidad del MISMO comando en la misma corrida está estrictamente prohibido.`
       );
     }
     this.executedCommandTiers.set(profile.command, tier);
@@ -1647,32 +1883,47 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     if (options.coverage) return options.coverage;
     if (options.roots !== undefined) {
       const targetRoots = options.roots.length > 0 ? options.roots : getEffectiveScannableRoots();
-      return deriveCoverageFromRoots(targetRoots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS);
+      return deriveCoverageFromRoots(
+        targetRoots,
+        options.allowedExtensions ?? SCANNABLE_EXTENSIONS
+      );
     }
     if (options.requiredFiles && options.requiredFiles.length > 0) {
-      return deriveCoverageFromRequiredFiles(options.requiredFiles, effectiveProjectRoot, options.allowedExtensions);
+      return deriveCoverageFromRequiredFiles(
+        options.requiredFiles,
+        effectiveProjectRoot,
+        options.allowedExtensions
+      );
     }
     return undefined;
   }
 
-  private resolveEffectiveScripts(options: AuditorOptions<TRuleId>): readonly AuditorPackageScriptRequirement[] {
+  private resolveEffectiveScripts(
+    options: AuditorOptions<TRuleId>
+  ): readonly AuditorPackageScriptRequirement[] {
     if (options.scripts && options.scripts.length > 0) {
       return options.scripts;
     }
     return [
       deriveCanonicalAuditorScript(options.id, options.description, {
         category: options.family,
-        isApplicable: (config) => evaluateSuiteStatus(options.id, config, options.configKey).enabled !== false
+        isApplicable: (config) =>
+          evaluateSuiteStatus(options.id, config, options.configKey).enabled !== false
       })
     ];
   }
 
-  private registerAuditorDependencies(options: AuditorOptions<TRuleId>, effectiveScripts: readonly AuditorPackageScriptRequirement[]): void {
+  private registerAuditorDependencies(
+    options: AuditorOptions<TRuleId>,
+    effectiveScripts: readonly AuditorPackageScriptRequirement[]
+  ): void {
     if (options.gitIgnoreEntries && options.gitIgnoreEntries.length > 0) {
       GitIgnoreRegistry.registerMany(options.gitIgnoreEntries);
     }
     if (options.configFiles && options.configFiles.length > 0) {
-      ConfigFileRegistry.registerMany(options.configFiles as readonly AuditorConfigFileRequirement<string>[]);
+      ConfigFileRegistry.registerMany(
+        options.configFiles as readonly AuditorConfigFileRequirement<string>[]
+      );
     }
     if (effectiveScripts && effectiveScripts.length > 0) {
       PackageScriptRegistry.registerMany(effectiveScripts, options.id);
@@ -1704,7 +1955,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     if (Object.hasOwn(options, 'capabilities')) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] passed redundant 'capabilities' to constructor options. ` +
-        `Suite-level capabilities must NOT be passed directly; define individual 'ruleCapabilities' for each sub-auditor/rule and BaseAuditor will automatically derive suite capabilities.`
+          `Suite-level capabilities must NOT be passed directly; define individual 'ruleCapabilities' for each sub-auditor/rule and BaseAuditor will automatically derive suite capabilities.`
       );
     }
     validateAuditorRuleCapabilities(options);
@@ -1712,7 +1963,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const effectiveCoverage = this.resolveEffectiveCoverage(options, effectiveProjectRoot);
     const effectiveScripts = this.resolveEffectiveScripts(options);
     const effectiveCapabilities = deriveSuiteCapabilities(options.ruleCapabilities);
-    validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts }, effectiveCapabilities);
+    validateAuditorOptions(
+      { ...options, coverage: effectiveCoverage, scripts: effectiveScripts },
+      effectiveCapabilities
+    );
 
     this.ruleCapabilities = options.ruleCapabilities;
     this.capabilities = effectiveCapabilities;
@@ -1740,14 +1994,16 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
     this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
-    this.unignoreDirs = options.unignoreDirs ?? (options.family === 'documentation' ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
+    this.unignoreDirs =
+      options.unignoreDirs ??
+      (options.family === 'documentation' ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
     this.requiredFiles = options.requiredFiles ?? [];
     this.projectRoot = effectiveProjectRoot;
     this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage!);
 
     const configFixableRules = (this.configFiles ?? [])
-      .filter(c => Boolean(c.ruleId && c.generateDefaultContent))
-      .map(c => c.ruleId as TRuleId);
+      .filter((c) => Boolean(c.ruleId && c.generateDefaultContent))
+      .map((c) => c.ruleId as TRuleId);
 
     this.fixableRuleIds = new Set<TRuleId>([
       ...(options.fixableRuleIds ?? []),
@@ -1809,10 +2065,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   /** Synchronous variant for inline invariant evaluation. */
-  public evaluateRuleSync(
-    ruleId: TRuleId,
-    evaluateFn: () => void
-  ): void {
+  public evaluateRuleSync(ruleId: TRuleId, evaluateFn: () => void): void {
     this.markRuleEvaluated(ruleId);
     const start = performance.now();
     try {
@@ -1862,7 +2115,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
    * Enforces the Loud Failure Mandate under AGENTS.md.
    */
   protected recordRuleEvaluation(ruleId: string): never {
-    throw new Error(`[BaseAuditor]: Method 'recordRuleEvaluation' is obsolete and was removed in v4+. Use 'this.markRuleEvaluated("${ruleId}")' instead.`);
+    throw new Error(
+      `[BaseAuditor]: Method 'recordRuleEvaluation' is obsolete and was removed in v4+. Use 'this.markRuleEvaluated("${ruleId}")' instead.`
+    );
   }
 
   /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
@@ -1908,19 +2163,22 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         this.coverageRecorder.markRuleEvaluated(ruleId);
       }
     }
-    await writeCoverageLedger(this.projectRoot, this.coverageRecorder.toLedger({
-      runId,
-      suiteId: this.id,
-      skipped: this.isSkipped,
-      ruleIds: this.getRuleCatalog()
-    }));
+    await writeCoverageLedger(
+      this.projectRoot,
+      this.coverageRecorder.toLedger({
+        runId,
+        suiteId: this.id,
+        skipped: this.isSkipped,
+        ruleIds: this.getRuleCatalog()
+      })
+    );
   }
 
   public getSubAuditors(): readonly SubAuditorStep[] {
     if (this.explicitSubAuditors && this.explicitSubAuditors.length > 0) {
       return this.explicitSubAuditors;
     }
-    return this.ruleIds.map(ruleId => ({
+    return this.ruleIds.map((ruleId) => ({
       id: ruleId,
       name: this.formatRuleDescription(ruleId),
       description: this.ruleDescriptions?.[ruleId]
@@ -1928,7 +2186,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   private resolveSubAuditorStatus(
-    result: number | 'passed' | 'warning' | 'failed' | string,
+    result: number | string,
     count: number,
     errorsCount: number,
     warningsCount: number
@@ -1938,7 +2196,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     return 'passed';
   }
 
-  private formatSubAuditorBadge(result: number | 'passed' | 'warning' | 'failed' | string): string {
+  private formatSubAuditorBadge(result: number | string): string {
     if (typeof result === 'number') {
       return result > 0 ? ` [🐛 ${result}]` : '';
     }
@@ -1949,20 +2207,26 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     stepNumber: number,
     totalSteps: number,
     name: string,
-    result: number | 'passed' | 'warning' | 'failed' | string,
+    result: number | string,
     detail?: string,
     counts?: { errors?: number; warnings?: number },
     durationMs?: number,
     speed?: AuditExecutionSpeed
   ): void {
-    if (!speed || !AUDIT_EXECUTION_SPEEDS.some(s => s === speed)) {
+    if (!speed || !AUDIT_EXECUTION_SPEEDS.some((s) => s === speed)) {
       throw new Error(
-        `[${this.id}] Sub-auditor step ${stepNumber} ('${name}') logged without mandatory execution speed (${AUDIT_EXECUTION_SPEEDS.map(s => `'${s}'`).join(' | ')}). ` +
-        `All sub-auditors must strictly declare their speed.`
+        `[${this.id}] Sub-auditor step ${stepNumber} ('${name}') logged without mandatory execution speed (${AUDIT_EXECUTION_SPEEDS.map((s) => `'${s}'`).join(' | ')}). ` +
+          `All sub-auditors must strictly declare their speed.`
       );
     }
     const count = typeof result === 'number' ? result : 0;
-    const errorsCount = counts?.errors ?? (typeof result === 'number' && result > 0 ? (counts?.warnings !== undefined ? 0 : result) : 0);
+    const errorsCount =
+      counts?.errors ??
+      (typeof result === 'number' && result > 0
+        ? counts?.warnings !== undefined
+          ? 0
+          : result
+        : 0);
     const warningsCount = counts?.warnings ?? 0;
     const badge = this.formatSubAuditorBadge(result);
     const speedBadge = speed === 'light' ? ' 🐇' : speed === 'heavy' ? ' 🐢' : ' 🐘';
@@ -2007,15 +2271,17 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public getFixableFindings(): readonly AuditFinding[] {
-    return this.context.getFindings().filter(f => f.fixable === true);
+    return this.context.getFindings().filter((f) => f.fixable === true);
   }
 
   public getFixableErrors(): number {
-    return this.context.getFindings().filter(f => f.severity === 'error' && f.fixable === true).length;
+    return this.context.getFindings().filter((f) => f.severity === 'error' && f.fixable === true)
+      .length;
   }
 
   public getFixableWarnings(): number {
-    return this.context.getFindings().filter(f => f.severity === 'warning' && f.fixable === true).length;
+    return this.context.getFindings().filter((f) => f.severity === 'warning' && f.fixable === true)
+      .length;
   }
 
   public static countFixableFindings(findings: readonly AuditFinding[]): FixableFindingCounts {
@@ -2059,7 +2325,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     const current = this.countsByRule.get(v.ruleId) ?? 0;
     this.countsByRule.set(v.ruleId, current + 1);
-    const isFixable = v.fixable !== undefined ? Boolean(v.fixable) : this.fixableRuleIds.has(v.ruleId);
+    const isFixable =
+      v.fixable !== undefined ? Boolean(v.fixable) : this.fixableRuleIds.has(v.ruleId);
 
     if (v.severity === 'error') {
       const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
@@ -2079,9 +2346,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
     const normalizedFile = targetFile
-      ? (path.isAbsolute(targetFile)
-          ? path.relative(this.projectRoot, targetFile).replace(/\\/g, '/')
-          : targetFile.replace(/\\/g, '/'))
+      ? path.isAbsolute(targetFile)
+        ? path.relative(this.projectRoot, targetFile).replace(/\\/g, '/')
+        : targetFile.replace(/\\/g, '/')
       : targetFile;
 
     const targetCol = v.col ?? v.column;
@@ -2124,13 +2391,21 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public isLineIgnored(line: string, customTokens: readonly string[] = []): boolean {
-    const baseTokens = ['domain-ok', 'string-ok', 'test-ok', 'fallow-ignore-next-line', ...customTokens];
+    const baseTokens = [
+      'domain-ok',
+      'string-ok',
+      'test-ok',
+      'fallow-ignore-next-line',
+      ...customTokens
+    ];
     const pattern = new RegExp(`(?:--|\\/\\/|<!--)\\s*(?:${baseTokens.join('|')})\\b`, 'i');
     return pattern.test(line);
   }
 
   protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean {
-    return hatches.some(h => line.includes(`// ${h}`) || line.includes(`/* ${h}`) || line.includes(`<!-- ${h}`));
+    return hatches.some(
+      (h) => line.includes(`// ${h}`) || line.includes(`/* ${h}`) || line.includes(`<!-- ${h}`)
+    );
   }
 
   public isFixActive(): boolean {
@@ -2153,9 +2428,10 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
    * Returns the absolute path of the first existing candidate, or null if none exist.
    */
   public resolveConfigFile(requirement: AuditorConfigFileRequirement<TRuleId>): string | null {
-    const candidates = requirement.candidateFiles && requirement.candidateFiles.length > 0
-      ? requirement.candidateFiles
-      : [requirement.file];
+    const candidates =
+      requirement.candidateFiles && requirement.candidateFiles.length > 0
+        ? requirement.candidateFiles
+        : [requirement.file];
 
     for (const candidate of candidates) {
       const fullPath = path.resolve(this.projectRoot, candidate);
@@ -2165,7 +2441,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
     return null;
   }
-
 
   private async scaffoldDefaultConfigFile(
     requirement: AuditorConfigFileRequirement<TRuleId>,
@@ -2198,10 +2473,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       packageName: this.packageName,
       config
     };
-    const message = typeof requirement.customMissingMessage === 'function'
-      ? requirement.customMissingMessage(fixCtx, requirement.file)
-      : (requirement.customMissingMessage ??
-        `No se encontró el archivo de configuración requerido '${requirement.file}' (${requirement.description}). Ejecuta con --fix para inicializarlo.`);
+    const message =
+      typeof requirement.customMissingMessage === 'function'
+        ? requirement.customMissingMessage(fixCtx, requirement.file)
+        : (requirement.customMissingMessage ??
+          `No se encontró el archivo de configuración requerido '${requirement.file}' (${requirement.description}). Ejecuta con --fix para inicializarlo.`);
     const reportedFile = requirement.customMissingFile
       ? requirement.customMissingFile(fixCtx, requirement.file)
       : requirement.file;
@@ -2251,7 +2527,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       const result = await this.ensureConfigFile(requirement);
       if (result === null) {
         const config = getAuditConfig(this.projectRoot);
-        const isApp = requirement.isApplicable ? requirement.isApplicable(config, this.projectRoot) : true;
+        const isApp = requirement.isApplicable
+          ? requirement.isApplicable(config, this.projectRoot)
+          : true;
         if (isApp) {
           allSatisfied = false;
         }
@@ -2355,29 +2633,37 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       if (this.skipReason) {
         this.context.setMetric('Skip-Reason', this.skipReason);
       }
-      return this.context.finish({
-        'Files Scanned': 0
-      }, {
-        status: 'skipped',
-        icon: this.icon,
-        subAuditors: [{
-          id: `${this.id}_skipped`,
-          name: skipMessage,
-          status: 'passed',
-          count: 0,
-          detail: 'skipped',
-          speed: 'light'
-        }]
-      });
+      return this.context.finish(
+        {
+          'Files Scanned': 0
+        },
+        {
+          status: 'skipped',
+          icon: this.icon,
+          subAuditors: [
+            {
+              id: `${this.id}_skipped`,
+              name: skipMessage,
+              status: 'passed',
+              count: 0,
+              detail: 'skipped',
+              speed: 'light'
+            }
+          ]
+        }
+      );
     }
 
     this.ensureSubAuditorsLogged();
-    return this.context.finish({
-      'Files Scanned': this.filesScannedCount
-    }, {
-      icon: this.icon,
-      subAuditors: this.subAuditorReports.length > 0 ? [...this.subAuditorReports] : undefined
-    });
+    return this.context.finish(
+      {
+        'Files Scanned': this.filesScannedCount
+      },
+      {
+        icon: this.icon,
+        subAuditors: this.subAuditorReports.length > 0 ? [...this.subAuditorReports] : undefined
+      }
+    );
   }
 
   protected ensureSubAuditorsLogged(): void {
@@ -2391,7 +2677,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       const errorsCount = this.errorsByRule.get(sub.id as TRuleId) ?? 0;
       const warningsCount = this.warningsByRule.get(sub.id as TRuleId) ?? 0;
       let durationMs = this.durationsByRule.get(sub.id as TRuleId);
-      if (durationMs === undefined && this.ruleIds.length === 1 && this.auditExecutionDurationMs !== undefined) {
+      if (
+        durationMs === undefined &&
+        this.ruleIds.length === 1 &&
+        this.auditExecutionDurationMs !== undefined
+      ) {
         durationMs = this.auditExecutionDurationMs;
       }
       const empiricalDurationMs = durationMs ?? 0;
@@ -2401,7 +2691,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       if (!ruleCap || !ruleCap.speed) {
         throw new Error(
           `[${this.id}] Missing rule capability or undefined 'speed' for sub-auditor '${sub.id}'. ` +
-          `All sub-auditors and rules must strictly declare their execution speed contract.`
+            `All sub-auditors and rules must strictly declare their execution speed contract.`
         );
       }
       const speed: AuditExecutionSpeed =
@@ -2440,7 +2730,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
   }
 
-  public setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string) => void): void {
+  public setStepLogger(
+    logger: (stepNumber: number, totalSteps: number, description: string) => void
+  ): void {
     this.context.setStepLogger?.(logger);
   }
 
@@ -2468,7 +2760,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       icon: this.icon,
       description: this.description,
       capabilities: {
-        speed: Array.isArray(this.capabilities.speed) ? [...this.capabilities.speed] : this.capabilities.speed,
+        speed: Array.isArray(this.capabilities.speed)
+          ? [...this.capabilities.speed]
+          : this.capabilities.speed,
         phase: this.capabilities.phase,
         fix: this.capabilities.fix,
         md: this.capabilities.md,
@@ -2478,16 +2772,22 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       },
       rules: rulesRecord,
       remediations: this.ruleRemediations ? { ...this.ruleRemediations } : undefined,
-      fixableRules: this.getFixableRuleIds().map(r => String(r)),
+      fixableRules: this.getFixableRuleIds().map((r) => String(r)),
       configKey: this.configKey,
       defaultConfig: { ...this.defaultConfig },
       criticalConfig: {
         ...(this.criticalConfig.rationale ? { rationale: this.criticalConfig.rationale } : {}),
-        ...(this.criticalConfig.requiredMinimums ? { requiredMinimums: this.criticalConfig.requiredMinimums } : {}),
-        ...(this.criticalConfig.forbiddenOverrides ? { forbiddenOverrides: this.criticalConfig.forbiddenOverrides } : {})
+        ...(this.criticalConfig.requiredMinimums
+          ? { requiredMinimums: this.criticalConfig.requiredMinimums }
+          : {}),
+        ...(this.criticalConfig.forbiddenOverrides
+          ? { forbiddenOverrides: this.criticalConfig.forbiddenOverrides }
+          : {})
       },
       usesThirdPartyTool: this.usesThirdPartyTool,
-      thirdPartyToolPolicy: this.thirdPartyToolPolicy ? { ...this.thirdPartyToolPolicy } : undefined,
+      thirdPartyToolPolicy: this.thirdPartyToolPolicy
+        ? { ...this.thirdPartyToolPolicy }
+        : undefined,
       scripts: [...this.scripts]
     };
   }
@@ -2501,7 +2801,12 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     files: readonly string[],
     handlers: ReadonlyArray<{
       ruleId: TRuleId;
-      scan: (file: string, content: string, lines: readonly string[], doc: AuditedDocument) => void | Promise<void>;
+      scan: (
+        file: string,
+        content: string,
+        lines: readonly string[],
+        doc: AuditedDocument
+      ) => void | Promise<void>;
     }>
   ): Promise<void> {
     if (files.length === 0 || handlers.length === 0) return;
@@ -2571,8 +2876,13 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
  * Specialized File-Scanning Auditor.
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
-export abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
-  protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>> = new Map();
+export abstract class FileScanAuditor<
+  TRuleId extends string = string
+> extends BaseAuditor<TRuleId> {
+  protected readonly declaredFileSubAuditors: Map<
+    TRuleId,
+    (doc: AuditedDocument) => void | Promise<void>
+  > = new Map();
   protected readonly exemptPaths: readonly string[];
 
   /**
@@ -2604,9 +2914,17 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
         throw err;
       }
     }
-    const singleRuleId = (this.declaredFileSubAuditors.size === 0 && this.ruleIds.length === 1) ? this.ruleIds[0] : undefined;
+    const singleRuleId =
+      this.declaredFileSubAuditors.size === 0 && this.ruleIds.length === 1
+        ? this.ruleIds[0]
+        : undefined;
     const startScan = singleRuleId ? performance.now() : 0;
-    const scanFileRes = this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : undefined, doc);
+    const scanFileRes = this.scanFile(
+      doc.relPath,
+      doc.rawContent,
+      this.requiresAst ? doc.getAst() : undefined,
+      doc
+    );
     if (singleRuleId) {
       if (scanFileRes instanceof Promise) {
         pending.push(
@@ -2628,12 +2946,22 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
   /**
    * Helper for in-memory testing of file scanning logic without touching the filesystem.
    */
-  public testScanFile(relPath: string, content: string, _sourceFile?: ts.SourceFile): void | Promise<void> {
+  public testScanFile(
+    relPath: string,
+    content: string,
+    _sourceFile?: ts.SourceFile
+  ): void | Promise<void> {
     const doc = new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
-    const prevTotalEvals = this.getRuleCatalog().reduce((acc, r) => acc + this.getEvaluations(r), 0);
+    const prevTotalEvals = this.getRuleCatalog().reduce(
+      (acc, r) => acc + this.getEvaluations(r),
+      0
+    );
     const finishScan = (): void => {
       this.recordScanned(relPath);
-      const newTotalEvals = this.getRuleCatalog().reduce((acc, r) => acc + this.getEvaluations(r), 0);
+      const newTotalEvals = this.getRuleCatalog().reduce(
+        (acc, r) => acc + this.getEvaluations(r),
+        0
+      );
       if (newTotalEvals === prevTotalEvals) {
         for (const ruleId of this.getRuleCatalog()) {
           this.markRuleEvaluated(ruleId);
@@ -2651,7 +2979,10 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
    * Declares a file-scoped sub-auditor tied to a declared rule.
    * The superclass executes the handler for each audited file and empirically accumulates duration.
    */
-  public declareFileSubAuditor(ruleId: TRuleId, handler: (doc: AuditedDocument) => void | Promise<void>): void {
+  public declareFileSubAuditor(
+    ruleId: TRuleId,
+    handler: (doc: AuditedDocument) => void | Promise<void>
+  ): void {
     if (!this.ruleIds.includes(ruleId)) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${this.id}] attempted to declare file sub-auditor for '${ruleId}', but that rule is not registered in 'ruleIds'.`
@@ -2696,14 +3027,20 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
   /**
    * Overridable file scanning method for sub-auditors.
    */
-  protected scanFile(_relPath: string, _content: string, _sourceFile?: ts.SourceFile, _doc?: AuditedDocument): void | Promise<void> {
+  protected scanFile(
+    _relPath: string,
+    _content: string,
+    _sourceFile?: ts.SourceFile,
+    _doc?: AuditedDocument
+  ): void | Promise<void> {
     // Can be overridden by subclasses
   }
 
   constructor(options: AuditorOptions<TRuleId>) {
-    super(options.coverage || options.roots !== undefined
-      ? options
-      : { ...options, roots: getEffectiveScannableRoots() }
+    super(
+      options.coverage || options.roots !== undefined
+        ? options
+        : { ...options, roots: getEffectiveScannableRoots() }
     );
     this.exemptPaths = options.exemptPaths ?? [];
   }
@@ -2771,7 +3108,10 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
     try {
       const skipComments = options.skipComments ?? true;
       const skipStrings = options.skipStrings ?? true;
-      const regex = new RegExp(options.regex.source, options.regex.flags.includes('g') ? options.regex.flags : options.regex.flags + 'g');
+      const regex = new RegExp(
+        options.regex.source,
+        options.regex.flags.includes('g') ? options.regex.flags : options.regex.flags + 'g'
+      );
       let m: RegExpExecArray | null;
 
       while ((m = regex.exec(doc.rawContent)) !== null) {
@@ -2794,7 +3134,8 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
           if (shouldContinue === false) continue;
         }
 
-        const msg = typeof options.message === 'function' ? options.message(m, pos) : options.message;
+        const msg =
+          typeof options.message === 'function' ? options.message(m, pos) : options.message;
         this.addViolation({
           ruleId: options.ruleId,
           filePath: doc.relPath,
@@ -2843,7 +3184,10 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
         if (filter && !filter(match, line)) {
           continue;
         }
-        const msg = typeof message === 'function' ? message(match, line) : (message ?? `Violación de regla ${ruleId}`);
+        const msg =
+          typeof message === 'function'
+            ? message(match, line)
+            : (message ?? `Violación de regla ${ruleId}`);
         this.addViolation({
           ruleId,
           severity,
@@ -2859,7 +3203,9 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
     }
   }
 
-  private async resolveEffectiveAst(astContext?: SharedAstContext): Promise<SharedAstContext | undefined> {
+  private async resolveEffectiveAst(
+    astContext?: SharedAstContext
+  ): Promise<SharedAstContext | undefined> {
     if (astContext || !this.requiresAst) return astContext;
     const { SharedAstContext } = await import('./astContext.ts');
     return new SharedAstContext();
@@ -2914,4 +3260,3 @@ export abstract class FileScanAuditor<TRuleId extends string = string> extends B
     }
   }
 }
-

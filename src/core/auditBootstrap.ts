@@ -43,6 +43,7 @@ import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from './giti
 import { getPackageJson } from './packageJson.ts';
 import { AUDITOR_VERSION } from './version.ts';
 import { ensureNpmrcAllowGit } from './npmrcAllowGit.ts';
+import { repairVitePlusProject } from './vitePlusConfigSync.ts';
 
 export interface BootstrapResult {
   readonly configCreated: boolean;
@@ -71,7 +72,9 @@ const EMPTY_BOOTSTRAP_RESULT: BootstrapResult = {
 };
 
 function handleLegacyConfigMigration(projectRoot: string): void {
-  const legacyFile = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(projectRoot, f)));
+  const legacyFile = LEGACY_ROOT_CONFIG_FILES.find((f) =>
+    fs.existsSync(path.resolve(projectRoot, f))
+  );
   if (!legacyFile) return;
 
   try {
@@ -133,9 +136,8 @@ async function ensureMissingSectionsInjected(
     const sectionsToInsert: Record<string, Record<string, unknown>> = {};
 
     for (const [rootKey, entry] of missing.entries()) {
-      sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0
-        ? entry.defaultConfig
-        : { enabled: true };
+      sectionsToInsert[rootKey] =
+        Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
       injectedKeys.push(rootKey);
     }
 
@@ -168,7 +170,7 @@ async function ensureGitIgnoreSynchronized(projectRoot: string): Promise<boolean
       // catch-ok: non-fatal if config cannot be loaded yet
     }
 
-    const applicable = requirements.filter(req => {
+    const applicable = requirements.filter((req) => {
       if (!req.isApplicable) return true;
       return activeConfig ? req.isApplicable(activeConfig) : true;
     });
@@ -178,14 +180,19 @@ async function ensureGitIgnoreSynchronized(projectRoot: string): Promise<boolean
     const missing = findMissingGitIgnoreRequirements(projectRoot, gitignorePath, applicable);
     if (missing.length === 0) return false;
 
-    appendGitIgnoreEntries(gitignorePath, missing.map(e => e.pattern));
+    appendGitIgnoreEntries(
+      gitignorePath,
+      missing.map((e) => e.pattern)
+    );
     return true;
   } catch {
     return false;
   }
 }
 
-export async function ensureProjectBootstrapped(options: BootstrapOptions = {}): Promise<BootstrapResult> {
+export async function ensureProjectBootstrapped(
+  options: BootstrapOptions = {}
+): Promise<BootstrapResult> {
   const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
   const isCi = process.env.CI === 'true';
 
@@ -219,11 +226,17 @@ export async function ensureProjectBootstrapped(options: BootstrapOptions = {}):
     }
 
     const rawConfig = (activeConfig?._rawConfig ?? {}) as Record<string, unknown>;
-    previousVersion = typeof rawConfig.auditorVersion === 'string' ? rawConfig.auditorVersion : undefined;
+    previousVersion =
+      typeof rawConfig.auditorVersion === 'string' ? rawConfig.auditorVersion : undefined;
 
     const versionDiverged = previousVersion !== AUDITOR_VERSION;
 
-    sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
+    sectionsInjected = await ensureMissingSectionsInjected(
+      projectRoot,
+      configPath,
+      jsonConfigPath,
+      tasks
+    );
 
     // Enforce critical mandatory configurations without altering non-violating existing settings
     await enforceCriticalConfigurations(projectRoot, tasks);
@@ -238,6 +251,7 @@ export async function ensureProjectBootstrapped(options: BootstrapOptions = {}):
   }
 
   ensureNpmrcAllowGit(projectRoot);
+  repairVitePlusProject(projectRoot);
   const agentsRegistered = ensureAgentSkillRegistered(projectRoot);
   const gitIgnoreUpdated = await ensureGitIgnoreSynchronized(projectRoot);
 

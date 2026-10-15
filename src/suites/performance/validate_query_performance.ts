@@ -1,5 +1,10 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  LIGHT_RULE_CAPABILITIES
+} from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath, isPathExempt } from '../../core/safePath.ts';
@@ -29,11 +34,8 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
     const config = getAuditConfig(effectiveRoot);
     const excludeMigrations = config.queryPerformance?.excludeMigrationsDir !== false;
     const migrationsDir = config.paths?.migrationsDir;
-    const migrationRoots = (!excludeMigrations && migrationsDir) ? [migrationsDir] : [];
-    const targetRoots = options.roots ?? [
-      ...(config.paths?.srcRoots ?? []),
-      ...migrationRoots
-    ];
+    const migrationRoots = !excludeMigrations && migrationsDir ? [migrationsDir] : [];
+    const targetRoots = options.roots ?? [...(config.paths?.srcRoots ?? []), ...migrationRoots];
     super({
       usesThirdPartyTool: false,
       id: 'validate_query_performance',
@@ -57,14 +59,23 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
         'unindexed-order-by': 'Paginación con OFFSET alto'
       },
       ruleRemediations: {
-        'unindexed-foreign-keys': 'Guía de diagnóstico y remediación para unindexed-foreign-keys. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'select-star-in-queries': 'Guía de diagnóstico y remediación para select-star-in-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'unpaginated-queries': 'Guía de diagnóstico y remediación para unpaginated-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'n-plus-one-patterns': 'Guía de diagnóstico y remediación para n-plus-one-patterns. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'heavy-count-queries': 'Guía de diagnóstico y remediación para heavy-count-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'unindexed-order-by': 'Guía de diagnóstico y remediación para unindexed-order-by. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unindexed-foreign-keys':
+          'Guía de diagnóstico y remediación para unindexed-foreign-keys. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'select-star-in-queries':
+          'Guía de diagnóstico y remediación para select-star-in-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unpaginated-queries':
+          'Guía de diagnóstico y remediación para unpaginated-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'n-plus-one-patterns':
+          'Guía de diagnóstico y remediación para n-plus-one-patterns. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'heavy-count-queries':
+          'Guía de diagnóstico y remediación para heavy-count-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unindexed-order-by':
+          'Guía de diagnóstico y remediación para unindexed-order-by. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
-      ruleCapabilities: createUniformRuleCapabilities(QUERY_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(
+        QUERY_PERFORMANCE_RULES,
+        LIGHT_RULE_CAPABILITIES
+      ),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.queryPerformance?.exemptPaths
@@ -84,7 +95,10 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
       this.markSkipped('Persistencia configurada en none');
       for (const ruleId of this.ruleIds) {
         this.runSubAuditorSync(ruleId, () => {
-          this.markRuleNotApplicable(ruleId, 'Persistencia configurada en none; no aplica análisis de base de datos');
+          this.markRuleNotApplicable(
+            ruleId,
+            'Persistencia configurada en none; no aplica análisis de base de datos'
+          );
         });
       }
       return;
@@ -94,7 +108,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   protected override scanFile(relPath: string, content: string): void {
-
     this.runSubAuditorSync('unindexed-foreign-keys', () => {
       this.auditUnindexedForeignKeys(relPath, content);
     });
@@ -125,7 +138,10 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
     while ((match = fkInlineRegex.exec(content)) !== null) {
       const col = match[1]!;
       // Check if an index exists for this column in the same file or migration
-      const hasIndex = new RegExp(`CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+[^;]*\\([^)]*\\b${col}\\b[^)]*\\)`, 'i').test(content);
+      const hasIndex = new RegExp(
+        `CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+[^;]*\\([^)]*\\b${col}\\b[^)]*\\)`,
+        'i'
+      ).test(content);
       if (!hasIndex) {
         const line = this.getLineNumber(content, match.index);
         this.addViolation({
@@ -186,7 +202,8 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
     while ((match = queryRegex.exec(content)) !== null) {
       // Look forward in the chained call expression (up to 200 chars or statement end)
       const statementEnd = content.indexOf(';', match.index);
-      const limitIdx = statementEnd !== -1 ? Math.min(statementEnd, match.index + 250) : match.index + 250;
+      const limitIdx =
+        statementEnd !== -1 ? Math.min(statementEnd, match.index + 250) : match.index + 250;
       const chainSlice = content.slice(match.index, limitIdx);
 
       const isConstrained = /\.(?:limit|range|single|maybeSingle|head|csv)\b/.test(chainSlice);
@@ -195,7 +212,8 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
         this.addViolation({
           ruleId: 'unpaginated-queries',
           severity: 'error',
-          message: 'Consulta a colección de base de datos sin límite (.limit), rango (.range) o selector único (.single)',
+          message:
+            'Consulta a colección de base de datos sin límite (.limit), rango (.range) o selector único (.single)',
           file: relPath,
           line
         });

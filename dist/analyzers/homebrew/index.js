@@ -1,9 +1,5 @@
-/**
- * src/analyzers/homebrew/index.ts
- *
- * Public entrypoint and default registry bootstrap for homebrew detectors.
- */
 import { HomebrewDetectorRegistry } from "./homebrewRegistry.js";
+import { AUDITOR_HOMEBREW_RULES, createLineDetector } from "./homebrewTypes.js";
 import { packageJsonDetector } from "./detectors/packageJsonDetector.js";
 import { vueSfcRegexDetector } from "./detectors/vueSfcRegexDetector.js";
 import { tsAstDetector } from "./detectors/tsAstDetector.js";
@@ -21,7 +17,12 @@ import { unmeasuredRuleDetector } from "./detectors/unmeasuredRuleDetector.js";
 import { redundantRuleEvaluatedDetector } from "./detectors/redundantRuleEvaluatedDetector.js";
 import { thirdPartyToolContractDetector } from "./detectors/thirdPartyToolContractDetector.js";
 import { inefficientFileScanDetector } from "./detectors/inefficientFileScanDetector.js";
-// Auto-register canonical built-in detectors
+//#region src/analyzers/homebrew/index.ts
+/**
+* src/analyzers/homebrew/index.ts
+*
+* Public entrypoint and default registry bootstrap for homebrew detectors.
+*/
 HomebrewDetectorRegistry.register(packageJsonDetector);
 HomebrewDetectorRegistry.register(vueSfcRegexDetector);
 HomebrewDetectorRegistry.register(tsAstDetector);
@@ -39,7 +40,5 @@ HomebrewDetectorRegistry.register(unmeasuredRuleDetector);
 HomebrewDetectorRegistry.register(redundantRuleEvaluatedDetector);
 HomebrewDetectorRegistry.register(thirdPartyToolContractDetector);
 HomebrewDetectorRegistry.register(inefficientFileScanDetector);
-export * from "./homebrewTypes.js";
-export * from "./homebrewRegistry.js";
-export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector, manualStepLoggingDetector, unmeasuredRuleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, inefficientFileScanDetector };
-//# sourceMappingURL=index.js.map
+//#endregion
+export { AUDITOR_HOMEBREW_RULES, HomebrewDetectorRegistry, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, pathContainmentDetector, pathNormalizeDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };

@@ -88,7 +88,7 @@ export function renderMarkdownReport(
 
   const byFamily = groupResultsByFamily(results);
   md += renderMarkdownFamilyTables(byFamily);
-  md += renderMarkdownFindingsTable(results.flatMap(r => r.findings));
+  md += renderMarkdownFindingsTable(results.flatMap((r) => r.findings));
 
   return md;
 }

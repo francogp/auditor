@@ -31,8 +31,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run security suite tests: `npm test -- tests/validate_security_hardening.test.ts`
-- Run general security audit: `node --experimental-strip-types src/cli/audit_full.ts family=security`
+- Run security suite tests: `vp test tests/validate_security_hardening.test.ts` (or `npm test -- tests/validate_security_hardening.test.ts`)
+- Run general security audit: `auditor family=security` (or `npm run auditor -- family=security`)
 
 ## Child DOX Index
 

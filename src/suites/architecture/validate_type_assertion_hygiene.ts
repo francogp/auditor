@@ -12,7 +12,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
@@ -36,8 +36,10 @@ const P_TYPECAST_INLINE_ANY = /\bas\s+any\b/g;
 const P_TYPECAST_ARRAY_ANY_UNKNOWN = /\bas\s+(?:unknown|any)\[\]/g;
 const P_TYPECAST_UNKNOWN = /\bas\s+unknown\s+as\b/g;
 const P_DOUBLE_CAST_DOMAIN_ID = /\bas\s+(?:unknown|any)\s+as\s+[A-Z]\w*Id\b/g;
-const P_BOOLEAN_LITERAL_TYPE_ANNOTATION = /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm;
-const P_FLOATING_PROMISE = /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm;
+const P_BOOLEAN_LITERAL_TYPE_ANNOTATION =
+  /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm;
+const P_FLOATING_PROMISE =
+  /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm;
 const P_TYPECAST_READONLY_STRING_ARRAY = /\bas\s+(?:readonly\s+)?string\[\]/g;
 
 export interface ValidateTypeAssertionHygieneOptions {
@@ -49,7 +51,8 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
   constructor(options?: string | ValidateTypeAssertionHygieneOptions) {
     const rootPath = typeof options === 'string' ? options : options?.projectRoot;
     const cfg = getAuditConfig(rootPath);
-    const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
+    const codeRoots =
+      typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
 
     super({
       usesThirdPartyTool: false,
@@ -59,7 +62,8 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_type_assertion_hygiene',
       name: 'TypeScript Assertion & Strict Typing Hygiene',
@@ -79,11 +83,16 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
         'type-assertion-loose-array': 'Prohibición de casteo a string[] o readonly'
       },
       ruleRemediations: {
-        'type-assertion-zero-any': 'Guía de diagnóstico y remediación para type-assertion-zero-any. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'type-assertion-double-cast': 'Guía de diagnóstico y remediación para type-assertion-double-cast. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'type-assertion-boolean-literal': 'Guía de diagnóstico y remediación para type-assertion-boolean-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'type-assertion-floating-promise': 'Guía de diagnóstico y remediación para type-assertion-floating-promise. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'type-assertion-loose-array': 'Guía de diagnóstico y remediación para type-assertion-loose-array. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-zero-any':
+          'Guía de diagnóstico y remediación para type-assertion-zero-any. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-double-cast':
+          'Guía de diagnóstico y remediación para type-assertion-double-cast. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-boolean-literal':
+          'Guía de diagnóstico y remediación para type-assertion-boolean-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-floating-promise':
+          'Guía de diagnóstico y remediación para type-assertion-floating-promise. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'type-assertion-loose-array':
+          'Guía de diagnóstico y remediación para type-assertion-loose-array. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,
@@ -98,51 +107,124 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
 
   public override async scanFile(filePath: string, content: string): Promise<void> {
     const rel = toPosixRelative(this.projectRoot, filePath);
-    if (isTestFileForCodeAudit(rel, this.projectRoot) || rel.includes('validate_type_assertion_hygiene.ts') || rel.includes('validate_domain_types.ts')) {
+    if (
+      isTestFileForCodeAudit(rel, this.projectRoot) ||
+      rel.includes('validate_type_assertion_hygiene.ts') ||
+      rel.includes('validate_domain_types.ts')
+    ) {
       return;
     }
 
     const lines = content.split('\n');
 
-    // 1. Zero any casts
-    this.scanPattern(content, lines, rel, P_TYPECAST_INLINE_ANY, 'type-assertion-zero-any', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// any-ok:') || line.includes('// type-ok:') || line.includes('// no-domain:') || line.includes('// open-record:')) return false;
-      return true;
-    }, 'Type assertion `as any` degrades type safety — derive domain type or specify precise union');
+    const shouldReportCast = (_match: RegExpExecArray, line: string): boolean =>
+      !line.includes('// domain-ok:') &&
+      !line.includes('// any-ok:') &&
+      !line.includes('// type-ok:') &&
+      !line.includes('// no-domain:') &&
+      !line.includes('// open-record:');
 
-    this.scanPattern(content, lines, rel, P_TYPECAST_ARRAY_ANY_UNKNOWN, 'type-assertion-zero-any', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// any-ok:') || line.includes('// type-ok:') || line.includes('// no-domain:') || line.includes('// open-record:')) return false;
-      return true;
-    }, 'Array typecast `as any[]` or `as unknown[]` degrades type safety');
+    // 1. Zero any casts
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_TYPECAST_INLINE_ANY,
+      'type-assertion-zero-any',
+      shouldReportCast,
+      'Type assertion `as any` degrades type safety — derive domain type or specify precise union'
+    );
+
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_TYPECAST_ARRAY_ANY_UNKNOWN,
+      'type-assertion-zero-any',
+      shouldReportCast,
+      'Array typecast `as any[]` or `as unknown[]` degrades type safety'
+    );
 
     // 2. Double casts
-    this.scanPattern(content, lines, rel, P_TYPECAST_UNKNOWN, 'type-assertion-double-cast', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// cast-ok:') || line.includes('// double-cast-ok:')) return false;
-      return true;
-    }, 'Double type assertion `as unknown as ...` bypasses type checker');
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_TYPECAST_UNKNOWN,
+      'type-assertion-double-cast',
+      (_match, line) => {
+        if (
+          line.includes('// domain-ok:') ||
+          line.includes('// cast-ok:') ||
+          line.includes('// double-cast-ok:')
+        )
+          return false;
+        return true;
+      },
+      'Double type assertion `as unknown as ...` bypasses type checker'
+    );
 
-    this.scanPattern(content, lines, rel, P_DOUBLE_CAST_DOMAIN_ID, 'type-assertion-double-cast', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// cast-ok:')) return false;
-      return true;
-    }, 'Double type assertion `as unknown as [Domain]Id` bypasses type checking');
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_DOUBLE_CAST_DOMAIN_ID,
+      'type-assertion-double-cast',
+      (_match, line) => {
+        if (line.includes('// domain-ok:') || line.includes('// cast-ok:')) return false;
+        return true;
+      },
+      'Double type assertion `as unknown as [Domain]Id` bypasses type checking'
+    );
 
     // 3. Boolean literal annotations
-    this.scanPattern(content, lines, rel, P_BOOLEAN_LITERAL_TYPE_ANNOTATION, 'type-assertion-boolean-literal', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// literal-ok:')) return false;
-      return true;
-    }, 'Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state');
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_BOOLEAN_LITERAL_TYPE_ANNOTATION,
+      'type-assertion-boolean-literal',
+      (_match, line) => {
+        if (line.includes('// domain-ok:') || line.includes('// literal-ok:')) return false;
+        return true;
+      },
+      'Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state'
+    );
 
     // 4. Floating promises
-    this.scanPattern(content, lines, rel, P_FLOATING_PROMISE, 'type-assertion-floating-promise', (_match, line) => {
-      if (line.includes('// promise-ok:') || line.includes('// void-ok:')) return false;
-      return true;
-    }, 'Floating Promise call `...Async()` without await or void — unhandled async execution');
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_FLOATING_PROMISE,
+      'type-assertion-floating-promise',
+      (_match, line) => {
+        if (line.includes('// promise-ok:') || line.includes('// void-ok:')) return false;
+        return true;
+      },
+      'Floating Promise call `...Async()` without await or void — unhandled async execution'
+    );
 
     // 5. Broad array casts
-    this.scanPattern(content, lines, rel, P_TYPECAST_READONLY_STRING_ARRAY, 'type-assertion-loose-array', (_match, line) => {
-      if (line.includes('// domain-ok:') || line.includes('// array-ok:') || line.includes('// no-domain:') || line.includes('// type-ok:') || line.includes('// open-record:')) return false;
-      return true;
-    }, 'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`');
+    this.scanPattern(
+      content,
+      lines,
+      rel,
+      P_TYPECAST_READONLY_STRING_ARRAY,
+      'type-assertion-loose-array',
+      (_match, line) => {
+        if (
+          line.includes('// domain-ok:') ||
+          line.includes('// array-ok:') ||
+          line.includes('// no-domain:') ||
+          line.includes('// type-ok:') ||
+          line.includes('// open-record:')
+        )
+          return false;
+        return true;
+      },
+      'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`'
+    );
   }
 }
 

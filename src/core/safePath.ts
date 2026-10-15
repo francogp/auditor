@@ -1,6 +1,6 @@
 /**
  * src/core/safePath.ts
- * 
+ *
  * Centralized path resolution, sanitization, POSIX conversion, and URL security helper.
  * Prevents directory traversal attacks (CWE-22) and SSRF (CWE-918).
  */
@@ -26,7 +26,9 @@ export function safeResolve(...pathSegments: string[]): string {
   const resolved = path.resolve(...pathSegments.filter(Boolean));
   const rel = path.relative(root, resolved);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error(`Security Violation CWE-${CWE_PATH_TRAVERSAL_ID_TEXT}: Path '${resolved}' escapes project root '${root}'`);
+    throw new Error(
+      `Security Violation CWE-${CWE_PATH_TRAVERSAL_ID_TEXT}: Path '${resolved}' escapes project root '${root}'`
+    );
   }
   return resolved;
 }
@@ -39,13 +41,13 @@ export function safeJoin(...pathSegments: string[]): string {
   return safeResolve(...pathSegments);
 }
 
-
-
 function assertNotLockedSkill(filePath: string): string {
   const resolved = safeResolve(filePath);
   const root = path.resolve(process.cwd());
   if (isLockedSkillPath(resolved, root)) {
-    throw new Error(`Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`);
+    throw new Error(
+      `Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`
+    );
   }
   return resolved;
 }
@@ -77,7 +79,10 @@ export async function safeWriteFile(filePath: string, content: string | Buffer):
 /**
  * Safely reads a file with boundary validation (async).
  */
-export async function safeReadFile(filePath: string, encoding: BufferEncoding = 'utf-8'): Promise<string> {
+export async function safeReadFile(
+  filePath: string,
+  encoding: BufferEncoding = 'utf-8'
+): Promise<string> {
   const resolved = safeResolve(filePath);
   return fs.promises.readFile(resolved, encoding);
 }
@@ -85,15 +90,21 @@ export async function safeReadFile(filePath: string, encoding: BufferEncoding = 
 /**
  * Performs a safe fetch request verifying host against an allowlist (SSRF CWE-918).
  */
-export async function safeFetch(rawUrl: string, options?: RequestInit, allowedHosts?: readonly string[]): Promise<Response> {
+export async function safeFetch(
+  rawUrl: string,
+  options?: RequestInit,
+  allowedHosts?: readonly string[]
+): Promise<Response> {
   const config = getAuditConfig();
   const hosts = allowedHosts ?? config?.persistence?.allowedHosts ?? ['localhost', '127.0.0.1'];
   const parsed = new URL(rawUrl);
   if (parsed.protocol !== 'https:') {
-    throw new Error(`Security Violation CWE-SSRF: Non-HTTPS protocol '${parsed.protocol}' rejected`);
+    throw new Error(
+      `Security Violation CWE-SSRF: Non-HTTPS protocol '${parsed.protocol}' rejected`
+    );
   }
   const host = parsed.hostname.toLowerCase();
-  const isAllowed = hosts.some(h => host === h || host.endsWith(`.${h}`));
+  const isAllowed = hosts.some((h) => host === h || host.endsWith(`.${h}`));
   if (!isAllowed) {
     throw new Error(`Security Violation CWE-SSRF: Host '${host}' is not in allowed hosts list`);
   }
@@ -105,7 +116,11 @@ export async function safeFetch(rawUrl: string, options?: RequestInit, allowedHo
  * Builds a safe local relative URL with query parameters (SSRF Prevention CWE-918).
  * Uses WHATWG URL standard API without fragile homebrew regexes.
  */
-export function safeDevUrl(endpoint: string, params: Record<string, string> = {}, baseOrigin = 'http://localhost'): string {
+export function safeDevUrl(
+  endpoint: string,
+  params: Record<string, string> = {},
+  baseOrigin = 'http://localhost'
+): string {
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = new URL(normalizedEndpoint, baseOrigin);
   for (const [key, val] of Object.entries(params)) {

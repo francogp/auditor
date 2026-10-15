@@ -1,15 +1,7 @@
-/**
- * src/suites/architecture/validate_package_types.ts
- *
- * PACKAGE TYPES RESOLUTION AUDITOR (Node.js 26+ Native)
- * Validates TypeScript declaration (.d.ts) resolution and dual ESM/CJS compatibility
- * for compiled packages in dist/ via @arethetypeswrong/core (ATTW).
- *
- * Capabilities: phase: 'post-build' (executed exclusively post-build via phase=post-build).
- */
-import { Package, type Problem } from '@arethetypeswrong/core';
-import { BaseAuditor } from '../../core/auditorBase.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import { AuditFinding } from "../../core/auditContract.js";
+import { BaseAuditor } from "../../core/auditorBase.js";
+import { Package, Problem } from "@arethetypeswrong/core";
+//#region src/suites/architecture/validate_package_types.d.ts
 export declare const PACKAGE_TYPES_RULES: readonly ["pkg-types-resolution", "pkg-types-dual-hazard", "pkg-types-missing-dts"];
 export type PackageTypesRuleId = (typeof PACKAGE_TYPES_RULES)[number];
 /**
@@ -21,9 +13,9 @@ export declare function createPackageFromDirectory(pkgDir: string): Package;
  */
 export declare function parseAttwProblems(problems: readonly Problem[], pkgJson: Record<string, unknown>): AuditFinding[];
 export declare class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId> {
-    constructor(options?: {
-        projectRoot?: string;
-    });
-    runAudit(): Promise<void>;
+  constructor(options?: {
+    projectRoot?: string;
+  });
+  runAudit(): Promise<void>;
 }
-//# sourceMappingURL=validate_package_types.d.ts.map
+//#endregion

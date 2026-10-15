@@ -16,23 +16,22 @@ import path from 'node:path';
 import fsSync from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
 export type TypeCheckRuleId = 'ts-compiler-error';
 
-export const TYPE_CHECK_RULES: readonly TypeCheckRuleId[] = [
-  'ts-compiler-error'
-] as const;
+export const TYPE_CHECK_RULES: readonly TypeCheckRuleId[] = ['ts-compiler-error'] as const;
 
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
 const DEFAULT_ERROR_LINE = 1 as const;
 const DECIMAL_RADIX = 10 as const;
 
-const DIAGNOSTIC_REGEX = /^(?<file>[^(:\n]+)(?::(?<line>\d+):\d+|\((?<line2>\d+),\d+\))(?::\s*|\s*-\s*|\s+)(?:error|warning)\s+(?<code>TS\d+):\s*(?<msg>\S.*)$/;
+const DIAGNOSTIC_REGEX =
+  /^(?<file>[^(:\n]+)(?::(?<line>\d+):\d+|\((?<line2>\d+),\d+\))(?::\s*|\s*-\s*|\s+)(?:error|warning)\s+(?<code>TS\d+):\s*(?<msg>\S.*)$/;
 
 function createFindingFromMatch(groups: Record<string, string>, cwd: string): AuditFinding {
   const rawFile = groups.file ?? '';
@@ -40,9 +39,7 @@ function createFindingFromMatch(groups: Record<string, string>, cwd: string): Au
   const code = groups.code ?? 'TS';
   const msg = groups.msg ?? 'TypeScript compiler error';
 
-  const resolvedPath = path.isAbsolute(rawFile)
-    ? path.relative(cwd, rawFile)
-    : rawFile;
+  const resolvedPath = path.isAbsolute(rawFile) ? path.relative(cwd, rawFile) : rawFile;
   const cleanFile = resolvedPath.split(path.sep).join(path.posix.sep);
 
   return {
@@ -61,7 +58,10 @@ function createFindingFromMatch(groups: Record<string, string>, cwd: string): Au
 /**
  * Parses raw diagnostic output from vue-tsc / tsc into canonical AuditFindings.
  */
-export function parseTypeScriptDiagnostics(output: string, cwd: string = process.cwd()): AuditFinding[] {
+export function parseTypeScriptDiagnostics(
+  output: string,
+  cwd: string = process.cwd()
+): AuditFinding[] {
   const findings: AuditFinding[] = [];
   if (!output || !output.trim()) return findings;
 
@@ -129,8 +129,8 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "TypeScript",
-        fallbackBehavior: "throw"
+        toolName: 'TypeScript',
+        fallbackBehavior: 'throw'
       },
       ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
         speed: ['light', 'full'],
@@ -155,10 +155,17 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
         'ts-compiler-error': 'Error de compilación o tipo'
       },
       ruleRemediations: {
-        'ts-compiler-error': 'Guía de diagnóstico y remediación para ts-compiler-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ts-compiler-error':
+          'Guía de diagnóstico y remediación para ts-compiler-error. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
-        include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts', 'tests/**/*.ts', 'tsconfig*.json'],
+        include: [
+          'src/**/*.ts',
+          'src/**/*.vue',
+          'scripts/**/*.ts',
+          'tests/**/*.ts',
+          'tsconfig*.json'
+        ],
         source: 'declared-only'
       },
       projectRoot
@@ -167,13 +174,18 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
   public override async runAudit(): Promise<void> {
     this.markRuleEvaluated('ts-compiler-error');
-    recordTsConfigFiles(this.projectRoot, p => this.recordScanned(p));
+    recordTsConfigFiles(this.projectRoot, (p) => this.recordScanned(p));
 
     const { cmd, args: baseArgs } = resolveTypeCheckBinary(this.projectRoot);
     const tsBuildInfoPath = path.resolve(this.projectRoot, 'scratch/.tsbuildinfo');
 
     const standardArgs = [...baseArgs, '--pretty', 'false'];
-    const incrementalArgs = [...standardArgs, '--incremental', '--tsBuildInfoFile', tsBuildInfoPath];
+    const incrementalArgs = [
+      ...standardArgs,
+      '--incremental',
+      '--tsBuildInfoFile',
+      tsBuildInfoPath
+    ];
 
     const resolvedArgs = this.resolveCommandArgs<string[]>({
       command: 'tsc-type-check',
@@ -211,7 +223,7 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
     if (findings.length === 0 && (proc.error || proc.status !== 0)) {
       throw new Error(
         `[validate_type_check] El compilador terminó con estado ${String(proc.status)} pero no se pudo interpretar ningún diagnóstico (falso verde evitado). ` +
-        `Salida: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ''}`
+          `Salida: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ''}`
       );
     }
 

@@ -529,7 +529,7 @@ sequenceDiagram
     Base-->>Caller: Return result <T> directly
 ```
 
-### 6.3. Deconstruction Pattern for External Multi-Rule Tools (ESLint, Stylelint, Knip, TypeCoverage)
+### 6.3. Deconstruction Pattern for External Multi-Rule Tools (Oxlint, Stylelint, Knip, TypeCoverage)
 
 When an auditor wraps a heavy external tool or linter that produces a composite report for multiple rules in a single pass:
 
@@ -538,7 +538,7 @@ When an auditor wraps a heavy external tool or linter that produces a composite 
 
 ```mermaid
 flowchart TD
-    A["External Multi-Rule Tool (e.g. ESLint / Knip)"] -->|"Single High-Cost Execution"| B["Raw Tool Findings List"]
+    A["External Multi-Rule Tool (e.g. Oxlint / Knip)"] -->|"Single High-Cost Execution"| B["Raw Tool Findings List"]
     B --> C{"Deconstruct per Declared Rule"}
     C -->|"Rule 1"| D1["runSubAuditorSync('rule-1', () => filter findings)"]
     C -->|"Rule 2"| D2["runSubAuditorSync('rule-2', () => filter findings)"]
@@ -777,7 +777,7 @@ The framework enforces strict governance over execution speed across all suites 
 
 2. **Longest Processing Time First (Scheduler LPT)**:
    - When preparing the execution queue in `audit_full`, tasks are prioritized dynamically: suites that execute `'full'` (`🐘`) or `'heavy'` (`🐢`) commands/rules are placed **FIRST** in the queue.
-   - This ensures background worker threads absorb heavy suites (e.g. `validate_type_check`, `validate_eslint`, `validate_fallow`) immediately from $T_0$, while lighter `'light'` (`🐇`) suites execute concurrently across free threads, eliminating tail-end bottlenecks.
+   - This ensures background worker threads absorb heavy suites (e.g. `validate_type_check`, `validate_oxlint`, `validate_fallow`) immediately from $T_0$, while lighter `'light'` (`🐇`) suites execute concurrently across free threads, eliminating tail-end bottlenecks.
 
 3. **Sub-Line Console Indicators (`🐇` / `🐢` / `🐘`)**:
    - The suite header remains clean and unaltered.
@@ -795,7 +795,7 @@ The framework enforces strict governance over execution speed across all suites 
 
 If a suite or rule declares `critical: true` and `speed` has 2 or more declared speeds (e.g. `speed: ['light', 'full']`), the engine **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run <validate-script>`):
 
-- **Why**: Essential linters and type checkers (`validate_eslint`, `validate_type_check`, `validate_stylelint`, `validate_html_validate`, `validate_domain_types`) are indispensable for developer feedback. When invoked directly by a developer, they must run instantaneously using caching/incremental compilation (`--incremental`, `--cache`) rather than triggering an exhaustive full-tree recheck.
+- **Why**: Essential linters and type checkers (`validate_oxlint`, `validate_type_check`, `validate_stylelint`, `validate_html_validate`, `validate_domain_types`) are indispensable for developer feedback. When invoked directly by a developer, they must run instantaneously using caching/incremental compilation (`--incremental`, `--cache`) rather than triggering an exhaustive full-tree recheck.
 - **Implementation in `BaseAuditor`**: `this.resolveRuleEffectiveSpeed(ruleId)` and `this.getExecutionTier()` inspect `caps.critical && !speedOpts.isSpeedSpecified`. When true, they select the minimum rank speed (`'light'`).
 
 ### Mandatory Authentic Tiers & Prohibition of Duplicated Tiers
@@ -810,7 +810,7 @@ Inventing or duplicating speed tiers that repeat identical CLI arguments or beha
 
 In the Full (`🐘`) tier, the entire project is audited without incremental/delta scoping (evaluating all files), **BUT THE CACHE IS NEVER TURNED OFF**:
 
-- Tools with caching support (`eslint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers.
+- Tools with caching support (`oxlint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers.
 - Running full verification verifies whole-project invariants, but disabling cache causes redundant I/O and CPU waste on unmodified source files.
 
 ### Clean Composition in `TieredCommandProfile` Without Code Duplication
@@ -1050,7 +1050,7 @@ graph TD
 
 ## 17. Declarative Configuration File Requirements & Auto-Fix Contract
 
-Sub-auditors and extensions that validate or depend on external tool configuration files (such as `eslint.config.js`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`, or custom host configs) MUST NOT implement bespoke file writers or manual boilerplate checking.
+Sub-auditors and extensions that validate or depend on external tool configuration files (such as `vite.config.ts`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`, or custom host configs) MUST NOT implement bespoke file writers or manual boilerplate checking.
 
 Instead, declare configuration requirements declaratively via `AuditorConfigFileRequirement` and `configFiles`:
 
@@ -1127,7 +1127,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `name` | `string` | Non-empty | Formal human-readable name of the suite. |
 | `description` | `string` | `<= 60` chars | Concise Spanish explanation of what the suite verifies. |
 | `family` | `AuditFamily` | Strict enum | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'performance'`, `'security'`, `'documentation'` (or dynamic host extensions). |
-| `packageName` | `string` | Non-empty | Technology scope prefix (`'ESLint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
+| `packageName` | `string` | Non-empty | Technology scope prefix (`'Oxlint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
 | `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
 | `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
 | `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 7 fields | Orthogonal 7-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`). |
@@ -1136,7 +1136,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
 | `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
 | `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
-| `usesThirdPartyTool` | `boolean` | `true` or `false` | Mandatory boolean explicitly declaring whether the suite delegates to external binaries or CLI tools (e.g. ESLint, Stylelint, HTML-Validate, Fallow, Docker). Omission throws runtime Error. |
+| `usesThirdPartyTool` | `boolean` | `true` or `false` | Mandatory boolean explicitly declaring whether the suite delegates to external binaries or CLI tools (e.g. Oxlint, Stylelint, HTML-Validate, Fallow, Docker). Omission throws runtime Error. |
 | `thirdPartyToolPolicy` | `ThirdPartyToolFailurePolicy` | Mandatory if `usesThirdPartyTool: true` | Policy object defining `{ toolName: string, fallbackBehavior: 'throw' \| 'violation', fallbackRuleId?: TRuleId }`. Prohibited if `usesThirdPartyTool: false`. |
 
 If any of these fields are missing or invalid, `BaseAuditor` throws an immediate runtime `Error` during instantiation.
@@ -1229,7 +1229,7 @@ Every official sub-auditor in `@francogp/auditor` and every extension created in
 Host projects can verify all their custom extension sub-auditors dynamically by creating `tests/node/auditors/conformance.test.ts`:
 
 ```typescript
-import { describe } from 'vitest';
+import { describe } from 'vite-plus/test';
 import { runAuditorContractConformanceTests } from '@francogp/auditor';
 
 describe('All Auditors Dynamic Conformance', () => {

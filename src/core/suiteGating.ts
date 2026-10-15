@@ -68,7 +68,10 @@ function checkSpecialGating(suiteId: string, config: AuditConfig): SuiteGatingSt
   if (suiteId === 'validate_similar_code') {
     return checkSimilarCodeGating(config);
   }
-  if (suiteId === 'validate_stylelint' && (config.stylelint?.enabled === false || config.styles?.stylelint?.enabled === false)) {
+  if (
+    suiteId === 'validate_stylelint' &&
+    (config.stylelint?.enabled === false || config.styles?.stylelint?.enabled === false)
+  ) {
     return {
       enabled: false,
       reason: 'Desactivado en config (stylelint.enabled = false)',
@@ -180,15 +183,15 @@ const SIMPLE_GATING_SPECS: Record<string, SuiteGatingSpec> = {
     reason: 'Desactivado en config (pinia.enabled = false)',
     path: ['pinia', 'enabled']
   },
-  validate_eslint: {
-    configKey: 'eslint.enabled',
-    reason: 'Desactivado en config (eslint.enabled = false)',
-    path: ['eslint', 'enabled']
+  validate_oxlint: {
+    configKey: 'vitePlus.enabled',
+    reason: 'Desactivado en config (vitePlus.enabled = false)',
+    path: ['vitePlus', 'enabled']
   },
-  validate_eslint_config: {
-    configKey: 'eslint.enabled',
-    reason: 'Desactivado en config (eslint.enabled = false)',
-    path: ['eslint', 'enabled']
+  validate_vite_plus_config: {
+    configKey: 'vitePlus.enabled',
+    reason: 'Desactivado en config (vitePlus.enabled = false)',
+    path: ['vitePlus', 'enabled']
   }
 };
 
@@ -198,7 +201,10 @@ function checkSimpleGating(spec: SuiteGatingSpec, config: AuditConfig): boolean 
   return sectionObj?.[prop] === false;
 }
 
-function evaluateDynamicConfigKey(configKey: string, config: AuditConfig): SuiteGatingStatus | null {
+function evaluateDynamicConfigKey(
+  configKey: string,
+  config: AuditConfig
+): SuiteGatingStatus | null {
   if (configKey === 'core' || configKey === 'paths' || configKey === 'none') {
     return { enabled: true, configKey };
   }

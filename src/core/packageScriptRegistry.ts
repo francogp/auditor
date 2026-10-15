@@ -13,7 +13,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor',
     command: 'auditor',
-    description: 'Ejecución del orquestador de auditoría estática y arquitectura (techo máximo por defecto: speed=heavy)',
+    description:
+      'Ejecución del orquestador de auditoría estática y arquitectura (techo máximo por defecto: speed=heavy)',
     category: 'core'
   },
   {
@@ -37,7 +38,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:critical',
     command: 'auditor critical',
-    description: 'Ejecución exclusiva de suites críticas de código, tipado y sintaxis (bypass de velocidad)',
+    description:
+      'Ejecución exclusiva de suites críticas de código, tipado y sintaxis (bypass de velocidad)',
     category: 'core'
   },
   {
@@ -49,7 +51,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:full',
     command: 'auditor speed=full',
-    description: 'Auditoría exhaustiva pre-build con techo speed=full (incluye fallow dead-code --type-aware)',
+    description:
+      'Auditoría exhaustiva pre-build con techo speed=full (incluye fallow dead-code --type-aware)',
     category: 'core'
   },
   {
@@ -61,7 +64,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'build:deploy',
     command: 'auditor-build-deploy',
-    description: 'Compilación de despliegue CI/CD bajo AUDITOR_ENV=production (omite similar-code y cobertura)',
+    description:
+      'Compilación de despliegue CI/CD bajo AUDITOR_ENV=production (omite similar-code y cobertura)',
     category: 'core'
   },
   {
@@ -193,7 +197,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     command: 'auditor-fallow category=security',
     description: 'Escaneo estático de vulnerabilidades y sinks de seguridad CWE',
     category: 'fallow',
-    isApplicable: (config) => config.fallow?.enabled !== false && config.fallow?.security?.enabled !== false
+    isApplicable: (config) =>
+      config.fallow?.enabled !== false && config.fallow?.security?.enabled !== false
   },
   {
     name: 'auditor:fallow:dead-code',
@@ -286,9 +291,9 @@ export class PackageScriptRegistry {
       }
       throw new Error(
         `[COLISIÓN DE COMANDOS] El comando de script '${requirement.name}' está duplicado entre '${existing.sourceId ?? 'core'}' ` +
-        `('${existing.requirement.command}') y '${sourceId ?? 'desconocido'}' ('${requirement.command}'). ` +
-        `Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. ` +
-        `Cambia el nombre del comando para resolver la colisión.`
+          `('${existing.requirement.command}') y '${sourceId ?? 'desconocido'}' ('${requirement.command}'). ` +
+          `Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. ` +
+          `Cambia el nombre del comando para resolver la colisión.`
       );
     }
     this.requirements.set(requirement.name, { requirement, sourceId });
@@ -297,7 +302,10 @@ export class PackageScriptRegistry {
   /**
    * Registers multiple package script requirements.
    */
-  public static registerMany(requirements: readonly AuditorPackageScriptRequirement[], sourceId?: string): void {
+  public static registerMany(
+    requirements: readonly AuditorPackageScriptRequirement[],
+    sourceId?: string
+  ): void {
     for (const req of requirements) {
       this.register(req, sourceId);
     }
@@ -321,7 +329,7 @@ export class PackageScriptRegistry {
    * Returns all currently registered package script requirements.
    */
   public static getAll(): readonly AuditorPackageScriptRequirement[] {
-    return Array.from(this.requirements.values()).map(v => v.requirement);
+    return Array.from(this.requirements.values()).map((v) => v.requirement);
   }
 
   /**

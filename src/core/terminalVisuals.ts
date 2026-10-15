@@ -7,7 +7,6 @@
 
 import stringWidth from 'string-width';
 
-
 /**
  * Calculates the visual monospace terminal display width of a string,
  * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
@@ -16,8 +15,6 @@ import stringWidth from 'string-width';
 export function getVisualWidth(str: string): number {
   return stringWidth(str);
 }
-
-
 
 export const TEXT_ALIGNMENTS = ['left', 'right', 'center'] as const; // lib-duplicate-ok: Monospace terminal visual alignment
 export type TextAlignment = (typeof TEXT_ALIGNMENTS)[number];

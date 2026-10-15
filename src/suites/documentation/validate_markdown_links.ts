@@ -20,11 +20,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, collectRepositoryFiles , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  collectRepositoryFiles,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { buildRepositoryFileIndex, toPosixRelative } from '../../core/safePath.ts';
-import { resolveMarkdownScanDirectories, stripCodeBlocks } from './validate_markdown_code_references.ts';
+import {
+  resolveMarkdownScanDirectories,
+  stripCodeBlocks
+} from './validate_markdown_code_references.ts';
 
 export { stripCodeBlocks };
 
@@ -42,7 +49,7 @@ export const MARKDOWN_LINK_RULES: readonly MarkdownLinkRuleId[] = [
   'markdown-absolute-path',
   'markdown-stale-environment-path',
   'markdown-gitignored-target',
-  'markdown-broken-workspace-package',
+  'markdown-broken-workspace-package'
 ] as const;
 
 export interface BrokenMarkdownLink {
@@ -91,9 +98,7 @@ export {
   resolveMarkdownScanDirectories
 } from './validate_markdown_code_references.ts';
 
-export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = [
-  'coverage/**'
-] as const;
+export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = ['coverage/**'] as const;
 
 let gitIgnoreMatcherInstance: GitIgnoreMatcher | null = null;
 
@@ -121,12 +126,11 @@ function getRepoFileIndex(rootDir: string, matcher: GitIgnoreMatcher): Map<strin
   if (repoFileIndexCache && repoFileIndexCacheRoot === rootDir) {
     return repoFileIndexCache;
   }
-  const index = buildRepositoryFileIndex(rootDir, p => matcher.isIgnored(p));
+  const index = buildRepositoryFileIndex(rootDir, (p) => matcher.isIgnored(p));
   repoFileIndexCache = index;
   repoFileIndexCacheRoot = rootDir;
   return index;
 }
-
 
 /**
  * Collects all relevant markdown files (.md) recursively.
@@ -154,7 +158,8 @@ export function collectMarkdownFiles(
 }
 
 /** Regex detecting personal machine absolute paths (e.g. /home/user, /Users/user, C:\Users\user) */
-const STALE_ENV_PATH_REGEX = /file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![\w.]))\/(?:home|Users)\/[\w-]+|[a-zA-Z]:[\\/]Users[\\/][\w-]+/;
+const STALE_ENV_PATH_REGEX =
+  /file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![\w.]))\/(?:home|Users)\/[\w-]+|[a-zA-Z]:[\\/]Users[\\/][\w-]+/;
 
 function isExternalOrAnchorLink(rawUrl: string): boolean {
   return (
@@ -194,12 +199,12 @@ function formatCandidateMatchError(
   if (candidateMatches.length === 0) {
     return `Target path does not exist on disk: "${resolvedRelPath}"`;
   }
-  const suggestions = candidateMatches.map(cand => {
+  const suggestions = candidateMatches.map((cand) => {
     let rel = toPosixRelative(sourceDir, cand);
     if (!rel.startsWith('.')) rel = './' + rel;
     return rel;
   });
-  const foundIn = candidateMatches.map(cand => toPosixRelative(rootDir, cand)).join(', ');
+  const foundIn = candidateMatches.map((cand) => toPosixRelative(rootDir, cand)).join(', ');
   return `Target path does not exist on disk: "${resolvedRelPath}", pero aparentemente fue localizado en: "${foundIn}". Verifica si corresponde corregir el enlace a: "${suggestions.join('" o "')}"`;
 }
 
@@ -225,16 +230,22 @@ function checkTargetExistence(params: {
       resolvedPath: resolvedRelPath,
       error: `Target path is ignored by git (.gitignore) and will not exist in clean checkouts or CI: "${resolvedRelPath}"`,
       ruleId: 'markdown-gitignored-target',
-      line: params.line,
+      line: params.line
     };
   }
 
   if (!fs.existsSync(resolvedTarget)) {
     const basename = path.basename(resolvedTarget);
     const repoIndex = getRepoFileIndex(params.rootDir, matcher);
-    const candidateMatches = (repoIndex.get(basename) ?? []).filter(cand => !matcher.isIgnored(cand));
-    const error = formatCandidateMatchError(resolvedRelPath, candidateMatches, path.dirname(params.filePath), params.rootDir);
-
+    const candidateMatches = (repoIndex.get(basename) ?? []).filter(
+      (cand) => !matcher.isIgnored(cand)
+    );
+    const error = formatCandidateMatchError(
+      resolvedRelPath,
+      candidateMatches,
+      path.dirname(params.filePath),
+      params.rootDir
+    );
 
     return {
       sourceFile: params.relSourceFile,
@@ -243,10 +254,9 @@ function checkTargetExistence(params: {
       resolvedPath: resolvedRelPath,
       error,
       ruleId: 'markdown-broken-relative-link',
-      line: params.line,
+      line: params.line
     };
   }
-
 
   return null;
 }
@@ -271,7 +281,7 @@ function checkSingleMarkdownLink(params: {
         resolvedPath: '',
         error: `Stale legacy environment path detected: "${rawUrl}" (RULE: No references to legacy repository or personal machine paths)`,
         ruleId: 'markdown-stale-environment-path',
-        line,
+        line
       }
     };
   }
@@ -293,7 +303,7 @@ function checkSingleMarkdownLink(params: {
         resolvedPath: '',
         error: `Forbidden absolute path or file:// URL: "${rawUrl}" (RULE: Use relative paths exclusively)`,
         ruleId: 'markdown-absolute-path',
-        line,
+        line
       }
     };
   }
@@ -330,7 +340,7 @@ function checkStandaloneTextViolations(
         resolvedPath: '',
         error: `Stale legacy environment reference detected in text: "${lineText.trim()}"`,
         ruleId: 'markdown-stale-environment-path',
-        line: lineNum,
+        line: lineNum
       });
     } else if (/file:\/\/\/[^\s)]+/i.test(textWithoutInlineCode)) {
       textViolations.push({
@@ -340,7 +350,7 @@ function checkStandaloneTextViolations(
         resolvedPath: '',
         error: `Forbidden absolute file:// URL detected in text: "${lineText.trim()}"`,
         ruleId: 'markdown-absolute-path',
-        line: lineNum,
+        line: lineNum
       });
     }
   }
@@ -348,9 +358,11 @@ function checkStandaloneTextViolations(
   return textViolations;
 }
 
-const HISTORICAL_OR_EXAMPLE_LINE_REGEX = /\b(?:migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b|\be\.g\./i;
+const HISTORICAL_OR_EXAMPLE_LINE_REGEX =
+  /\b(?:migraci[oó]n|migration|elimina|eliminad[oa]|remove|deleted|legacy|antes:|before:|deprecated|previa|previo|desactualizad[oa]|example|ejemplo)\b|\be\.g\./i;
 
-const isHistoricalOrExampleLine = (lineText: string): boolean => HISTORICAL_OR_EXAMPLE_LINE_REGEX.test(lineText);
+const isHistoricalOrExampleLine = (lineText: string): boolean =>
+  HISTORICAL_OR_EXAMPLE_LINE_REGEX.test(lineText);
 
 function checkPackageMatchViolation(
   match: RegExpExecArray,
@@ -375,7 +387,7 @@ function checkPackageMatchViolation(
       resolvedPath: candidateRel,
       error: `Referencia a workspace package inexistente en disco: "packages/${pkgSubpath}" (RULE: No mantener rutas a paquetes de workspace eliminados)`,
       ruleId: 'markdown-broken-workspace-package',
-      line: lineNum,
+      line: lineNum
     };
   }
   return null;
@@ -389,7 +401,8 @@ function checkWorkspacePackageViolations(
   brokenLines: ReadonlySet<number>
 ): BrokenMarkdownLink[] {
   const violations: BrokenMarkdownLink[] = [];
-  const pkgRegex = /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([\w.-]+(?:\/[\w./#-]+)?)\/?(?:$|[`'"\s)\]>,:;])/g;
+  const pkgRegex =
+    /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([\w.-]+(?:\/[\w./#-]+)?)\/?(?:$|[`'"\s)\]>,:;])/g;
 
   for (let i = 0; i < lines.length; i++) {
     const lineNum = i + 1;
@@ -398,7 +411,13 @@ function checkWorkspacePackageViolations(
     pkgRegex.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = pkgRegex.exec(lines[i]!)) !== null) {
-      const violation = checkPackageMatchViolation(match, relSourceFile, filePath, rootDir, lineNum);
+      const violation = checkPackageMatchViolation(
+        match,
+        relSourceFile,
+        filePath,
+        rootDir,
+        lineNum
+      );
       if (violation) violations.push(violation);
     }
   }
@@ -411,7 +430,9 @@ function checkWorkspacePackageViolations(
  */
 export function extractMarkdownLinks(content: string): MarkdownLinkItem[] {
   const cleanContent = stripCodeBlocks(content);
-  const contentWithoutInlineCode = cleanContent.replace(/(`+)[^`\n]+\1/g, match => ' '.repeat(match.length));
+  const contentWithoutInlineCode = cleanContent.replace(/(`+)[^`\n]+\1/g, (match) =>
+    ' '.repeat(match.length)
+  );
   const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
   const links: MarkdownLinkItem[] = [];
   let match: RegExpExecArray | null;
@@ -432,14 +453,13 @@ export function extractMarkdownLinks(content: string): MarkdownLinkItem[] {
 export function checkMarkdownLinksInContent(
   content: string,
   filePath: string,
-  rootDir: string,
+  rootDir: string
 ): { linksChecked: number; brokenLinks: BrokenMarkdownLink[] } {
   const cleanContent = stripCodeBlocks(content);
   const links = extractMarkdownLinks(content);
   const brokenLinks: BrokenMarkdownLink[] = [];
   let linksChecked = 0;
   const relSourceFile = toPosixRelative(rootDir, filePath);
-
 
   for (const { linkText, rawUrl, line } of links) {
     const result = checkSingleMarkdownLink({
@@ -454,9 +474,8 @@ export function checkMarkdownLinksInContent(
     if (result.brokenLink) brokenLinks.push(result.brokenLink);
   }
 
-
   const brokenLines = new Set(
-    brokenLinks.map(b => b.line).filter((l): l is number => l !== undefined)
+    brokenLinks.map((b) => b.line).filter((l): l is number => l !== undefined)
   );
   const standaloneViolations = checkStandaloneTextViolations(
     cleanContent.split('\n'),
@@ -480,7 +499,9 @@ export function checkMarkdownLinksInContent(
 /**
  * Runs the full markdown link audit.
  */
-export function auditMarkdownLinks(options: MarkdownLinkAuditOptions = {}): MarkdownLinkAuditResult {
+export function auditMarkdownLinks(
+  options: MarkdownLinkAuditOptions = {}
+): MarkdownLinkAuditResult {
   const root = options.rootDir ?? DEFAULT_ROOT;
   const scanDirs = options.scanPaths ?? resolveMarkdownScanDirectories(root);
   const extraIgnores = options.extraIgnorePatterns ?? DEFAULT_MARKDOWN_IGNORE_PATTERNS;
@@ -506,12 +527,12 @@ export function auditMarkdownLinks(options: MarkdownLinkAuditOptions = {}): Mark
     filesScanned: allFiles.length,
     linksChecked: totalLinks,
     violations,
-    passed: violations.length === 0,
+    passed: violations.length === 0
   };
 }
 
 export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
-private readonly scanRoots: readonly string[];
+  private readonly scanRoots: readonly string[];
 
   constructor(scanRoots?: readonly string[], projectRoot?: string) {
     const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
@@ -524,7 +545,8 @@ private readonly scanRoots: readonly string[];
         fix: 'none',
         md: true,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_markdown_links',
       name: 'Markdown & DOX Relative Links Auditor',
@@ -541,14 +563,19 @@ private readonly scanRoots: readonly string[];
         'markdown-absolute-path': 'Ruta absoluta prohibida',
         'markdown-stale-environment-path': 'Referencia a entorno obsoleto',
         'markdown-gitignored-target': 'Enlace a ruta ignorada en git',
-        'markdown-broken-workspace-package': 'Workspace package inexistente',
+        'markdown-broken-workspace-package': 'Workspace package inexistente'
       },
       ruleRemediations: {
-        'markdown-broken-relative-link': 'Guía de diagnóstico y remediación para markdown-broken-relative-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'markdown-absolute-path': 'Guía de diagnóstico y remediación para markdown-absolute-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'markdown-stale-environment-path': 'Guía de diagnóstico y remediación para markdown-stale-environment-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'markdown-gitignored-target': 'Guía de diagnóstico y remediación para markdown-gitignored-target. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'markdown-broken-workspace-package': 'Guía de diagnóstico y remediación para markdown-broken-workspace-package. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-broken-relative-link':
+          'Guía de diagnóstico y remediación para markdown-broken-relative-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-absolute-path':
+          'Guía de diagnóstico y remediación para markdown-absolute-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-stale-environment-path':
+          'Guía de diagnóstico y remediación para markdown-stale-environment-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-gitignored-target':
+          'Guía de diagnóstico y remediación para markdown-gitignored-target. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-broken-workspace-package':
+          'Guía de diagnóstico y remediación para markdown-broken-workspace-package. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['**/*.md']
@@ -561,7 +588,7 @@ private readonly scanRoots: readonly string[];
         ...(config.paths.ignoredPatterns ?? [])
       ],
       unignoreDirs: ['.agents'],
-      projectRoot,
+      projectRoot
     });
     this.scanRoots = effectiveScanRoots;
   }
@@ -592,7 +619,7 @@ private readonly scanRoots: readonly string[];
         file: filePath,
         relSourceFile: toPosixRelative(this.projectRoot, filePath),
         lines: cleanContent.split('\n'),
-        links,
+        links
       });
     }
 
@@ -612,7 +639,7 @@ private readonly scanRoots: readonly string[];
               file: doc.relSourceFile,
               line: i + 1,
               message: msgFn(lineText.trim()),
-              context: lineText.trim(),
+              context: lineText.trim()
             });
           }
         }
@@ -636,15 +663,15 @@ private readonly scanRoots: readonly string[];
               file: doc.relSourceFile,
               line: link.line,
               message: `Forbidden absolute path or file:// URL: "${link.rawUrl}" (RULE: Use relative paths exclusively)`,
-              context: link.rawUrl,
+              context: link.rawUrl
             });
           }
         }
       }
       scanDocLines(
         'markdown-absolute-path',
-        text => /file:\/\/\/[^\s)]+/i.test(text),
-        trimmed => `Forbidden absolute file:// URL detected in text: "${trimmed}"`
+        (text) => /file:\/\/\/[^\s)]+/i.test(text),
+        (trimmed) => `Forbidden absolute file:// URL detected in text: "${trimmed}"`
       );
     });
 
@@ -659,15 +686,15 @@ private readonly scanRoots: readonly string[];
               file: doc.relSourceFile,
               line: link.line,
               message: `Stale legacy environment path detected: "${link.rawUrl}" (RULE: No references to legacy repository or personal machine paths)`,
-              context: link.rawUrl,
+              context: link.rawUrl
             });
           }
         }
       }
       scanDocLines(
         'markdown-stale-environment-path',
-        text => STALE_ENV_PATH_REGEX.test(text),
-        trimmed => `Stale legacy environment reference detected in text: "${trimmed}"`
+        (text) => STALE_ENV_PATH_REGEX.test(text),
+        (trimmed) => `Stale legacy environment reference detected in text: "${trimmed}"`
       );
     });
 
@@ -696,7 +723,7 @@ private readonly scanRoots: readonly string[];
             file: doc.relSourceFile,
             line: link.line,
             message: `Target path is ignored by git (.gitignore) and will not exist in clean checkouts or CI: "${resolvedRelPath}"`,
-            context: link.rawUrl,
+            context: link.rawUrl
           });
         }
       });
@@ -712,8 +739,15 @@ private readonly scanRoots: readonly string[];
         if (!fs.existsSync(resolvedTarget)) {
           const resolvedRelPath = toPosixRelative(this.projectRoot, resolvedTarget);
           const basename = path.basename(resolvedTarget);
-          const candidateMatches = (repoIndex.get(basename) ?? []).filter(cand => !matcher.isIgnored(cand));
-          const errorMsg = formatCandidateMatchError(resolvedRelPath, candidateMatches, path.dirname(doc.file), this.projectRoot);
+          const candidateMatches = (repoIndex.get(basename) ?? []).filter(
+            (cand) => !matcher.isIgnored(cand)
+          );
+          const errorMsg = formatCandidateMatchError(
+            resolvedRelPath,
+            candidateMatches,
+            path.dirname(doc.file),
+            this.projectRoot
+          );
 
           this.addViolation({
             ruleId: 'markdown-broken-relative-link',
@@ -721,19 +755,17 @@ private readonly scanRoots: readonly string[];
             file: doc.relSourceFile,
             line: link.line,
             message: errorMsg,
-            context: link.rawUrl,
+            context: link.rawUrl
           });
         }
       });
     });
 
-
-
-
     // 5. markdown-broken-workspace-package
 
     this.runSubAuditorSync('markdown-broken-workspace-package', () => {
-      const pkgRegex = /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([\w.-]+(?:\/[\w./#-]+)?)\/?(?:$|[`'"\s)\]>,:;])/g;
+      const pkgRegex =
+        /(?:^|[`'"\s([<])(?:\/|\.\/|\.\.\/)?packages\/([\w.-]+(?:\/[\w./#-]+)?)\/?(?:$|[`'"\s)\]>,:;])/g;
       for (const doc of docs) {
         for (let i = 0; i < doc.lines.length; i++) {
           const lineText = doc.lines[i]!;
@@ -742,7 +774,13 @@ private readonly scanRoots: readonly string[];
           pkgRegex.lastIndex = 0;
           let match: RegExpExecArray | null;
           while ((match = pkgRegex.exec(lineText)) !== null) {
-            const violation = checkPackageMatchViolation(match, doc.relSourceFile, doc.file, this.projectRoot, i + 1);
+            const violation = checkPackageMatchViolation(
+              match,
+              doc.relSourceFile,
+              doc.file,
+              this.projectRoot,
+              i + 1
+            );
             if (violation) {
               this.addViolation({
                 ruleId: 'markdown-broken-workspace-package',
@@ -750,7 +788,7 @@ private readonly scanRoots: readonly string[];
                 file: violation.sourceFile,
                 line: violation.line ?? 1,
                 message: violation.error,
-                context: violation.rawUrl,
+                context: violation.rawUrl
               });
             }
           }

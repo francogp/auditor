@@ -78,11 +78,13 @@ const RISK_SCORE_PRECISION = 10 as const;
 
 export function resolveCoverageFile(projectRoot: string, configuredPath?: string): string | null {
   const candidates = [
-    path.resolve(projectRoot, configuredPath ?? 'coverage/coverage-final.json'),
+    path.resolve(projectRoot, configuredPath ?? 'scratch/coverage/coverage-final.json'),
+    path.resolve(projectRoot, 'scratch/coverage/coverage-final.json'),
+    path.resolve(projectRoot, 'scratch/coverage/coverage-summary.json'),
     path.resolve(projectRoot, 'coverage/coverage-final.json'),
     path.resolve(projectRoot, 'coverage/coverage-summary.json')
   ];
-  return candidates.find(f => fs.existsSync(f)) ?? null;
+  return candidates.find((f) => fs.existsSync(f)) ?? null;
 }
 
 export function calculateMetric(covered: number, total: number): CoverageMetric {
@@ -93,7 +95,10 @@ export function calculateMetric(covered: number, total: number): CoverageMetric 
   return { total, covered, pct };
 }
 
-export function determineCoverageStatus(pct: number, threshold: number = DEFAULT_TEST_COVERAGE_THRESHOLD): CoverageStatus {
+export function determineCoverageStatus(
+  pct: number,
+  threshold: number = DEFAULT_TEST_COVERAGE_THRESHOLD
+): CoverageStatus {
   if (pct === 0) return 'untested';
   if (pct >= threshold) return 'excellent';
   if (pct >= ACCEPTABLE_COVERAGE_THRESHOLD) return 'acceptable';
@@ -131,7 +136,10 @@ export function compressLineRanges(lines: readonly number[]): string[] {
 
 interface RawIstanbulEntry {
   path?: string;
-  statementMap?: Record<string, { start: { line: number; column?: number }; end: { line: number; column?: number } }>;
+  statementMap?: Record<
+    string,
+    { start: { line: number; column?: number }; end: { line: number; column?: number } }
+  >;
   s?: Record<string, number>;
   fnMap?: Record<string, unknown>;
   f?: Record<string, number>;
@@ -146,9 +154,9 @@ interface RawIstanbulEntry {
 
 function extractFromLineMap(lineHits: Record<string, number>): string[] {
   const uncovered = Object.entries(lineHits)
-    .filter(([_, count]) => count === 0)
+    .filter(([, count]) => count === 0)
     .map(([lineStr]) => Number(lineStr))
-    .filter(n => !Number.isNaN(n));
+    .filter((n) => !Number.isNaN(n));
   return compressLineRanges(uncovered);
 }
 
@@ -219,10 +227,14 @@ function calculateBranchMetrics(rawBranches?: Record<string, number[]>): Coverag
   return calculateMetric(bCovered, bTotal);
 }
 
-function calculateLineMetrics(raw: RawIstanbulEntry, sTotal: number, sCovered: number): CoverageMetric {
+function calculateLineMetrics(
+  raw: RawIstanbulEntry,
+  sTotal: number,
+  sCovered: number
+): CoverageMetric {
   if (raw.l && Object.keys(raw.l).length > 0) {
     const lTotal = Object.keys(raw.l).length;
-    const lCovered = Object.values(raw.l).filter(c => c > 0).length;
+    const lCovered = Object.values(raw.l).filter((c) => c > 0).length;
     return calculateMetric(lCovered, lTotal);
   }
   if (raw.statementMap && raw.s) {
@@ -235,10 +247,7 @@ function calculateLineMetrics(raw: RawIstanbulEntry, sTotal: number, sCovered: n
         linesMap.set(startLine, existing || hits > 0);
       }
     }
-    return calculateMetric(
-      Array.from(linesMap.values()).filter(Boolean).length,
-      linesMap.size
-    );
+    return calculateMetric(Array.from(linesMap.values()).filter(Boolean).length, linesMap.size);
   }
   return calculateMetric(sCovered, sTotal);
 }
@@ -250,9 +259,9 @@ function computeDetailedMetrics(raw: RawIstanbulEntry): {
   lines: CoverageMetric;
 } {
   const sTotal = Object.keys(raw.s ?? {}).length;
-  const sCovered = Object.values(raw.s ?? {}).filter(c => c > 0).length;
+  const sCovered = Object.values(raw.s ?? {}).filter((c) => c > 0).length;
   const fTotal = Object.keys(raw.f ?? {}).length;
-  const fCovered = Object.values(raw.f ?? {}).filter(c => c > 0).length;
+  const fCovered = Object.values(raw.f ?? {}).filter((c) => c > 0).length;
 
   return {
     statements: calculateMetric(sCovered, sTotal),
@@ -335,7 +344,12 @@ export function parseIstanbulCoverage(
     }
     if (typeof value !== 'object' || value === null) continue;
 
-    const fileRes = parseRawCoverageItem(key, value as RawIstanbulEntry, projectRoot, config.threshold);
+    const fileRes = parseRawCoverageItem(
+      key,
+      value as RawIstanbulEntry,
+      projectRoot,
+      config.threshold
+    );
 
     // Apply exemptGlobs
     if (isPathExempt(fileRes.relPath, config.exemptGlobs)) {
@@ -373,7 +387,12 @@ const DEFAULT_TEST_PATTERNS = [
   /\/__mocks?__\//i
 ];
 
-const IGNORED_COVERAGE_DIRS: ReadonlySet<string> = new Set(['node_modules', '.git', 'dist', 'scratch']);
+const IGNORED_COVERAGE_DIRS: ReadonlySet<string> = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'scratch'
+]);
 
 function isUntrackedCandidate(
   relPath: string,
@@ -383,7 +402,7 @@ function isUntrackedCandidate(
 ): boolean {
   const ext = path.extname(fileName);
   if (!extensions.has(ext)) return false;
-  if (DEFAULT_TEST_PATTERNS.some(p => p.test(relPath))) return false;
+  if (DEFAULT_TEST_PATTERNS.some((p) => p.test(relPath))) return false;
   return !isPathExempt(relPath, exemptGlobs);
 }
 
@@ -396,7 +415,9 @@ export function findUntrackedFiles(
   config: Required<AuditTestCoverageConfig>
 ): string[] {
   const untracked: string[] = []; // no-domain: Non-domain utility collection or data structure
-  const extensions = new Set(config.extensions.map(ext => ext.startsWith('.') ? ext : `.${ext}`));
+  const extensions = new Set(
+    config.extensions.map((ext) => (ext.startsWith('.') ? ext : `.${ext}`))
+  );
 
   function walk(currentDir: string): void {
     if (!fs.existsSync(currentDir)) return;
@@ -409,7 +430,10 @@ export function findUntrackedFiles(
         if (!IGNORED_COVERAGE_DIRS.has(entry.name)) {
           walk(fullPath);
         }
-      } else if (entry.isFile() && isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs)) {
+      } else if (
+        entry.isFile() &&
+        isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs)
+      ) {
         if (!coveredRelPaths.has(relPath)) {
           untracked.push(relPath);
         }
@@ -548,8 +572,9 @@ export function correlateComplexityHotspots(
     const complexity = fileComplexityMap.get(file.relPath) ?? 0;
     if (complexity <= 0) continue;
 
-    const unreachedFactor = 1 - (file.statements.pct / PERCENT_DIVISOR);
-    const riskScore = Math.round(complexity * unreachedFactor * RISK_SCORE_PRECISION) / RISK_SCORE_PRECISION;
+    const unreachedFactor = 1 - file.statements.pct / PERCENT_DIVISOR;
+    const riskScore =
+      Math.round(complexity * unreachedFactor * RISK_SCORE_PRECISION) / RISK_SCORE_PRECISION;
 
     if (riskScore > 0) {
       hotspots.push({
@@ -577,7 +602,7 @@ export function analyzeTestCoverage(
 ): TestCoverageReport {
   const { files, overall } = parseIstanbulCoverage(rawJson, projectRoot, config);
 
-  const coveredSet = new Set(files.map(f => f.relPath));
+  const coveredSet = new Set(files.map((f) => f.relPath));
   const untrackedFiles = findUntrackedFiles(projectRoot, coveredSet, config);
 
   const directories = computeDirectoryBreakdown(files, config.roots);

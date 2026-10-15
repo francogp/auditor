@@ -1,3 +1,4 @@
+//#region src/core/auditProjectIdentity.d.ts
 /**
  * packages/auditor/src/core/auditProjectIdentity.ts
  *
@@ -7,4 +8,4 @@
  * Determines whether the specified project root is the @francogp/auditor provider repository itself.
  */
 export declare function isSelfProviderProject(projectRoot: string): boolean;
-//# sourceMappingURL=auditProjectIdentity.d.ts.map
+//#endregion

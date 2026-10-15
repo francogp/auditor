@@ -20,7 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
@@ -83,13 +83,13 @@ const DEFAULT_CANONICAL_BUTTON_VARIANTS = new Set([
 
 function getEffectiveCanonicalButtonVariants(): ReadonlySet<string> {
   const config = getAuditConfig();
-  const configured = config.styles?.buttonGovernance?.canonicalVariants ?? config.styles?.canonicalButtonVariants;
+  const configured =
+    config.styles?.buttonGovernance?.canonicalVariants ?? config.styles?.canonicalButtonVariants;
   if (configured) {
     return new Set(configured);
   }
   return DEFAULT_CANONICAL_BUTTON_VARIANTS;
 }
-
 
 /**
  * Standard SASS candidate resolution
@@ -188,8 +188,6 @@ function seedRootScssGraph(
   }
 }
 
-
-
 function checkButtonStyleOverrides(
   relPath: string,
   styles: readonly VueSfcBlock[],
@@ -246,7 +244,9 @@ function auditButtonGovernance(
   config: AuditEngineConfig,
   auditor: ComponentStylesAuditor
 ): void {
-  const isButtonGovActive = config.styles?.buttonGovernance?.enabled === true || Boolean(config.styles?.canonicalButtonVariants?.length);
+  const isButtonGovActive =
+    config.styles?.buttonGovernance?.enabled === true ||
+    Boolean(config.styles?.canonicalButtonVariants?.length);
   if (!isButtonGovActive) return;
 
   checkButtonStyleOverrides(relPath, styles, auditor);
@@ -258,14 +258,17 @@ function auditButtonGovernance(
 }
 
 function checkHasValidStyle(styles: readonly VueSfcBlock[]): boolean {
-  return styles.some(style => {
+  return styles.some((style) => {
     const hasSrc = Boolean(style.attributes['src']);
     const body = stripComments(style.content).trim();
     return hasSrc || body.length > 0;
   });
 }
 
-function extractCustomClasses(content: string, globalUtilityClasses: ReadonlySet<string>): string[] {
+function extractCustomClasses(
+  content: string,
+  globalUtilityClasses: ReadonlySet<string>
+): string[] {
   const customClasses: string[] = [];
   const classMatches = content.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
   for (const m of classMatches) {
@@ -377,7 +380,7 @@ function isExemptCssFile(relPath: string, exemptList: readonly string[]): boolea
   if (!exemptList || exemptList.length === 0) return false;
   const normRel = normalizePosixPath(relPath).toLowerCase();
   const baseName = path.basename(normRel);
-  return exemptList.some(item => {
+  return exemptList.some((item) => {
     const normItem = normalizePosixPath(item).toLowerCase();
     return normRel === normItem || normRel.endsWith(`/${normItem}`) || baseName === normItem;
   });
@@ -420,7 +423,9 @@ function auditVueComponent(
   const content = fs.readFileSync(file, 'utf-8');
   const relPath = toPosixRelative(projectRoot, file);
 
-  const scssMatches = content.matchAll(/@(?:use|import|forward)\s+["']([^"']+)["']|src=["']([^"']+\.scss)["']/g);
+  const scssMatches = content.matchAll(
+    /@(?:use|import|forward)\s+["']([^"']+)["']|src=["']([^"']+\.scss)["']/g
+  );
   for (const m of scssMatches) {
     const importTarget = m[1] || m[2];
     if (importTarget) {
@@ -432,7 +437,8 @@ function auditVueComponent(
   auditor.runSubAuditorSync('broken-style-link', () => {
     const parsed = parseVueSfc(content);
     for (const style of parsed.styles) {
-      const srcPath = typeof style.attributes['src'] === 'string' ? style.attributes['src'] : undefined;
+      const srcPath =
+        typeof style.attributes['src'] === 'string' ? style.attributes['src'] : undefined;
       if (srcPath) {
         const resolved = resolveSassPath(srcPath, file, srcDir);
         if (!resolved) {
@@ -490,8 +496,10 @@ function auditOrphanedScss(
   projectRoot: string,
   auditor: ComponentStylesAuditor
 ): void {
-  const componentScssDirs = stylesRoots.map(sr => path.resolve(projectRoot, sr, 'components'));
-  const componentScssFiles = scssFiles.filter(f => componentScssDirs.some(dir => f.startsWith(dir)));
+  const componentScssDirs = stylesRoots.map((sr) => path.resolve(projectRoot, sr, 'components'));
+  const componentScssFiles = scssFiles.filter((f) =>
+    componentScssDirs.some((dir) => f.startsWith(dir))
+  );
 
   for (const file of componentScssFiles) {
     const normalized = path.normalize(file);
@@ -519,23 +527,32 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
   constructor(options: { projectRoot?: string; roots?: readonly string[]; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
-    const effectiveRoots = options.roots ?? Array.from(new Set([
-      ...(config.paths.srcRoots ?? []),
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? []),
-      ...(config.paths.stylesRoots ?? [])
-    ]));
+    const effectiveRoots =
+      options.roots ??
+      Array.from(
+        new Set([
+          ...(config.paths.srcRoots ?? []),
+          ...(config.paths.componentsRoots ?? []),
+          ...(config.paths.viewsRoots ?? []),
+          ...(config.paths.stylesRoots ?? [])
+        ])
+      );
 
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(COMPONENT_STYLE_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, ['banned-plain-css-style']),
+      ruleCapabilities: createRuleCapabilities(
+        COMPONENT_STYLE_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['banned-plain-css-style']
+      ),
       fixableRuleIds: ['banned-plain-css-style'],
       fix: options.fix,
       id: 'validate_component_styles',
@@ -558,16 +575,27 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         'banned-raw-css-file': 'Archivo CSS plano sin SCSS'
       },
       ruleRemediations: {
-        'broken-style-link': 'Guía de diagnóstico y remediación para broken-style-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'missing-style-tag': 'Guía de diagnóstico y remediación para missing-style-tag. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'banned-style-inherited': 'Guía de diagnóstico y remediación para banned-style-inherited. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'orphaned-scss': 'Guía de diagnóstico y remediación para orphaned-scss. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'ad-hoc-button-styles': 'Guía de diagnóstico y remediación para ad-hoc-button-styles. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'banned-plain-css-style': 'Guía de diagnóstico y remediación para banned-plain-css-style. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'banned-raw-css-file': 'Guía de diagnóstico y remediación para banned-raw-css-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'broken-style-link':
+          'Guía de diagnóstico y remediación para broken-style-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'missing-style-tag':
+          'Guía de diagnóstico y remediación para missing-style-tag. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-style-inherited':
+          'Guía de diagnóstico y remediación para banned-style-inherited. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'orphaned-scss':
+          'Guía de diagnóstico y remediación para orphaned-scss. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'ad-hoc-button-styles':
+          'Guía de diagnóstico y remediación para ad-hoc-button-styles. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-plain-css-style':
+          'Guía de diagnóstico y remediación para banned-plain-css-style. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-raw-css-file':
+          'Guía de diagnóstico y remediación para banned-raw-css-file. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
-        include: deriveCoverageFromRoots(effectiveRoots, new Set(['.vue', '.scss', '.css']), effectiveRoot).include
+        include: deriveCoverageFromRoots(
+          effectiveRoots,
+          new Set(['.vue', '.scss', '.css']),
+          effectiveRoot
+        ).include
       },
       roots: effectiveRoots,
       projectRoot: effectiveRoot
@@ -612,7 +640,11 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
     this.redeclareCoverage({
-      include: deriveCoverageFromRoots(this.roots, new Set(['.vue', '.scss', '.css']), this.projectRoot).include
+      include: deriveCoverageFromRoots(
+        this.roots,
+        new Set(['.vue', '.scss', '.css']),
+        this.projectRoot
+      ).include
     });
     const srcRoots = config.paths.srcRoots ?? [];
     const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
@@ -628,8 +660,14 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     const exemptCssFiles = config.styles?.exemptCssFiles ?? [];
 
     if (!enforceScss) {
-      this.markRuleNotApplicable('banned-plain-css-style', 'SCSS no está forzado en configuración (styles.enforceScss: false)');
-      this.markRuleNotApplicable('banned-raw-css-file', 'SCSS no está forzado en configuración (styles.enforceScss: false)');
+      this.markRuleNotApplicable(
+        'banned-plain-css-style',
+        'SCSS no está forzado en configuración (styles.enforceScss: false)'
+      );
+      this.markRuleNotApplicable(
+        'banned-raw-css-file',
+        'SCSS no está forzado en configuración (styles.enforceScss: false)'
+      );
     }
 
     if (vueFiles.length === 0) {

@@ -1,160 +1,147 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { stripVTControlCharacters } from 'node:util';
-import { enableCompileCache } from 'node:module';
-import { publint } from 'publint';
-import { formatMessage } from 'publint/utils';
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
-import { getAuditConfig } from "../../core/auditConfig.js";
+import { enableCompileCache } from "node:module";
+import path from "node:path";
+import fs from "node:fs";
+import { stripVTControlCharacters } from "node:util";
+import { publint } from "publint";
+import { formatMessage } from "publint/utils";
+//#region src/suites/architecture/validate_package_distribution.ts
 enableCompileCache();
-export const PACKAGE_DISTRIBUTION_RULES = [
-    'pkg-distribution-invalid-exports',
-    'pkg-distribution-missing-types',
-    'pkg-distribution-dual-package-hazard'
+const PACKAGE_DISTRIBUTION_RULES = [
+	"pkg-distribution-invalid-exports",
+	"pkg-distribution-missing-types",
+	"pkg-distribution-dual-package-hazard"
 ];
 /**
- * Maps a publint message code to a canonical PackageDistributionRuleId.
- */
-export function mapPublintCodeToRuleId(code) {
-    const upper = code.toUpperCase();
-    if (upper.includes('TYPES')) {
-        return 'pkg-distribution-missing-types';
-    }
-    if (upper.includes('DUAL') || upper.includes('CJS') || upper.includes('ESM')) {
-        return 'pkg-distribution-dual-package-hazard';
-    }
-    return 'pkg-distribution-invalid-exports';
+* Maps a publint message code to a canonical PackageDistributionRuleId.
+*/
+function mapPublintCodeToRuleId(code) {
+	const upper = code.toUpperCase();
+	if (upper.includes("TYPES")) return "pkg-distribution-missing-types";
+	if (upper.includes("DUAL") || upper.includes("CJS") || upper.includes("ESM")) return "pkg-distribution-dual-package-hazard";
+	return "pkg-distribution-invalid-exports";
 }
 /**
- * Parses publint messages into canonical AuditFindings.
- */
-export function parsePublintMessages(messages, pkg, _projectRoot = process.cwd()) {
-    const findings = [];
-    for (const msg of messages) {
-        if (msg.type !== 'error' && msg.type !== 'warning') {
-            continue;
-        }
-        const ruleId = mapPublintCodeToRuleId(msg.code);
-        let formatted;
-        try {
-            formatted = formatMessage(msg, pkg) ?? '';
-        }
-        catch {
-            formatted = `${msg.code}: ${msg.type}`;
-        }
-        const cleanMessage = stripVTControlCharacters(formatted).trim();
-        const severity = msg.type === 'error' ? 'error' : 'warning';
-        findings.push({
-            suiteId: 'validate_package_distribution',
-            suiteName: 'Package Distribution & Exports Hygiene Auditor',
-            ruleId,
-            ruleDescription: 'Distribución: Export map o tipos inválidos',
-            severity,
-            file: 'package.json',
-            line: 1,
-            context: msg.code,
-            message: cleanMessage || `Incidencia de distribución: ${msg.code}`
-        });
-    }
-    return findings;
+* Parses publint messages into canonical AuditFindings.
+*/
+function parsePublintMessages(messages, pkg, _projectRoot = process.cwd()) {
+	const findings = [];
+	for (const msg of messages) {
+		if (msg.type !== "error" && msg.type !== "warning") continue;
+		const ruleId = mapPublintCodeToRuleId(msg.code);
+		let formatted;
+		try {
+			formatted = formatMessage(msg, pkg) ?? "";
+		} catch {
+			formatted = `${msg.code}: ${msg.type}`;
+		}
+		const cleanMessage = stripVTControlCharacters(formatted).trim();
+		const severity = msg.type === "error" ? "error" : "warning";
+		findings.push({
+			suiteId: "validate_package_distribution",
+			suiteName: "Package Distribution & Exports Hygiene Auditor",
+			ruleId,
+			ruleDescription: "Distribución: Export map o tipos inválidos",
+			severity,
+			file: "package.json",
+			line: 1,
+			context: msg.code,
+			message: cleanMessage || `Incidencia de distribución: ${msg.code}`
+		});
+	}
+	return findings;
 }
-export class ValidatePackageDistributionAuditor extends BaseAuditor {
-    constructor(options = {}) {
-        super({
-            usesThirdPartyTool: false,
-            projectRoot: options.projectRoot,
-            ruleCapabilities: createRuleCapabilities(PACKAGE_DISTRIBUTION_RULES, {
-                speed: 'light',
-                phase: 'post-build',
-                fix: 'none',
-                md: false,
-                ast: false,
-                changedOnly: false, critical: false
-            }),
-            id: 'validate_package_distribution',
-            name: 'Package Distribution & Exports Hygiene Auditor',
-            description: 'Valida export maps y packaging con Publint',
-            family: 'architecture',
-            packageName: 'Distribución',
-            icon: '📦',
-            ruleIds: PACKAGE_DISTRIBUTION_RULES,
-            ruleDescriptions: {
-                'pkg-distribution-invalid-exports': 'Export map de package.json inválido',
-                'pkg-distribution-missing-types': 'Falta .d.ts para entrypoint público',
-                'pkg-distribution-dual-package-hazard': 'Incompatibilidad dual ESM y CJS'
-            },
-            ruleRemediations: {
-                'pkg-distribution-invalid-exports': 'Guía de diagnóstico y remediación para pkg-distribution-invalid-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'pkg-distribution-missing-types': 'Guía de diagnóstico y remediación para pkg-distribution-missing-types. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'pkg-distribution-dual-package-hazard': 'Guía de diagnóstico y remediación para pkg-distribution-dual-package-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.',
-            },
-            coverage: {
-                include: ['package.json', 'dist/**']
-            },
-            configKey: 'packageDistribution.enabled',
-            defaultConfig: { enabled: true },
-            criticalConfig: {},
-        });
-    }
-    async runAudit() {
-        if (this.isSuiteGatingDisabled('Distribución de paquete desactivada en config')) {
-            return;
-        }
-        this.recordScanned('package.json');
-        const config = getAuditConfig(this.projectRoot);
-        const targetPkgDir = config.packageDistribution?.pkgDir
-            ? path.resolve(this.projectRoot, config.packageDistribution.pkgDir)
-            : this.projectRoot;
-        const pkgJson = this.readTargetPackageJson(targetPkgDir);
-        if (!pkgJson)
-            return;
-        const level = (config.packageDistribution?.level ?? 'warning');
-        const result = await publint({ pkgDir: targetPkgDir, level });
-        const findings = parsePublintMessages(result.messages, pkgJson, this.projectRoot);
-        for (const ruleId of PACKAGE_DISTRIBUTION_RULES) {
-            this.runSubAuditorSync(ruleId, () => {
-                const ruleFindings = findings.filter(f => f.ruleId === ruleId);
-                for (const finding of ruleFindings) {
-                    this.addViolation({
-                        ruleId,
-                        severity: finding.severity,
-                        file: finding.file ?? 'package.json',
-                        line: finding.line ?? 1,
-                        context: finding.context ?? finding.message,
-                        message: finding.message
-                    });
-                }
-            });
-        }
-    }
-    readTargetPackageJson(targetPkgDir) {
-        const pkgJsonPath = path.resolve(targetPkgDir, 'package.json');
-        if (!fs.existsSync(pkgJsonPath)) {
-            this.addViolation({
-                ruleId: 'pkg-distribution-invalid-exports',
-                severity: 'error',
-                file: 'package.json',
-                line: 1,
-                context: 'package.json',
-                message: `No se encontró package.json en el directorio de distribución: ${targetPkgDir}`
-            });
-            return null;
-        }
-        try {
-            return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')); // open-record: Generic key-value data dictionary container
-        }
-        catch (err) {
-            this.addViolation({
-                ruleId: 'pkg-distribution-invalid-exports',
-                severity: 'error',
-                file: 'package.json',
-                line: 1,
-                context: 'package.json',
-                message: `package.json corrupto o inválido: ${err instanceof Error ? err.message : String(err)}`
-            });
-            return null;
-        }
-    }
-}
+var ValidatePackageDistributionAuditor = class extends BaseAuditor {
+	constructor(options = {}) {
+		super({
+			usesThirdPartyTool: false,
+			projectRoot: options.projectRoot,
+			ruleCapabilities: createRuleCapabilities(PACKAGE_DISTRIBUTION_RULES, {
+				speed: "light",
+				phase: "post-build",
+				fix: "none",
+				md: false,
+				ast: false,
+				changedOnly: false,
+				critical: false
+			}),
+			id: "validate_package_distribution",
+			name: "Package Distribution & Exports Hygiene Auditor",
+			description: "Valida export maps y packaging con Publint",
+			family: "architecture",
+			packageName: "Distribución",
+			icon: "📦",
+			ruleIds: PACKAGE_DISTRIBUTION_RULES,
+			ruleDescriptions: {
+				"pkg-distribution-invalid-exports": "Export map de package.json inválido",
+				"pkg-distribution-missing-types": "Falta .d.ts para entrypoint público",
+				"pkg-distribution-dual-package-hazard": "Incompatibilidad dual ESM y CJS"
+			},
+			ruleRemediations: {
+				"pkg-distribution-invalid-exports": "Guía de diagnóstico y remediación para pkg-distribution-invalid-exports. Revisa la incidencia detectada y ajusta el código correspondiente.",
+				"pkg-distribution-missing-types": "Guía de diagnóstico y remediación para pkg-distribution-missing-types. Revisa la incidencia detectada y ajusta el código correspondiente.",
+				"pkg-distribution-dual-package-hazard": "Guía de diagnóstico y remediación para pkg-distribution-dual-package-hazard. Revisa la incidencia detectada y ajusta el código correspondiente."
+			},
+			coverage: { include: ["package.json", "dist/**"] },
+			configKey: "packageDistribution.enabled",
+			defaultConfig: { enabled: true },
+			criticalConfig: {}
+		});
+	}
+	async runAudit() {
+		if (this.isSuiteGatingDisabled("Distribución de paquete desactivada en config")) return;
+		this.recordScanned("package.json");
+		const config = getAuditConfig(this.projectRoot);
+		const targetPkgDir = config.packageDistribution?.pkgDir ? path.resolve(this.projectRoot, config.packageDistribution.pkgDir) : this.projectRoot;
+		const pkgJson = this.readTargetPackageJson(targetPkgDir);
+		if (!pkgJson) return;
+		const level = config.packageDistribution?.level ?? "warning";
+		const findings = parsePublintMessages((await publint({
+			pkgDir: targetPkgDir,
+			level
+		})).messages, pkgJson, this.projectRoot);
+		for (const ruleId of PACKAGE_DISTRIBUTION_RULES) this.runSubAuditorSync(ruleId, () => {
+			const ruleFindings = findings.filter((f) => f.ruleId === ruleId);
+			for (const finding of ruleFindings) this.addViolation({
+				ruleId,
+				severity: finding.severity,
+				file: finding.file ?? "package.json",
+				line: finding.line ?? 1,
+				context: finding.context ?? finding.message,
+				message: finding.message
+			});
+		});
+	}
+	readTargetPackageJson(targetPkgDir) {
+		const pkgJsonPath = path.resolve(targetPkgDir, "package.json");
+		if (!fs.existsSync(pkgJsonPath)) {
+			this.addViolation({
+				ruleId: "pkg-distribution-invalid-exports",
+				severity: "error",
+				file: "package.json",
+				line: 1,
+				context: "package.json",
+				message: `No se encontró package.json en el directorio de distribución: ${targetPkgDir}`
+			});
+			return null;
+		}
+		try {
+			return JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+		} catch (err) {
+			this.addViolation({
+				ruleId: "pkg-distribution-invalid-exports",
+				severity: "error",
+				file: "package.json",
+				line: 1,
+				context: "package.json",
+				message: `package.json corrupto o inválido: ${err instanceof Error ? err.message : String(err)}`
+			});
+			return null;
+		}
+	}
+};
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePackageDistributionAuditor());
-//# sourceMappingURL=validate_package_distribution.js.map
+//#endregion
+export { PACKAGE_DISTRIBUTION_RULES, ValidatePackageDistributionAuditor, mapPublintCodeToRuleId, parsePublintMessages };

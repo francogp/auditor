@@ -22,10 +22,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  FileScanAuditor,
-  BaseAuditor
-, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
@@ -46,10 +43,19 @@ export const TEMPLATE_ID_RULES: readonly TemplateIdRuleId[] = [
 const STATIC_ID_REGEX = /(?:^|[\s<])id\s*=\s*["']([^"'\s>]+)["']/g;
 // Match start of interactive form controls and elements: <input, <select, <textarea, <button or any tag with interactive events
 const INTERACTIVE_TAG_REGEX = /<([\w-]+)\b/g;
-const INHERENT_INTERACTIVE_TAGS: ReadonlySet<string> = new Set(['input', 'select', 'textarea', 'button']);
-const INTERACTIVE_EVENT_REGEX = /@(?:click|change|submit|input|keydown\.enter)\b|v-on:(?:click|change|submit|input)/i;
+const INHERENT_INTERACTIVE_TAGS: ReadonlySet<string> = new Set([
+  'input',
+  'select',
+  'textarea',
+  'button'
+]);
+const INTERACTIVE_EVENT_REGEX =
+  /@(?:click|change|submit|input|keydown\.enter)\b|v-on:(?:click|change|submit|input)/i;
 
-function extractFullTag(content: string, startIndex: number): { tag: string; endIndex: number } | null {
+function extractFullTag(
+  content: string,
+  startIndex: number
+): { tag: string; endIndex: number } | null {
   let inQuote: string | null = null;
   for (let i = startIndex; i < content.length; i++) {
     const char = content[i];
@@ -94,7 +100,11 @@ function scanTemplateStaticIds(ctx: TemplateScanContext): void {
     const id = match[1];
     if (!id) continue;
 
-    const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + match.index);
+    const info = ctx.auditor.getMatchLineInfo(
+      ctx.content,
+      ctx.lines,
+      ctx.templateStartOffset + match.index
+    );
     if (info.isIgnored) continue;
 
     const occurrence: IdOccurrence = {
@@ -135,7 +145,8 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
     if (!tagInfo) continue;
 
     const tagFull = tagInfo.tag;
-    const isInteractive = INHERENT_INTERACTIVE_TAGS.has(tagType) || INTERACTIVE_EVENT_REGEX.test(tagFull);
+    const isInteractive =
+      INHERENT_INTERACTIVE_TAGS.has(tagType) || INTERACTIVE_EVENT_REGEX.test(tagFull);
     if (!isInteractive) continue;
 
     // Non-interactive hidden inputs do not require interactive IDs or labels
@@ -151,7 +162,11 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
     // Match static id, dynamic :id, or v-bind:id
     const hasId = /\b(?:v-bind:id|:id|id)\s*=/i.test(tagFull);
 
-    const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + formMatch.index);
+    const info = ctx.auditor.getMatchLineInfo(
+      ctx.content,
+      ctx.lines,
+      ctx.templateStartOffset + formMatch.index
+    );
     if (info.isIgnored) continue;
 
     if (!hasId) {
@@ -168,10 +183,14 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
 }
 
 export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
-private readonly globalIdMap = new Map<string, IdOccurrence[]>();
+  private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   private readonly requireInputIds: boolean;
 
-  constructor(roots?: readonly string[], options?: { requireInputIds?: boolean }, projectRoot?: string) {
+  constructor(
+    roots?: readonly string[],
+    options?: { requireInputIds?: boolean },
+    projectRoot?: string
+  ) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? [
       ...(config.paths.componentsRoots ?? []),
@@ -185,9 +204,10 @@ private readonly globalIdMap = new Map<string, IdOccurrence[]>();
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_template_ids',
+      id: 'validate_template_ids',
       name: 'Template Static ID Uniqueness & Collision Validator',
       description: 'Verifica IDs estáticos e inputs en templates Vue',
       family: 'architecture',
@@ -203,9 +223,12 @@ id: 'validate_template_ids',
         'template-missing-input-id': 'Control sin ID único'
       },
       ruleRemediations: {
-        'template-duplicate-static-id': 'Guía de diagnóstico y remediación para template-duplicate-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'template-shared-static-id': 'Guía de diagnóstico y remediación para template-shared-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'template-missing-input-id': 'Guía de diagnóstico y remediación para template-missing-input-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'template-duplicate-static-id':
+          'Guía de diagnóstico y remediación para template-duplicate-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'template-shared-static-id':
+          'Guía de diagnóstico y remediación para template-shared-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'template-missing-input-id':
+          'Guía de diagnóstico y remediación para template-missing-input-id. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.vue']),
@@ -214,7 +237,11 @@ id: 'validate_template_ids',
     this.requireInputIds = options?.requireInputIds ?? config.templates?.requireInputIds ?? false;
   }
 
-  public getMatchLineInfo(content: string, lines: string[], offset: number): { lineNumber: number; lineContent: string; isIgnored: boolean } {
+  public getMatchLineInfo(
+    content: string,
+    lines: string[],
+    offset: number
+  ): { lineNumber: number; lineContent: string; isIgnored: boolean } {
     const lineNumber = content.slice(0, offset).split('\n').length;
     const lineContent = lines[lineNumber - 1] || '';
     const isIgnored = this.isLineIgnored(lineContent, ['id-ok', 'template-ok']);
@@ -246,16 +273,16 @@ id: 'validate_template_ids',
     }
   }
 
-
-  private checkSingleIdCollisions(
-    id: string,
-    occs: readonly IdOccurrence[]
-  ): void {
-    const distinctFiles = Array.from(new Set(occs.map(o => o.file)));
+  private checkSingleIdCollisions(id: string, occs: readonly IdOccurrence[]): void {
+    const distinctFiles = Array.from(new Set(occs.map((o) => o.file)));
     if (distinctFiles.length <= 1) return;
 
     const firstOcc = occs[0];
-    const fileSummary = distinctFiles.slice(0, 3).map(f => path.basename(f)).join(', ') + (distinctFiles.length > 3 ? '...' : '');
+    const fileSummary =
+      distinctFiles
+        .slice(0, 3)
+        .map((f) => path.basename(f))
+        .join(', ') + (distinctFiles.length > 3 ? '...' : '');
 
     for (let i = 1; i < occs.length; i++) {
       const occ = occs[i];

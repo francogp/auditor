@@ -44,7 +44,7 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
     expect(config.fallow?.flags?.enabled).toBe(true);
     expect(config.fallow?.flags?.trackRetirement).toBe(true);
     expect(config.fallow?.coverage?.enabled).toBe(true);
-    expect(config.eslint?.enabled).toBe(true);
+    expect(config.oxlint?.enabled).toBe(true);
     expect(config.stylelint?.enabled).toBe(true);
     expect(config.version?.enabled).toBe(true);
     expect(config.version?.autoSyncPublicVersionJson).toBe(true);

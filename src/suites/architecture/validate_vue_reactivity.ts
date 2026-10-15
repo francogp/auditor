@@ -21,7 +21,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
@@ -69,7 +69,8 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_vue_reactivity',
       name: 'Vue Reactivity & State Hygiene Auditor',
@@ -88,10 +89,14 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
         'no-destructured-reactive': 'Desestructuración de reactive() sin toRefs'
       },
       ruleRemediations: {
-        'no-side-effects-in-computed': 'Guía de diagnóstico y remediación para no-side-effects-in-computed. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'watch-reactive-property-getter': 'Guía de diagnóstico y remediación para watch-reactive-property-getter. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-async-in-computed': 'Guía de diagnóstico y remediación para no-async-in-computed. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-destructured-reactive': 'Guía de diagnóstico y remediación para no-destructured-reactive. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-side-effects-in-computed':
+          'Guía de diagnóstico y remediación para no-side-effects-in-computed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'watch-reactive-property-getter':
+          'Guía de diagnóstico y remediación para watch-reactive-property-getter. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-async-in-computed':
+          'Guía de diagnóstico y remediación para no-async-in-computed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-destructured-reactive':
+          'Guía de diagnóstico y remediación para no-destructured-reactive. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.ts', '.js']),
@@ -163,8 +168,16 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     });
   }
 
-  private auditDirectMutations(body: string, relPath: string, fullContent: string, startIdx: number): void {
-    const dirRegex = new RegExp(DIRECT_REACTIVE_MUTATION_REGEX.source, DIRECT_REACTIVE_MUTATION_REGEX.flags);
+  private auditDirectMutations(
+    body: string,
+    relPath: string,
+    fullContent: string,
+    startIdx: number
+  ): void {
+    const dirRegex = new RegExp(
+      DIRECT_REACTIVE_MUTATION_REGEX.source,
+      DIRECT_REACTIVE_MUTATION_REGEX.flags
+    );
     let dirMatch: RegExpExecArray | null;
     while ((dirMatch = dirRegex.exec(body)) !== null) {
       this.reportComputedViolation(
@@ -177,7 +190,12 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     }
   }
 
-  private evalLocalIdentifierMutation(targetVar: string, method: string, fullMatched: string, body: string): string | null {
+  private evalLocalIdentifierMutation(
+    targetVar: string,
+    method: string,
+    fullMatched: string,
+    body: string
+  ): string | null {
     const declRegex = new RegExp(`\\b(?:const|let|var)\\s+${targetVar}\\b([^;\\n]*)`);
     const declMatch = declRegex.exec(body);
 
@@ -186,26 +204,50 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     }
 
     const initExpr = declMatch[1] ?? '';
-    const hasCloning = initExpr.includes('[...') || initExpr.includes('.slice(') || initExpr.includes('.filter(') ||
-      initExpr.includes('.map(') || initExpr.includes('Array.from(') || initExpr.includes('new Array') ||
-      initExpr.includes('[]') || body.includes(`${targetVar} = [...`) || body.includes(`${targetVar} = ${targetVar}.filter`);
+    const hasCloning =
+      initExpr.includes('[...') ||
+      initExpr.includes('.slice(') ||
+      initExpr.includes('.filter(') ||
+      initExpr.includes('.map(') ||
+      initExpr.includes('Array.from(') ||
+      initExpr.includes('new Array') ||
+      initExpr.includes('[]') ||
+      body.includes(`${targetVar} = [...`) ||
+      body.includes(`${targetVar} = ${targetVar}.filter`);
 
-    if (hasCloning || (!initExpr.includes('props.') && !initExpr.includes('.value') && !initExpr.includes('store.'))) {
+    if (
+      hasCloning ||
+      (!initExpr.includes('props.') && !initExpr.includes('.value') && !initExpr.includes('store.'))
+    ) {
       return null;
     }
 
     if (method === 'sort' || method === 'reverse') {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first (e.g. [...${targetVar}].${method}()).`;
     }
-    if (method === 'push' || method === 'pop' || method === 'shift' || method === 'unshift' || method === 'splice') {
+    if (
+      method === 'push' ||
+      method === 'pop' ||
+      method === 'shift' ||
+      method === 'unshift' ||
+      method === 'splice'
+    ) {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first.`;
     }
 
     return null;
   }
 
-  private auditLocalIdentifierMutations(body: string, relPath: string, fullContent: string, startIdx: number): void {
-    const locRegex = new RegExp(LOCAL_IDENTIFIER_MUTATION_REGEX.source, LOCAL_IDENTIFIER_MUTATION_REGEX.flags);
+  private auditLocalIdentifierMutations(
+    body: string,
+    relPath: string,
+    fullContent: string,
+    startIdx: number
+  ): void {
+    const locRegex = new RegExp(
+      LOCAL_IDENTIFIER_MUTATION_REGEX.source,
+      LOCAL_IDENTIFIER_MUTATION_REGEX.flags
+    );
     let locMatch: RegExpExecArray | null;
     while ((locMatch = locRegex.exec(body)) !== null) {
       const fullMatched = locMatch[0];
@@ -216,14 +258,24 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       if (locMatch.index > 0 && body[locMatch.index - 1] === '.') continue;
       if (targetVar === 'props' || targetVar === 'store' || targetVar === 'value') continue;
 
-      const violationMessage = this.evalLocalIdentifierMutation(targetVar, method, fullMatched, body);
+      const violationMessage = this.evalLocalIdentifierMutation(
+        targetVar,
+        method,
+        fullMatched,
+        body
+      );
       if (violationMessage) {
         this.reportComputedViolation(relPath, fullContent, startIdx, fullMatched, violationMessage);
       }
     }
   }
 
-  private auditRefAssignments(body: string, relPath: string, fullContent: string, startIdx: number): void {
+  private auditRefAssignments(
+    body: string,
+    relPath: string,
+    fullContent: string,
+    startIdx: number
+  ): void {
     const refAssignRegex = /\b[\w$]+\.value\s*=(?!=)/g;
     let refMatch: RegExpExecArray | null;
     while ((refMatch = refAssignRegex.exec(body)) !== null) {

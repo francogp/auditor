@@ -48,4 +48,5 @@ export * from './suites/architecture/validate_auditor_hygiene.ts';
 export * from './suites/architecture/validate_script_commands.ts';
 export * from './suites/architecture/validate_script_extensions.ts';
 export * from './suites/persistence/validate_valibot_parity.ts';
-
+export * from './core/domainTypeOxlintPlugin.ts';
+export * from './core/vitePlusConfigSync.ts';

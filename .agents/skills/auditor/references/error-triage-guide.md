@@ -62,7 +62,7 @@ npm run auditor guide
 ### 2. `audit-config-missing-section`
 
 - **Family**: `architecture` | **Suite**: `validate_audit_config`
-- **Symptom**: A sub-auditor or extension declares a `configKey` (e.g. `valibot`, `eslint`, `customExt`), but the section is missing in `.auditor/audit.config.ts`.
+- **Symptom**: A sub-auditor or extension declares a `configKey` (e.g. `valibot`, `oxlint`, `customExt`), but the section is missing in `.auditor/audit.config.ts`.
 - **Remediation**:
   1. Run the automatic repair command:
 
@@ -87,7 +87,7 @@ npm run auditor guide
 ### 4. `audit-config-missing-gitignore-entry`
 
 - **Family**: `architecture` | **Suite**: `validate_audit_config`
-- **Symptom**: Missing temporary cache or log pattern in `.gitignore` (e.g. `scratch/`, `*.log`, `.eslintcache`).
+- **Symptom**: Missing temporary cache or log pattern in `.gitignore` (e.g. `scratch/`, `*.log`, `cache/`).
 - **Remediation**:
   1. Run `npm run auditor:fix` to automatically inject missing requirements.
   2. Or append the required entry directly to your `.gitignore` file.

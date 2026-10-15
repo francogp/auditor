@@ -587,10 +587,10 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
 
 ## 5. Hermetic 5-Point Unit Test Contract
 
-Every host extension must be tested with Vitest according to the 5-point contract:
+Every host extension must be tested with Vite+ / Vitest according to the 5-point contract:
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { validateAuditorConstruction } from '@francogp/auditor/contract';
 import {
   ValidateGameDesignAuditor,

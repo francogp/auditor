@@ -26,11 +26,7 @@ export const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
 export const MIN_COVERAGE_REASON_LENGTH = 15;
 
 const BLOCKED_WILDCARD_LITERALS = ['', '*', '**', '*.*', '.*'] as const;
-const BLOCKED_WILDCARD_PATTERNS = [
-  /^src(?:\/\*+|\/)?$/i,
-  /^scripts(?:\/\*+|\/)?$/i,
-  /^\*+\/\*+$/
-];
+const BLOCKED_WILDCARD_PATTERNS = [/^src(?:\/\*+|\/)?$/i, /^scripts(?:\/\*+|\/)?$/i, /^\*+\/\*+$/];
 
 const UNIVERSAL_COVERAGE_REGEX = /^(?:\*\*?\/?)+(?:\*(?:\.\*)?)?$/;
 const NARROW_EXTENSION_REGEX = /^\*\*\/\*\.\w+$/;
@@ -39,7 +35,10 @@ export function normalizeRootPath(p: string): string {
   return p.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '');
 }
 
-export function getExemptRootsForPolicy(policy: string, paths: AuditEngineConfig['paths']): readonly string[] {
+export function getExemptRootsForPolicy(
+  policy: string,
+  paths: AuditEngineConfig['paths']
+): readonly string[] {
   switch (policy) {
     case 'scripts':
       return paths.scriptsRoots ?? ['scripts'];
@@ -54,9 +53,12 @@ export function getExemptRootsForPolicy(policy: string, paths: AuditEngineConfig
   }
 }
 
-export function filterOutExemptRoots(roots: readonly string[], exemptRoots: readonly string[]): string[] {
+export function filterOutExemptRoots(
+  roots: readonly string[],
+  exemptRoots: readonly string[]
+): string[] {
   const exemptSet = new Set(exemptRoots.map(normalizeRootPath));
-  return roots.filter(r => !exemptSet.has(normalizeRootPath(r)));
+  return roots.filter((r) => !exemptSet.has(normalizeRootPath(r)));
 }
 
 function isBlanketCoverageGlob(glob: string): boolean {
@@ -69,18 +71,25 @@ function isBlanketCoverageGlob(glob: string): boolean {
 /**
  * Rejects globs that would blanket-exempt the repository, a whole extension, or a whole code/test root.
  */
-export function assertNarrowCoverageGlob(field: string, rawGlob: string, protectedRoots: readonly string[]): void {
+export function assertNarrowCoverageGlob(
+  field: string,
+  rawGlob: string,
+  protectedRoots: readonly string[]
+): void {
   const glob = (rawGlob ?? '').trim();
   if (isBlanketCoverageGlob(glob)) {
     throw new Error(
       `[AuditConfig Anti-Abuse] '${field}' contiene un glob global o inválido: '${rawGlob}'. ` +
-      `Usa globs POSIX relativos y acotados (ej: 'dist/**', 'LICENSE').`
+        `Usa globs POSIX relativos y acotados (ej: 'dist/**', 'LICENSE').`
     );
   }
   for (const root of protectedRoots) {
     const cleanRoot = normalizeRootPath(root);
     if (!cleanRoot) continue;
-    if (glob === cleanRoot || new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)) {
+    if (
+      glob === cleanRoot ||
+      new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)
+    ) {
       throw new Error(
         `[AuditConfig Anti-Abuse] '${field}' no puede eximir una raíz de código completa ('${rawGlob}' cubre '${cleanRoot}').`
       );
@@ -88,7 +97,11 @@ export function assertNarrowCoverageGlob(field: string, rawGlob: string, protect
   }
 }
 
-export function assertCoverageReason(field: string, glob: string, reason: string | undefined): void {
+export function assertCoverageReason(
+  field: string,
+  glob: string,
+  reason: string | undefined
+): void {
   if (typeof reason !== 'string' || reason.trim().length < MIN_COVERAGE_REASON_LENGTH) {
     throw new Error(
       `[AuditConfig Anti-Abuse] '${field}' para '${glob}' requiere un 'reason' de al menos ${MIN_COVERAGE_REASON_LENGTH} caracteres.`
@@ -97,7 +110,10 @@ export function assertCoverageReason(field: string, glob: string, reason: string
 }
 
 function isUniversalWildcard(glob: string): boolean {
-  return BLOCKED_WILDCARD_LITERALS.some(literal => literal === glob) || BLOCKED_WILDCARD_PATTERNS.some(re => re.test(glob));
+  return (
+    BLOCKED_WILDCARD_LITERALS.some((literal) => literal === glob) ||
+    BLOCKED_WILDCARD_PATTERNS.some((re) => re.test(glob))
+  );
 }
 
 function isProtectedProductionRoot(normalizedLower: string, prodRoot: string): boolean {
@@ -113,7 +129,7 @@ function assertNoUniversalWildcard(rawGlob: string, glob: string): void {
   if (isUniversalWildcard(glob)) {
     throw new Error(
       `[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contiene un comodín global no permitido: '${rawGlob}'.\n` +
-      `Está ESTRICTAMENTE PROHIBIDO usar comodines globales ('*', '**', 'src/**', 'scripts/**') para evadir el mandato de números mágicos.`
+        `Está ESTRICTAMENTE PROHIBIDO usar comodines globales ('*', '**', 'src/**', 'scripts/**') para evadir el mandato de números mágicos.`
     );
   }
 }
@@ -123,8 +139,8 @@ function assertNoProtectedProductionRoots(rawGlob: string, normalizedLower: stri
     if (isProtectedProductionRoot(normalizedLower, prodRoot)) {
       throw new Error(
         `[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contiene una ruta de lógica de producción protegida: '${rawGlob}'.\n` +
-        `Está ESTRICTAMENTE PROHIBIDO eximir directorios de producción (como '${prodRoot}').\n` +
-        `Las excepciones de números mágicos solo están permitidas para scripts de semillas, fixtures o demostraciones aisladas (ej: 'scripts/database/seeds/**', 'ui-demo/**').`
+          `Está ESTRICTAMENTE PROHIBIDO eximir directorios de producción (como '${prodRoot}').\n` +
+          `Las excepciones de números mágicos solo están permitidas para scripts de semillas, fixtures o demostraciones aisladas (ej: 'scripts/database/seeds/**', 'ui-demo/**').`
       );
     }
   }
@@ -134,7 +150,7 @@ export function validateConstantsExemptGlobs(globs: readonly string[]): void {
   if (globs.length > MAX_CONSTANTS_EXEMPT_GLOBS) {
     throw new Error(
       `[AuditConfig Anti-Abuse] 'constants.exemptGlobs' excede el límite máximo de ${MAX_CONSTANTS_EXEMPT_GLOBS} patrones (${globs.length} configurados).\n` +
-      `No abuses de las excepciones. Si tienes tantas incidencias, extrae constantes nominadas descriptivas o usa fábricas de prueba.`
+        `No abuses de las excepciones. Si tienes tantas incidencias, extrae constantes nominadas descriptivas o usa fábricas de prueba.`
     );
   }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Dedicated Environment Updater for Linux / macOS (@francogp/auditor)
-# Updates Node.js to latest Current, updates npm, and synchronizes .nvmrc & package.json.
+# Updates Node.js to latest Current, updates npm, and synchronizes .node-version & package.json.
 
 set -e
 

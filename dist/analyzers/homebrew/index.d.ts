@@ -1,26 +1,20 @@
-/**
- * src/analyzers/homebrew/index.ts
- *
- * Public entrypoint and default registry bootstrap for homebrew detectors.
- */
-import { packageJsonDetector } from './detectors/packageJsonDetector.ts';
-import { vueSfcRegexDetector } from './detectors/vueSfcRegexDetector.ts';
-import { tsAstDetector } from './detectors/tsAstDetector.ts';
-import { pathNormalizeDetector } from './detectors/pathNormalizeDetector.ts';
-import { rawConsoleDetector } from './detectors/rawConsoleDetector.ts';
-import { commentStrippingDetector } from './detectors/commentStrippingDetector.ts';
-import { braceCountingDetector } from './detectors/braceCountingDetector.ts';
-import { pathContainmentDetector } from './detectors/pathContainmentDetector.ts';
-import { fileWalkerDetector } from './detectors/fileWalkerDetector.ts';
-import { predicatesDetector } from './detectors/predicatesDetector.ts';
-import { manualTimingDetector } from './detectors/manualTimingDetector.ts';
-import { hardcodedConfigDetector } from './detectors/hardcodedConfigDetector.ts';
-import { manualStepLoggingDetector } from './detectors/manualStepLoggingDetector.ts';
-import { unmeasuredRuleDetector } from './detectors/unmeasuredRuleDetector.ts';
-import { redundantRuleEvaluatedDetector } from './detectors/redundantRuleEvaluatedDetector.ts';
-import { thirdPartyToolContractDetector } from './detectors/thirdPartyToolContractDetector.ts';
-import { inefficientFileScanDetector } from './detectors/inefficientFileScanDetector.ts';
-export * from './homebrewTypes.ts';
-export * from './homebrewRegistry.ts';
-export { packageJsonDetector, vueSfcRegexDetector, tsAstDetector, pathNormalizeDetector, rawConsoleDetector, commentStrippingDetector, braceCountingDetector, pathContainmentDetector, fileWalkerDetector, predicatesDetector, manualTimingDetector, hardcodedConfigDetector, manualStepLoggingDetector, unmeasuredRuleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, inefficientFileScanDetector };
-//# sourceMappingURL=index.d.ts.map
+import { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId, HomebrewDetector, HomebrewFinding, HomebrewInspectionContext, LineDetectorOptions, createLineDetector } from "./homebrewTypes.js";
+import { packageJsonDetector } from "./detectors/packageJsonDetector.js";
+import { vueSfcRegexDetector } from "./detectors/vueSfcRegexDetector.js";
+import { tsAstDetector } from "./detectors/tsAstDetector.js";
+import { pathNormalizeDetector } from "./detectors/pathNormalizeDetector.js";
+import { rawConsoleDetector } from "./detectors/rawConsoleDetector.js";
+import { commentStrippingDetector } from "./detectors/commentStrippingDetector.js";
+import { braceCountingDetector } from "./detectors/braceCountingDetector.js";
+import { pathContainmentDetector } from "./detectors/pathContainmentDetector.js";
+import { fileWalkerDetector } from "./detectors/fileWalkerDetector.js";
+import { predicatesDetector } from "./detectors/predicatesDetector.js";
+import { manualTimingDetector } from "./detectors/manualTimingDetector.js";
+import { hardcodedConfigDetector } from "./detectors/hardcodedConfigDetector.js";
+import { manualStepLoggingDetector } from "./detectors/manualStepLoggingDetector.js";
+import { unmeasuredRuleDetector } from "./detectors/unmeasuredRuleDetector.js";
+import { redundantRuleEvaluatedDetector } from "./detectors/redundantRuleEvaluatedDetector.js";
+import { thirdPartyToolContractDetector } from "./detectors/thirdPartyToolContractDetector.js";
+import { inefficientFileScanDetector } from "./detectors/inefficientFileScanDetector.js";
+import { HomebrewDetectorRegistry } from "./homebrewRegistry.js";
+export { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId, HomebrewDetector, HomebrewDetectorRegistry, HomebrewFinding, HomebrewInspectionContext, LineDetectorOptions, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, pathContainmentDetector, pathNormalizeDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };

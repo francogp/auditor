@@ -19,8 +19,8 @@ import { getAuditorMinimumVersions } from '../src/core/auditorMinimums.ts';
 describe('validate_dependency_minimums', () => {
   let tempDir: string;
   const minimums = getAuditorMinimumVersions();
-  const eslintFloor = minimums['eslint'] as string;
-  const eslintMin = eslintFloor.replace('^', '');
+  const htmlValidateFloor = minimums['html-validate'] as string;
+  const htmlValidateMin = htmlValidateFloor.replace('^', '');
 
   async function writeProject(devDependencies: Record<string, string>, locked?: Record<string, string>): Promise<void> { // open-record: test fixture dictionaries
     await fs.writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'host', devDependencies }));
@@ -54,12 +54,12 @@ describe('validate_dependency_minimums', () => {
   });
 
   it('reads minimums from the auditor peerDependencies (never hardcoded)', () => {
-    expect(Object.keys(minimums)).toContain('eslint');
-    expect(minimums['eslint']).toMatch(/^[\^~]?\d/);
+    expect(Object.keys(minimums)).toContain('html-validate');
+    expect(minimums['html-validate']).toMatch(/^[\^~]?\d/);
   });
 
   it('passes cleanly when declared libraries meet the floor', async () => {
-    await writeProject({ eslint: eslintFloor }, { eslint: eslintMin });
+    await writeProject({ 'html-validate': htmlValidateFloor }, { 'html-validate': htmlValidateMin });
     const result = await run();
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -74,17 +74,17 @@ describe('validate_dependency_minimums', () => {
   });
 
   it('fails when the declared range is below the floor', async () => {
-    await writeProject({ eslint: '^1.0.0' });
+    await writeProject({ 'html-validate': '^1.0.0' });
     const result = await run();
     expect(result.summary.errors).toBeGreaterThan(0);
     expect(result.status).toBe('failed');
     const finding = result.findings.find((f) => f.ruleId === 'dependency-below-minimum-range');
     expect(finding?.severity).toBe('error');
-    expect(finding?.message).toContain(`npm install -D eslint@${eslintFloor}`);
+    expect(finding?.message).toContain(`npm install -D html-validate@${htmlValidateFloor}`);
   });
 
   it('fails when the lockfile version is below the floor', async () => {
-    await writeProject({ eslint: eslintFloor }, { eslint: '1.0.0' });
+    await writeProject({ 'html-validate': htmlValidateFloor }, { 'html-validate': '1.0.0' });
     const result = await run();
     expect(result.status).toBe('failed');
     expect(result.findings.some((f) => f.ruleId === 'dependency-below-minimum-installed' && f.severity === 'error')).toBe(true);

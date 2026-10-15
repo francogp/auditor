@@ -34,9 +34,7 @@ const COL_WIDTH_ITEM = 31;
 const COL_WIDTH_LOCATION = 24;
 
 function truncateItem(item: string): string {
-  return item.length > MAX_ITEM_DISPLAY_CHARS
-    ? `${item.slice(0, MAX_ITEM_TRUNCATE_CHARS)}…`
-    : item;
+  return item.length > MAX_ITEM_DISPLAY_CHARS ? `${item.slice(0, MAX_ITEM_TRUNCATE_CHARS)}…` : item;
 }
 
 function truncateLocation(loc: string): string {
@@ -89,7 +87,9 @@ function formatCssTableRow(f: AuditFinding, index: number): TableRow {
 
 function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], category: string): void {
   if (filteredFindings.length === 0) {
-    console.log(styleText('green', '✨ No se detectaron problemas ni violaciones de estilos CSS/SCSS.\n'));
+    console.log(
+      styleText('green', '✨ No se detectaron problemas ni violaciones de estilos CSS/SCSS.\n')
+    );
     return;
   }
 
@@ -126,31 +126,48 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
   const auditor = new StylelintAuditor({ projectRoot });
   const result = await auditor.execute();
 
-  const filteredFindings = result.findings.filter(f => {
+  const filteredFindings = result.findings.filter((f) => {
     if (errorsOnly && f.severity !== 'error') return false;
     return matchesCssCategory(f.ruleId, category);
   });
 
   if (isJson) {
-    console.log(JSON.stringify({
-      summary: {
-        filesScanned: auditor.getFilesScanned(),
-        totalErrors: result.summary.errors,
-        totalWarnings: result.summary.warnings,
-        durationMs: result.durationMs
-      },
-      findings: filteredFindings
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          summary: {
+            filesScanned: auditor.getFilesScanned(),
+            totalErrors: result.summary.errors,
+            totalWarnings: result.summary.warnings,
+            durationMs: result.durationMs
+          },
+          findings: filteredFindings
+        },
+        null,
+        2
+      )
+    );
     return;
   }
 
-  renderBanner('REPORTE DE CALIDAD Y DUPLICACIÓN CSS (STYLELINT ENGINE)', 'Análisis estático oficial de estilos y patrones SCSS/Vue');
+  renderBanner(
+    'REPORTE DE CALIDAD Y DUPLICACIÓN CSS (STYLELINT ENGINE)',
+    'Análisis estático oficial de estilos y patrones SCSS/Vue'
+  );
   console.log(
-    styleText('dim', `🔍 Analizados ${auditor.getFilesScanned()} archivos en ${result.durationMs}ms (Categoría: ${category})\n`)
+    styleText(
+      'dim',
+      `🔍 Analizados ${auditor.getFilesScanned()} archivos en ${result.durationMs}ms (Categoría: ${category})\n`
+    )
   );
 
   if (isFix) {
-    console.log(styleText('cyan', '✨ Modo auto-fix: Stylelint aplicó correcciones automáticas sobre los archivos.\n'));
+    console.log(
+      styleText(
+        'cyan',
+        '✨ Modo auto-fix: Stylelint aplicó correcciones automáticas sobre los archivos.\n'
+      )
+    );
   }
 
   renderCssFindingsTable(filteredFindings, category);

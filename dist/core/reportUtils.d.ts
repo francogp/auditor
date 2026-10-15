@@ -1,14 +1,10 @@
-/**
- * @file reportUtils.ts
- * @description Shared utilities for report formatting and validation script output.
- * Avoids duplication of report file generation logic.
- */
-import type { AuditFinding } from './auditContract.ts';
+import { AuditFinding } from "./auditContract.js";
+//#region src/core/reportUtils.d.ts
 export interface ValidationSummary {
-    title: string;
-    scannedMetrics: Record<string, number>;
-    errors: string[];
-    warnings: string[];
+  title: string;
+  scannedMetrics: Record<string, number>;
+  errors: string[];
+  warnings: string[];
 }
 export declare function printConsoleHeader(title: string): void;
 export declare const MAX_REPORT_SAMPLE_ITEMS = 30;
@@ -18,8 +14,8 @@ export declare function writeReportFile(outputPathArg: string, summary: Validati
  * Parses raw JSON output containing an array, stripping Node.js permission and runtime noise.
  */
 export declare function parseJsonArrayOutput<T = unknown>(input: string | unknown[], options?: {
-    throwOnError?: boolean;
-    toolName?: string;
+  throwOnError?: boolean;
+  toolName?: string;
 }): T[];
 /**
  * Normalizes any absolute or relative path to a clean POSIX relative path from CWD.
@@ -35,27 +31,27 @@ export declare function isPathExempt(relPath: string, exemptPaths?: readonly str
  */
 export declare function parseJsonObjectOutput<T = Record<string, unknown>>(input: unknown): T | null;
 export interface RawLintMessage {
-    ruleId?: string;
-    message?: string;
-    line?: number;
-    column?: number;
-    fix?: unknown;
+  ruleId?: string;
+  message?: string;
+  line?: number;
+  column?: number;
+  fix?: unknown;
 }
 export interface RawLintFileReport {
-    filePath?: string;
-    messages?: RawLintMessage[];
-    errorCount?: number;
-    warningCount?: number;
+  filePath?: string;
+  messages?: RawLintMessage[];
+  errorCount?: number;
+  warningCount?: number;
 }
 export interface ParseLintFindingsOptions {
-    cwd?: string;
-    suiteId: string;
-    suiteName: string;
-    ruleId: string;
-    ruleDescription: string;
-    defaultRuleName?: string;
-    defaultMessage?: string;
-    transform?: (msg: RawLintMessage, cleanFile: string, options: ParseLintFindingsOptions) => AuditFinding | null;
+  cwd?: string;
+  suiteId: string;
+  suiteName: string;
+  ruleId: string;
+  ruleDescription: string;
+  defaultRuleName?: string;
+  defaultMessage?: string;
+  transform?: (msg: RawLintMessage, cleanFile: string, options: ParseLintFindingsOptions) => AuditFinding | null;
 }
 /**
  * Parses raw JSON output or an array of file reports from standard linters (ESLint, HTML-Validate)
@@ -67,6 +63,6 @@ export declare function parseLintResultsToFindings(input: string | object[], opt
  * falling back to finding file paths if JSON parsing fails or output is not an array.
  */
 export declare function extractJsonReportFilePaths(rawJson: string, fallbackFindings?: readonly {
-    file?: string;
+  file?: string;
 }[]): string[];
-//# sourceMappingURL=reportUtils.d.ts.map
+//#endregion

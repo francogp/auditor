@@ -1,18 +1,14 @@
-/**
- * @file validate_mermaid_syntax.ts
- * @description Sub-auditor that validates syntax and escapes in Mermaid diagrams within Markdown files
- * using the official modern Mermaid engine (mermaid.parse).
- */
-import { FileScanAuditor } from '../../core/auditorBase.ts';
+import { FileScanAuditor } from "../../core/auditorBase.js";
+//#region src/suites/documentation/validate_mermaid_syntax.d.ts
 export declare const MERMAID_SYNTAX_RULES: readonly ["mermaid-syntax-error", "mermaid-unquoted-special-chars"];
 export type MermaidSyntaxRuleId = (typeof MERMAID_SYNTAX_RULES)[number];
 export interface MermaidValidationResult {
-    valid: boolean;
-    diagramType?: string;
-    error?: {
-        line: number;
-        message: string;
-    };
+  valid: boolean;
+  diagramType?: string;
+  error?: {
+    line: number;
+    message: string;
+  };
 }
 /**
  * Validates syntax of a Mermaid diagram block using the official Mermaid parser.
@@ -22,17 +18,17 @@ export declare function validateMermaid(diagramCode: string): Promise<MermaidVal
  * Validates diagram and returns or throws an Error (for backward compatibility).
  */
 export declare function validate(diagramCode: string, parseOptions?: {
-    suppressErrors?: boolean;
+  suppressErrors?: boolean;
 }): Promise<{
-    diagramType: string;
-    valid: boolean;
+  diagramType: string;
+  valid: boolean;
 } | false>;
 export declare class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
-    constructor(roots?: readonly string[], projectRoot?: string);
-    private fixMermaidLine;
-    private checkSpecialCharacters;
-    private validateDiagramBlock;
-    private processMermaidContentLine;
-    protected scanFile(relPath: string, content: string): Promise<void>;
+  constructor(roots?: readonly string[], projectRoot?: string);
+  private fixMermaidLine;
+  private checkSpecialCharacters;
+  private validateDiagramBlock;
+  private processMermaidContentLine;
+  protected scanFile(relPath: string, content: string): Promise<void>;
 }
-//# sourceMappingURL=validate_mermaid_syntax.d.ts.map
+//#endregion

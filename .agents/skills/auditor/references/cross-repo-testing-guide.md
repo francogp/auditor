@@ -49,8 +49,8 @@ The remote execution engine operates via five hermetic phases implemented across
 
 ### 2. Native Third-Party Tool Context
 
-- External tools (ESLint, Fallow on Candle CPU, Stylelint, HTML-Validate, Git, and Warning Ratchet) operate transparently with `process.cwd()` set to the host directory.
-- They load the host's `eslint.config.js`, `.stylelintrc.json`, `tsconfig.json`, and git baseline without path translation hazards or cwd mismatches.
+- External tools (Oxlint / Vite+, Fallow on Candle CPU, Stylelint, HTML-Validate, Git, and Warning Ratchet) operate transparently with `process.cwd()` set to the host directory.
+- They load the host's `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, and git baseline without path translation hazards or cwd mismatches.
 - If an external tool binary is missing from the host's `node_modules/.bin/`, `resolvePackageBin` seamlessly falls back to `AUDITOR_HOME_DIR/node_modules/.bin/`.
 
 ### 3. Dynamic Host Configuration & Extension Discovery

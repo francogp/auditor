@@ -24,7 +24,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
 
@@ -47,17 +47,20 @@ export const ERROR_SUPPRESSION_RULES: readonly ErrorSuppressionRuleId[] = [
 const EMPTY_CATCH_REGEX = /catch\s*(?:\([^)]*\)\s*)?\{([^{}]*)\}/g;
 
 // Regex for silent promise catches: .catch(() => {}) or .catch(() => null/undefined/false)
-const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{(?:\s*|\s*(?:\/\/[^\r\n]*\r?\n|\/\*[\s\S]*?\*\/)\s*)\}|null|undefined|false|true)\s*\)/g;
+const SILENT_PROMISE_CATCH_REGEX =
+  /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{(?:\s*|\s*(?:\/\/[^\r\n]*\r?\n|\/\*[\s\S]*?\*\/)\s*)\}|null|undefined|false|true)\s*\)/g;
 
 // Regex for Valibot fallback in schemas: v.fallback( or fallback(
 const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 
 export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig();
-    const codeRoots = roots ?? (config.paths.codeRoots && config.paths.codeRoots.length > 0
-      ? config.paths.codeRoots
-      : ['src', 'scripts']);
+    const codeRoots =
+      roots ??
+      (config.paths.codeRoots && config.paths.codeRoots.length > 0
+        ? config.paths.codeRoots
+        : ['src', 'scripts']);
 
     super({
       usesThirdPartyTool: false,
@@ -67,9 +70,10 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_error_suppression',
+      id: 'validate_error_suppression',
       name: 'Zero Error Suppression Auditor',
       description: 'Prohíbe supresión de errores, catch vacíos y fallbacks',
       family: 'architecture',
@@ -86,10 +90,14 @@ id: 'validate_error_suppression',
         'strict-catch-narrowing': 'Catch sin instanceof Error'
       },
       ruleRemediations: {
-        'no-empty-catch': 'Guía de diagnóstico y remediación para no-empty-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-silent-promise-catch': 'Guía de diagnóstico y remediación para no-silent-promise-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-silent-mock-fallbacks': 'Guía de diagnóstico y remediación para no-silent-mock-fallbacks. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'strict-catch-narrowing': 'Guía de diagnóstico y remediación para strict-catch-narrowing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-empty-catch':
+          'Guía de diagnóstico y remediación para no-empty-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-silent-promise-catch':
+          'Guía de diagnóstico y remediación para no-silent-promise-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-silent-mock-fallbacks':
+          'Guía de diagnóstico y remediación para no-silent-mock-fallbacks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'strict-catch-narrowing':
+          'Guía de diagnóstico y remediación para strict-catch-narrowing. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: codeRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
@@ -177,7 +185,11 @@ id: 'validate_error_suppression',
   }
 
   private auditSchemaFallbacks(relPath: string, content: string): void {
-    if (!relPath.includes('schema') && !relPath.includes('models') && !relPath.includes('storage')) {
+    if (
+      !relPath.includes('schema') &&
+      !relPath.includes('models') &&
+      !relPath.includes('storage')
+    ) {
       return;
     }
 
@@ -206,10 +218,14 @@ id: 'validate_error_suppression',
       const blockBody = match[2]!;
 
       // Check if blockBody accesses varName.message or (varName as any).message
-      const hasMessageAccess = new RegExp(`\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+` + `any\\s*\\)\\.message`).test(blockBody);
+      const hasMessageAccess = new RegExp(
+        `\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+` + `any\\s*\\)\\.message`
+      ).test(blockBody);
       if (hasMessageAccess) {
         // Check if there is an instanceof Error check
-        const hasInstanceCheck = new RegExp(`\\b${varName}\\s+instanceof\\s+Error\\b`).test(blockBody);
+        const hasInstanceCheck = new RegExp(`\\b${varName}\\s+instanceof\\s+Error\\b`).test(
+          blockBody
+        );
         if (!hasInstanceCheck) {
           const line = this.getLineNumber(content, match.index);
           const lineContent = this.getLineAt(content, line);

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { JSDOM } from 'jsdom';
-import { FileScanAuditor, BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -55,9 +55,10 @@ export async function validateMermaid(diagramCode: string): Promise<MermaidValid
 
   try {
     const parseResult = await mermaid.parse(diagramCode);
-    const diagramType = typeof parseResult === 'object' && parseResult !== null && 'diagramType' in parseResult
-      ? String((parseResult as { diagramType: unknown }).diagramType)
-      : 'unknown';
+    const diagramType =
+      typeof parseResult === 'object' && parseResult !== null && 'diagramType' in parseResult
+        ? String((parseResult as { diagramType: unknown }).diagramType)
+        : 'unknown';
     return { valid: true, diagramType };
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
@@ -90,20 +91,26 @@ export async function validate(
 const UNQUOTED_EDGE_CHARS_REGEX = /[%&<>\u2260\u2265\u2264()/?!+:=#*~]/;
 const UNQUOTED_EDGE_LABEL_REGEX = /\|([^|"\n]+)\|/g;
 const UNQUOTED_SQUARE_NODE_REGEX = /\b\w+\[([^\]"()\n]*[()][^\]"\n]*)\]/g;
-const UNQUOTED_BRACE_NODE_REGEX = /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g;
+const UNQUOTED_BRACE_NODE_REGEX =
+  /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g;
 
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
   public constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: true,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [...MERMAID_SYNTAX_RULES]),
+      ruleCapabilities: createRuleCapabilities(
+        MERMAID_SYNTAX_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: true,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        [...MERMAID_SYNTAX_RULES]
+      ),
       fixableRuleIds: [...MERMAID_SYNTAX_RULES],
       id: 'validate_mermaid_syntax',
       name: 'Mermaid Diagram Syntax Auditor',
@@ -120,8 +127,10 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         'mermaid-unquoted-special-chars': 'Caracter especial sin comillas en Mermaid'
       },
       ruleRemediations: {
-        'mermaid-syntax-error': 'Guía de diagnóstico y remediación para mermaid-syntax-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'mermaid-unquoted-special-chars': 'Guía de diagnóstico y remediación para mermaid-unquoted-special-chars. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'mermaid-syntax-error':
+          'Guía de diagnóstico y remediación para mermaid-syntax-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'mermaid-unquoted-special-chars':
+          'Guía de diagnóstico y remediación para mermaid-unquoted-special-chars. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots,
       allowedExtensions: new Set(['.md']),
@@ -150,19 +159,18 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
     });
 
     // 3. Node definitions { ... } with unquoted special characters
-    fixed = fixed.replace(/\b(\w+)\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g, (_match, id, label) => {
-      const trimmed = label.trim();
-      return `${id}{"${trimmed}"}`;
-    });
+    fixed = fixed.replace(
+      /\b(\w+)\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g,
+      (_match, id, label) => {
+        const trimmed = label.trim();
+        return `${id}{"${trimmed}"}`;
+      }
+    );
 
     return fixed;
   }
 
-  private checkSpecialCharacters(
-    line: string,
-    lineNum: number,
-    relPath: string
-  ): void {
+  private checkSpecialCharacters(line: string, lineNum: number, relPath: string): void {
     // 1. Edge labels |...| with unquoted delimiter characters
     const edgeMatches = line.matchAll(UNQUOTED_EDGE_LABEL_REGEX);
     for (const match of edgeMatches) {
@@ -283,7 +291,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         inMermaid = false;
         if (!diagramIgnored) {
           const diagramCode = mermaidLines
-            .map(l => l.replace(/<!--[\s\S]*?-->/g, '').trimEnd())
+            .map((l) => l.replace(/<!--[\s\S]*?-->/g, '').trimEnd())
             .join('\n')
             .trim();
           await this.validateDiagramBlock(relPath, diagramCode, mermaidStartLine);
@@ -304,7 +312,6 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
         }
       }
     }
-
 
     if (isFix && fileModified) {
       const absPath = path.resolve(this.projectRoot, relPath);

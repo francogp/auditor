@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
@@ -38,13 +38,25 @@ export const BUNDLE_BUDGET_RULES = [
 export type BundleBudgetRuleId = (typeof BUNDLE_BUDGET_RULES)[number];
 
 export const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI: readonly { module: string; reason: string }[] = [
-  { module: 'postgres', reason: 'Driver PostgreSQL backend no debe importarse en UI layers (src/components, src/views, src/stores).' },
+  {
+    module: 'postgres',
+    reason:
+      'Driver PostgreSQL backend no debe importarse en UI layers (src/components, src/views, src/stores).'
+  },
   { module: 'node:sqlite', reason: 'Driver SQLite nativo no debe importarse en UI layers.' },
-  { module: '@playwright/test', reason: 'Librería de pruebas E2E no debe importarse en código de producción de src/.' },
-  { module: 'vitest', reason: 'El framework de pruebas no debe importarse en código de producción de src/.' }
+  {
+    module: '@playwright/test',
+    reason: 'Librería de pruebas E2E no debe importarse en código de producción de src/.'
+  },
+  {
+    module: 'vitest',
+    reason: 'El framework de pruebas no debe importarse en código de producción de src/.'
+  }
 ];
 
-export function getForbiddenValueImportsUI(projectRoot?: string): readonly { module: string; reason: string }[] {
+export function getForbiddenValueImportsUI(
+  projectRoot?: string
+): readonly { module: string; reason: string }[] {
   const config = getAuditConfig(projectRoot);
   const custom = config.bundle?.forbiddenUiImports ?? [];
   return [...DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI, ...custom];
@@ -55,7 +67,7 @@ function isImportTypeOnly(node: ts.ImportDeclaration): boolean {
   if (!importClause) return false;
   if (importClause.isTypeOnly) return true;
   if (importClause.namedBindings && ts.isNamedImports(importClause.namedBindings)) {
-    return importClause.namedBindings.elements.every(elem => elem.isTypeOnly);
+    return importClause.namedBindings.elements.every((elem) => elem.isTypeOnly);
   }
   return false;
 }
@@ -65,10 +77,7 @@ interface ParsedImport {
   lineNum: number;
 }
 
-function extractRuntimeImports(
-  fullPath: string,
-  astEngine: SharedAstContext
-): ParsedImport[] {
+function extractRuntimeImports(fullPath: string, astEngine: SharedAstContext): ParsedImport[] {
   const content = fs.readFileSync(fullPath, 'utf8');
   if (!content.includes('import ')) return [];
 
@@ -128,7 +137,10 @@ function checkHeavyImports(
 ): void {
   for (const imp of imports) {
     for (const forbidden of forbiddenUiImports) {
-      if (imp.moduleSpecifier === forbidden.module || imp.moduleSpecifier.startsWith(`${forbidden.module}/`)) {
+      if (
+        imp.moduleSpecifier === forbidden.module ||
+        imp.moduleSpecifier.startsWith(`${forbidden.module}/`)
+      ) {
         auditor.addViolation({
           ruleId: 'bundle-heavy-import',
           severity: 'error',
@@ -150,7 +162,7 @@ function auditSingleChunkBudget(
   auditor: BundleBudgetAuditor
 ): void {
   const budgets = bundleConfig?.budgets ?? [];
-  const matchingBudget = budgets.find(b => {
+  const matchingBudget = budgets.find((b) => {
     if (b.prefix && asset.startsWith(b.prefix)) return true;
     if (b.matcher && new RegExp(b.matcher).test(asset)) return true;
     return false;
@@ -209,7 +221,7 @@ function auditCompiledChunks(
   for (const asset of assets) {
     if (!asset.endsWith('.js') || asset.endsWith('.br') || asset.endsWith('.gz')) continue;
     chunksAudited++;
-    if (exemptPrefixes.some(prefix => asset.startsWith(prefix))) continue;
+    if (exemptPrefixes.some((prefix) => asset.startsWith(prefix))) continue;
 
     const assetPath = path.join(distAssetsDir, asset);
     const stats = fs.statSync(assetPath);
@@ -230,14 +242,17 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       pattern: 'dist/',
       samplePath: 'dist/index.js',
       reason: 'Directorio de artefactos y bundle compilado de producción',
-      isApplicable: (config) => config.bundle?.enabled !== false && config.packageDistribution?.enabled !== true
+      isApplicable: (config) =>
+        config.bundle?.enabled !== false && config.packageDistribution?.enabled !== true
     }
   ];
 
   constructor(projectRoot: string = process.cwd()) {
     const config = getAuditConfig(projectRoot);
     const srcRoots = config.paths.srcRoots ?? [];
-    const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : 'dist';
+    const distDirRel = config.bundle?.distDir
+      ? toPosixRelative(projectRoot, config.bundle.distDir)
+      : 'dist';
 
     super({
       usesThirdPartyTool: false,
@@ -247,7 +262,8 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
       id: 'validate_bundle_budget',
@@ -262,7 +278,8 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       icon: '📦',
       coverage: {
         include: [
-          ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue', '.js']), projectRoot).include,
+          ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue', '.js']), projectRoot)
+            .include,
           `${distDirRel}/**`
         ]
       },
@@ -272,9 +289,12 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
         'bundle-chunk-size': 'Chunk excede límite de tamaño'
       },
       ruleRemediations: {
-        'bundle-runtime-leak': 'Guía de diagnóstico y remediación para bundle-runtime-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'bundle-heavy-import': 'Guía de diagnóstico y remediación para bundle-heavy-import. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'bundle-chunk-size': 'Guía de diagnóstico y remediación para bundle-chunk-size. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'bundle-runtime-leak':
+          'Guía de diagnóstico y remediación para bundle-runtime-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'bundle-heavy-import':
+          'Guía de diagnóstico y remediación para bundle-heavy-import. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'bundle-chunk-size':
+          'Guía de diagnóstico y remediación para bundle-chunk-size. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       requiresAst: true,
       projectRoot
@@ -289,10 +309,13 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
 
     const config = getAuditConfig(this.projectRoot);
     const srcRoots = config.paths.srcRoots ?? [];
-    const distDirRel = config.bundle?.distDir ? toPosixRelative(this.projectRoot, config.bundle.distDir) : 'dist';
+    const distDirRel = config.bundle?.distDir
+      ? toPosixRelative(this.projectRoot, config.bundle.distDir)
+      : 'dist';
     this.redeclareCoverage({
       include: [
-        ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue', '.js']), this.projectRoot).include,
+        ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue', '.js']), this.projectRoot)
+          .include,
         `${distDirRel}/**`
       ]
     });
@@ -303,25 +326,33 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       ...(config.paths.storesRoots ?? [])
     ];
     const forbiddenSegments = [
-      ...(config.paths.testRoots?.map(r => `/${r}/`) ?? []),
-      ...(config.paths.scriptsRoots?.map(r => `/${r}/`) ?? [])
+      ...(config.paths.testRoots?.map((r) => `/${r}/`) ?? []),
+      ...(config.paths.scriptsRoots?.map((r) => `/${r}/`) ?? [])
     ];
 
     const effectiveForbiddenUiImports = getForbiddenValueImportsUI(this.projectRoot);
-    const allFiles = await this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));
-    const candidateFiles = allFiles.filter(f => !isTestPath(f) && !path.basename(f).endsWith('.d.ts'));
+    const allFiles = this.context.collectFiles(srcRoots, new Set(['.ts', '.vue', '.js']));
+    const candidateFiles = allFiles.filter(
+      (f) => !isTestPath(f) && !path.basename(f).endsWith('.d.ts')
+    );
 
     const astEngine = astContext ?? new SharedAstContext();
 
     if (candidateFiles.length === 0) {
-      this.markRuleNotApplicable('bundle-runtime-leak', 'No se encontraron archivos de código fuente candidatos');
-      this.markRuleNotApplicable('bundle-heavy-import', 'No se encontraron archivos de código fuente candidatos');
+      this.markRuleNotApplicable(
+        'bundle-runtime-leak',
+        'No se encontraron archivos de código fuente candidatos'
+      );
+      this.markRuleNotApplicable(
+        'bundle-heavy-import',
+        'No se encontraron archivos de código fuente candidatos'
+      );
     } else {
       for (const relPath of candidateFiles) {
         this.recordScanned(relPath);
         const fullPath = path.resolve(this.projectRoot, relPath);
         const norm = toPosixRelative(this.projectRoot, fullPath);
-        const isUiLayer = effectiveUiDirs.some(d => norm.startsWith(d));
+        const isUiLayer = effectiveUiDirs.some((d) => norm.startsWith(d));
         const imports = extractRuntimeImports(fullPath, astEngine);
 
         this.runSubAuditorSync('bundle-runtime-leak', () => {
@@ -342,7 +373,10 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
     });
     if (chunksAudited === 0) {
-      this.markRuleNotApplicable('bundle-chunk-size', 'No se encontraron artefactos compilados en dist');
+      this.markRuleNotApplicable(
+        'bundle-chunk-size',
+        'No se encontraron artefactos compilados en dist'
+      );
     }
 
     this.context.setMetric('Files Audited', this.filesScannedCount);

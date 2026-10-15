@@ -1,0 +1,243 @@
+# Vite+ (`vp`) Unified Toolchain & Migration Reference Guide
+
+## 1. Overview & Canonical Purpose
+
+**Vite+** is the unified web toolchain orchestrated behind the `vp` CLI. It integrates and replaces standalone disparate developer utilities into a unified, high-performance runtime and toolset combining:
+
+- **[Vite](https://vite.dev/)**: Next-generation frontend build tool and development server.
+- **[Rolldown](https://rolldown.rs/)**: High-performance Rust-based bundler powering next-gen Vite.
+- **[Vitest](https://vitest.dev/)**: Blazing-fast unit and integration testing engine.
+- **[tsdown](https://tsdown.dev/)**: Zero-config TypeScript library packager powered by Rolldown.
+- **[Oxlint](https://oxc.rs/docs/guide/usage/linter.html)** & **[Oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)**: Rust-based JavaScript/TypeScript linter and formatter.
+- **[Vite Task](https://github.com/voidzero-dev/vite-task)**: High-speed workspace task runner with intelligent filesystem hashing and caching.
+- **Runtime & Package Manager Governance**: Dynamic version coordination for Node.js, npm, pnpm, and yarn.
+
+Within the **`@francogp/auditor`** architecture, Vite+ is the non-negotiable frontend and tooling standard governed by `validate_vite_plus_config`, `validate_oxlint`, and `vitePlusConfigSync.ts`.
+
+---
+
+## 2. Official Tutorial & Prompt Specification
+
+The following prompt represents the authoritative upstream specification for scaffolding, upgrading, and migrating projects to Vite+:
+
+```markdown
+I want to use Vite+ in my project. Vite+ is the unified toolchain for the web behind the `vp` CLI — one tool combining Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task, plus runtime and package-manager management.
+
+First, read https://viteplus.dev/llms-full.txt and https://viteplus.dev/guide to learn Vite+'s commands and configuration. Inspect the worktree and preserve unrelated changes. Determine whether I want a new project or want to migrate or upgrade an existing project. Follow only the matching flow below.
+
+For a new project:
+
+Read https://viteplus.dev/guide/create and choose the template, target directory, package manager, and intended Vite+ release or preview for my project. Use the target CLI's `help create` output to select supported options. Scaffold with `vp create`; do not overwrite existing project files.
+
+A global installation is optional. To install the global `vp` CLI when it is not already available:
+- macOS / Linux: curl -fsSL https://vite.plus | bash
+- Windows (PowerShell): irm https://vite.plus/ps1 | iex
+
+Open a new terminal after installation. Follow https://viteplus.dev/guide/upgrade to select the target release or preview and check `vp toolchain --global` before scaffolding.
+
+Without a global installation, use a supported Node.js runtime from the compatibility guide. For the 1.2.0 release, run `pnpm dlx --package=vite-plus@1.2.0 vp create` or `npx --package=vite-plus@1.2.0 vp create`. Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npx before the vp command.
+
+Run `vp install`, `vp check`, and `vp test`, then `vp build` for applications or `vp pack` for libraries. Without a global CLI, install with the project's package manager and run the local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Explain how to use `vp dev` for the dev server and `vp run <task>` for project scripts or tasks. Report the setup changes, validation results, and any remaining work. Do not commit or push unless I ask.
+
+For an existing project, including one that already uses Vite+, follow these migration or upgrade instructions:
+
+Migrate this project to Vite+ while preserving its application, test, and library build behavior.
+
+Read these guides before making changes:
+
+- https://viteplus.dev/guide/migrate
+- https://viteplus.dev/guide/migrate-rules
+- https://viteplus.dev/guide/vitest-v5
+- https://vitest.dev/guide/migration/
+- https://github.com/rolldown/tsdown/releases/tag/v0.23.0
+
+Inspect the worktree and preserve unrelated changes. Identify the workspace root, package manager, scripts, configuration files, and tools in use. If the project already uses Vite+, follow the upgrade flow in the migration guide and keep the existing setup; do not use --full unless I request it.
+
+For a project that does not use Vite+ yet, check the prerequisites for the tools it uses: Vite 7+ and Vitest 4+. Complete any required upstream upgrades and validate them before starting the Vite+ migration. Then keep those manifests, lockfile, and installed packages available so the migrator can identify the original Vitest version. Do not install vite-plus or upgrade Vitest to the target's bundled version before running migration.
+
+Use the CLI from the target Vite+ 1.0 release or its preview build. Use a supported Node.js runtime from the compatibility guide. A global installation is optional:
+
+- With a global vp installation, follow https://viteplus.dev/guide/upgrade to select the target release and check `vp toolchain --global`. Run `vp help` and `vp help migrate`, then `vp migrate --no-interactive` from the workspace root.
+- Without a global installation, run the target CLI through the package manager from the workspace root. For the 1.2.0 release, use `pnpm dlx --package=vite-plus@1.2.0 vp migrate --no-interactive` or `npx --package=vite-plus@1.2.0 vp migrate --no-interactive`. First run the same command with `help migrate` instead of `migrate --no-interactive` to read its help. These commands fetch the target CLI without replacing the old project dependencies first.
+
+Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npx before the vp command.
+
+Do not run migration with an old project's node_modules/.bin/vp. Migrate monorepos from the workspace root so shared manifests, catalogs, overrides, and lockfiles remain consistent.
+
+Resolve BLOCK findings and rerun migration. Review every REVIEW finding and manual-migration warning using the linked guidance, even if migration exits with success. Keep the generated Vitest v4 and tsdown <0.23 compatibility settings and comments for the first validation run.
+
+Review the resulting changes against the migration rules:
+
+- Confirm Vite and test imports use the supported vite-plus and vite-plus/test* entries. Keep type augmentations on their upstream module identities and the community WebDriverIO provider on @vitest/browser-webdriverio.
+- Preserve dependencies, aliases, catalogs, and overrides configured by the migrator. On pnpm, keep the configured vite and vitest entries. Retain upstream packages when the migration rules require them.
+- Move remaining tool-specific configuration into the appropriate blocks in vite.config.ts. Review manual follow-up for lint, formatting, packaging, and hooks without discarding project-specific behavior.
+- Distinguish built-ins from tasks: `vp dev` and `vp test` run built-in tools; `vp run dev` and `vp run test` run the corresponding project scripts or tasks. The packageManager field selects the package manager used by `vp install`, `vp add`, and `vp remove`.
+
+Run `vp install`, `vp check`, and `vp test`, plus configured browser, coverage, and benchmark suites. Run `vp build` for applications and `vp pack` for libraries, including both where the workspace contains both. Check library consumers against emitted imports and declarations. Without a global CLI, install with the project's package manager and invoke the updated local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Fix failures without weakening assertions or dropping test coverage.
+
+After establishing a passing baseline, try to remove the generated "Vitest v4 compatibility" settings with no code changes or small, localized fixes:
+
+1. Use the migration diff and generated comments to identify additions in root, workspace, and inline project configs. Read each linked explanation and check the effective setting after removal, including inherited values. Preserve pre-existing user settings and settings whose origin is unclear.
+2. Remove one added setting at a time and first run the affected projects and suites without code changes. If needed, make small, localized application, test, or setup fixes that preserve test intent, such as correcting a locator or adjusting mock setup in a few tests. Do not weaken assertions, accept snapshot changes without review, or reduce the test set. For fakeTimers.toNotFake, remove only the added Temporal entry and preserve other exclusions. Do not weaken coverage enforcement: retain glob-threshold perFile: true unless I approve aggregate checking, even if coverage passes.
+3. Keep a removal only when the affected tests pass and still execute the same tests without new skips. Remove that setting's generated comment too. If removal requires widespread test edits or shared setup refactoring, keep compatibility for now and report the follow-up work. Restore the setting and its comment if validation still fails, cannot run, or leaves uncertainty about behavior. Undo only cleanup-specific trial edits; preserve completed migration fixes and unrelated work.
+4. Run the full validation commands again with the accepted removals together. Report each candidate's config path, removed or retained status, code changes, commands and results, and the reason for retaining it. Distinguish a deferred rewrite from a setting you could not validate.
+
+For projects that use vp pack, also review the generated "tsdown <0.23 compatibility" settings after a passing library build. Use the migration diff and linked comments to distinguish inserted settings from pre-existing user choices. Removing deps.resolveDepSubpath: true preserves external subpath imports as written; check that consumers can still resolve the emitted imports. Removing attw.profile: 'strict' adopts the esm-only profile, which skips node10 and CommonJS resolution checks. Keep strict if those checks are part of the package's intended support. Do not drop intended declaration checks merely to make a build pass. Remove one setting and its generated comment at a time, then run vp pack and the package's consumer checks. Restore the setting and comment if validation fails or the required consumer behavior is unclear. Report which settings remain and why.
+
+Report the migration changes, validation results, retained compatibility settings, and unresolved findings. Do not commit or push unless I ask.
+```
+
+---
+
+## 3. Official Documentation Index & Key Links
+
+The authoritative guides provided by Vite+ and VoidZero include:
+
+| Resource | URL | Focus & Scope |
+| :--- | :--- | :--- |
+| **Complete LLM Knowledge Base** | [https://viteplus.dev/llms-full.txt](https://viteplus.dev/llms-full.txt) | Complete unrolled documentation and API specs for AI agents. |
+| **General Guide** | [https://viteplus.dev/guide](https://viteplus.dev/guide) | Architecture, core commands, and toolchain overview. |
+| **Project Creation** | [https://viteplus.dev/guide/create](https://viteplus.dev/guide/create) | Scaffolding new applications, libraries, and monorepos. |
+| **Migration Guide** | [https://viteplus.dev/guide/migrate](https://viteplus.dev/guide/migrate) | Automated transformation from legacy toolchains to Vite+. |
+| **Migration Rules** | [https://viteplus.dev/guide/migrate-rules](https://viteplus.dev/guide/migrate-rules) | Exact transformation invariants for configs, scripts, and imports. |
+| **Vitest 5 Upgrade** | [https://viteplus.dev/guide/vitest-v5](https://viteplus.dev/guide/vitest-v5) | Breaking changes, compatibility flags, and cleanup checklist. |
+| **Vitest Migration** | [https://vitest.dev/guide/migration/](https://vitest.dev/guide/migration/) | Upstream Vitest breaking change chronicle. |
+| **tsdown v0.23 Release** | [https://github.com/rolldown/tsdown/releases/tag/v0.23.0](https://github.com/rolldown/tsdown/releases/tag/v0.23.0) | Library packager configuration updates (`unbundle`, `outExtensions`). |
+| **Global Installer (Linux/macOS)** | `curl -fsSL https://vite.plus \| bash` | Global `vp` binary installation script. |
+| **Global Installer (Windows)** | `irm https://vite.plus/ps1 \| iex` | PowerShell global installation script. |
+
+---
+
+## 4. CLI Execution Model & Core Commands
+
+Vite+ provides both a **global binary** (`vp`) and a **project-local execution** model:
+
+```bash
+# Direct invocation (when global vp is installed)
+vp check
+vp test
+vp pack
+
+# Local-only execution (via package manager)
+npm exec -- vp check
+pnpm exec vp check
+```
+
+### 4.1 Command Taxonomy
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                   Vite+ CLI Taxonomy                   │
+├────────────────────────────┬───────────────────────────┤
+│ Built-in Commands          │ Task Runner Commands      │
+├────────────────────────────┼───────────────────────────┤
+│ `vp dev`   (dev server)    │ `vp run dev`   (script)   │
+│ `vp test`  (vitest runner) │ `vp run test`  (script)   │
+│ `vp check` (lint+fmt+types)│ `vp run lint`  (script)   │
+│ `vp build` (app bundler)   │ `vp run <any-npm-script>` │
+│ `vp pack`  (lib packager)  │                           │
+└────────────────────────────┴───────────────────────────┘
+```
+
+> [!IMPORTANT]
+> **Built-ins vs. Tasks**: `vp dev` and `vp test` execute internal Vite+ built-in engines. To execute the corresponding script declared in `package.json.scripts`, you MUST use `vp run <target>` (e.g. `vp run test` or `vp run dev`).
+
+---
+
+## 5. Non-Destructive Migration Protocol (`vitePlusConfigSync.ts`)
+
+In projects governed by `@francogp/auditor`, migration to Vite+ is fully automated via `npm run auditor:fix` (`auditor fix`) through `src/core/vitePlusConfigSync.ts`.
+
+### 5.1 The 3-Phase Safe Migration Sequence
+
+```mermaid
+flowchart TD
+    A["Start Migration"] --> B["Phase 1: Parse & Extract Legacy Configs"]
+    B --> C["Phase 2: Synthesize Unified vite.config.ts"]
+    C --> D["Phase 3: Clean Up Obsolete Tooling Files & Deps"]
+    
+    subgraph S1 ["Phase 1: Safe Extraction"]
+        B1["Read eslint.config.js rules"]
+        B2["Read vitest.config.ts options"]
+        B3["Read tsdown.config.ts / package.json scripts"]
+    end
+    
+    subgraph S2 ["Phase 2: Atomic Synthesis"]
+        C1["Inject mandatory baseline (@typescript-eslint rules)"]
+        C2["Merge extracted custom rules into vite.config.ts"]
+        C3["Update package.json: lint -> 'vp check', pack -> 'vp pack'"]
+        C4["Verify vite.config.ts syntax & compile validity"]
+    end
+    
+    subgraph S3 ["Phase 3: Safe Purge"]
+        D1["Delete eslint.config.js / vitest.config.ts"]
+        D2["Remove obsolete devDependencies (eslint, vitest, etc.)"]
+        D3["Synchronize .gitignore (drop eslintcache, keep cache)"]
+    end
+
+    B --> S1
+    S1 --> C
+    C --> S2
+    S2 --> D
+    D --> S3
+```
+
+### 5.2 Mandatory Minimum Oxlint Baseline
+
+When synthesizing or validating `vite.config.ts`, `validate_vite_plus_config` enforces an immutable minimum baseline of Oxlint rules:
+
+```ts
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  oxlint: {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error'
+    }
+  }
+});
+```
+
+Omitting or downgrading any mandatory rule triggers `vite-plus-config-defect` (`severity: 'error'`). In `--fix` mode, the orchestrator automatically injects and repairs these rules without losing existing project configuration.
+
+---
+
+## 6. Vitest v5 & tsdown Compatibility Cleanup Strategy
+
+When migrating from legacy projects, `vp migrate` injects temporary compatibility settings:
+
+### 6.1 Vitest v4 Compatibility Settings
+
+1. **Mock Call History**: In Vitest v4, mocks maintained call history across tests in certain configurations. Vitest v5 isolates mocks strictly by default.
+2. **`fakeTimers.toNotFake`**: Remove only the added `Temporal` entry; preserve custom timer exclusions.
+3. **Coverage Glob Thresholds**: Retain `perFile: true` for strict individual file coverage enforcement.
+
+### 6.2 tsdown <0.23 Compatibility Settings
+
+1. **`bundle: false` $\rightarrow$ `unbundle: true`**: In tsdown 0.23, unbundled file emission is explicitly enabled via `unbundle: true`.
+2. **`outExtension` $\rightarrow$ `outExtensions`**: Updated plural property mapping.
+3. **`attw.profile`**: Removing `attw.profile: 'strict'` adopts the ESM-only profile. Retain `'strict'` if the package distributes dual CJS/ESM modules.
+
+---
+
+## 7. Verification & Post-Migration Health Checks
+
+Following Vite+ setup or migration, run the full validation suite:
+
+```bash
+# 1. Install & resolve dependencies
+vp install
+
+# 2. Perform linting, formatting, and type-checks
+vp check
+
+# 3. Execute unit and integration tests
+vp test
+
+# 4. Compile packages or libraries
+vp pack
+
+# 5. Execute full architectural auditor
+npm run auditor:full
+```

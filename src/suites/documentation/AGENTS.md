@@ -45,8 +45,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run DOX integrity suite: `node --experimental-strip-types src/suites/documentation/validate_dox_integrity.ts`
-- Run markdown links suite: `node --experimental-strip-types src/suites/documentation/validate_markdown_links.ts`
+- Run DOX integrity suite: `auditor task=validate_dox_integrity`
+- Run markdown links suite: `auditor task=validate_markdown_links`
 - Run markdown preset: `npm run auditor:md`
 
 ## Child DOX Index

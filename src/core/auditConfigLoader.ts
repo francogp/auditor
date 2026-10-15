@@ -13,13 +13,8 @@ import {
   AUDIT_CONFIG_FILE,
   AUDIT_CONFIG_JSON_FILE
 } from './auditConfigTypes.ts';
-import {
-  assertNoLegacyRootConfig
-} from './auditConfigValidators.ts';
-import {
-  DEFAULT_AUDIT_CONFIG,
-  defineAuditConfig
-} from './auditConfigDefaults.ts';
+import { assertNoLegacyRootConfig } from './auditConfigValidators.ts';
+import { DEFAULT_AUDIT_CONFIG, defineAuditConfig } from './auditConfigDefaults.ts';
 
 export const MAX_INLINE_ENV_CONFIG_CHARS = 16384;
 
@@ -46,13 +41,18 @@ export function tryLoadJsonConfig(
   } catch (err: unknown) {
     if (logWarning) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`[AuditConfig] Failed to load ${AUDIT_CONFIG_JSON_FILE}: ${msg}`, { cause: err });
+      throw new Error(`[AuditConfig] Failed to load ${AUDIT_CONFIG_JSON_FILE}: ${msg}`, {
+        cause: err
+      });
     }
     return null;
   }
 }
 
-export function serializeAuditConfigToEnv(config: AuditEngineConfig, projectRoot: string = process.cwd()): void {
+export function serializeAuditConfigToEnv(
+  config: AuditEngineConfig,
+  projectRoot: string = process.cwd()
+): void {
   try {
     process.env.AUDIT_ACTIVE_CONFIG_ROOT = projectRoot;
     const serialized = JSON.stringify(config, (_key, value) => {
@@ -121,10 +121,16 @@ export function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | n
 
 let dynamicImportCounter: number = 0; // singleton-ok: Singleton instance state container
 
-export async function loadAuditConfig(projectRoot: string = process.cwd()): Promise<AuditEngineConfig> {
+export async function loadAuditConfig(
+  projectRoot: string = process.cwd()
+): Promise<AuditEngineConfig> {
   if (cachedConfig && cachedProjectRoot === projectRoot) return cachedConfig;
 
-  if (process.env.AUDIT_SUBPROCESS === 'true' || process.env.AUDIT_ACTIVE_CONFIG_FILE || process.env.AUDIT_CONFIG_DATA) {
+  if (
+    process.env.AUDIT_SUBPROCESS === 'true' ||
+    process.env.AUDIT_ACTIVE_CONFIG_FILE ||
+    process.env.AUDIT_CONFIG_DATA
+  ) {
     const envConfig = tryLoadConfigFromEnv(projectRoot);
     if (envConfig) return envConfig;
   }
@@ -137,11 +143,17 @@ export async function loadAuditConfig(projectRoot: string = process.cwd()): Prom
   if (fs.existsSync(configPath)) {
     const fileUrl = pathToFileURL(configPath);
     fileUrl.searchParams.set('t', `${performance.now()}_${++dynamicImportCounter}`);
-    const mod = (await import(fileUrl.href)) as { default?: AuditEngineConfig | DeepPartial<AuditEngineConfig> };
+    const mod = (await import(fileUrl.href)) as {
+      default?: AuditEngineConfig | DeepPartial<AuditEngineConfig>;
+    };
     if (!mod.default) {
-      throw new Error(`[AuditConfig] ${path.relative(projectRoot, configPath)} must default-export defineAuditConfig({...}).`);
+      throw new Error(
+        `[AuditConfig] ${path.relative(projectRoot, configPath)} must default-export defineAuditConfig({...}).`
+      );
     }
-    cachedConfig = defineAuditConfig(mod.default as DeepPartial<AuditEngineConfig> & { name: string });
+    cachedConfig = defineAuditConfig(
+      mod.default as DeepPartial<AuditEngineConfig> & { name: string }
+    );
     cachedProjectRoot = projectRoot;
     serializeAuditConfigToEnv(cachedConfig, projectRoot);
     return cachedConfig;
@@ -173,7 +185,10 @@ export function getAuditConfig(projectRoot: string = process.cwd()): AuditEngine
   return cachedConfig ?? DEFAULT_AUDIT_CONFIG;
 }
 
-export function setAuditConfig(config: AuditEngineConfig, projectRoot: string = process.cwd()): void {
+export function setAuditConfig(
+  config: AuditEngineConfig,
+  projectRoot: string = process.cwd()
+): void {
   cachedConfig = config;
   cachedProjectRoot = projectRoot;
   serializeAuditConfigToEnv(config, projectRoot);

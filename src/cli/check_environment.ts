@@ -21,7 +21,7 @@ export interface SemverVersion {
 
 export function parseSemver(v: string): SemverVersion {
   const clean = v.replace(/[^0-9.]/g, '');
-  const parts = clean.split('.').map(n => parseInt(n, 10) || 0);
+  const parts = clean.split('.').map((n) => parseInt(n, 10) || 0);
   return {
     major: parts[0] ?? 0,
     minor: parts[1] ?? 0,
@@ -48,7 +48,9 @@ export function getAuditorEngines(): AuditorEngineSpecs {
   const auditorPackageJsonPath = path.resolve(dir, '../../package.json');
 
   if (fs.existsSync(auditorPackageJsonPath)) {
-    const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as { engines?: { node?: string; npm?: string } };
+    const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as {
+      engines?: { node?: string; npm?: string };
+    };
     if (data.engines?.node && data.engines?.npm) {
       return { node: data.engines.node, npm: data.engines.npm };
     }
@@ -83,11 +85,17 @@ interface HostPackageJson {
   engines?: { node?: string; npm?: string };
 }
 
-function validateHostEnginesDeclaration(hostPkg: HostPackageJson, projectName: string, verbose: boolean = true): boolean {
+function validateHostEnginesDeclaration(
+  hostPkg: HostPackageJson,
+  projectName: string,
+  verbose: boolean = true
+): boolean {
   if (!hostPkg.engines?.node || !hostPkg.engines?.npm) {
     if (verbose) {
       console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-      console.error('El archivo package.json debe declarar explícitamente "engines.node" y "engines.npm".');
+      console.error(
+        'El archivo package.json debe declarar explícitamente "engines.node" y "engines.npm".'
+      );
     }
     return false;
   }
@@ -105,10 +113,18 @@ function validateHostEnginesDeclaration(hostPkg: HostPackageJson, projectName: s
   if (!isHostNodeEngineAdequate || !isHostNpmEngineAdequate) {
     if (verbose) {
       console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-      console.error('Las versiones de Node.js o npm declaradas en package.json son INFERIORES a las requeridas por @francogp/auditor:');
-      console.error(`  - Requisito del Auditor: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`);
-      console.error(`  - Declarado en Host:     Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`);
-      console.error('\nActualiza "engines.node" y "engines.npm" en package.json para satisfacer o superar el piso del auditor.');
+      console.error(
+        'Las versiones de Node.js o npm declaradas en package.json son INFERIORES a las requeridas por @francogp/auditor:'
+      );
+      console.error(
+        `  - Requisito del Auditor: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`
+      );
+      console.error(
+        `  - Declarado en Host:     Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`
+      );
+      console.error(
+        '\nActualiza "engines.node" y "engines.npm" en package.json para satisfacer o superar el piso del auditor.'
+      );
     }
     return false;
   }
@@ -125,18 +141,26 @@ function printEnvironmentRemediation(nodeReq: string, npmReq: string, npmDetecte
   console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detectado: v${npmDetected})\n`);
 
   console.error('\x1b[32m\x1b[1m💡 CÓMO SOLUCIONARLO SIN AFECTAR OTROS PROYECTOS:\x1b[0m');
-  console.error('Ejecuta el script de setup del proyecto para activar el entorno de forma aislada:');
+  console.error(
+    'Ejecuta el script de setup del proyecto para activar el entorno de forma aislada:'
+  );
   if (isWindows) {
     console.error('  .\\setup-windows.ps1');
-    console.error('  (o ejecuta: nvm install ' + targetNodeVer + ' && nvm use ' + targetNodeVer + ')');
+    console.error('  (o ejecuta: vp env use ' + targetNodeVer + ')');
   } else {
     console.error('  ./setup-linux.sh');
-    console.error('  (o ejecuta: nvm install ' + targetNodeVer + ' && nvm use)');
+    console.error('  (o ejecuta: vp env use ' + targetNodeVer + ')');
   }
-  console.error('\nℹ️  Convivencia multi-proyecto: El proyecto lee .nvmrc localmente sin alterar tu alias default de NVM ni tus otros proyectos.\n');
+  console.error(
+    '\nℹ️  Convivencia multi-proyecto: El proyecto lee .node-version localmente sin alterar tus otros proyectos.\n'
+  );
 }
 
-function validateRuntimeEnvironment(hostPkg: HostPackageJson, projectName: string, verbose: boolean = true): boolean {
+function validateRuntimeEnvironment(
+  hostPkg: HostPackageJson,
+  projectName: string,
+  verbose: boolean = true
+): boolean {
   if (!hostPkg.engines?.node || !hostPkg.engines?.npm) return false;
 
   const hostNodeReq = parseSemver(hostPkg.engines.node);
@@ -153,7 +177,11 @@ function validateRuntimeEnvironment(hostPkg: HostPackageJson, projectName: strin
   if (!isCurrentNodeValid || !isCurrentNpmValid) {
     if (verbose) {
       console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-      printEnvironmentRemediation(hostPkg.engines.node, hostPkg.engines.npm, npmMatch ? npmMatch[1]! : 'desconocido');
+      printEnvironmentRemediation(
+        hostPkg.engines.node,
+        hostPkg.engines.npm,
+        npmMatch ? npmMatch[1]! : 'desconocido'
+      );
     }
     return false;
   }
@@ -161,7 +189,10 @@ function validateRuntimeEnvironment(hostPkg: HostPackageJson, projectName: strin
   return true;
 }
 
-export function checkEnvironment(targetDir: string = process.cwd(), autoRemediate: boolean = true): boolean {
+export function checkEnvironment(
+  targetDir: string = process.cwd(),
+  autoRemediate: boolean = true
+): boolean {
   const hostPkgPath = path.resolve(targetDir, 'package.json');
   if (!fs.existsSync(hostPkgPath)) {
     console.error(`[check_environment] package.json not found in ${targetDir}`);
@@ -182,17 +213,23 @@ export function checkEnvironment(targetDir: string = process.cwd(), autoRemediat
   const isWindows = process.platform === 'win32';
   const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
   const setupScriptPath = path.resolve(targetDir, setupScriptName);
-  const isPreinstallHook = process.env.npm_lifecycle_event === 'preinstall' || process.argv.includes('preinstall');
+  const isPreinstallHook =
+    process.env.npm_lifecycle_event === 'preinstall' || process.argv.includes('preinstall');
 
   if (autoRemediate && !isPreinstallHook && fs.existsSync(setupScriptPath)) {
-    console.log(`\n\x1b[36m\x1b[1m🔄 Desalineación de entorno detectada en ${projectName}. Ejecutando automáticamente ${setupScriptName} para sincronizar el entorno...\x1b[0m\n`);
+    console.log(
+      `\n\x1b[36m\x1b[1m🔄 Desalineación de entorno detectada en ${projectName}. Ejecutando automáticamente ${setupScriptName} para sincronizar el entorno...\x1b[0m\n`
+    );
     const setupStatus = runSetup([], targetDir);
     if (setupStatus === 0) {
       const refreshedPkg = JSON.parse(fs.readFileSync(hostPkgPath, 'utf8')) as HostPackageJson;
       const refreshedDeclared = validateHostEnginesDeclaration(refreshedPkg, projectName, false);
-      const refreshedRuntime = refreshedDeclared && validateRuntimeEnvironment(refreshedPkg, projectName, false);
+      const refreshedRuntime =
+        refreshedDeclared && validateRuntimeEnvironment(refreshedPkg, projectName, false);
       if (refreshedDeclared && refreshedRuntime) {
-        console.log(`\n\x1b[32m\x1b[1m✅ Auto-remediación completada con éxito. El entorno de ${projectName} ha sido actualizado y sincronizado.\x1b[0m\n`);
+        console.log(
+          `\n\x1b[32m\x1b[1m✅ Auto-remediación completada con éxito. El entorno de ${projectName} ha sido actualizado y sincronizado.\x1b[0m\n`
+        );
         return true;
       }
     }
@@ -204,7 +241,6 @@ export function checkEnvironment(targetDir: string = process.cwd(), autoRemediat
 
   return validateRuntimeEnvironment(hostPkg, projectName, true);
 }
-
 
 // Direct execution when invoked as CLI / preinstall
 if (isMainModule(import.meta.url)) {

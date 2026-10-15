@@ -1,5 +1,5 @@
 # Dedicated Environment Updater for Windows (@francogp/auditor)
-# Updates Node.js to latest Current, updates npm, and synchronizes .nvmrc & package.json.
+# Updates Node.js to latest Current, updates npm, and synchronizes .node-version & package.json.
 
 $ErrorActionPreference = "Stop"
 $scriptPath = Join-Path $PSScriptRoot "setup-windows.ps1"

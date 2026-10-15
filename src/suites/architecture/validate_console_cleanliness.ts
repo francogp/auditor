@@ -19,20 +19,18 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
-export type ConsoleCleanlinessRuleId =
-  | 'no-debugger-statement'
-  | 'no-console-log-in-src';
-
-export const CONSOLE_CLEANLINESS_RULES: readonly ConsoleCleanlinessRuleId[] = [
+export const CONSOLE_CLEANLINESS_RULES = [
   'no-debugger-statement',
   'no-console-log-in-src'
 ] as const;
+
+export type ConsoleCleanlinessRuleId = (typeof CONSOLE_CLEANLINESS_RULES)[number];
 
 const DEBUGGER_REGEX = /\bdebugger\b;?/g;
 const CONSOLE_LOG_REGEX = /\bconsole\.log\s*\(/g;
@@ -46,7 +44,10 @@ function getExemptLoggingFiles(projectRoot?: string): ReadonlySet<string> {
   return new Set(custom);
 }
 
-function resolveConsoleCleanlinessRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
+function resolveConsoleCleanlinessRoots(
+  roots?: readonly string[],
+  projectRoot?: string
+): readonly string[] {
   return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
 }
 
@@ -63,7 +64,8 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_console_cleanliness',
       name: 'Console & Debugger Cleanliness Auditor',
@@ -80,8 +82,10 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
         'no-console-log-in-src': 'Llamadas directas a console.log()'
       },
       ruleRemediations: {
-        'no-debugger-statement': 'Guía de diagnóstico y remediación para no-debugger-statement. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-console-log-in-src': 'Guía de diagnóstico y remediación para no-console-log-in-src. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-debugger-statement':
+          'Guía de diagnóstico y remediación para no-debugger-statement. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-console-log-in-src':
+          'Guía de diagnóstico y remediación para no-console-log-in-src. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       allowedExtensions: new Set(['.ts', '.vue', '.js'])
     });

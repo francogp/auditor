@@ -10,7 +10,7 @@ Bugs arrive through three distinct channels: Vitest automated test suite failure
 
 ### A. Automated Test Suite Failures
 
-When automated tests fail (`npm test` or `npm run test`):
+When automated tests fail (`vp test`, `npm test`, or `npm run test`):
 
 1. **Failure Artifacts (`scratch/test-results/`)**:
    - Inspect console output, error assertion deltas, and failure stack traces.
@@ -20,7 +20,7 @@ When automated tests fail (`npm test` or `npm run test`):
 
 ### B. Algorithmic, Calculation & Parser Desyncs
 
-When an algorithmic pipeline, fuzzer, or replay test crashes (`npm test` or specialized test script):
+When an algorithmic pipeline, fuzzer, or replay test crashes (`vp test`, `npm test`, or specialized test script):
 
 1. **Input Snapshot**:
    - Extract the static case parameters, inputs, configuration tokens, and payload states that led to the fault.

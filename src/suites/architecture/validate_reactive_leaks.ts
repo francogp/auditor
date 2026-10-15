@@ -18,19 +18,17 @@
 
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
-export type ReactiveLeakRuleId =
-  | 'dom-event-leak'
-  | 'interval-leak';
-
-export const REACTIVE_LEAK_RULES: readonly ReactiveLeakRuleId[] = [
+export const REACTIVE_LEAK_RULES = [
   'dom-event-leak',
   'interval-leak'
 ] as const;
+
+export type ReactiveLeakRuleId = (typeof REACTIVE_LEAK_RULES)[number];
 
 function hasOnceOption(node: ts.CallExpression): boolean {
   if (node.arguments.length < 3) return false;
@@ -38,7 +36,12 @@ function hasOnceOption(node: ts.CallExpression): boolean {
   if (!optionsArg || !ts.isObjectLiteralExpression(optionsArg)) return false;
 
   for (const prop of optionsArg.properties) {
-    if (ts.isPropertyAssignment(prop) && prop.name && ts.isIdentifier(prop.name) && prop.name.text === 'once') {
+    if (
+      ts.isPropertyAssignment(prop) &&
+      prop.name &&
+      ts.isIdentifier(prop.name) &&
+      prop.name.text === 'once'
+    ) {
       if (prop.initializer.kind === ts.SyntaxKind.TrueKeyword) {
         return true;
       }
@@ -47,7 +50,10 @@ function hasOnceOption(node: ts.CallExpression): boolean {
   return false;
 }
 
-function resolveReactiveRoots(config: ReturnType<typeof getAuditConfig>, customRoots?: readonly string[]): readonly string[] {
+function resolveReactiveRoots(
+  config: ReturnType<typeof getAuditConfig>,
+  customRoots?: readonly string[]
+): readonly string[] {
   if (customRoots && customRoots.length > 0) return customRoots;
   return [
     ...(config.paths.componentsRoots ?? []),
@@ -57,7 +63,7 @@ function resolveReactiveRoots(config: ReturnType<typeof getAuditConfig>, customR
 }
 
 export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
-constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = resolveReactiveRoots(config, roots);
     super({
@@ -68,7 +74,8 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_reactive_leaks',
       name: 'Reactive & DOM Event Leak Auditor',
@@ -85,8 +92,10 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         'interval-leak': 'setInterval sin limpiar'
       },
       ruleRemediations: {
-        'dom-event-leak': 'Guía de diagnóstico y remediación para dom-event-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'interval-leak': 'Guía de diagnóstico y remediación para interval-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dom-event-leak':
+          'Guía de diagnóstico y remediación para dom-event-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'interval-leak':
+          'Guía de diagnóstico y remediación para interval-leak. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
@@ -114,7 +123,8 @@ constructor(roots?: readonly string[], projectRoot?: string) {
         severity: 'error',
         file: relPath,
         line,
-        message: 'addEventListener sin removeEventListener ni ciclo de vida onUnmounted / onScopeDispose (potencial fuga de memoria).',
+        message:
+          'addEventListener sin removeEventListener ni ciclo de vida onUnmounted / onScopeDispose (potencial fuga de memoria).',
         context: node.getText(sf)
       });
     }
@@ -153,7 +163,10 @@ constructor(roots?: readonly string[], projectRoot?: string) {
     if (!sf.text.trim()) return;
 
     const fullLines = content.split('\n');
-    const hasUnmountHook = content.includes('onUnmounted') || content.includes('onBeforeUnmount') || content.includes('onScopeDispose');
+    const hasUnmountHook =
+      content.includes('onUnmounted') ||
+      content.includes('onBeforeUnmount') ||
+      content.includes('onScopeDispose');
     const hasRemoveEventListener = content.includes('removeEventListener');
     const hasClearInterval = content.includes('clearInterval');
 
@@ -165,7 +178,14 @@ constructor(roots?: readonly string[], projectRoot?: string) {
     this.runSubAuditorSync('dom-event-leak', () => {
       const visitEvents = (node: ts.Node) => {
         if (ts.isCallExpression(node)) {
-          this.checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook);
+          this.checkEventListenerLeak(
+            node,
+            sf,
+            relPath,
+            checkLineEscape,
+            hasRemoveEventListener,
+            hasUnmountHook
+          );
         }
         ts.forEachChild(node, visitEvents);
       };

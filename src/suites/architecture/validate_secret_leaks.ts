@@ -14,19 +14,22 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { lintSource, type SecretLintSourceOptions } from '@secretlint/core';
 import { rules as presetRules } from '@secretlint/secretlint-rule-preset-recommend';
-import { BaseAuditor, FileScanAuditor, matchesSinglePattern , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  matchesSinglePattern,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
-export const SECRET_LEAKS_RULES = [
-  'secret-leak-detected',
-  'secret-leak-private-key'
-] as const;
+export const SECRET_LEAKS_RULES = ['secret-leak-detected', 'secret-leak-private-key'] as const;
 export type SecretLeaksRuleId = (typeof SECRET_LEAKS_RULES)[number];
 
-export const SECRET_SCAN_EXTENSIONS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
+export const SECRET_SCAN_EXTENSIONS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
   '.ts',
   '.js',
   '.vue',
@@ -93,7 +96,8 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_secret_leaks',
       name: 'Secret Leaks & Credentials Auditor',
@@ -107,15 +111,17 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
         'secret-leak-private-key': 'Clave criptográfica privada expuesta'
       },
       ruleRemediations: {
-        'secret-leak-detected': 'Guía de diagnóstico y remediación para secret-leak-detected. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'secret-leak-private-key': 'Guía de diagnóstico y remediación para secret-leak-private-key. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'secret-leak-detected':
+          'Guía de diagnóstico y remediación para secret-leak-detected. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'secret-leak-private-key':
+          'Guía de diagnóstico y remediación para secret-leak-private-key. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: options.roots,
       allowedExtensions: SECRET_SCAN_EXTENSIONS,
       projectRoot: effectiveRoot,
       configKey: 'secretLeaks.enabled',
       defaultConfig: { enabled: true, maskSecrets: true },
-      criticalConfig: {},
+      criticalConfig: {}
     });
 
     this.secretLintConfig = buildSecretLintConfig();
@@ -167,7 +173,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
 
     this.runSubAuditorSync('secret-leak-detected', () => {
       const regularMessages = messages.filter(
-        msg => msg.messageId !== 'PrivateKey' && !msg.ruleId.includes('privatekey')
+        (msg) => msg.messageId !== 'PrivateKey' && !msg.ruleId.includes('privatekey')
       );
       for (const msg of regularMessages) {
         const finding = mapSecretLintMessageToFinding(msg, relPath);
@@ -185,7 +191,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
 
     this.runSubAuditorSync('secret-leak-private-key', () => {
       const keyMessages = messages.filter(
-        msg => msg.messageId === 'PrivateKey' || msg.ruleId.includes('privatekey')
+        (msg) => msg.messageId === 'PrivateKey' || msg.ruleId.includes('privatekey')
       );
       for (const msg of keyMessages) {
         const finding = mapSecretLintMessageToFinding(msg, relPath);

@@ -1,277 +1,222 @@
-/**
- * packages/auditor/src/suites/architecture/validate_audit_config.ts
- *
- * AUDIT CONFIGURATION INTEGRITY VALIDATOR (Node.js 26+)
- *
- * Validates that 100% of files, paths, directories, modules, and extensions
- * declared in audit.config.ts physically exist on disk.
- * Emits severity: 'error' if any referenced path is missing.
- */
-import fs from 'node:fs';
-import path from 'node:path';
-import { enableCompileCache } from 'node:module';
+import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "../../core/auditConfigTypes.js";
+import { AUDITOR_VERSION } from "../../core/version.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { loadAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
-import { loadAuditConfig, AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES, DEFAULT_AUDIT_CONFIG } from "../../core/auditConfig.js";
-import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from "../../core/gitignoreMatcher.js";
-import { discoverAuditors, collectAllGitIgnoreRequirements } from "../../cli/auditScanner.js";
+import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
+import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import { getPackageJson } from "../../core/packageJson.js";
-import { AUDITOR_VERSION } from "../../core/version.js";
-import ts from 'typescript';
+import { enableCompileCache } from "node:module";
+import path from "node:path";
+import fs from "node:fs";
+import ts from "typescript";
+//#region src/suites/architecture/validate_audit_config.ts
+/**
+* packages/auditor/src/suites/architecture/validate_audit_config.ts
+*
+* AUDIT CONFIGURATION INTEGRITY VALIDATOR (Node.js 26+)
+*
+* Validates that 100% of files, paths, directories, modules, and extensions
+* declared in audit.config.ts physically exist on disk.
+* Emits severity: 'error' if any referenced path is missing.
+*/
 enableCompileCache();
-export function formatSectionObjectLiteral(value) {
-    const jsonStr = JSON.stringify(value, null, 2);
-    return jsonStr
-        .split('\n')
-        .map((line, idx) => {
-        if (idx === 0)
-            return line;
-        const unquoted = line.replace(/^(\s*)"([a-z_$][\w$]*)":/i, '$1$2:');
-        return `  ${unquoted}`;
-    })
-        .join('\n');
+function formatSectionObjectLiteral(value) {
+	return JSON.stringify(value, null, 2).split("\n").map((line, idx) => {
+		if (idx === 0) return line;
+		return `  ${line.replace(/^(\s*)"([a-z_$][\w$]*)":/i, "$1$2:")}`;
+	}).join("\n");
 }
 function resolveConfigPath(obj, pathStr) {
-    if (typeof obj !== 'object' || obj === null)
-        return undefined;
-    const parts = pathStr.split('.');
-    let curr = obj;
-    for (const p of parts) {
-        if (typeof curr !== 'object' || curr === null)
-            return undefined;
-        curr = Reflect.get(curr, p);
-    }
-    return curr;
+	if (typeof obj !== "object" || obj === null) return void 0;
+	const parts = pathStr.split(".");
+	let curr = obj;
+	for (const p of parts) {
+		if (typeof curr !== "object" || curr === null) return void 0;
+		curr = Reflect.get(curr, p);
+	}
+	return curr;
 }
 function setDeepProperty(obj, pathStr, value) {
-    const parts = pathStr.split('.');
-    let curr = obj;
-    for (let i = 0; i < parts.length - 1; i++) {
-        const p = parts[i];
-        if (typeof curr[p] !== 'object' || curr[p] === null) {
-            curr[p] = {};
-        }
-        curr = curr[p];
-    }
-    curr[parts[parts.length - 1]] = value;
+	const parts = pathStr.split(".");
+	let curr = obj;
+	for (let i = 0; i < parts.length - 1; i++) {
+		const p = parts[i];
+		if (typeof curr[p] !== "object" || curr[p] === null) curr[p] = {};
+		curr = curr[p];
+	}
+	curr[parts[parts.length - 1]] = value;
 }
-function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
-) {
-    try {
-        const code = fs.readFileSync(configFilePath, 'utf8');
-        const json = JSON.parse(code);
-        if (!json || typeof json !== 'object')
-            return;
-        for (const [key, value] of Object.entries(sectionsToInsert)) {
-            if (Reflect.get(json, key) === undefined) {
-                Reflect.set(json, key, value);
-            }
-        }
-        fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
-    }
-    catch {
-        // catch-ok: ignore unparseable json config files
-    }
+function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
+	try {
+		const code = fs.readFileSync(configFilePath, "utf8");
+		const json = JSON.parse(code);
+		if (!json || typeof json !== "object") return;
+		for (const [key, value] of Object.entries(sectionsToInsert)) if (Reflect.get(json, key) === void 0) Reflect.set(json, key, value);
+		fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
+	} catch {}
 }
 function findConfigObjectLiteral(source) {
-    let configObj = null;
-    const visit = (node) => {
-        if (configObj)
-            return;
-        if (ts.isCallExpression(node) &&
-            ts.isIdentifier(node.expression) &&
-            node.expression.text === 'defineAuditConfig' &&
-            node.arguments.length > 0 &&
-            ts.isObjectLiteralExpression(node.arguments[0])) {
-            configObj = node.arguments[0];
-            return;
-        }
-        if (ts.isExportAssignment(node) && ts.isObjectLiteralExpression(node.expression)) {
-            configObj = node.expression;
-            return;
-        }
-        ts.forEachChild(node, visit);
-    };
-    visit(source);
-    return configObj;
+	let configObj = null;
+	const visit = (node) => {
+		if (configObj) return;
+		if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "defineAuditConfig" && node.arguments.length > 0 && ts.isObjectLiteralExpression(node.arguments[0])) {
+			configObj = node.arguments[0];
+			return;
+		}
+		if (ts.isExportAssignment(node) && ts.isObjectLiteralExpression(node.expression)) {
+			configObj = node.expression;
+			return;
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(source);
+	return configObj;
 }
-function appendMissingSectionsFallback(configFilePath, code, sectionsToInsert // open-record: Dictionary of configuration sections
-) {
-    const lastBrace = code.lastIndexOf('}');
-    if (lastBrace === -1)
-        return;
-    const beforeClose = code.slice(0, lastBrace).trimEnd();
-    const needsComma = !beforeClose.endsWith(',');
-    const commaPos = beforeClose.length;
-    const sectionLines = [];
-    for (const [key, val] of Object.entries(sectionsToInsert)) {
-        sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
-    }
-    const base = needsComma
-        ? code.slice(0, commaPos) + ',' + code.slice(commaPos, lastBrace)
-        : code.slice(0, lastBrace);
-    const snippet = '\n' + sectionLines.join('\n') + '\n';
-    const updated = base + snippet + code.slice(lastBrace);
-    fs.writeFileSync(configFilePath, updated, 'utf8');
+function appendMissingSectionsFallback(configFilePath, code, sectionsToInsert) {
+	const lastBrace = code.lastIndexOf("}");
+	if (lastBrace === -1) return;
+	const beforeClose = code.slice(0, lastBrace).trimEnd();
+	const needsComma = !beforeClose.endsWith(",");
+	const commaPos = beforeClose.length;
+	const sectionLines = [];
+	for (const [key, val] of Object.entries(sectionsToInsert)) sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
+	const updated = (needsComma ? code.slice(0, commaPos) + "," + code.slice(commaPos, lastBrace) : code.slice(0, lastBrace)) + ("\n" + sectionLines.join("\n") + "\n") + code.slice(lastBrace);
+	fs.writeFileSync(configFilePath, updated, "utf8");
 }
 function parseAuditConfigFileAst(configFilePath) {
-    try {
-        const code = fs.readFileSync(configFilePath, 'utf8');
-        const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS); // homebrew-ok: in-place AST configuration rewrite
-        const configObj = findConfigObjectLiteral(source);
-        return { code, source, configObj };
-    }
-    catch {
-        return null;
-    }
+	try {
+		const code = fs.readFileSync(configFilePath, "utf8");
+		const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+		return {
+			code,
+			source,
+			configObj: findConfigObjectLiteral(source)
+		};
+	} catch {
+		return null;
+	}
 }
-function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
-) {
-    const parsed = parseAuditConfigFileAst(configFilePath);
-    if (!parsed)
-        return;
-    const { code, configObj } = parsed;
-    if (!configObj) {
-        appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
-        return;
-    }
-    const properties = configObj.properties;
-    let hasTrailingComma = false;
-    if (properties.length > 0) {
-        const lastProp = properties[properties.length - 1];
-        const endOfLastProp = lastProp.getEnd();
-        const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
-        const between = code.slice(endOfLastProp, closeBracePos);
-        hasTrailingComma = between.includes(',');
-    }
-    const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
-    if (closeBracePos === -1)
-        return;
-    let baseCode = code;
-    let effectiveCloseBracePos = closeBracePos;
-    if (!hasTrailingComma && properties.length > 0) {
-        const lastProp = properties[properties.length - 1];
-        const endOfLastProp = lastProp.getEnd();
-        baseCode = code.slice(0, endOfLastProp) + ',' + code.slice(endOfLastProp);
-        effectiveCloseBracePos += 1;
-    }
-    const sectionLines = [];
-    for (const [key, val] of Object.entries(sectionsToInsert)) {
-        sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
-    }
-    const snippet = '\n' + sectionLines.join('\n') + '\n';
-    const updated = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
-    fs.writeFileSync(configFilePath, updated, 'utf8');
+function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert) {
+	const parsed = parseAuditConfigFileAst(configFilePath);
+	if (!parsed) return;
+	const { code, configObj } = parsed;
+	if (!configObj) {
+		appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
+		return;
+	}
+	const properties = configObj.properties;
+	let hasTrailingComma = false;
+	if (properties.length > 0) {
+		const endOfLastProp = properties[properties.length - 1].getEnd();
+		const closeBracePos = code.lastIndexOf("}", configObj.getEnd() - 1);
+		hasTrailingComma = code.slice(endOfLastProp, closeBracePos).includes(",");
+	}
+	const closeBracePos = code.lastIndexOf("}", configObj.getEnd() - 1);
+	if (closeBracePos === -1) return;
+	let baseCode = code;
+	let effectiveCloseBracePos = closeBracePos;
+	if (!hasTrailingComma && properties.length > 0) {
+		const endOfLastProp = properties[properties.length - 1].getEnd();
+		baseCode = code.slice(0, endOfLastProp) + "," + code.slice(endOfLastProp);
+		effectiveCloseBracePos += 1;
+	}
+	const sectionLines = [];
+	for (const [key, val] of Object.entries(sectionsToInsert)) {
+		if (new RegExp(`(^|\\s)${key}\\s*:`).test(baseCode)) continue;
+		sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
+	}
+	if (sectionLines.length === 0) return;
+	const snippet = "\n" + sectionLines.join("\n") + "\n";
+	const updated = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
+	fs.writeFileSync(configFilePath, updated, "utf8");
 }
-export function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert // open-record: Dictionary of configuration sections
-) {
-    if (configFilePath.endsWith('.json')) {
-        appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert);
-        return;
-    }
-    appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
+function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
+	if (configFilePath.endsWith(".json")) {
+		appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert);
+		return;
+	}
+	appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
 }
 function appendTaskDefaultConfig(sections, task) {
-    if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core')
-        return;
-    const rootKey = task.configKey.split('.')[0];
-    if (!rootKey)
-        return;
-    if (!task.defaultConfig || typeof task.defaultConfig !== 'object' || Object.keys(task.defaultConfig).length === 0)
-        return;
-    sections[rootKey] = {
-        ...sections[rootKey],
-        ...task.defaultConfig
-    };
+	if (!task.configKey || task.configKey === "paths" || task.configKey === "core") return;
+	const rootKey = task.configKey.split(".")[0];
+	if (!rootKey) return;
+	if (!task.defaultConfig || typeof task.defaultConfig !== "object" || Object.keys(task.defaultConfig).length === 0) return;
+	sections[rootKey] = {
+		...sections[rootKey],
+		...task.defaultConfig
+	};
 }
-export function collectConfigSectionsFromTasks(tasks) {
-    const sections = {};
-    for (const task of tasks) {
-        appendTaskDefaultConfig(sections, task);
-    }
-    return sections;
+function collectConfigSectionsFromTasks(tasks) {
+	const sections = {};
+	for (const task of tasks) appendTaskDefaultConfig(sections, task);
+	return sections;
 }
 function renderConfigSectionsCode(sections) {
-    const entries = Object.entries(sections);
-    if (entries.length === 0)
-        return '';
-    const lines = [];
-    for (const [key, value] of entries) {
-        lines.push(`  ${key}: ${formatSectionObjectLiteral(value)},`);
-    }
-    return ',\n' + lines.join('\n');
+	const entries = Object.entries(sections);
+	if (entries.length === 0) return "";
+	const lines = [];
+	for (const [key, value] of entries) lines.push(`  ${key}: ${formatSectionObjectLiteral(value)},`);
+	return ",\n" + lines.join("\n");
 }
-export function syncAuditorVersionInConfigFile(configFilePath, version) {
-    if (!fs.existsSync(configFilePath))
-        return false;
-    if (configFilePath.endsWith('.json')) {
-        try {
-            const content = fs.readFileSync(configFilePath, 'utf8');
-            const json = JSON.parse(content);
-            if (json.auditorVersion === version)
-                return false;
-            json.auditorVersion = version;
-            fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
-            return true;
-        }
-        catch {
-            return false;
-        }
-    }
-    const parsed = parseAuditConfigFileAst(configFilePath);
-    if (!parsed || !parsed.configObj)
-        return false;
-    const { code, source, configObj } = parsed;
-    try {
-        const versionProp = configObj.properties.find(p => {
-            if (!ts.isPropertyAssignment(p))
-                return false;
-            const name = p.name.getText(source);
-            return name === 'auditorVersion' || name === "'auditorVersion'" || name === '"auditorVersion"';
-        });
-        if (versionProp) {
-            const currentVal = versionProp.initializer.getText(source);
-            if (currentVal === `'${version}'` || currentVal === `"${version}"`) {
-                return false;
-            }
-            const updated = code.slice(0, versionProp.initializer.getStart(source)) +
-                `'${version}'` +
-                code.slice(versionProp.initializer.getEnd());
-            fs.writeFileSync(configFilePath, updated, 'utf8');
-            return true;
-        }
-        const nameProp = configObj.properties.find(p => {
-            if (!ts.isPropertyAssignment(p))
-                return false;
-            const name = p.name.getText(source);
-            return name === 'name' || name === "'name'" || name === '"name"';
-        });
-        if (nameProp) {
-            const insertPos = nameProp.getEnd();
-            const commaOffset = code.indexOf(',', insertPos);
-            const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
-            const actualPos = hasComma ? commaOffset + 1 : insertPos;
-            const commaPrefix = hasComma ? '' : ',';
-            const snippet = `${commaPrefix}\n  auditorVersion: '${version}',`;
-            const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
-            fs.writeFileSync(configFilePath, updated, 'utf8');
-            return true;
-        }
-        const openBracePos = code.indexOf('{', configObj.getStart(source));
-        if (openBracePos === -1)
-            return false;
-        const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: '${version}',` + code.slice(openBracePos + 1);
-        fs.writeFileSync(configFilePath, updated, 'utf8');
-        return true;
-    }
-    catch {
-        return false;
-    }
+function syncAuditorVersionInConfigFile(configFilePath, version) {
+	if (!fs.existsSync(configFilePath)) return false;
+	if (configFilePath.endsWith(".json")) try {
+		const content = fs.readFileSync(configFilePath, "utf8");
+		const json = JSON.parse(content);
+		if (json.auditorVersion === version) return false;
+		json.auditorVersion = version;
+		fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
+		return true;
+	} catch {
+		return false;
+	}
+	const parsed = parseAuditConfigFileAst(configFilePath);
+	if (!parsed || !parsed.configObj) return false;
+	const { code, source, configObj } = parsed;
+	try {
+		const versionProp = configObj.properties.find((p) => {
+			if (!ts.isPropertyAssignment(p)) return false;
+			const name = p.name.getText(source);
+			return name === "auditorVersion" || name === "'auditorVersion'" || name === "\"auditorVersion\"";
+		});
+		if (versionProp) {
+			const currentVal = versionProp.initializer.getText(source);
+			if (currentVal === `'${version}'` || currentVal === `"${version}"`) return false;
+			const updated = code.slice(0, versionProp.initializer.getStart(source)) + `'${version}'` + code.slice(versionProp.initializer.getEnd());
+			fs.writeFileSync(configFilePath, updated, "utf8");
+			return true;
+		}
+		const nameProp = configObj.properties.find((p) => {
+			if (!ts.isPropertyAssignment(p)) return false;
+			const name = p.name.getText(source);
+			return name === "name" || name === "'name'" || name === "\"name\"";
+		});
+		if (nameProp) {
+			const insertPos = nameProp.getEnd();
+			const commaOffset = code.indexOf(",", insertPos);
+			const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
+			const actualPos = hasComma ? commaOffset + 1 : insertPos;
+			const snippet = `${hasComma ? "" : ","}\n  auditorVersion: '${version}',`;
+			const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
+			fs.writeFileSync(configFilePath, updated, "utf8");
+			return true;
+		}
+		const openBracePos = code.indexOf("{", configObj.getStart(source));
+		if (openBracePos === -1) return false;
+		const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: '${version}',` + code.slice(openBracePos + 1);
+		fs.writeFileSync(configFilePath, updated, "utf8");
+		return true;
+	} catch {
+		return false;
+	}
 }
-export function createDefaultAuditConfigContent(packageName = 'Project', tasks = []) {
-    const sections = collectConfigSectionsFromTasks(tasks);
-    const customSectionsCode = renderConfigSectionsCode(sections);
-    return `import { defineAuditConfig } from '@francogp/auditor';
+function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
+	const customSectionsCode = renderConfigSectionsCode(collectConfigSectionsFromTasks(tasks));
+	return `import { defineAuditConfig } from '@francogp/auditor';
 
 export default defineAuditConfig({
   name: '${packageName}',
@@ -288,676 +233,537 @@ export default defineAuditConfig({
 `;
 }
 function isSectionConfigured(rootKey, rawConfig) {
-    if (typeof rawConfig !== 'object' || rawConfig === null)
-        return false;
-    if (rootKey === 'stylelint') {
-        const stylesConfig = Reflect.get(rawConfig, 'styles');
-        const isStylesObject = typeof stylesConfig === 'object' && stylesConfig !== null;
-        return (Reflect.get(rawConfig, 'stylelint') !== undefined ||
-            (isStylesObject && Reflect.get(stylesConfig, 'stylelint') !== undefined) ||
-            stylesConfig !== undefined);
-    }
-    return Reflect.get(rawConfig, rootKey) !== undefined;
+	if (typeof rawConfig !== "object" || rawConfig === null) return false;
+	if (rootKey === "stylelint") {
+		const stylesConfig = Reflect.get(rawConfig, "styles");
+		const isStylesObject = typeof stylesConfig === "object" && stylesConfig !== null;
+		return Reflect.get(rawConfig, "stylelint") !== void 0 || isStylesObject && Reflect.get(stylesConfig, "stylelint") !== void 0 || stylesConfig !== void 0;
+	}
+	return Reflect.get(rawConfig, rootKey) !== void 0;
 }
-export function collectMissingSections(tasks, rawConfig) {
-    const missingByRootKey = new Map();
-    for (const task of tasks) {
-        if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core' || task.configKey === 'none') {
-            continue;
-        }
-        const rootKey = task.configKey.split('.')[0];
-        if (!rootKey || isSectionConfigured(rootKey, rawConfig)) {
-            continue;
-        }
-        let entry = missingByRootKey.get(rootKey);
-        if (!entry) {
-            entry = { tasks: [], defaultConfig: {} };
-            missingByRootKey.set(rootKey, entry);
-        }
-        entry.tasks.push(task);
-        if (task.defaultConfig && typeof task.defaultConfig === 'object') {
-            Object.assign(entry.defaultConfig, task.defaultConfig);
-        }
-    }
-    return missingByRootKey;
+function collectMissingSections(tasks, rawConfig) {
+	const missingByRootKey = /* @__PURE__ */ new Map();
+	for (const task of tasks) {
+		if (!task.configKey || task.configKey === "paths" || task.configKey === "core" || task.configKey === "none") continue;
+		const rootKey = task.configKey.split(".")[0];
+		if (!rootKey || isSectionConfigured(rootKey, rawConfig)) continue;
+		let entry = missingByRootKey.get(rootKey);
+		if (!entry) {
+			entry = {
+				tasks: [],
+				defaultConfig: {}
+			};
+			missingByRootKey.set(rootKey, entry);
+		}
+		entry.tasks.push(task);
+		if (task.defaultConfig && typeof task.defaultConfig === "object") Object.assign(entry.defaultConfig, task.defaultConfig);
+	}
+	return missingByRootKey;
 }
-export const AUDIT_CONFIG_RULES = [
-    'audit-config-missing-path',
-    'audit-config-missing-file',
-    'audit-config-invalid-extension',
-    'audit-config-missing-gitignore-entry',
-    'audit-config-missing-section',
-    'audit-config-unknown-field',
-    'audit-config-critical-violation'
+const AUDIT_CONFIG_RULES = [
+	"audit-config-missing-path",
+	"audit-config-missing-file",
+	"audit-config-invalid-extension",
+	"audit-config-missing-gitignore-entry",
+	"audit-config-missing-section",
+	"audit-config-unknown-field",
+	"audit-config-critical-violation"
 ];
-export const PATH_ROOT_KEYS = [
-    'srcRoots',
-    'testRoots',
-    'e2eRoots',
-    'integrationRoots',
-    'scriptsRoots',
-    'codeRoots',
-    'dataRoots',
-    'componentsRoots',
-    'viewsRoots',
-    'storesRoots',
-    'composablesRoots',
-    'typesRoots',
-    'stylesRoots',
-    'logicRoots',
-    'cliRoots'
+const PATH_ROOT_KEYS = [
+	"srcRoots",
+	"testRoots",
+	"e2eRoots",
+	"integrationRoots",
+	"scriptsRoots",
+	"codeRoots",
+	"dataRoots",
+	"componentsRoots",
+	"viewsRoots",
+	"storesRoots",
+	"composablesRoots",
+	"typesRoots",
+	"stylesRoots",
+	"logicRoots",
+	"cliRoots"
 ];
-export const AUDIT_CONFIG_REQUIREMENT = {
-    id: 'audit-config',
-    file: AUDIT_CONFIG_FILE,
-    candidateFiles: [AUDIT_CONFIG_FILE, '.auditor/audit.config.json'],
-    description: 'Configuración del auditor en .auditor/',
-    ruleId: 'audit-config-missing-file',
-    generateDefaultContent: async (ctx) => {
-        const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
-        if (legacy) {
-            migrateLegacyAuditConfig(ctx.projectRoot);
-            const migratedPath = path.resolve(ctx.projectRoot, AUDIT_CONFIG_FILE);
-            if (fs.existsSync(migratedPath)) {
-                return fs.readFileSync(migratedPath, 'utf-8');
-            }
-        }
-        let pkgName = ctx.packageName || 'Project';
-        try {
-            const pkg = getPackageJson(ctx.projectRoot);
-            if (pkg?.name)
-                pkgName = pkg.name;
-        }
-        catch {
-            // catch-ok: fallback to 'Project'
-        }
-        let tasks = [];
-        try {
-            const { discoverAuditors } = await import("../../cli/auditScanner.js");
-            tasks = await discoverAuditors({ projectRoot: ctx.projectRoot });
-        }
-        catch {
-            // catch-ok: fallback when running isolated
-        }
-        return createDefaultAuditConfigContent(pkgName, tasks);
-    },
-    customMissingMessage: (ctx, file) => {
-        const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
-        if (legacy) {
-            return `Configuration error: root-level ${legacy} is no longer supported. Run "auditor fix" to move it to ${file}.`;
-        }
-        return `Configuration error: ${file} does not exist. Run "auditor fix" to initialize default configuration.`;
-    },
-    customMissingFile: (ctx, defaultFile) => {
-        const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
-        return legacy ?? defaultFile;
-    }
+const AUDIT_CONFIG_REQUIREMENT = {
+	id: "audit-config",
+	file: AUDIT_CONFIG_FILE,
+	candidateFiles: [AUDIT_CONFIG_FILE, ".auditor/audit.config.json"],
+	description: "Configuración del auditor en .auditor/",
+	ruleId: "audit-config-missing-file",
+	generateDefaultContent: async (ctx) => {
+		if (LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(ctx.projectRoot, f)))) {
+			migrateLegacyAuditConfig(ctx.projectRoot);
+			const migratedPath = path.resolve(ctx.projectRoot, AUDIT_CONFIG_FILE);
+			if (fs.existsSync(migratedPath)) return fs.readFileSync(migratedPath, "utf-8");
+		}
+		let pkgName = ctx.packageName || "Project";
+		try {
+			const pkg = getPackageJson(ctx.projectRoot);
+			if (pkg?.name) pkgName = pkg.name;
+		} catch {}
+		let tasks = [];
+		try {
+			const { discoverAuditors } = await import("../../cli/auditScanner.js");
+			tasks = await discoverAuditors({ projectRoot: ctx.projectRoot });
+		} catch {}
+		return createDefaultAuditConfigContent(pkgName, tasks);
+	},
+	customMissingMessage: (ctx, file) => {
+		const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+		if (legacy) return `Configuration error: root-level ${legacy} is no longer supported. Run "auditor fix" to move it to ${file}.`;
+		return `Configuration error: ${file} does not exist. Run "auditor fix" to initialize default configuration.`;
+	},
+	customMissingFile: (ctx, defaultFile) => {
+		return LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(ctx.projectRoot, f))) ?? defaultFile;
+	}
 };
-export class ValidateAuditConfigAuditor extends BaseAuditor {
-    constructor(targetPathOrOptions) {
-        const options = typeof targetPathOrOptions === 'string'
-            ? { projectRoot: targetPathOrOptions }
-            : (targetPathOrOptions ?? {});
-        const projectRoot = options.projectRoot || process.cwd();
-        super({
-            usesThirdPartyTool: false,
-            ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
-                speed: 'light',
-                phase: 'normal',
-                fix: 'priority',
-                md: false,
-                ast: false,
-                changedOnly: false, critical: false
-            }, [
-                'audit-config-missing-section',
-                'audit-config-missing-file',
-                'audit-config-missing-gitignore-entry',
-                'audit-config-critical-violation'
-            ]),
-            fixableRuleIds: [
-                'audit-config-missing-section',
-                'audit-config-missing-file',
-                'audit-config-missing-gitignore-entry',
-                'audit-config-critical-violation'
-            ],
-            configFiles: [AUDIT_CONFIG_REQUIREMENT],
-            fix: options.fix,
-            id: 'validate_audit_config',
-            name: 'Audit Configuration Integrity Validator',
-            description: 'Valida configuración del auditor en .auditor/',
-            family: 'architecture',
-            ruleIds: AUDIT_CONFIG_RULES,
-            packageName: 'Config',
-            icon: '⚙️',
-            configKey: 'paths',
-            defaultConfig: {},
-            criticalConfig: {},
-            ruleDescriptions: {
-                'audit-config-missing-path': 'Ruta configurada no existe',
-                'audit-config-missing-file': 'Archivo configurado no existe',
-                'audit-config-invalid-extension': 'Extensión configurada no existe',
-                'audit-config-missing-gitignore-entry': 'Falta entrada en .gitignore',
-                'audit-config-missing-section': 'Falta sección en audit.config',
-                'audit-config-unknown-field': 'Campo no reconocido en config',
-                'audit-config-critical-violation': 'Violación a configuración crítica'
-            },
-            ruleRemediations: {
-                'audit-config-missing-path': 'Una de las rutas declaradas en config.paths no existe en el sistema de archivos del proyecto.\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Si el directorio fue renombrado o movido, actualiza la ruta correspondiente en .auditor/audit.config.ts.\n' +
-                    '2. Si el directorio es opcional o aún no se ha creado, crea la carpeta vacía o remuévela de la configuración si no corresponde a este proyecto.',
-                'audit-config-missing-file': 'No se encontró el archivo principal de configuración .auditor/audit.config.ts (o audit.config.json).\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Ejecuta "auditor fix" o "npm run auditor:fix" para generar automáticamente la configuración canónica con sus valores por defecto.\n' +
-                    '2. Si existe en la raíz como audit.config.ts, muévelo dentro de .auditor/.',
-                'audit-config-invalid-extension': 'Se declaró una extensión o plugin en config.extensions que no pudo resolverse en disco o no exporta un auditor válido.\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Verifica la ruta relativa declarada en extensions: [...] dentro de .auditor/audit.config.ts.\n' +
-                    '2. Asegúrate de que el archivo termine en .ts o .js y exporte una subclase de BaseAuditor.',
-                'audit-config-missing-gitignore-entry': 'Faltan entradas obligatorias gobernadas por el auditor en el archivo .gitignore del repositorio (ej. scratch/, coverage/).\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Ejecuta "auditor fix" para inyectar automáticamente las entradas requeridas en .gitignore.\n' +
-                    '2. O agrega manualmente las entradas indicadas en el reporte a tu archivo .gitignore.',
-                'audit-config-missing-section': 'Uno de los sub-auditores activos requiere una sección de configuración específica en .auditor/audit.config.ts que no está presente.\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Ejecuta "auditor fix" para que el motor de AST de TypeScript inyecte automáticamente la sección faltante con sus valores canónicos.\n' +
-                    '2. O agrega manualmente la sección declarada por el sub-auditor en tu archivo .auditor/audit.config.ts.',
-                'audit-config-unknown-field': 'Se encontró una clave o propiedad en .auditor/audit.config.ts que no es reconocida por el esquema del auditor (clave obsoleta o mal tipada).\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Revisa el nombre del campo en .auditor/audit.config.ts por posibles errores tipográficos.\n' +
-                    '2. Si era una clave de una versión anterior del auditor, elimínala o migra al nombre canónico actual.',
-                'audit-config-critical-violation': 'La configuración viola una política crítica e inmutable del framework (ej. omisión de reglas estrictas obligatorias o valores prohibidos).\n' +
-                    'Posibles causas y soluciones:\n' +
-                    '1. Revisa la justificación técnica mostrada en el mensaje del error.\n' +
-                    '2. Ejecuta "auditor fix" para restablecer automáticamente la línea base mínima obligatoria requerida por el sub-auditor.'
-            },
-            coverage: {
-                include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']
-            },
-            projectRoot
-        });
-    }
-    async runAudit() {
-        let ensured = null;
-        await this.runSubAuditor('audit-config-missing-file', async () => {
-            const requirement = this.configFiles[0] ?? AUDIT_CONFIG_REQUIREMENT;
-            ensured = await this.ensureConfigFile(requirement);
-        });
-        if (!ensured) {
-            return;
-        }
-        this.recordScanned(AUDIT_CONFIG_FILE);
-        if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore')))
-            this.recordScanned('.gitignore');
-        const config = await loadAuditConfig(this.projectRoot);
-        const baselineFile = config.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
-        if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) {
-            this.recordScanned(baselineFile);
-        }
-        let tasks = [];
-        try {
-            tasks = await discoverAuditors({ projectRoot: this.projectRoot });
-        }
-        catch {
-            // catch-ok: fallback when running in isolated test environments without suite discovery
-        }
-        await this.runSubAuditor('audit-config-missing-section', async () => {
-            await this.verifyRequiredSections(config, tasks);
-        });
-        await this.runSubAuditor('audit-config-critical-violation', async () => {
-            await this.verifyCriticalConfigurations(config, tasks);
-        });
-        this.runSubAuditorSync('audit-config-unknown-field', () => {
-            this.verifyUnknownFields(config, tasks);
-        });
-        this.runSubAuditorSync('audit-config-missing-path', () => {
-            this.verifyPathRoots(config);
-            this.verifyPersistencePaths(config);
-            this.verifyDomainAndStylePaths(config);
-        });
-        this.runSubAuditorSync('audit-config-invalid-extension', () => {
-            this.verifyExtensionPaths(config);
-        });
-        await this.runSubAuditor('audit-config-missing-gitignore-entry', async () => {
-            await this.verifyGitIgnore(config);
-        });
-    }
-    verifyUnknownFields(config, tasks) {
-        const rawConfig = config._rawConfig ?? {};
-        if (typeof rawConfig !== 'object' || rawConfig === null)
-            return;
-        this.verifyUnknownTopLevelSections(rawConfig, tasks);
-        this.verifyUnknownPathsFields(rawConfig);
-        this.verifyUnknownConstantsFields(rawConfig);
-        this.verifyUnknownBundleFields(rawConfig);
-    }
-    verifyUnknownBundleFields(rawConfig) {
-        const rawBundle = rawConfig.bundle;
-        if (typeof rawBundle !== 'object' || rawBundle === null)
-            return;
-        const validBundleKeys = new Set([
-            'enabled',
-            'statsFile',
-            'distDir',
-            'exemptChunkPrefixes',
-            'maxClientChunkWarnBytes',
-            'maxClientChunkErrorBytes',
-            'budgets',
-            'duplicateModuleThresholdBytes',
-            'topModulesLimit',
-            'forbiddenUiImports'
-        ]);
-        for (const key of Object.keys(rawBundle)) {
-            if (!validBundleKeys.has(key)) {
-                this.addViolation({
-                    ruleId: 'audit-config-unknown-field',
-                    severity: 'error',
-                    file: AUDIT_CONFIG_FILE,
-                    line: 1,
-                    message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "bundle.${key}". This field is not supported. Please remove it.`,
-                    context: `bundle.${key}`
-                });
-            }
-        }
-        const budgets = rawBundle.budgets;
-        if (Array.isArray(budgets)) {
-            const validBudgetKeys = new Set(['name', 'prefix', 'matcher', 'limitBytes']);
-            budgets.forEach((budgetEntry, idx) => {
-                if (typeof budgetEntry !== 'object' || budgetEntry === null)
-                    return;
-                for (const bKey of Object.keys(budgetEntry)) {
-                    if (!validBudgetKeys.has(bKey)) {
-                        this.addViolation({
-                            ruleId: 'audit-config-unknown-field',
-                            severity: 'error',
-                            file: AUDIT_CONFIG_FILE,
-                            line: 1,
-                            message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown field "bundle.budgets[${idx}].${bKey}". Canonical fields for ChunkBudgetConfig are 'name', 'prefix', 'matcher', and 'limitBytes'.`,
-                            context: `bundle.budgets.${bKey}`
-                        });
-                    }
-                }
-            });
-        }
-    }
-    verifyUnknownTopLevelSections(rawConfig, tasks) {
-        const validTopLevelKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG).filter(k => !k.startsWith('_')));
-        for (const task of tasks) {
-            if (task.configKey && task.configKey !== 'paths' && task.configKey !== 'core' && task.configKey !== 'none') {
-                const rootKey = task.configKey.split('.')[0];
-                if (rootKey)
-                    validTopLevelKeys.add(rootKey);
-            }
-        }
-        for (const key of Object.keys(rawConfig)) {
-            if (key.startsWith('_'))
-                continue;
-            if (!validTopLevelKeys.has(key)) {
-                this.addViolation({
-                    ruleId: 'audit-config-unknown-field',
-                    severity: 'error',
-                    file: AUDIT_CONFIG_FILE,
-                    line: 1,
-                    message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy top-level section "${key}". This section is not supported by @francogp/auditor. Please remove it.`,
-                    context: key
-                });
-            }
-        }
-    }
-    verifyUnknownPathsFields(rawConfig) {
-        const rawPaths = rawConfig.paths;
-        if (typeof rawPaths !== 'object' || rawPaths === null)
-            return;
-        const validPathKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.paths));
-        for (const key of Object.keys(rawPaths)) {
-            if (!validPathKeys.has(key)) {
-                this.addViolation({
-                    ruleId: 'audit-config-unknown-field',
-                    severity: 'error',
-                    file: AUDIT_CONFIG_FILE,
-                    line: 1,
-                    message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "paths.${key}". This field is not supported. Please remove it.`,
-                    context: `paths.${key}`
-                });
-            }
-        }
-    }
-    verifyUnknownConstantsFields(rawConfig) {
-        const rawConstants = rawConfig.constants;
-        if (typeof rawConstants !== 'object' || rawConstants === null)
-            return;
-        const validConstantsKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.constants ?? {}));
-        for (const key of Object.keys(rawConstants)) {
-            if (!validConstantsKeys.has(key)) {
-                this.addViolation({
-                    ruleId: 'audit-config-unknown-field',
-                    severity: 'error',
-                    file: AUDIT_CONFIG_FILE,
-                    line: 1,
-                    message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "constants.${key}". This field is not supported. Please remove it.`,
-                    context: `constants.${key}`
-                });
-            }
-        }
-    }
-    async verifyRequiredSections(config, tasks) {
-        if (tasks.length === 0)
-            return;
-        const missingByRootKey = collectMissingSections(tasks, config._rawConfig ?? {});
-        if (missingByRootKey.size === 0)
-            return;
-        if (this.isFixActive()) {
-            this.applyMissingSectionsFix(missingByRootKey);
-            return;
-        }
-        this.reportMissingSectionViolations(missingByRootKey);
-    }
-    applyMissingSectionsFix(missingByRootKey) {
-        const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-        if (!fs.existsSync(configFilePath))
-            return;
-        const sectionsToInsert = {}; // open-record: Sections dictionary
-        for (const [rootKey, entry] of missingByRootKey.entries()) {
-            sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0
-                ? entry.defaultConfig
-                : { enabled: true };
-        }
-        appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert);
-    }
-    reportMissingSectionViolations(missingByRootKey) {
-        for (const [rootKey, entry] of missingByRootKey.entries()) {
-            const suiteNames = entry.tasks.map(t => t.id).join(', ');
-            this.addViolation({
-                ruleId: 'audit-config-missing-section',
-                severity: 'error',
-                file: AUDIT_CONFIG_FILE,
-                line: 1,
-                message: `Configuration error in ${AUDIT_CONFIG_FILE}: Missing required section "${rootKey}" declared by ${suiteNames}. Run "auditor fix" to add automatically.`,
-                context: rootKey
-            });
-        }
-    }
-    resolveTaskSectionContext(task, rawConfig) {
-        const rootKey = task.configKey && task.configKey !== 'paths' && task.configKey !== 'core' && task.configKey !== 'none'
-            ? task.configKey.split('.')[0]
-            : undefined;
-        const sectionConfig = rootKey ? rawConfig[rootKey] : undefined;
-        return { rootKey, sectionConfig };
-    }
-    async repairCriticalMinimum(sectionConfig, rawConfig, rootKey, propPath, configuredList, missing, repair) {
-        if (repair) {
-            await repair(sectionConfig ?? rawConfig, this.projectRoot);
-            return;
-        }
-        if (rootKey && typeof sectionConfig === 'object' && sectionConfig !== null) {
-            const merged = Array.from(new Set([...configuredList, ...missing]));
-            setDeepProperty(sectionConfig, propPath, merged);
-            const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-            if (fs.existsSync(configFilePath)) {
-                appendMissingSectionsToConfigFile(configFilePath, { [rootKey]: sectionConfig });
-            }
-        }
-    }
-    async verifyTaskMinimumProperty(task, propPath, minList, sectionConfig, rawConfig, rootKey, rationale, repair) {
-        const configuredVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
-        if (configuredVal === undefined)
-            return;
-        const configuredList = Array.isArray(configuredVal) ? configuredVal : [];
-        const missing = minList.filter(item => !configuredList.includes(item));
-        if (missing.length === 0)
-            return;
-        if (this.isFixActive()) {
-            await this.repairCriticalMinimum(sectionConfig, rawConfig, rootKey, propPath, configuredList, missing, repair);
-        }
-        else {
-            this.addViolation({
-                ruleId: 'audit-config-critical-violation',
-                severity: 'error',
-                file: AUDIT_CONFIG_FILE,
-                line: 1,
-                message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] missing required minimum values for "${propPath}": [${missing.join(', ')}]. Rationale: ${rationale}`,
-                context: `${task.id}:${propPath}`
-            });
-        }
-    }
-    async verifyTaskCriticalMinimums(task, requiredMinimums, sectionConfig, rawConfig, rootKey, rationale, repair) {
-        for (const [propPath, minList] of Object.entries(requiredMinimums)) {
-            await this.verifyTaskMinimumProperty(task, propPath, minList, sectionConfig, rawConfig, rootKey, rationale, repair);
-        }
-    }
-    async verifyTaskForbiddenOverrides(task, forbiddenOverrides, sectionConfig, rawConfig, rationale, repair) {
-        for (const [propPath, disallowedList] of Object.entries(forbiddenOverrides)) {
-            const actualVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
-            if (actualVal !== undefined && disallowedList.includes(actualVal)) {
-                if (this.isFixActive() && repair) {
-                    await repair(sectionConfig ?? rawConfig, this.projectRoot);
-                }
-                else {
-                    this.addViolation({
-                        ruleId: 'audit-config-critical-violation',
-                        severity: 'error',
-                        file: AUDIT_CONFIG_FILE,
-                        line: 1,
-                        message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] field "${propPath}" is set to disallowed value "${String(actualVal)}". Rationale: ${rationale}`,
-                        context: `${task.id}:${propPath}`
-                    });
-                }
-            }
-        }
-    }
-    async verifyTaskCustomValidation(task, validate, sectionConfig, rawConfig, rationale, repair) {
-        const errorMsg = validate(sectionConfig ?? rawConfig, this.projectRoot);
-        if (typeof errorMsg === 'string' && errorMsg.trim().length > 0) {
-            if (this.isFixActive() && repair) {
-                await repair(sectionConfig ?? rawConfig, this.projectRoot);
-            }
-            else {
-                this.addViolation({
-                    ruleId: 'audit-config-critical-violation',
-                    severity: 'error',
-                    file: AUDIT_CONFIG_FILE,
-                    line: 1,
-                    message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] ${errorMsg}. Rationale: ${rationale}`,
-                    context: task.id
-                });
-            }
-        }
-    }
-    async verifyTaskCriticalConfig(task, rawConfig) {
-        if (!task.criticalConfig)
-            return;
-        const { rationale, requiredMinimums, forbiddenOverrides, validate, repair } = task.criticalConfig;
-        const { rootKey, sectionConfig } = this.resolveTaskSectionContext(task, rawConfig);
-        if (requiredMinimums) {
-            await this.verifyTaskCriticalMinimums(task, requiredMinimums, sectionConfig, rawConfig, rootKey, rationale, repair);
-        }
-        if (forbiddenOverrides) {
-            await this.verifyTaskForbiddenOverrides(task, forbiddenOverrides, sectionConfig, rawConfig, rationale, repair);
-        }
-        if (validate) {
-            await this.verifyTaskCustomValidation(task, validate, sectionConfig, rawConfig, rationale, repair);
-        }
-    }
-    async verifyCriticalConfigurations(config, tasks) {
-        const rawConfig = (config._rawConfig ?? {});
-        for (const task of tasks) {
-            await this.verifyTaskCriticalConfig(task, rawConfig);
-        }
-    }
-    handleMissingGitIgnoreFile(gitignorePath, requirements) {
-        if (this.isFixActive()) {
-            const contentLines = [
-                '# Auditor tool caches (Added by @francogp/auditor)',
-                ...requirements.map(e => e.pattern),
-                ''
-            ];
-            fs.writeFileSync(gitignorePath, contentLines.join('\n'), 'utf8');
-            return;
-        }
-        this.addViolation({
-            ruleId: 'audit-config-missing-file',
-            severity: 'error',
-            file: '.gitignore',
-            line: 1,
-            message: 'Configuration error: .gitignore does not exist in project root.',
-            context: '.gitignore'
-        });
-    }
-    appendMissingGitIgnoreEntries(gitignorePath, missing) {
-        appendGitIgnoreEntries(gitignorePath, missing.map(e => e.pattern));
-    }
-    async verifyGitIgnore(config) {
-        const gitignorePath = path.resolve(this.projectRoot, '.gitignore');
-        const allRequirements = await collectAllGitIgnoreRequirements(this.projectRoot, config);
-        const applicable = allRequirements.filter(req => (req.isApplicable ? req.isApplicable(config) : true));
-        if (!fs.existsSync(gitignorePath)) {
-            this.handleMissingGitIgnoreFile(gitignorePath, applicable);
-            return;
-        }
-        const missing = findMissingGitIgnoreRequirements(this.projectRoot, gitignorePath, applicable);
-        if (missing.length === 0)
-            return;
-        if (this.isFixActive()) {
-            this.appendMissingGitIgnoreEntries(gitignorePath, missing);
-            return;
-        }
-        for (const req of missing) {
-            this.addViolation({
-                ruleId: 'audit-config-missing-gitignore-entry',
-                severity: 'error',
-                file: '.gitignore',
-                line: 1,
-                message: `Missing required .gitignore entry for ${req.id} (${req.reason}). Expected "${req.pattern}" in .gitignore.`,
-                context: req.pattern
-            });
-        }
-    }
-    checkPathExists(relPath, ruleId, description) {
-        const normalized = relPath.trim();
-        if (!normalized)
-            return true;
-        const resolved = path.resolve(this.projectRoot, normalized);
-        if (!fs.existsSync(resolved)) {
-            this.addViolation({
-                ruleId,
-                severity: 'error',
-                file: AUDIT_CONFIG_FILE,
-                line: 1,
-                message: `Configuration error in ${AUDIT_CONFIG_FILE}: Referenced ${description} "${normalized}" does not exist on disk.`,
-                context: normalized
-            });
-            return false;
-        }
-        return true;
-    }
-    verifyPathRoots(config) {
-        const rawPaths = config._rawPaths ?? config.paths;
-        if (!rawPaths)
-            return;
-        for (const key of PATH_ROOT_KEYS) {
-            const val = rawPaths[key]; // open-record: Generic configuration dictionary
-            if (Array.isArray(val)) {
-                for (const item of val) {
-                    if (typeof item === 'string') {
-                        this.checkPathExists(item, 'audit-config-missing-path', `directory in paths.${String(key)}`);
-                    }
-                }
-            }
-        }
-    }
-    verifyPersistencePaths(config) {
-        const rawPersistence = config._rawConfig?.persistence;
-        if (config.paths?.migrationsDir && config.persistence?.engine !== 'none') {
-            if (config._rawPaths?.migrationsDir) {
-                this.checkPathExists(config.paths.migrationsDir, 'audit-config-missing-path', 'migrations directory');
-            }
-        }
-        if (rawPersistence?.supabaseDir) {
-            this.checkPathExists(rawPersistence.supabaseDir, 'audit-config-missing-path', 'supabase directory');
-        }
-        if (Array.isArray(rawPersistence?.allowedDatabaseDirs)) {
-            for (const d of rawPersistence.allowedDatabaseDirs) {
-                this.checkPathExists(d, 'audit-config-missing-path', 'database directory');
-            }
-        }
-        if (Array.isArray(rawPersistence?.allowedDatabaseFiles)) {
-            for (const f of rawPersistence.allowedDatabaseFiles) {
-                this.checkPathExists(f, 'audit-config-missing-file', 'database file');
-            }
-        }
-        if (Array.isArray(rawPersistence?.authorizedSaveFiles)) {
-            for (const f of rawPersistence.authorizedSaveFiles) {
-                this.checkPathExists(f, 'audit-config-missing-file', 'authorized save file');
-            }
-        }
-    }
-    verifyDomainPaths(config) {
-        const rawDomain = config._rawConfig?.domain;
-        if (rawDomain?.zLayersFile) {
-            this.checkPathExists(rawDomain.zLayersFile, 'audit-config-missing-file', 'domain z-layers file');
-        }
-        if (rawDomain?.timezoneHelperModule) {
-            this.checkPathExists(rawDomain.timezoneHelperModule, 'audit-config-missing-file', 'timezone helper module');
-        }
-        if (rawDomain?.loggerModule) {
-            this.checkPathExists(rawDomain.loggerModule, 'audit-config-missing-file', 'logger module');
-        }
-        if (Array.isArray(rawDomain?.o1CatalogPatterns)) {
-            for (const pattern of rawDomain.o1CatalogPatterns) {
-                if (pattern.definingFile) {
-                    this.checkPathExists(pattern.definingFile, 'audit-config-missing-file', `O(1) pattern defining file for '${pattern.name}'`);
-                }
-            }
-        }
-    }
-    verifyStylesPaths(config) {
-        const rawStyles = config._rawConfig?.styles;
-        if (config.styles?.zLayersEnabled !== false && rawStyles) {
-            if (rawStyles.baseScssFile) {
-                this.checkPathExists(rawStyles.baseScssFile, 'audit-config-missing-file', 'styles base SCSS file');
-            }
-            if (rawStyles.zLayersScssFile) {
-                this.checkPathExists(rawStyles.zLayersScssFile, 'audit-config-missing-file', 'styles z-layers SCSS file');
-            }
-            if (rawStyles.zLayersTsFile) {
-                this.checkPathExists(rawStyles.zLayersTsFile, 'audit-config-missing-file', 'styles z-layers TS file');
-            }
-        }
-        if (rawStyles?.buttonGovernance?.buttonsScssFile) {
-            this.checkPathExists(rawStyles.buttonGovernance.buttonsScssFile, 'audit-config-missing-file', 'button governance SCSS file');
-        }
-        if (Array.isArray(rawStyles?.heavyEffectPaths)) {
-            for (const p of rawStyles.heavyEffectPaths) {
-                this.checkPathExists(p, 'audit-config-missing-path', 'heavy effect path');
-            }
-        }
-    }
-    verifyDomainAndStylePaths(config) {
-        this.verifyDomainPaths(config);
-        this.verifyStylesPaths(config);
-    }
-    verifyExtensionPaths(config) {
-        const rawExtensions = config._rawConfig?.extensions ?? config.extensions;
-        if (!Array.isArray(rawExtensions))
-            return;
-        for (const ext of rawExtensions) {
-            if (typeof ext === 'string') {
-                this.checkPathExists(ext, 'audit-config-invalid-extension', 'extension file or directory');
-            }
-        }
-    }
+var ValidateAuditConfigAuditor = class extends BaseAuditor {
+	constructor(targetPathOrOptions) {
+		const options = typeof targetPathOrOptions === "string" ? { projectRoot: targetPathOrOptions } : targetPathOrOptions ?? {};
+		const projectRoot = options.projectRoot || process.cwd();
+		super({
+			usesThirdPartyTool: false,
+			ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
+				speed: "light",
+				phase: "normal",
+				fix: "priority",
+				md: false,
+				ast: false,
+				changedOnly: false,
+				critical: false
+			}, [
+				"audit-config-missing-section",
+				"audit-config-missing-file",
+				"audit-config-missing-gitignore-entry",
+				"audit-config-critical-violation"
+			]),
+			fixableRuleIds: [
+				"audit-config-missing-section",
+				"audit-config-missing-file",
+				"audit-config-missing-gitignore-entry",
+				"audit-config-critical-violation"
+			],
+			configFiles: [AUDIT_CONFIG_REQUIREMENT],
+			fix: options.fix,
+			id: "validate_audit_config",
+			name: "Audit Configuration Integrity Validator",
+			description: "Valida configuración del auditor en .auditor/",
+			family: "architecture",
+			ruleIds: AUDIT_CONFIG_RULES,
+			packageName: "Config",
+			icon: "⚙️",
+			configKey: "paths",
+			defaultConfig: {},
+			criticalConfig: {},
+			ruleDescriptions: {
+				"audit-config-missing-path": "Ruta configurada no existe",
+				"audit-config-missing-file": "Archivo configurado no existe",
+				"audit-config-invalid-extension": "Extensión configurada no existe",
+				"audit-config-missing-gitignore-entry": "Falta entrada en .gitignore",
+				"audit-config-missing-section": "Falta sección en audit.config",
+				"audit-config-unknown-field": "Campo no reconocido en config",
+				"audit-config-critical-violation": "Violación a configuración crítica"
+			},
+			ruleRemediations: {
+				"audit-config-missing-path": "Una de las rutas declaradas en config.paths no existe en el sistema de archivos del proyecto.\nPosibles causas y soluciones:\n1. Si el directorio fue renombrado o movido, actualiza la ruta correspondiente en .auditor/audit.config.ts.\n2. Si el directorio es opcional o aún no se ha creado, crea la carpeta vacía o remuévela de la configuración si no corresponde a este proyecto.",
+				"audit-config-missing-file": "No se encontró el archivo principal de configuración .auditor/audit.config.ts (o audit.config.json).\nPosibles causas y soluciones:\n1. Ejecuta \"auditor fix\" o \"npm run auditor:fix\" para generar automáticamente la configuración canónica con sus valores por defecto.\n2. Si existe en la raíz como audit.config.ts, muévelo dentro de .auditor/.",
+				"audit-config-invalid-extension": "Se declaró una extensión o plugin en config.extensions que no pudo resolverse en disco o no exporta un auditor válido.\nPosibles causas y soluciones:\n1. Verifica la ruta relativa declarada en extensions: [...] dentro de .auditor/audit.config.ts.\n2. Asegúrate de que el archivo termine en .ts o .js y exporte una subclase de BaseAuditor.",
+				"audit-config-missing-gitignore-entry": "Faltan entradas obligatorias gobernadas por el auditor en el archivo .gitignore del repositorio (ej. scratch/, coverage/).\nPosibles causas y soluciones:\n1. Ejecuta \"auditor fix\" para inyectar automáticamente las entradas requeridas en .gitignore.\n2. O agrega manualmente las entradas indicadas en el reporte a tu archivo .gitignore.",
+				"audit-config-missing-section": "Uno de los sub-auditores activos requiere una sección de configuración específica en .auditor/audit.config.ts que no está presente.\nPosibles causas y soluciones:\n1. Ejecuta \"auditor fix\" para que el motor de AST de TypeScript inyecte automáticamente la sección faltante con sus valores canónicos.\n2. O agrega manualmente la sección declarada por el sub-auditor en tu archivo .auditor/audit.config.ts.",
+				"audit-config-unknown-field": "Se encontró una clave o propiedad en .auditor/audit.config.ts que no es reconocida por el esquema del auditor (clave obsoleta o mal tipada).\nPosibles causas y soluciones:\n1. Revisa el nombre del campo en .auditor/audit.config.ts por posibles errores tipográficos.\n2. Si era una clave de una versión anterior del auditor, elimínala o migra al nombre canónico actual.",
+				"audit-config-critical-violation": "La configuración viola una política crítica e inmutable del framework (ej. omisión de reglas estrictas obligatorias o valores prohibidos).\nPosibles causas y soluciones:\n1. Revisa la justificación técnica mostrada en el mensaje del error.\n2. Ejecuta \"auditor fix\" para restablecer automáticamente la línea base mínima obligatoria requerida por el sub-auditor."
+			},
+			coverage: { include: [path.posix.join(AUDITOR_DIR, "**"), ".gitignore"] },
+			projectRoot
+		});
+	}
+	async runAudit() {
+		let ensured = null;
+		await this.runSubAuditor("audit-config-missing-file", async () => {
+			const requirement = this.configFiles[0] ?? AUDIT_CONFIG_REQUIREMENT;
+			ensured = await this.ensureConfigFile(requirement);
+		});
+		if (!ensured) return;
+		this.recordScanned(AUDIT_CONFIG_FILE);
+		if (fs.existsSync(path.resolve(this.projectRoot, ".gitignore"))) this.recordScanned(".gitignore");
+		const config = await loadAuditConfig(this.projectRoot);
+		const baselineFile = config.ratchet?.baselineFile ?? path.posix.join(".auditor", "audit-baseline.json");
+		if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) this.recordScanned(baselineFile);
+		let tasks = [];
+		try {
+			tasks = await discoverAuditors({ projectRoot: this.projectRoot });
+		} catch {}
+		await this.runSubAuditor("audit-config-missing-section", async () => {
+			await this.verifyRequiredSections(config, tasks);
+		});
+		await this.runSubAuditor("audit-config-critical-violation", async () => {
+			await this.verifyCriticalConfigurations(config, tasks);
+		});
+		this.runSubAuditorSync("audit-config-unknown-field", () => {
+			this.verifyUnknownFields(config, tasks);
+		});
+		this.runSubAuditorSync("audit-config-missing-path", () => {
+			this.verifyPathRoots(config);
+			this.verifyPersistencePaths(config);
+			this.verifyDomainAndStylePaths(config);
+		});
+		this.runSubAuditorSync("audit-config-invalid-extension", () => {
+			this.verifyExtensionPaths(config);
+		});
+		await this.runSubAuditor("audit-config-missing-gitignore-entry", async () => {
+			await this.verifyGitIgnore(config);
+		});
+	}
+	verifyUnknownFields(config, tasks) {
+		const rawConfig = config._rawConfig ?? {};
+		if (typeof rawConfig !== "object" || rawConfig === null) return;
+		this.verifyUnknownTopLevelSections(rawConfig, tasks);
+		this.verifyUnknownPathsFields(rawConfig);
+		this.verifyUnknownConstantsFields(rawConfig);
+		this.verifyUnknownBundleFields(rawConfig);
+	}
+	verifyUnknownBundleFields(rawConfig) {
+		const rawBundle = rawConfig.bundle;
+		if (typeof rawBundle !== "object" || rawBundle === null) return;
+		const validBundleKeys = /* @__PURE__ */ new Set([
+			"enabled",
+			"statsFile",
+			"distDir",
+			"exemptChunkPrefixes",
+			"maxClientChunkWarnBytes",
+			"maxClientChunkErrorBytes",
+			"budgets",
+			"duplicateModuleThresholdBytes",
+			"topModulesLimit",
+			"forbiddenUiImports"
+		]);
+		for (const key of Object.keys(rawBundle)) if (!validBundleKeys.has(key)) this.addViolation({
+			ruleId: "audit-config-unknown-field",
+			severity: "error",
+			file: AUDIT_CONFIG_FILE,
+			line: 1,
+			message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "bundle.${key}". This field is not supported. Please remove it.`,
+			context: `bundle.${key}`
+		});
+		const budgets = rawBundle.budgets;
+		if (Array.isArray(budgets)) {
+			const validBudgetKeys = /* @__PURE__ */ new Set([
+				"name",
+				"prefix",
+				"matcher",
+				"limitBytes"
+			]);
+			budgets.forEach((budgetEntry, idx) => {
+				if (typeof budgetEntry !== "object" || budgetEntry === null) return;
+				for (const bKey of Object.keys(budgetEntry)) if (!validBudgetKeys.has(bKey)) this.addViolation({
+					ruleId: "audit-config-unknown-field",
+					severity: "error",
+					file: AUDIT_CONFIG_FILE,
+					line: 1,
+					message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown field "bundle.budgets[${idx}].${bKey}". Canonical fields for ChunkBudgetConfig are 'name', 'prefix', 'matcher', and 'limitBytes'.`,
+					context: `bundle.budgets.${bKey}`
+				});
+			});
+		}
+	}
+	verifyUnknownTopLevelSections(rawConfig, tasks) {
+		const validTopLevelKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG).filter((k) => !k.startsWith("_")));
+		for (const task of tasks) if (task.configKey && task.configKey !== "paths" && task.configKey !== "core" && task.configKey !== "none") {
+			const rootKey = task.configKey.split(".")[0];
+			if (rootKey) validTopLevelKeys.add(rootKey);
+		}
+		for (const key of Object.keys(rawConfig)) {
+			if (key.startsWith("_")) continue;
+			if (!validTopLevelKeys.has(key)) {
+				if (key === "eslint" && this.isFixActive()) {
+					const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+					if (this.migrateLegacyEslintConfigSection(configFilePath)) continue;
+				}
+				this.addViolation({
+					ruleId: "audit-config-unknown-field",
+					severity: "error",
+					file: AUDIT_CONFIG_FILE,
+					line: 1,
+					message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy top-level section "${key}". This section is not supported by @francogp/auditor. Please remove it.`,
+					context: key,
+					fixable: key === "eslint"
+				});
+			}
+		}
+	}
+	migrateLegacyEslintConfigSection(configFilePath) {
+		if (!fs.existsSync(configFilePath)) return false;
+		try {
+			let text = fs.readFileSync(configFilePath, "utf-8");
+			if (!text.includes("eslint:")) return false;
+			text = text.replace(/(^|\s)eslint\s*:/g, "$1oxlint:");
+			if (!text.includes("vitePlusConfig:")) text = text.replace(/oxlint\s*:\s*\{[^}]*\},?/, (m) => `${m}\n  vitePlusConfig: { enabled: true },`);
+			fs.writeFileSync(configFilePath, text, "utf-8");
+			return true;
+		} catch {
+			return false;
+		}
+	}
+	verifyUnknownPathsFields(rawConfig) {
+		const rawPaths = rawConfig.paths;
+		if (typeof rawPaths !== "object" || rawPaths === null) return;
+		const validPathKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.paths));
+		for (const key of Object.keys(rawPaths)) if (!validPathKeys.has(key)) this.addViolation({
+			ruleId: "audit-config-unknown-field",
+			severity: "error",
+			file: AUDIT_CONFIG_FILE,
+			line: 1,
+			message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "paths.${key}". This field is not supported. Please remove it.`,
+			context: `paths.${key}`
+		});
+	}
+	verifyUnknownConstantsFields(rawConfig) {
+		const rawConstants = rawConfig.constants;
+		if (typeof rawConstants !== "object" || rawConstants === null) return;
+		const validConstantsKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.constants ?? {}));
+		for (const key of Object.keys(rawConstants)) if (!validConstantsKeys.has(key)) this.addViolation({
+			ruleId: "audit-config-unknown-field",
+			severity: "error",
+			file: AUDIT_CONFIG_FILE,
+			line: 1,
+			message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "constants.${key}". This field is not supported. Please remove it.`,
+			context: `constants.${key}`
+		});
+	}
+	async verifyRequiredSections(config, tasks) {
+		if (tasks.length === 0) return;
+		const missingByRootKey = collectMissingSections(tasks, config._rawConfig ?? {});
+		if (missingByRootKey.size === 0) return;
+		if (this.isFixActive()) {
+			this.applyMissingSectionsFix(missingByRootKey);
+			return;
+		}
+		this.reportMissingSectionViolations(missingByRootKey);
+	}
+	applyMissingSectionsFix(missingByRootKey) {
+		const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+		if (!fs.existsSync(configFilePath)) return;
+		const sectionsToInsert = {};
+		for (const [rootKey, entry] of missingByRootKey.entries()) sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
+		appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert);
+	}
+	reportMissingSectionViolations(missingByRootKey) {
+		for (const [rootKey, entry] of missingByRootKey.entries()) {
+			const suiteNames = entry.tasks.map((t) => t.id).join(", ");
+			this.addViolation({
+				ruleId: "audit-config-missing-section",
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				message: `Configuration error in ${AUDIT_CONFIG_FILE}: Missing required section "${rootKey}" declared by ${suiteNames}. Run "auditor fix" to add automatically.`,
+				context: rootKey
+			});
+		}
+	}
+	resolveTaskSectionContext(task, rawConfig) {
+		const rootKey = task.configKey && task.configKey !== "paths" && task.configKey !== "core" && task.configKey !== "none" ? task.configKey.split(".")[0] : void 0;
+		return {
+			rootKey,
+			sectionConfig: rootKey ? rawConfig[rootKey] : void 0
+		};
+	}
+	async repairCriticalMinimum(sectionConfig, rawConfig, rootKey, propPath, configuredList, missing, repair) {
+		if (repair) {
+			await repair(sectionConfig ?? rawConfig, this.projectRoot);
+			return;
+		}
+		if (rootKey && typeof sectionConfig === "object" && sectionConfig !== null) {
+			setDeepProperty(sectionConfig, propPath, Array.from(/* @__PURE__ */ new Set([...configuredList, ...missing])));
+			const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+			if (fs.existsSync(configFilePath)) appendMissingSectionsToConfigFile(configFilePath, { [rootKey]: sectionConfig });
+		}
+	}
+	async verifyTaskMinimumProperty(task, propPath, minList, sectionConfig, rawConfig, rootKey, rationale, repair) {
+		const configuredVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
+		if (configuredVal === void 0) return;
+		const configuredList = Array.isArray(configuredVal) ? configuredVal : [];
+		const missing = minList.filter((item) => !configuredList.includes(item));
+		if (missing.length === 0) return;
+		if (this.isFixActive()) await this.repairCriticalMinimum(sectionConfig, rawConfig, rootKey, propPath, configuredList, missing, repair);
+		else this.addViolation({
+			ruleId: "audit-config-critical-violation",
+			severity: "error",
+			file: AUDIT_CONFIG_FILE,
+			line: 1,
+			message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] missing required minimum values for "${propPath}": [${missing.join(", ")}]. Rationale: ${rationale}`,
+			context: `${task.id}:${propPath}`
+		});
+	}
+	async verifyTaskCriticalMinimums(task, requiredMinimums, sectionConfig, rawConfig, rootKey, rationale, repair) {
+		for (const [propPath, minList] of Object.entries(requiredMinimums)) await this.verifyTaskMinimumProperty(task, propPath, minList, sectionConfig, rawConfig, rootKey, rationale, repair);
+	}
+	async verifyTaskForbiddenOverrides(task, forbiddenOverrides, sectionConfig, rawConfig, rationale, repair) {
+		for (const [propPath, disallowedList] of Object.entries(forbiddenOverrides)) {
+			const actualVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
+			if (actualVal !== void 0 && disallowedList.includes(actualVal)) {
+				if (this.isFixActive() && repair) await repair(sectionConfig ?? rawConfig, this.projectRoot);
+				else this.addViolation({
+					ruleId: "audit-config-critical-violation",
+					severity: "error",
+					file: AUDIT_CONFIG_FILE,
+					line: 1,
+					message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] field "${propPath}" is set to disallowed value "${typeof actualVal === "string" ? actualVal : typeof actualVal === "number" || typeof actualVal === "boolean" ? String(actualVal) : JSON.stringify(actualVal)}". Rationale: ${rationale}`,
+					context: `${task.id}:${propPath}`
+				});
+			}
+		}
+	}
+	async verifyTaskCustomValidation(task, validate, sectionConfig, rawConfig, rationale, repair) {
+		const errorMsg = validate(sectionConfig ?? rawConfig, this.projectRoot);
+		if (typeof errorMsg === "string" && errorMsg.trim().length > 0) {
+			if (this.isFixActive() && repair) await repair(sectionConfig ?? rawConfig, this.projectRoot);
+			else this.addViolation({
+				ruleId: "audit-config-critical-violation",
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] ${errorMsg}. Rationale: ${rationale}`,
+				context: task.id
+			});
+		}
+	}
+	async verifyTaskCriticalConfig(task, rawConfig) {
+		if (!task.criticalConfig) return;
+		const { rationale, requiredMinimums, forbiddenOverrides, validate, repair } = task.criticalConfig;
+		const { rootKey, sectionConfig } = this.resolveTaskSectionContext(task, rawConfig);
+		if (requiredMinimums) await this.verifyTaskCriticalMinimums(task, requiredMinimums, sectionConfig, rawConfig, rootKey, rationale, repair);
+		if (forbiddenOverrides) await this.verifyTaskForbiddenOverrides(task, forbiddenOverrides, sectionConfig, rawConfig, rationale, repair);
+		if (validate) await this.verifyTaskCustomValidation(task, validate, sectionConfig, rawConfig, rationale, repair);
+	}
+	async verifyCriticalConfigurations(config, tasks) {
+		const rawConfig = config._rawConfig ?? {};
+		for (const task of tasks) await this.verifyTaskCriticalConfig(task, rawConfig);
+	}
+	handleMissingGitIgnoreFile(gitignorePath, requirements) {
+		if (this.isFixActive()) {
+			const contentLines = [
+				"# Auditor tool caches (Added by @francogp/auditor)",
+				...requirements.map((e) => e.pattern),
+				""
+			];
+			fs.writeFileSync(gitignorePath, contentLines.join("\n"), "utf8");
+			return;
+		}
+		this.addViolation({
+			ruleId: "audit-config-missing-file",
+			severity: "error",
+			file: ".gitignore",
+			line: 1,
+			message: "Configuration error: .gitignore does not exist in project root.",
+			context: ".gitignore"
+		});
+	}
+	appendMissingGitIgnoreEntries(gitignorePath, missing) {
+		appendGitIgnoreEntries(gitignorePath, missing.map((e) => e.pattern));
+	}
+	async verifyGitIgnore(config) {
+		const gitignorePath = path.resolve(this.projectRoot, ".gitignore");
+		const applicable = (await collectAllGitIgnoreRequirements(this.projectRoot, config)).filter((req) => req.isApplicable ? req.isApplicable(config) : true);
+		if (!fs.existsSync(gitignorePath)) {
+			this.handleMissingGitIgnoreFile(gitignorePath, applicable);
+			return;
+		}
+		const missing = findMissingGitIgnoreRequirements(this.projectRoot, gitignorePath, applicable);
+		if (missing.length === 0) return;
+		if (this.isFixActive()) {
+			this.appendMissingGitIgnoreEntries(gitignorePath, missing);
+			return;
+		}
+		for (const req of missing) this.addViolation({
+			ruleId: "audit-config-missing-gitignore-entry",
+			severity: "error",
+			file: ".gitignore",
+			line: 1,
+			message: `Missing required .gitignore entry for ${req.id} (${req.reason}). Expected "${req.pattern}" in .gitignore.`,
+			context: req.pattern
+		});
+	}
+	checkPathExists(relPath, ruleId, description) {
+		const normalized = relPath.trim();
+		if (!normalized) return true;
+		const resolved = path.resolve(this.projectRoot, normalized);
+		if (!fs.existsSync(resolved)) {
+			this.addViolation({
+				ruleId,
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				message: `Configuration error in ${AUDIT_CONFIG_FILE}: Referenced ${description} "${normalized}" does not exist on disk.`,
+				context: normalized
+			});
+			return false;
+		}
+		return true;
+	}
+	verifyPathRoots(config) {
+		const rawPaths = config._rawPaths ?? config.paths;
+		if (!rawPaths) return;
+		for (const key of PATH_ROOT_KEYS) {
+			const val = rawPaths[key];
+			if (Array.isArray(val)) {
+				for (const item of val) if (typeof item === "string") this.checkPathExists(item, "audit-config-missing-path", `directory in paths.${String(key)}`);
+			}
+		}
+	}
+	verifyPersistencePaths(config) {
+		const rawPersistence = config._rawConfig?.persistence;
+		if (config.paths?.migrationsDir && config.persistence?.engine !== "none") {
+			if (config._rawPaths?.migrationsDir) this.checkPathExists(config.paths.migrationsDir, "audit-config-missing-path", "migrations directory");
+		}
+		if (rawPersistence?.supabaseDir) this.checkPathExists(rawPersistence.supabaseDir, "audit-config-missing-path", "supabase directory");
+		if (Array.isArray(rawPersistence?.allowedDatabaseDirs)) for (const d of rawPersistence.allowedDatabaseDirs) this.checkPathExists(d, "audit-config-missing-path", "database directory");
+		if (Array.isArray(rawPersistence?.allowedDatabaseFiles)) for (const f of rawPersistence.allowedDatabaseFiles) this.checkPathExists(f, "audit-config-missing-file", "database file");
+		if (Array.isArray(rawPersistence?.authorizedSaveFiles)) for (const f of rawPersistence.authorizedSaveFiles) this.checkPathExists(f, "audit-config-missing-file", "authorized save file");
+	}
+	verifyDomainPaths(config) {
+		const rawDomain = config._rawConfig?.domain;
+		if (rawDomain?.zLayersFile) this.checkPathExists(rawDomain.zLayersFile, "audit-config-missing-file", "domain z-layers file");
+		if (rawDomain?.timezoneHelperModule) this.checkPathExists(rawDomain.timezoneHelperModule, "audit-config-missing-file", "timezone helper module");
+		if (rawDomain?.loggerModule) this.checkPathExists(rawDomain.loggerModule, "audit-config-missing-file", "logger module");
+		if (Array.isArray(rawDomain?.o1CatalogPatterns)) {
+			for (const pattern of rawDomain.o1CatalogPatterns) if (pattern.definingFile) this.checkPathExists(pattern.definingFile, "audit-config-missing-file", `O(1) pattern defining file for '${pattern.name}'`);
+		}
+	}
+	verifyStylesPaths(config) {
+		const rawStyles = config._rawConfig?.styles;
+		if (config.styles?.zLayersEnabled !== false && rawStyles) {
+			if (rawStyles.baseScssFile) this.checkPathExists(rawStyles.baseScssFile, "audit-config-missing-file", "styles base SCSS file");
+			if (rawStyles.zLayersScssFile) this.checkPathExists(rawStyles.zLayersScssFile, "audit-config-missing-file", "styles z-layers SCSS file");
+			if (rawStyles.zLayersTsFile) this.checkPathExists(rawStyles.zLayersTsFile, "audit-config-missing-file", "styles z-layers TS file");
+		}
+		if (rawStyles?.buttonGovernance?.buttonsScssFile) this.checkPathExists(rawStyles.buttonGovernance.buttonsScssFile, "audit-config-missing-file", "button governance SCSS file");
+		if (Array.isArray(rawStyles?.heavyEffectPaths)) for (const p of rawStyles.heavyEffectPaths) this.checkPathExists(p, "audit-config-missing-path", "heavy effect path");
+	}
+	verifyDomainAndStylePaths(config) {
+		this.verifyDomainPaths(config);
+		this.verifyStylesPaths(config);
+	}
+	verifyExtensionPaths(config) {
+		const rawExtensions = config._rawConfig?.extensions ?? config.extensions;
+		if (!Array.isArray(rawExtensions)) return;
+		for (const ext of rawExtensions) if (typeof ext === "string") this.checkPathExists(ext, "audit-config-invalid-extension", "extension file or directory");
+	}
+};
+async function enforceCriticalConfigurations(projectRoot, tasks) {
+	try {
+		const auditor = new ValidateAuditConfigAuditor({
+			projectRoot,
+			fix: true
+		});
+		const config = await loadAuditConfig(projectRoot);
+		await auditor.verifyCriticalConfigurations(config, tasks);
+		return true;
+	} catch {
+		return false;
+	}
 }
-export async function enforceCriticalConfigurations(projectRoot, tasks) {
-    try {
-        const auditor = new ValidateAuditConfigAuditor({ projectRoot, fix: true });
-        const config = await loadAuditConfig(projectRoot);
-        await auditor.verifyCriticalConfigurations(config, tasks);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
-// ─── CLI Entrypoint ─────────────────────────────────────────────────────────
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
-//# sourceMappingURL=validate_audit_config.js.map
+//#endregion
+export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsToConfigFile, collectConfigSectionsFromTasks, collectMissingSections, createDefaultAuditConfigContent, enforceCriticalConfigurations, formatSectionObjectLiteral, syncAuditorVersionInConfigFile };

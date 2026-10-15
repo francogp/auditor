@@ -12,7 +12,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { checkPackage, Package, type Problem } from '@arethetypeswrong/core';
-import { BaseAuditor, createRuleCapabilities, collectRepositoryFiles } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  createRuleCapabilities,
+  collectRepositoryFiles
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
@@ -34,7 +38,10 @@ export function createPackageFromDirectory(pkgDir: string): Package {
   if (!fs.existsSync(pkgJsonPath)) {
     throw new Error(`[validate_package_types]: No package.json found at ${pkgDir}`);
   }
-  const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')) as { name?: string; version?: string };
+  const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8')) as {
+    name?: string;
+    version?: string;
+  };
   const name = pkgJson.name ?? 'unknown-package';
   const version = pkgJson.version ?? '0.0.0';
 
@@ -197,7 +204,8 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_package_types',
       name: 'Package Types Resolution Validator',
@@ -212,9 +220,12 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
         'pkg-types-missing-dts': 'Entrypoint sin tipos declarados'
       },
       ruleRemediations: {
-        'pkg-types-resolution': 'Guía de diagnóstico y remediación para pkg-types-resolution. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'pkg-types-dual-hazard': 'Guía de diagnóstico y remediación para pkg-types-dual-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'pkg-types-missing-dts': 'Guía de diagnóstico y remediación para pkg-types-missing-dts. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-types-resolution':
+          'Guía de diagnóstico y remediación para pkg-types-resolution. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-types-dual-hazard':
+          'Guía de diagnóstico y remediación para pkg-types-dual-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-types-missing-dts':
+          'Guía de diagnóstico y remediación para pkg-types-missing-dts. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['package.json', 'dist/**']
@@ -222,7 +233,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
       projectRoot: effectiveRoot,
       configKey: 'packageDistribution.enabled',
       defaultConfig: { enabled: true },
-      criticalConfig: {},
+      criticalConfig: {}
     });
   }
 
@@ -256,7 +267,7 @@ export class ValidatePackageTypesAuditor extends BaseAuditor<PackageTypesRuleId>
 
     for (const ruleId of PACKAGE_TYPES_RULES) {
       this.runSubAuditorSync(ruleId, () => {
-        const ruleFindings = findings.filter(f => f.ruleId === ruleId);
+        const ruleFindings = findings.filter((f) => f.ruleId === ruleId);
         for (const f of ruleFindings) {
           const finalSeverity = configuredLevel === 'warning' ? 'warning' : f.severity;
           this.addViolation({

@@ -16,7 +16,10 @@ import { getPackageJson } from './packageJson.ts';
 export type AuditorMinimumVersions = Readonly<Record<string, string>>; // open-record: package name -> declared semver range
 
 export function getAuditorMinimumVersions(): AuditorMinimumVersions {
-  const auditorPackageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../package.json');
+  const auditorPackageJsonPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../../package.json'
+  );
 
   if (fs.existsSync(auditorPackageJsonPath)) {
     const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as {
@@ -40,7 +43,10 @@ export interface DeclaredDependency {
   readonly section: DependencyDeclarationSection;
 }
 
-const DECLARATION_SECTIONS: Record<DependencyDeclarationSection, { readonly isProduction: boolean }> = {
+const DECLARATION_SECTIONS: Record<
+  DependencyDeclarationSection,
+  { readonly isProduction: boolean }
+> = {
   dependencies: { isProduction: true },
   devDependencies: { isProduction: false },
   optionalDependencies: { isProduction: true }
@@ -113,7 +119,9 @@ export interface ProjectDependenciesReport {
   readonly devInstallCommand?: string;
 }
 
-export function evaluateProjectDependencies(projectRoot: string = process.cwd()): ProjectDependenciesReport {
+export function evaluateProjectDependencies(
+  projectRoot: string = process.cwd()
+): ProjectDependenciesReport {
   const root = path.resolve(projectRoot);
   const minimums = getAuditorMinimumVersions();
   const pkg = getPackageJson(root, true);
@@ -141,7 +149,9 @@ export function evaluateProjectDependencies(projectRoot: string = process.cwd())
       continue;
     }
 
-    const declaredMin = semver.validRange(declared.range) ? semver.minVersion(declared.range) : null;
+    const declaredMin = semver.validRange(declared.range)
+      ? semver.minVersion(declared.range)
+      : null;
     const declaredFloor = declaredMin ? declaredMin.version : null;
     const isProd = declared.isProduction;
 
@@ -149,13 +159,17 @@ export function evaluateProjectDependencies(projectRoot: string = process.cwd())
 
     if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) {
       status = 'outdated_range';
-    } else if (installedVersion && semver.valid(installedVersion) && requiredMin && semver.lt(installedVersion, requiredMin)) {
+    } else if (
+      installedVersion &&
+      semver.valid(installedVersion) &&
+      requiredMin &&
+      semver.lt(installedVersion, requiredMin)
+    ) {
       status = 'outdated_installed';
     }
 
-    const installCommand = status !== 'satisfied'
-      ? `npm install ${isProd ? '' : '-D '}${name}@${floor}`
-      : undefined;
+    const installCommand =
+      status !== 'satisfied' ? `npm install ${isProd ? '' : '-D '}${name}@${floor}` : undefined;
 
     if (status !== 'satisfied') {
       if (isProd) {
@@ -178,18 +192,16 @@ export function evaluateProjectDependencies(projectRoot: string = process.cwd())
     });
   }
 
-  const declaredItems = evaluated.filter(e => e.status !== 'undeclared');
-  const satisfiedCount = declaredItems.filter(e => e.status === 'satisfied').length;
-  const outdatedCount = declaredItems.filter(e => e.status !== 'satisfied').length;
-  const undeclaredCount = evaluated.filter(e => e.status === 'undeclared').length;
+  const declaredItems = evaluated.filter((e) => e.status !== 'undeclared');
+  const satisfiedCount = declaredItems.filter((e) => e.status === 'satisfied').length;
+  const outdatedCount = declaredItems.filter((e) => e.status !== 'satisfied').length;
+  const undeclaredCount = evaluated.filter((e) => e.status === 'undeclared').length;
 
-  const prodInstallCommand = prodUpdates.length > 0
-    ? `npm install ${prodUpdates.join(' ')}`
-    : undefined;
+  const prodInstallCommand =
+    prodUpdates.length > 0 ? `npm install ${prodUpdates.join(' ')}` : undefined;
 
-  const devInstallCommand = devUpdates.length > 0
-    ? `npm install -D ${devUpdates.join(' ')}`
-    : undefined;
+  const devInstallCommand =
+    devUpdates.length > 0 ? `npm install -D ${devUpdates.join(' ')}` : undefined;
 
   return {
     projectRoot: root,

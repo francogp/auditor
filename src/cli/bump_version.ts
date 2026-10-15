@@ -23,7 +23,11 @@ import {
 } from '../core/versionAnalyzer.ts';
 import { AUDITOR_VERSION, AUDITOR_BUILD_ID, AUDITOR_BUILD_DATE } from '../core/version.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { getAuditConfig, type AuditEngineConfig, type AuditVersionTargetConfig } from '../core/auditConfig.ts';
+import {
+  getAuditConfig,
+  type AuditEngineConfig,
+  type AuditVersionTargetConfig
+} from '../core/auditConfig.ts';
 import { isMainModule } from './cliUtils.ts';
 
 export interface MetricTableRow {
@@ -114,15 +118,18 @@ function resolveNormalizedSyncTargets(
   auditConfig: AuditEngineConfig | null
 ): AuditVersionTargetConfig[] {
   const configTargets = options.syncTargets ?? auditConfig?.version?.syncTargets ?? [];
-  const normalizedTargets: AuditVersionTargetConfig[] = configTargets.map(t =>
+  const normalizedTargets: AuditVersionTargetConfig[] = configTargets.map((t) =>
     typeof t === 'string' ? { path: t } : t
   );
 
-  const shouldAutoSyncPublic = options.autoSyncPublicVersionJson ?? auditConfig?.version?.autoSyncPublicVersionJson ?? true;
+  const shouldAutoSyncPublic =
+    options.autoSyncPublicVersionJson ?? auditConfig?.version?.autoSyncPublicVersionJson ?? true;
   const publicVersionPath = path.resolve(cwd, 'public/version.json');
 
   if (shouldAutoSyncPublic && fs.existsSync(publicVersionPath)) {
-    const alreadyDeclared = normalizedTargets.some(t => path.resolve(cwd, t.path) === publicVersionPath);
+    const alreadyDeclared = normalizedTargets.some(
+      (t) => path.resolve(cwd, t.path) === publicVersionPath
+    );
     if (!alreadyDeclared) {
       normalizedTargets.push({ path: 'public/version.json' });
     }
@@ -173,8 +180,12 @@ function syncJsonTarget(
 
   const usePrefixV = target.prefixV ?? startsWithV;
   const versionValue = usePrefixV
-    ? (newVersion.startsWith('v') ? newVersion : `v${newVersion}`)
-    : (newVersion.startsWith('v') ? newVersion.slice(1) : newVersion);
+    ? newVersion.startsWith('v')
+      ? newVersion
+      : `v${newVersion}`
+    : newVersion.startsWith('v')
+      ? newVersion.slice(1)
+      : newVersion;
 
   jsonObj[jsonField] = versionValue;
   fs.mkdirSync(path.dirname(targetAbsPath), { recursive: true });
@@ -220,7 +231,8 @@ function resolveNextVersionAndBump(
   if (options.targetVersion) {
     const rawTarget = options.targetVersion.trim();
     const newVersion = rawTarget.includes('-build.') ? rawTarget : `${rawTarget}-build.${buildId}`;
-    const resolvedBump = (options.bumpType && options.bumpType !== 'auto') ? options.bumpType : 'major';
+    const resolvedBump =
+      options.bumpType && options.bumpType !== 'auto' ? options.bumpType : 'major';
     return { newVersion, resolvedBump };
   }
 
@@ -230,9 +242,8 @@ function resolveNextVersionAndBump(
     customNow: options.customNow
   });
 
-  const resolvedBump: VersionBumpType = (!options.bumpType || options.bumpType === 'auto')
-    ? analysis.recommendedBump
-    : options.bumpType;
+  const resolvedBump: VersionBumpType =
+    !options.bumpType || options.bumpType === 'auto' ? analysis.recommendedBump : options.bumpType;
 
   const nextBase = calculateNextBaseVersion(analysis.baseVersion, resolvedBump);
   return {
@@ -264,7 +275,14 @@ export function applyVersionBump(options: ApplyBumpOptions = {}): ApplyBumpResul
   }
 
   const { previousVersion, isAuditorPackage } = updatePackageJsonVersion(pkgPath, newVersion);
-  const syncedVersionTs = syncAuditorVersionTs(cwd, options.versionTsPath, isAuditorPackage, newVersion, buildId, buildDate);
+  const syncedVersionTs = syncAuditorVersionTs(
+    cwd,
+    options.versionTsPath,
+    isAuditorPackage,
+    newVersion,
+    buildId,
+    buildDate
+  );
 
   const normalizedTargets = resolveNormalizedSyncTargets(cwd, options, auditConfig);
   const additionalSynced = syncAdditionalTargets(
@@ -296,15 +314,20 @@ export function applyVersionBump(options: ApplyBumpOptions = {}): ApplyBumpResul
 }
 
 function renderAnalysisTable(analysis: VersionAnalysisResult): void {
-  console.log(renderBanner(
-    'AUDITOR VERSION - ANÁLISIS HEURÍSTICO DE VERSIÓN',
-    `Versión Actual: ${analysis.currentVersion}  |  Propuesta: ${analysis.recommendedBump.toUpperCase()}`
-  ));
+  console.log(
+    renderBanner(
+      'AUDITOR VERSION - ANÁLISIS HEURÍSTICO DE VERSIÓN',
+      `Versión Actual: ${analysis.currentVersion}  |  Propuesta: ${analysis.recommendedBump.toUpperCase()}`
+    )
+  );
 
   const rows: MetricTableRow[] = [
     { label: 'Versión actual', value: analysis.currentVersion },
     { label: 'Base SemVer detectada', value: analysis.baseVersion },
-    { label: 'Salto recomendado', value: styleText('bold', analysis.recommendedBump.toUpperCase()) },
+    {
+      label: 'Salto recomendado',
+      value: styleText('bold', analysis.recommendedBump.toUpperCase())
+    },
     { label: 'Versión sugerida', value: styleText(['bold', 'green'], analysis.recommendedVersion) },
     { label: 'Candidata MAJOR', value: analysis.candidates.major },
     { label: 'Candidata MINOR', value: analysis.candidates.minor },
@@ -312,8 +335,14 @@ function renderAnalysisTable(analysis: VersionAnalysisResult): void {
     { label: 'Candidata BUILD (sin salto)', value: analysis.candidates.build },
     { label: 'Justificación', value: analysis.rationale },
     { label: 'Archivos modificados', value: String(analysis.metrics.filesChanged) },
-    { label: 'Inserciones / Supresiones', value: `+${analysis.metrics.insertions} / -${analysis.metrics.deletions} (${analysis.metrics.totalLinesChanged} líneas)` },
-    { label: 'Impacto en subsistemas', value: `Core: ${analysis.metrics.hasCoreChanges ? 'SÍ' : 'NO'} | Nuevas suites/skills: ${analysis.metrics.hasNewFeatures ? 'SÍ' : 'NO'}` }
+    {
+      label: 'Inserciones / Supresiones',
+      value: `+${analysis.metrics.insertions} / -${analysis.metrics.deletions} (${analysis.metrics.totalLinesChanged} líneas)`
+    },
+    {
+      label: 'Impacto en subsistemas',
+      value: `Core: ${analysis.metrics.hasCoreChanges ? 'SÍ' : 'NO'} | Nuevas suites/skills: ${analysis.metrics.hasNewFeatures ? 'SÍ' : 'NO'}`
+    }
   ];
 
   const columns: TableColumn<MetricTableRow>[] = [
@@ -326,7 +355,9 @@ function renderAnalysisTable(analysis: VersionAnalysisResult): void {
 }
 
 function isVersionQuery(args: readonly string[]): boolean {
-  return args.length === 0 || args.includes('-v') || args.includes('--version') || args[0] === 'version';
+  return (
+    args.length === 0 || args.includes('-v') || args.includes('--version') || args[0] === 'version'
+  );
 }
 
 function handleAnalyzeCommand(isJson: boolean): void {
@@ -342,43 +373,43 @@ function printHelp(command?: string): void {
   if (command === 'bump') {
     console.log(
       `Uso: auditor-version bump [tipo] [opciones]\n\n` +
-      `Tipos de salto:\n` +
-      `  auto     Calcula automáticamente el salto según análisis heurístico (por defecto)\n` +
-      `  major    Incrementa versión principal (X.0.0-build.TIMESTAMP)\n` +
-      `  minor    Incrementa versión menor (x.Y.0-build.TIMESTAMP)\n` +
-      `  patch    Incrementa parche/bugfix (x.y.Z-build.TIMESTAMP)\n` +
-      `  build    Actualiza solo el estampado de build sin alterar versión base (x.y.z-build.TIMESTAMP)\n\n` +
-      `Opciones:\n` +
-      `  --type=<tipo>              Especifica el tipo de salto (major | minor | patch | build | auto)\n` +
-      `  --target-version=<versión> Especifica versión base o completa explícita\n` +
-      `  --json                     Muestra el resultado en formato JSON\n` +
-      `  --no-sync-public           Omite sincronización de public/version.json\n` +
-      `  --sync=<rutas>             Rutas adicionales separadas por coma\n` +
-      `  -h, --help                 Muestra esta ayuda\n`
+        `Tipos de salto:\n` +
+        `  auto     Calcula automáticamente el salto según análisis heurístico (por defecto)\n` +
+        `  major    Incrementa versión principal (X.0.0-build.TIMESTAMP)\n` +
+        `  minor    Incrementa versión menor (x.Y.0-build.TIMESTAMP)\n` +
+        `  patch    Incrementa parche/bugfix (x.y.Z-build.TIMESTAMP)\n` +
+        `  build    Actualiza solo el estampado de build sin alterar versión base (x.y.z-build.TIMESTAMP)\n\n` +
+        `Opciones:\n` +
+        `  --type=<tipo>              Especifica el tipo de salto (major | minor | patch | build | auto)\n` +
+        `  --target-version=<versión> Especifica versión base o completa explícita\n` +
+        `  --json                     Muestra el resultado en formato JSON\n` +
+        `  --no-sync-public           Omite sincronización de public/version.json\n` +
+        `  --sync=<rutas>             Rutas adicionales separadas por coma\n` +
+        `  -h, --help                 Muestra esta ayuda\n`
     );
     return;
   }
   if (command === 'analyze') {
     console.log(
       `Uso: auditor-version analyze [opciones]\n\n` +
-      `Opciones:\n` +
-      `  --json                     Muestra el análisis heurístico en formato JSON\n` +
-      `  -h, --help                 Muestra esta ayuda\n`
+        `Opciones:\n` +
+        `  --json                     Muestra el análisis heurístico en formato JSON\n` +
+        `  -h, --help                 Muestra esta ayuda\n`
     );
     return;
   }
   console.log(
     `@francogp/auditor v${AUDITOR_VERSION} - Gestor SemVer y Estampado de Builds\n\n` +
-    `Uso:\n` +
-    `  auditor-version                     Muestra la versión actual\n` +
-    `  auditor-version analyze [opciones]  Analiza el diff y sugiere el salto\n` +
-    `  auditor-version bump [tipo] [opt]   Aplica el salto (auto | major | minor | patch | build)\n\n` +
-    `Comandos:\n` +
-    `  version, -v, --version              Muestra la versión actual\n` +
-    `  analyze                             Analiza cambios git y recomienda major/minor/patch\n` +
-    `  bump [tipo]                         Aplica salto: major | minor | patch | build | auto\n\n` +
-    `Opciones globales:\n` +
-    `  -h, --help                          Muestra esta ayuda\n`
+      `Uso:\n` +
+      `  auditor-version                     Muestra la versión actual\n` +
+      `  auditor-version analyze [opciones]  Analiza el diff y sugiere el salto\n` +
+      `  auditor-version bump [tipo] [opt]   Aplica el salto (auto | major | minor | patch | build)\n\n` +
+      `Comandos:\n` +
+      `  version, -v, --version              Muestra la versión actual\n` +
+      `  analyze                             Analiza cambios git y recomienda major/minor/patch\n` +
+      `  bump [tipo]                         Aplica salto: major | minor | patch | build | auto\n\n` +
+      `Opciones globales:\n` +
+      `  -h, --help                          Muestra esta ayuda\n`
   );
 }
 
@@ -387,30 +418,37 @@ function isHelpQuery(args: readonly string[]): boolean {
 }
 
 function resolveBumpType(args: readonly string[]): CliBumpType {
-  const typeArg = args.find(a => a.startsWith('--type='));
+  const typeArg = args.find((a) => a.startsWith('--type='));
   if (typeArg) {
     const val = typeArg.split('=')[1]?.toLowerCase();
     if (val && isCliBumpType(val)) {
       return val;
     }
-    throw new Error(`Tipo de salto no reconocido en --type: "${val}". Opciones válidas: ${CLI_BUMP_TYPES.join(', ')}.`);
+    throw new Error(
+      `Tipo de salto no reconocido en --type: "${val}". Opciones válidas: ${CLI_BUMP_TYPES.join(', ')}.`
+    );
   }
   const positional = args[1]?.toLowerCase();
   if (positional && !positional.startsWith('--')) {
     if (isCliBumpType(positional)) {
       return positional;
     }
-    throw new Error(`Tipo de salto no reconocido: "${args[1]}". Opciones válidas: ${CLI_BUMP_TYPES.join(', ')}.`);
+    throw new Error(
+      `Tipo de salto no reconocido: "${args[1]}". Opciones válidas: ${CLI_BUMP_TYPES.join(', ')}.`
+    );
   }
   return 'auto';
 }
 
 function handleBumpCommand(args: readonly string[], isJson: boolean): void {
-  const targetVerArg = args.find(a => a.startsWith('--target-version=') || a.startsWith('--target=') || a.startsWith('--version='));
+  const targetVerArg = args.find(
+    (a) =>
+      a.startsWith('--target-version=') || a.startsWith('--target=') || a.startsWith('--version=')
+  );
   const targetVersion = targetVerArg ? targetVerArg.split('=')[1] : undefined;
   const bumpType = resolveBumpType(args);
   const noSyncPublic = args.includes('--no-sync-public');
-  const syncArg = args.find(a => a.startsWith('--sync='));
+  const syncArg = args.find((a) => a.startsWith('--sync='));
   const syncTargets = syncArg ? syncArg.split('=')[1]?.split(',').filter(Boolean) : undefined;
 
   const result = applyVersionBump({
@@ -424,8 +462,10 @@ function handleBumpCommand(args: readonly string[], isJson: boolean): void {
     console.log(JSON.stringify(result, null, 2));
   } else {
     console.log(styleText('green', `✔ Versión actualizada exitosamente:`));
-    console.log(`  ${result.previousVersion} → ${styleText(['bold', 'cyan'], result.newVersion)} (Salto: ${result.bumpType.toUpperCase()})`);
-    const relFiles = result.syncedFiles.map(f => path.relative(process.cwd(), f) || f);
+    console.log(
+      `  ${result.previousVersion} → ${styleText(['bold', 'cyan'], result.newVersion)} (Salto: ${result.bumpType.toUpperCase()})`
+    );
+    const relFiles = result.syncedFiles.map((f) => path.relative(process.cwd(), f) || f);
     console.log(`  📄 Archivos sincronizados: ${relFiles.join(', ')}\n`);
   }
 }
@@ -440,7 +480,9 @@ export function runBumpCli(rawArgs: readonly string[] = process.argv.slice(2)): 
   }
 
   if (isVersionQuery(args)) {
-    console.log(`@francogp/auditor v${AUDITOR_VERSION} (Build: ${AUDITOR_BUILD_ID}, Date: ${AUDITOR_BUILD_DATE})`);
+    console.log(
+      `@francogp/auditor v${AUDITOR_VERSION} (Build: ${AUDITOR_BUILD_ID}, Date: ${AUDITOR_BUILD_DATE})`
+    );
     return;
   }
 

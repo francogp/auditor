@@ -1,3 +1,4 @@
+//#region src/core/versionAnalyzer.d.ts
 /**
  * src/core/versionAnalyzer.ts
  *
@@ -12,43 +13,43 @@ export type VersionBumpType = (typeof VERSION_BUMP_TYPES)[number];
 export declare const GIT_STATUS_FLAGS: readonly ["A", "M", "D", "R", "?"];
 export type GitStatusFlag = (typeof GIT_STATUS_FLAGS)[number];
 export interface ChangedFileDetail {
-    path: string;
-    status: GitStatusFlag;
-    insertions: number;
-    deletions: number;
+  path: string;
+  status: GitStatusFlag;
+  insertions: number;
+  deletions: number;
 }
 export interface DiffMetrics {
-    filesChanged: number;
-    insertions: number;
-    deletions: number;
-    totalLinesChanged: number;
-    hasCoreChanges: boolean;
-    hasNewFeatures: boolean;
-    hasBreakingChanges: boolean;
-    changedFiles: ChangedFileDetail[];
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  totalLinesChanged: number;
+  hasCoreChanges: boolean;
+  hasNewFeatures: boolean;
+  hasBreakingChanges: boolean;
+  changedFiles: ChangedFileDetail[];
 }
 export interface CandidateVersions {
-    readonly major: string;
-    readonly minor: string;
-    readonly patch: string;
-    readonly build: string;
+  readonly major: string;
+  readonly minor: string;
+  readonly patch: string;
+  readonly build: string;
 }
 export interface VersionAnalysisResult {
-    currentVersion: string;
-    baseVersion: string;
-    recommendedBump: VersionBumpType;
-    recommendedVersion: string;
-    candidates: CandidateVersions;
-    buildId: string;
-    buildDate: string;
-    rationale: string;
-    metrics: DiffMetrics;
+  currentVersion: string;
+  baseVersion: string;
+  recommendedBump: VersionBumpType;
+  recommendedVersion: string;
+  candidates: CandidateVersions;
+  buildId: string;
+  buildDate: string;
+  rationale: string;
+  metrics: DiffMetrics;
 }
 export interface VersionAnalysisOptions {
-    cwd?: string;
-    commitMessage?: string;
-    customNow?: Temporal.ZonedDateTime;
-    baseRef?: string;
+  cwd?: string;
+  commitMessage?: string;
+  customNow?: Temporal.ZonedDateTime;
+  baseRef?: string;
 }
 /**
  * Extracts base SemVer major.minor.patch tuple from a version string.
@@ -62,8 +63,8 @@ export declare function calculateNextBaseVersion(currentBase: string, bump: Vers
  * Generates an elegant build timestamp ID (YYYYMMDD-HHmmss).
  */
 export declare function generateBuildId(customNow?: Temporal.ZonedDateTime): {
-    buildId: string;
-    buildDate: string;
+  buildId: string;
+  buildDate: string;
 };
 /**
  * Collects Git diff metrics from the current working tree and uncommitted changes.
@@ -73,4 +74,4 @@ export declare function collectGitDiffMetrics(cwd?: string, baseRef?: string): D
  * Analyzes diff metrics and commit intent to suggest the optimal SemVer bump.
  */
 export declare function analyzeVersionBump(options?: VersionAnalysisOptions): VersionAnalysisResult;
-//# sourceMappingURL=versionAnalyzer.d.ts.map
+//#endregion

@@ -1,134 +1,138 @@
-/**
- * @file validate_test_coverage.ts
- * @description Architecture sub-auditor verifying that repository test execution coverage
- * meets configured thresholds and has no untracked blind spots when enforceInAudit is enabled.
- */
-import fs from 'node:fs';
-import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { buildTestCoverageConfig } from "../../core/auditConfigDefaults.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/auditCoverage.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
-import { getAuditConfig, buildTestCoverageConfig } from "../../core/auditConfig.js";
+import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import "../../core/safePath.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
-import { toPosixRelative } from "../../core/safePath.js";
+import { enableCompileCache } from "node:module";
+import fs from "node:fs";
+//#region src/suites/architecture/validate_test_coverage.ts
+/**
+* @file validate_test_coverage.ts
+* @description Architecture sub-auditor verifying that repository test execution coverage
+* meets configured thresholds and has no untracked blind spots when enforceInAudit is enabled.
+*/
 enableCompileCache();
-export const TEST_COVERAGE_RULES = [
-    'test-coverage-below-threshold',
-    'test-coverage-missing-report',
-    'test-coverage-untracked-files'
+const TEST_COVERAGE_RULES = [
+	"test-coverage-below-threshold",
+	"test-coverage-missing-report",
+	"test-coverage-untracked-files"
 ];
-export const DEFAULT_COVERAGE_THRESHOLD = 80;
-export class ValidateTestCoverageAuditor extends BaseAuditor {
-    constructor(options = {}) {
-        const effectiveRoot = options.projectRoot ?? process.cwd();
-        super({
-            usesThirdPartyTool: false,
-            id: 'validate_test_coverage',
-            name: 'Test Execution Coverage Auditor',
-            description: 'Gobernanza de cobertura real de pruebas unitarias',
-            family: 'architecture',
-            packageName: 'Cobertura',
-            configKey: 'testCoverage.enforceInAudit',
-            defaultConfig: { enabled: true, enforceInAudit: true, threshold: DEFAULT_COVERAGE_THRESHOLD },
-            criticalConfig: {},
-            icon: '🧪',
-            ruleIds: TEST_COVERAGE_RULES,
-            ruleDescriptions: {
-                'test-coverage-below-threshold': 'Cobertura de tests bajo umbral',
-                'test-coverage-missing-report': 'Falta archivo de cobertura',
-                'test-coverage-untracked-files': 'Archivos en disco sin testear'
-            },
-            ruleRemediations: {
-                'test-coverage-below-threshold': 'Guía de diagnóstico y remediación para test-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'test-coverage-missing-report': 'Guía de diagnóstico y remediación para test-coverage-missing-report. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'test-coverage-untracked-files': 'Guía de diagnóstico y remediación para test-coverage-untracked-files. Revisa la incidencia detectada y ajusta el código correspondiente.',
-            },
-            coverage: {
-                include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
-                source: 'declared-only'
-            },
-            ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
-                speed: 'light',
-                phase: 'normal',
-                fix: 'none',
-                md: false,
-                ast: false,
-                changedOnly: false, critical: false
-            }),
-            projectRoot: effectiveRoot
-        });
-    }
-    async runAudit() {
-        if (isProductionEnvironment()) {
-            this.markSkipped('Test coverage omitido en entorno de producción (AUDITOR_ENV=production)');
-            return;
-        }
-        if (this.isSuiteGatingDisabled('Test coverage enforceInAudit desactivado'))
-            return;
-        const projectRoot = this.projectRoot;
-        const config = getAuditConfig(projectRoot);
-        const resolvedCovConfig = buildTestCoverageConfig(config.testCoverage);
-        const threshold = resolvedCovConfig.threshold;
-        let coverageFile = null;
-        this.runSubAuditorSync('test-coverage-missing-report', () => {
-            coverageFile = resolveCoverageFile(projectRoot, resolvedCovConfig.path);
-            if (!coverageFile) {
-                this.addViolation({
-                    ruleId: 'test-coverage-missing-report',
-                    severity: 'error',
-                    file: resolvedCovConfig.path,
-                    line: 1,
-                    context: 'coverage missing',
-                    message: `No se encontró el archivo de cobertura de tests en '${resolvedCovConfig.path}'. Ejecuta las pruebas con cobertura antes de auditar.`
-                });
-            }
-        });
-        if (!coverageFile) {
-            for (const r of ['test-coverage-below-threshold', 'test-coverage-untracked-files']) {
-                this.runSubAuditorSync(r, () => {
-                    this.markRuleNotApplicable(r, 'Reporte de cobertura no disponible');
-                });
-            }
-            return;
-        }
-        try {
-            const rawJson = JSON.parse(fs.readFileSync(coverageFile, 'utf8')); // open-record: Generic parsed coverage JSON dictionary
-            const report = analyzeTestCoverage(rawJson, projectRoot, resolvedCovConfig);
-            this.runSubAuditorSync('test-coverage-below-threshold', () => {
-                if (report.overall.statements.pct < threshold) {
-                    this.addViolation({
-                        ruleId: 'test-coverage-below-threshold',
-                        severity: 'error',
-                        file: toPosixRelative(projectRoot, coverageFile),
-                        line: 1,
-                        context: `${report.overall.statements.pct}% < ${threshold}%`,
-                        message: `Cobertura global de statements (${report.overall.statements.pct}%) inferior al umbral configurado de ${threshold}% (${report.overall.statements.covered}/${report.overall.statements.total} sentencias cubiertas).`
-                    });
-                }
-            });
-            this.runSubAuditorSync('test-coverage-untracked-files', () => {
-                if (report.untrackedFiles.length > 0) {
-                    this.addViolation({
-                        ruleId: 'test-coverage-untracked-files',
-                        severity: 'warning',
-                        file: report.untrackedFiles[0],
-                        line: 1,
-                        context: 'untracked files',
-                        message: `Se detectaron ${report.untrackedFiles.length} archivo(s) en disco que nunca fueron ejecutados por los tests (ej: ${report.untrackedFiles.slice(0, 3).join(', ')}).`
-                    });
-                }
-            });
-        }
-        catch (err) {
-            this.addViolation({
-                ruleId: 'test-coverage-missing-report',
-                severity: 'error',
-                file: toPosixRelative(projectRoot, coverageFile),
-                line: 1,
-                context: 'parse error',
-                message: `Error analizando reporte de cobertura: ${err instanceof Error ? err.message : String(err)}`
-            });
-        }
-    }
-}
+const DEFAULT_COVERAGE_THRESHOLD = 80;
+var ValidateTestCoverageAuditor = class extends BaseAuditor {
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot ?? process.cwd();
+		super({
+			usesThirdPartyTool: false,
+			id: "validate_test_coverage",
+			name: "Test Execution Coverage Auditor",
+			description: "Gobernanza de cobertura real de pruebas unitarias",
+			family: "architecture",
+			packageName: "Cobertura",
+			configKey: "testCoverage.enforceInAudit",
+			defaultConfig: {
+				enabled: true,
+				enforceInAudit: true,
+				threshold: 80
+			},
+			criticalConfig: {},
+			icon: "🧪",
+			ruleIds: TEST_COVERAGE_RULES,
+			ruleDescriptions: {
+				"test-coverage-below-threshold": "Cobertura de tests bajo umbral",
+				"test-coverage-missing-report": "Falta archivo de cobertura",
+				"test-coverage-untracked-files": "Archivos en disco sin testear"
+			},
+			ruleRemediations: {
+				"test-coverage-below-threshold": "Guía de diagnóstico y remediación para test-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.",
+				"test-coverage-missing-report": "Guía de diagnóstico y remediación para test-coverage-missing-report. Revisa la incidencia detectada y ajusta el código correspondiente.",
+				"test-coverage-untracked-files": "Guía de diagnóstico y remediación para test-coverage-untracked-files. Revisa la incidencia detectada y ajusta el código correspondiente."
+			},
+			coverage: {
+				include: [
+					"src/**/*.ts",
+					"src/**/*.vue",
+					"scripts/**/*.ts"
+				],
+				source: "declared-only"
+			},
+			ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
+				speed: "light",
+				phase: "normal",
+				fix: "none",
+				md: false,
+				ast: false,
+				changedOnly: false,
+				critical: false
+			}),
+			projectRoot: effectiveRoot
+		});
+	}
+	async runAudit() {
+		if (isProductionEnvironment()) {
+			this.markSkipped("Test coverage omitido en entorno de producción (AUDITOR_ENV=production)");
+			return;
+		}
+		if (this.isSuiteGatingDisabled("Test coverage enforceInAudit desactivado")) return;
+		const projectRoot = this.projectRoot;
+		const config = getAuditConfig(projectRoot);
+		const resolvedCovConfig = buildTestCoverageConfig(config.testCoverage);
+		const threshold = resolvedCovConfig.threshold;
+		let coverageFile = null;
+		this.runSubAuditorSync("test-coverage-missing-report", () => {
+			coverageFile = resolveCoverageFile(projectRoot, resolvedCovConfig.path);
+			if (!coverageFile) this.addViolation({
+				ruleId: "test-coverage-missing-report",
+				severity: "error",
+				file: resolvedCovConfig.path,
+				line: 1,
+				context: "coverage missing",
+				message: `No se encontró el archivo de cobertura de tests en '${resolvedCovConfig.path}'. Ejecuta las pruebas con cobertura antes de auditar.`
+			});
+		});
+		if (!coverageFile) {
+			for (const r of ["test-coverage-below-threshold", "test-coverage-untracked-files"]) this.runSubAuditorSync(r, () => {
+				this.markRuleNotApplicable(r, "Reporte de cobertura no disponible");
+			});
+			return;
+		}
+		try {
+			const rawJson = JSON.parse(fs.readFileSync(coverageFile, "utf8"));
+			const report = analyzeTestCoverage(rawJson, projectRoot, resolvedCovConfig);
+			this.runSubAuditorSync("test-coverage-below-threshold", () => {
+				if (report.overall.statements.pct < threshold) this.addViolation({
+					ruleId: "test-coverage-below-threshold",
+					severity: "error",
+					file: toPosixRelative(projectRoot, coverageFile),
+					line: 1,
+					context: `${report.overall.statements.pct}% < ${threshold}%`,
+					message: `Cobertura global de statements (${report.overall.statements.pct}%) inferior al umbral configurado de ${threshold}% (${report.overall.statements.covered}/${report.overall.statements.total} sentencias cubiertas).`
+				});
+			});
+			this.runSubAuditorSync("test-coverage-untracked-files", () => {
+				if (report.untrackedFiles.length > 0) this.addViolation({
+					ruleId: "test-coverage-untracked-files",
+					severity: "warning",
+					file: report.untrackedFiles[0],
+					line: 1,
+					context: "untracked files",
+					message: `Se detectaron ${report.untrackedFiles.length} archivo(s) en disco que nunca fueron ejecutados por los tests (ej: ${report.untrackedFiles.slice(0, 3).join(", ")}).`
+				});
+			});
+		} catch (err) {
+			this.addViolation({
+				ruleId: "test-coverage-missing-report",
+				severity: "error",
+				file: toPosixRelative(projectRoot, coverageFile),
+				line: 1,
+				context: "parse error",
+				message: `Error analizando reporte de cobertura: ${err instanceof Error ? err.message : String(err)}`
+			});
+		}
+	}
+};
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTestCoverageAuditor());
-//# sourceMappingURL=validate_test_coverage.js.map
+//#endregion
+export { DEFAULT_COVERAGE_THRESHOLD, TEST_COVERAGE_RULES, ValidateTestCoverageAuditor };

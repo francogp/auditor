@@ -94,7 +94,10 @@ export function calculateNextBaseVersion(currentBase: string, bump: VersionBumpT
 /**
  * Generates an elegant build timestamp ID (YYYYMMDD-HHmmss).
  */
-export function generateBuildId(customNow?: Temporal.ZonedDateTime): { buildId: string; buildDate: string } {
+export function generateBuildId(customNow?: Temporal.ZonedDateTime): {
+  buildId: string;
+  buildDate: string;
+} {
   const now = customNow ?? Temporal.Now.zonedDateTimeISO();
   const yyyy = String(now.year);
   const mm = String(now.month).padStart(2, '0');
@@ -108,7 +111,10 @@ export function generateBuildId(customNow?: Temporal.ZonedDateTime): { buildId: 
 }
 
 function parseNumstatOutput(diffOutput: string, map: Map<string, ChangedFileDetail>): void {
-  const lines = diffOutput.trim().split('\n').filter(l => l.trim().length > 0);
+  const lines = diffOutput
+    .trim()
+    .split('\n')
+    .filter((l) => l.trim().length > 0);
   for (const line of lines) {
     const parts = line.split('\t');
     if (parts.length >= 3) {
@@ -132,8 +138,15 @@ function countFileLines(filePath: string): number {
   return 0;
 }
 
-function parsePorcelainOutput(statusOutput: string, cwd: string, map: Map<string, ChangedFileDetail>): void {
-  const lines = statusOutput.trim().split('\n').filter(l => l.trim().length > 0);
+function parsePorcelainOutput(
+  statusOutput: string,
+  cwd: string,
+  map: Map<string, ChangedFileDetail>
+): void {
+  const lines = statusOutput
+    .trim()
+    .split('\n')
+    .filter((l) => l.trim().length > 0);
   for (const line of lines) {
     const statusCode = line.slice(0, 2).trim();
     const filePath = line.slice(3).trim();
@@ -170,7 +183,13 @@ function aggregateSubsystemMetrics(changedFiles: ChangedFileDetail[]): {
     if (file.path.startsWith('src/core/') || file.path === 'src/index.ts') {
       hasCoreChanges = true;
     }
-    if (file.status === 'A' && (file.path.startsWith('src/suites/') || file.path.startsWith('src/cli/') || file.path.startsWith('.agents/skills/') || file.path.startsWith('skills/'))) {
+    if (
+      file.status === 'A' &&
+      (file.path.startsWith('src/suites/') ||
+        file.path.startsWith('src/cli/') ||
+        file.path.startsWith('.agents/skills/') ||
+        file.path.startsWith('skills/'))
+    ) {
       hasNewFeatures = true;
     }
   }
@@ -181,18 +200,29 @@ function aggregateSubsystemMetrics(changedFiles: ChangedFileDetail[]): {
 /**
  * Collects Git diff metrics from the current working tree and uncommitted changes.
  */
-export function collectGitDiffMetrics(cwd: string = process.cwd(), baseRef: string = 'HEAD'): DiffMetrics {
+export function collectGitDiffMetrics(
+  cwd: string = process.cwd(),
+  baseRef: string = 'HEAD'
+): DiffMetrics {
   const changedFilesMap = new Map<string, ChangedFileDetail>();
 
   try {
-    const diffOutput = execSync(`git diff ${baseRef} --numstat`, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+    const diffOutput = execSync(`git diff ${baseRef} --numstat`, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    });
     parseNumstatOutput(diffOutput, changedFilesMap);
   } catch {
     // catch-ok: In non-git directories or empty repos, fallback cleanly
   }
 
   try {
-    const statusOutput = execSync('git status --porcelain', { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+    const statusOutput = execSync('git status --porcelain', {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    });
     parsePorcelainOutput(statusOutput, cwd, changedFilesMap);
   } catch {
     // catch-ok: Fallback when git is unavailable
@@ -239,7 +269,10 @@ function applyCommitMessageIntent(metrics: DiffMetrics, commitMessage?: string):
   }
 }
 
-function evaluateBumpRationale(metrics: DiffMetrics): { recommendedBump: VersionBumpType; rationale: string } {
+function evaluateBumpRationale(metrics: DiffMetrics): {
+  recommendedBump: VersionBumpType;
+  rationale: string;
+} {
   if (metrics.hasBreakingChanges) {
     return {
       recommendedBump: 'major',
@@ -264,7 +297,10 @@ function evaluateBumpRationale(metrics: DiffMetrics): { recommendedBump: Version
       rationale: 'Nueva funcionalidad, suite o skill incorporada al repositorio.'
     };
   }
-  if (metrics.totalLinesChanged >= MINOR_DIFF_LINES_THRESHOLD || metrics.changedFiles.some((f: ChangedFileDetail) => f.status === 'A')) {
+  if (
+    metrics.totalLinesChanged >= MINOR_DIFF_LINES_THRESHOLD ||
+    metrics.changedFiles.some((f: ChangedFileDetail) => f.status === 'A')
+  ) {
     return {
       recommendedBump: 'minor',
       rationale: `Ampliación de capacidades con ${metrics.totalLinesChanged} líneas modificadas y nuevos archivos.`

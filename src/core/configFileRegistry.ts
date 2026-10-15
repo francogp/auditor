@@ -9,7 +9,8 @@
 import type { AuditorConfigFileRequirement } from './auditContract.ts';
 
 export class ConfigFileRegistry {
-  private static readonly requirements: Map<string, AuditorConfigFileRequirement<string>> = new Map();
+  private static readonly requirements: Map<string, AuditorConfigFileRequirement<string>> =
+    new Map();
 
   /**
    * Registers a single configuration file requirement.

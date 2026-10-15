@@ -1,22 +1,42 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.2.1-build.20261014-194804",
+  "version": "8.3.0-build.20261015-011549",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "homepage": "https://github.com/francogp/auditor#readme",
+  "bugs": {
+    "url": "https://github.com/francogp/auditor/issues"
+  },
   "license": "MIT",
   "author": "Franco Gastón Pellegrini",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/francogp/auditor.git"
   },
-  "bugs": {
-    "url": "https://github.com/francogp/auditor/issues"
-  },
-  "homepage": "https://github.com/francogp/auditor#readme",
-  "publishConfig": {
-    "access": "public"
+  "bin": {
+    "auditor": "dist/cli/audit_full.js",
+    "auditor-build-deploy": "dist/cli/build_deploy.js",
+    "auditor-bundle": "dist/cli/audit_bundle.js",
+    "auditor-by-file": "dist/cli/report_findings.js",
+    "auditor-check-env": "dist/cli/check_environment.js",
+    "auditor-complexity": "dist/cli/report_complexity.js",
+    "auditor-coverage": "dist/cli/report_test_coverage.js",
+    "auditor-coverage-map": "dist/cli/report_coverage_map.js",
+    "auditor-css": "dist/cli/report_css.js",
+    "auditor-dependencies": "dist/cli/report_dependencies.js",
+    "auditor-fallow": "dist/cli/report_fallow.js",
+    "auditor-findings": "dist/cli/report_findings.js",
+    "auditor-flags": "dist/cli/report_flags.js",
+    "auditor-guard": "dist/cli/report_guard.js",
+    "auditor-init-agent": "dist/cli/init_agent.js",
+    "auditor-post-build": "dist/cli/audit_post_build.js",
+    "auditor-report-findings": "dist/cli/report_findings.js",
+    "auditor-review": "dist/cli/report_review.js",
+    "auditor-setup-env": "dist/cli/setup_env.js",
+    "auditor-similar": "dist/cli/report_similar_code.js",
+    "auditor-sync-env": "dist/cli/sync_env_scripts.js",
+    "auditor-test-coverage": "dist/cli/report_test_coverage.js",
+    "auditor-update": "dist/cli/update_package.js",
+    "auditor-version": "dist/cli/bump_version.js"
   },
   "files": [
     "dist",
@@ -37,10 +57,9 @@
     "LICENSE",
     "README.md"
   ],
-  "engines": {
-    "node": ">=26.11.1",
-    "npm": ">=12.2.0"
-  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -74,35 +93,18 @@
       "types": "./dist/suites/*.d.ts",
       "default": "./dist/suites/*.js"
     },
+    "./domain-type-plugin": {
+      "types": "./dist/core/domainTypeOxlintPlugin.d.ts",
+      "default": "./dist/core/domainTypeOxlintPlugin.js"
+    },
     "./package.json": "./package.json"
   },
-  "bin": {
-    "auditor": "dist/cli/audit_full.js",
-    "auditor-version": "dist/cli/bump_version.js",
-    "auditor-bundle": "dist/cli/audit_bundle.js",
-    "auditor-findings": "dist/cli/report_findings.js",
-    "auditor-report-findings": "dist/cli/report_findings.js",
-    "auditor-fallow": "dist/cli/report_fallow.js",
-    "auditor-complexity": "dist/cli/report_complexity.js",
-    "auditor-similar": "dist/cli/report_similar_code.js",
-    "auditor-review": "dist/cli/report_review.js",
-    "auditor-update": "dist/cli/update_package.js",
-    "auditor-post-build": "dist/cli/audit_post_build.js",
-    "auditor-build-deploy": "dist/cli/build_deploy.js",
-    "auditor-init-agent": "dist/cli/init_agent.js",
-    "auditor-sync-env": "dist/cli/sync_env_scripts.js",
-    "auditor-check-env": "dist/cli/check_environment.js",
-    "auditor-setup-env": "dist/cli/setup_env.js",
-    "auditor-css": "dist/cli/report_css.js",
-    "auditor-by-file": "dist/cli/report_findings.js",
-    "auditor-guard": "dist/cli/report_guard.js",
-    "auditor-flags": "dist/cli/report_flags.js",
-    "auditor-coverage-map": "dist/cli/report_coverage_map.js",
-    "auditor-coverage": "dist/cli/report_test_coverage.js",
-    "auditor-test-coverage": "dist/cli/report_test_coverage.js",
-    "auditor-dependencies": "dist/cli/report_dependencies.js"
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
+    "prepare": "vp config",
+    "check": "vp check",
     "auditor:coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:test-coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:coverage-map": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/report_coverage_map.ts",
@@ -112,11 +114,11 @@
     "version": "node --experimental-strip-types src/cli/bump_version.ts",
     "version:analyze": "node --experimental-strip-types src/cli/bump_version.ts analyze",
     "version:bump": "node --experimental-strip-types src/cli/bump_version.ts bump",
-    "dev": "vitest",
-    "test": "vitest run",
-    "test:node": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "dev": "vp dev",
+    "test": "vp test run",
+    "test:node": "vp test run",
+    "test:watch": "vp test",
+    "test:coverage": "vp test run --coverage",
     "env:post-setup": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
     "auditor": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
     "auditor:bundle": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/audit_bundle.ts",
@@ -128,9 +130,9 @@
     "auditor:script-commands": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts task=validate_script_commands",
     "auditor:findings": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "vp run build",
     "auditor:publish": "npm publish --tag latest",
-    "build": "npm run auditor:full && tsc -p tsconfig.build.json && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:post-build",
+    "build": "vp run auditor:full && vp pack && node --experimental-strip-types src/cli/make_executable.ts && vp run auditor:post-build",
     "auditor:changed": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts changed-since=main",
     "auditor:critical": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts critical",
     "auditor:lint": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts speed=light",
@@ -176,8 +178,8 @@
     "auditor:z-index": "auditor task=validate_z_index",
     "auditor:ephemeral-storage-isolation": "auditor task=validate_ephemeral_storage_isolation",
     "auditor:error-suppression": "auditor task=validate_error_suppression",
-    "auditor:eslint": "auditor task=validate_eslint",
-    "auditor:eslint-config": "auditor task=validate_eslint_config",
+    "auditor:oxlint": "auditor task=validate_oxlint",
+    "auditor:vite-plus-config": "auditor task=validate_vite_plus_config",
     "auditor:fallow-config": "auditor task=validate_fallow_config",
     "auditor:html-validate": "auditor task=validate_html_validate",
     "auditor:native-paths": "auditor task=validate_native_paths",
@@ -236,9 +238,6 @@
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
     "boxen": "^9.0.0",
     "cli-table3": "^0.6.5",
-    "eslint": "^10.12.0",
-    "eslint-plugin-regexp": "^3.3.1",
-    "eslint-plugin-vuejs-accessibility": "^2.6.0",
     "fallow": "^3.33.1",
     "franc-min": "^6.2.0",
     "html-validate": "^11.16.2",
@@ -263,49 +262,34 @@
     "type-coverage": "^2.30.3",
     "typescript": "^6.0.3",
     "unbash": "^5.1.0",
-    "vue-eslint-parser": "^10.4.1",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
     "@types/semver": "^7.8.0",
     "@vitest/coverage-v8": "^5.0.4",
-    "eslint-plugin-unused-imports": "^4.4.1",
-    "globals": "^17.13.0",
-    "typescript-eslint": "^8.71.2",
-    "vitest": "^5.0.4"
+    "vite-plus": "^1.2.0"
   },
   "peerDependencies": {
-    "typescript": "^6.0.3",
-    "eslint": "^10.12.0",
-    "@eslint/js": "^10.0.1",
-    "typescript-eslint": "^8.71.2",
-    "vue": "^3.5.44",
-    "vue-router": "^5.4.0",
-    "pinia": "^4.0.3",
+    "@playwright/test": "^1.64.0",
+    "fallow": "^3.33.1",
     "gsap": "^3.15.0",
-    "valibot": "^1.5.0",
-    "sass": "^1.105.1",
-    "vitest": "^5.0.4",
-    "vite": "^8.3.4",
     "html-validate": "^11.16.2",
     "markdownlint-cli": "^0.49.1",
-    "fallow": "^3.33.1",
-    "@playwright/test": "^1.64.0"
+    "pinia": "^4.0.3",
+    "sass": "^1.105.1",
+    "typescript": "^6.0.3",
+    "valibot": "^1.5.0",
+    "vite-plus": ">=1.2.0",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
   },
   "peerDependenciesMeta": {
     "typescript": {
       "optional": true
     },
-    "eslint": {
-      "optional": true
-    },
-    "@eslint/js": {
-      "optional": true
-    },
-    "typescript-eslint": {
+    "vite-plus": {
       "optional": true
     },
     "vue": {
@@ -326,12 +310,6 @@
     "sass": {
       "optional": true
     },
-    "vitest": {
-      "optional": true
-    },
-    "vite": {
-      "optional": true
-    },
     "html-validate": {
       "optional": true
     },
@@ -348,6 +326,13 @@
   "overrides": {
     "js-yaml": "^5.4.2",
     "katex": "^0.19.0",
-    "smol-toml": "^1.9.1"
-  }
+    "smol-toml": "^1.9.1",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.2.0",
+    "vitest": "5.0.4"
+  },
+  "engines": {
+    "node": ">=26.11.1",
+    "npm": ">=12.2.0"
+  },
+  "packageManager": "npm@12.2.0"
 }

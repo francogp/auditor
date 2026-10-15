@@ -204,7 +204,36 @@ export function collectFiles(dir: string, extension: string): string[] {
 
 ---
 
-## 🔍 4. Verification Workflow
+## ⚡ 4. Migration to Vite+ (`vite-plus`) Unified Toolchain
+
+In v8, standalone configuration files (`eslint.config.*`, `vitest.config.*`, `tsdown.config.*`, `tsconfig.build.json`) and `.nvmrc` are completely eradicated in favor of unified **Vite+ (`vite-plus` / CLI `vp`)**.
+
+### 4.1 Automated 5-Stage Migration Protocol (`auditor fix`)
+
+Running `npm run auditor:fix` automatically executes the non-destructive 5-stage migration:
+
+1. **Extract & Merge**: Reads existing `vitest.config.*` (extracting `test: { ... }` blocks, projects, and custom pools) and merges them into `vite.config.ts`, preserving 100% of existing application plugins, aliases, and server configs.
+2. **Rewrite Testing Imports**: Rewires test imports across all `tests/**/*.{ts,vue}` from `'vitest'` to `'vite-plus/test'`.
+3. **Migrate Node Runtime**: Migrates `.nvmrc` to `.node-version` (canonical for `vp env`).
+4. **Synchronize `package.json`**: Adds `"vite-plus": "^1.2.0"` to `devDependencies`, strips obsolete `eslint*` packages, and modernizes scripts to `vp check`, `vp test`, and `vp pack`.
+5. **Certified Cleanup**: Purges obsolete config files (`vitest.config.*`, `eslint.config.*`, `.nvmrc`) ONLY after stages 1–4 complete with 100% success.
+
+### 4.2 Modernized CLI Commands
+
+| Tool / Action | Legacy Toolchain | Vite+ Standard |
+|---|---|---|
+| Syntax & Lint | Legacy ESLint (`npm run lint`) | `vp check` (or `npm run check`) |
+| Format Check | Legacy Prettier (`prettier --check`) | `vp check` |
+| Format Fix | Legacy Prettier (`prettier --write`) | `vp check --fix` |
+| Test Suite | Legacy Vitest (`npm test`) | `vp test` (or `npm test`) |
+| Test Coverage | Legacy Vitest (`npm run test:coverage`) | `vp test --coverage` (or `npm run test:coverage`) |
+| Library Packaging | Legacy tsdown CLI | `vp pack` |
+| Dev Server | Legacy Vite CLI | `vp dev` |
+| Project Tasks | Legacy script runner (`npm run <task>`) | `vp run <task>` (or `npm run <task>`) |
+
+---
+
+## 🔍 5. Verification Workflow
 
 After updating extensions and scripts:
 

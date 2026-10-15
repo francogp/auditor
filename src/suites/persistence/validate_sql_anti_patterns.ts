@@ -29,9 +29,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  BaseAuditor
-, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 
@@ -57,12 +55,16 @@ export function getPositionalJsonMutationRegex(): RegExp {
   const cols = config.persistence?.positionalArrayColumns;
   if (cols && cols.length > 0) {
     const colGroup = cols.join('|');
-    return new RegExp(`(?:\\$\\.(?:${colGroup})\\[\\d+\\]|(?:${colGroup})\\s*->\\s*\\d+|jsonb_set\\([^,]+,\\s*'\\{(?:${colGroup}),\\s*\\d+\\}'|json_extract\\([^,]+,\\s*['"]\\$\\.(?:${colGroup})\\[\\d+\\])`, 'i');
+    return new RegExp(
+      `(?:\\$\\.(?:${colGroup})\\[\\d+\\]|(?:${colGroup})\\s*->\\s*\\d+|jsonb_set\\([^,]+,\\s*'\\{(?:${colGroup}),\\s*\\d+\\}'|json_extract\\([^,]+,\\s*['"]\\$\\.(?:${colGroup})\\[\\d+\\])`,
+      'i'
+    );
   }
   return /(?:\$\.\w+\[\d+\]|\w+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{\w+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.\w+\[\d+\])/i;
 }
 
-export const POSITIONAL_JSON_MUTATION_REGEX = /(?:\$\.\w+\[\d+\]|\w+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{\w+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.\w+\[\d+\])/i;
+export const POSITIONAL_JSON_MUTATION_REGEX =
+  /(?:\$\.\w+\[\d+\]|\w+\s*->\s*\d+|jsonb_set\([^,]+,\s*'\{\w+,\s*\d+\}'|json_extract\([^,]+,\s*['"]\$\.\w+\[\d+\])/i;
 const CAMEL_CASE_KEY_REGEX = /^[a-z]+[A-Z][a-zA-Z0-9]*$/;
 
 function parseDeclaredPlpgsqlVariables(blockBody: string): Set<string> {
@@ -84,19 +86,17 @@ function parseDeclaredPlpgsqlVariables(blockBody: string): Set<string> {
 
 function isIntegerRangeLoop(executionBody: string, matchIndex: number): boolean {
   const nextLoopIdx = executionBody.indexOf('LOOP', matchIndex);
-  const loopSlice = nextLoopIdx !== -1
-    ? executionBody.slice(matchIndex, nextLoopIdx)
-    : executionBody.slice(matchIndex, matchIndex + SQL_LOOP_HEADER_MAX_CHARS);
+  const loopSlice =
+    nextLoopIdx !== -1
+      ? executionBody.slice(matchIndex, nextLoopIdx)
+      : executionBody.slice(matchIndex, matchIndex + SQL_LOOP_HEADER_MAX_CHARS);
   return /\.\./.test(loopSlice);
 }
 
 export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private readonly configuredMigrationsDir: string;
 
-  constructor(
-    customMigrationsDir?: string,
-    projectRoot: string = process.cwd()
-  ) {
+  constructor(customMigrationsDir?: string, projectRoot: string = process.cwd()) {
     const config = getAuditConfig(projectRoot);
     const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'migrations';
     const srcRoots = config.paths.srcRoots || ['src'];
@@ -109,7 +109,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_sql_anti_patterns',
       name: 'SQL & Relational Schema Anti-Patterns Validator',
@@ -128,10 +129,14 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         'db-payload-snake-case': 'Propiedad sin snake_case en BD'
       },
       ruleRemediations: {
-        'sql-no-positional-arrays': 'Guía de diagnóstico y remediación para sql-no-positional-arrays. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'sql-plpgsql-declared-variables': 'Guía de diagnóstico y remediación para sql-plpgsql-declared-variables. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'sql-rls-policy-grant-integrity': 'Guía de diagnóstico y remediación para sql-rls-policy-grant-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'db-payload-snake-case': 'Guía de diagnóstico y remediación para db-payload-snake-case. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'sql-no-positional-arrays':
+          'Guía de diagnóstico y remediación para sql-no-positional-arrays. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'sql-plpgsql-declared-variables':
+          'Guía de diagnóstico y remediación para sql-plpgsql-declared-variables. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'sql-rls-policy-grant-integrity':
+          'Guía de diagnóstico y remediación para sql-rls-policy-grant-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'db-payload-snake-case':
+          'Guía de diagnóstico y remediación para db-payload-snake-case. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: [
@@ -166,7 +171,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
         `${this.configuredMigrationsDir}/**/*.sql`,
         'database/**/*.sql',
         'migrations/**/*.sql',
-        ...deriveCoverageFromRoots(currentSrcRoots, new Set(['.ts', '.vue']), this.projectRoot).include
+        ...deriveCoverageFromRoots(currentSrcRoots, new Set(['.ts', '.vue']), this.projectRoot)
+          .include
       ]
     });
 
@@ -179,7 +185,10 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
 
     this.runSubAuditorSync('sql-no-positional-arrays', () => {
       if (sqlMigrations.length === 0) {
-        this.markRuleNotApplicable('sql-no-positional-arrays', 'No se encontraron archivos .sql en migraciones o schemas');
+        this.markRuleNotApplicable(
+          'sql-no-positional-arrays',
+          'No se encontraron archivos .sql en migraciones o schemas'
+        );
         return;
       }
       this.scanPositionalArrays(sqlMigrations);
@@ -187,7 +196,10 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
 
     this.runSubAuditorSync('sql-plpgsql-declared-variables', () => {
       if (sqlMigrations.length === 0) {
-        this.markRuleNotApplicable('sql-plpgsql-declared-variables', 'No se encontraron archivos .sql en migraciones o schemas');
+        this.markRuleNotApplicable(
+          'sql-plpgsql-declared-variables',
+          'No se encontraron archivos .sql en migraciones o schemas'
+        );
         return;
       }
       this.scanPlpgsqlVariables(sqlMigrations);
@@ -195,14 +207,19 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
 
     this.runSubAuditorSync('sql-rls-policy-grant-integrity', () => {
       if (sqlMigrations.length === 0) {
-        this.markRuleNotApplicable('sql-rls-policy-grant-integrity', 'No se encontraron archivos .sql en migraciones o schemas');
+        this.markRuleNotApplicable(
+          'sql-rls-policy-grant-integrity',
+          'No se encontraron archivos .sql en migraciones o schemas'
+        );
         return;
       }
       this.scanRlsPolicyIntegrity(sqlMigrations);
     });
   }
 
-  private scanPositionalArrays(sqlMigrations: readonly { relPath: string; content: string }[]): void {
+  private scanPositionalArrays(
+    sqlMigrations: readonly { relPath: string; content: string }[]
+  ): void {
     const positionalRegex = getPositionalJsonMutationRegex();
     for (const { relPath, content } of sqlMigrations) {
       const lines = content.split('\n');
@@ -223,13 +240,18 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     }
   }
 
-  private scanPlpgsqlVariables(sqlMigrations: readonly { relPath: string; content: string }[]): void {
+  private scanPlpgsqlVariables(
+    sqlMigrations: readonly { relPath: string; content: string }[]
+  ): void {
     for (const { relPath, content } of sqlMigrations) {
       this.scanPlpgsqlUndeclaredVariables(relPath, content);
     }
   }
 
-  private resolveMigrationScanDirs(migrationsDir: string, config: ReturnType<typeof getAuditConfig>): Set<string> {
+  private resolveMigrationScanDirs(
+    migrationsDir: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): Set<string> {
     const dirsToScan = new Set<string>();
     if (fs.existsSync(migrationsDir)) {
       dirsToScan.add(migrationsDir);
@@ -247,7 +269,10 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     return dirsToScan;
   }
 
-  private collectSqlMigrations(migrationsDir: string, config: ReturnType<typeof getAuditConfig>): { relPath: string; content: string }[] {
+  private collectSqlMigrations(
+    migrationsDir: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): { relPath: string; content: string }[] {
     const sqlMigrations: { relPath: string; content: string }[] = [];
     const dirsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
 
@@ -265,7 +290,10 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       for (const entry of entries) {
         if (!entry.endsWith('.sql')) continue;
         const fullPath = path.join(dir, entry);
-        const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+        const relPath = path
+          .relative(this.projectRoot, fullPath)
+          .split(path.sep)
+          .join(path.posix.sep);
         if (this.context.isPathIgnored(relPath)) continue;
         try {
           const content = fs.readFileSync(fullPath, 'utf-8');
@@ -283,7 +311,10 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private scanSourceFiles(srcRoots: readonly string[]): void {
     const srcFiles = this.context.collectFiles([...srcRoots], new Set(['.ts', '.vue']));
     if (srcFiles.length === 0) {
-      this.markRuleNotApplicable('db-payload-snake-case', 'No se encontraron archivos de código fuente');
+      this.markRuleNotApplicable(
+        'db-payload-snake-case',
+        'No se encontraron archivos de código fuente'
+      );
       return;
     }
 
@@ -299,11 +330,16 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     }
   }
 
-
-
   private checkPlpgsqlLoops(
     executionBody: string,
-    context: { funcName: string; blockOffset: number; beginIndex: number; declaredVars: Set<string>; relPath: string; content: string }
+    context: {
+      funcName: string;
+      blockOffset: number;
+      beginIndex: number;
+      declaredVars: Set<string>;
+      relPath: string;
+      content: string;
+    }
   ): void {
     const forLoopRegex = /\bFOR\s+(\w+)\s+IN\b/gi;
     let loopMatch: RegExpExecArray | null;
@@ -331,7 +367,8 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   }
 
   private scanPlpgsqlUndeclaredVariables(relPath: string, content: string): void {
-    const blockRegex = /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)\s*\([^)]*\)[\s\S]*?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
+    const blockRegex =
+      /(?:CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:\w+\.)?(\w+)\s*\([^)]*\)[\s\S]*?AS\s+\$\$|DO\s+\$\$)([\s\S]*?)\$\$\s*(?:LANGUAGE\s+plpgsql)?/gi;
     let blockMatch: RegExpExecArray | null;
 
     while ((blockMatch = blockRegex.exec(content)) !== null) {
@@ -355,13 +392,16 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     }
   }
 
-  private collectRlsMigrations(
-    migrations: readonly { relPath: string; content: string }[]
-  ): { rlsTables: Map<string, { relPath: string; line: number; lineContent: string }>; tablesWithPolicies: Set<string> } {
+  private collectRlsMigrations(migrations: readonly { relPath: string; content: string }[]): {
+    rlsTables: Map<string, { relPath: string; line: number; lineContent: string }>;
+    tablesWithPolicies: Set<string>;
+  } {
     const rlsTables = new Map<string, { relPath: string; line: number; lineContent: string }>();
     const tablesWithPolicies = new Set<string>();
-    const enableRlsRegex = /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:\w+\.)?(\w+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY\s*;/gi;
-    const createPolicyRegex = /CREATE\s+POLICY(?:\s{2,}|\s+\S.*?(?:[\n\r\u2028\u2029]\s*|[\t\v\f \xa0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]))ON\s+(?:\w+\.)?(\w+)\b/gi;
+    const enableRlsRegex =
+      /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:\w+\.)?(\w+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY\s*;/gi;
+    const createPolicyRegex =
+      /CREATE\s+POLICY(?:\s{2,}|\s+\S.*?(?:[\n\r\u2028\u2029]\s*|[\t\v\f \xa0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff]))ON\s+(?:\w+\.)?(\w+)\b/gi;
 
     for (const { relPath, content } of migrations) {
       let match: RegExpExecArray | null;
@@ -386,14 +426,17 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     return { rlsTables, tablesWithPolicies };
   }
 
-  private scanRlsPolicyIntegrity(migrations: readonly { relPath: string; content: string }[]): void {
+  private scanRlsPolicyIntegrity(
+    migrations: readonly { relPath: string; content: string }[]
+  ): void {
     const { rlsTables, tablesWithPolicies } = this.collectRlsMigrations(migrations);
     const config = getAuditConfig(this.projectRoot);
-    const exemptTables = new Set([ // runtime-set: Fast O(1) membership lookup set
+    const exemptTables = new Set([
+      // runtime-set: Fast O(1) membership lookup set
       '_migrations',
       'schema_migrations',
       'supabase_migrations',
-      ...(config.persistence?.exemptRlsTables ?? []).map(t => t.toLowerCase())
+      ...(config.persistence?.exemptRlsTables ?? []).map((t) => t.toLowerCase())
     ]);
 
     for (const [table, loc] of rlsTables.entries()) {
@@ -425,9 +468,13 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   }
 }
 
-function updateStringLiteralState(char: string, prevChar: string, inString: string | null): string | null {
+function updateStringLiteralState(
+  char: string,
+  prevChar: string,
+  inString: string | null
+): string | null {
   if (inString) {
-    return (char === inString && prevChar !== '\\') ? null : inString;
+    return char === inString && prevChar !== '\\' ? null : inString;
   }
   if (char === "'" || char === '"' || char === '`') {
     return char;

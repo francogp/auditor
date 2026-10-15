@@ -1,22 +1,23 @@
-import { FileScanAuditor } from '../../core/auditorBase.ts';
+import { FileScanAuditor } from "../../core/auditorBase.js";
+//#region src/suites/performance/validate_query_performance.d.ts
 export declare const QUERY_PERFORMANCE_RULES: readonly ["unindexed-foreign-keys", "select-star-in-queries", "unpaginated-queries", "n-plus-one-patterns", "heavy-count-queries", "unindexed-order-by"];
 export type QueryPerformanceRuleId = (typeof QUERY_PERFORMANCE_RULES)[number];
 export declare class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerformanceRuleId> {
-    private readonly exemptSelectStarPaths;
-    private readonly migrationsDir?;
-    private readonly excludeMigrationsDir;
-    constructor(options?: {
-        projectRoot?: string;
-        fix?: boolean;
-        roots?: readonly string[];
-    });
-    runAudit(): Promise<void>;
-    protected scanFile(relPath: string, content: string): void;
-    private auditUnindexedForeignKeys;
-    private auditSelectStarInQueries;
-    private auditUnpaginatedQueries;
-    private auditNPlusOnePatterns;
-    private auditHeavyCountQueries;
-    private auditUnindexedOrderBy;
+  private readonly exemptSelectStarPaths;
+  private readonly migrationsDir?;
+  private readonly excludeMigrationsDir;
+  constructor(options?: {
+    projectRoot?: string;
+    fix?: boolean;
+    roots?: readonly string[];
+  });
+  runAudit(): Promise<void>;
+  protected scanFile(relPath: string, content: string): void;
+  private auditUnindexedForeignKeys;
+  private auditSelectStarInQueries;
+  private auditUnpaginatedQueries;
+  private auditNPlusOnePatterns;
+  private auditHeavyCountQueries;
+  private auditUnindexedOrderBy;
 }
-//# sourceMappingURL=validate_query_performance.d.ts.map
+//#endregion

@@ -1,6 +1,6 @@
 /**
  * packages/auditor/src/core/auditContract.ts
- * 
+ *
  * STANDARD AUDIT CONTRACT (Node.js 26+)
  * Defines the immutable data structures, family types, and standard outputs
  * required for all sub-auditors and the general audit orchestrator.
@@ -47,7 +47,8 @@ export const FAMILY_METADATA: Record<string, FamilyMetadata> = {
     title: 'TIPOS DE DOMINIO Y BASES DE DATOS CANÓNICAS',
     order: 2,
     icon: '🔒',
-    description: 'Validación de tipos de dominio estrictos (/domain-type-first), cuadros tarifarios y fórmulas.'
+    description:
+      'Validación de tipos de dominio estrictos (/domain-type-first), cuadros tarifarios y fórmulas.'
   },
   persistence: {
     key: 'persistence',
@@ -82,11 +83,14 @@ export const FAMILY_METADATA: Record<string, FamilyMetadata> = {
 export const DEFAULT_CUSTOM_FAMILY_ORDER = 90;
 export const FALLBACK_FAMILY_ORDER = 99;
 
-export function resolveFamilyMetadata(familyKey: string, customFamilies?: readonly CustomAuditFamilyConfig[]): FamilyMetadata {
+export function resolveFamilyMetadata(
+  familyKey: string,
+  customFamilies?: readonly CustomAuditFamilyConfig[]
+): FamilyMetadata {
   if (FAMILY_METADATA[familyKey]) {
     return FAMILY_METADATA[familyKey]!;
   }
-  const custom = customFamilies?.find(f => f.key === familyKey);
+  const custom = customFamilies?.find((f) => f.key === familyKey);
   if (custom) {
     return {
       key: custom.key,
@@ -105,8 +109,10 @@ export function resolveFamilyMetadata(familyKey: string, customFamilies?: readon
   };
 }
 
-export function getActiveFamilies(customFamilies?: readonly CustomAuditFamilyConfig[]): readonly string[] {
-  const customKeys = (customFamilies ?? []).map(f => f.key);
+export function getActiveFamilies(
+  customFamilies?: readonly CustomAuditFamilyConfig[]
+): readonly string[] {
+  const customKeys = (customFamilies ?? []).map((f) => f.key);
   return Array.from(new Set([...BUILTIN_AUDIT_FAMILIES, ...customKeys]));
 }
 
@@ -189,7 +195,9 @@ export function normalizeSpeeds(
   speed: AuditExecutionSpeed | readonly AuditExecutionSpeed[] | undefined
 ): readonly AuditExecutionSpeed[] {
   if (!speed) return [];
-  return Array.isArray(speed) ? (speed as readonly AuditExecutionSpeed[]) : [speed as AuditExecutionSpeed];
+  return Array.isArray(speed)
+    ? (speed as readonly AuditExecutionSpeed[])
+    : [speed as AuditExecutionSpeed];
 }
 
 /**
@@ -390,7 +398,9 @@ export interface AuditorConfigFileRequirement<TRuleId extends string = string> {
   /** Optional predicate determining if this configuration is applicable in the current project */
   readonly isApplicable?: (config: AuditEngineConfig, projectRoot: string) => boolean;
   /** Optional custom missing message or factory to tailor diagnostics (e.g. legacy migrations) */
-  readonly customMissingMessage?: string | ((context: AuditorConfigFixContext, file: string) => string);
+  readonly customMissingMessage?:
+    | string
+    | ((context: AuditorConfigFixContext, file: string) => string);
   /** Optional custom file path to report on violations (e.g. legacy file name instead of primary) */
   readonly customMissingFile?: (context: AuditorConfigFixContext, defaultFile: string) => string;
 }
@@ -518,7 +528,10 @@ export function deriveCanonicalAuditorScript(
   description: string,
   overrides?: Partial<AuditorPackageScriptRequirement>
 ): AuditorPackageScriptRequirement {
-  const shortId = id.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '').replace(/_/g, '-');
+  const shortId = id
+    .replace(/\.(ts|js)$/, '')
+    .replace(/^(validate_|audit_)/, '')
+    .replace(/_/g, '-');
   return {
     name: overrides?.name ?? `auditor:${shortId}`, // domain-ok: Script requirement identifier convention
     command: overrides?.command ?? `auditor task=${id}`,
@@ -636,10 +649,15 @@ export interface ConsolidatedAuditReport {
     autoFixRecommended?: boolean;
     autoFixCommand?: string;
   };
-  families: Partial<Record<AuditFamily, {
-    title: string;
-    suites: StandardAuditResult[];
-  }>>;
+  families: Partial<
+    Record<
+      AuditFamily,
+      {
+        title: string;
+        suites: StandardAuditResult[];
+      }
+    >
+  >;
   allFindings: AuditFinding[];
   findingsByFile?: Record<string, AuditFinding[]>;
 }
@@ -661,7 +679,10 @@ export function normalizeFindingPath(filePath?: string, cwd: string = process.cw
  * 4. Severity ('error' first, then 'warning')
  * 5. Rule ID (ASC)
  */
-export function sortFindingsByFileAndLine(findings: readonly AuditFinding[], cwd: string = process.cwd()): AuditFinding[] {
+export function sortFindingsByFileAndLine(
+  findings: readonly AuditFinding[],
+  cwd: string = process.cwd()
+): AuditFinding[] {
   return [...findings].sort((a, b) => {
     const fileA = normalizeFindingPath(a.file, cwd).toLowerCase();
     const fileB = normalizeFindingPath(b.file, cwd).toLowerCase();
@@ -691,7 +712,10 @@ export function sortFindingsByFileAndLine(findings: readonly AuditFinding[], cwd
  * Groups an array of AuditFindings into a map indexed by normalized relative file path,
  * where findings within each file are guaranteed sorted by line number ascending.
  */
-export function groupFindingsByFileMap(findings: readonly AuditFinding[], cwd: string = process.cwd()): Record<string, AuditFileSummary> {
+export function groupFindingsByFileMap(
+  findings: readonly AuditFinding[],
+  cwd: string = process.cwd()
+): Record<string, AuditFileSummary> {
   const sorted = sortFindingsByFileAndLine(findings, cwd);
   const map: Record<string, AuditFileSummary> = {};
   for (const f of sorted) {
@@ -730,18 +754,22 @@ function assertAuditFreshness(
 ): void {
   if (options.allowStale) return;
   const config = getAuditConfig(options.projectRoot);
-  const configuredMinutes = config.runner?.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES;
-  const maxAge = options.maxAgeMs ?? (configuredMinutes * ONE_MINUTE_MS);
+  const configuredMinutes =
+    config.runner?.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES;
+  const maxAge = options.maxAgeMs ?? configuredMinutes * ONE_MINUTE_MS;
   try {
     const auditInstant = Temporal.Instant.from(meta.timestamp);
     const now = Temporal.Now.instant();
     const elapsedMs = now.since(auditInstant).total({ unit: 'millisecond' });
     if (elapsedMs > maxAge) {
-      const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: 'minute' })));
+      const elapsedMins = Math.max(
+        1,
+        Math.round(now.since(auditInstant).total({ unit: 'minute' }))
+      );
       const limitMins = Math.round(maxAge / ONE_MINUTE_MS);
       throw new Error(
         `[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). ` +
-        `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run auditor' para refrescar el reporte.`
+          `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run auditor' para refrescar el reporte.`
       );
     }
   } catch (err) {
@@ -758,15 +786,22 @@ function assertAuditSuiteExecuted(
   requiredSuiteId: string,
   consumerName: string
 ): void {
-  const wasExecuted = Array.isArray(meta.executedSuites) && meta.executedSuites.includes(requiredSuiteId);
-  const wasOmitted = Array.isArray(meta.omittedSuites) && meta.omittedSuites.includes(requiredSuiteId);
+  const wasExecuted =
+    Array.isArray(meta.executedSuites) && meta.executedSuites.includes(requiredSuiteId);
+  const wasOmitted =
+    Array.isArray(meta.omittedSuites) && meta.omittedSuites.includes(requiredSuiteId);
 
   if (!wasExecuted || wasOmitted) {
-    const modeDesc = meta.runMode === 'preset' ? `preset=${meta.preset}` : (meta.runMode === 'family' ? `family=${meta.targetFamily}` : meta.runMode);
+    const modeDesc =
+      meta.runMode === 'preset'
+        ? `preset=${meta.preset}`
+        : meta.runMode === 'family'
+          ? `family=${meta.targetFamily}`
+          : meta.runMode;
     throw new Error(
       `[${consumerName}] La suite requerida '${requiredSuiteId}' NO fue ejecutada en la última auditoría. ` +
-      `latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). ` +
-      `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${requiredSuiteId}' para obtener datos válidos.`
+        `latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). ` +
+        `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${requiredSuiteId}' para obtener datos válidos.`
     );
   }
 }
@@ -786,12 +821,16 @@ export function assertAuditorExecuted(
   if (!report || !report.meta) {
     throw new Error(
       `[${consumerName}] scratch/audits/latest_audit.json no contiene la cabecera de metadatos 'meta'. ` +
-      `Es posible que provenga de una versión obsoleta o esté corrupto. Ejecuta 'npm run auditor' para regenerarlo.`
+        `Es posible que provenga de una versión obsoleta o esté corrupto. Ejecuta 'npm run auditor' para regenerarlo.`
     );
   }
 
   assertAuditFreshness(report.meta as ConsolidatedAuditReport['meta'], consumerName, options);
-  assertAuditSuiteExecuted(report.meta as ConsolidatedAuditReport['meta'], requiredSuiteId, consumerName);
+  assertAuditSuiteExecuted(
+    report.meta as ConsolidatedAuditReport['meta'],
+    requiredSuiteId,
+    consumerName
+  );
 }
 
 export function groupResultsByFamily(
@@ -877,4 +916,3 @@ export function computeResultsFixableViolations(
     autoFixRecommended: fixableErrors > 0 || fixableWarnings > 0
   };
 }
-

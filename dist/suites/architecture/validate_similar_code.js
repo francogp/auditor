@@ -1,373 +1,353 @@
-/**
- * packages/auditor/src/suites/architecture/validate_similar_code.ts
- *
- * FALLOW SIMILAR-CODE SEMANTIC DUPLICATION AUDITOR (Node.js 26+)
- *
- * Detects semantically similar functions across the repository using Fallow's
- * local vector embeddings model (jina-embeddings-v2-base-code).
- *
- * Key Architectural Guards:
- *   1. Zero Fast-Preset Impact: Completely excluded from fast presets (preset=lint, preset=md).
- *   2. Strict High Threshold: Defaults to 0.95 threshold to eliminate cognitive noise and false positives.
- *   3. Intra-File Filtering: Skips pairs within the same file (e.g. sync/async pairs like safeWriteFileSync/safeWriteFile).
- *   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.
- */
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import childProcess from 'node:child_process';
-import { styleText } from 'node:util';
-import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { isTestPath } from "../../core/auditTestPredicates.js";
+import "../../core/auditConfig.js";
+import { toPosixRelative } from "../../core/auditCoverage.js";
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
-import { getAuditConfig, isTestPath } from "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/safePath.js";
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, resolvePackageBin } from "../../cli/cliUtils.js";
+import { BaseAuditor } from "../../core/auditorBase.js";
+import "../../core/safePath.js";
+import { enableCompileCache } from "node:module";
+import path from "node:path";
+import fs from "node:fs";
+import { styleText } from "node:util";
+import childProcess from "node:child_process";
+import os from "node:os";
+//#region src/suites/architecture/validate_similar_code.ts
+/**
+* packages/auditor/src/suites/architecture/validate_similar_code.ts
+*
+* FALLOW SIMILAR-CODE SEMANTIC DUPLICATION AUDITOR (Node.js 26+)
+*
+* Detects semantically similar functions across the repository using Fallow's
+* local vector embeddings model (jina-embeddings-v2-base-code).
+*
+* Key Architectural Guards:
+*   1. Zero Fast-Preset Impact: Completely excluded from fast presets (preset=lint, preset=md).
+*   2. Strict High Threshold: Defaults to 0.95 threshold to eliminate cognitive noise and false positives.
+*   3. Intra-File Filtering: Skips pairs within the same file (e.g. sync/async pairs like safeWriteFileSync/safeWriteFile).
+*   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.
+*/
 enableCompileCache();
-export const SIMILAR_CODE_RULES = [
-    'fallow-similar-code',
-    'fallow-similar-code-failed'
-];
-export const SIMILAR_CODE_RULE_CAPABILITIES = {
-    'fallow-similar-code': {
-        speed: 'heavy',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-    },
-    'fallow-similar-code-failed': {
-        speed: 'heavy',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-    }
+const SIMILAR_CODE_RULES = ["fallow-similar-code", "fallow-similar-code-failed"];
+const SIMILAR_CODE_RULE_CAPABILITIES = {
+	"fallow-similar-code": {
+		speed: "heavy",
+		phase: "normal",
+		fix: "none",
+		md: false,
+		ast: false,
+		changedOnly: false,
+		critical: false
+	},
+	"fallow-similar-code-failed": {
+		speed: "heavy",
+		phase: "normal",
+		fix: "normal",
+		md: false,
+		ast: false,
+		changedOnly: false,
+		critical: false
+	}
 };
-export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
-export const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;
-export function resolveFallowBinary(projectRoot = process.cwd()) {
-    return resolvePackageBin('fallow', { projectRoot, fallbackRelativeBin: 'bin/fallow' });
+const DEFAULT_SIMILAR_CODE_THRESHOLD = .95;
+const WINDOWS_UNBLOCK_TIMEOUT_MS = 5e3;
+function resolveFallowBinary(projectRoot = process.cwd()) {
+	return resolvePackageBin("fallow", {
+		projectRoot,
+		fallbackRelativeBin: "bin/fallow"
+	});
 }
-export function isFastPresetActive() {
-    const args = process.argv.join(' ');
-    return (args.includes('--preset=lint') ||
-        args.includes('--preset=md'));
+function isFastPresetActive() {
+	const args = process.argv.join(" ");
+	return args.includes("--preset=lint") || args.includes("--preset=md");
 }
-export function isSimilarCodeSkipped() {
-    return (isProductionEnvironment() ||
-        process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === 'true' ||
-        process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === '1' ||
-        process.env.AUDIT_SKIP_SIMILAR === 'true' ||
-        process.env.AUDIT_SKIP_SIMILAR === '1');
+function isSimilarCodeSkipped() {
+	return isProductionEnvironment() || process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === "true" || process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS === "1" || process.env.AUDIT_SKIP_SIMILAR === "true" || process.env.AUDIT_SKIP_SIMILAR === "1";
 }
-export function resolveFallowUserCacheDir() {
-    if (process.platform === 'win32') {
-        const rawLocal = process.env.LOCALAPPDATA;
-        const localAppData = rawLocal ? path.resolve(rawLocal) : path.join(os.homedir(), 'AppData', 'Local');
-        return path.join(localAppData, 'fallow', 'similar-code');
-    }
-    if (process.platform === 'darwin') {
-        return path.join(os.homedir(), 'Library', 'Caches', 'fallow', 'similar-code');
-    }
-    const rawXdg = process.env.XDG_CACHE_HOME;
-    const xdg = rawXdg ? path.resolve(rawXdg) : path.join(os.homedir(), '.cache');
-    return path.join(xdg, 'fallow', 'similar-code');
+function resolveFallowUserCacheDir() {
+	if (process.platform === "win32") {
+		const rawLocal = process.env.LOCALAPPDATA;
+		const localAppData = rawLocal ? path.resolve(rawLocal) : path.join(os.homedir(), "AppData", "Local");
+		return path.join(localAppData, "fallow", "similar-code");
+	}
+	if (process.platform === "darwin") return path.join(os.homedir(), "Library", "Caches", "fallow", "similar-code");
+	const rawXdg = process.env.XDG_CACHE_HOME;
+	const xdg = rawXdg ? path.resolve(rawXdg) : path.join(os.homedir(), ".cache");
+	return path.join(xdg, "fallow", "similar-code");
 }
-export function ensureSimilarCodeCacheDir(_projectRoot) {
-    const cacheDir = resolveFallowUserCacheDir();
-    if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir, { recursive: true });
-    }
-    const modelsDir = path.join(cacheDir, 'models');
-    if (!fs.existsSync(modelsDir)) {
-        fs.mkdirSync(modelsDir, { recursive: true });
-    }
-    const vectorsDir = path.join(cacheDir, 'vectors');
-    if (!fs.existsSync(vectorsDir)) {
-        fs.mkdirSync(vectorsDir, { recursive: true });
-    }
-    return cacheDir;
+function ensureSimilarCodeCacheDir(_projectRoot) {
+	const cacheDir = resolveFallowUserCacheDir();
+	if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+	const modelsDir = path.join(cacheDir, "models");
+	if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true });
+	const vectorsDir = path.join(cacheDir, "vectors");
+	if (!fs.existsSync(vectorsDir)) fs.mkdirSync(vectorsDir, { recursive: true });
+	return cacheDir;
 }
-export function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
-    ensureSimilarCodeCacheDir(projectRoot);
-    if (isFix && process.platform === 'win32') {
-        try {
-            const candidates = [
-                path.resolve(projectRoot, 'node_modules/@fallow-cli'),
-                path.resolve(process.cwd(), 'node_modules/@fallow-cli')
-            ];
-            for (const dir of candidates) {
-                if (fs.existsSync(dir)) {
-                    childProcess.execSync(`powershell.exe -NoProfile -Command "Get-ChildItem -Path '${dir}' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Unblock-File"`, { stdio: 'ignore', timeout: WINDOWS_UNBLOCK_TIMEOUT_MS });
-                }
-            }
-        }
-        catch {
-            // catch-ok: non-fatal unblock attempt on Windows binaries
-        }
-    }
-    try {
-        const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
-            cwd: projectRoot,
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore'],
-            timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
-        });
-        const parsed = JSON.parse(statusOut);
-        if (parsed.model_ready === true) {
-            return true;
-        }
-    }
-    catch {
-        // catch-ok: Model status query failed, attempt setup below
-    }
-    process.stdout.write(styleText('cyan', '📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n'));
-    try {
-        childProcess.execSync(`node "${fallowBin}" similar-code setup --local --yes`, {
-            cwd: projectRoot,
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'inherit'],
-            timeout: 0
-        });
-        return true;
-    }
-    catch (err) {
-        process.stderr.write(styleText('yellow', `⚠️ No se pudo inicializar el modelo de similar-code: ${err.message}. Se omitirá el análisis vectorial.\n`));
-        return false;
-    }
+function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
+	ensureSimilarCodeCacheDir(projectRoot);
+	if (isFix && process.platform === "win32") try {
+		const candidates = [path.resolve(projectRoot, "node_modules/@fallow-cli"), path.resolve(process.cwd(), "node_modules/@fallow-cli")];
+		for (const dir of candidates) if (fs.existsSync(dir)) childProcess.execSync(`powershell.exe -NoProfile -Command "Get-ChildItem -Path '${dir}' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Unblock-File"`, {
+			stdio: "ignore",
+			timeout: WINDOWS_UNBLOCK_TIMEOUT_MS
+		});
+	} catch {}
+	try {
+		const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
+			cwd: projectRoot,
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"ignore"
+			],
+			timeout: 0
+		});
+		if (JSON.parse(statusOut).model_ready === true) return true;
+	} catch {}
+	process.stdout.write(styleText("cyan", "📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n"));
+	try {
+		childProcess.execSync(`node "${fallowBin}" similar-code setup --local --yes`, {
+			cwd: projectRoot,
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"inherit"
+			],
+			timeout: 0
+		});
+		return true;
+	} catch (err) {
+		process.stderr.write(styleText("yellow", `⚠️ No se pudo inicializar el modelo de similar-code: ${err.message}. Se omitirá el análisis vectorial.\n`));
+		return false;
+	}
 }
 function normalizeRelativeCandidatePath(rawPath, projectRoot) {
-    if (!rawPath)
-        return '';
-    return toPosixRelative(projectRoot, rawPath);
+	if (!rawPath) return "";
+	return toPosixRelative(projectRoot, rawPath);
 }
 function isCandidatePairIgnored(options) {
-    if (options.ignoreSameFile && options.leftPath === options.rightPath)
-        return true;
-    if (options.auditor.isPathIgnored(options.leftPath) || options.auditor.isPathIgnored(options.rightPath))
-        return true;
-    if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath)))
-        return true;
-    return false;
+	if (options.ignoreSameFile && options.leftPath === options.rightPath) return true;
+	if (options.auditor.isPathIgnored(options.leftPath) || options.auditor.isPathIgnored(options.rightPath)) return true;
+	if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath))) return true;
+	return false;
 }
 function reportSingleCandidateViolation(c, leftPath, rightPath, auditor) {
-    const similarityPct = (c.similarity * 100).toFixed(1);
-    const leftDesc = `${c.left.name} (${leftPath}:${c.left.start_line})`;
-    const rightDesc = `${c.right.name} (${rightPath}:${c.right.start_line})`;
-    auditor.addViolation({
-        ruleId: 'fallow-similar-code',
-        severity: 'error',
-        file: leftPath,
-        line: c.left.start_line || 1,
-        message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
-        context: `${c.left.name} ~ ${c.right.name}`
-    });
+	const similarityPct = (c.similarity * 100).toFixed(1);
+	const leftDesc = `${c.left.name} (${leftPath}:${c.left.start_line})`;
+	const rightDesc = `${c.right.name} (${rightPath}:${c.right.start_line})`;
+	auditor.addViolation({
+		ruleId: "fallow-similar-code",
+		severity: "error",
+		file: leftPath,
+		line: c.left.start_line || 1,
+		message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
+		context: `${c.left.name} ~ ${c.right.name}`
+	});
 }
-export function evaluateSimilarCodeCandidates(candidates, options, auditor) {
-    if (!Array.isArray(candidates) || candidates.length === 0) {
-        return 0;
-    }
-    const ignoreSameFile = options.ignoreSameFile ?? true;
-    const config = getAuditConfig(auditor.projectRoot);
-    let reportedCount = 0;
-    for (const c of candidates) {
-        const leftPath = normalizeRelativeCandidatePath(c.left?.path, auditor.projectRoot);
-        const rightPath = normalizeRelativeCandidatePath(c.right?.path, auditor.projectRoot);
-        if (isCandidatePairIgnored({
-            leftPath,
-            rightPath,
-            ignoreSameFile,
-            auditor,
-            includeTests: Boolean(config.paths?.includeTestsInCodeAudit)
-        })) {
-            continue;
-        }
-        reportSingleCandidateViolation(c, leftPath, rightPath, auditor);
-        reportedCount++;
-    }
-    return reportedCount;
+function evaluateSimilarCodeCandidates(candidates, options, auditor) {
+	if (!Array.isArray(candidates) || candidates.length === 0) return 0;
+	const ignoreSameFile = options.ignoreSameFile ?? true;
+	const config = getAuditConfig(auditor.projectRoot);
+	let reportedCount = 0;
+	for (const c of candidates) {
+		const leftPath = normalizeRelativeCandidatePath(c.left?.path, auditor.projectRoot);
+		const rightPath = normalizeRelativeCandidatePath(c.right?.path, auditor.projectRoot);
+		if (isCandidatePairIgnored({
+			leftPath,
+			rightPath,
+			ignoreSameFile,
+			auditor,
+			includeTests: Boolean(config.paths?.includeTestsInCodeAudit)
+		})) continue;
+		reportSingleCandidateViolation(c, leftPath, rightPath, auditor);
+		reportedCount++;
+	}
+	return reportedCount;
 }
-export class ValidateSimilarCodeAuditor extends BaseAuditor {
-    constructor(targetPath) {
-        const projectRoot = targetPath || process.cwd();
-        super({
-            usesThirdPartyTool: true,
-            thirdPartyToolPolicy: {
-                toolName: "Fallow",
-                fallbackBehavior: "violation",
-                fallbackRuleId: "fallow-similar-code-failed"
-            },
-            ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
-            fixableRuleIds: ['fallow-similar-code-failed'],
-            id: 'validate_similar_code',
-            name: 'Fallow Similar Code Semantics Validator',
-            description: 'Detecta duplicados semánticos de funciones',
-            family: 'architecture',
-            ruleIds: SIMILAR_CODE_RULES,
-            packageName: 'Fallow',
-            configKey: 'fallow.similarCode.enabled',
-            defaultConfig: { enabled: true, threshold: DEFAULT_SIMILAR_CODE_THRESHOLD, ignoreSameFile: true },
-            criticalConfig: {},
-            icon: '🔍',
-            ruleDescriptions: {
-                'fallow-similar-code': 'Duplicado semántico',
-                'fallow-similar-code-failed': 'Salud del motor similar-code'
-            },
-            ruleRemediations: {
-                'fallow-similar-code': 'Guía de diagnóstico y remediación para fallow-similar-code. Revisa la incidencia detectada y ajusta el código correspondiente.',
-                'fallow-similar-code-failed': 'Guía de diagnóstico y remediación para fallow-similar-code-failed. Revisa la incidencia detectada y ajusta el código correspondiente.',
-            },
-            coverage: {
-                include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
-                source: 'declared-only'
-            },
-            projectRoot
-        });
-    }
-    ensureFallowBinaryAndModel() {
-        const fallowBin = resolveFallowBinary(this.projectRoot);
-        if (!fallowBin) {
-            this.addViolation({
-                ruleId: 'fallow-similar-code-failed',
-                severity: 'error',
-                file: '.fallowrc.json',
-                line: 1,
-                message: 'Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.',
-                context: 'binary-missing'
-            });
-            return null;
-        }
-        const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot, this.isFixActive());
-        if (!modelReady) {
-            this.context.setMetric('Similar-Code', 'Instalación manual');
-            this.addViolation({
-                ruleId: 'fallow-similar-code-failed',
-                severity: 'warning',
-                file: '.fallowrc.json',
-                line: 1,
-                message: 'No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.',
-                context: 'manual-setup-required'
-            });
-            return null;
-        }
-        return fallowBin;
-    }
-    executeAnalysis(fallowBin, similarCfg) {
-        const threshold = similarCfg.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD;
-        const minLines = similarCfg.minLines ?? 3;
-        const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
-        const rawOutputFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/similar-code-raw.json');
-        if (!fs.existsSync(path.dirname(rawOutputFile))) {
-            fs.mkdirSync(path.dirname(rawOutputFile), { recursive: true });
-        }
-        ensureSimilarCodeCacheDir(this.projectRoot);
-        const threads = os.availableParallelism?.() ?? os.cpus().length ?? 4;
-        try {
-            const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines} --threads ${threads} --output-file "${rawOutputFile}"`;
-            childProcess.execSync(cmd, {
-                cwd: this.projectRoot,
-                encoding: 'utf8',
-                stdio: ['pipe', 'pipe', 'pipe'],
-                maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
-                timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
-            });
-            this.processRawOutputFile(rawOutputFile, ignoreSameFile);
-        }
-        catch (err) {
-            // catch-ok: Capturar errores de timeout o ejecución y reportar como error crítico bloqueante
-            const errorMsg = err.message || String(err);
-            this.addViolation({
-                ruleId: 'fallow-similar-code-failed',
-                severity: 'error',
-                file: '.fallowrc.json',
-                line: 1,
-                message: `Fallo al ejecutar fallow similar-code: ${errorMsg}`,
-                context: errorMsg
-            });
-        }
-    }
-    processRawOutputFile(rawOutputFile, ignoreSameFile) {
-        if (!fs.existsSync(rawOutputFile)) {
-            this.addViolation({
-                ruleId: 'fallow-similar-code-failed',
-                severity: 'error',
-                file: '.fallowrc.json',
-                line: 1,
-                message: 'fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.',
-                context: 'missing-output-file'
-            });
-            return;
-        }
-        const fileContent = fs.readFileSync(rawOutputFile, 'utf8');
-        const jsonStart = fileContent.indexOf('{');
-        if (jsonStart !== -1) {
-            try {
-                const parsed = JSON.parse(fileContent.substring(jsonStart));
-                const totalCandidates = parsed.candidates?.length ?? 0;
-                const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
-                this.context.setMetric('Candidatos Totales', totalCandidates);
-                this.context.setMetric('Pares Reportados', reported);
-                return;
-            }
-            catch (err) {
-                this.addViolation({
-                    ruleId: 'fallow-similar-code-failed',
-                    severity: 'error',
-                    file: '.fallowrc.json',
-                    line: 1,
-                    message: `El archivo de salida de fallow similar-code contiene JSON malformado: ${err.message}`,
-                    context: 'malformed-json'
-                });
-                return;
-            }
-        }
-        this.addViolation({
-            ruleId: 'fallow-similar-code-failed',
-            severity: 'error',
-            file: '.fallowrc.json',
-            line: 1,
-            message: 'fallow similar-code no generó contenido JSON en el archivo de salida.',
-            context: 'empty-or-non-json'
-        });
-    }
-    async runAudit() {
-        this.recordExternalScanCount(1);
-        const config = getAuditConfig(this.projectRoot);
-        const similarCfg = config.fallow?.similarCode;
-        if (!similarCfg?.enabled) {
-            this.markSkipped('Deshabilitado en audit.config.ts (fallow.similarCode.enabled: false)');
-            return;
-        }
-        if (isProductionEnvironment()) {
-            this.markSkipped('Omitido en entorno de producción (AUDITOR_ENV=production)');
-            return;
-        }
-        if (isSimilarCodeSkipped()) {
-            this.markSkipped('Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)');
-            return;
-        }
-        if (isFastPresetActive()) {
-            this.markSkipped('Omitido en preset rápido');
-            return;
-        }
-        let fallowBin = null;
-        this.runSubAuditorSync('fallow-similar-code-failed', () => {
-            fallowBin = this.ensureFallowBinaryAndModel();
-        });
-        if (!fallowBin) {
-            this.runSubAuditorSync('fallow-similar-code', () => {
-                this.markRuleNotApplicable('fallow-similar-code', 'Binario o modelo de Fallow no disponible');
-            });
-            return;
-        }
-        this.runSubAuditorSync('fallow-similar-code', () => {
-            this.executeAnalysis(fallowBin, similarCfg);
-        });
-    }
-}
-// ─── CLI Entrypoint ─────────────────────────────────────────────────────────
+var ValidateSimilarCodeAuditor = class extends BaseAuditor {
+	constructor(targetPath) {
+		const projectRoot = targetPath || process.cwd();
+		super({
+			usesThirdPartyTool: true,
+			thirdPartyToolPolicy: {
+				toolName: "Fallow",
+				fallbackBehavior: "violation",
+				fallbackRuleId: "fallow-similar-code-failed"
+			},
+			ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
+			fixableRuleIds: ["fallow-similar-code-failed"],
+			id: "validate_similar_code",
+			name: "Fallow Similar Code Semantics Validator",
+			description: "Detecta duplicados semánticos de funciones",
+			family: "architecture",
+			ruleIds: SIMILAR_CODE_RULES,
+			packageName: "Fallow",
+			configKey: "fallow.similarCode.enabled",
+			defaultConfig: {
+				enabled: true,
+				threshold: DEFAULT_SIMILAR_CODE_THRESHOLD,
+				ignoreSameFile: true
+			},
+			criticalConfig: {},
+			icon: "🔍",
+			ruleDescriptions: {
+				"fallow-similar-code": "Duplicado semántico",
+				"fallow-similar-code-failed": "Salud del motor similar-code"
+			},
+			ruleRemediations: {
+				"fallow-similar-code": "Guía de diagnóstico y remediación para fallow-similar-code. Revisa la incidencia detectada y ajusta el código correspondiente.",
+				"fallow-similar-code-failed": "Guía de diagnóstico y remediación para fallow-similar-code-failed. Revisa la incidencia detectada y ajusta el código correspondiente."
+			},
+			coverage: {
+				include: [
+					"src/**/*.ts",
+					"src/**/*.vue",
+					"scripts/**/*.ts"
+				],
+				source: "declared-only"
+			},
+			projectRoot
+		});
+	}
+	ensureFallowBinaryAndModel() {
+		const fallowBin = resolveFallowBinary(this.projectRoot);
+		if (!fallowBin) {
+			this.addViolation({
+				ruleId: "fallow-similar-code-failed",
+				severity: "error",
+				file: ".fallowrc.json",
+				line: 1,
+				message: "Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.",
+				context: "binary-missing"
+			});
+			return null;
+		}
+		if (!checkOrInitializeModel(fallowBin, this.projectRoot, this.isFixActive())) {
+			this.context.setMetric("Similar-Code", "Instalación manual");
+			this.addViolation({
+				ruleId: "fallow-similar-code-failed",
+				severity: "warning",
+				file: ".fallowrc.json",
+				line: 1,
+				message: "No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.",
+				context: "manual-setup-required"
+			});
+			return null;
+		}
+		return fallowBin;
+	}
+	executeAnalysis(fallowBin, similarCfg) {
+		const threshold = similarCfg.threshold ?? .95;
+		const minLines = similarCfg.minLines ?? 3;
+		const ignoreSameFile = similarCfg.ignoreSameFile ?? true;
+		const rawOutputFile = path.resolve(this.projectRoot, "scratch/audits/architecture/similar-code-raw.json");
+		if (!fs.existsSync(path.dirname(rawOutputFile))) fs.mkdirSync(path.dirname(rawOutputFile), { recursive: true });
+		ensureSimilarCodeCacheDir(this.projectRoot);
+		const threads = os.availableParallelism?.() ?? os.cpus().length ?? 4;
+		try {
+			const cmd = `node "${fallowBin}" similar-code --format json --threshold ${threshold} --min-lines ${minLines} --threads ${threads} --output-file "${rawOutputFile}"`;
+			childProcess.execSync(cmd, {
+				cwd: this.projectRoot,
+				encoding: "utf8",
+				stdio: [
+					"pipe",
+					"pipe",
+					"pipe"
+				],
+				maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+				timeout: 0
+			});
+			this.processRawOutputFile(rawOutputFile, ignoreSameFile);
+		} catch (err) {
+			const errorMsg = err.message || String(err);
+			this.addViolation({
+				ruleId: "fallow-similar-code-failed",
+				severity: "error",
+				file: ".fallowrc.json",
+				line: 1,
+				message: `Fallo al ejecutar fallow similar-code: ${errorMsg}`,
+				context: errorMsg
+			});
+		}
+	}
+	processRawOutputFile(rawOutputFile, ignoreSameFile) {
+		if (!fs.existsSync(rawOutputFile)) {
+			this.addViolation({
+				ruleId: "fallow-similar-code-failed",
+				severity: "error",
+				file: ".fallowrc.json",
+				line: 1,
+				message: "fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.",
+				context: "missing-output-file"
+			});
+			return;
+		}
+		const fileContent = fs.readFileSync(rawOutputFile, "utf8");
+		const jsonStart = fileContent.indexOf("{");
+		if (jsonStart !== -1) try {
+			const parsed = JSON.parse(fileContent.substring(jsonStart));
+			const totalCandidates = parsed.candidates?.length ?? 0;
+			const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
+			this.context.setMetric("Candidatos Totales", totalCandidates);
+			this.context.setMetric("Pares Reportados", reported);
+			return;
+		} catch (err) {
+			this.addViolation({
+				ruleId: "fallow-similar-code-failed",
+				severity: "error",
+				file: ".fallowrc.json",
+				line: 1,
+				message: `El archivo de salida de fallow similar-code contiene JSON malformado: ${err.message}`,
+				context: "malformed-json"
+			});
+			return;
+		}
+		this.addViolation({
+			ruleId: "fallow-similar-code-failed",
+			severity: "error",
+			file: ".fallowrc.json",
+			line: 1,
+			message: "fallow similar-code no generó contenido JSON en el archivo de salida.",
+			context: "empty-or-non-json"
+		});
+	}
+	async runAudit() {
+		this.recordExternalScanCount(1);
+		const similarCfg = getAuditConfig(this.projectRoot).fallow?.similarCode;
+		if (!similarCfg?.enabled) {
+			this.markSkipped("Deshabilitado en audit.config.ts (fallow.similarCode.enabled: false)");
+			return;
+		}
+		if (isProductionEnvironment()) {
+			this.markSkipped("Omitido en entorno de producción (AUDITOR_ENV=production)");
+			return;
+		}
+		if (isSimilarCodeSkipped()) {
+			this.markSkipped("Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)");
+			return;
+		}
+		if (isFastPresetActive()) {
+			this.markSkipped("Omitido en preset rápido");
+			return;
+		}
+		let fallowBin = null;
+		this.runSubAuditorSync("fallow-similar-code-failed", () => {
+			fallowBin = this.ensureFallowBinaryAndModel();
+		});
+		if (!fallowBin) {
+			this.runSubAuditorSync("fallow-similar-code", () => {
+				this.markRuleNotApplicable("fallow-similar-code", "Binario o modelo de Fallow no disponible");
+			});
+			return;
+		}
+		this.runSubAuditorSync("fallow-similar-code", () => {
+			this.executeAnalysis(fallowBin, similarCfg);
+		});
+	}
+};
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSimilarCodeAuditor());
-//# sourceMappingURL=validate_similar_code.js.map
+//#endregion
+export { DEFAULT_SIMILAR_CODE_THRESHOLD, SIMILAR_CODE_RULES, SIMILAR_CODE_RULE_CAPABILITIES, ValidateSimilarCodeAuditor, WINDOWS_UNBLOCK_TIMEOUT_MS, checkOrInitializeModel, ensureSimilarCodeCacheDir, evaluateSimilarCodeCandidates, isFastPresetActive, isSimilarCodeSkipped, resolveFallowBinary, resolveFallowUserCacheDir };

@@ -16,9 +16,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { loadAuditConfig, getAuditConfig, assertAuditConfigComplete, type ChunkBudgetConfig } from '../core/auditConfig.ts';
+import {
+  loadAuditConfig,
+  getAuditConfig,
+  assertAuditConfigComplete,
+  type ChunkBudgetConfig
+} from '../core/auditConfig.ts';
 import { type SubAuditorStatus } from '../core/auditContract.ts';
-import { renderBanner, renderBoxTable, formatStatusBadge, type TableColumn } from '../core/unifiedTheme.ts';
+import {
+  renderBanner,
+  renderBoxTable,
+  formatStatusBadge,
+  type TableColumn
+} from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
 enableCompileCache();
@@ -74,7 +84,9 @@ export const DEFAULT_TOP_MODULES_LIMIT = 15;
 export const DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES = 500 * BYTES_PER_KB;
 
 export function parseVisualizerData(content: string): VisualizerData | null {
-  const match = content.match(/window\.data\s*=\s*(\{.*?\});<\/script>/s) || content.match(/const\s+data\s*=\s*(\{.*?\});/s);
+  const match =
+    content.match(/window\.data\s*=\s*(\{.*?\});<\/script>/s) ||
+    content.match(/const\s+data\s*=\s*(\{.*?\});/s);
   if (!match || !match[1]) return null;
   try {
     return JSON.parse(match[1]) as VisualizerData;
@@ -88,12 +100,20 @@ export function aggregateModuleSizes(
   heavyChunkThreshold: number = DEFAULT_HEAVY_CHUNK_THRESHOLD
 ): readonly AggregatedModule[] {
   const metaMap = new Map<string, ModuleMeta>(Object.entries(data.nodeMetas || {}));
-  const moduleMap = new Map<string, { rendered: number; gzip: number; heavyChunkCount: number; count: number }>();
+  const moduleMap = new Map<
+    string,
+    { rendered: number; gzip: number; heavyChunkCount: number; count: number }
+  >();
 
   for (const part of Object.values(data.nodeParts || {})) {
     const meta = metaMap.get(part.metaUid);
     if (!meta || part.renderedLength <= 0) continue;
-    const existing = moduleMap.get(meta.id) || { rendered: 0, gzip: 0, heavyChunkCount: 0, count: 0 };
+    const existing = moduleMap.get(meta.id) || {
+      rendered: 0,
+      gzip: 0,
+      heavyChunkCount: 0,
+      count: 0
+    };
     existing.rendered += part.renderedLength;
     existing.gzip += part.gzipLength;
     existing.count += 1;
@@ -221,13 +241,15 @@ function auditCompiledChunks(
   }
 
   const files = fs.readdirSync(distAssetsDir);
-  const jsFiles = files.filter(f => f.endsWith('.js') && !f.endsWith('.br') && !f.endsWith('.gz'));
+  const jsFiles = files.filter(
+    (f) => f.endsWith('.js') && !f.endsWith('.br') && !f.endsWith('.gz')
+  );
   const chunkResults: ChunkAuditResult[] = [];
   let chunkErrors = 0;
   let chunkWarnings = 0;
 
   for (const f of jsFiles) {
-    if (exemptPrefixes.some(prefix => f.startsWith(prefix))) {
+    if (exemptPrefixes.some((prefix) => f.startsWith(prefix))) {
       continue;
     }
     const fullPath = path.join(distAssetsDir, f);
@@ -243,7 +265,9 @@ function auditCompiledChunks(
   return { chunkResults, chunkErrors, chunkWarnings };
 }
 
-export async function runBundleAudit(projectRoot: string = process.cwd()): Promise<BundleAuditSummary> {
+export async function runBundleAudit(
+  projectRoot: string = process.cwd()
+): Promise<BundleAuditSummary> {
   await loadAuditConfig(projectRoot);
   const config = getAuditConfig();
   const bundleConfig = config.bundle;
@@ -259,12 +283,20 @@ export async function runBundleAudit(projectRoot: string = process.cwd()): Promi
     };
   }
 
-  const statsFilePath = path.resolve(projectRoot, bundleConfig?.statsFile ?? 'scratch/bundle_stats.html');
+  const statsFilePath = path.resolve(
+    projectRoot,
+    bundleConfig?.statsFile ?? 'scratch/bundle_stats.html'
+  );
   const distAssetsDir = path.resolve(projectRoot, bundleConfig?.distDir ?? 'dist/assets');
-  const dupeLimitBytes = bundleConfig?.duplicateModuleThresholdBytes ?? DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES;
+  const dupeLimitBytes =
+    bundleConfig?.duplicateModuleThresholdBytes ?? DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES;
   const topLimit = bundleConfig?.topModulesLimit ?? DEFAULT_TOP_MODULES_LIMIT;
 
-  const { topModules, duplicateViolations, dupeErrors } = auditVisualizerStats(statsFilePath, dupeLimitBytes, topLimit);
+  const { topModules, duplicateViolations, dupeErrors } = auditVisualizerStats(
+    statsFilePath,
+    dupeLimitBytes,
+    topLimit
+  );
   const { chunkResults, chunkErrors, chunkWarnings } = auditCompiledChunks(
     distAssetsDir,
     bundleConfig?.exemptChunkPrefixes ?? [],
@@ -291,7 +323,9 @@ export async function runBundleAudit(projectRoot: string = process.cwd()): Promi
 
 export async function executeCli(): Promise<void> {
   const projectRoot = process.cwd();
-  console.log(renderBanner('AUDITOR DE BUNDLE Y CHUNKS DE PRODUCCIÓN', 'FrancoGP Auditor Framework'));
+  console.log(
+    renderBanner('AUDITOR DE BUNDLE Y CHUNKS DE PRODUCCIÓN', 'FrancoGP Auditor Framework')
+  );
 
   await loadAuditConfig(projectRoot);
   const config = getAuditConfig();
@@ -299,15 +333,22 @@ export async function executeCli(): Promise<void> {
   const bundleConfig = config.bundle;
 
   if (bundleConfig?.enabled === false) {
-    console.log('\nℹ️ Auditoría de bundle omitida: deshabilitada explícitamente en audit.config.ts (bundle.enabled: false).\n');
+    console.log(
+      '\nℹ️ Auditoría de bundle omitida: deshabilitada explícitamente en audit.config.ts (bundle.enabled: false).\n'
+    );
     return;
   }
 
-  const statsFilePath = path.resolve(projectRoot, bundleConfig?.statsFile ?? 'scratch/bundle_stats.html');
+  const statsFilePath = path.resolve(
+    projectRoot,
+    bundleConfig?.statsFile ?? 'scratch/bundle_stats.html'
+  );
   const distAssetsDir = path.resolve(projectRoot, bundleConfig?.distDir ?? 'dist/assets');
 
   if (!fs.existsSync(statsFilePath) && !fs.existsSync(distAssetsDir)) {
-    console.error('\n❌ Error: No se encontraron artefactos de build de producción ni estadísticas de bundle.');
+    console.error(
+      '\n❌ Error: No se encontraron artefactos de build de producción ni estadísticas de bundle.'
+    );
     console.error(`   - Archivo stats esperado: ${path.relative(projectRoot, statsFilePath)}`);
     console.error(`   - Directorio de chunks:  ${path.relative(projectRoot, distAssetsDir)}`);
     console.error('\nEjecuta primero: npm run build o npm run build:analyze\n');
@@ -365,7 +406,7 @@ export async function executeCli(): Promise<void> {
       { header: 'DETALLE / NOTA', width: 20, align: 'left', key: 'note' }
     ];
 
-    const chunkRows: ChunkRow[] = result.chunkResults.map(c => ({
+    const chunkRows: ChunkRow[] = result.chunkResults.map((c) => ({
       status: formatStatusBadge(c.status),
       size: `${c.sizeKB} KB`,
       filename: c.filename,
@@ -401,7 +442,9 @@ export async function executeCli(): Promise<void> {
     process.exit(1);
   }
 
-  console.log('\n✨ Auditoría de bundle aprobada: Chunks y presupuestos arquitectónicos satisfechos.\n');
+  console.log(
+    '\n✨ Auditoría de bundle aprobada: Chunks y presupuestos arquitectónicos satisfechos.\n'
+  );
   process.exit(0);
 }
 

@@ -13,7 +13,7 @@ flowchart TD
     VerifyUnit -- "No (Still RED)" --> AttemptCheck{"Attempts < 5?"}
     AttemptCheck -- "Yes" --> Increment["Increment Attempt Counter"] --> Diagnose
     AttemptCheck -- "No (5 Reached)" --> AbortBlocked["Halt: Emit Blocked Status Report"]
-    VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Regression Suite: npm test"]
+    VerifyUnit -- "Yes (GREEN)" --> RunNodeRegression["4. Run Regression Suite: vp test (or npm test)"]
     RunNodeRegression -- "Fail" --> Diagnose
     RunNodeRegression -- "Pass (0 Regressions)" --> CheckTier3{"E2E / Integration Affected?"}
     CheckTier3 -- "No" --> LintAndDox["5. Lint & DOX Pass: npm run lint && npm run auditor:md"]
@@ -62,7 +62,7 @@ Once Tier 1 turns GREEN, verify all layers sequentially:
 Run the complete test suite to guarantee 0 regressions across the codebase:
 
 ```bash
-npm test
+vp test # or npm test
 ```
 
 If any unrelated test fails, it is an empirical regression caused by the edit in `src/`. Re-enter the repair loop immediately.
@@ -84,7 +84,7 @@ If the bug affected UI, GSAP animations, or view interactions:
 1. Run component and view tests:
 
    ```bash
-   npm test
+   vp test # or npm test
    ```
 
 ### Step 3: Fast Quality Gate & DOX Pass
@@ -95,7 +95,7 @@ If the bug affected UI, GSAP animations, or view interactions:
    npm run lint
    ```
 
-   Ensures domain types, vue-tsc type checking, ESLint, and markdownlint pass cleanly.
+   Ensures domain types, vue-tsc type checking, Oxlint / Vite+, and markdownlint pass cleanly.
 2. **Documentation & DOX Audit**:
 
    ```bash

@@ -1,3 +1,3 @@
-#!/usr/bin/env -S node --experimental-strip-types
+//#region src/cli/report_fallow.d.ts
 export declare function runFallowReportCli(): void;
-//# sourceMappingURL=report_fallow.d.ts.map
+//#endregion

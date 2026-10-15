@@ -16,8 +16,9 @@ import {
   BaseAuditor,
   type AuditorOptions,
   getEffectiveScannableRoots,
-  isPathIgnored
-, createRuleCapabilities } from '../../core/auditorBase.ts';
+  isPathIgnored,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
@@ -86,8 +87,8 @@ export function isExemptScriptFile(relPath: string, exemptList?: readonly string
 }
 
 export function resolveScriptAndCliDirs(config: AuditEngineConfig): string[] {
-  const scriptsRoots = (config.paths?.scriptsRoots ?? []).map(r => normalizePosixPath(r));
-  const cliRoots = (config.paths?.cliRoots ?? []).map(r => normalizePosixPath(r));
+  const scriptsRoots = (config.paths?.scriptsRoots ?? []).map((r) => normalizePosixPath(r));
+  const cliRoots = (config.paths?.cliRoots ?? []).map((r) => normalizePosixPath(r));
   return Array.from(new Set([...scriptsRoots, ...cliRoots])); // no-domain: Non-domain utility collection or data structure
 }
 
@@ -98,19 +99,24 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     const scriptAndCliDirs = resolveScriptAndCliDirs(config);
     const coverageInclude: string[] = [ // no-domain: Non-domain utility collection or data structure
       '**/*.{mjs,cjs}',
-      ...scriptAndCliDirs.map(d => `${d}/**/*.js`)
+      ...scriptAndCliDirs.map((d) => `${d}/**/*.js`)
     ];
 
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [...SCRIPT_EXTENSIONS_RULES]),
+      ruleCapabilities: createRuleCapabilities(
+        SCRIPT_EXTENSIONS_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        [...SCRIPT_EXTENSIONS_RULES]
+      ),
       fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
       id: 'validate_script_extensions',
       name: 'Script & Module Extensions Validator',
@@ -135,9 +141,12 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
         'banned-raw-js-script': 'Script .js sin tipar en scripts'
       },
       ruleRemediations: {
-        'banned-mjs-extension': 'Guía de diagnóstico y remediación para banned-mjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'banned-cjs-extension': 'Guía de diagnóstico y remediación para banned-cjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'banned-raw-js-script': 'Guía de diagnóstico y remediación para banned-raw-js-script. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-mjs-extension':
+          'Guía de diagnóstico y remediación para banned-mjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-cjs-extension':
+          'Guía de diagnóstico y remediación para banned-cjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'banned-raw-js-script':
+          'Guía de diagnóstico y remediación para banned-raw-js-script. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: coverageInclude
@@ -210,7 +219,9 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
         if (ext === '.js') {
           const relPath = toPosixRelative(this.projectRoot, fullPath);
           if (isExemptScriptFile(relPath, exemptFiles)) continue;
-          const isScriptDir = scriptAndCliDirs.some(dir => relPath === dir || relPath.startsWith(dir + '/'));
+          const isScriptDir = scriptAndCliDirs.some(
+            (dir) => relPath === dir || relPath.startsWith(dir + '/')
+          );
           if (isScriptDir) {
             violations.push({
               file: relPath,
@@ -261,8 +272,8 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
 
     // 2. Collect raw .js strictly within scripts and cli roots
     const existingScriptDirs = scriptAndCliDirs
-      .map(d => path.resolve(this.projectRoot, d))
-      .filter(d => fs.existsSync(d));
+      .map((d) => path.resolve(this.projectRoot, d))
+      .filter((d) => fs.existsSync(d));
     if (existingScriptDirs.length > 0) {
       const jsFiles = this.context.collectFiles(scriptAndCliDirs, new Set(['.js']));
       for (const f of jsFiles) {
@@ -348,9 +359,14 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     this.rewritePackageJsonScripts(plans);
   }
 
-  private rewriteImportReferences(plans: readonly { readonly oldBaseName: string; readonly newBaseName: string }[]): void {
+  private rewriteImportReferences(
+    plans: readonly { readonly oldBaseName: string; readonly newBaseName: string }[]
+  ): void {
     const scannableRoots = getEffectiveScannableRoots(getAuditConfig(this.projectRoot));
-    const allCodeFiles = this.context.collectFiles(scannableRoots, new Set(['.ts', '.vue', '.js', '.mjs', '.cjs']));
+    const allCodeFiles = this.context.collectFiles(
+      scannableRoots,
+      new Set(['.ts', '.vue', '.js', '.mjs', '.cjs'])
+    );
 
     for (const filePath of allCodeFiles) {
       try {
@@ -379,7 +395,9 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     }
   }
 
-  private rewritePackageJsonScripts(plans: readonly { readonly oldBaseName: string; readonly newBaseName: string }[]): void {
+  private rewritePackageJsonScripts(
+    plans: readonly { readonly oldBaseName: string; readonly newBaseName: string }[]
+  ): void {
     const pkg = getPackageJson(this.projectRoot);
     if (!pkg?.scripts || typeof pkg.scripts !== 'object') return;
 

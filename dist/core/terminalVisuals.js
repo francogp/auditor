@@ -1,45 +1,44 @@
+import stringWidth from "string-width";
+//#region src/core/terminalVisuals.ts
 /**
- * packages/auditor/src/core/terminalVisuals.ts
- *
- * Terminal monospace display width calculation, visual padding, and visual truncation
- * supporting ANSI escapes, wide emojis, and single-width glyphs.
- */
-import stringWidth from 'string-width';
+* packages/auditor/src/core/terminalVisuals.ts
+*
+* Terminal monospace display width calculation, visual padding, and visual truncation
+* supporting ANSI escapes, wide emojis, and single-width glyphs.
+*/
 /**
- * Calculates the visual monospace terminal display width of a string,
- * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
- */
-// wrapper-ok: Canonical framework export wrapper for stringWidth
-export function getVisualWidth(str) {
-    return stringWidth(str);
+* Calculates the visual monospace terminal display width of a string,
+* correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
+*/
+function getVisualWidth(str) {
+	return stringWidth(str);
 }
-export const TEXT_ALIGNMENTS = ['left', 'right', 'center']; // lib-duplicate-ok: Monospace terminal visual alignment
-export function padVisual(str, targetWidth, align = 'left') {
-    const currentWidth = getVisualWidth(str);
-    const diff = targetWidth - currentWidth;
-    if (diff <= 0)
-        return str;
-    if (align === 'right') {
-        return ' '.repeat(diff) + str;
-    }
-    if (align === 'center') {
-        const leftPad = Math.floor(diff / 2);
-        const rightPad = diff - leftPad;
-        return ' '.repeat(leftPad) + str + ' '.repeat(rightPad);
-    }
-    return str + ' '.repeat(diff);
+const TEXT_ALIGNMENTS = [
+	"left",
+	"right",
+	"center"
+];
+function padVisual(str, targetWidth, align = "left") {
+	const diff = targetWidth - getVisualWidth(str);
+	if (diff <= 0) return str;
+	if (align === "right") return " ".repeat(diff) + str;
+	if (align === "center") {
+		const leftPad = Math.floor(diff / 2);
+		const rightPad = diff - leftPad;
+		return " ".repeat(leftPad) + str + " ".repeat(rightPad);
+	}
+	return str + " ".repeat(diff);
 }
-export function truncateVisual(str, maxWidth) {
-    if (getVisualWidth(str) <= maxWidth)
-        return str;
-    let result = '';
-    const ellipsis = '…';
-    const target = maxWidth - 1;
-    for (const char of str) {
-        if (getVisualWidth(result + char) > target)
-            break;
-        result += char;
-    }
-    return result + ellipsis;
+function truncateVisual(str, maxWidth) {
+	if (getVisualWidth(str) <= maxWidth) return str;
+	let result = "";
+	const ellipsis = "…";
+	const target = maxWidth - 1;
+	for (const char of str) {
+		if (getVisualWidth(result + char) > target) break;
+		result += char;
+	}
+	return result + ellipsis;
 }
-//# sourceMappingURL=terminalVisuals.js.map
+//#endregion
+export { TEXT_ALIGNMENTS, getVisualWidth, padVisual, truncateVisual };

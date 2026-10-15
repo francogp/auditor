@@ -30,7 +30,11 @@
 
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, type AuditedDocument , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  FileScanAuditor,
+  type AuditedDocument,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig, isInCodeRoots, isDataPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
@@ -40,21 +44,7 @@ export const MAGIC_NUMBERS_RULES = ['magic-number-naked'] as const;
 export type MagicNumbersRuleId = (typeof MAGIC_NUMBERS_RULES)[number];
 
 const UNIVERSAL_SENTINELS = new Set<number>([
-  -1,
-  0,
-  0.5,
-  1,
-  2,
-  3,
-  4,
-  5,
-  10,
-  24,
-  60,
-  100,
-  360,
-  1000,
-  1024
+  -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024
 ]);
 
 const STANDARD_RADIX = new Set<number>([2, 8, 10, 16, 32, 36]);
@@ -64,12 +54,12 @@ function isDeclaredConstant(node: ts.Node): boolean {
   while (curr) {
     if (ts.isVariableDeclaration(curr)) {
       const declList = curr.parent;
-      if (ts.isVariableDeclarationList(declList) && (declList.flags & ts.NodeFlags.Const)) {
+      if (ts.isVariableDeclarationList(declList) && declList.flags & ts.NodeFlags.Const) {
         return true;
       }
     }
     if (ts.isPropertyDeclaration(curr)) {
-      const isReadonly = curr.modifiers?.some(m => m.kind === ts.SyntaxKind.ReadonlyKeyword);
+      const isReadonly = curr.modifiers?.some((m) => m.kind === ts.SyntaxKind.ReadonlyKeyword);
       if (isReadonly) return true;
     }
     if (ts.isEnumMember(curr) || ts.isEnumDeclaration(curr)) {
@@ -96,7 +86,8 @@ function isRadixArg(node: ts.Node): boolean {
     if (callee === 'parseInt' || callee === 'Number.parseInt') return true;
   }
   if (p.arguments.length === 1 && p.arguments[0] === node) {
-    if (ts.isPropertyAccessExpression(p.expression) && p.expression.name.text === 'toString') return true;
+    if (ts.isPropertyAccessExpression(p.expression) && p.expression.name.text === 'toString')
+      return true;
   }
   return false;
 }
@@ -115,7 +106,8 @@ function isArrayIndex(node: ts.Node): boolean {
   const p = node.parent;
   if (!p) return false;
   if (ts.isElementAccessExpression(p) && p.argumentExpression === node) return true;
-  if (p.parent && ts.isElementAccessExpression(p.parent) && p.parent.argumentExpression === p) return true;
+  if (p.parent && ts.isElementAccessExpression(p.parent) && p.parent.argumentExpression === p)
+    return true;
   return false;
 }
 
@@ -177,9 +169,14 @@ function isTimerDelayArg(node: ts.Node): boolean {
 
 function isExplicitBaseLiteral(node: ts.Node, sourceFile: ts.SourceFile): boolean {
   const rawText = node.getText(sourceFile);
-  return rawText.startsWith('0o') || rawText.startsWith('0O') ||
-         rawText.startsWith('0x') || rawText.startsWith('0X') ||
-         rawText.startsWith('0b') || rawText.startsWith('0B');
+  return (
+    rawText.startsWith('0o') ||
+    rawText.startsWith('0O') ||
+    rawText.startsWith('0x') ||
+    rawText.startsWith('0X') ||
+    rawText.startsWith('0b') ||
+    rawText.startsWith('0B')
+  );
 }
 
 const ANIMATION_PROPERTIES = new Set([
@@ -217,14 +214,17 @@ export interface ValidateMagicNumbersOptions {
 }
 
 export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRuleId> {
-  constructor(options?: ValidateMagicNumbersOptions | readonly string[], maybeProjectRoot?: string) {
-    const optionsObj = options && !Array.isArray(options)
-      ? (options as ValidateMagicNumbersOptions)
-      : undefined;
+  constructor(
+    options?: ValidateMagicNumbersOptions | readonly string[],
+    maybeProjectRoot?: string
+  ) {
+    const optionsObj =
+      options && !Array.isArray(options) ? (options as ValidateMagicNumbersOptions) : undefined;
     const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
-    const rawRoots = optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? []));
-    const effectiveRoots = rawRoots.map(r => toPosixRelative(projectRoot, r));
+    const rawRoots =
+      optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? []));
+    const effectiveRoots = rawRoots.map((r) => toPosixRelative(projectRoot, r));
 
     super({
       usesThirdPartyTool: false,
@@ -234,7 +234,8 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_magic_numbers',
       name: 'Magic Numbers Validator',
@@ -253,7 +254,8 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
         'magic-number-naked': 'Número mágico no en constante'
       },
       ruleRemediations: {
-        'magic-number-naked': 'Guía de diagnóstico y remediación para magic-number-naked. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'magic-number-naked':
+          'Guía de diagnóstico y remediación para magic-number-naked. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       projectRoot
     });
@@ -275,7 +277,8 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
         if (
           node.parent &&
           ts.isPrefixUnaryExpression(node.parent) &&
-          (node.parent.operator === ts.SyntaxKind.MinusToken || node.parent.operator === ts.SyntaxKind.PlusToken)
+          (node.parent.operator === ts.SyntaxKind.MinusToken ||
+            node.parent.operator === ts.SyntaxKind.PlusToken)
         ) {
           if (node.parent.operator === ts.SyntaxKind.MinusToken) {
             val = -val;
@@ -299,7 +302,9 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           !isAnimationPropertyArg(reportedNode) &&
           !isDeclaredConstant(reportedNode)
         ) {
-          const { line, character } = sourceFile.getLineAndCharacterOfPosition(reportedNode.getStart(sourceFile));
+          const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+            reportedNode.getStart(sourceFile)
+          );
           const actualLine = line + 1;
           const actualCol = character + 1;
 

@@ -13,7 +13,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Por defecto: instalación fija y reproducible según lo declarado en el commit (.nvmrc / package.json)
+# Por defecto: instalación fija y reproducible según lo declarado en el commit (.node-version / package.json)
 # -UpdateVersion / update-windows.ps1: actualiza a la última versión estable (Node.js Current + npm@latest)
 $updateToLatest = [bool]$UpdateVersion
 
@@ -46,6 +46,7 @@ Refresh-ProcessEnvironment
 
 # 1. Determinar versión de Node.js y nombre de proyecto
 $pkgPath = Join-Path $PSScriptRoot "package.json"
+$nodeVersionPath = Join-Path $PSScriptRoot ".node-version"
 $nvmrcPath = Join-Path $PSScriptRoot ".nvmrc"
 
 if (-not (Test-Path $pkgPath)) {
@@ -55,6 +56,11 @@ if (-not (Test-Path $pkgPath)) {
 
 $pkgContent = Get-Content -Raw -Path $pkgPath | ConvertFrom-Json
 $projectName = if ($pkgContent.name) { $pkgContent.name } else { (Split-Path $PSScriptRoot -Leaf) }
+
+# Limpieza proactiva de archivo legacy .nvmrc
+if (Test-Path $nvmrcPath) {
+    Remove-Item -Path $nvmrcPath -Force -ErrorAction SilentlyContinue
+}
 
 $targetNodeVer = ""
 
@@ -73,27 +79,30 @@ if ($updateToLatest) {
             $pkgRaw = Get-Content -Raw -Path $pkgPath
             $pkgUpdated = $pkgRaw -replace '("node":\s*")[^"]*(")', "`$1$expectedNodeEngine`$2"
             [System.IO.File]::WriteAllText($pkgPath, $pkgUpdated, (New-Object System.Text.UTF8Encoding $false))
-            [System.IO.File]::WriteAllText($nvmrcPath, $targetNodeVer, (New-Object System.Text.UTF8Encoding $false))
-            Write-Host "[CONFIG] Sincronizado package.json y .nvmrc con v$targetNodeVer" -ForegroundColor Green
+            [System.IO.File]::WriteAllText($nodeVersionPath, "$targetNodeVer`n", (New-Object System.Text.UTF8Encoding $false))
+            Write-Host "[CONFIG] Sincronizado package.json y .node-version con v$targetNodeVer" -ForegroundColor Green
         }
     } catch {
         Write-Host "  [WARN] No se pudo consultar la API de nodejs.org: $_. Usando definición local..." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "[NODE] Modo versiones declaradas activo (-DeclaredVersions). Preservando versión exacta de .nvmrc..." -ForegroundColor Cyan
+    Write-Host "[NODE] Modo versiones declaradas activo (-DeclaredVersions). Preservando versión exacta de .node-version..." -ForegroundColor Cyan
 }
 
-# Si no hubo consulta o falló: leer .nvmrc
-if (-not $targetNodeVer -and (Test-Path $nvmrcPath)) {
-    $rawNvmrc = (Get-Content -Raw -Path $nvmrcPath).Trim() -replace '^v', ''
-    if ($rawNvmrc) {
-        $targetNodeVer = $rawNvmrc
+# Si no hubo consulta o falló: leer .node-version
+if (-not $targetNodeVer -and (Test-Path $nodeVersionPath)) {
+    $rawNodeVer = (Get-Content -Raw -Path $nodeVersionPath).Trim() -replace '^v', ''
+    if ($rawNodeVer) {
+        $targetNodeVer = $rawNodeVer
     }
 }
 
 # Fallback a package.json
 if (-not $targetNodeVer -and $pkgContent.engines -and $pkgContent.engines.node) {
     $targetNodeVer = $pkgContent.engines.node -replace '[^0-9.]', ''
+    if ($targetNodeVer) {
+        [System.IO.File]::WriteAllText($nodeVersionPath, "$targetNodeVer`n", (New-Object System.Text.UTF8Encoding $false))
+    }
 }
 
 if (-not $targetNodeVer) {
@@ -349,7 +358,7 @@ if ($PruneOtherVersions) {
 }
 
 # Asegurar precedencia de la versión objetivo en el PATH del proceso actual (Aislamiento de Sesión)
-# Esto garantiza que el proceso actual siempre ejecute la versión exacta de .nvmrc incluso si otro
+# Esto garantiza que el proceso actual siempre ejecute la versión exacta de .node-version incluso si otro
 # proceso en Windows modifica concurrentemente el Junction global ($nodeSymlinkPath).
 if ($targetNodeDir -and (Test-Path (Join-Path $targetNodeDir "node.exe"))) {
     if ($env:Path -notlike "*$targetNodeDir*") {
@@ -425,9 +434,24 @@ audit-level=high
 
 # 9. Instalar dependencias limpias del proyecto
 Write-Host ""
-Write-Host "[DEPENDENCIES] Instalando dependencias del proyecto con npm ci..." -ForegroundColor Cyan
 Set-Location $PSScriptRoot
-npm ci
+if (Get-Command vp -ErrorAction SilentlyContinue) {
+    Write-Host "[DEPENDENCIES] Instalando dependencias del proyecto con Vite+ (vp install)..." -ForegroundColor Cyan
+    try {
+        vp install
+    } catch {
+        Write-Host "  [WARN] vp install fallo, reintentando con npm ci..." -ForegroundColor Yellow
+        npm ci
+    }
+    Write-Host ""
+    Write-Host "[CONFIG] Sincronizando configuracion y agentes con Vite+ (vp config)..." -ForegroundColor Cyan
+    try {
+        vp config
+    } catch {}
+} else {
+    Write-Host "[DEPENDENCIES] Instalando dependencias del proyecto con npm ci..." -ForegroundColor Cyan
+    npm ci
+}
 
 # 10. Desbloquear binarios nativos descargados por npm en Windows
 Write-Host ""

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --experimental-strip-types
+//#region src/cli/init_agent.d.ts
 /**
  * src/cli/init_agent.ts
  *
@@ -7,12 +7,12 @@
  * so Antigravity AI agents instantly discover the official auditor skill and rules.
  */
 export interface InitAgentOptions {
-    targetDir?: string;
-    dryRun?: boolean;
+  targetDir?: string;
+  dryRun?: boolean;
 }
 export declare function initAgentSkill(options?: InitAgentOptions): {
-    success: boolean;
-    message: string;
-    created: boolean;
+  success: boolean;
+  message: string;
+  created: boolean;
 };
-//# sourceMappingURL=init_agent.d.ts.map
+//#endregion

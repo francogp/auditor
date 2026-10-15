@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveScannableRoots , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  getEffectiveScannableRoots,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
 import type { AuditConfig } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
@@ -58,7 +62,10 @@ export function extractReferencedScriptDependencies(projectRoot: string): Set<st
       const escapedDep = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const escapedClean = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const escapedRoot = rootBin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = new RegExp(`(?:^|[\\s"'\`;&|])(?:${escapedDep}|${escapedClean}|${escapedRoot})(?:[\\s"'\`;&|]|$)`, 'i');
+      const pattern = new RegExp(
+        `(?:^|[\\s"'\`;&|])(?:${escapedDep}|${escapedClean}|${escapedRoot})(?:[\\s"'\`;&|]|$)`,
+        'i'
+      );
       if (pattern.test(scripts)) {
         referenced.add(dep);
       }
@@ -99,7 +106,7 @@ function parseUnusedDeps(
 }
 
 function parseUnlistedDeps(fileIssue: KnipFileIssues, relFile: string): AuditFinding[] {
-  return (fileIssue.unlisted ?? []).map(unlisted => ({
+  return (fileIssue.unlisted ?? []).map((unlisted) => ({
     suiteId: 'validate_package_hygiene',
     suiteName: 'Package & Dependency Hygiene Auditor',
     ruleId: 'package-unlisted-dependency',
@@ -136,8 +143,8 @@ function parseUnusedBinaries(
   ownBinaries: ReadonlySet<string> = new Set()
 ): AuditFinding[] {
   return (fileIssue.binaries ?? [])
-    .filter(bin => !ownBinaries.has(bin.name))
-    .map(bin => ({
+    .filter((bin) => !ownBinaries.has(bin.name))
+    .map((bin) => ({
       suiteId: 'validate_package_hygiene',
       suiteName: 'Package & Dependency Hygiene Auditor',
       ruleId: 'package-unused-binary',
@@ -161,7 +168,9 @@ export function parseKnipIssues(
 ): AuditFinding[] {
   const issues: readonly KnipFileIssues[] = Array.isArray(report)
     ? report
-    : (report && 'issues' in report && Array.isArray(report.issues) ? report.issues : []);
+    : report && 'issues' in report && Array.isArray(report.issues)
+      ? report.issues
+      : [];
   const findings: AuditFinding[] = [];
   const scriptReferencedDeps = extractReferencedScriptDependencies(projectRoot);
   const ownBinaries = extractOwnPackageBinaries(projectRoot);
@@ -289,7 +298,8 @@ export function verifyLockfileIntegrity(projectRoot: string): AuditFinding[] {
       file: 'package-lock.json',
       line: 1,
       context: 'insecure-http-resolved',
-      message: 'package-lock.json contiene resoluciones de paquetes insecure vía http:// no cifrado.'
+      message:
+        'package-lock.json contiene resoluciones de paquetes insecure vía http:// no cifrado.'
     });
   }
 
@@ -306,15 +316,19 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         fallbackBehavior: 'violation',
         fallbackRuleId: 'package-unlisted-dependency'
       },
-      ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
-        speed: ['heavy', 'full'],
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }, ['package-unused-dependency']),
+      ruleCapabilities: createRuleCapabilities(
+        PACKAGE_HYGIENE_RULES,
+        {
+          speed: ['heavy', 'full'],
+          phase: 'normal',
+          fix: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['package-unused-dependency']
+      ),
       fixableRuleIds: ['package-unused-dependency'],
       fix: options.fix,
       id: 'validate_package_hygiene',
@@ -334,10 +348,14 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         'package-lockfile-integrity': 'Lockfile corrupto o inseguro'
       },
       ruleRemediations: {
-        'package-unused-dependency': 'Guía de diagnóstico y remediación para package-unused-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'package-unlisted-dependency': 'Guía de diagnóstico y remediación para package-unlisted-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'package-unused-binary': 'Guía de diagnóstico y remediación para package-unused-binary. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'package-lockfile-integrity': 'Guía de diagnóstico y remediación para package-lockfile-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-unused-dependency':
+          'Guía de diagnóstico y remediación para package-unused-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-unlisted-dependency':
+          'Guía de diagnóstico y remediación para package-unlisted-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-unused-binary':
+          'Guía de diagnóstico y remediación para package-unused-binary. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'package-lockfile-integrity':
+          'Guía de diagnóstico y remediación para package-lockfile-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['package.json', 'package-lock.json']
@@ -398,10 +416,15 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     }
 
     const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p));
-    for (const ruleId of ['package-unused-dependency', 'package-unlisted-dependency', 'package-unused-binary'] as const) {
+    for (const ruleId of [
+      'package-unused-dependency',
+      'package-unlisted-dependency',
+      'package-unused-binary'
+    ] as const) {
       this.runSubAuditorSync(ruleId, () => {
         for (const finding of findings) {
-          const mappedRuleId = (finding.ruleId as PackageHygieneRuleId) ?? 'package-unused-dependency';
+          const mappedRuleId =
+            (finding.ruleId as PackageHygieneRuleId) ?? 'package-unused-dependency';
           if (mappedRuleId !== ruleId) continue;
           if (finding.file && finding.file !== 'package.json' && this.isPathIgnored(finding.file)) {
             continue;
@@ -443,31 +466,50 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     const { fallowEntries, fallowIgnoredDeps } = this.readFallowConfigData();
     const customIgnoredDeps = config.packageHygiene?.ignoreDependencies ?? [];
     const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
-    const allIgnoredDeps = Array.from(new Set([...fallowIgnoredDeps, ...customIgnoredDeps, ...scriptReferencedDeps]));
+    const implicitTestDeps: string[] = []; // no-domain: Non-domain utility collection or data structure
+    const viteConfigPath = path.resolve(this.projectRoot, 'vite.config.ts');
+    if (fs.existsSync(viteConfigPath)) {
+      try {
+        const viteContent = fs.readFileSync(viteConfigPath, 'utf-8');
+        if (viteContent.includes("'v8'") || viteContent.includes('"v8"')) {
+          implicitTestDeps.push('@vitest/coverage-v8');
+        }
+        if (viteContent.includes("'istanbul'") || viteContent.includes('"istanbul"')) {
+          implicitTestDeps.push('@vitest/coverage-istanbul');
+        }
+      } catch {
+        // catch-ok: error reading vite.config.ts
+      }
+    }
+    const allIgnoredDeps = Array.from(
+      new Set([
+        ...fallowIgnoredDeps,
+        ...customIgnoredDeps,
+        ...scriptReferencedDeps,
+        ...implicitTestDeps
+      ])
+    );
     const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];
     const ownBinaries = Array.from(extractOwnPackageBinaries(this.projectRoot));
     const allIgnoredBinaries = Array.from(new Set([...customIgnoredBinaries, ...ownBinaries]));
 
     const customEntry = config.packageHygiene?.entry;
-    const effectiveEntry = customEntry && customEntry.length > 0
-      ? [...customEntry]
-      : (fallowEntries.length > 0
+    const effectiveEntry =
+      customEntry && customEntry.length > 0
+        ? [...customEntry]
+        : fallowEntries.length > 0
           ? fallowEntries
-          : [
-              'src/index.{ts,js}',
-              'src/main.{ts,js}',
-              'index.html',
-              AUDIT_CONFIG_FILE
-            ]);
+          : ['src/index.{ts,js}', 'src/main.{ts,js}', 'index.html', AUDIT_CONFIG_FILE];
 
     const scannableRoots = getEffectiveScannableRoots(config);
     const customProject = config.packageHygiene?.project;
-    const effectiveProject = customProject && customProject.length > 0
-      ? [...customProject]
-      : [
-          ...scannableRoots.map(r => `${r}/**/*.{ts,vue,js,mjs,cjs,json}`),
-          '*.{ts,js,mjs,cjs,json}'
-        ];
+    const effectiveProject =
+      customProject && customProject.length > 0
+        ? [...customProject]
+        : [
+            ...scannableRoots.map((r) => `${r}/**/*.{ts,vue,js,mjs,cjs,json}`),
+            '*.{ts,js,mjs,cjs,json}'
+          ];
 
     const ephemeralConfig = {
       $schema: 'https://unpkg.com/knip@6/overview/configuration-schema.json',
@@ -480,7 +522,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         'skills/**',
         '.agents/**',
         '**/*.d.ts',
-        ...(config.paths.ignoredDirs?.flatMap(d => [`${d}/**`, d]) ?? []),
+        ...(config.paths.ignoredDirs?.flatMap((d) => [`${d}/**`, d]) ?? []),
         ...(config.paths.ignoredPatterns ?? []),
         ...(config.paths.ignoreGlobs ?? [])
       ],
@@ -493,7 +535,11 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     return ephemeralConfigPath;
   }
 
-  private executeKnip(ephemeralConfigPath: string, cachePath: string, rawOutPath: string): KnipReport | null {
+  private executeKnip(
+    ephemeralConfigPath: string,
+    cachePath: string,
+    rawOutPath: string
+  ): KnipReport | null {
     const tier = this.getExecutionTier();
     const cliFlags = [
       '--config',
@@ -520,9 +566,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     });
 
     const command = resolvedBin ? process.execPath : 'knip';
-    const finalArgs = resolvedBin
-      ? [resolvedBin, ...cliFlags]
-      : [...cliFlags];
+    const finalArgs = resolvedBin ? [resolvedBin, ...cliFlags] : [...cliFlags];
 
     return executeCliAndReadJson<KnipReport>(command, finalArgs, rawOutPath, {
       cwd: this.projectRoot,

@@ -37,7 +37,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const taskIds = tasks.map(t => t.id);
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_fallow');
-    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_type_check');
     expect(taskIds).toContain('validate_domain_types');
     expect(taskIds).not.toContain('validate_similar_code');
@@ -55,7 +55,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     }
 
     const taskIds = criticalTasks.map(t => t.id);
-    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_type_check');
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_html_validate');
@@ -75,7 +75,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     expect(taskIds).not.toContain('validate_package_distribution');
 
     // Source suites (light + heavy) must be present
-    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_native_paths');
     expect(taskIds).toContain('audit_project');
     expect(taskIds).toContain('validate_similar_code');
@@ -88,7 +88,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
     const taskIds = fullTasks.map(t => t.id);
     expect(taskIds).toContain('validate_fallow');
-    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_similar_code');
     expect(taskIds).not.toContain('validate_bundle_budget');
   });
@@ -100,7 +100,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
       expect(resolveEffectiveSpeed(task.capabilities?.speed, { onlySpeed: 'heavy' })).toBe('heavy');
     }
     const heavyIds = onlyHeavy.map(t => t.id);
-    expect(heavyIds).toContain('validate_eslint');
+    expect(heavyIds).toContain('validate_type_coverage');
     expect(heavyIds).toContain('validate_similar_code');
     expect(heavyIds).not.toContain('validate_stylelint');
 
@@ -121,7 +121,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     expect(taskIds).toContain('validate_package_distribution');
 
     // Source suites must NOT be present in post-build phase
-    expect(taskIds).not.toContain('validate_eslint');
+    expect(taskIds).not.toContain('validate_oxlint');
     expect(taskIds).not.toContain('validate_stylelint');
     expect(taskIds).not.toContain('validate_native_paths');
     expect(taskIds).not.toContain('audit_project');
@@ -139,7 +139,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const taskIds = tasks.map(t => t.id);
     expect(taskIds).toContain('validate_bundle_budget');
     expect(taskIds).toContain('validate_package_distribution');
-    expect(taskIds).toContain('validate_eslint');
+    expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_native_paths');
   });
 

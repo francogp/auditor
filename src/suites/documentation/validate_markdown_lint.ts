@@ -17,7 +17,12 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, loadLockedSkills, getEffectiveUnignoreDirs , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  loadLockedSkills,
+  getEffectiveUnignoreDirs,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -27,9 +32,7 @@ enableCompileCache();
 
 export type MarkdownLintRuleId = 'markdownlint-issue';
 
-export const MARKDOWN_LINT_RULES: readonly MarkdownLintRuleId[] = [
-  'markdownlint-issue'
-] as const;
+export const MARKDOWN_LINT_RULES: readonly MarkdownLintRuleId[] = ['markdownlint-issue'] as const;
 
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
@@ -82,25 +85,56 @@ export interface RawMarkdownLintIssue {
 }
 
 export const MARKDOWNLINT_FIXABLE_RULE_LIST = [
-  'MD004', 'MD005', 'MD007', 'MD009', 'MD010', 'MD011', 'MD012', 'MD014',
-  'MD018', 'MD019', 'MD020', 'MD021', 'MD022', 'MD023', 'MD024', 'MD026',
-  'MD027', 'MD030', 'MD031', 'MD032', 'MD034', 'MD037', 'MD038', 'MD039',
-  'MD044', 'MD047', 'MD049', 'MD050', 'MD051', 'MD053'
+  'MD004',
+  'MD005',
+  'MD007',
+  'MD009',
+  'MD010',
+  'MD011',
+  'MD012',
+  'MD014',
+  'MD018',
+  'MD019',
+  'MD020',
+  'MD021',
+  'MD022',
+  'MD023',
+  'MD024',
+  'MD026',
+  'MD027',
+  'MD030',
+  'MD031',
+  'MD032',
+  'MD034',
+  'MD037',
+  'MD038',
+  'MD039',
+  'MD044',
+  'MD047',
+  'MD049',
+  'MD050',
+  'MD051',
+  'MD053'
 ] as const;
 
 export type MarkdownlintFixableRule = (typeof MARKDOWNLINT_FIXABLE_RULE_LIST)[number];
 
-export const MARKDOWNLINT_FIXABLE_RULES: ReadonlySet<string> = new Set<string>(MARKDOWNLINT_FIXABLE_RULE_LIST);
+export const MARKDOWNLINT_FIXABLE_RULES: ReadonlySet<string> = new Set<string>(
+  MARKDOWNLINT_FIXABLE_RULE_LIST
+);
 
 function isMarkdownLintRuleFixable(ruleNames?: readonly string[]): boolean {
   if (!ruleNames || ruleNames.length === 0) return false;
-  return ruleNames.some(name => MARKDOWNLINT_FIXABLE_RULES.has(name));
+  return ruleNames.some((name) => MARKDOWNLINT_FIXABLE_RULES.has(name));
 }
 
 /**
  * Parses raw JSON output or an array of issues from markdownlint into canonical AuditFindings.
  */
-export function parseMarkdownLintIssues(input: string | object[], cwd: string = process.cwd()): AuditFinding[] {
+export function parseMarkdownLintIssues(
+  input: string | object[],
+  cwd: string = process.cwd()
+): AuditFinding[] {
   const findings: AuditFinding[] = [];
   if (!input) return findings;
 
@@ -143,14 +177,19 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
         fallbackBehavior: 'violation',
         fallbackRuleId: 'markdownlint-issue'
       },
-      ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: true,
-        ast: false,
-        changedOnly: false, critical: false
-      }, ['markdownlint-issue']),
+      ruleCapabilities: createRuleCapabilities(
+        MARKDOWN_LINT_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: true,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['markdownlint-issue']
+      ),
       fixableRuleIds: ['markdownlint-issue'],
       id: 'validate_markdown_lint',
       name: 'Markdownlint Style & Hygiene Validator',
@@ -166,7 +205,8 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
         'markdownlint-issue': 'Formato o estilo inválido'
       },
       ruleRemediations: {
-        'markdownlint-issue': 'Guía de diagnóstico y remediación para markdownlint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdownlint-issue':
+          'Guía de diagnóstico y remediación para markdownlint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       unignoreDirs: getEffectiveUnignoreDirs(projectRoot),
       coverage: {
@@ -197,7 +237,9 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     }
 
     const allMdFiles = this.context.collectFiles(['.'], new Set(['.md']));
-    const mdFiles = allMdFiles.filter(f => isDeclaredByCoverage(toPosixRelative(this.projectRoot, f), this.coverageRecorder.declaration));
+    const mdFiles = allMdFiles.filter((f) =>
+      isDeclaredByCoverage(toPosixRelative(this.projectRoot, f), this.coverageRecorder.declaration)
+    );
     if (mdFiles.length === 0) {
       this.markRuleNotApplicable('markdownlint-issue', 'No se encontraron archivos markdown');
       return;
@@ -213,9 +255,12 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
     }
 
     const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
-    const relMdFiles = mdFiles.map(f => toPosixRelative(this.projectRoot, f));
+    const relMdFiles = mdFiles.map((f) => toPosixRelative(this.projectRoot, f));
     const totalChars = relMdFiles.reduce((acc, f) => acc + f.length + 1, 0);
-    const targetArgs = totalChars < 6000 && relMdFiles.length > 0 ? relMdFiles : ['**/*.md', '--dot'];
+    const targetArgs =
+      totalChars < 6000 && relMdFiles.length > 0
+        ? relMdFiles
+        : ['**/*.md', '--dot']; // glob-ok: fallback when argument list exceeds shell limit
     const args: string[] = [...targetArgs]; // no-domain: Non-domain utility collection or data structure
 
     for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
@@ -260,7 +305,9 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       }
 
       if (typeof parsed.MD033 === 'object' && parsed.MD033 !== null) {
-        const allowed = Array.isArray(parsed.MD033.allowed_elements) ? parsed.MD033.allowed_elements : [];
+        const allowed = Array.isArray(parsed.MD033.allowed_elements)
+          ? parsed.MD033.allowed_elements
+          : [];
         if (!allowed.includes('br')) {
           parsed.MD033.allowed_elements = [...allowed, 'br'];
           nodeFs.writeFileSync(configPath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');

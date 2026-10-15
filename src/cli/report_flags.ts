@@ -75,12 +75,21 @@ function formatRetirementReason(reason: string): string {
   }
 }
 
-function renderRetirementFlagsView(parsed: FeatureFlagsReportPayload | null, topLimit: number = DEFAULT_TOP_LIMIT): void {
+function renderRetirementFlagsView(
+  parsed: FeatureFlagsReportPayload | null,
+  topLimit: number = DEFAULT_TOP_LIMIT
+): void {
   const candidates = parsed?.retirement?.flags ?? [];
   const displayed = candidates.slice(0, topLimit);
 
   if (displayed.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se detectaron feature flags candidatas a retiro.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! No se detectaron feature flags candidatas a retiro.\n'
+        )
+    );
     return;
   }
 
@@ -88,9 +97,11 @@ function renderRetirementFlagsView(parsed: FeatureFlagsReportPayload | null, top
 
   const tableRows: RetirementTableRow[] = displayed.map((item) => {
     const ageStr = item.age_days !== undefined ? `${item.age_days}d` : styleText('dim', 'n/d');
-    const sitesStr = item.read_sites !== undefined ? String(item.read_sites) : styleText('dim', '0');
+    const sitesStr =
+      item.read_sites !== undefined ? String(item.read_sites) : styleText('dim', '0');
     const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
-    const reasonsStr = reasonsList.length > 0 ? reasonsList.join(', ') : styleText('dim', 'ninguno');
+    const reasonsStr =
+      reasonsList.length > 0 ? reasonsList.join(', ') : styleText('dim', 'ninguno');
 
     return {
       name: styleText('cyan', item.name),
@@ -111,10 +122,15 @@ function renderRetirementFlagsView(parsed: FeatureFlagsReportPayload | null, top
   console.log();
 }
 
-function renderActiveFlagsView(parsed: FeatureFlagsReportPayload | null, topLimit: number = DEFAULT_TOP_LIMIT): void {
+function renderActiveFlagsView(
+  parsed: FeatureFlagsReportPayload | null,
+  topLimit: number = DEFAULT_TOP_LIMIT
+): void {
   const flags = parsed?.feature_flags ?? [];
   if (flags.length === 0) {
-    console.log('\n  ' + styleText('dim', 'No se encontraron feature flags configuradas en este proyecto.\n'));
+    console.log(
+      '\n  ' + styleText('dim', 'No se encontraron feature flags configuradas en este proyecto.\n')
+    );
     return;
   }
 
@@ -129,7 +145,12 @@ function renderActiveFlagsView(parsed: FeatureFlagsReportPayload | null, topLimi
   ];
 
   console.log('\n' + renderBoxTable(columns, tableRows));
-  console.log(styleText('dim', '  💡 Tip: Ejecuta auditor-flags --retirement para ver recomendaciones de retiro.\n'));
+  console.log(
+    styleText(
+      'dim',
+      '  💡 Tip: Ejecuta auditor-flags --retirement para ver recomendaciones de retiro.\n'
+    )
+  );
 }
 
 export function runFlagsReport(
@@ -154,7 +175,11 @@ export function runFlagsReport(
   );
 
   if (options.json) {
-    console.log(parsed ? JSON.stringify(parsed, null, 2) : JSON.stringify({ error: 'Fallow flags execution failed', raw: rawOutput }));
+    console.log(
+      parsed
+        ? JSON.stringify(parsed, null, 2)
+        : JSON.stringify({ error: 'Fallow flags execution failed', raw: rawOutput })
+    );
     return status;
   }
 
@@ -197,7 +222,10 @@ if (isMainModule(import.meta.url)) {
     if (pos === 'retirement') retirement = true;
     if (pos.startsWith('top=')) {
       const raw = pos.split('=')[1];
-      top = raw === 'all' ? Number.MAX_SAFE_INTEGER : (parseInt(raw || '20', RADIX_DECIMAL) || DEFAULT_TOP_LIMIT);
+      top =
+        raw === 'all'
+          ? Number.MAX_SAFE_INTEGER
+          : parseInt(raw || '20', RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
     }
     if (pos === 'json') jsonOutput = true;
   }

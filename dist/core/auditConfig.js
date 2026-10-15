@@ -1,14 +1,11 @@
-/**
- * packages/auditor/src/core/auditConfig.ts
- *
- * UNIFIED AUDIT ENGINE CONFIGURATION (Node.js 26+)
- * Canonical facade re-exporting configuration types, validators, defaults, loader,
- * and path predicates for the generic auditor framework.
- */
-export * from "./auditConfigTypes.js";
-export * from "./auditConfigAntiAbuse.js";
-export * from "./auditConfigValidators.js";
-export * from "./auditConfigDefaults.js";
-export * from "./auditConfigLoader.js";
-export * from "./auditPathPredicates.js";
-//# sourceMappingURL=auditConfig.js.map
+import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, AUDITOR_DIR, AUDIT_CONFIG_FILE, AUDIT_CONFIG_JSON_FILE, AUDIT_LIST_FILTERS, DEFAULT_MAX_AUDIT_STALENESS_MINUTES, FALLOW_TARGET_PRIORITIES, LEGACY_ROOT_CONFIG_FILES, NPM_AUDIT_SEVERITY_LEVELS, PACKAGE_DISTRIBUTION_LEVELS, PERSISTENCE_ENGINES, VERSION_TARGET_TYPES } from "./auditConfigTypes.js";
+import { FORBIDDEN_PRODUCTION_ROOTS, MAX_CONSTANTS_EXEMPT_GLOBS, MIN_COVERAGE_REASON_LENGTH, assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy, normalizeRootPath, validateConstantsExemptGlobs } from "./auditConfigAntiAbuse.js";
+import { assertAuditConfigComplete, assertNoLegacyRootConfig, checkInfrastructureSubsystems, checkSubsystemDeclarations, checkUiSubsystems } from "./auditConfigValidators.js";
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, collectDeclaredSubsystems, defineAuditConfig } from "./auditConfigDefaults.js";
+import { MAX_INLINE_ENV_CONFIG_CHARS, getAuditConfig, loadAuditConfig, resetAuditConfig, sanitizePath, serializeAuditConfigToEnv, setAuditConfig, tryLoadConfigFromEnv, tryLoadJsonConfig } from "./auditConfigLoader.js";
+import { matchesAnyRoot } from "./auditRootMatcher.js";
+import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
+import { isSelfProviderProject } from "./auditProjectIdentity.js";
+import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
+import { isCliPath, isDataPath, isDemoPath, isExemptFile, isInCodeRoots, isScriptPath, isSrcPath } from "./auditPathPredicates.js";
+export { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, AUDITOR_DIR, AUDIT_CONFIG_FILE, AUDIT_CONFIG_JSON_FILE, AUDIT_LIST_FILTERS, DEFAULT_AUDIT_CONFIG, DEFAULT_MAX_AUDIT_STALENESS_MINUTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, FALLOW_TARGET_PRIORITIES, FORBIDDEN_PRODUCTION_ROOTS, LEGACY_ROOT_CONFIG_FILES, MAX_CONSTANTS_EXEMPT_GLOBS, MAX_INLINE_ENV_CONFIG_CHARS, MIN_COVERAGE_REASON_LENGTH, NPM_AUDIT_SEVERITY_LEVELS, PACKAGE_DISTRIBUTION_LEVELS, PERSISTENCE_ENGINES, VERSION_TARGET_TYPES, Z_LAYERS, assertAuditConfigComplete, assertCoverageReason, assertNarrowCoverageGlob, assertNoLegacyRootConfig, buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, checkInfrastructureSubsystems, checkSubsystemDeclarations, checkUiSubsystems, collectDeclaredSubsystems, defineAuditConfig, filterOutExemptRoots, getAuditConfig, getEffectiveZLayers, getExemptRootsForPolicy, isCliPath, isDataPath, isDemoPath, isExemptFile, isInCodeRoots, isScriptPath, isSelfProviderProject, isSrcPath, isTestFileForCodeAudit, isTestPath, loadAuditConfig, matchesAnyRoot, normalizeRootPath, resetAuditConfig, resolveZLayersScssPath, sanitizePath, serializeAuditConfigToEnv, setAuditConfig, tryLoadConfigFromEnv, tryLoadJsonConfig, validateConstantsExemptGlobs };

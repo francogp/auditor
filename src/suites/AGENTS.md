@@ -23,8 +23,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run all family suites: `npm test -- tests/validate_*.test.ts`
-- Run light speed suites: `node --experimental-strip-types src/cli/audit_full.ts speed=light`
+- Run all family suites: `vp test tests/validate_*.test.ts` (or `npm test -- tests/validate_*.test.ts`)
+- Run light speed suites: `npm run auditor -- speed=light`
 
 ## Child DOX Index
 

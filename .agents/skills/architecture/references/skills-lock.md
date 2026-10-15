@@ -207,7 +207,7 @@ git status --short skills-lock.json .agents/skills
 git diff skills-lock.json
 
 # 3. Verify framework isolation tests pass 100%
-npm test tests/locked_skills.test.ts
+vp test tests/locked_skills.test.ts # or npm test -- tests/locked_skills.test.ts
 ```
 
 ### 6.4 Reporting Template
@@ -228,6 +228,7 @@ When upgrading, bumping, or adding libraries in `package.json`, developers and A
 
 | Library / Package (`package.json`) | Associated Agent Skill(s) | Upstream Repository Source |
 | :--- | :--- | :--- |
+| `vite-plus`, `@voidzero-dev/vite-plus-core` | Packaged `node_modules/vite-plus/AGENTS.md` (injected into `AGENTS.md` via `vp config`), [`vite`](../../vite/SKILL.md), [`vitest`](../../vitest/SKILL.md) | `voidzero-dev/vite-plus` (`https://viteplus.dev/llms-full.txt`), `antfu/skills` |
 | `fallow` | [`fallow`](../../fallow/SKILL.md), [`fallow-review`](../../fallow-review/SKILL.md) | `fallow-rs/fallow-skills` |
 | `vitest`, `@vitest/*` | [`vitest`](../../vitest/SKILL.md) | `antfu/skills` |
 | `vite`, `rolldown` | [`vite`](../../vite/SKILL.md) | `antfu/skills` |
@@ -240,10 +241,10 @@ When upgrading, bumping, or adding libraries in `package.json`, developers and A
 
 ### 7.2 Coupled Update Protocol
 
-When the user asks to update dependencies (e.g. *"actualizar dependencias"*, *"update fallow"*, *"upgrade vitest"*):
+When the user asks to update dependencies (e.g. *"actualizar dependencias"*, *"update fallow"*, *"upgrade vitest"*, *"upgrade vite-plus"*):
 
-1. **Update Library**: Bump the package version in `package.json` and install via `npm install` or `npm update <pkg>`.
-2. **Identify Associated Skills**: Match the upgraded package against the table above.
+1. **Update Library**: Bump the package version in `package.json` and install dependencies.
+2. **Identify Associated Skills**: Match the upgraded package against the table above. For `vite-plus`, run `vp config` so the official instructions from `node_modules/vite-plus/AGENTS.md` are synchronized into `AGENTS.md`.
 3. **Update Associated Skills**: Run the skill update command for each affected skill (`skills update <skill-name> -p -y`) or synchronize all project skills concurrently (`skills update -p -y`).
 4. **Verify Lockfile & Tests**: Ensure `skills-lock.json` reflects the new hashes and run tests: `git diff skills-lock.json` and `npm test tests/locked_skills.test.ts`.
 5. **Report Coordinated Updates**: In the final response, confirm both the new library version and the updated skill status.

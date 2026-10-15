@@ -179,12 +179,12 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderFindingsBreakdownTable', () => {
     it('renders breakdown table with total consolidated row', () => {
       const counts: [string, { errors: number; warnings: number }][] = [
-        ['validate_eslint', { errors: 2, warnings: 1 }],
+        ['validate_oxlint', { errors: 2, warnings: 1 }],
         ['validate_stylelint', { errors: 0, warnings: 3 }]
       ];
 
       const table = renderFindingsBreakdownTable(counts);
-      expect(table).toContain('validate_eslint');
+      expect(table).toContain('validate_oxlint');
       expect(table).toContain('validate_stylelint');
       expect(table).toContain('TOTAL CONSOLIDADO');
     });
@@ -270,14 +270,14 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderAuditorDetailCard', () => {
     it('renders inspection detail card with capabilities and rule list', () => {
       const task: AuditTaskDefinition = {
-        id: 'validate_eslint',
-        name: 'ESLint Hygiene',
+        id: 'validate_oxlint',
+        name: 'Oxlint Hygiene',
         family: 'architecture',
         icon: '📜',
-        scriptPath: 'src/suites/architecture/validate_eslint.ts',
+        scriptPath: 'src/suites/architecture/validate_oxlint.ts',
         command: 'node',
         args: [],
-        description: 'Audits code hygiene with ESLint flat config',
+        description: 'Audits code hygiene with Oxlint',
         capabilities: {
           speed: ['light', 'heavy'],
           phase: 'normal',
@@ -287,18 +287,18 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
           changedOnly: true, critical: false
         },
         ruleDescriptions: {
-          'eslint-violation': 'Sintaxis o regla de lint violada'
+          'oxlint-violation': 'Sintaxis o regla de lint violada'
         },
-        configKey: 'eslint'
+        configKey: 'oxlint'
       };
 
       const card = renderAuditorDetailCard(task);
-      expect(card).toContain('ESLint Hygiene');
+      expect(card).toContain('Oxlint Hygiene');
       expect(card).toContain('Auto-reparación (--fix)');
       expect(card).toContain('Velocidad Rápida (speed=light)');
-      expect(card).toContain('eslint-violation');
+      expect(card).toContain('oxlint-violation');
       expect(card).toContain('Clave configurable:');
-      expect(card).toContain('eslint');
+      expect(card).toContain('oxlint');
     });
 
     it('renders fallback card when no capabilities or config are declared', () => {
@@ -468,17 +468,17 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
     it('renderAuditorDetailCard has identical line widths and stays within 80 columns', () => {
       const task: AuditTaskDefinition = {
-        id: 'validate_eslint',
-        name: 'ESLint Hygiene',
+        id: 'validate_oxlint',
+        name: 'Oxlint Hygiene',
         family: 'architecture',
         icon: '📜',
-        scriptPath: 'src/suites/architecture/validate_eslint.ts',
+        scriptPath: 'src/suites/architecture/validate_oxlint.ts',
         command: 'node',
         args: [],
-        description: 'Audits code hygiene with ESLint flat config',
+        description: 'Audits code hygiene with Oxlint',
         capabilities: { speed: ['light', 'heavy'], phase: 'normal', fix: 'priority', md: false, ast: true, changedOnly: true, critical: false },
-        ruleDescriptions: { 'eslint-violation': 'Sintaxis o regla de lint violada' },
-        configKey: 'eslint'
+        ruleDescriptions: { 'oxlint-violation': 'Sintaxis o regla de lint violada' },
+        configKey: 'oxlint'
       };
       const card = renderAuditorDetailCard(task);
       const lines = card.trim().split('\n');

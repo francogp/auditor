@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   loadAuditConfig,
   AUDITOR_DIR,
@@ -20,8 +20,16 @@ import {
   DEFAULT_AUDIT_CONFIG,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
-import type { GitIgnoreRequirement, AuditorConfigFileRequirement, AuditTaskDefinition, AuditorCriticalConfig } from '../../core/auditContract.ts';
-import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from '../../core/gitignoreMatcher.ts';
+import type {
+  GitIgnoreRequirement,
+  AuditorConfigFileRequirement,
+  AuditTaskDefinition,
+  AuditorCriticalConfig
+} from '../../core/auditContract.ts';
+import {
+  findMissingGitIgnoreRequirements,
+  appendGitIgnoreEntries
+} from '../../core/gitignoreMatcher.ts';
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
@@ -134,10 +142,18 @@ function appendMissingSectionsFallback(
   fs.writeFileSync(configFilePath, updated, 'utf8');
 }
 
-function parseAuditConfigFileAst(configFilePath: string): { code: string; source: ts.SourceFile; configObj: ts.ObjectLiteralExpression | null } | null {
+function parseAuditConfigFileAst(
+  configFilePath: string
+): { code: string; source: ts.SourceFile; configObj: ts.ObjectLiteralExpression | null } | null {
   try {
     const code = fs.readFileSync(configFilePath, 'utf8');
-    const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS); // homebrew-ok: in-place AST configuration rewrite
+    const source = ts.createSourceFile( // homebrew-ok: in-place AST configuration rewrite
+      configFilePath,
+      code,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS
+    );
     const configObj = findConfigObjectLiteral(source);
     return { code, source, configObj };
   } catch {
@@ -184,11 +200,15 @@ function appendMissingSectionsToTsFile(
 
   const sectionLines: string[] = [];
   for (const [key, val] of Object.entries(sectionsToInsert)) {
+    const keyPattern = new RegExp(`(^|\\s)${key}\\s*:`);
+    if (keyPattern.test(baseCode)) continue;
     sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
   }
+  if (sectionLines.length === 0) return;
   const snippet = '\n' + sectionLines.join('\n') + '\n';
 
-  const updated = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
+  const updated =
+    baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
   fs.writeFileSync(configFilePath, updated, 'utf8');
 }
 
@@ -210,7 +230,12 @@ function appendTaskDefaultConfig(
   if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core') return;
   const rootKey = task.configKey.split('.')[0];
   if (!rootKey) return;
-  if (!task.defaultConfig || typeof task.defaultConfig !== 'object' || Object.keys(task.defaultConfig).length === 0) return;
+  if (
+    !task.defaultConfig ||
+    typeof task.defaultConfig !== 'object' ||
+    Object.keys(task.defaultConfig).length === 0
+  )
+    return;
 
   sections[rootKey] = {
     ...sections[rootKey],
@@ -218,7 +243,9 @@ function appendTaskDefaultConfig(
   };
 }
 
-export function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>> {
+export function collectConfigSectionsFromTasks(
+  tasks: readonly AuditTaskDefinition[]
+): Record<string, Record<string, unknown>> {
   const sections: Record<string, Record<string, unknown>> = {};
   for (const task of tasks) {
     appendTaskDefaultConfig(sections, task);
@@ -257,10 +284,12 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
   const { code, source, configObj } = parsed;
 
   try {
-    const versionProp = configObj.properties.find(p => {
+    const versionProp = configObj.properties.find((p) => {
       if (!ts.isPropertyAssignment(p)) return false;
       const name = p.name.getText(source);
-      return name === 'auditorVersion' || name === "'auditorVersion'" || name === '"auditorVersion"';
+      return (
+        name === 'auditorVersion' || name === "'auditorVersion'" || name === '"auditorVersion"'
+      );
     }) as ts.PropertyAssignment | undefined;
 
     if (versionProp) {
@@ -268,14 +297,15 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
       if (currentVal === `'${version}'` || currentVal === `"${version}"`) {
         return false;
       }
-      const updated = code.slice(0, versionProp.initializer.getStart(source)) +
+      const updated =
+        code.slice(0, versionProp.initializer.getStart(source)) +
         `'${version}'` +
         code.slice(versionProp.initializer.getEnd());
       fs.writeFileSync(configFilePath, updated, 'utf8');
       return true;
     }
 
-    const nameProp = configObj.properties.find(p => {
+    const nameProp = configObj.properties.find((p) => {
       if (!ts.isPropertyAssignment(p)) return false;
       const name = p.name.getText(source);
       return name === 'name' || name === "'name'" || name === '"name"';
@@ -295,7 +325,10 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
 
     const openBracePos = code.indexOf('{', configObj.getStart(source));
     if (openBracePos === -1) return false;
-    const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: '${version}',` + code.slice(openBracePos + 1);
+    const updated =
+      code.slice(0, openBracePos + 1) +
+      `\n  auditorVersion: '${version}',` +
+      code.slice(openBracePos + 1);
     fs.writeFileSync(configFilePath, updated, 'utf8');
     return true;
   } catch {
@@ -353,7 +386,12 @@ export function collectMissingSections(
   const missingByRootKey = new Map<string, MissingSectionEntry>();
 
   for (const task of tasks) {
-    if (!task.configKey || task.configKey === 'paths' || task.configKey === 'core' || task.configKey === 'none') {
+    if (
+      !task.configKey ||
+      task.configKey === 'paths' ||
+      task.configKey === 'core' ||
+      task.configKey === 'none'
+    ) {
       continue;
     }
     const rootKey = task.configKey.split('.')[0]!;
@@ -424,7 +462,9 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
   description: 'Configuración del auditor en .auditor/',
   ruleId: 'audit-config-missing-file',
   generateDefaultContent: async (ctx) => {
-    const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+    const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) =>
+      fs.existsSync(path.resolve(ctx.projectRoot, f))
+    );
     if (legacy) {
       migrateLegacyAuditConfig(ctx.projectRoot);
       const migratedPath = path.resolve(ctx.projectRoot, AUDIT_CONFIG_FILE);
@@ -449,40 +489,50 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
     return createDefaultAuditConfigContent(pkgName, tasks);
   },
   customMissingMessage: (ctx, file) => {
-    const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+    const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) =>
+      fs.existsSync(path.resolve(ctx.projectRoot, f))
+    );
     if (legacy) {
       return `Configuration error: root-level ${legacy} is no longer supported. Run "auditor fix" to move it to ${file}.`;
     }
     return `Configuration error: ${file} does not exist. Run "auditor fix" to initialize default configuration.`;
   },
   customMissingFile: (ctx, defaultFile) => {
-    const legacy = LEGACY_ROOT_CONFIG_FILES.find(f => fs.existsSync(path.resolve(ctx.projectRoot, f)));
+    const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) =>
+      fs.existsSync(path.resolve(ctx.projectRoot, f))
+    );
     return legacy ?? defaultFile;
   }
 };
 
 export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   constructor(targetPathOrOptions?: string | ValidateAuditConfigOptions) {
-    const options = typeof targetPathOrOptions === 'string'
-      ? { projectRoot: targetPathOrOptions }
-      : (targetPathOrOptions ?? {});
+    const options =
+      typeof targetPathOrOptions === 'string'
+        ? { projectRoot: targetPathOrOptions }
+        : (targetPathOrOptions ?? {});
     const projectRoot = options.projectRoot || process.cwd();
 
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [
-        'audit-config-missing-section',
-        'audit-config-missing-file',
-        'audit-config-missing-gitignore-entry',
-        'audit-config-critical-violation'
-      ]),
+      ruleCapabilities: createRuleCapabilities(
+        AUDIT_CONFIG_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        [
+          'audit-config-missing-section',
+          'audit-config-missing-file',
+          'audit-config-missing-gitignore-entry',
+          'audit-config-critical-violation'
+        ]
+      ),
       fixableRuleIds: [
         'audit-config-missing-section',
         'audit-config-missing-file',
@@ -565,10 +615,12 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       return;
     }
     this.recordScanned(AUDIT_CONFIG_FILE);
-    if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore'))) this.recordScanned('.gitignore');
+    if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore')))
+      this.recordScanned('.gitignore');
 
     const config = await loadAuditConfig(this.projectRoot);
-    const baselineFile = config.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
+    const baselineFile =
+      config.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
     if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) {
       this.recordScanned(baselineFile);
     }
@@ -607,7 +659,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     });
   }
 
-  private verifyUnknownFields(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): void {
+  private verifyUnknownFields(
+    config: AuditEngineConfig,
+    tasks: readonly AuditTaskDefinition[]
+  ): void {
     const rawConfig = config._rawConfig ?? {};
     if (typeof rawConfig !== 'object' || rawConfig === null) return;
 
@@ -668,12 +723,20 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private verifyUnknownTopLevelSections(rawConfig: Record<string, unknown>, tasks: readonly AuditTaskDefinition[]): void {
+  private verifyUnknownTopLevelSections(
+    rawConfig: Record<string, unknown>,
+    tasks: readonly AuditTaskDefinition[]
+  ): void {
     const validTopLevelKeys = new Set<string>(
-      Object.keys(DEFAULT_AUDIT_CONFIG).filter(k => !k.startsWith('_'))
+      Object.keys(DEFAULT_AUDIT_CONFIG).filter((k) => !k.startsWith('_'))
     );
     for (const task of tasks) {
-      if (task.configKey && task.configKey !== 'paths' && task.configKey !== 'core' && task.configKey !== 'none') {
+      if (
+        task.configKey &&
+        task.configKey !== 'paths' &&
+        task.configKey !== 'core' &&
+        task.configKey !== 'none'
+      ) {
         const rootKey = task.configKey.split('.')[0];
         if (rootKey) validTopLevelKeys.add(rootKey);
       }
@@ -682,15 +745,37 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     for (const key of Object.keys(rawConfig)) {
       if (key.startsWith('_')) continue;
       if (!validTopLevelKeys.has(key)) {
+        if (key === 'eslint' && this.isFixActive()) {
+          const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+          if (this.migrateLegacyEslintConfigSection(configFilePath)) continue;
+        }
         this.addViolation({
           ruleId: 'audit-config-unknown-field',
           severity: 'error',
           file: AUDIT_CONFIG_FILE,
           line: 1,
           message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy top-level section "${key}". This section is not supported by @francogp/auditor. Please remove it.`,
-          context: key
+          context: key,
+          fixable: key === 'eslint'
         });
       }
+    }
+  }
+
+  private migrateLegacyEslintConfigSection(configFilePath: string): boolean {
+    if (!fs.existsSync(configFilePath)) return false;
+    try {
+      let text = fs.readFileSync(configFilePath, 'utf-8');
+      if (!text.includes('eslint:')) return false;
+
+      text = text.replace(/(^|\s)eslint\s*:/g, '$1oxlint:');
+      if (!text.includes('vitePlusConfig:')) {
+        text = text.replace(/oxlint\s*:\s*\{[^}]*\},?/, (m) => `${m}\n  vitePlusConfig: { enabled: true },`);
+      }
+      fs.writeFileSync(configFilePath, text, 'utf-8');
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -732,10 +817,16 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private async verifyRequiredSections(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void> {
+  private async verifyRequiredSections(
+    config: AuditEngineConfig,
+    tasks: readonly AuditTaskDefinition[]
+  ): Promise<void> {
     if (tasks.length === 0) return;
 
-    const missingByRootKey = collectMissingSections(tasks as AuditTaskDefinition[], config._rawConfig ?? {});
+    const missingByRootKey = collectMissingSections(
+      tasks as AuditTaskDefinition[],
+      config._rawConfig ?? {}
+    );
     if (missingByRootKey.size === 0) return;
 
     if (this.isFixActive()) {
@@ -752,16 +843,15 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
 
     const sectionsToInsert: Record<string, Record<string, unknown>> = {}; // open-record: Sections dictionary
     for (const [rootKey, entry] of missingByRootKey.entries()) {
-      sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0
-        ? entry.defaultConfig
-        : { enabled: true };
+      sectionsToInsert[rootKey] =
+        Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
     }
     appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert);
   }
 
   private reportMissingSectionViolations(missingByRootKey: Map<string, MissingSectionEntry>): void {
     for (const [rootKey, entry] of missingByRootKey.entries()) {
-      const suiteNames = entry.tasks.map(t => t.id).join(', ');
+      const suiteNames = entry.tasks.map((t) => t.id).join(', ');
       this.addViolation({
         ruleId: 'audit-config-missing-section',
         severity: 'error',
@@ -778,7 +868,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     rawConfig: Record<string, unknown>
   ): { rootKey?: string; sectionConfig?: unknown } {
     const rootKey =
-      task.configKey && task.configKey !== 'paths' && task.configKey !== 'core' && task.configKey !== 'none'
+      task.configKey &&
+      task.configKey !== 'paths' &&
+      task.configKey !== 'core' &&
+      task.configKey !== 'none'
         ? task.configKey.split('.')[0]
         : undefined;
     const sectionConfig = rootKey ? rawConfig[rootKey] : undefined;
@@ -803,7 +896,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       setDeepProperty(sectionConfig as Record<string, unknown>, propPath, merged);
       const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
       if (fs.existsSync(configFilePath)) {
-        appendMissingSectionsToConfigFile(configFilePath, { [rootKey]: sectionConfig as Record<string, unknown> });
+        appendMissingSectionsToConfigFile(configFilePath, {
+          [rootKey]: sectionConfig as Record<string, unknown>
+        });
       }
     }
   }
@@ -818,15 +913,24 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     rationale: string | undefined,
     repair?: AuditorCriticalConfig['repair']
   ): Promise<void> {
-    const configuredVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
+    const configuredVal =
+      resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
     if (configuredVal === undefined) return;
 
     const configuredList = Array.isArray(configuredVal) ? configuredVal : [];
-    const missing = minList.filter(item => !configuredList.includes(item));
+    const missing = minList.filter((item) => !configuredList.includes(item));
     if (missing.length === 0) return;
 
     if (this.isFixActive()) {
-      await this.repairCriticalMinimum(sectionConfig, rawConfig, rootKey, propPath, configuredList, missing, repair);
+      await this.repairCriticalMinimum(
+        sectionConfig,
+        rawConfig,
+        rootKey,
+        propPath,
+        configuredList,
+        missing,
+        repair
+      );
     } else {
       this.addViolation({
         ruleId: 'audit-config-critical-violation',
@@ -849,7 +953,16 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     repair?: AuditorCriticalConfig['repair']
   ): Promise<void> {
     for (const [propPath, minList] of Object.entries(requiredMinimums)) {
-      await this.verifyTaskMinimumProperty(task, propPath, minList, sectionConfig, rawConfig, rootKey, rationale, repair);
+      await this.verifyTaskMinimumProperty(
+        task,
+        propPath,
+        minList,
+        sectionConfig,
+        rawConfig,
+        rootKey,
+        rationale,
+        repair
+      );
     }
   }
 
@@ -862,7 +975,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     repair?: AuditorCriticalConfig['repair']
   ): Promise<void> {
     for (const [propPath, disallowedList] of Object.entries(forbiddenOverrides)) {
-      const actualVal = resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
+      const actualVal =
+        resolveConfigPath(sectionConfig, propPath) ?? resolveConfigPath(rawConfig, propPath);
       if (actualVal !== undefined && disallowedList.includes(actualVal)) {
         if (this.isFixActive() && repair) {
           await repair(sectionConfig ?? rawConfig, this.projectRoot);
@@ -872,7 +986,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
             severity: 'error',
             file: AUDIT_CONFIG_FILE,
             line: 1,
-            message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] field "${propPath}" is set to disallowed value "${String(actualVal)}". Rationale: ${rationale}`,
+            message: `Configuration error in ${AUDIT_CONFIG_FILE}: [${task.id}] field "${propPath}" is set to disallowed value "${typeof actualVal === 'string' ? actualVal : typeof actualVal === 'number' || typeof actualVal === 'boolean' ? String(actualVal) : JSON.stringify(actualVal)}". Rationale: ${rationale}`,
             context: `${task.id}:${propPath}`
           });
         }
@@ -905,34 +1019,66 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private async verifyTaskCriticalConfig(task: AuditTaskDefinition, rawConfig: Record<string, unknown>): Promise<void> {
+  private async verifyTaskCriticalConfig(
+    task: AuditTaskDefinition,
+    rawConfig: Record<string, unknown>
+  ): Promise<void> {
     if (!task.criticalConfig) return;
-    const { rationale, requiredMinimums, forbiddenOverrides, validate, repair } = task.criticalConfig;
+    const { rationale, requiredMinimums, forbiddenOverrides, validate, repair } =
+      task.criticalConfig;
     const { rootKey, sectionConfig } = this.resolveTaskSectionContext(task, rawConfig);
 
     if (requiredMinimums) {
-      await this.verifyTaskCriticalMinimums(task, requiredMinimums, sectionConfig, rawConfig, rootKey, rationale, repair);
+      await this.verifyTaskCriticalMinimums(
+        task,
+        requiredMinimums,
+        sectionConfig,
+        rawConfig,
+        rootKey,
+        rationale,
+        repair
+      );
     }
     if (forbiddenOverrides) {
-      await this.verifyTaskForbiddenOverrides(task, forbiddenOverrides, sectionConfig, rawConfig, rationale, repair);
+      await this.verifyTaskForbiddenOverrides(
+        task,
+        forbiddenOverrides,
+        sectionConfig,
+        rawConfig,
+        rationale,
+        repair
+      );
     }
     if (validate) {
-      await this.verifyTaskCustomValidation(task, validate, sectionConfig, rawConfig, rationale, repair);
+      await this.verifyTaskCustomValidation(
+        task,
+        validate,
+        sectionConfig,
+        rawConfig,
+        rationale,
+        repair
+      );
     }
   }
 
-  public async verifyCriticalConfigurations(config: AuditEngineConfig, tasks: readonly AuditTaskDefinition[]): Promise<void> {
+  public async verifyCriticalConfigurations(
+    config: AuditEngineConfig,
+    tasks: readonly AuditTaskDefinition[]
+  ): Promise<void> {
     const rawConfig = (config._rawConfig ?? {}) as Record<string, unknown>;
     for (const task of tasks) {
       await this.verifyTaskCriticalConfig(task as AuditTaskDefinition, rawConfig);
     }
   }
 
-  private handleMissingGitIgnoreFile(gitignorePath: string, requirements: readonly GitIgnoreRequirement[]): void {
+  private handleMissingGitIgnoreFile(
+    gitignorePath: string,
+    requirements: readonly GitIgnoreRequirement[]
+  ): void {
     if (this.isFixActive()) {
       const contentLines = [
         '# Auditor tool caches (Added by @francogp/auditor)',
-        ...requirements.map(e => e.pattern),
+        ...requirements.map((e) => e.pattern),
         ''
       ];
       fs.writeFileSync(gitignorePath, contentLines.join('\n'), 'utf8');
@@ -949,14 +1095,22 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     });
   }
 
-  private appendMissingGitIgnoreEntries(gitignorePath: string, missing: readonly GitIgnoreRequirement[]): void {
-    appendGitIgnoreEntries(gitignorePath, missing.map(e => e.pattern));
+  private appendMissingGitIgnoreEntries(
+    gitignorePath: string,
+    missing: readonly GitIgnoreRequirement[]
+  ): void {
+    appendGitIgnoreEntries(
+      gitignorePath,
+      missing.map((e) => e.pattern)
+    );
   }
 
   private async verifyGitIgnore(config: AuditEngineConfig): Promise<void> {
     const gitignorePath = path.resolve(this.projectRoot, '.gitignore');
     const allRequirements = await collectAllGitIgnoreRequirements(this.projectRoot, config);
-    const applicable = allRequirements.filter(req => (req.isApplicable ? req.isApplicable(config) : true));
+    const applicable = allRequirements.filter((req) =>
+      req.isApplicable ? req.isApplicable(config) : true
+    );
 
     if (!fs.existsSync(gitignorePath)) {
       this.handleMissingGitIgnoreFile(gitignorePath, applicable);
@@ -984,7 +1138,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private checkPathExists(relPath: string, ruleId: AuditConfigRuleId, description: string): boolean {
+  private checkPathExists(
+    relPath: string,
+    ruleId: AuditConfigRuleId,
+    description: string
+  ): boolean {
     const normalized = relPath.trim();
     if (!normalized) return true;
 
@@ -1012,7 +1170,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       if (Array.isArray(val)) {
         for (const item of val) {
           if (typeof item === 'string') {
-            this.checkPathExists(item, 'audit-config-missing-path', `directory in paths.${String(key)}`);
+            this.checkPathExists(
+              item,
+              'audit-config-missing-path',
+              `directory in paths.${String(key)}`
+            );
           }
         }
       }
@@ -1023,12 +1185,20 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     const rawPersistence = config._rawConfig?.persistence;
     if (config.paths?.migrationsDir && config.persistence?.engine !== 'none') {
       if (config._rawPaths?.migrationsDir) {
-        this.checkPathExists(config.paths.migrationsDir, 'audit-config-missing-path', 'migrations directory');
+        this.checkPathExists(
+          config.paths.migrationsDir,
+          'audit-config-missing-path',
+          'migrations directory'
+        );
       }
     }
 
     if (rawPersistence?.supabaseDir) {
-      this.checkPathExists(rawPersistence.supabaseDir, 'audit-config-missing-path', 'supabase directory');
+      this.checkPathExists(
+        rawPersistence.supabaseDir,
+        'audit-config-missing-path',
+        'supabase directory'
+      );
     }
 
     if (Array.isArray(rawPersistence?.allowedDatabaseDirs)) {
@@ -1053,10 +1223,18 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   private verifyDomainPaths(config: AuditEngineConfig): void {
     const rawDomain = config._rawConfig?.domain;
     if (rawDomain?.zLayersFile) {
-      this.checkPathExists(rawDomain.zLayersFile, 'audit-config-missing-file', 'domain z-layers file');
+      this.checkPathExists(
+        rawDomain.zLayersFile,
+        'audit-config-missing-file',
+        'domain z-layers file'
+      );
     }
     if (rawDomain?.timezoneHelperModule) {
-      this.checkPathExists(rawDomain.timezoneHelperModule, 'audit-config-missing-file', 'timezone helper module');
+      this.checkPathExists(
+        rawDomain.timezoneHelperModule,
+        'audit-config-missing-file',
+        'timezone helper module'
+      );
     }
     if (rawDomain?.loggerModule) {
       this.checkPathExists(rawDomain.loggerModule, 'audit-config-missing-file', 'logger module');
@@ -1064,7 +1242,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (Array.isArray(rawDomain?.o1CatalogPatterns)) {
       for (const pattern of rawDomain.o1CatalogPatterns) {
         if (pattern.definingFile) {
-          this.checkPathExists(pattern.definingFile, 'audit-config-missing-file', `O(1) pattern defining file for '${pattern.name}'`);
+          this.checkPathExists(
+            pattern.definingFile,
+            'audit-config-missing-file',
+            `O(1) pattern defining file for '${pattern.name}'`
+          );
         }
       }
     }
@@ -1074,18 +1256,34 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     const rawStyles = config._rawConfig?.styles;
     if (config.styles?.zLayersEnabled !== false && rawStyles) {
       if (rawStyles.baseScssFile) {
-        this.checkPathExists(rawStyles.baseScssFile, 'audit-config-missing-file', 'styles base SCSS file');
+        this.checkPathExists(
+          rawStyles.baseScssFile,
+          'audit-config-missing-file',
+          'styles base SCSS file'
+        );
       }
       if (rawStyles.zLayersScssFile) {
-        this.checkPathExists(rawStyles.zLayersScssFile, 'audit-config-missing-file', 'styles z-layers SCSS file');
+        this.checkPathExists(
+          rawStyles.zLayersScssFile,
+          'audit-config-missing-file',
+          'styles z-layers SCSS file'
+        );
       }
       if (rawStyles.zLayersTsFile) {
-        this.checkPathExists(rawStyles.zLayersTsFile, 'audit-config-missing-file', 'styles z-layers TS file');
+        this.checkPathExists(
+          rawStyles.zLayersTsFile,
+          'audit-config-missing-file',
+          'styles z-layers TS file'
+        );
       }
     }
 
     if (rawStyles?.buttonGovernance?.buttonsScssFile) {
-      this.checkPathExists(rawStyles.buttonGovernance.buttonsScssFile, 'audit-config-missing-file', 'button governance SCSS file');
+      this.checkPathExists(
+        rawStyles.buttonGovernance.buttonsScssFile,
+        'audit-config-missing-file',
+        'button governance SCSS file'
+      );
     }
 
     if (Array.isArray(rawStyles?.heavyEffectPaths)) {

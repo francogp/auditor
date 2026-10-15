@@ -46,12 +46,28 @@ export interface ScriptCommandViolation {
   readonly context: string;
 }
 
-const SHELL_AND_BATCH_EXTENSIONS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
-  '.sh', '.bash', '.zsh', '.ps1', '.bat', '.cmd'
+const SHELL_AND_BATCH_EXTENSIONS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.ps1',
+  '.bat',
+  '.cmd'
 ]);
 
-const SCRIPTS_DIR_EXTENSIONS: ReadonlySet<string> = new Set([ // runtime-set: Fast O(1) membership lookup set
-  '.sh', '.bash', '.zsh', '.ps1', '.bat', '.cmd', '.ts', '.js', '.mjs', '.cjs'
+const SCRIPTS_DIR_EXTENSIONS: ReadonlySet<string> = new Set([
+  // runtime-set: Fast O(1) membership lookup set
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.ps1',
+  '.bat',
+  '.cmd',
+  '.ts',
+  '.js',
+  '.mjs',
+  '.cjs'
 ]);
 
 interface ScannedScriptFile {
@@ -194,8 +210,8 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
     }
 
     const { scripts, declaredBins, installedBins } = loadPackageScriptsAndBins(this.rootDir);
-    const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map(e => e.glob);
-    const scriptExemptGlobs = (config.scriptCommands?.exemptGlobs ?? []);
+    const customExemptGlobs = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
+    const scriptExemptGlobs = config.scriptCommands?.exemptGlobs ?? [];
     const allowedNpx = new Set([
       ...(config.documentation?.allowedNpxBinaries ?? []),
       ...(config.scriptCommands?.allowedNpxBinaries ?? [])
@@ -210,7 +226,11 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
       return;
     }
 
-    const scannedFiles = this.readScannedFiles(candidateFiles, customExemptGlobs, scriptExemptGlobs);
+    const scannedFiles = this.readScannedFiles(
+      candidateFiles,
+      customExemptGlobs,
+      scriptExemptGlobs
+    );
 
     this.reportViolations('script-cmd-unregistered-npm', 'unregistered-npm', scannedFiles, env);
     this.reportViolations('script-cmd-invalid-npm-syntax', 'invalid-npm-syntax', scannedFiles, env);
@@ -260,11 +280,12 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
           const v = evaluateGenericCommandViolation(cmd, env);
           if (!v || v.kind !== targetKind) continue;
 
-          const message = targetKind === 'unregistered-npm'
-            ? (cmd.type === 'npm-run'
+          const message =
+            targetKind === 'unregistered-npm'
+              ? cmd.type === 'npm-run'
                 ? `El script '${file.relPosix}' (línea ${v.line}) ejecuta 'npm run ${cmd.target}', pero el script no está registrado en package.json.scripts.`
-                : `El script '${file.relPosix}' (línea ${v.line}) ejecuta 'npm test', pero no hay un script 'test' registrado en package.json.scripts.`)
-            : `El script '${file.relPosix}' (línea ${v.line}): ${v.message}`;
+                : `El script '${file.relPosix}' (línea ${v.line}) ejecuta 'npm test', pero no hay un script 'test' registrado en package.json.scripts.`
+              : `El script '${file.relPosix}' (línea ${v.line}): ${v.message}`;
 
           this.addViolation({
             ruleId,
@@ -279,7 +300,11 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
     });
   }
 
-  private isExempt(relPosix: string, customExempt: readonly string[], scriptExempt: readonly string[]): boolean {
+  private isExempt(
+    relPosix: string,
+    customExempt: readonly string[],
+    scriptExempt: readonly string[]
+  ): boolean {
     const allExempt = [...customExempt, ...scriptExempt];
     for (const glob of allExempt) {
       if (path.posix.matchesGlob(relPosix, glob)) return true;

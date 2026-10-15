@@ -17,7 +17,8 @@ const BASE_TEST_CONFIG_SECTIONS = `
   persistence: { engine: 'none', schemaQualified: false },
   styles: { zLayersEnabled: false },
   valibot: { enabled: true, targets: [] },
-  eslint: { enabled: true },
+  oxlint: { enabled: true },
+  vitePlusConfig: { enabled: true },
   htmlValidate: { enabled: true },
   pinia: { enabled: false },
   domain: { enabled: false },
@@ -63,7 +64,7 @@ describe('ValidateAuditConfigAuditor', () => {
     // Baseline valid .gitignore with standard tool caches so path tests isolate cleanly
     await fs.writeFile(
       path.join(tempDir, '.gitignore'),
-      'node_modules/\nscratch/\n.eslintcache\n.stylelintcache\ndist/\n*.log\n',
+      'node_modules/\nscratch/\n.oxlintcache\n.stylelintcache\ndist/\n*.log\n',
       'utf-8'
     );
 
@@ -190,7 +191,7 @@ export default defineAuditConfig({
     expect(missingEntries.length).toBeGreaterThan(0);
     const contexts = missingEntries.map(f => f.context);
     expect(contexts).toContain('scratch/');
-    expect(contexts).toContain('.eslintcache');
+    expect(contexts).toContain('.oxlintcache');
     expect(contexts).toContain('*.log');
   });
 
@@ -214,7 +215,7 @@ export default defineAuditConfig({
 
     const repairedContent = await fs.readFile(path.join(tempDir, '.gitignore'), 'utf-8');
     expect(repairedContent).toContain('scratch/');
-    expect(repairedContent).toContain('.eslintcache');
+    expect(repairedContent).toContain('.oxlintcache');
     expect(repairedContent).toContain('*.log');
 
     // Re-running in normal mode should pass without gitignore errors
@@ -522,7 +523,7 @@ export default defineAuditConfig({
     const missingSections = result.findings.filter(f => f.ruleId === 'audit-config-missing-section');
     expect(missingSections.length).toBeGreaterThan(0);
     expect(missingSections.some(f => f.context === 'valibot')).toBe(true);
-    expect(missingSections.some(f => f.context === 'eslint')).toBe(true);
+    expect(missingSections.some(f => f.context === 'oxlint')).toBe(true);
     expect(missingSections.some(f => f.context === 'pinia')).toBe(true);
     expect(missingSections.some(f => f.context === 'htmlValidate')).toBe(true);
   });

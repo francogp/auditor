@@ -1,37 +1,20 @@
-/**
- * scripts/auditors/architecture/validate_bundle_budget.ts
- *
- * BUNDLE BUDGET & CLIENT LEAK AUDITOR (Node.js 26+ Native)
- *
- * Enforces bundle boundaries and import discipline across production code:
- *   1. Prohibits importing from /tests/ or /scripts/ inside src/ (bundle-runtime-leak).
- *   2. Prohibits importing heavy modules (postgres, node:sqlite, vitest, @playwright/test)
- *      as runtime values in UI layers (src/components, src/views, src/stores).
- *   3. Enforces client chunk budgets in dist/assets when compiled assets exist.
- *
- * Escape Hatch:
- *   // bundle-leak-ok: <justification> disables import check on that line.
- *
- * Usage:
- *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_bundle_budget.ts
- *   npm run validate:bundle-budget
- */
-import { BaseAuditor } from '../../core/auditorBase.ts';
-import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
-import { SharedAstContext } from '../../core/astContext.ts';
+import { GitIgnoreRequirement } from "../../core/auditContract.js";
+import { SharedAstContext } from "../../core/astContext.js";
+import { BaseAuditor } from "../../core/auditorBase.js";
+//#region src/suites/architecture/validate_bundle_budget.d.ts
 export declare const BUNDLE_BUDGET_RULES: readonly ["bundle-runtime-leak", "bundle-heavy-import", "bundle-chunk-size"];
 export type BundleBudgetRuleId = (typeof BUNDLE_BUDGET_RULES)[number];
 export declare const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI: readonly {
-    module: string;
-    reason: string;
+  module: string;
+  reason: string;
 }[];
 export declare function getForbiddenValueImportsUI(projectRoot?: string): readonly {
-    module: string;
-    reason: string;
+  module: string;
+  reason: string;
 }[];
 export declare class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
-    static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-    constructor(projectRoot?: string);
-    runAudit(astContext?: SharedAstContext): Promise<void>;
+  static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  constructor(projectRoot?: string);
+  runAudit(astContext?: SharedAstContext): Promise<void>;
 }
-//# sourceMappingURL=validate_bundle_budget.d.ts.map
+//#endregion

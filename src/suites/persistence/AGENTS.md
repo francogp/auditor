@@ -29,7 +29,7 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run persistence suite tests: `npm test -- tests/validate_sql_anti_patterns.test.ts tests/validate_valibot_parity.test.ts`
+- Run persistence suite tests: `vp test tests/validate_sql_anti_patterns.test.ts tests/validate_valibot_parity.test.ts` (or `npm test -- tests/validate_sql_anti_patterns.test.ts tests/validate_valibot_parity.test.ts`)
 - Run general audit: `npm run auditor:lint`
 
 ## Child DOX Index

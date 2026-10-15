@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --experimental-strip-types
+//#region src/cli/report_review.d.ts
 /**
  * packages/auditor/src/cli/report_review.ts
  *
@@ -8,4 +8,4 @@
  * decisions, blast radius, public API changes, and code risk.
  */
 export declare function runReviewReport(projectRoot?: string): void;
-//# sourceMappingURL=report_review.d.ts.map
+//#endregion

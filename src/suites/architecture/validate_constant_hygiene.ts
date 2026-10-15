@@ -16,7 +16,7 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { detectDuplicateConstants } from '../../analyzers/constantAnalyzer.ts';
 import {
@@ -45,14 +45,20 @@ const P_EXPORT_REDUNDANT_ALIAS = /^\s*export\s+const\s+([A-Z_a-z]\w*)\s*=\s*([A-
 export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygieneRuleId> {
   private readonly scannedAbsFiles: string[] = [];
 
-  constructor(rootsOrOptions?: readonly string[] | { projectRoot?: string; roots?: readonly string[] }, maybeProjectRoot?: string) {
-    const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions)
-      ? (rootsOrOptions as { projectRoot?: string; roots?: readonly string[] })
-      : undefined;
+  constructor(
+    rootsOrOptions?: readonly string[] | { projectRoot?: string; roots?: readonly string[] },
+    maybeProjectRoot?: string
+  ) {
+    const optionsObj =
+      rootsOrOptions && !Array.isArray(rootsOrOptions)
+        ? (rootsOrOptions as { projectRoot?: string; roots?: readonly string[] })
+        : undefined;
     const effectiveProjectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveProjectRoot);
-    const rawRoots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? []));
-    const effectiveRoots = rawRoots.map(r => toPosixRelative(effectiveProjectRoot, r));
+    const rawRoots =
+      optionsObj?.roots ??
+      (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? []));
+    const effectiveRoots = rawRoots.map((r) => toPosixRelative(effectiveProjectRoot, r));
 
     super({
       usesThirdPartyTool: false,
@@ -62,7 +68,8 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         fix: 'none',
         md: false,
         ast: true,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_constant_hygiene',
       name: 'Constant Hygiene & Duplicate Validator',
@@ -85,17 +92,26 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         'constant-no-literal-suffix': 'Sufijo numérico en constante'
       },
       ruleRemediations: {
-        'duplicate-constant-identical': 'Guía de diagnóstico y remediación para duplicate-constant-identical. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'duplicate-constant-divergent': 'Guía de diagnóstico y remediación para duplicate-constant-divergent. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'constant-bad-names': 'Guía de diagnóstico y remediación para constant-bad-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'constant-no-alias': 'Guía de diagnóstico y remediación para constant-no-alias. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'constant-no-literal-suffix': 'Guía de diagnóstico y remediación para constant-no-literal-suffix. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'duplicate-constant-identical':
+          'Guía de diagnóstico y remediación para duplicate-constant-identical. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'duplicate-constant-divergent':
+          'Guía de diagnóstico y remediación para duplicate-constant-divergent. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'constant-bad-names':
+          'Guía de diagnóstico y remediación para constant-bad-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'constant-no-alias':
+          'Guía de diagnóstico y remediación para constant-no-alias. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'constant-no-literal-suffix':
+          'Guía de diagnóstico y remediación para constant-no-literal-suffix. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       projectRoot: effectiveProjectRoot
     });
   }
 
-  private scanRegexConstantRules(relPath: string, content: string, range: { start: number; end: number }): void {
+  private scanRegexConstantRules(
+    relPath: string,
+    content: string,
+    range: { start: number; end: number }
+  ): void {
     const regexChecks = [
       { ruleId: 'constant-bad-names' as const, rule: badConstantNames },
       { ruleId: 'constant-no-literal-suffix' as const, rule: noLiteralSuffixInConstantName },
@@ -125,7 +141,11 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
     }
   }
 
-  private scanRedundantExportAliases(relPath: string, content: string, range: { start: number; end: number }): void {
+  private scanRedundantExportAliases(
+    relPath: string,
+    content: string,
+    range: { start: number; end: number }
+  ): void {
     this.runSubAuditorSync('constant-no-alias', () => {
       let m: RegExpExecArray | null;
       P_EXPORT_REDUNDANT_ALIAS.lastIndex = range.start;
@@ -142,10 +162,18 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         const lineText = preceding.split('\n').pop() ?? '';
         const nextNl = content.indexOf('\n', m.index);
         const fullLine = lineText + content.slice(m.index, nextNl === -1 ? undefined : nextNl);
-        if (fullLine.includes('// value-ok:') || fullLine.includes('// const-ok:') || fullLine.includes('// json-ok:') || fullLine.includes('// alias-ok:')) continue;
+        if (
+          fullLine.includes('// value-ok:') ||
+          fullLine.includes('// const-ok:') ||
+          fullLine.includes('// json-ok:') ||
+          fullLine.includes('// alias-ok:')
+        )
+          continue;
 
         // Skip if targetName is imported from a .json file or is a json data import
-        const isJsonImport = new RegExp(`import\\s+${targetName}\\s+from\\s+['"][^'"]*\\.json['"]`).test(content) || /(?:json|dbjson)$/i.test(targetName);
+        const isJsonImport =
+          new RegExp(`import\\s+${targetName}\\s+from\\s+['"][^'"]*\\.json['"]`).test(content) ||
+          /(?:json|dbjson)$/i.test(targetName);
         if (isJsonImport) continue;
 
         const line = preceding.split('\n').length;
@@ -173,7 +201,10 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
     const isVue = relPath.endsWith('.vue');
     const vueBlocks = isVue ? parseVueSfcBlocks(content) : null;
     const scriptRanges: Array<{ start: number; end: number }> = vueBlocks
-      ? vueBlocks.scripts.map(s => ({ start: s.contentStartIndex, end: s.contentStartIndex + s.content.length }))
+      ? vueBlocks.scripts.map((s) => ({
+          start: s.contentStartIndex,
+          end: s.contentStartIndex + s.content.length
+        }))
       : [{ start: 0, end: content.length }];
 
     if (isVue && scriptRanges.length === 0) {
@@ -191,13 +222,24 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
     await super.runAudit(astContext);
 
     if (this.scannedAbsFiles.length === 0) {
-      this.markRuleNotApplicable('duplicate-constant-identical', 'No se encontraron archivos para verificar duplicación');
-      this.markRuleNotApplicable('duplicate-constant-divergent', 'No se encontraron archivos para verificar duplicación');
+      this.markRuleNotApplicable(
+        'duplicate-constant-identical',
+        'No se encontraron archivos para verificar duplicación'
+      );
+      this.markRuleNotApplicable(
+        'duplicate-constant-divergent',
+        'No se encontraron archivos para verificar duplicación'
+      );
       return;
     }
 
     await this.runSubAuditor('duplicate-constant-identical', async () => {
-      const identicalViolations = await detectDuplicateConstants(this.scannedAbsFiles, astContext, this.projectRoot, 'identical');
+      const identicalViolations = await detectDuplicateConstants(
+        this.scannedAbsFiles,
+        astContext,
+        this.projectRoot,
+        'identical'
+      );
       for (const v of identicalViolations) {
         this.addViolation({
           ruleId: 'duplicate-constant-identical',
@@ -211,7 +253,12 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
     });
 
     await this.runSubAuditor('duplicate-constant-divergent', async () => {
-      const divergentViolations = await detectDuplicateConstants(this.scannedAbsFiles, astContext, this.projectRoot, 'divergent');
+      const divergentViolations = await detectDuplicateConstants(
+        this.scannedAbsFiles,
+        astContext,
+        this.projectRoot,
+        'divergent'
+      );
       for (const v of divergentViolations) {
         this.addViolation({
           ruleId: 'duplicate-constant-divergent',

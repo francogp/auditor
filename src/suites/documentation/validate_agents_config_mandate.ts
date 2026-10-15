@@ -17,7 +17,7 @@ import {
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
 
@@ -66,7 +66,10 @@ export const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN =
 
 const CANONICAL_SNIPPET_REGISTRY = {
   config: { en: CANONICAL_MANDATE_SNIPPET_EN, es: CANONICAL_MANDATE_SNIPPET_ES },
-  backwardCompat: { en: CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, es: CANONICAL_BACKWARD_COMPAT_SNIPPET_ES },
+  backwardCompat: {
+    en: CANONICAL_BACKWARD_COMPAT_SNIPPET_EN,
+    es: CANONICAL_BACKWARD_COMPAT_SNIPPET_ES
+  },
   fakePass: { en: CANONICAL_FAKE_PASS_SNIPPET_EN, es: CANONICAL_FAKE_PASS_SNIPPET_ES }
 } as const;
 
@@ -75,7 +78,10 @@ export function getCanonicalMandateSnippet(language: DocumentationLanguage = 'en
 }
 
 export function getCanonicalBackwardCompatSnippet(language: DocumentationLanguage = 'en'): string {
-  return CANONICAL_SNIPPET_REGISTRY.backwardCompat[language] ?? CANONICAL_SNIPPET_REGISTRY.backwardCompat.en;
+  return (
+    CANONICAL_SNIPPET_REGISTRY.backwardCompat[language] ??
+    CANONICAL_SNIPPET_REGISTRY.backwardCompat.en
+  );
 }
 
 export function getCanonicalFakePassSnippet(language: DocumentationLanguage = 'en'): string {
@@ -99,7 +105,10 @@ export function getCanonicalChatLanguageSnippet(
 /**
  * Checks if a block of markdown text contains the anti-tampering mandate.
  */
-export function containsConfigAntiTamperingMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean {
+export function containsConfigAntiTamperingMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
   const hasConfig = /config|auditor|linter/i.test(text);
   if (!hasConfig) return false;
 
@@ -139,35 +148,53 @@ export function containsConfigAntiTamperingMandate(text: string, expectedLanguag
 /**
  * Checks if a block of markdown text contains the backward-compatible prohibition mandate.
  */
-export function containsBackwardCompatMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean {
-  const hasSubject = /backward-compatible|retrocompatib|loud failure|fallo ruidoso|legacy fallback|shims?/i.test(text);
+export function containsBackwardCompatMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasSubject =
+    /backward-compatible|retrocompatib|loud failure|fallo ruidoso|legacy fallback|shims?/i.test(
+      text
+    );
   if (!hasSubject) return false;
 
-  const hasProhibition = /prohibit|prohibid|strictly|estrictamente|eradicated|erradicado/i.test(text);
+  const hasProhibition = /prohibit|prohibid|strictly|estrictamente|eradicated|erradicado/i.test(
+    text
+  );
   if (!hasProhibition) return false;
 
-  const hasLoudFailure = /fail loudly|fallar ruidosamente|throw new error|exit code 1|código de salida 1/i.test(text);
+  const hasLoudFailure =
+    /fail loudly|fallar ruidosamente|throw new error|exit code 1|código de salida 1/i.test(text);
   if (!hasLoudFailure) return false;
 
-  const enMarkers = /(?:backward-compatible|loud failure|prohibit|deprecated alias|legacy fallback)/i;
-  const esMarkers = /(?:retrocompatib|fallo ruidoso|prohibid|estrictamente prohibido|código legado)/i;
+  const enMarkers =
+    /(?:backward-compatible|loud failure|prohibit|deprecated alias|legacy fallback)/i;
+  const esMarkers =
+    /(?:retrocompatib|fallo ruidoso|prohibid|estrictamente prohibido|código legado)/i;
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
 
 /**
  * Checks if a block of markdown text contains the fake pass prohibition mandate.
  */
-export function containsFakePassMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean {
-  const hasSubject = /suppress|silenc|nullify|suprimir|anular|eludir|fake pass|pases?\s+falsos?/i.test(text);
+export function containsFakePassMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasSubject =
+    /suppress|silenc|nullify|suprimir|anular|eludir|fake pass|pases?\s+falsos?/i.test(text);
   if (!hasSubject) return false;
 
-  const hasProhibition = /prohibit|prohibid|categorically|categóricamente|strictly|estrictamente/i.test(text);
+  const hasProhibition =
+    /prohibit|prohibid|categorically|categóricamente|strictly|estrictamente/i.test(text);
   if (!hasProhibition) return false;
 
-  const hasZeroTolerance = /zero-tolerance|cero tolerancia|gross misconduct|falta grave|auditor fix/i.test(text);
+  const hasZeroTolerance =
+    /zero-tolerance|cero tolerancia|gross misconduct|falta grave|auditor fix/i.test(text);
   if (!hasZeroTolerance) return false;
 
-  const enMarkers = /(?:suppressing|silencing|nullifying|fake pass|zero-tolerance|gross misconduct)/i;
+  const enMarkers =
+    /(?:suppressing|silencing|nullifying|fake pass|zero-tolerance|gross misconduct)/i;
   const esMarkers = /(?:suprimir|silenciar|anular|pase falso|cero tolerancia|falta grave)/i;
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
@@ -193,11 +220,15 @@ export function containsChatLanguageMandate(
   if (!hasChatLangTarget) return false;
 
   const hasDistinctionFromFiles =
-    /file|writing|code|documentation|documentación|escritura|archivo|separate|distinto|diferenciad/i.test(text);
+    /file|writing|code|documentation|documentación|escritura|archivo|separate|distinto|diferenciad/i.test(
+      text
+    );
   if (!hasDistinctionFromFiles) return false;
 
-  const enMarkers = /(?:AI Agent Chat Communication|communicate|converse|chat language|file writing language)/i;
-  const esMarkers = /(?:Mandato de Idioma de Comunicación en el Chat|comunicarse|conversar|idioma del chat|idioma de escritura)/i;
+  const enMarkers =
+    /(?:AI Agent Chat Communication|communicate|converse|chat language|file writing language)/i;
+  const esMarkers =
+    /(?:Mandato de Idioma de Comunicación en el Chat|comunicarse|conversar|idioma del chat|idioma de escritura)/i;
   return matchesMandateLanguage(text, docLanguage, enMarkers, esMarkers);
 }
 
@@ -214,11 +245,13 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
   {
     ruleId: 'agents-missing-config-mandate',
     check: (text, docLang) => containsConfigAntiTamperingMandate(text, docLang),
-    getSnippet: docLang => getCanonicalMandateSnippet(docLang),
-    isExistingLine: l =>
+    getSnippet: (docLang) => getCanonicalMandateSnippet(docLang),
+    isExistingLine: (l) =>
       l.includes('Modifying or Disabling Configurations') ||
       l.includes('Modificar o Desactivar Configuraciones') ||
-      /(?:modifying|disabling|altering|turning off|modificar|desactivar|alterar|apagar)\s+(?:auditor\s+)?config/i.test(l),
+      /(?:modifying|disabling|altering|turning off|modificar|desactivar|alterar|apagar)\s+(?:auditor\s+)?config/i.test(
+        l
+      ),
     errorMessageEn:
       'Root AGENTS.md must include the mandatory clause prohibiting modifying or disabling configurations without prior programmer consultation.',
     errorMessageEs:
@@ -227,8 +260,8 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
   {
     ruleId: 'agents-missing-backward-compat-mandate',
     check: (text, docLang) => containsBackwardCompatMandate(text, docLang),
-    getSnippet: docLang => getCanonicalBackwardCompatSnippet(docLang),
-    isExistingLine: l =>
+    getSnippet: (docLang) => getCanonicalBackwardCompatSnippet(docLang),
+    isExistingLine: (l) =>
       l.includes('Backward-Compatible') ||
       l.includes('Retrocompatible') ||
       l.includes('Loud Failure') ||
@@ -241,8 +274,8 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
   {
     ruleId: 'agents-missing-fake-pass-mandate',
     check: (text, docLang) => containsFakePassMandate(text, docLang),
-    getSnippet: docLang => getCanonicalFakePassSnippet(docLang),
-    isExistingLine: l =>
+    getSnippet: (docLang) => getCanonicalFakePassSnippet(docLang),
+    isExistingLine: (l) =>
       l.includes('Zero-Tolerance Fake Pass') ||
       l.includes('Cero Tolerancia a Pases Falsos') ||
       l.includes('Suppressing, Silencing, Nullifying') ||
@@ -262,7 +295,7 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
     ruleId: 'agents-missing-chat-language-mandate',
     check: (text, docLang, chatLang) => containsChatLanguageMandate(text, docLang, chatLang),
     getSnippet: (docLang, chatLang) => getCanonicalChatLanguageSnippet(docLang, chatLang),
-    isExistingLine: l =>
+    isExistingLine: (l) =>
       l.includes('AI Agent Chat Communication') ||
       l.includes('Mandato de Idioma de Comunicación en el Chat') ||
       l.includes('Chat Communication Language Mandate') ||
@@ -290,14 +323,19 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     const projectRoot = rootDir || process.cwd();
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: true,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [...AGENTS_CONFIG_MANDATE_RULES]),
+      ruleCapabilities: createRuleCapabilities(
+        AGENTS_CONFIG_MANDATE_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: true,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        [...AGENTS_CONFIG_MANDATE_RULES]
+      ),
       fixableRuleIds: [...AGENTS_CONFIG_MANDATE_RULES],
       fix: options?.fix,
       id: 'validate_agents_config_mandate',
@@ -317,10 +355,14 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat'
       },
       ruleRemediations: {
-        'agents-missing-config-mandate': 'Guía de diagnóstico y remediación para agents-missing-config-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'agents-missing-backward-compat-mandate': 'Guía de diagnóstico y remediación para agents-missing-backward-compat-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'agents-missing-fake-pass-mandate': 'Guía de diagnóstico y remediación para agents-missing-fake-pass-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'agents-missing-chat-language-mandate': 'Guía de diagnóstico y remediación para agents-missing-chat-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-config-mandate':
+          'Guía de diagnóstico y remediación para agents-missing-config-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-backward-compat-mandate':
+          'Guía de diagnóstico y remediación para agents-missing-backward-compat-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-fake-pass-mandate':
+          'Guía de diagnóstico y remediación para agents-missing-fake-pass-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-chat-language-mandate':
+          'Guía de diagnóstico y remediación para agents-missing-chat-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['AGENTS.md']
@@ -344,7 +386,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
             severity: 'error',
             file: 'AGENTS.md',
             line: 1,
-            message: 'No se encontró el archivo AGENTS.md en la raíz del proyecto para validar los mandatos de arquitectura.'
+            message:
+              'No se encontró el archivo AGENTS.md en la raíz del proyecto para validar los mandatos de arquitectura.'
           });
         });
       }
@@ -367,7 +410,13 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
 
     for (const mandate of MANDATE_DEFINITIONS) {
       this.runSubAuditorSync(mandate.ruleId, () => {
-        content = this.auditSingleMandate(mandate, content, targetLanguage, chatLanguage, agentsMdPath);
+        content = this.auditSingleMandate(
+          mandate,
+          content,
+          targetLanguage,
+          chatLanguage,
+          agentsMdPath
+        );
       });
     }
   }
@@ -380,9 +429,11 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     agentsMdPath: string
   ): string {
     const sections = extractContractSections(currentContent);
-    const matchingSections = sections.filter(section => mandate.check(section, targetLanguage, chatLanguage));
+    const matchingSections = sections.filter((section) =>
+      mandate.check(section, targetLanguage, chatLanguage)
+    );
     const lines = currentContent.split('\n');
-    const existingMatches = lines.filter(l => mandate.isExistingLine(l));
+    const existingMatches = lines.filter((l) => mandate.isExistingLine(l));
 
     if (matchingSections.length === 1 && existingMatches.length <= 1) {
       return currentContent;

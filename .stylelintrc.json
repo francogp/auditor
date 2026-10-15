@@ -1,12 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/stylelintrc",
-  "extends": [
-    "stylelint-config-standard"
-  ],
-  "plugins": [
-    "stylelint-order",
-    "stylelint-declaration-strict-value"
-  ],
+  "extends": ["stylelint-config-standard"],
+  "plugins": ["stylelint-order", "stylelint-declaration-strict-value"],
   "overrides": [
     {
       "files": ["**/*.scss"],
@@ -14,10 +9,7 @@
     },
     {
       "files": ["**/*.vue"],
-      "extends": [
-        "stylelint-config-standard-scss",
-        "stylelint-config-standard-vue/scss"
-      ]
+      "extends": ["stylelint-config-standard-scss", "stylelint-config-standard-vue/scss"]
     }
   ],
   "rules": {
@@ -85,13 +77,7 @@
     "function-name-case": [
       "lower",
       {
-        "ignoreFunctions": [
-          "/^[A-Z]/",
-          "Drop-Shadow",
-          "Drop-shadow",
-          "hue-Rotate",
-          "Hue-Rotate"
-        ]
+        "ignoreFunctions": ["/^[A-Z]/", "Drop-Shadow", "Drop-shadow", "hue-Rotate", "Hue-Rotate"]
       }
     ],
     "value-keyword-case": [
@@ -117,9 +103,7 @@
     "declaration-block-no-duplicate-properties": [
       true,
       {
-        "ignore": [
-          "consecutive-duplicates-with-different-values"
-        ]
+        "ignore": ["consecutive-duplicates-with-different-values"]
       }
     ],
     "block-no-empty": true,
@@ -137,21 +121,13 @@
     "selector-pseudo-class-no-unknown": [
       true,
       {
-        "ignorePseudoClasses": [
-          "deep",
-          "slotted",
-          "global"
-        ]
+        "ignorePseudoClasses": ["deep", "slotted", "global"]
       }
     ],
     "selector-pseudo-element-no-unknown": [
       true,
       {
-        "ignorePseudoElements": [
-          "v-deep",
-          "v-slotted",
-          "v-global"
-        ]
+        "ignorePseudoElements": ["v-deep", "v-slotted", "v-global"]
       }
     ],
     "order/order": [

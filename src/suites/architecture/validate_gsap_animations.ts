@@ -21,12 +21,21 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig, isInCodeRoots, isExemptFile, matchesAnyRoot } from '../../core/auditConfig.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  getAuditConfig,
+  isInCodeRoots,
+  isExemptFile,
+  matchesAnyRoot
+} from '../../core/auditConfig.ts';
 import { normalizePosixPath as normalizeFilePath } from '../../core/safePath.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
-import { advancePastStringOrComment, scanBalancedBraces, scanBalancedParens } from '../../core/scannerUtils.ts';
+import {
+  advancePastStringOrComment,
+  scanBalancedBraces,
+  scanBalancedParens
+} from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -70,8 +79,10 @@ export const BANNED_CSS_ANIMATIONS_REGEX = /@keyframes\b|\btransition\s*:/g;
 export const BANNED_UI_TIMERS_REGEX = /\b(?:set|clear)(?:Timeout|Interval)\b/g;
 export const NO_IMPORTANT_ON_TRANSFORMS_REGEX = /(?<![\w-])transform\s*:[^;]*!important/gi;
 export const NO_IMPORTANT_ON_FILTERS_REGEX = /(?<![\w-])filter\s*:[^;]*!important/gi;
-export const EMPTY_VUE_TRANSITIONS_REGEX = /\.[\w-]+-(?:enter|leave)-(?:active|from|to)(?:[\s,]+\.[\w-]+-(?:enter|leave)-(?:active|from|to))*\s*\{\s*(?:@include\s+[\w-]+;\s*)?\}/g;
-export const GSAP_TWEEN_CALL_REGEX = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g;
+export const EMPTY_VUE_TRANSITIONS_REGEX =
+  /\.[\w-]+-(?:enter|leave)-(?:active|from|to)(?:[\s,]+\.[\w-]+-(?:enter|leave)-(?:active|from|to))*\s*\{\s*(?:@include\s+[\w-]+;\s*)?\}/g;
+export const GSAP_TWEEN_CALL_REGEX =
+  /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g;
 export const GPU_FILTER_REGEX = /(?:backdrop-filter|filter):/gi;
 
 interface TweenConfigObject {
@@ -84,7 +95,11 @@ interface TweenConfigObject {
  * Deterministically balances parentheses and object braces, stopping strictly at the closing
  * parenthesis of the tween call, at EOF, or at '</script>' boundary in Vue SFCs.
  */
-function extractBalancedBraces(content: string, braceStart: number, limit: number): { end: number; text: string } | null {
+function extractBalancedBraces(
+  content: string,
+  braceStart: number,
+  limit: number
+): { end: number; text: string } | null {
   const result = scanBalancedBraces(content, braceStart + 1, limit, 1, '</script>');
   if (result.depth === 0) {
     return { end: result.end, text: content.slice(braceStart, result.end) };
@@ -92,7 +107,11 @@ function extractBalancedBraces(content: string, braceStart: number, limit: numbe
   return null;
 }
 
-function extractTweenConfigObjects(content: string, openParenIndex: number, maxIndex?: number): TweenConfigObject[] {
+function extractTweenConfigObjects(
+  content: string,
+  openParenIndex: number,
+  maxIndex?: number
+): TweenConfigObject[] {
   const configs: TweenConfigObject[] = [];
   const limit = maxIndex !== undefined ? Math.min(content.length, maxIndex) : content.length;
   let parenDepth = 1;
@@ -171,14 +190,21 @@ export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 
 const LAYOUT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(GSAP_LAYOUT_PROPERTIES);
 
-function readTopLevelProperty(cfgText: string, i: number, limit: number): { nextIndex: number; match: { index: number; propName: string } | null } {
+function readTopLevelProperty(
+  cfgText: string,
+  i: number,
+  limit: number
+): { nextIndex: number; match: { index: number; propName: string } | null } {
   const idStart = i;
   while (i < limit && /[\w$]/.test(cfgText[i] ?? '')) {
     i++;
   }
   const id = cfgText.slice(idStart, i);
   let j = i;
-  while (j < limit && (cfgText[j] === ' ' || cfgText[j] === '\t' || cfgText[j] === '\n' || cfgText[j] === '\r')) {
+  while (
+    j < limit &&
+    (cfgText[j] === ' ' || cfgText[j] === '\t' || cfgText[j] === '\n' || cfgText[j] === '\r')
+  ) {
     j++;
   }
   if (j < limit && cfgText[j] === ':' && LAYOUT_PROPERTIES_SET.has(id)) {
@@ -214,7 +240,13 @@ function findTopLevelLayoutProperty(cfgText: string): { index: number; propName:
       bracketDepth++;
     } else if (ch === ']') {
       bracketDepth--;
-    } else if (braceDepth === 1 && parenDepth === 0 && bracketDepth === 0 && ch && /[a-z_$]/i.test(ch)) {
+    } else if (
+      braceDepth === 1 &&
+      parenDepth === 0 &&
+      bracketDepth === 0 &&
+      ch &&
+      /[a-z_$]/i.test(ch)
+    ) {
       const { nextIndex, match } = readTopLevelProperty(cfgText, i, limit);
       if (match) return match;
       i = nextIndex;
@@ -231,7 +263,10 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function getLineAndColumnAt(content: string, index: number): { line: number; column: number; lineText: string } {
+function getLineAndColumnAt(
+  content: string,
+  index: number
+): { line: number; column: number; lineText: string } {
   const preceding = content.slice(0, index);
   const lines = preceding.split('\n');
   const line = lines.length;
@@ -257,16 +292,29 @@ function isStyleContext(content: string, matchIndex: number, filePath?: string):
   return true;
 }
 
-function isHighDensityOrSuppressed(content: string, start: number, matchIndex: number, context: string, filePath?: string): boolean {
+function isHighDensityOrSuppressed(
+  content: string,
+  start: number,
+  matchIndex: number,
+  context: string,
+  filePath?: string
+): boolean {
   if (/audit-disable\s+gpu-gaps|will-change:\s*(?:skip|ignore|false)/i.test(context)) {
     return true;
   }
   const beforeMatch = content.substring(start, matchIndex);
-  const lastSemi = Math.max(beforeMatch.lastIndexOf(';'), beforeMatch.lastIndexOf('}'), beforeMatch.lastIndexOf('{'));
+  const lastSemi = Math.max(
+    beforeMatch.lastIndexOf(';'),
+    beforeMatch.lastIndexOf('}'),
+    beforeMatch.lastIndexOf('{')
+  );
   const selectorText = beforeMatch.substring(lastSemi + 1).trim();
 
   const highDensityKeywords = /card|item|avatar|badge|icon|grid|list|row|cell|overlay|background/i;
-  return highDensityKeywords.test(selectorText) || (filePath ? highDensityKeywords.test(filePath) : false);
+  return (
+    highDensityKeywords.test(selectorText) ||
+    (filePath ? highDensityKeywords.test(filePath) : false)
+  );
 }
 
 export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
@@ -291,7 +339,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.scss', '.css']),
@@ -313,21 +362,35 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         'gsap-high-frequency-tween-creation': 'Tween en listener continuo'
       },
       ruleRemediations: {
-        'gsap-banned-css-animations': 'Guía de diagnóstico y remediación para gsap-banned-css-animations. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-banned-ui-timers': 'Guía de diagnóstico y remediación para gsap-banned-ui-timers. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-no-layout-properties': 'Guía de diagnóstico y remediación para gsap-no-layout-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-named-timer-constants': 'Guía de diagnóstico y remediación para gsap-named-timer-constants. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-empty-vue-transitions': 'Guía de diagnóstico y remediación para gsap-empty-vue-transitions. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-no-important-transforms': 'Guía de diagnóstico y remediación para gsap-no-important-transforms. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-no-important-filters': 'Guía de diagnóstico y remediación para gsap-no-important-filters. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-gpu-layer-promotion': 'Guía de diagnóstico y remediación para gsap-gpu-layer-promotion. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-timeline-constructor-duration': 'Guía de diagnóstico y remediación para gsap-timeline-constructor-duration. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-kebab-case-properties': 'Guía de diagnóstico y remediación para gsap-kebab-case-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-raw-transform-string': 'Guía de diagnóstico y remediación para gsap-raw-transform-string. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-simultaneous-origin-conflict': 'Guía de diagnóstico y remediación para gsap-simultaneous-origin-conflict. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-legacy-ease-names': 'Guía de diagnóstico y remediación para gsap-legacy-ease-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-high-frequency-tween-creation': 'Guía de diagnóstico y remediación para gsap-high-frequency-tween-creation. Revisa la incidencia detectada y ajusta el código correspondiente.',
-      },
+        'gsap-banned-css-animations':
+          'Guía de diagnóstico y remediación para gsap-banned-css-animations. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-banned-ui-timers':
+          'Guía de diagnóstico y remediación para gsap-banned-ui-timers. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-no-layout-properties':
+          'Guía de diagnóstico y remediación para gsap-no-layout-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-named-timer-constants':
+          'Guía de diagnóstico y remediación para gsap-named-timer-constants. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-empty-vue-transitions':
+          'Guía de diagnóstico y remediación para gsap-empty-vue-transitions. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-no-important-transforms':
+          'Guía de diagnóstico y remediación para gsap-no-important-transforms. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-no-important-filters':
+          'Guía de diagnóstico y remediación para gsap-no-important-filters. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-gpu-layer-promotion':
+          'Guía de diagnóstico y remediación para gsap-gpu-layer-promotion. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-timeline-constructor-duration':
+          'Guía de diagnóstico y remediación para gsap-timeline-constructor-duration. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-kebab-case-properties':
+          'Guía de diagnóstico y remediación para gsap-kebab-case-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-raw-transform-string':
+          'Guía de diagnóstico y remediación para gsap-raw-transform-string. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-simultaneous-origin-conflict':
+          'Guía de diagnóstico y remediación para gsap-simultaneous-origin-conflict. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-legacy-ease-names':
+          'Guía de diagnóstico y remediación para gsap-legacy-ease-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-high-frequency-tween-creation':
+          'Guía de diagnóstico y remediación para gsap-high-frequency-tween-creation. Revisa la incidencia detectada y ajusta el código correspondiente.'
+      }
     });
 
     this.declareFileSubAuditor('gsap-banned-css-animations', (doc) => {
@@ -370,7 +433,11 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
 
     const declareScriptSubAuditor = (
       ruleId: GsapAnimationRuleId,
-      scanner: (relPath: string, rawContent: string, scriptRanges: readonly { start: number; end: number }[]) => void
+      scanner: (
+        relPath: string,
+        rawContent: string,
+        scriptRanges: readonly { start: number; end: number }[]
+      ) => void
     ) => {
       this.declareFileSubAuditor(ruleId, (doc) => {
         const norm = normalizeFilePath(doc.relPath);
@@ -380,10 +447,18 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       });
     };
 
-    declareScriptSubAuditor('gsap-no-layout-properties', (r, c, ranges) => this.scanLayoutProperties(r, c, ranges));
-    declareScriptSubAuditor('gsap-kebab-case-properties', (r, c, ranges) => this.scanKebabCaseProperties(r, c, ranges));
-    declareScriptSubAuditor('gsap-raw-transform-string', (r, c, ranges) => this.scanRawTransformString(r, c, ranges));
-    declareScriptSubAuditor('gsap-simultaneous-origin-conflict', (r, c, ranges) => this.scanSimultaneousOriginConflict(r, c, ranges));
+    declareScriptSubAuditor('gsap-no-layout-properties', (r, c, ranges) =>
+      this.scanLayoutProperties(r, c, ranges)
+    );
+    declareScriptSubAuditor('gsap-kebab-case-properties', (r, c, ranges) =>
+      this.scanKebabCaseProperties(r, c, ranges)
+    );
+    declareScriptSubAuditor('gsap-raw-transform-string', (r, c, ranges) =>
+      this.scanRawTransformString(r, c, ranges)
+    );
+    declareScriptSubAuditor('gsap-simultaneous-origin-conflict', (r, c, ranges) =>
+      this.scanSimultaneousOriginConflict(r, c, ranges)
+    );
 
     this.declareFileSubAuditor('gsap-named-timer-constants', (doc) => {
       const norm = normalizeFilePath(doc.relPath);
@@ -413,7 +488,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   private getScriptRanges(content: string, norm: string): Array<{ start: number; end: number }> {
     const vueBlocks = norm.endsWith('.vue') ? parseVueSfcBlocks(content) : null;
     return vueBlocks
-      ? vueBlocks.scripts.map(s => ({ start: s.contentStartIndex, end: s.endIndex }))
+      ? vueBlocks.scripts.map((s) => ({ start: s.contentStartIndex, end: s.endIndex }))
       : [{ start: 0, end: content.length }];
   }
 
@@ -421,9 +496,17 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     const config = getAuditConfig(this.projectRoot);
     const customFuncs = config.animation?.customTimerFunctions ?? [];
     const defaultFuncs = ['gsapSleep'] as const;
-    const allFuncs = Array.from(new Set([...defaultFuncs, ...customFuncs])).map(f => escapeRegex(f));
-    const funcsPart = allFuncs.length > 0 ? `|\\b(?:${allFuncs.join('|')})\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*\\)` : '';
-    return new RegExp(`\\b(?:gsap\\.)?delayedCall\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*,${funcsPart}`, 'g');
+    const allFuncs = Array.from(new Set([...defaultFuncs, ...customFuncs])).map((f) =>
+      escapeRegex(f)
+    );
+    const funcsPart =
+      allFuncs.length > 0
+        ? `|\\b(?:${allFuncs.join('|')})\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*\\)`
+        : '';
+    return new RegExp(
+      `\\b(?:gsap\\.)?delayedCall\\s*\\(\\s*([0-9]+(?:\\.[0-9]+)?)\\s*,${funcsPart}`,
+      'g'
+    );
   }
 
   private scanCssAnimations(relPath: string, content: string): void {
@@ -448,7 +531,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   }
 
   private scanEmptyVueTransitions(relPath: string, content: string): void {
-    const emptyTransitionsRegex = /\.[\w-]+-(?:enter|leave)-(?:active|from|to)(?:[\s,]+\.[\w-]+-(?:enter|leave)-(?:active|from|to))*\s*\{\s*(?:@include\s+[\w-]+;\s*)?\}/g;
+    const emptyTransitionsRegex =
+      /\.[\w-]+-(?:enter|leave)-(?:active|from|to)(?:[\s,]+\.[\w-]+-(?:enter|leave)-(?:active|from|to))*\s*\{\s*(?:@include\s+[\w-]+;\s*)?\}/g;
     let m: RegExpExecArray | null;
     while ((m = emptyTransitionsRegex.exec(content)) !== null) {
       if (!isStyleContext(content, m.index, relPath)) continue;
@@ -509,14 +593,17 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
 
       if (isHighDensityOrSuppressed(content, start, m.index, context, relPath)) continue;
 
-      const isDynamic = /transition\s*:[^;]*(?:filter|backdrop-filter|all)|animation\s*:/i.test(context);
+      const isDynamic = /transition\s*:[^;]*(?:filter|backdrop-filter|all)|animation\s*:/i.test(
+        context
+      );
       if (!isDynamic) continue;
 
       if (!/will-change|will-animate/i.test(context)) {
         const { line, column } = getLineAndColumnAt(content, m.index);
         this.addViolation({
           ruleId: 'gsap-gpu-layer-promotion',
-          message: "Filtro dinámico detectado sin 'will-change'. Considera añadir promoción de capa GPU.",
+          message:
+            "Filtro dinámico detectado sin 'will-change'. Considera añadir promoción de capa GPU.",
           filePath: relPath,
           line,
           column,
@@ -533,10 +620,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     norm: string
   ): void {
     const config = getAuditConfig(this.projectRoot);
-    const uiRoots = [
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? [])
-    ];
+    const uiRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
     const isUiFile = norm.endsWith('.vue') || matchesAnyRoot(norm, uiRoots);
 
     if (!isUiFile || /audit-disable\s+timers/i.test(content)) return;
@@ -570,7 +654,12 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     scriptRanges: readonly { start: number; end: number }[],
     callback: (cfg: TweenConfigObject, mIndex: number, isAuthorized: boolean) => void
   ): void {
-    if (!content.includes('gsap') && !content.includes('timeline') && !content.includes('tl.') && !content.includes('Timeline')) {
+    if (
+      !content.includes('gsap') &&
+      !content.includes('timeline') &&
+      !content.includes('tl.') &&
+      !content.includes('Timeline')
+    ) {
       return;
     }
     const gsapTweenRegex = /\b(?:gsap|timeline|\w*Timeline|tl)\s*\.\s*(?:to|from|fromTo)\s*\(/g;
@@ -585,9 +674,12 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         const tweenEnd = parenResult.depth === 0 ? parenResult.end : range.end;
 
         const precedingLineStart = content.lastIndexOf('\n', m.index);
-        const prevLineStart = precedingLineStart > 0 ? content.lastIndexOf('\n', precedingLineStart - 1) + 1 : 0;
+        const prevLineStart =
+          precedingLineStart > 0 ? content.lastIndexOf('\n', precedingLineStart - 1) + 1 : 0;
         const tweenSpanText = content.slice(prevLineStart, tweenEnd);
-        const isTweenAuthorized = /\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(tweenSpanText);
+        const isTweenAuthorized = /\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(
+          tweenSpanText
+        );
 
         const configObjects = extractTweenConfigObjects(content, openParenIdx, range.end);
         for (const cfg of configObjects) {
@@ -607,7 +699,13 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       if (foundLayout && !isAuthorized) {
         const matchIdx = cfg.startOffset + foundLayout.index;
         const tweenCallStart = mIndex;
-        const windowStart = Math.max(0, Math.min(tweenCallStart - TWEEN_CALL_ESCAPE_WINDOW_OFFSET, matchIdx - MATCH_ESCAPE_WINDOW_OFFSET));
+        const windowStart = Math.max(
+          0,
+          Math.min(
+            tweenCallStart - TWEEN_CALL_ESCAPE_WINDOW_OFFSET,
+            matchIdx - MATCH_ESCAPE_WINDOW_OFFSET
+          )
+        );
         const lineEnd = content.indexOf('\n', matchIdx);
         const nearby = content.slice(windowStart, lineEnd === -1 ? content.length : lineEnd);
         if (!/\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(nearby)) {
@@ -631,7 +729,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     scriptRanges: readonly { start: number; end: number }[]
   ): void {
     this.forEachTweenConfig(content, scriptRanges, (cfg) => {
-      const kebabRegex = /(['"])(?:background-color|border-radius|font-size|z-index|box-shadow|line-height|letter-spacing)\1\s*:/g;
+      const kebabRegex =
+        /(['"])(?:background-color|border-radius|font-size|z-index|box-shadow|line-height|letter-spacing)\1\s*:/g;
       let kebabMatch: RegExpExecArray | null;
       while ((kebabMatch = kebabRegex.exec(cfg.text)) !== null) {
         const matchIdx = cfg.startOffset + kebabMatch.index;
@@ -654,7 +753,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     scriptRanges: readonly { start: number; end: number }[]
   ): void {
     this.forEachTweenConfig(content, scriptRanges, (cfg) => {
-      const rawTransformRegex = /\btransform\s*:\s*(['"`])(?:translate|rotate|scale|skew|matrix)[^'"`]*\1/i;
+      const rawTransformRegex =
+        /\btransform\s*:\s*(['"`])(?:translate|rotate|scale|skew|matrix)[^'"`]*\1/i;
       const rawMatch = rawTransformRegex.exec(cfg.text);
       if (rawMatch) {
         const matchIdx = cfg.startOffset + rawMatch.index;
@@ -681,7 +781,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         const { line, column } = getLineAndColumnAt(content, cfg.startOffset);
         this.addViolation({
           ruleId: 'gsap-simultaneous-origin-conflict',
-          message: "Conflicto de orígenes SVG detectado: no declares 'svgOrigin' y 'transformOrigin' simultáneamente en el mismo tween.",
+          message:
+            "Conflicto de orígenes SVG detectado: no declares 'svgOrigin' y 'transformOrigin' simultáneamente en el mismo tween.",
           filePath: relPath,
           line,
           column,
@@ -734,7 +835,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   }
 
   private scanLegacyEaseNames(relPath: string, content: string): void {
-    const legacyEaseRegex = /\b(?:Power[0-4]|Quad|Cubic|Quart|Quint|Strong|Linear|Sine|Expo|Circ|Back|Bounce|Elastic)\.(?:ease(?:In|Out|InOut)|easeNone)\b/g;
+    const legacyEaseRegex =
+      /\b(?:Power[0-4]|Quad|Cubic|Quart|Quint|Strong|Linear|Sine|Expo|Circ|Back|Bounce|Elastic)\.(?:ease(?:In|Out|InOut)|easeNone)\b/g;
     let m: RegExpExecArray | null;
     while ((m = legacyEaseRegex.exec(content)) !== null) {
       const { line, column } = getLineAndColumnAt(content, m.index);
@@ -750,7 +852,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   }
 
   private scanHighFrequencyTweens(relPath: string, content: string): void {
-    const hfListenerRegex = /\b\w+\.addEventListener\s*\(\s*['"](?:mousemove|pointermove|touchmove|wheel|scroll)['"]/g;
+    const hfListenerRegex =
+      /\b\w+\.addEventListener\s*\(\s*['"](?:mousemove|pointermove|touchmove|wheel|scroll)['"]/g;
     let m: RegExpExecArray | null;
     while ((m = hfListenerRegex.exec(content)) !== null) {
       const listenerChunk = content.slice(m.index, m.index + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
@@ -759,7 +862,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           const { line, column } = getLineAndColumnAt(content, m.index);
           this.addViolation({
             ruleId: 'gsap-high-frequency-tween-creation',
-            message: "Creación de tween con 'gsap.to()' dentro de listener continuo. En 'mousemove', etc. usa 'gsap.quickTo()'.",
+            message:
+              "Creación de tween con 'gsap.to()' dentro de listener continuo. En 'mousemove', etc. usa 'gsap.quickTo()'.",
             filePath: relPath,
             line,
             column,

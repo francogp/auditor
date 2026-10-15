@@ -1,3 +1,5 @@
+import { HomebrewDetector } from "../homebrewTypes.js";
+//#region src/analyzers/homebrew/detectors/manualStepLoggingDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
  *
@@ -7,5 +9,5 @@
  * duplicate and desynchronize that numbering, so rules must be measured through
  * `runSubAuditorSync` / `runSubAuditor` / `declareFileSubAuditor` instead.
  */
-export declare const manualStepLoggingDetector: import("../homebrewTypes.ts").HomebrewDetector;
-//# sourceMappingURL=manualStepLoggingDetector.d.ts.map
+export declare const manualStepLoggingDetector: HomebrewDetector;
+//#endregion

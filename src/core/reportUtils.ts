@@ -32,14 +32,24 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
   console.log(`════════════════════════════════════\n`);
 
   if (!verbose) {
-    console.log(styleText('cyan', `\n[INFO] Modo resumen activo: ${summary.errors.length} errores, ${summary.warnings.length} advertencias.`));
+    console.log(
+      styleText(
+        'cyan',
+        `\n[INFO] Modo resumen activo: ${summary.errors.length} errores, ${summary.warnings.length} advertencias.`
+      )
+    );
   } else {
     if (summary.warnings.length) {
       console.log(styleText('yellow', `⚠️  WARNINGS (${summary.warnings.length}):`));
       const limit = MAX_REPORT_SAMPLE_ITEMS;
-      summary.warnings.slice(0, limit).forEach(w => console.log(`   ${w}`));
+      summary.warnings.slice(0, limit).forEach((w) => console.log(`   ${w}`));
       if (summary.warnings.length > limit) {
-        console.log(styleText('cyan', `   ... y ${summary.warnings.length - limit} advertencias más (usa -o para ver todas)`));
+        console.log(
+          styleText(
+            'cyan',
+            `   ... y ${summary.warnings.length - limit} advertencias más (usa -o para ver todas)`
+          )
+        );
       }
       console.log('');
     }
@@ -47,18 +57,28 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
     if (summary.errors.length) {
       console.log(styleText('red', `❌ ERRORS (${summary.errors.length}):`));
       const limit = MAX_REPORT_SAMPLE_ITEMS;
-      summary.errors.slice(0, limit).forEach(e => console.log(`   ${e}`));
+      summary.errors.slice(0, limit).forEach((e) => console.log(`   ${e}`));
       if (summary.errors.length > limit) {
-        console.log(styleText('cyan', `   ... y ${summary.errors.length - limit} errores más (usa -o para ver todos)`));
+        console.log(
+          styleText(
+            'cyan',
+            `   ... y ${summary.errors.length - limit} errores más (usa -o para ver todos)`
+          )
+        );
       }
-      console.log('\n' + styleText('red', 'Corrige estos errores para asegurar la integridad de los datos.'));
+      console.log(
+        '\n' + styleText('red', 'Corrige estos errores para asegurar la integridad de los datos.')
+      );
     } else {
       console.log(styleText('green', '✅ Todos los componentes pasaron la validación con éxito!'));
     }
   }
 }
 
-export async function writeReportFile(outputPathArg: string, summary: ValidationSummary): Promise<void> {
+export async function writeReportFile(
+  outputPathArg: string,
+  summary: ValidationSummary
+): Promise<void> {
   const outputPath = path.resolve(process.cwd(), outputPathArg);
   const metricLines = Object.entries(summary.scannedMetrics).map(([key, val]) => `${key}: ${val}`);
 
@@ -66,9 +86,9 @@ export async function writeReportFile(outputPathArg: string, summary: Validation
     `--- ${summary.title.toUpperCase()} ---`,
     ...metricLines,
     `\nErrors (${summary.errors.length}):`,
-    ...summary.errors.map(e => `  - ${e}`),
+    ...summary.errors.map((e) => `  - ${e}`),
     `\nWarnings (${summary.warnings.length}):`,
-    ...summary.warnings.map(w => `  - ${w}`)
+    ...summary.warnings.map((w) => `  - ${w}`)
   ];
 
   await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
@@ -88,7 +108,14 @@ export function parseJsonArrayOutput<T = unknown>(
 
   const cleanedLines = input
     .split('\n')
-    .filter((line) => !line.startsWith('(node:') && !line.startsWith('(Use `node') && !line.includes('SecurityWarning') && !line.startsWith('[PERM') && !line.startsWith('npm notice'));
+    .filter(
+      (line) =>
+        !line.startsWith('(node:') &&
+        !line.startsWith('(Use `node') &&
+        !line.includes('SecurityWarning') &&
+        !line.startsWith('[PERM') &&
+        !line.startsWith('npm notice')
+    );
   const trimmed = cleanedLines.join('\n').trim();
   if (!trimmed) return [];
   const startIdx = trimmed.indexOf('[');
@@ -100,7 +127,10 @@ export function parseJsonArrayOutput<T = unknown>(
   } catch (err) {
     if (options?.throwOnError) {
       const toolSuffix = options.toolName ? ` de ${options.toolName}` : '';
-      throw new Error(`Error al procesar salida JSON${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+      throw new Error(
+        `Error al procesar salida JSON${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err }
+      );
     }
     return [];
   }
@@ -126,11 +156,7 @@ export function isPathExempt(relPath: string, exemptPaths?: readonly string[]): 
     let cleanPrefix = normalizePosixPath(p);
     if (cleanPrefix.endsWith('/**')) cleanPrefix = cleanPrefix.slice(0, -3);
     else if (cleanPrefix.endsWith('/*')) cleanPrefix = cleanPrefix.slice(0, -2);
-    if (
-      norm === cleanPrefix ||
-      norm.startsWith(`${cleanPrefix}/`) ||
-      norm.includes(cleanPrefix)
-    ) {
+    if (norm === cleanPrefix || norm.startsWith(`${cleanPrefix}/`) || norm.includes(cleanPrefix)) {
       return true;
     }
   }
@@ -191,7 +217,11 @@ export interface ParseLintFindingsOptions {
   ruleDescription: string;
   defaultRuleName?: string;
   defaultMessage?: string;
-  transform?: (msg: RawLintMessage, cleanFile: string, options: ParseLintFindingsOptions) => AuditFinding | null;
+  transform?: (
+    msg: RawLintMessage,
+    cleanFile: string,
+    options: ParseLintFindingsOptions
+  ) => AuditFinding | null;
 }
 
 /**

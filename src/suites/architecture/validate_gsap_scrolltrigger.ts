@@ -18,7 +18,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -60,7 +60,8 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.js']),
@@ -73,12 +74,17 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         'gsap-scrolltrigger-container-animation-ease': 'Falta ease: none en contenedor'
       },
       ruleRemediations: {
-        'gsap-scrolltrigger-in-timeline-child': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-in-timeline-child. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-scrolltrigger-scrub-and-toggle': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-scrub-and-toggle. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-scrolltrigger-markers-production': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-markers-production. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-scrolltrigger-animating-pinned-element': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-animating-pinned-element. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'gsap-scrolltrigger-container-animation-ease': 'Guía de diagnóstico y remediación para gsap-scrolltrigger-container-animation-ease. Revisa la incidencia detectada y ajusta el código correspondiente.',
-      },
+        'gsap-scrolltrigger-in-timeline-child':
+          'Guía de diagnóstico y remediación para gsap-scrolltrigger-in-timeline-child. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-scrub-and-toggle':
+          'Guía de diagnóstico y remediación para gsap-scrolltrigger-scrub-and-toggle. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-markers-production':
+          'Guía de diagnóstico y remediación para gsap-scrolltrigger-markers-production. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-animating-pinned-element':
+          'Guía de diagnóstico y remediación para gsap-scrolltrigger-animating-pinned-element. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'gsap-scrolltrigger-container-animation-ease':
+          'Guía de diagnóstico y remediación para gsap-scrolltrigger-container-animation-ease. Revisa la incidencia detectada y ajusta el código correspondiente.'
+      }
     });
   }
 
@@ -113,17 +119,20 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
   }
 
   private checkTimelineChild(relPath: string, content: string): void {
-    const timelineChildRegex = /(?:\b(?:tl|timeline|\w*Timeline)|\))\s*\.\s*(?:to|from|fromTo)\s*\([^){]*\{[^)}]*(?:\}[^){]*\{[^)}]*)*(?:\)[^}]*)?\bscrollTrigger\s*:/g;
+    const timelineChildRegex =
+      /(?:\b(?:tl|timeline|\w*Timeline)|\))\s*\.\s*(?:to|from|fromTo)\s*\([^){]*\{[^)}]*(?:\}[^){]*\{[^)}]*)*(?:\)[^}]*)?\bscrollTrigger\s*:/g;
     let m: RegExpExecArray | null;
     while ((m = timelineChildRegex.exec(content)) !== null) {
-      if (this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i)) continue;
+      if (this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i))
+        continue;
 
       this.addViolationAtMatch({
         ruleId: 'gsap-scrolltrigger-in-timeline-child',
         filePath: relPath,
         content,
         matchIndex: m.index,
-        message: "Declarar 'scrollTrigger' en un tween hijo de timeline rompe la secuencia. Decláralo en 'gsap.timeline({ scrollTrigger: ... })'.",
+        message:
+          "Declarar 'scrollTrigger' en un tween hijo de timeline rompe la secuencia. Decláralo en 'gsap.timeline({ scrollTrigger: ... })'.",
         severity: 'error'
       });
     }
@@ -138,7 +147,8 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
     while ((m = stBlockRegex.exec(content)) !== null) {
       const blockBody = m[1] ?? '';
       const matchIndex = m.index;
-      if (this.isLineSuppressed(content, matchIndex, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i)) continue;
+      if (this.isLineSuppressed(content, matchIndex, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i))
+        continue;
       callback(blockBody, matchIndex);
     }
   }
@@ -151,7 +161,8 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
           filePath: relPath,
           content,
           matchIndex,
-          message: "Conflicto en ScrollTrigger: 'scrub' y 'toggleActions' no pueden coexistir. 'scrub' neutraliza las toggleActions.",
+          message:
+            "Conflicto en ScrollTrigger: 'scrub' y 'toggleActions' no pueden coexistir. 'scrub' neutraliza las toggleActions.",
           severity: 'error'
         });
       }
@@ -161,8 +172,13 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
   private checkMarkersProduction(relPath: string, content: string): void {
     this.scanScrollTriggerBlocks(content, (blockBody, matchIndex) => {
       if (/\bmarkers\s*:\s*true\b/i.test(blockBody)) {
-        const surroundingWindow = content.slice(Math.max(0, matchIndex - 100), Math.min(content.length, matchIndex + 200));
-        const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(surroundingWindow);
+        const surroundingWindow = content.slice(
+          Math.max(0, matchIndex - 100),
+          Math.min(content.length, matchIndex + 200)
+        );
+        const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(
+          surroundingWindow
+        );
         const hasMarkersOk = /\/\/\s*markers-ok:\s*\S+/i.test(surroundingWindow);
         if (!hasDevGuard && !hasMarkersOk) {
           this.addViolationAtMatch({
@@ -170,7 +186,8 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
             filePath: relPath,
             content,
             matchIndex,
-            message: "Uso de 'markers: true' en código productivo. Elimina los marcadores o enciérralos con guardia de desarrollo ('import.meta.env.DEV').",
+            message:
+              "Uso de 'markers: true' en código productivo. Elimina los marcadores o enciérralos con guardia de desarrollo ('import.meta.env.DEV').",
             severity: 'error'
           });
         }
@@ -178,19 +195,23 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
     });
   }
 
-
   private checkAnimatingPinnedElement(relPath: string, content: string): void {
-    const pinnedAnimationRegex = /\b(?:gsap|tl|timeline)\s*\.\s*(?:to|from|fromTo)\s*\([^,]+,\s*\{[^}]*\bpin\s*:\s*true[^}]*(?:\bx|\by|\bscale|\brotation)\s*:/g;
+    const pinnedAnimationRegex =
+      /\b(?:gsap|tl|timeline)\s*\.\s*(?:to|from|fromTo)\s*\([^,]+,\s*\{[^}]*\bpin\s*:\s*true[^}]*(?:\bx|\by|\bscale|\brotation)\s*:/g;
     let m: RegExpExecArray | null;
     while ((m = pinnedAnimationRegex.exec(content)) !== null) {
-      if (this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok|pin-ok):\s*\S+/i)) continue;
+      if (
+        this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok|pin-ok):\s*\S+/i)
+      )
+        continue;
 
       this.addViolationAtMatch({
         ruleId: 'gsap-scrolltrigger-animating-pinned-element',
         filePath: relPath,
         content,
         matchIndex: m.index,
-        message: "Animación de transformación sobre elemento fijado con 'pin: true' distorsiona el pin-spacer. Fija el contenedor padre.",
+        message:
+          "Animación de transformación sobre elemento fijado con 'pin: true' distorsiona el pin-spacer. Fija el contenedor padre.",
         severity: 'error'
       });
     }
@@ -202,7 +223,10 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
     while ((m = containerAnimRegex.exec(content)) !== null) {
       const animVar = m[1]?.trim() ?? '';
       if (!animVar) continue;
-      const defRegex = new RegExp(`(?:const|let|var)\\s+${animVar}\\s*=\\s*gsap\\.(?:to|from|fromTo)\\s*\\([^}]*\\}`, 'g');
+      const defRegex = new RegExp(
+        `(?:const|let|var)\\s+${animVar}\\s*=\\s*gsap\\.(?:to|from|fromTo)\\s*\\([^}]*\\}`,
+        'g'
+      );
       const defMatch = defRegex.exec(content);
       if (defMatch) {
         const tweenBody = defMatch[0];

@@ -16,7 +16,7 @@ import {
   ValidateEnvironmentEnginesAuditor,
   ENVIRONMENT_ENGINES_RULES,
   extractBaseNodeVersion,
-  syncNvmrc
+  syncNodeVersion
 } from '../src/suites/architecture/validate_environment_engines.ts';
 import { getAuditorEngines } from '../src/cli/check_environment.ts';
 
@@ -184,15 +184,15 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       expect(extractBaseNodeVersion('')).toBe('');
     });
 
-    it('syncNvmrc synchronizes exact base node version into .nvmrc', async () => {
-      const updated = syncNvmrc(tempDir, '>=26.11.1');
+    it('syncNodeVersion synchronizes exact base node version into .node-version', async () => {
+      const updated = syncNodeVersion(tempDir, '>=26.11.1');
       expect(updated).toBe(true);
 
-      const content = await fs.readFile(path.join(tempDir, '.nvmrc'), 'utf8');
+      const content = await fs.readFile(path.join(tempDir, '.node-version'), 'utf8');
       expect(content.trim()).toBe('26.11.1');
 
       // Idempotent run
-      const secondRun = syncNvmrc(tempDir, '>=26.11.1');
+      const secondRun = syncNodeVersion(tempDir, '>=26.11.1');
       expect(secondRun).toBe(false);
     });
   });

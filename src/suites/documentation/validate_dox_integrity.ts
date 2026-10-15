@@ -17,7 +17,11 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, getEffectiveIgnoreDirs , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  getEffectiveIgnoreDirs,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { loadAuditConfig } from '../../core/auditConfig.ts';
 import { checkDoxIntegrity } from '../../analyzers/doxAnalyzer.ts';
 
@@ -41,7 +45,7 @@ export const DOX_RULES: readonly DoxRuleId[] = [
 ] as const;
 
 export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
-private readonly rootDir: string;
+  private readonly rootDir: string;
 
   constructor(rootDir?: string) {
     const projectRoot = rootDir || process.cwd();
@@ -53,7 +57,8 @@ private readonly rootDir: string;
         fix: 'none',
         md: true,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_dox_integrity',
       name: 'DOX & AGENTS.md Integrity Validator',
@@ -74,12 +79,18 @@ private readonly rootDir: string;
         'dox-empty-section': 'Sección vacía o con contenido basura'
       },
       ruleRemediations: {
-        'dox-missing-agents-md': 'Guía de diagnóstico y remediación para dox-missing-agents-md. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dox-unregistered-child': 'Guía de diagnóstico y remediación para dox-unregistered-child. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dox-unindexed-file': 'Guía de diagnóstico y remediación para dox-unindexed-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dox-missing-section': 'Guía de diagnóstico y remediación para dox-missing-section. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dox-section-order': 'Guía de diagnóstico y remediación para dox-section-order. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dox-empty-section': 'Guía de diagnóstico y remediación para dox-empty-section. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-missing-agents-md':
+          'Guía de diagnóstico y remediación para dox-missing-agents-md. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-unregistered-child':
+          'Guía de diagnóstico y remediación para dox-unregistered-child. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-unindexed-file':
+          'Guía de diagnóstico y remediación para dox-unindexed-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-missing-section':
+          'Guía de diagnóstico y remediación para dox-missing-section. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-section-order':
+          'Guía de diagnóstico y remediación para dox-section-order. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dox-empty-section':
+          'Guía de diagnóstico y remediación para dox-empty-section. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['**/AGENTS.md']
@@ -92,7 +103,7 @@ private readonly rootDir: string;
   public override async runAudit(): Promise<void> {
     await loadAuditConfig(this.rootDir);
 
-    const agentsFiles = await this.context.collectFiles(['.'], new Set(['.md']));
+    const agentsFiles = this.context.collectFiles(['.'], new Set(['.md']));
     for (const f of agentsFiles) {
       if (path.basename(f) === 'AGENTS.md') {
         this.recordScanned(f);
@@ -107,7 +118,7 @@ private readonly rootDir: string;
     for (const ruleId of DOX_RULES) {
       this.runSubAuditorSync(ruleId, () => {
         const ruleViolations = rawViolations.filter(
-          v => ((v.ruleId as DoxRuleId) || 'dox-missing-agents-md') === ruleId
+          (v) => ((v.ruleId as DoxRuleId) || 'dox-missing-agents-md') === ruleId
         );
 
         for (const v of ruleViolations) {
@@ -127,9 +138,10 @@ private readonly rootDir: string;
   }
 }
 
-if (process.argv[1] && (
-  process.argv[1].endsWith('validate_dox_integrity.ts') ||
-  (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename)
-)) {
+if (
+  process.argv[1] &&
+  (process.argv[1].endsWith('validate_dox_integrity.ts') ||
+    (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename))
+) {
   await BaseAuditor.runCli(new DoxIntegrityAuditor());
 }

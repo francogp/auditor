@@ -53,7 +53,7 @@ graph TD
 
 ### 2. Prohibition on Modifying or Disabling Configurations Without Prior Human Authorization
 
-- **NEVER turn off, relax, revert, or modify auditor configuration** (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings.
+- **NEVER turn off, relax, revert, or modify auditor configuration** (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings.
 - Errors are **REAL ARCHITECTURAL DEFECTS** that must be resolved in source code or via `npm run auditor:fix`.
 - If an agent believes a configuration genuinely requires adjustment, the agent **MUST HALT IMMEDIATELY AND EXPLICITLY CONSULT THE HUMAN PROGRAMMER** via `ask_question`, presenting the technical explanation, trade-offs, pros, and cons before modifying any configuration.
 
@@ -109,7 +109,7 @@ graph TD
 
 ### 12. Mandatory Modular Identity & Human-Friendly Description Standard
 
-- `packageName`: Mandatory package/technology scope (e.g. `'ESLint'`, `'TypeScript'`, `'Config'`, `'Estilos'`).
+- `packageName`: Mandatory package/technology scope (e.g. `'Oxlint'`, `'TypeScript'`, `'Config'`, `'Estilos'`).
 - `description`: Suite purpose, max 60 characters (`MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60`).
 - `ruleDescriptions`: Pure Spanish explanation for each rule ID. Composed `${packageName}: ${ruleDescription}` MUST be `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) without newlines.
 - Positive health phrasing for active checks (e.g. `'Salud del motor similar-code'`), reserving error phrasing for violation messages.
@@ -178,7 +178,7 @@ graph TD
 - **Exact Isolation Mode (`only-speed=light|heavy|full`)**: Executes ONLY rules matching that exact tier.
 - **Mandatory Speed Selection in Multi-Speed Critical Suites**: If a suite or rule declares `critical: true` and `speed` has 2 or more speeds declared (e.g. `speed: ['light', 'full']`), it **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run <validate-script>`), guaranteeing that direct local executions run instantaneously with incremental/cache enabled.
 - **Mandatory Authentic Tiers & Prohibition of Duplicated Tiers**: Inventing or duplicating speed tiers that repeat identical CLI arguments or behaviors as another tier (such as inventing a `heavy` tier identical to `light`) is STRICTLY PROHIBITED. Each declared tier (`light`, `heavy`, `full`) MUST execute genuinely different commands or CLI flags of the underlying tool. If a tool only supports 2 distinct operational modes (e.g. `tsc` with `--incremental` in `light` vs without `--incremental` in `full`), ONLY those 2 basic tiers are declared (`['light', 'full']`). Only tools with 3 completely decoupled subcommands (such as `validate_fallow`: `dead-code --no-type-aware`, `dupes`, `type-aware`) declare all 3 tiers.
-- **Permanent Cache Mandate (Cache is NEVER Turned Off in Full)**: In the Full (`🐘`) tier, the entire project is audited without incremental/delta scoping (evaluating all files), BUT THE CACHE IS NEVER TURNED OFF. Tools with caching support (`eslint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers to avoid re-processing identical files on disk.
+- **Permanent Cache Mandate (Cache is NEVER Turned Off in Full)**: In the Full (`🐘`) tier, the entire project is audited without incremental/delta scoping (evaluating all files), BUT THE CACHE IS NEVER TURNED OFF. Tools with caching support (`oxlint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers to avoid re-processing identical files on disk.
 - **Clean Composition in `TieredCommandProfile`**: Repeating identical literal arrays in `profiles` is strictly prohibited. Profiles must be cleanly composed using shared constants (e.g. `standardArgs`, `incrementalArgs`).
 - **LPT Task Scheduler (Longest Processing Time First)**: In `audit_full`, suites with higher speed tiers (`🐘` `'full'`, `🐢` `'heavy'`) are sorted and dispatched FIRST in the worker queue so multi-core CPU workers absorb heavy tasks immediately.
 
@@ -191,9 +191,22 @@ graph TD
 - `npm run build`: Chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`.
 - `npm run build:deploy` (`auditor-build-deploy`): Runs `npm run build` under `AUDITOR_ENV=production` for Docker/CI/deploy environments.
 
-### 22. Strict ESLint Flat Config & Domain-Type-First Type Integrity
+### 22. Strict Vite+ (`vp`) Unified Configuration & Domain-Type-First Type Integrity (`validate_vite_plus_config`, `validate_oxlint`)
 
-- Governs `eslint.config.js` enforcing `@typescript-eslint/no-explicit-any: 'error'`, banning `as unknown as` and `Date` constructors without explicit domain wrappers.
+- Eradicates standalone `eslint.config.*`, `vitest.config.*`, `tsdown.config.*`, `tsconfig.build.json`, and `.nvmrc` across all projects in favor of unified **Vite+ (`vite-plus` / CLI `vp`)**.
+- Governs `vite.config.ts` (`defineConfig` from `'vite-plus'`) enforcing:
+  1. `lint`: Oxlint + tsgolint type-aware rules (`options: { typeAware: true, typeCheck: true }`), JS plugin `@francogp/auditor/domain-type-plugin` enforcing the 4 `/domain-type-first` rules, `@typescript-eslint/no-explicit-any: 'error'`, `@typescript-eslint/ban-ts-comment: 'error'`, and banning double casting `as unknown as T` or uncoordinated `Date` constructors without explicit domain wrappers.
+  2. `test`: Vitest runner importing from `'vite-plus/test'`, supporting multi-project configurations and V8 coverage.
+  3. `fmt`: Oxfmt formatting (`singleQuote: true`, `semi: true`, `trailingComma: 'none'`, `printWidth: 100`).
+  4. `staged`: Native git hooks (`{ '*': 'vp check --fix' }`).
+  5. `pack`: Tsdown library packaging when `packageDistribution.enabled: true`.
+- **Non-Destructive Auto-Fix Migration Workflow (`auditor fix`)**:
+  When migrating a legacy project, `auditor fix` executes the strict 5-stage non-destructive protocol:
+  1. **Preserve & Merge Configs**: Reads existing `vitest.config.*` (extracting `test: { ... }` blocks, projects, and custom pools) and merges them into `vite.config.ts`, preserving 100% of existing application plugins, aliases, and server configs.
+  2. **Rewrite Imports**: Rewrites test imports from `'vitest'` to `'vite-plus/test'`.
+  3. **Migrate Node Runtime**: Migrates `.nvmrc` to `.node-version` (canonical for `vp env`).
+  4. **Synchronize `package.json`**: Adds `"vite-plus": "^1.2.0"` to `devDependencies`, strips obsolete `eslint*` packages, and modernizes scripts to `vp check`.
+  5. **Clean Legacy Artifacts**: Purges obsolete config files (`vitest.config.*`, `eslint.config.*`, `.nvmrc`) ONLY AFTER all preceding migration steps have succeeded.
 
 ### 23. Authentic Documented Commands Governance (`validate_documented_commands`)
 
@@ -269,7 +282,7 @@ graph TD
 
 Discovered automatically across 6 architectural families:
 
-- **`architecture/`**: AST rules, Fallow intelligence, component styles, HTML-Validate, Stylelint, ESLint config, Git config, Auditor hygiene, Knip package hygiene, Publint distribution, Type coverage, WCAG accessibility, vector similar-code, test coverage, AGENTS integrity, Vue SFC hygiene, code simplification, SCSS architecture.
+- **`architecture/`**: AST rules, Fallow intelligence, component styles, HTML-Validate, Stylelint, Vite+ config, Git config, Auditor hygiene, Knip package hygiene, Publint distribution, Type coverage, WCAG accessibility, vector similar-code, test coverage, AGENTS integrity, Vue SFC hygiene, code simplification, SCSS architecture.
 - **`domain_data/`**: O(1) data structures, canonical domain catalogs, Domain-Type-First validation.
 - **`performance/`**: Web performance optimization, Database query performance.
 - **`security/`**: Static security hardening, secret leaks, dependency CVE vulnerabilities.
@@ -293,6 +306,8 @@ Pre-formatted, production-ready templates conforming to all project standards:
 - **Composite / Database / Asset Auditor (`BaseAuditor`)**: [`assets/templates/base_auditor_template.ts`](./assets/templates/base_auditor_template.ts)
 - **AST-Driven Sub-Auditor (`requiresAst: true` & `SharedAstContext`)**: [`assets/templates/ast_auditor_template.ts`](./assets/templates/ast_auditor_template.ts)
 - **Dedicated Vitest Unit Test**: [`assets/templates/auditor_unit_test_template.test.ts`](./assets/templates/auditor_unit_test_template.test.ts)
+- **Unified Vite+ Configuration (`vite.config.ts`)**: [`assets/templates/vite_plus_config_template.ts`](./assets/templates/vite_plus_config_template.ts)
+- **Vite+ Test Coverage Blueprint**: [`assets/templates/vite_coverage_config_template.ts`](./assets/templates/vite_coverage_config_template.ts)
 
 📘 **Step-by-Step Authoring Walkthrough**: See [sub-auditor-authoring-guide.md](./references/sub-auditor-authoring-guide.md) and [extension-helpers-guide.md](./references/extension-helpers-guide.md).
 
@@ -304,7 +319,7 @@ Pre-formatted, production-ready templates conforming to all project standards:
 
 - **Installation (`npm install -D github:francogp/auditor#semver:* --allow-git=all`)**: Direct npm dependency declaration referencing GitHub repository. The `--allow-git=all` flag is required only for the very first install on npm 12+ (default `allow-git=none` raises `EALLOWGIT`); afterwards the pre-flight bootstrap persists `allow-git=all` in `.npmrc`, so plain `npm update` works without flags. Alternative: create `.npmrc` with `allow-git=all` before installing.
 - **Zero-Setup Pre-Flight Auto-Bootstrap (`ensureProjectBootstrapped`)**: Runs transparently on `auditor` or `npm run auditor`. Scaffolds `.auditor/audit.config.ts` on virgin projects, automatically injects missing sub-auditor configuration sections on legacy/updated projects via AST, registers Antigravity skills in `.agents/`, and synchronizes `.gitignore` without relying on npm install scripts. It also persists `allow-git=all` in the host `.npmrc` (`ensureNpmrcAllowGit`), required by npm 12+ for plain `npm update` to resolve `github:francogp/auditor#semver:*`.
-- **Conditional Minimum Library Versions (`auditor-dependencies` / `validate_dependency_minimums`)**: The auditor exposes a non-negotiable version floor for shared libraries (`typescript`, `eslint`, `@eslint/js`, `typescript-eslint`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `vitest`, `vite`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) as optional `peerDependencies` of its own `package.json` (SSoT, read by `getAuditorMinimumVersions()`; zero hardcoded versions).
+- **Conditional Minimum Library Versions (`auditor-dependencies` / `validate_dependency_minimums`)**: The auditor exposes a non-negotiable version floor for shared libraries (`typescript`, `vite-plus`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) as optional `peerDependencies` of its own `package.json` (SSoT, read by `getAuditorMinimumVersions()`; zero hardcoded versions).
   - **Inspection & Diagnosis Tool**: Always inspect via `auditor-dependencies` (or `npm run auditor:dependencies` / `auditor dependencies`). Use `auditor-dependencies --commands` to output ready-to-run grouped `npm install` and `npm install -D` commands.
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
@@ -365,7 +380,7 @@ Hermetic test isolation requires using `testScanFile` + `finishAudit()` for snip
 
 Root environment lifecycle scripts belong canonically to `@francogp/auditor`:
 
-- `setup-linux.sh` & `setup-windows.ps1`: Core setup engine locking declared versions (`.nvmrc` / `package.json`).
+- `setup-linux.sh` & `setup-windows.ps1`: Core setup engine locking declared versions (`.node-version` / `package.json`).
 - `update-linux.sh` & `update-windows.ps1`: Parameterless wrappers delegating with `--update-version` / `-UpdateVersion`.
 - Local patches in host projects are strictly prohibited; fixes must be synchronized upstream via `syncEnvScripts`.
 
@@ -391,5 +406,6 @@ Root environment lifecycle scripts belong canonically to `@francogp/auditor`:
 | [`references/audit.config.enterprise.example.ts`](./references/audit.config.enterprise.example.ts) | Reference configuration for Enterprise applications (Supabase backend, strict types). |
 | [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts) | Reference configuration for Gaming applications (hybrid persistence, Web Workers). |
 | [`references/v8-migration-guide.md`](./references/v8-migration-guide.md) | Guía de modernización de aplicaciones anfitrionas a la versión 8 de `@francogp/auditor`. |
+| [`references/vite-plus-guide.md`](./references/vite-plus-guide.md) | Guía canónica de referencia de Vite+ (`vp`), comandos CLI, tutorial oficial y arquitectura de migración. |
 | [`references/extensions/`](./references/extensions/) | Reference blueprints for host extension plugins. |
 | [`references/plugins/`](./references/plugins/) | Sample setup plugins for Docker database containers and local SSL certificates. |

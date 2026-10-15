@@ -1,9 +1,5 @@
-/**
- * packages/auditor/src/core/auditConfigDefaults.ts
- *
- * Canonical default configuration, builders, and defineAuditConfig coordinator.
- */
-import { type AuditEngineConfig, type DeepPartial, type AuditPersistenceConfig, type AuditDomainConfig, type AuditEnvironmentConfig, type AuditAuditorHygieneConfig, type AuditScriptExtensionsConfig, type AuditTemplatesConfig, type AuditStylesConfig, type AuditStylelintConfig, type AuditEslintConfig, type AuditBundleConfig, type AuditAgentPluginConfig, type AuditAnimationConfig, type AuditConstantsConfig, type AuditSecurityConfig, type AuditDocumentationConfig, type AuditPiniaConfig, type AuditFallowConfig, type AuditFallowSimilarCodeConfig, type AuditE2eConfig, type AuditPackageHygieneConfig, type AuditPackageDistributionConfig, type AuditPackageScriptsConfig, type AuditScriptCommandsConfig, type AuditAccessibilityConfig, type AuditTypeCoverageConfig, type AuditGitIgnoreConfig, type AuditVersionConfig, type AuditSecretLeaksConfig, type AuditDependencyVulnerabilitiesConfig, type AuditCoverageConfig, type AuditRatchetConfig, type AuditTestCoverageConfig, type AuditValibotConfig, type AuditWebPerformanceConfig, type AuditQueryPerformanceConfig, type AuditSecurityHardeningConfig, type AuditCodeSimplificationConfig, type AuditScssArchitectureConfig } from './auditConfigTypes.ts';
+import { AuditAccessibilityConfig, AuditAgentPluginConfig, AuditAnimationConfig, AuditAuditorHygieneConfig, AuditBundleConfig, AuditCodeSimplificationConfig, AuditConstantsConfig, AuditCoverageConfig, AuditDependencyVulnerabilitiesConfig, AuditDocumentationConfig, AuditDomainConfig, AuditE2eConfig, AuditEngineConfig, AuditEnvironmentConfig, AuditFallowConfig, AuditFallowSimilarCodeConfig, AuditGitIgnoreConfig, AuditOxlintConfig, AuditPackageDistributionConfig, AuditPackageHygieneConfig, AuditPackageScriptsConfig, AuditPersistenceConfig, AuditPiniaConfig, AuditQueryPerformanceConfig, AuditRatchetConfig, AuditScriptCommandsConfig, AuditScriptExtensionsConfig, AuditScssArchitectureConfig, AuditSecretLeaksConfig, AuditSecurityConfig, AuditSecurityHardeningConfig, AuditStylelintConfig, AuditStylesConfig, AuditTemplatesConfig, AuditTestCoverageConfig, AuditTypeCoverageConfig, AuditValibotConfig, AuditVersionConfig, AuditVitePlusConfig, AuditWebPerformanceConfig, DeepPartial } from "./auditConfigTypes.js";
+//#region src/core/auditConfigDefaults.d.ts
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export declare const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export declare const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
@@ -16,15 +12,15 @@ export declare function buildTemplatesConfig(raw?: DeepPartial<AuditTemplatesCon
 export declare function buildStylesConfig(raw?: DeepPartial<AuditStylesConfig>, rawStylelintTop?: DeepPartial<AuditStylelintConfig>): AuditStylesConfig;
 export declare function buildBundleConfig(raw?: DeepPartial<AuditBundleConfig>): AuditBundleConfig;
 export declare function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfig>): {
-    agentPlugin: AuditAgentPluginConfig;
-    security: AuditSecurityConfig;
-    animation: AuditAnimationConfig;
+  agentPlugin: AuditAgentPluginConfig;
+  security: AuditSecurityConfig;
+  animation: AuditAnimationConfig;
 };
 export declare function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig>): {
-    constants: AuditConstantsConfig;
-    documentation: AuditDocumentationConfig;
-    pinia: AuditPiniaConfig;
-    e2e: AuditE2eConfig;
+  constants: AuditConstantsConfig;
+  documentation: AuditDocumentationConfig;
+  pinia: AuditPiniaConfig;
+  e2e: AuditE2eConfig;
 };
 export declare function buildFallowSimilarCodeConfig(raw?: DeepPartial<AuditFallowSimilarCodeConfig>): AuditFallowSimilarCodeConfig;
 export declare function buildFallowConfig(raw?: DeepPartial<AuditFallowConfig>, rootSecurity?: DeepPartial<AuditSecurityConfig>): AuditFallowConfig;
@@ -40,7 +36,8 @@ export declare function buildTestCoverageConfig(raw?: DeepPartial<AuditTestCover
 export declare function buildAccessibilityConfig(raw?: DeepPartial<AuditAccessibilityConfig>): AuditAccessibilityConfig;
 export declare function buildTypeCoverageConfig(raw?: DeepPartial<AuditTypeCoverageConfig>): AuditTypeCoverageConfig;
 export declare function buildGitIgnoreConfig(raw?: DeepPartial<AuditGitIgnoreConfig>): AuditGitIgnoreConfig;
-export declare function buildEslintConfig(raw?: DeepPartial<AuditEslintConfig>): AuditEslintConfig;
+export declare function buildOxlintConfig(raw?: DeepPartial<AuditOxlintConfig>): AuditOxlintConfig;
+export declare function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): AuditVitePlusConfig;
 export declare function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): AuditVersionConfig;
 export declare function buildSecretLeaksConfig(raw?: DeepPartial<AuditSecretLeaksConfig>): AuditSecretLeaksConfig;
 export declare function buildDependencyVulnerabilitiesConfig(raw?: DeepPartial<AuditDependencyVulnerabilitiesConfig>): AuditDependencyVulnerabilitiesConfig;
@@ -52,6 +49,6 @@ export declare function buildSecurityHardeningConfig(raw?: DeepPartial<AuditSecu
 export declare function buildCodeSimplificationConfig(raw?: DeepPartial<AuditCodeSimplificationConfig>): AuditCodeSimplificationConfig;
 export declare function buildScssArchitectureConfig(raw?: DeepPartial<AuditScssArchitectureConfig>): AuditScssArchitectureConfig;
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
-    name: string;
+  name: string;
 }): AuditEngineConfig;
-//# sourceMappingURL=auditConfigDefaults.d.ts.map
+//#endregion

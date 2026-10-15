@@ -11,7 +11,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, type AuditorOptions , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  type AuditorOptions,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig, loadAuditConfig, isSelfProviderProject } from '../../core/auditConfig.ts';
 import { initAgentSkill } from '../../cli/init_agent.ts';
 
@@ -37,7 +41,7 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
       const data = JSON.parse(raw) as { entries?: Array<{ path: string }> };
       if (!Array.isArray(data.entries)) return false;
       return data.entries.some(
-        e =>
+        (e) =>
           e.path === 'node_modules/@francogp/auditor' ||
           e.path.endsWith('@francogp/auditor') ||
           e.path.includes('@francogp/auditor') ||
@@ -54,17 +58,22 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
 }
 
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
-constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
+  constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, ['missing-agent-plugin-registration']),
+      ruleCapabilities: createRuleCapabilities(
+        AGENT_PLUGIN_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['missing-agent-plugin-registration']
+      ),
       fixableRuleIds: ['missing-agent-plugin-registration'],
       id: 'validate_agent_plugin',
       name: 'Agent Plugin & Skill Integration Validator',
@@ -80,7 +89,8 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
         'missing-agent-plugin-registration': 'Plugin/skills no registrados en .agents'
       },
       ruleRemediations: {
-        'missing-agent-plugin-registration': 'Guía de diagnóstico y remediación para missing-agent-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'missing-agent-plugin-registration':
+          'Guía de diagnóstico y remediación para missing-agent-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: { include: [...AGENT_REGISTRY_FILES] },
       ...options
@@ -90,16 +100,23 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
   private async checkGating(): Promise<boolean> {
     if (isSelfProviderProject(this.projectRoot)) {
       this.context.setMetric('Agent Plugin Status', 'Provider Validated');
-      this.markRuleNotApplicable('missing-agent-plugin-registration', 'Proyecto proveedor de @francogp/auditor (auto-registro)');
+      this.markRuleNotApplicable(
+        'missing-agent-plugin-registration',
+        'Proyecto proveedor de @francogp/auditor (auto-registro)'
+      );
       return true;
     }
 
-    const config = this.projectRoot !== process.cwd()
-      ? await loadAuditConfig(this.projectRoot)
-      : getAuditConfig();
+    const config =
+      this.projectRoot !== process.cwd()
+        ? await loadAuditConfig(this.projectRoot)
+        : getAuditConfig();
     if (config.agentPlugin?.enabled === false) {
       this.context.setMetric('Agent Plugin Status', 'Disabled');
-      this.markRuleNotApplicable('missing-agent-plugin-registration', 'config.agentPlugin.enabled = false');
+      this.markRuleNotApplicable(
+        'missing-agent-plugin-registration',
+        'config.agentPlugin.enabled = false'
+      );
       return true;
     }
     return false;
@@ -131,7 +148,8 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
       severity: 'error',
       file: targetFile,
       line: 1,
-      message: 'El plugin y/o skills de auditoría para agentes no están registrados en .agents/plugins.json y .agents/skills.json. Ejecuta: npm run auditor:init-agent',
+      message:
+        'El plugin y/o skills de auditoría para agentes no están registrados en .agents/plugins.json y .agents/skills.json. Ejecuta: npm run auditor:init-agent',
       context: 'auditor:init-agent'
     });
     this.context.setMetric('Agent Plugin Status', 'Missing');
@@ -141,7 +159,8 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     if (await this.checkGating()) return;
 
     for (const registryFile of AGENT_REGISTRY_FILES) {
-      if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
+      if (fs.existsSync(path.join(this.projectRoot, registryFile)))
+        this.recordScanned(registryFile);
     }
     this.runSubAuditorSync('missing-agent-plugin-registration', () => {
       if (isPluginRegisteredInAgents(this.projectRoot)) {
@@ -155,7 +174,6 @@ constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     });
   }
 }
-
 
 // Canonical CLI Entrypoint
 await BaseAuditor.runCliIfMain(import.meta.url, new AgentPluginAuditor());

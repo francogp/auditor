@@ -1,23 +1,19 @@
-/**
- * packages/auditor/src/cli/auditorMetadata.ts
- *
- * Dedicated metadata extractor for auditor suites and tasks.
- */
-import { type AuditorCapabilities, type GitIgnoreRequirement, type AuditorPackageScriptRequirement, type AuditorManifestDTO, type AuditorCriticalConfig } from '../core/auditContract.ts';
+import { AuditorCapabilities, AuditorCriticalConfig, AuditorManifestDTO, AuditorPackageScriptRequirement, GitIgnoreRequirement } from "../core/auditContract.js";
+//#region src/cli/auditorMetadata.d.ts
 export interface ExtractedAuditorMetadata {
-    readonly capabilities: AuditorCapabilities;
-    readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
-    readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-    readonly scripts?: readonly AuditorPackageScriptRequirement[];
-    readonly icon?: string;
-    readonly manifest?: AuditorManifestDTO;
-    readonly description?: string;
-    readonly ruleDescriptions?: Readonly<Record<string, string>>;
-    readonly ruleRemediations?: Readonly<Record<string, string>>;
-    readonly configKey?: string;
-    readonly defaultConfig?: Readonly<Record<string, unknown>>;
-    readonly criticalConfig?: AuditorCriticalConfig;
+  readonly capabilities: AuditorCapabilities;
+  readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
+  readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  readonly scripts?: readonly AuditorPackageScriptRequirement[];
+  readonly icon?: string;
+  readonly manifest?: AuditorManifestDTO;
+  readonly description?: string;
+  readonly ruleDescriptions?: Readonly<Record<string, string>>;
+  readonly ruleRemediations?: Readonly<Record<string, string>>;
+  readonly configKey?: string;
+  readonly defaultConfig?: Readonly<Record<string, unknown>>;
+  readonly criticalConfig?: AuditorCriticalConfig;
 }
 export declare function extractStaticMetadataFromFile(fullPath: string): ExtractedAuditorMetadata;
 export declare function extractAuditorMetadataFromFile(fullPath: string): Promise<ExtractedAuditorMetadata>;
-//# sourceMappingURL=auditorMetadata.d.ts.map
+//#endregion

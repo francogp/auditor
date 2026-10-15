@@ -6,6 +6,7 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PKG_PATH="$SCRIPT_DIR/package.json"
+NODE_VERSION_PATH="$SCRIPT_DIR/.node-version"
 NVMRC_PATH="$SCRIPT_DIR/.nvmrc"
 
 if [ ! -f "$PKG_PATH" ]; then
@@ -13,10 +14,15 @@ if [ ! -f "$PKG_PATH" ]; then
     exit 1
 fi
 
+# Limpieza proactiva de archivo legacy .nvmrc
+if [ -f "$NVMRC_PATH" ]; then
+    rm -f "$NVMRC_PATH"
+fi
+
 # Detectar nombre del proyecto dinámicamente desde package.json
 PROJECT_NAME=$(grep -o '"name": *"[^"]*"' "$PKG_PATH" | head -n 1 | cut -d'"' -f4 || basename "$SCRIPT_DIR")
 
-# Por defecto: instalación fija y reproducible según lo declarado en el commit (.nvmrc / package.json)
+# Por defecto: instalación fija y reproducible según lo declarado en el commit (.node-version / package.json)
 # --update-version / -u / update / update-linux.sh: actualiza a la última versión estable (Node.js Current + npm@latest)
 UPDATE_TO_LATEST=false
 PRUNE_VERSIONS=false
@@ -50,23 +56,26 @@ if [ "$UPDATE_TO_LATEST" = true ]; then
         if grep -q '"node":' "$PKG_PATH"; then
             sed -i -E "s/(\"node\": *\">=)[^\"]*(\")/\1$TARGET_NODE_VER\2/" "$PKG_PATH"
         fi
-        echo -n "$TARGET_NODE_VER" > "$NVMRC_PATH"
-        echo "✅ Versión de Node.js sincronizada a v$TARGET_NODE_VER en .nvmrc y package.json"
+        echo "$TARGET_NODE_VER" > "$NODE_VERSION_PATH"
+        echo "✅ Versión de Node.js sincronizada a v$TARGET_NODE_VER en .node-version y package.json"
     fi
 else
-    echo "🔒 Modo versiones declaradas activo (--declared-versions). Preservando versión exacta de .nvmrc sin consultar la red..."
+    echo "🔒 Modo versiones declaradas activo (--declared-versions). Preservando versión exacta de .node-version sin consultar la red..."
 fi
 
-# Si no hubo consulta remota o falló: leer la versión canónica de .nvmrc
+# Si no hubo consulta remota o falló: leer la versión canónica de .node-version
 if [ -z "$TARGET_NODE_VER" ]; then
-    if [ -f "$NVMRC_PATH" ]; then
-        TARGET_NODE_VER=$(tr -d ' \n\r' < "$NVMRC_PATH" | sed 's/^v//')
+    if [ -f "$NODE_VERSION_PATH" ]; then
+        TARGET_NODE_VER=$(tr -d ' \n\r' < "$NODE_VERSION_PATH" | sed 's/^v//')
     fi
 fi
 
-# Fallback a package.json si no existe .nvmrc
+# Fallback a package.json si no existe .node-version
 if [ -z "$TARGET_NODE_VER" ]; then
     TARGET_NODE_VER=$(grep -o '"node": *"[^"]*"' "$PKG_PATH" | grep -o '[0-9.]*' | head -n 1)
+    if [ -n "$TARGET_NODE_VER" ]; then
+        echo "$TARGET_NODE_VER" > "$NODE_VERSION_PATH"
+    fi
 fi
 
 if [ -z "$TARGET_NODE_VER" ]; then
@@ -114,7 +123,7 @@ nvm use "$TARGET_NODE_VER" || echo "⚠️ Advertencia al activar Node v$TARGET_
 # Preservar alias default existente del usuario para convivencia multi-proyecto
 CURRENT_DEFAULT=$(nvm alias default 2>/dev/null | awk '{print $3}' || true)
 if [ -n "$CURRENT_DEFAULT" ] && [ "$CURRENT_DEFAULT" != "N/A" ] && [ "$SET_DEFAULT" = false ]; then
-    echo "ℹ️ Preservando alias default existente en NVM ($CURRENT_DEFAULT). $PROJECT_NAME se activa localmente vía .nvmrc ('nvm use')."
+    echo "ℹ️ Preservando alias default existente ($CURRENT_DEFAULT). $PROJECT_NAME se activa localmente vía .node-version ('vp env use')."
 else
     echo "📌 Configurando alias default de NVM a v$TARGET_NODE_VER..."
     nvm alias default "$TARGET_NODE_VER" 2>/dev/null || true
@@ -202,9 +211,16 @@ else
 fi
 
 # 7. Instalar dependencias limpias del proyecto
-echo -e "\n📦 Instalando dependencias del proyecto con npm ci..."
+echo -e "\n📦 Instalando dependencias del proyecto..."
 cd "$SCRIPT_DIR"
-npm ci
+if command -v vp >/dev/null 2>&1; then
+    echo "⚡ Usando Vite+ (vp install)..."
+    vp install || npm ci
+    echo -e "\n🔧 Sincronizando configuración con Vite+ (vp config)..."
+    vp config || true
+else
+    npm ci
+fi
 
 # 8. Inicializar Directorios Básicos del Auditor y del Proyecto
 echo -e "\n📁 Inicializando directorios básicos del auditor y del proyecto..."

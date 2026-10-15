@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --experimental-strip-types
+//#region src/cli/report_similar_code.d.ts
 /**
  * packages/auditor/src/cli/report_similar_code.ts
  *
@@ -8,4 +8,4 @@
  * detected via local vector embeddings.
  */
 export declare function runSimilarCodeReport(projectRoot?: string): void;
-//# sourceMappingURL=report_similar_code.d.ts.map
+//#endregion

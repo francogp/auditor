@@ -16,7 +16,7 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { NpmAuditSeverityLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
@@ -37,7 +37,10 @@ export interface NpmAuditVulnItem {
   readonly name: string;
   readonly severity: NpmAuditSeverityLevel;
   readonly isDirect: boolean;
-  readonly via: readonly (string | { readonly title?: string; readonly url?: string; readonly range?: string })[];
+  readonly via: readonly (
+    | string
+    | { readonly title?: string; readonly url?: string; readonly range?: string }
+  )[];
   readonly range: string;
   readonly effects: readonly string[];
 }
@@ -49,7 +52,10 @@ export interface NpmAuditReport {
 /**
  * Invokes npm audit --json synchronously with bounded timeout and safe error capture.
  */
-export function runNpmAudit(projectRoot: string, omitDev = true): { stdout: string; error?: Error } {
+export function runNpmAudit(
+  projectRoot: string,
+  omitDev = true
+): { stdout: string; error?: Error } {
   const args = ['audit', '--json'];
   if (omitDev) {
     args.push('--omit=dev');
@@ -79,7 +85,10 @@ function mapSeverityToRuleId(sev: NpmAuditSeverityLevel): DependencyVulnerabilit
   return null;
 }
 
-function computeFindingSeverity(sev: NpmAuditSeverityLevel, failOn: NpmAuditSeverityLevel): FindingSeverity {
+function computeFindingSeverity(
+  sev: NpmAuditSeverityLevel,
+  failOn: NpmAuditSeverityLevel
+): FindingSeverity {
   if (failOn === 'critical') {
     return sev === 'critical' ? 'error' : 'warning';
   }
@@ -89,7 +98,10 @@ function computeFindingSeverity(sev: NpmAuditSeverityLevel, failOn: NpmAuditSeve
   return 'error';
 }
 
-function extractAdvisoryDetails(vuln: NpmAuditVulnItem, pkgName: string): { title: string; url: string } {
+function extractAdvisoryDetails(
+  vuln: NpmAuditVulnItem,
+  pkgName: string
+): { title: string; url: string } {
   const advisory = vuln.via.find(
     (v): v is { readonly title?: string; readonly url?: string } => typeof v !== 'string'
   );
@@ -139,8 +151,8 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "npm audit",
-        fallbackBehavior: "throw"
+        toolName: 'npm audit',
+        fallbackBehavior: 'throw'
       },
       projectRoot: options.projectRoot,
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
@@ -165,16 +177,19 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
         'dependency-cve-moderate': 'Vulnerabilidad moderada detectada'
       },
       ruleRemediations: {
-        'dependency-cve-critical': 'Guía de diagnóstico y remediación para dependency-cve-critical. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dependency-cve-high': 'Guía de diagnóstico y remediación para dependency-cve-high. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dependency-cve-moderate': 'Guía de diagnóstico y remediación para dependency-cve-moderate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-cve-critical':
+          'Guía de diagnóstico y remediación para dependency-cve-critical. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-cve-high':
+          'Guía de diagnóstico y remediación para dependency-cve-high. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-cve-moderate':
+          'Guía de diagnóstico y remediación para dependency-cve-moderate. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['package.json', 'package-lock.json']
       },
       configKey: 'dependencyVulnerabilities.enabled',
       defaultConfig: { enabled: true, failOn: 'critical' },
-      criticalConfig: {},
+      criticalConfig: {}
     });
   }
 
@@ -204,7 +219,10 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     let lockfileHash = '';
     if (fs.existsSync(lockfilePath)) {
       try {
-        lockfileHash = crypto.createHash('sha256').update(fs.readFileSync(lockfilePath, 'utf-8')).digest('hex');
+        lockfileHash = crypto
+          .createHash('sha256')
+          .update(fs.readFileSync(lockfilePath, 'utf-8'))
+          .digest('hex');
       } catch {
         // catch-ok: fallback to unhashed execution
       }
@@ -212,9 +230,14 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
 
     if (tier !== 'full' && lockfileHash && fs.existsSync(cacheFile)) {
       try {
-        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8')) as { hash: string; findings: AuditFinding[] };
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8')) as {
+          hash: string;
+          findings: AuditFinding[];
+        };
         if (cached.hash === lockfileHash && Array.isArray(cached.findings)) {
-          this.context.logProgress('⚡ Reutilizando reporte de vulnerabilidades auditado (package-lock.json sin cambios)');
+          this.context.logProgress(
+            '⚡ Reutilizando reporte de vulnerabilidades auditado (package-lock.json sin cambios)'
+          );
           this.applyAuditFindings(cached.findings);
           return;
         }
@@ -226,7 +249,9 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     const { stdout, error } = runNpmAudit(this.projectRoot, omitDev);
     if (error || !stdout) {
       // catch-ok: Offline development environment or network lookup failure
-      this.context.logProgress('⚠️  No se pudo conectar con el registro npm para audit (modo offline)');
+      this.context.logProgress(
+        '⚠️  No se pudo conectar con el registro npm para audit (modo offline)'
+      );
       for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
         this.runSubAuditorSync(ruleId, () => {
           this.markRuleNotApplicable(ruleId, 'Sin conexión con registro npm (offline)');
@@ -241,7 +266,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     } catch {
       throw new Error(
         `[validate_dependency_vulnerabilities] Error al interpretar la salida JSON de 'npm audit'. ` +
-        `Salida recibida: ${stdout.trim().slice(0, 300)}`
+          `Salida recibida: ${stdout.trim().slice(0, 300)}`
       );
     }
 
@@ -249,7 +274,11 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     if (lockfileHash) {
       try {
         fs.mkdirSync(cacheDir, { recursive: true });
-        fs.writeFileSync(cacheFile, JSON.stringify({ hash: lockfileHash, findings }, null, 2), 'utf-8');
+        fs.writeFileSync(
+          cacheFile,
+          JSON.stringify({ hash: lockfileHash, findings }, null, 2),
+          'utf-8'
+        );
       } catch {
         // catch-ok: write failure in restricted filesystem
       }
@@ -261,7 +290,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
   private applyAuditFindings(findings: readonly AuditFinding[]): void {
     for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
       this.runSubAuditorSync(ruleId, () => {
-        const matching = findings.filter(f => f.ruleId === ruleId);
+        const matching = findings.filter((f) => f.ruleId === ruleId);
         for (const f of matching) {
           this.addViolation({
             ruleId: f.ruleId as DependencyVulnerabilitiesRuleId,

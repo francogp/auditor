@@ -17,18 +17,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities, collectRepositoryFiles } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  createRuleCapabilities,
+  collectRepositoryFiles
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
-import { parseLintResultsToFindings, extractJsonReportFilePaths, type RawLintMessage, type RawLintFileReport } from '../../core/reportUtils.ts';
+import {
+  parseLintResultsToFindings,
+  extractJsonReportFilePaths,
+  type RawLintMessage,
+  type RawLintFileReport
+} from '../../core/reportUtils.ts';
 
 enableCompileCache();
 
 export type HtmlValidateRuleId = 'html-validate-issue';
 
-export const HTML_VALIDATE_RULES: readonly HtmlValidateRuleId[] = [
-  'html-validate-issue'
-] as const;
+export const HTML_VALIDATE_RULES: readonly HtmlValidateRuleId[] = ['html-validate-issue'] as const;
 
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
@@ -40,7 +47,10 @@ export type RawHtmlValidateFileReport = RawLintFileReport; // type-ok: Type cont
  * Parses raw JSON output or an array of file reports from html-validate into canonical AuditFindings.
  * Elevates both warnings and errors to severity: 'error' (Zero-Warning Policy).
  */
-export function parseHtmlValidateResults(input: string | object[], cwd: string = process.cwd()): AuditFinding[] {
+export function parseHtmlValidateResults(
+  input: string | object[],
+  cwd: string = process.cwd()
+): AuditFinding[] {
   return parseLintResultsToFindings(input, {
     cwd,
     suiteId: 'validate_html_validate',
@@ -74,7 +84,11 @@ function collectRootHtmlTargets(
   }
 }
 
-function collectTopLevelHtmlTargets(projectRoot: string, targets: string[], filesToScan: string[]): void {
+function collectTopLevelHtmlTargets(
+  projectRoot: string,
+  targets: string[],
+  filesToScan: string[]
+): void {
   try {
     const rootEntries = fs.readdirSync(projectRoot, { withFileTypes: true });
     for (const entry of rootEntries) {
@@ -132,19 +146,23 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "html-validate",
-        fallbackBehavior: "violation",
-        fallbackRuleId: "html-validate-issue"
+        toolName: 'html-validate',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'html-validate-issue'
       },
-      ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: true
-      }, ['html-validate-issue']),
+      ruleCapabilities: createRuleCapabilities(
+        HTML_VALIDATE_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: true
+        },
+        ['html-validate-issue']
+      ),
       fixableRuleIds: ['html-validate-issue'],
       id: 'validate_html_validate',
       name: 'HTML5 Standards & Markup Hygiene Validator',
@@ -160,7 +178,8 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
         'html-validate-issue': 'Violación de estándar HTML5'
       },
       ruleRemediations: {
-        'html-validate-issue': 'Guía de diagnóstico y remediación para html-validate-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'html-validate-issue':
+          'Guía de diagnóstico y remediación para html-validate-issue. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['src/**/*.{html,vue}', 'ui-demo/**/*.{html,vue}', '*.html', '.htmlvalidate.json'],
@@ -178,19 +197,24 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
 
     const binPath = resolveNodeModuleBin(this.projectRoot, 'html-validate/bin/html-validate.mjs');
     const configFile = resolveHtmlValidateConfig(this.projectRoot);
-    const reportFile = path.resolve(this.projectRoot, 'scratch/audits/architecture/html-validate-raw.json');
+    const reportFile = path.resolve(
+      this.projectRoot,
+      'scratch/audits/architecture/html-validate-raw.json'
+    );
     fs.mkdirSync(path.dirname(reportFile), { recursive: true });
 
-    const scannableRoots = Array.from(new Set([
-      'src',
-      ...(config.paths.srcRoots ?? []),
-      ...(config.paths.codeRoots ?? []),
-      ...(config.paths.demoRoots ?? [])
-    ])).filter(r => fs.existsSync(path.resolve(this.projectRoot, r)));
+    const scannableRoots = Array.from(
+      new Set([
+        'src',
+        ...(config.paths.srcRoots ?? []),
+        ...(config.paths.codeRoots ?? []),
+        ...(config.paths.demoRoots ?? [])
+      ])
+    ).filter((r) => fs.existsSync(path.resolve(this.projectRoot, r)));
 
     const localConfigPath = path.resolve(this.projectRoot, '.htmlvalidate.json');
     const hasLocalConfig = fs.existsSync(localConfigPath);
-    const coverageInclude: string[] = scannableRoots.map(r => `${r}/**/*.{html,vue}`); // no-domain: Dynamic coverage glob patterns
+    const coverageInclude: string[] = scannableRoots.map((r) => `${r}/**/*.{html,vue}`); // no-domain: Dynamic coverage glob patterns
     coverageInclude.push('*.html');
     if (hasLocalConfig) {
       coverageInclude.push('.htmlvalidate.json');
@@ -204,7 +228,10 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots);
 
     if (filesToScan.length === 0 && targets.length === 0) {
-      this.markRuleNotApplicable('html-validate-issue', 'No existen archivos HTML ni plantillas para validar');
+      this.markRuleNotApplicable(
+        'html-validate-issue',
+        'No existen archivos HTML ni plantillas para validar'
+      );
       return;
     }
 
@@ -212,11 +239,21 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       this.recordScanned(f);
     }
 
-    const relFiles = filesToScan.map(f => path.relative(this.projectRoot, f).split(path.sep).join(path.posix.sep));
+    const relFiles = filesToScan.map((f) =>
+      path.relative(this.projectRoot, f).split(path.sep).join(path.posix.sep)
+    );
     const totalChars = relFiles.reduce((acc, f) => acc + f.length + 1, 0);
     const effectiveTargets = totalChars < 6000 && relFiles.length > 0 ? relFiles : targets;
 
-    const args: string[] = ['-c', configFile, '--ext', 'html,vue', '-f', `json=${reportFile}`, ...effectiveTargets];
+    const args: string[] = [
+      '-c',
+      configFile,
+      '--ext',
+      'html,vue',
+      '-f',
+      `json=${reportFile}`,
+      ...effectiveTargets
+    ];
     if (isFixMode) {
       args.push('--fix');
     }
@@ -227,7 +264,11 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       timeout: EXECUTION_TIMEOUT_MS
     });
 
-    const { findings, rawJson } = readAndParseHtmlValidateOutput(reportFile, combinedOutput, this.projectRoot);
+    const { findings, rawJson } = readAndParseHtmlValidateOutput(
+      reportFile,
+      combinedOutput,
+      this.projectRoot
+    );
     const scannedReportFiles = extractJsonReportFilePaths(rawJson, findings);
     this.recordScannedMany(scannedReportFiles);
 

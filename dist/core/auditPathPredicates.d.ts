@@ -1,3 +1,9 @@
+import { AuditEngineConfig } from "./auditConfigTypes.js";
+import { matchesAnyRoot } from "./auditRootMatcher.js";
+import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
+import { isSelfProviderProject } from "./auditProjectIdentity.js";
+import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
+//#region src/core/auditPathPredicates.d.ts
 /**
  * packages/auditor/src/core/auditPathPredicates.ts
  *
@@ -16,26 +22,23 @@ export declare function isDemoPath(filePath: string): boolean;
 /**
  * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
  */
-export declare function isExemptFile(filePath: string, config?: import("./auditConfigTypes.ts").AuditEngineConfig): boolean;
+export declare function isExemptFile(filePath: string, config?: AuditEngineConfig): boolean;
 /**
  * Determines whether a file path belongs to codeRoots configured for general code audits,
  * dynamically respecting whether test directories are included or excluded.
  */
-export declare function isInCodeRoots(filePath: string, config?: import("./auditConfigTypes.ts").AuditEngineConfig): boolean;
+export declare function isInCodeRoots(filePath: string, config?: AuditEngineConfig): boolean;
 /**
  * Checks whether a file path belongs to scriptsRoots.
  */
-export declare function isScriptPath(filePath: string, config?: import("./auditConfigTypes.ts").AuditEngineConfig): boolean;
+export declare function isScriptPath(filePath: string, config?: AuditEngineConfig): boolean;
 /**
  * Checks whether a file path belongs to srcRoots.
  */
-export declare function isSrcPath(filePath: string, config?: import("./auditConfigTypes.ts").AuditEngineConfig): boolean;
+export declare function isSrcPath(filePath: string, config?: AuditEngineConfig): boolean;
 /**
  * Checks whether a file path belongs to cliRoots.
  */
-export declare function isCliPath(filePath: string, config?: import("./auditConfigTypes.ts").AuditEngineConfig): boolean;
-export * from './auditRootMatcher.ts';
-export * from './auditTestPredicates.ts';
-export * from './auditProjectIdentity.ts';
-export * from './auditZLayers.ts';
-//# sourceMappingURL=auditPathPredicates.d.ts.map
+export declare function isCliPath(filePath: string, config?: AuditEngineConfig): boolean;
+//#endregion
+export { Z_LAYERS, getEffectiveZLayers, isSelfProviderProject, isTestFileForCodeAudit, isTestPath, matchesAnyRoot, resolveZLayersScssPath };

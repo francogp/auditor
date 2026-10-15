@@ -40,7 +40,7 @@ function registerAgentEntry(
   dryRun?: boolean
 ): boolean {
   const config = loadAgentEntriesConfig(filePath);
-  const alreadyRegistered = config.entries?.some(e => matchFn(e.path));
+  const alreadyRegistered = config.entries?.some((e) => matchFn(e.path));
   if (alreadyRegistered) return false;
 
   config.entries = config.entries ?? [];
@@ -52,10 +52,17 @@ function registerAgentEntry(
   return true;
 }
 
-export function initAgentSkill(options: InitAgentOptions = {}): { success: boolean; message: string; created: boolean } {
+export function initAgentSkill(options: InitAgentOptions = {}): {
+  success: boolean;
+  message: string;
+  created: boolean;
+} {
   const rawInitCwd = process.env.INIT_CWD;
-  const safeInitCwd = rawInitCwd && !rawInitCwd.includes('..') ? path.resolve(rawInitCwd) : undefined;
-  const targetDir = options.targetDir ? path.resolve(options.targetDir) : (safeInitCwd || process.cwd());
+  const safeInitCwd =
+    rawInitCwd && !rawInitCwd.includes('..') ? path.resolve(rawInitCwd) : undefined;
+  const targetDir = options.targetDir
+    ? path.resolve(options.targetDir)
+    : safeInitCwd || process.cwd();
 
   if (isSelfProviderProject(targetDir)) {
     return {
@@ -73,14 +80,14 @@ export function initAgentSkill(options: InitAgentOptions = {}): { success: boole
   const pluginCreated = registerAgentEntry(
     path.join(agentsDir, 'plugins.json'),
     'node_modules/@francogp/auditor',
-    p => p === 'node_modules/@francogp/auditor' || p.endsWith('@francogp/auditor'),
+    (p) => p === 'node_modules/@francogp/auditor' || p.endsWith('@francogp/auditor'),
     options.dryRun
   );
 
   const skillsCreated = registerAgentEntry(
     path.join(agentsDir, 'skills.json'),
     'node_modules/@francogp/auditor/.agents/skills',
-    p => p === 'node_modules/@francogp/auditor/.agents/skills' || p.includes('@francogp/auditor'),
+    (p) => p === 'node_modules/@francogp/auditor/.agents/skills' || p.includes('@francogp/auditor'),
     options.dryRun
   );
 

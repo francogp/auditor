@@ -28,8 +28,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run domain types suite tests: `npm test -- tests/validate_domain_types.test.ts`
-- Run O(1) structures suite tests: `npm test -- tests/validate_o1_data_structures.test.ts`
+- Run domain types suite tests: `vp test tests/validate_domain_types.test.ts` (or `npm test -- tests/validate_domain_types.test.ts`)
+- Run O(1) structures suite tests: `vp test tests/validate_o1_data_structures.test.ts` (or `npm test -- tests/validate_o1_data_structures.test.ts`)
 
 ## Child DOX Index
 

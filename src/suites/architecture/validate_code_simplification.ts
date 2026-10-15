@@ -26,13 +26,14 @@ export const CODE_SIMPLIFICATION_RULES = [
 export type CodeSimplificationRuleId = (typeof CODE_SIMPLIFICATION_RULES)[number];
 
 export const CODE_SIMPLIFICATION_CAPABILITIES = {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: true,
-        changedOnly: false, critical: false
-      } as const;
+  speed: 'light',
+  phase: 'normal',
+  fix: 'none',
+  md: false,
+  ast: true,
+  changedOnly: false,
+  critical: false
+} as const;
 
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 
@@ -63,14 +64,23 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         'massive-switch-branching': 'Switch masivo con más de 10 casos'
       },
       ruleRemediations: {
-        'dead-code-accumulation': 'Guía de diagnóstico y remediación para dead-code-accumulation. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'boolean-trap-parameters': 'Guía de diagnóstico y remediación para boolean-trap-parameters. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'deep-nesting-control-flow': 'Guía de diagnóstico y remediación para deep-nesting-control-flow. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'redundant-else-after-return': 'Guía de diagnóstico y remediación para redundant-else-after-return. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'premature-abstraction-wrapper': 'Guía de diagnóstico y remediación para premature-abstraction-wrapper. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'massive-switch-branching': 'Guía de diagnóstico y remediación para massive-switch-branching. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dead-code-accumulation':
+          'Guía de diagnóstico y remediación para dead-code-accumulation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'boolean-trap-parameters':
+          'Guía de diagnóstico y remediación para boolean-trap-parameters. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'deep-nesting-control-flow':
+          'Guía de diagnóstico y remediación para deep-nesting-control-flow. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'redundant-else-after-return':
+          'Guía de diagnóstico y remediación para redundant-else-after-return. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'premature-abstraction-wrapper':
+          'Guía de diagnóstico y remediación para premature-abstraction-wrapper. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'massive-switch-branching':
+          'Guía de diagnóstico y remediación para massive-switch-branching. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
-      ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, CODE_SIMPLIFICATION_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(
+        CODE_SIMPLIFICATION_RULES,
+        CODE_SIMPLIFICATION_CAPABILITIES
+      ),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.codeSimplification?.exemptPaths
@@ -87,14 +97,17 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     const isTestFile = isTestPath(relPath);
 
     this.runSubAuditorSync('dead-code-accumulation', () => {
-      if (!isTestFile && !content.includes('dead-code-ok')) this.auditDeadCodeAccumulation(relPath, sourceLines);
+      if (!isTestFile && !content.includes('dead-code-ok'))
+        this.auditDeadCodeAccumulation(relPath, sourceLines);
     });
     this.runSubAuditorSync('boolean-trap-parameters', () => {
-      if (!isTestFile && !content.includes('boolean-trap-ok')) this.auditBooleanTrapParameters(relPath, content, sourceLines);
+      if (!isTestFile && !content.includes('boolean-trap-ok'))
+        this.auditBooleanTrapParameters(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('deep-nesting-control-flow', () => {
       if (!isTestFile && !content.includes('nesting-ok')) {
-        const document = doc ?? new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
+        const document =
+          doc ?? new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
         const sf = sourceFile ?? document.getAst();
         if (sf) {
           this.auditDeepNestingControlFlow(relPath, sf, document, sourceLines);
@@ -102,13 +115,16 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       }
     });
     this.runSubAuditorSync('redundant-else-after-return', () => {
-      if (!isTestFile && !content.includes('redundant-else-ok')) this.auditRedundantElseAfterReturn(relPath, content, sourceLines);
+      if (!isTestFile && !content.includes('redundant-else-ok'))
+        this.auditRedundantElseAfterReturn(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('premature-abstraction-wrapper', () => {
-      if (!isTestFile && !content.includes('wrapper-ok')) this.auditPrematureAbstractionWrapper(relPath, content, sourceLines);
+      if (!isTestFile && !content.includes('wrapper-ok'))
+        this.auditPrematureAbstractionWrapper(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('massive-switch-branching', () => {
-      if (!isTestFile && !content.includes('switch-ok')) this.auditMassiveSwitchBranching(relPath, content, sourceLines);
+      if (!isTestFile && !content.includes('switch-ok'))
+        this.auditMassiveSwitchBranching(relPath, content, sourceLines);
     });
   }
 
@@ -139,8 +155,10 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     let consecutiveCommentedCode = 0;
     let startLine = 0;
 
-    const codeLikePattern = /^\s*\/\/\s*(?:const|let|var|if\s*\(|for\s*\(|while\s*\(|return\b|function\b|import\b|await\b|\w+\.\w+\s*\(|\w+\s*=[^=])/;
-    const docExemptions = /-(?:ok|audit|domain|path|type|lint)|TODO|FIXME|NOTE|eslint|@param|@returns|\/\/\s*[-*#]/i;
+    const codeLikePattern =
+      /^\s*\/\/\s*(?:const|let|var|if\s*\(|for\s*\(|while\s*\(|return\b|function\b|import\b|await\b|\w+\.\w+\s*\(|\w+\s*=[^=])/;
+    const docExemptions =
+      /-(?:ok|audit|domain|path|type|lint)|TODO|FIXME|NOTE|eslint|@param|@returns|\/\/\s*[-*#]/i;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
@@ -163,7 +181,11 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     }
   }
 
-  private auditBooleanTrapParameters(relPath: string, content: string, lines: readonly string[]): void {
+  private auditBooleanTrapParameters(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
     // Detect function signatures with 2 or more positional boolean parameters
     const signatureRegex = /(?:function\s+\w+\s*|\b\w+\s*)\(([^);{}]+)\)/g;
     let match: RegExpExecArray | null;
@@ -286,25 +308,43 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
 
     const visit = (node: ts.Node, currentDepth: number, parentIsLoop: boolean): void => {
       if (this.isFunctionBoundaryAstNode(node)) {
-        ts.forEachChild(node, child => visit(child, 0, false));
+        ts.forEachChild(node, (child) => visit(child, 0, false));
         return;
       }
 
       if (this.isControlFlowAstNode(node)) {
-        const nextDepth = this.computeNestingDepth(node, currentDepth, parentIsLoop, allowMatrixLoops);
-        this.checkDeepNestingViolation(relPath, node, sourceFile, doc, lines, nextDepth, maxNestingDepth, reportedLines);
+        const nextDepth = this.computeNestingDepth(
+          node,
+          currentDepth,
+          parentIsLoop,
+          allowMatrixLoops
+        );
+        this.checkDeepNestingViolation(
+          relPath,
+          node,
+          sourceFile,
+          doc,
+          lines,
+          nextDepth,
+          maxNestingDepth,
+          reportedLines
+        );
         const isLoop = this.isLoopAstNode(node);
-        ts.forEachChild(node, child => visit(child, nextDepth, isLoop));
+        ts.forEachChild(node, (child) => visit(child, nextDepth, isLoop));
         return;
       }
 
-      ts.forEachChild(node, child => visit(child, currentDepth, parentIsLoop));
+      ts.forEachChild(node, (child) => visit(child, currentDepth, parentIsLoop));
     };
 
     visit(sourceFile, 0, false);
   }
 
-  private auditRedundantElseAfterReturn(relPath: string, content: string, lines: readonly string[]): void {
+  private auditRedundantElseAfterReturn(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
     const redundantElseRegex = /(?:return\b[^;]*;|throw\b[^;]*;)\s*\}\s*else\s*\{/g;
     let match: RegExpExecArray | null;
     while ((match = redundantElseRegex.exec(content)) !== null) {
@@ -320,9 +360,14 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     }
   }
 
-  private auditPrematureAbstractionWrapper(relPath: string, content: string, lines: readonly string[]): void {
+  private auditPrematureAbstractionWrapper(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
     // Detect function foo(a, b) { return bar(a, b); } where function only delegates identical parameters
-    const wrapperRegex = /function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([^{]+)\{\s*return\s+([\w.]+)\s*\(([^)]*)\);\s*\}/g;
+    const wrapperRegex =
+      /function\s+(\w+)\s*\(([^)]*)\)\s*:\s*([^{]+)\{\s*return\s+([\w.]+)\s*\(([^)]*)\);\s*\}/g;
     let match: RegExpExecArray | null;
     while ((match = wrapperRegex.exec(content)) !== null) {
       const fnName = match[1]!;
@@ -350,7 +395,11 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     }
   }
 
-  private auditMassiveSwitchBranching(relPath: string, content: string, lines: readonly string[]): void {
+  private auditMassiveSwitchBranching(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
     const switchRegex = /switch\s*\([^)]*\)\s*\{([^}]*)\}/g;
     let match: RegExpExecArray | null;
     while ((match = switchRegex.exec(content)) !== null) {

@@ -16,7 +16,11 @@ import { execSync } from 'node:child_process';
 import { BaseAuditor } from '../../core/auditorBase.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
-import type { FindingSeverity, AuditorCapabilities, TieredCommandProfile } from '../../core/auditContract.ts';
+import type {
+  FindingSeverity,
+  AuditorCapabilities,
+  TieredCommandProfile
+} from '../../core/auditContract.ts';
 import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
@@ -41,17 +45,105 @@ export const FALLOW_RULES = [
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 
 export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities> = {
-  'fallow-boundary-violations': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-stale-suppressions': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-workspace-diagnostic': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-refactoring-targets': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-duplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-triplicate-code': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-unused-exports': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-unused-files': { speed: ['light', 'full'], phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-unused-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-circular-dependencies': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false },
-  'fallow-security-cwe': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: true, critical: false }
+  'fallow-boundary-violations': {
+    speed: ['light', 'full'],
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-stale-suppressions': {
+    speed: ['light', 'full'],
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-workspace-diagnostic': {
+    speed: ['light', 'full'],
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-refactoring-targets': {
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-duplicate-code': {
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-triplicate-code': {
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-unused-exports': {
+    speed: ['light', 'full'],
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-unused-files': {
+    speed: ['light', 'full'],
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-unused-dependencies': {
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-circular-dependencies': {
+    speed: 'heavy',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  },
+  'fallow-security-cwe': {
+    speed: 'light',
+    phase: 'normal',
+    fix: 'none',
+    md: false,
+    ast: false,
+    changedOnly: true,
+    critical: false
+  }
 };
 
 export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {
@@ -69,17 +161,28 @@ export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {
 };
 
 export const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string> = {
-  'fallow-refactoring-targets': 'Refactoriza el módulo modularizando responsabilidades y reduciendo acoplamiento o complejidad ciclomática.',
-  'fallow-duplicate-code': 'Extrae la lógica duplicada a funciones puras o composables compartidos.',
-  'fallow-triplicate-code': 'Extrae la lógica triplicada urgentemente a utilidades comunes para evitar divergencia de comportamiento.',
-  'fallow-unused-exports': 'Remueve exports no utilizados o elimina el código muerto si no tiene otros consumidores.',
-  'fallow-unused-files': 'Elimina el archivo muerto del repositorio o conéctalo si faltó su importación legítima.',
-  'fallow-unused-dependencies': 'Remueve la dependencia no utilizada de package.json ejecutando npm rm <pkg>.',
-  'fallow-circular-dependencies': 'Rompe el ciclo de importación extrayendo tipos o interfaces a un archivo compartido común.',
-  'fallow-boundary-violations': 'Respeta los límites de arquitectura definidos en .fallowrc.json; no importes módulos internos prohibidos.',
-  'fallow-stale-suppressions': 'Remueve la directiva de supresión obsoleta ya que el problema subyacente ya no existe.',
-  'fallow-workspace-diagnostic': 'Corrige la configuración de TypeScript o Fallow para resolver diagnósticos del espacio de trabajo.',
-  'fallow-security-cwe': 'Revisa el candidato de seguridad CWE detectado y aplica sanitización, validación con Valibot o escape de entrada.'
+  'fallow-refactoring-targets':
+    'Refactoriza el módulo modularizando responsabilidades y reduciendo acoplamiento o complejidad ciclomática.',
+  'fallow-duplicate-code':
+    'Extrae la lógica duplicada a funciones puras o composables compartidos.',
+  'fallow-triplicate-code':
+    'Extrae la lógica triplicada urgentemente a utilidades comunes para evitar divergencia de comportamiento.',
+  'fallow-unused-exports':
+    'Remueve exports no utilizados o elimina el código muerto si no tiene otros consumidores.',
+  'fallow-unused-files':
+    'Elimina el archivo muerto del repositorio o conéctalo si faltó su importación legítima.',
+  'fallow-unused-dependencies':
+    'Remueve la dependencia no utilizada de package.json ejecutando npm rm <pkg>.',
+  'fallow-circular-dependencies':
+    'Rompe el ciclo de importación extrayendo tipos o interfaces a un archivo compartido común.',
+  'fallow-boundary-violations':
+    'Respeta los límites de arquitectura definidos en .fallowrc.json; no importes módulos internos prohibidos.',
+  'fallow-stale-suppressions':
+    'Remueve la directiva de supresión obsoleta ya que el problema subyacente ya no existe.',
+  'fallow-workspace-diagnostic':
+    'Corrige la configuración de TypeScript o Fallow para resolver diagnósticos del espacio de trabajo.',
+  'fallow-security-cwe':
+    'Revisa el candidato de seguridad CWE detectado y aplica sanitización, validación con Valibot o escape de entrada.'
 };
 
 export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
@@ -98,7 +201,9 @@ export const FALLOW_PRIORITY_MIN_THRESHOLDS: Record<FallowTargetPriorityNamed, n
   all: FALLOW_ALL_PRIORITY_THRESHOLD
 };
 
-export function resolveFallowTargetMinThreshold(priority: FallowTargetPriority | undefined): number {
+export function resolveFallowTargetMinThreshold(
+  priority: FallowTargetPriority | undefined
+): number {
   if (typeof priority === 'number') {
     return Number.isFinite(priority) ? Math.max(0, priority) : FALLOW_HIGH_PRIORITY_THRESHOLD;
   }
@@ -109,7 +214,14 @@ export function resolveFallowTargetMinThreshold(priority: FallowTargetPriority |
 }
 
 const FALLOW_DUPES_CONFIG = ['--min-occurrences', '2'] as const;
-const FALLOW_TRIPLETS_CONFIG = ['--min-occurrences', '3', '--min-lines', '10', '--min-tokens', '60'] as const;
+const FALLOW_TRIPLETS_CONFIG = [
+  '--min-occurrences',
+  '3',
+  '--min-lines',
+  '10',
+  '--min-tokens',
+  '60'
+] as const;
 
 export interface FallowCloneGroup {
   readonly instances: Array<{ file: string; start_line: number }>;
@@ -142,9 +254,29 @@ export interface FallowDeadCodeData {
   readonly unused_exports?: Array<{ path: string; export_name: string; line: number }>;
   readonly unused_dependencies?: Array<{ path?: string; package_name: string; line?: number }>;
   readonly unused_dev_dependencies?: Array<{ path?: string; package_name: string; line?: number }>;
-  readonly circular_dependencies?: Array<{ files?: string[]; cycle?: string[]; path?: string; line?: number; message?: string }>;
-  readonly stale_suppressions?: Array<{ path?: string; file?: string; line?: number; message?: string; kind?: string; origin?: { issue_kind?: string; kind_known?: boolean } }>;
-  readonly duplicate_exports?: Array<{ export_name?: string; name?: string; locations?: Array<{ path?: string; file?: string; line?: number }>; path?: string; file?: string; line?: number }>;
+  readonly circular_dependencies?: Array<{
+    files?: string[];
+    cycle?: string[];
+    path?: string;
+    line?: number;
+    message?: string;
+  }>;
+  readonly stale_suppressions?: Array<{
+    path?: string;
+    file?: string;
+    line?: number;
+    message?: string;
+    kind?: string;
+    origin?: { issue_kind?: string; kind_known?: boolean };
+  }>;
+  readonly duplicate_exports?: Array<{
+    export_name?: string;
+    name?: string;
+    locations?: Array<{ path?: string; file?: string; line?: number }>;
+    path?: string;
+    file?: string;
+    line?: number;
+  }>;
   readonly workspace_diagnostics?: Array<{ kind?: string; message?: string; path?: string }>;
   readonly unlisted_dependencies?: Array<{ path: string; package_name: string; line: number }>;
   readonly unresolved_imports?: Array<{ path: string; specifier: string; line: number }>;
@@ -175,7 +307,9 @@ function mapCloneFindings(
 ): FallowFindingItem[] {
   const findings: FallowFindingItem[] = [];
   const ruleId: FallowRuleId = isTriplets ? 'fallow-triplicate-code' : 'fallow-duplicate-code';
-  const label = isTriplets ? 'Código triplicado crítico detectado por Fallow' : 'Código duplicado detectado por Fallow';
+  const label = isTriplets
+    ? 'Código triplicado crítico detectado por Fallow'
+    : 'Código duplicado detectado por Fallow';
   const context = isTriplets ? 'fallow-triplets' : 'fallow-dupes';
 
   for (const group of cloneGroups || []) {
@@ -213,8 +347,11 @@ function mapSecurityFindings(
   return res;
 }
 
-function mapUnusedFileFindings(files: readonly { path: string }[] | undefined, projectRoot: string): FallowFindingItem[] {
-  return (files || []).map(f => ({
+function mapUnusedFileFindings(
+  files: readonly { path: string }[] | undefined,
+  projectRoot: string
+): FallowFindingItem[] {
+  return (files || []).map((f) => ({
     file: path.resolve(projectRoot, f.path),
     line: 1,
     message: `Archivo huérfano sin uso (Dead Code Fallow): '${f.path}'`,
@@ -228,7 +365,7 @@ function mapUnusedExportFindings(
   exports: readonly { path: string; export_name: string; line: number }[] | undefined,
   projectRoot: string
 ): FallowFindingItem[] {
-  return (exports || []).map(x => ({
+  return (exports || []).map((x) => ({
     file: path.resolve(projectRoot, x.path),
     line: x.line || 1,
     message: `Export no utilizado (Fallow): '${x.export_name}'`,
@@ -242,7 +379,7 @@ function mapUnusedDepFindings(
   deps: readonly { path?: string; package_name: string; line?: number }[] | undefined,
   projectRoot: string
 ): FallowFindingItem[] {
-  return (deps || []).map(d => ({
+  return (deps || []).map((d) => ({
     file: path.resolve(projectRoot, d.path || 'package.json'),
     line: d.line || 1,
     message: `Dependencia no utilizada en package.json (Fallow): '${d.package_name}'`,
@@ -253,10 +390,18 @@ function mapUnusedDepFindings(
 }
 
 function mapCircularDepFindings(
-  circulars: readonly { files?: string[]; cycle?: string[]; path?: string; line?: number; message?: string }[] | undefined,
+  circulars:
+    | readonly {
+        files?: string[];
+        cycle?: string[];
+        path?: string;
+        line?: number;
+        message?: string;
+      }[]
+    | undefined,
   projectRoot: string
 ): FallowFindingItem[] {
-  return (circulars || []).map(c => {
+  return (circulars || []).map((c) => {
     const filesList = c.files || c.cycle || [];
     const filePath = c.path || filesList[0] || 'src';
     return {
@@ -274,7 +419,7 @@ function mapBoundaryFindings(
   boundaries: readonly { path: string; line: number; message: string }[] | undefined,
   projectRoot: string
 ): FallowFindingItem[] {
-  return (boundaries || []).map(b => ({
+  return (boundaries || []).map((b) => ({
     file: path.resolve(projectRoot, b.path),
     line: b.line || 1,
     message: `Violación de límite arquitectónico (Fallow): ${b.message}`,
@@ -285,7 +430,16 @@ function mapBoundaryFindings(
 }
 
 function mapStaleSuppressions(
-  suppressions: readonly { path?: string; file?: string; line?: number; message?: string; kind?: string; origin?: { issue_kind?: string; kind_known?: boolean } }[] | undefined,
+  suppressions:
+    | readonly {
+        path?: string;
+        file?: string;
+        line?: number;
+        message?: string;
+        kind?: string;
+        origin?: { issue_kind?: string; kind_known?: boolean };
+      }[]
+    | undefined,
   projectRoot: string
 ): FallowFindingItem[] {
   const findings: FallowFindingItem[] = [];
@@ -309,7 +463,8 @@ function mapWorkspaceDiagFindings(
 ): FallowFindingItem[] {
   const findings: FallowFindingItem[] = [];
   for (const diag of diagnostics || []) {
-    if (diag.kind === 'boundaries-not-configured' || diag.kind === 'rule-packs-not-configured') continue;
+    if (diag.kind === 'boundaries-not-configured' || diag.kind === 'rule-packs-not-configured')
+      continue;
     findings.push({
       file: path.resolve(projectRoot, diag.path || 'package.json'),
       line: 1,
@@ -372,10 +527,7 @@ export function mapFallowJson(
   if (command === 'dead-code') return mapDeadCodeFindings(data, projectRoot);
   if (command === 'health') return mapHealthFindings(data, projectRoot);
   if (command === 'audit') {
-    return [
-      ...mapDeadCodeFindings(data, projectRoot),
-      ...mapHealthFindings(data, projectRoot)
-    ];
+    return [...mapDeadCodeFindings(data, projectRoot), ...mapHealthFindings(data, projectRoot)];
   }
   return [];
 }
@@ -398,9 +550,9 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "Fallow",
-        fallbackBehavior: "violation",
-        fallbackRuleId: "fallow-workspace-diagnostic"
+        toolName: 'Fallow',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'fallow-workspace-diagnostic'
       },
       ruleCapabilities: FALLOW_RULE_CAPABILITIES,
       id: 'validate_fallow',
@@ -491,7 +643,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
         context: `fallow ${command}`
       });
     } finally {
-      const elapsed = reportedElapsed ?? (performance.now() - start); // timing-ok: External third-party CLI execution fallback
+      const elapsed = reportedElapsed ?? performance.now() - start; // timing-ok: External third-party CLI execution fallback
       for (const rule of associatedRules) {
         this.reportRuleDuration(rule, elapsed);
       }
@@ -522,7 +674,10 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
         light: ['--no-type-aware'],
         full: (() => {
           const args: string[] = [];
-          if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))) {
+          if (
+            config.fallow?.typeAware !== false &&
+            fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))
+          ) {
             args.push('--type-aware');
           }
           if (config.fallow?.showCascade !== false) {
@@ -548,7 +703,10 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       if (isSecActive !== false) {
         allFindings.push(...this.runFallowSubCommand('security', [], ['fallow-security-cwe']));
       } else {
-        this.markRuleNotApplicable('fallow-security-cwe', 'Desactivado en config (fallow.security.enabled: false)');
+        this.markRuleNotApplicable(
+          'fallow-security-cwe',
+          'Desactivado en config (fallow.security.enabled: false)'
+        );
       }
     };
 
@@ -564,14 +722,16 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     }
 
     if (this.isRuleActiveForCurrentRun('fallow-triplicate-code')) {
-      allFindings.push(...this.runFallowSubCommand('triplets', FALLOW_TRIPLETS_CONFIG, ['fallow-triplicate-code']));
+      allFindings.push(
+        ...this.runFallowSubCommand('triplets', FALLOW_TRIPLETS_CONFIG, ['fallow-triplicate-code'])
+      );
     }
 
     executeFallowSecurity();
 
-    if (deadCodeRules.some(r => this.isRuleActiveForCurrentRun(r))) {
+    if (deadCodeRules.some((r) => this.isRuleActiveForCurrentRun(r))) {
       const deadCode = this.runFallowSubCommand('dead-code', deadCodeArgs, deadCodeRules);
-      allFindings.push(...deadCode.filter(f => this.isRuleActiveForCurrentRun(f.ruleId)));
+      allFindings.push(...deadCode.filter((f) => this.isRuleActiveForCurrentRun(f.ruleId)));
     }
 
     const healthRules: readonly FallowRuleId[] = [
@@ -579,14 +739,14 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       'fallow-circular-dependencies',
       'fallow-unused-dependencies'
     ];
-    if (healthRules.some(r => this.isRuleActiveForCurrentRun(r))) {
+    if (healthRules.some((r) => this.isRuleActiveForCurrentRun(r))) {
       const healthArgs: string[] = ['--targets', '--report-only'];
       const covPath = path.resolve(this.projectRoot, 'coverage/coverage-final.json');
       if (fs.existsSync(covPath)) {
         healthArgs.push('--coverage', 'coverage/coverage-final.json');
       }
       const healthFindings = this.runFallowSubCommand('health', healthArgs, healthRules);
-      allFindings.push(...healthFindings.filter(f => this.isRuleActiveForCurrentRun(f.ruleId)));
+      allFindings.push(...healthFindings.filter((f) => this.isRuleActiveForCurrentRun(f.ruleId)));
     }
 
     for (const f of allFindings) {

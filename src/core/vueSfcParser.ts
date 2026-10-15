@@ -135,7 +135,7 @@ export { parseVueSfcBlocks as parseVueSfc };
 export function extractSfcScriptContent(sfcContent: string): string | null {
   const parsed = parseVueSfcBlocks(sfcContent);
   if (parsed.scripts.length === 0) return null;
-  return parsed.scripts.map(s => s.content).join('\n');
+  return parsed.scripts.map((s) => s.content).join('\n');
 }
 
 /**
@@ -145,4 +145,3 @@ export function extractSfcScriptContent(sfcContent: string): string | null {
 export function extractVueScriptOrRaw(relPath: string, content: string): string | null {
   return relPath.endsWith('.vue') ? extractSfcScriptContent(content) : content;
 }
-

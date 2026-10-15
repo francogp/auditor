@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { setActivePinia, createPinia } from 'pinia';
 // If testing database/persistence logic, import describeWithDatabase:
 // import { describeWithDatabase, type DBEngine, type TestDatabaseContext } from '../../dbTestHelper.ts';

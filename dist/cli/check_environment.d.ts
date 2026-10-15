@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --experimental-strip-types
+//#region src/cli/check_environment.d.ts
 /**
  * src/cli/check_environment.ts
  *
@@ -7,16 +7,16 @@
  * without hardcoded versions.
  */
 export interface SemverVersion {
-    major: number;
-    minor: number;
-    patch: number;
+  major: number;
+  minor: number;
+  patch: number;
 }
 export declare function parseSemver(v: string): SemverVersion;
 export declare function compareVersions(current: SemverVersion, required: SemverVersion): boolean;
 export interface AuditorEngineSpecs {
-    readonly node: string;
-    readonly npm: string;
+  readonly node: string;
+  readonly npm: string;
 }
 export declare function getAuditorEngines(): AuditorEngineSpecs;
 export declare function checkEnvironment(targetDir?: string, autoRemediate?: boolean): boolean;
-//# sourceMappingURL=check_environment.d.ts.map
+//#endregion

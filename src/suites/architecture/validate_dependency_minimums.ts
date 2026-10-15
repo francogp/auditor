@@ -13,8 +13,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import semver from 'semver';
-import { BaseAuditor, type AuditorOptions, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditorMinimumVersions, findDeclaredDependency, type DeclaredDependency } from '../../core/auditorMinimums.ts';
+import {
+  BaseAuditor,
+  type AuditorOptions,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import {
+  getAuditorMinimumVersions,
+  findDeclaredDependency,
+  type DeclaredDependency
+} from '../../core/auditorMinimums.ts';
 export { findDeclaredDependency, type DeclaredDependency } from '../../core/auditorMinimums.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 
@@ -41,7 +49,8 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_dependency_minimums',
       name: 'Dependency Minimum Versions Validator',
@@ -58,8 +67,10 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         'dependency-below-minimum-installed': 'Versión instalada inferior al mínimo'
       },
       ruleRemediations: {
-        'dependency-below-minimum-range': 'Guía de diagnóstico y remediación para dependency-below-minimum-range. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'dependency-below-minimum-installed': 'Guía de diagnóstico y remediación para dependency-below-minimum-installed. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-below-minimum-range':
+          'Guía de diagnóstico y remediación para dependency-below-minimum-range. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'dependency-below-minimum-installed':
+          'Guía de diagnóstico y remediación para dependency-below-minimum-installed. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: { include: ['package.json', 'package-lock.json'] },
       ...options
@@ -82,7 +93,9 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
   }
 
   private auditDeclaredRange(name: string, floor: string, declared: DeclaredDependency): void {
-    const declaredMin = semver.validRange(declared.range) ? semver.minVersion(declared.range) : null;
+    const declaredMin = semver.validRange(declared.range)
+      ? semver.minVersion(declared.range)
+      : null;
     const requiredMin = semver.minVersion(floor);
     if (!declaredMin || !requiredMin) return; // non-registry specs (github:, file:, workspace:) are not comparable
     if (semver.lt(declaredMin, requiredMin)) {
@@ -97,7 +110,12 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     }
   }
 
-  private auditInstalledVersion(name: string, floor: string, declared: DeclaredDependency, lock: LockfileShape): void {
+  private auditInstalledVersion(
+    name: string,
+    floor: string,
+    declared: DeclaredDependency,
+    lock: LockfileShape
+  ): void {
     const installed = lock.packages?.[`node_modules/${name}`]?.version;
     const requiredMin = semver.minVersion(floor);
     if (!installed || !semver.valid(installed) || !requiredMin) return;
@@ -120,10 +138,16 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
 
     if (!pkg) {
       this.runSubAuditorSync('dependency-below-minimum-range', () => {
-        this.markRuleNotApplicable('dependency-below-minimum-range', 'package.json ausente o inválido');
+        this.markRuleNotApplicable(
+          'dependency-below-minimum-range',
+          'package.json ausente o inválido'
+        );
       });
       this.runSubAuditorSync('dependency-below-minimum-installed', () => {
-        this.markRuleNotApplicable('dependency-below-minimum-installed', 'package.json ausente o inválido');
+        this.markRuleNotApplicable(
+          'dependency-below-minimum-installed',
+          'package.json ausente o inválido'
+        );
       });
       return;
     }
@@ -134,17 +158,22 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     });
 
     this.runSubAuditorSync('dependency-below-minimum-range', () => {
-      for (const { name, floor, declared } of declaredEntries) this.auditDeclaredRange(name, floor, declared);
+      for (const { name, floor, declared } of declaredEntries)
+        this.auditDeclaredRange(name, floor, declared);
     });
 
     const lock = this.readInstalledVersions();
     this.runSubAuditorSync('dependency-below-minimum-installed', () => {
       if (!lock) {
-        this.markRuleNotApplicable('dependency-below-minimum-installed', 'package-lock.json ausente o ilegible');
+        this.markRuleNotApplicable(
+          'dependency-below-minimum-installed',
+          'package-lock.json ausente o ilegible'
+        );
         return;
       }
       this.recordScanned('package-lock.json');
-      for (const { name, floor, declared } of declaredEntries) this.auditInstalledVersion(name, floor, declared, lock);
+      for (const { name, floor, declared } of declaredEntries)
+        this.auditInstalledVersion(name, floor, declared, lock);
     });
   }
 }

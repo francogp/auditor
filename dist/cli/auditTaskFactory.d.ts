@@ -1,32 +1,27 @@
-/**
- * packages/auditor/src/cli/auditTaskFactory.ts
- *
- * Task definition construction, permission resolution, and execution filtering
- * for auditor auto-discovery.
- */
-import { type AuditFamily, type AuditTaskDefinition, type AuditorRuleCapabilities, type AuditExecutionSpeed, type AuditExecutionPhase } from '../core/auditContract.ts';
-import { type loadAuditConfig } from '../core/auditConfig.ts';
+import { loadAuditConfig } from "../core/auditConfigLoader.js";
+import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditTaskDefinition, AuditorRuleCapabilities } from "../core/auditContract.js";
+//#region src/cli/auditTaskFactory.d.ts
 export interface DiscoveryOptions {
-    baseDir?: string;
-    projectRoot?: string;
-    family?: string;
-    task?: string;
-    suites?: string[];
-    preset?: string;
-    speed?: AuditExecutionSpeed;
-    onlySpeed?: AuditExecutionSpeed;
-    phase?: AuditExecutionPhase;
-    fastOnly?: boolean;
-    skipSimilar?: boolean;
-    fixOnly?: boolean;
-    lintOnly?: boolean;
-    criticalOnly?: boolean;
-    onlyCritical?: boolean;
-    precommitOnly?: boolean;
-    mdOnly?: boolean;
-    buildOnly?: boolean;
-    withBuild?: boolean;
-    includeHeavy?: boolean;
+  baseDir?: string;
+  projectRoot?: string;
+  family?: string;
+  task?: string;
+  suites?: string[];
+  preset?: string;
+  speed?: AuditExecutionSpeed;
+  onlySpeed?: AuditExecutionSpeed;
+  phase?: AuditExecutionPhase;
+  fastOnly?: boolean;
+  skipSimilar?: boolean;
+  fixOnly?: boolean;
+  lintOnly?: boolean;
+  criticalOnly?: boolean;
+  onlyCritical?: boolean;
+  precommitOnly?: boolean;
+  mdOnly?: boolean;
+  buildOnly?: boolean;
+  withBuild?: boolean;
+  includeHeavy?: boolean;
 }
 export declare function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): number;
 export declare const DEFAULT_PERMISSIONS: readonly ["--permission", "--experimental-strip-types", "--allow-fs-read=*", "--allow-fs-write=*", "--allow-child-process", "--allow-addons"];
@@ -37,4 +32,4 @@ export declare function shouldSkipTaskByFilters(id: string, filename: string, fa
 export declare function shouldSkipTaskByCapabilities(capabilities: Partial<AuditorRuleCapabilities> | undefined, options: DiscoveryOptions): boolean;
 export declare function buildTaskCliArguments(filename: string, fullPath: string, id: string, isBuiltin: boolean, options: DiscoveryOptions): string[];
 export declare function createAuditTaskDefinition(fullPath: string, filename: string, family: AuditFamily, config: Awaited<ReturnType<typeof loadAuditConfig>>, options: DiscoveryOptions, isBuiltin: boolean, targetSuiteIds: Set<string> | null): Promise<AuditTaskDefinition | null>;
-//# sourceMappingURL=auditTaskFactory.d.ts.map
+//#endregion

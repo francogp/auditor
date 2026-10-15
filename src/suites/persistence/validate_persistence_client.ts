@@ -16,7 +16,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
@@ -51,7 +51,8 @@ export interface StorageAccessContext {
 
 const EXTENSIONS = new Set(['.ts', '.vue']);
 
-const P_STORAGE_METHOD = /\b(?:localStorage|sessionStorage)\.(setItem|getItem|removeItem)\s*\(\s*([^,)\s][^,)]*)/g;
+const P_STORAGE_METHOD =
+  /\b(?:localStorage|sessionStorage)\.(setItem|getItem|removeItem)\s*\(\s*([^,)\s][^,)]*)/g;
 const P_STORAGE_INDEXED = /\b(?:localStorage|sessionStorage)\s*\[([^\]]+)\]/g;
 
 export class ValidatePersistenceClientAuditor extends FileScanAuditor<PersistenceClientRuleId> {
@@ -61,9 +62,16 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
   constructor(options?: string | ValidatePersistenceClientOptions) {
     const rootPath = typeof options === 'string' ? options : options?.projectRoot;
     const cfg = getAuditConfig(rootPath);
-    const codeRoots = typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
-    const customAuthorized = typeof options === 'object' && options?.authorizedSaveFiles ? options.authorizedSaveFiles : cfg.persistence?.authorizedSaveFiles ?? [];
-    const customPrefixes = typeof options === 'object' && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
+    const codeRoots =
+      typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
+    const customAuthorized =
+      typeof options === 'object' && options?.authorizedSaveFiles
+        ? options.authorizedSaveFiles
+        : (cfg.persistence?.authorizedSaveFiles ?? []);
+    const customPrefixes =
+      typeof options === 'object' && options?.saveKeyPrefixes
+        ? options.saveKeyPrefixes
+        : (cfg.persistence?.saveKeyPrefixes ?? []);
 
     super({
       usesThirdPartyTool: false,
@@ -73,7 +81,8 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_persistence_client',
       name: 'Client-Side Web Storage & Persistence Hygiene',
@@ -91,9 +100,12 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
         'persistence-client-unhandled-quota-error': 'SetItem sin captura de cuota'
       },
       ruleRemediations: {
-        'persistence-client-uncoordinated-save': 'Guía de diagnóstico y remediación para persistence-client-uncoordinated-save. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'persistence-client-untyped-key': 'Guía de diagnóstico y remediación para persistence-client-untyped-key. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'persistence-client-unhandled-quota-error': 'Guía de diagnóstico y remediación para persistence-client-unhandled-quota-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'persistence-client-uncoordinated-save':
+          'Guía de diagnóstico y remediación para persistence-client-uncoordinated-save. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'persistence-client-untyped-key':
+          'Guía de diagnóstico y remediación para persistence-client-untyped-key. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'persistence-client-unhandled-quota-error':
+          'Guía de diagnóstico y remediación para persistence-client-unhandled-quota-error. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,
@@ -101,7 +113,14 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       },
       roots: codeRoots,
       allowedExtensions: EXTENSIONS,
-      extraIgnorePatterns: ['coverage/**', 'dist/**', 'scratch/**', '.agents/**', 'migrations/**', 'database/**'],
+      extraIgnorePatterns: [
+        'coverage/**',
+        'dist/**',
+        'scratch/**',
+        '.agents/**',
+        'migrations/**',
+        'database/**'
+      ],
       projectRoot: rootPath
     });
 
@@ -151,7 +170,8 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       if (this.isIgnoredLine(lines, lineNum)) continue;
       const rawKeyArg = match[1]?.trim() ?? '';
       const afterMatch = content.slice(matchIndex + match[0].length).trimStart();
-      const isWrite = afterMatch.startsWith('=') && !afterMatch.startsWith('==') && !afterMatch.startsWith('=>');
+      const isWrite =
+        afterMatch.startsWith('=') && !afterMatch.startsWith('==') && !afterMatch.startsWith('=>');
       callback({
         rawKeyArg,
         matchIndex,
@@ -167,10 +187,11 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
     if (isAuthorizedFile || this.saveKeyPrefixes.length === 0) return;
     this.forEachStorageAccess(content, ({ rawKeyArg, matchIndex, isWrite, line }) => {
       if (!isWrite) return;
-      const matchesSavePrefix = this.saveKeyPrefixes.some(prefix =>
-        rawKeyArg.includes(`'${prefix}`) ||
-        rawKeyArg.includes(`"${prefix}`) ||
-        rawKeyArg.includes(`\`${prefix}`)
+      const matchesSavePrefix = this.saveKeyPrefixes.some(
+        (prefix) =>
+          rawKeyArg.includes(`'${prefix}`) ||
+          rawKeyArg.includes(`"${prefix}`) ||
+          rawKeyArg.includes(`\`${prefix}`)
       );
       if (matchesSavePrefix) {
         this.addViolationAtMatch({
@@ -229,13 +250,14 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
 
   private isAuthorizedSaveFile(file: string): boolean {
     const normalized = normalizePosixPath(file);
-    return Array.from(this.authorizedSaveFiles).some(auth => normalized.endsWith(auth) || normalized.includes(auth));
+    return Array.from(this.authorizedSaveFiles).some(
+      (auth) => normalized.endsWith(auth) || normalized.includes(auth)
+    );
   }
 
   private hasStorageEscapeHatch(line: string): boolean {
     return /\/\/\s*storage-ok:|\/\*\s*storage-ok:/i.test(line);
   }
-
 
   private isInsideTryCatch(content: string, position: number): boolean {
     const preceding = content.slice(0, position);

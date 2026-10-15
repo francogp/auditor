@@ -74,16 +74,24 @@ export function getPermissionsForTask(filename: string, fullPath?: string): stri
 
 /** Convert snake_case or kebab-case filename to Title Case */
 export function formatTaskTitle(filename: string): string {
-  if (filename === 'audit_project' || filename === 'audit_project.ts' || filename === 'audit_project.js') {
+  if (
+    filename === 'audit_project' ||
+    filename === 'audit_project.ts' ||
+    filename === 'audit_project.js'
+  ) {
     return 'Project Architecture & Style Rules';
   }
-  if (filename === 'validate_stylelint' || filename === 'validate_stylelint.ts' || filename === 'validate_stylelint.js') {
+  if (
+    filename === 'validate_stylelint' ||
+    filename === 'validate_stylelint.ts' ||
+    filename === 'validate_stylelint.js'
+  ) {
     return 'CSS & SCSS Stylelint Hygiene';
   }
   const base = filename.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '');
   return base
     .split(/[_-]/)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
 
@@ -95,12 +103,21 @@ export function shouldSkipTaskByFilters(
   options: DiscoveryOptions,
   targetSuiteIds: Set<string> | null
 ): boolean {
-  if (options.skipSimilar && (id === 'validate_similar_code' || filename.includes('validate_similar_code'))) {
+  if (
+    options.skipSimilar &&
+    (id === 'validate_similar_code' || filename.includes('validate_similar_code'))
+  ) {
     return true;
   }
   if (targetSuiteIds && !targetSuiteIds.has(id)) return true;
   if (options.family && options.family !== family) return true;
-  if (options.task && !options.task.includes(',') && options.task !== id && !filename.includes(options.task)) return true;
+  if (
+    options.task &&
+    !options.task.includes(',') &&
+    options.task !== id &&
+    !filename.includes(options.task)
+  )
+    return true;
   if (options.fastOnly && !isFast) return true;
   return false;
 }
@@ -155,11 +172,18 @@ export function shouldSkipTaskByCapabilities(
       maxSpeed = options.speed;
     } else if (options.lintOnly || options.preset === 'lint' || options.includeHeavy === false) {
       maxSpeed = 'light';
-    } else if (options.preset === 'full' || options.preset === 'precommit' || options.precommitOnly) {
+    } else if (
+      options.preset === 'full' ||
+      options.preset === 'precommit' ||
+      options.precommitOnly
+    ) {
       maxSpeed = 'full';
     }
     const isCriticalLintBypass = capabilities?.critical === true && maxSpeed === 'light';
-    if (!isCriticalLintBypass && resolveEffectiveSpeed(capabilities?.speed ?? 'light', { maxSpeed }) === null) {
+    if (
+      !isCriticalLintBypass &&
+      resolveEffectiveSpeed(capabilities?.speed ?? 'light', { maxSpeed }) === null
+    ) {
       return true;
     }
   }
@@ -175,9 +199,10 @@ export function buildTaskCliArguments(
   options: DiscoveryOptions
 ): string[] {
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-  const scriptArg = (relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath))
-    ? path.resolve(fullPath).replace(/\\/g, '/')
-    : relScriptPath;
+  const scriptArg =
+    relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath)
+      ? path.resolve(fullPath).replace(/\\/g, '/')
+      : relScriptPath;
   const taskPermissions = getPermissionsForTask(filename, fullPath);
   const taskArgs = [...taskPermissions, scriptArg, '--json'];
 
@@ -191,29 +216,45 @@ export function buildTaskCliArguments(
   return taskArgs;
 }
 
-function resolveTaskConfigKey(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>, taskId: string): string {
+function resolveTaskConfigKey(
+  metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>,
+  taskId: string
+): string {
   if (metadata.configKey) return metadata.configKey;
   if (metadata.manifest?.configKey) return metadata.manifest.configKey;
-  throw new Error(`[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'configKey'. Silent fallbacks are strictly prohibited.`);
+  throw new Error(
+    `[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'configKey'. Silent fallbacks are strictly prohibited.`
+  );
 }
 
-function resolveTaskDefaultConfig(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>, taskId: string): Readonly<Record<string, unknown>> {
+function resolveTaskDefaultConfig(
+  metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>,
+  taskId: string
+): Readonly<Record<string, unknown>> {
   if (metadata.defaultConfig) return metadata.defaultConfig;
   if (metadata.manifest?.defaultConfig) return metadata.manifest.defaultConfig;
-  throw new Error(`[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'defaultConfig'. Silent fallbacks are strictly prohibited.`);
+  throw new Error(
+    `[Auditor Contract Violation] Suite/task [${taskId}] must define a mandatory 'defaultConfig'. Silent fallbacks are strictly prohibited.`
+  );
 }
 
-function resolveTaskRuleDescriptions(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Record<string, string> | undefined {
+function resolveTaskRuleDescriptions(
+  metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>
+): Record<string, string> | undefined {
   if (metadata.ruleDescriptions) return metadata.ruleDescriptions;
   return metadata.manifest?.rules;
 }
 
-function resolveTaskRuleRemediations(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): Record<string, string> | undefined {
+function resolveTaskRuleRemediations(
+  metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>
+): Record<string, string> | undefined {
   if (metadata.ruleRemediations) return metadata.ruleRemediations;
   return metadata.manifest?.remediations;
 }
 
-function resolveTaskDescription(metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>): string | undefined {
+function resolveTaskDescription(
+  metadata: Awaited<ReturnType<typeof extractAuditorMetadataFromFile>>
+): string | undefined {
   if (metadata.description) return metadata.description;
   return metadata.manifest?.description;
 }
@@ -251,9 +292,10 @@ export async function createAuditTaskDefinition(
 
   const taskArgs = buildTaskCliArguments(filename, fullPath, id, isBuiltin, options);
   const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
-  const effectiveScriptPath = (relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath))
-    ? path.resolve(fullPath).replace(/\\/g, '/')
-    : relScriptPath;
+  const effectiveScriptPath =
+    relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath)
+      ? path.resolve(fullPath).replace(/\\/g, '/')
+      : relScriptPath;
   const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
   const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : '🧩');
 

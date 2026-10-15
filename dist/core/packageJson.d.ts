@@ -1,3 +1,4 @@
+//#region src/core/packageJson.d.ts
 /**
  * src/core/packageJson.ts
  *
@@ -10,22 +11,22 @@
 export declare const PACKAGE_JSON_TYPES: readonly ["module", "commonjs"];
 export type PackageJsonType = (typeof PACKAGE_JSON_TYPES)[number];
 export interface PackageJsonDTO {
-    readonly name?: string;
-    readonly version?: string;
-    readonly description?: string;
-    readonly type?: PackageJsonType;
-    readonly main?: string;
-    readonly types?: string;
-    readonly bin?: string | Record<string, string>;
-    readonly scripts?: Record<string, string>;
-    readonly dependencies?: Record<string, string>;
-    readonly devDependencies?: Record<string, string>;
-    readonly peerDependencies?: Record<string, string>;
-    readonly optionalDependencies?: Record<string, string>;
-    readonly engines?: Record<string, string>;
-    readonly files?: readonly string[];
-    readonly exports?: Record<string, unknown>;
-    readonly [key: string]: unknown;
+  readonly name?: string;
+  readonly version?: string;
+  readonly description?: string;
+  readonly type?: PackageJsonType;
+  readonly main?: string;
+  readonly types?: string;
+  readonly bin?: string | Record<string, string>;
+  readonly scripts?: Record<string, string>;
+  readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
+  readonly peerDependencies?: Record<string, string>;
+  readonly optionalDependencies?: Record<string, string>;
+  readonly engines?: Record<string, string>;
+  readonly files?: readonly string[];
+  readonly exports?: Record<string, unknown>;
+  readonly [key: string]: unknown;
 }
 /**
  * Returns the parsed package.json object for the specified project root with memory caching.
@@ -40,4 +41,4 @@ export declare function clearPackageJsonCache(): void;
  * Writes updated package.json to disk and refreshes the in-memory cache.
  */
 export declare function writePackageJson(projectRoot: string, data: PackageJsonDTO): void;
-//# sourceMappingURL=packageJson.d.ts.map
+//#endregion

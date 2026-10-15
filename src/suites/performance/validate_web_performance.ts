@@ -1,6 +1,12 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  LIGHT_RULE_CAPABILITIES,
+  resolveFileScanRoots
+} from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { isPathExempt } from '../../core/safePath.ts';
@@ -53,15 +59,25 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         'uncompressed-video': 'video sin preload none o formato webm'
       },
       ruleRemediations: {
-        'unoptimized-images': 'Guía de diagnóstico y remediación para unoptimized-images. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'font-display-missing': 'Guía de diagnóstico y remediación para font-display-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'inline-svg-bloat': 'Guía de diagnóstico y remediación para inline-svg-bloat. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'css-render-blocking': 'Guía de diagnóstico y remediación para css-render-blocking. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'excessive-dom-depth': 'Guía de diagnóstico y remediación para excessive-dom-depth. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'layout-shift-dimensions': 'Guía de diagnóstico y remediación para layout-shift-dimensions. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'uncompressed-video': 'Guía de diagnóstico y remediación para uncompressed-video. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unoptimized-images':
+          'Guía de diagnóstico y remediación para unoptimized-images. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'font-display-missing':
+          'Guía de diagnóstico y remediación para font-display-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'inline-svg-bloat':
+          'Guía de diagnóstico y remediación para inline-svg-bloat. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'css-render-blocking':
+          'Guía de diagnóstico y remediación para css-render-blocking. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'excessive-dom-depth':
+          'Guía de diagnóstico y remediación para excessive-dom-depth. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'layout-shift-dimensions':
+          'Guía de diagnóstico y remediación para layout-shift-dimensions. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'uncompressed-video':
+          'Guía de diagnóstico y remediación para uncompressed-video. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
-      ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(
+        WEB_PERFORMANCE_RULES,
+        LIGHT_RULE_CAPABILITIES
+      ),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.webPerformance?.exemptPaths
@@ -70,7 +86,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   protected override scanFile(relPath: string, content: string): void {
-
     this.runSubAuditorSync('unoptimized-images', () => {
       this.auditUnoptimizedImages(relPath, content);
     });
@@ -149,7 +164,8 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
     let match: RegExpExecArray | null;
     while ((match = svgRegex.exec(content)) !== null) {
       const svgContent = match[0];
-      const isBloated = svgContent.length > maxSvgSize || (svgContent.match(/<path[\s>]/gi) ?? []).length > 30;
+      const isBloated =
+        svgContent.length > maxSvgSize || (svgContent.match(/<path[\s>]/gi) ?? []).length > 30;
       if (isBloated) {
         const line = this.getLineNumber(content, match.index);
         this.addViolation({
@@ -175,7 +191,13 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       const attrs = linkMatch[1] ?? '';
       const isStylesheet = /rel=["']stylesheet["']/i.test(attrs);
       const isBlocking = !/media=["']print["']/i.test(attrs) && !/disabled/i.test(attrs);
-      if (isStylesheet && isBlocking && content.includes('<head>') && linkMatch.index < (content.indexOf('</head>') === -1 ? content.length : content.indexOf('</head>'))) {
+      if (
+        isStylesheet &&
+        isBlocking &&
+        content.includes('<head>') &&
+        linkMatch.index <
+          (content.indexOf('</head>') === -1 ? content.length : content.indexOf('</head>'))
+      ) {
         const line = this.getLineNumber(content, linkMatch.index);
         this.addViolation({
           ruleId: 'css-render-blocking',
@@ -193,7 +215,8 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
     while ((scriptMatch = scriptRegex.exec(content)) !== null) {
       const attrs = scriptMatch[1] ?? '';
       const hasSrc = /src=["'][^"']+["']/i.test(attrs);
-      const isDeferred = /defer/i.test(attrs) || /async/i.test(attrs) || /type=["']module["']/i.test(attrs);
+      const isDeferred =
+        /defer/i.test(attrs) || /async/i.test(attrs) || /type=["']module["']/i.test(attrs);
       if (hasSrc && !isDeferred) {
         const line = this.getLineNumber(content, scriptMatch.index);
         this.addViolation({
@@ -224,7 +247,10 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         // In fragments without <template> tag, strip script/style blocks from content
         targetContent = content;
         for (const block of [...sfc.scripts, ...sfc.styles]) {
-          targetContent = targetContent.slice(0, block.startIndex) + ' '.repeat(block.endIndex - block.startIndex) + targetContent.slice(block.endIndex);
+          targetContent =
+            targetContent.slice(0, block.startIndex) +
+            ' '.repeat(block.endIndex - block.startIndex) +
+            targetContent.slice(block.endIndex);
         }
       }
     }
@@ -241,7 +267,23 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
     while ((match = tagRegex.exec(targetContent)) !== null) {
       const fullTag = match[0];
       const tagName = match[1]!.toLowerCase();
-      if (['img', 'input', 'br', 'hr', 'meta', 'link', 'source', 'path', 'circle', 'rect', 'line', 'polygon', 'polyline'].includes(tagName)) {
+      if (
+        [
+          'img',
+          'input',
+          'br',
+          'hr',
+          'meta',
+          'link',
+          'source',
+          'path',
+          'circle',
+          'rect',
+          'line',
+          'polygon',
+          'polyline'
+        ].includes(tagName)
+      ) {
         continue;
       }
       const isClosing = fullTag.startsWith('</');
@@ -286,14 +328,16 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         const classMatch = /class=["']([^"']+)["']/i.exec(attrs);
         if (classMatch) {
           const classes = classMatch[1]!.split(/\s+/);
-          if (classes.some(c => exemptClasses.includes(c))) {
+          if (classes.some((c) => exemptClasses.includes(c))) {
             continue;
           }
         }
       }
 
-      const hasWidth = /(?:\b|:)width=["']?[^"'\s>]+/i.test(attrs) || /style=["'][^"']*width/i.test(attrs);
-      const hasHeight = /(?:\b|:)height=["']?[^"'\s>]+/i.test(attrs) || /style=["'][^"']*height/i.test(attrs);
+      const hasWidth =
+        /(?:\b|:)width=["']?[^"'\s>]+/i.test(attrs) || /style=["'][^"']*width/i.test(attrs);
+      const hasHeight =
+        /(?:\b|:)height=["']?[^"'\s>]+/i.test(attrs) || /style=["'][^"']*height/i.test(attrs);
       const hasAspectRatio = /aspect-ratio/i.test(attrs) || /aspectRatio/i.test(attrs);
       const hasDynamicStyle = /:style=["'][^"']*(?:width|height|aspectRatio)/i.test(attrs);
 
@@ -318,7 +362,8 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       const attrs = match[1] ?? '';
       const inner = match[2] ?? '';
       const hasPreload = /preload=["'](none|metadata)["']/i.test(attrs);
-      const hasUncompressedSrc = /\.(mov|avi|wmv)(["'?\s>]|$)/i.test(attrs) || /\.(mov|avi|wmv)(["'?\s>]|$)/i.test(inner);
+      const hasUncompressedSrc =
+        /\.(mov|avi|wmv)(["'?\s>]|$)/i.test(attrs) || /\.(mov|avi|wmv)(["'?\s>]|$)/i.test(inner);
       const hasWebm = /type=["']video\/webm["']/i.test(inner) || /\.webm(["'?\s>]|$)/i.test(attrs);
 
       if (hasUncompressedSrc) {
@@ -326,7 +371,8 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         this.addViolation({
           ruleId: 'uncompressed-video',
           severity: 'error',
-          message: 'Elemento video con formato no comprimido (.mov/.avi); utilizar MP4 o WebM moderno',
+          message:
+            'Elemento video con formato no comprimido (.mov/.avi); utilizar MP4 o WebM moderno',
           file: relPath,
           line
         });

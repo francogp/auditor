@@ -1,3 +1,4 @@
+//#region src/core/scannerUtils.d.ts
 /**
  * packages/auditor/src/core/scannerUtils.ts
  *
@@ -9,12 +10,12 @@
  */
 export declare function advancePastStringOrComment(content: string, index: number, limit: number): number;
 export interface BalancedBraceResult {
-    readonly end: number;
-    readonly depth: number;
+  readonly end: number;
+  readonly depth: number;
 }
 export interface BalancedParenResult {
-    readonly end: number;
-    readonly depth: number;
+  readonly end: number;
+  readonly depth: number;
 }
 /**
  * Scans content starting from `startIndex` up to `limit` tracking `{` and `}` depth,
@@ -43,10 +44,10 @@ export declare const DEFAULT_FUNCTION_PARAMS_MAX_DISTANCE = 600;
  */
 export declare function isPositionInsideFunctionParams(content: string, position: number, maxDistance?: number): boolean;
 export interface HasPrecedingCommentOptions {
-    /** Maximum number of non-empty lines to inspect backwards. Defaults to 10. */
-    readonly maxLookbackLines?: number;
-    /** Whether empty or whitespace-only lines are ignored during lookback. Defaults to true. */
-    readonly ignoreEmptyLines?: boolean;
+  /** Maximum number of non-empty lines to inspect backwards. Defaults to 10. */
+  readonly maxLookbackLines?: number;
+  /** Whether empty or whitespace-only lines are ignored during lookback. Defaults to true. */
+  readonly ignoreEmptyLines?: boolean;
 }
 export declare const DEFAULT_COMMENT_LOOKBACK_LINES = 10;
 /**
@@ -71,4 +72,4 @@ export declare function hasPrecedingComment(lines: readonly string[], lineIndex:
  * @param lookbackLines Maximum number of non-empty lines to inspect backwards (default: 3).
  */
 export declare function hasLineSuppression(lines: readonly string[], targetLine: number, suppressionRegex: RegExp, lookbackLines?: number): boolean;
-//# sourceMappingURL=scannerUtils.d.ts.map
+//#endregion

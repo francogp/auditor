@@ -26,8 +26,8 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run hygiene suite tests: `npm test -- tests/validate_auditor_hygiene.test.ts`
-- Execute standalone suite: `node --experimental-strip-types src/suites/architecture/validate_auditor_hygiene.ts`
+- Run hygiene suite tests: `vp test tests/validate_auditor_hygiene.test.ts` (or `npm test -- tests/validate_auditor_hygiene.test.ts`)
+- Execute standalone suite: `auditor task=validate_auditor_hygiene`
 
 ## Child DOX Index
 

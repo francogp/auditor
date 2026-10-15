@@ -36,8 +36,10 @@ export interface DependencyReportCliOptions {
   readonly noFail: boolean;
 }
 
-export function parseCliArgs(rawArgs: readonly string[] = process.argv.slice(2)): DependencyReportCliOptions {
-  const normalized = rawArgs.map(a => (a.includes('=') && !a.startsWith('-') ? `--${a}` : a));
+export function parseCliArgs(
+  rawArgs: readonly string[] = process.argv.slice(2)
+): DependencyReportCliOptions {
+  const normalized = rawArgs.map((a) => (a.includes('=') && !a.startsWith('-') ? `--${a}` : a));
 
   const { values } = parseArgs({
     args: normalized,
@@ -89,7 +91,12 @@ function formatInstalledCell(item: DependencyEvaluation): string {
 
 export function runDependenciesReport(
   projectRoot: string = process.cwd(),
-  options: DependencyReportCliOptions = { json: false, commandsOnly: false, all: false, noFail: false }
+  options: DependencyReportCliOptions = {
+    json: false,
+    commandsOnly: false,
+    all: false,
+    noFail: false
+  }
 ): ProjectDependenciesReport {
   const report = evaluateProjectDependencies(projectRoot);
 
@@ -107,30 +114,41 @@ export function runDependenciesReport(
     return report;
   }
 
-  const itemsToDisplay = options.all
-    ? [...report.evaluated].sort((a, b) => {
-        const order = { outdated_range: 0, outdated_installed: 1, satisfied: 2, undeclared: 3 };
-        return order[a.status] - order[b.status] || a.name.localeCompare(b.name);
-      })
-    : [...report.evaluated.filter(e => e.status !== 'undeclared')].sort((a, b) => {
-        const order = { outdated_range: 0, outdated_installed: 1, satisfied: 2, undeclared: 3 };
-        return order[a.status] - order[b.status] || a.name.localeCompare(b.name);
-      });
+  const rawItems = options.all
+    ? report.evaluated
+    : report.evaluated.filter((e) => e.status !== 'undeclared');
+
+  const statusOrder: Record<string, number> = {
+    outdated_range: 0,
+    outdated_installed: 1,
+    satisfied: 2,
+    undeclared: 3
+  };
+  const itemsToDisplay = [...rawItems].sort(
+    (a, b) => (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99) || a.name.localeCompare(b.name)
+  );
 
   const bannerSubtitle = `Proyecto: ${path.basename(report.projectRoot)} | Gobernadas: ${report.totalGoverned} | Declaradas: ${report.declaredCount}`;
-  console.log('\n' + renderBanner('DEPENDENCIAS MÍNIMAS REQUERIDAS (@francogp/auditor)', bannerSubtitle));
+  console.log(
+    '\n' + renderBanner('DEPENDENCIAS MÍNIMAS REQUERIDAS (@francogp/auditor)', bannerSubtitle)
+  );
 
   const columns: TableColumn<DependencyEvaluation>[] = [
     {
       header: 'LIBRERÍA',
       width: 22,
-      render: row => (row.status === 'satisfied' ? styleText('green', row.name) : row.status === 'undeclared' ? styleText('dim', row.name) : styleText('bold', row.name))
+      render: (row) =>
+        row.status === 'satisfied'
+          ? styleText('green', row.name)
+          : row.status === 'undeclared'
+            ? styleText('dim', row.name)
+            : styleText('bold', row.name)
     },
     {
       header: 'PISO MÍNIMO',
       width: 14,
       align: 'center',
-      render: row => styleText('yellow', row.requiredFloor)
+      render: (row) => styleText('yellow', row.requiredFloor)
     },
     {
       header: 'DECLARADA',
@@ -152,11 +170,16 @@ export function runDependenciesReport(
     }
   ];
 
-  console.log('\n' + renderBoxTable(columns, itemsToDisplay, {
-    emptyMessage: 'No se encontraron dependencias declaradas en el proyecto.'
-  }) + '\n');
+  console.log(
+    '\n' +
+      renderBoxTable(columns, itemsToDisplay, {
+        emptyMessage: 'No se encontraron dependencias declaradas en el proyecto.'
+      }) +
+      '\n'
+  );
 
-  const summaryLine = [ // no-domain: Dynamic console formatting summary list
+  const summaryLine = [
+    // no-domain: Dynamic console formatting summary list
     `Total gobernadas: ${styleText('bold', String(report.totalGoverned))}`,
     `Declaradas en host: ${styleText('bold', String(report.declaredCount))}`,
     `Cumplen: ${styleText('green', String(report.satisfiedCount))}`,
@@ -181,11 +204,18 @@ export function runDependenciesReport(
     });
     console.log(notice + '\n');
   } else {
-    console.log(`  ${styleText('green', '🎉 Todas las dependencias declaradas en el proyecto cumplen con los mínimos requeridos.')}\n`);
+    console.log(
+      `  ${styleText('green', '🎉 Todas las dependencias declaradas en el proyecto cumplen con los mínimos requeridos.')}\n`
+    );
   }
 
   if (!options.all && report.undeclaredCount > 0) {
-    console.log(styleText('dim', `  ℹ️  ${report.undeclaredCount} librerías gobernadas no están declaradas por este host (pasa '--all' para verlas).\n`));
+    console.log(
+      styleText(
+        'dim',
+        `  ℹ️  ${report.undeclaredCount} librerías gobernadas no están declaradas por este host (pasa '--all' para verlas).\n`
+      )
+    );
   }
 
   return report;

@@ -247,19 +247,19 @@ describe('Auditor Architecture Conformance', () => {
         'validate_audit_config',
         'validate_component_styles',
         'validate_documentation_language',
-        'validate_eslint',
-        'validate_eslint_config',
         'validate_fallow_config',
         'validate_git_config',
         'validate_html_validate',
         'validate_markdown_lint',
         'validate_mermaid_syntax',
+        'validate_oxlint',
         'validate_package_hygiene',
         'validate_package_scripts',
         'validate_script_extensions',
         'validate_similar_code',
         'validate_stylelint',
         'validate_stylelint_config',
+        'validate_vite_plus_config',
         'validate_z_index'
       ].sort();
 

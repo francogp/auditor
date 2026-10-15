@@ -21,7 +21,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
-import { BaseAuditor, CANONICAL_IGNORE_DIRS , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  CANONICAL_IGNORE_DIRS,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -42,7 +46,10 @@ export const STYLELINT_RULES = [
 ] as const;
 export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 
-export function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string {
+export function resolveStylelintConfigFile(
+  projectRoot: string,
+  configuredConfigFile?: string
+): string {
   if (configuredConfigFile) {
     const customCandidate = path.resolve(projectRoot, configuredConfigFile);
     if (fs.existsSync(customCandidate)) {
@@ -102,7 +109,10 @@ export function categorizeStylelintRule(ruleName: string | undefined): Stylelint
   return 'stylelint-issue';
 }
 
-export function buildStylelintConfig(configFile: string, customRules?: Record<string, unknown>): stylelint.Config {
+export function buildStylelintConfig(
+  configFile: string,
+  customRules?: Record<string, unknown>
+): stylelint.Config {
   return {
     extends: [configFile],
     plugins: [sassTrapsPlugin],
@@ -110,13 +120,7 @@ export function buildStylelintConfig(configFile: string, customRules?: Record<st
       'function-name-case': [
         'lower',
         {
-          ignoreFunctions: [
-            '/^[A-Z]/',
-            'Drop-Shadow',
-            'Drop-shadow',
-            'hue-Rotate',
-            'Hue-Rotate'
-          ]
+          ignoreFunctions: ['/^[A-Z]/', 'Drop-Shadow', 'Drop-shadow', 'hue-Rotate', 'Hue-Rotate']
         }
       ],
       'value-keyword-case': [
@@ -128,7 +132,7 @@ export function buildStylelintConfig(configFile: string, customRules?: Record<st
         }
       ],
       [SASS_TRAPS_RULE_NAME]: true,
-      ...(customRules ?? {})
+      ...customRules
     }
   };
 }
@@ -138,7 +142,7 @@ export function buildStylelintIgnoreGlobs(
   stylelintIgnoreGlobs?: readonly string[]
 ): string[] {
   return [
-    ...Array.from(CANONICAL_IGNORE_DIRS).map(d => `${d}/**`),
+    ...Array.from(CANONICAL_IGNORE_DIRS).map((d) => `${d}/**`),
     'dist/**',
     'dev-dist/**',
     'scratch/**',
@@ -208,7 +212,9 @@ export const STYLELINT_BUILTIN_FIXABLE_RULES = [
 
 export type StylelintBuiltinFixableRule = (typeof STYLELINT_BUILTIN_FIXABLE_RULES)[number];
 
-const STYLELINT_BUILTIN_FIXABLE_SET: ReadonlySet<string> = new Set<string>(STYLELINT_BUILTIN_FIXABLE_RULES); // no-domain: O(1) fast lookup Set derived from canonical as const array
+const STYLELINT_BUILTIN_FIXABLE_SET: ReadonlySet<string> = new Set<string>(
+  STYLELINT_BUILTIN_FIXABLE_RULES
+); // no-domain: O(1) fast lookup Set derived from canonical as const array
 
 export const STYLELINT_ORDER_FIXABLE_RULES = [
   'order/order',
@@ -219,7 +225,9 @@ export const STYLELINT_ORDER_FIXABLE_RULES = [
 
 export type StylelintOrderFixableRule = (typeof STYLELINT_ORDER_FIXABLE_RULES)[number];
 
-const STYLELINT_ORDER_FIXABLE_SET: ReadonlySet<string> = new Set<string>(STYLELINT_ORDER_FIXABLE_RULES); // no-domain: O(1) fast lookup Set derived from canonical as const array
+const STYLELINT_ORDER_FIXABLE_SET: ReadonlySet<string> = new Set<string>(
+  STYLELINT_ORDER_FIXABLE_RULES
+); // no-domain: O(1) fast lookup Set derived from canonical as const array
 
 export function isStylelintRuleFixable(ruleName: string | undefined): boolean {
   if (!ruleName) return false;
@@ -318,34 +326,38 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       pattern: '.stylelintcache',
       samplePath: '.stylelintcache',
       reason: 'Archivo de caché incremental generado por Stylelint',
-      isApplicable: (config) => config.styles?.stylelint?.enabled !== false && config.stylelint?.enabled !== false
+      isApplicable: (config) =>
+        config.styles?.stylelint?.enabled !== false && config.stylelint?.enabled !== false
     }
   ];
 
   constructor(options?: StylelintAuditorOptions) {
     const projectRoot = options?.projectRoot;
     const config = getAuditConfig(projectRoot);
-    const roots = Array.from(new Set([
-      ...(config.paths.srcRoots ?? []),
-      ...(config.paths.stylesRoots ?? [])
-    ]));
+    const roots = Array.from(
+      new Set([...(config.paths.srcRoots ?? []), ...(config.paths.stylesRoots ?? [])])
+    );
 
     super({
       usesThirdPartyTool: true,
       thirdPartyToolPolicy: {
-        toolName: "Stylelint",
-        fallbackBehavior: "violation",
-        fallbackRuleId: "stylelint-issue"
+        toolName: 'Stylelint',
+        fallbackBehavior: 'violation',
+        fallbackRuleId: 'stylelint-issue'
       },
-      ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: true
-      }, [...STYLELINT_RULES]),
+      ruleCapabilities: createRuleCapabilities(
+        STYLELINT_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: true
+        },
+        [...STYLELINT_RULES]
+      ),
       fixableRuleIds: [...STYLELINT_RULES],
       gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
       id: options?.id || 'validate_stylelint',
@@ -369,22 +381,41 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         'scss-strict-values': 'Valores no estrictos en SCSS'
       },
       ruleRemediations: {
-        'stylelint-issue': 'Guía de diagnóstico y remediación para stylelint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'css-duplicate-selectors': 'Guía de diagnóstico y remediación para css-duplicate-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'css-duplicate-properties': 'Guía de diagnóstico y remediación para css-duplicate-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'css-empty-blocks': 'Guía de diagnóstico y remediación para css-empty-blocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'css-order-violation': 'Guía de diagnóstico y remediación para css-order-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'scss-syntax-issue': 'Guía de diagnóstico y remediación para scss-syntax-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'scss-sass-collision-casing': 'Guía de diagnóstico y remediación para scss-sass-collision-casing. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'scss-strict-values': 'Guía de diagnóstico y remediación para scss-strict-values. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'stylelint-issue':
+          'Guía de diagnóstico y remediación para stylelint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'css-duplicate-selectors':
+          'Guía de diagnóstico y remediación para css-duplicate-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'css-duplicate-properties':
+          'Guía de diagnóstico y remediación para css-duplicate-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'css-empty-blocks':
+          'Guía de diagnóstico y remediación para css-empty-blocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'css-order-violation':
+          'Guía de diagnóstico y remediación para css-order-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'scss-syntax-issue':
+          'Guía de diagnóstico y remediación para scss-syntax-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'scss-sass-collision-casing':
+          'Guía de diagnóstico y remediación para scss-sass-collision-casing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'scss-strict-values':
+          'Guía de diagnóstico y remediación para scss-strict-values. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: [
-          ...deriveCoverageFromRoots(roots, new Set(['.css', '.scss', '.sass', '.vue']), projectRoot).include,
+          ...deriveCoverageFromRoots(
+            roots,
+            new Set(['.css', '.scss', '.sass', '.vue']),
+            projectRoot
+          ).include,
           '.stylelintrc*',
           'stylelint.config.*'
         ],
-        exclude: ['node_modules/**', 'dist/**', 'scratch/**', 'tests/**', '**/*.spec.*', '**/*.test.*'],
+        exclude: [
+          'node_modules/**',
+          'dist/**',
+          'scratch/**',
+          'tests/**',
+          '**/*.spec.*',
+          '**/*.test.*'
+        ],
         source: 'runtime'
       },
       roots,
@@ -405,11 +436,22 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const roots = this.roots.length > 0 ? this.roots : ['src'];
     this.redeclareCoverage({
       include: [
-        ...deriveCoverageFromRoots(roots, new Set(['.css', '.scss', '.sass', '.vue']), this.projectRoot).include,
+        ...deriveCoverageFromRoots(
+          roots,
+          new Set(['.css', '.scss', '.sass', '.vue']),
+          this.projectRoot
+        ).include,
         '.stylelintrc*',
         'stylelint.config.*'
       ],
-      exclude: ['node_modules/**', 'dist/**', 'scratch/**', 'tests/**', '**/*.spec.*', '**/*.test.*'],
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        'scratch/**',
+        'tests/**',
+        '**/*.spec.*',
+        '**/*.test.*'
+      ],
       source: 'runtime'
     });
 
@@ -426,8 +468,13 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const cacheLocation = path.resolve(cacheDir, 'stylelint_cache.json');
     fs.mkdirSync(cacheDir, { recursive: true });
 
-    const filesGlobs = roots.map(r => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`);
-    const ignoreGlobs = buildStylelintIgnoreGlobs(config.paths.ignoreGlobs, stylelintConfig?.ignoreGlobs);
+    const filesGlobs = roots.map(
+      (r) => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`
+    );
+    const ignoreGlobs = buildStylelintIgnoreGlobs(
+      config.paths.ignoreGlobs,
+      stylelintConfig?.ignoreGlobs
+    );
     const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
 
     let linterResult: LinterResult | undefined;
@@ -470,7 +517,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       }
     }
 
-    const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot);
+    const { violations, totalErrors, totalWarnings } = processStylelintResults(
+      linterResult.results,
+      this.projectRoot
+    );
     for (const ruleId of STYLELINT_RULES) {
       this.runSubAuditorSync(ruleId, () => {
         for (const v of violations) {

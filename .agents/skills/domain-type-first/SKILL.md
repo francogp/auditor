@@ -252,11 +252,11 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 
 - **Zero Dummy Literal Initializations**: When declaring local domain variables whose values are determined across branching paths (`if/else`, `switch`), agents **MUST NEVER** initialize them with dummy empty strings, fallback literals, or type casts (e.g. `let userRole = '' as UserRole;`, `let entityId: EntityId = null as any;`).
 - **Compiler-Enforced Exhaustiveness (TS2454)**: Declaring `let targetId: DomainId;` without an initial dummy value leverages TypeScript's native **Definite Assignment Analysis**. If any code branch or switch statement fails to assign the variable before it is consumed, TypeScript immediately rejects the code at compile time (`TS2454: Variable is used before being assigned`).
-- **ESLint v10 Alignment**: Dummy initializations trigger ESLint v10's `no-useless-assignment` because the initial value is immediately overwritten without ever being read. Uninitialized domain declarations satisfy both ESLint and TypeScript with zero runtime overhead and 100% compile-time exhaustiveness.
+- **Oxlint & Modern Linter Alignment**: Dummy initializations trigger Oxlint / ESLint's `no-useless-assignment` because the initial value is immediately overwritten without ever being read. Uninitialized domain declarations satisfy both linters and TypeScript with zero runtime overhead and 100% compile-time exhaustiveness.
 - **Example**:
 
   ```typescript
-  // ❌ ANTI-PATTERN: Dummy initial value hides unhandled branches & triggers ESLint 10
+  // ❌ ANTI-PATTERN: Dummy initial value hides unhandled branches & triggers linter (no-useless-assignment)
   let userRole = '' as UserRole;
   if (isSuperAdmin) {
     userRole = 'superadmin';

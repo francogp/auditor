@@ -68,7 +68,7 @@ The framework exposes `npm run auditor:by-file` (binary `auditor-by-file`), rend
 
 ```text
 src/example.ts (3 incidencias)
-  ├── L12: [ESLint] Parámetro no tipado
+  ├── L12: [Oxlint] Parámetro no tipado
   ├── L45: [Estilos] Valor mágico de color
   └── L89: [Simplify] Else redundante tras return
 ```
@@ -117,7 +117,7 @@ Governed by `validate_git_config` declaring `fix: 'priority'`:
 ## 8. Zero False-Fix Mandate & Grounded Fixability Contract
 
 - **Capability vs Finding**: A sub-auditor declaring `capabilities.fix === true` signals that the suite possesses auto-repair logic for specific rules, NOT that every finding emitted by the suite is mechanically fixable.
-- **Explicit Finding Fixability**: Each finding MUST report `fixable: true` ONLY when a dedicated, automated programmatic fixer exists for that exact violation (e.g. `Boolean(msg.fix)` from ESLint/Stylelint or concrete AST replacements). Findings without automated remediation MUST report `fixable: false`.
+- **Explicit Finding Fixability**: Each finding MUST report `fixable: true` ONLY when a dedicated, automated programmatic fixer exists for that exact violation (e.g. `Boolean(msg.fix)` from Oxlint/Stylelint or concrete AST replacements). Findings without automated remediation MUST report `fixable: false`.
 - **Instance Getters in `BaseAuditor`**:
   - `getFixableErrors()`, `getFixableWarnings()`, `getFixableFindings()`, `getFixableErrorsByRule()`, `getFixableWarningsByRule()`.
   - Centralized static helpers: `BaseAuditor.countFixableFindings(findings)` and `BaseAuditor.computeFixableViolations(results, isFixMode)`.
@@ -130,7 +130,7 @@ Governed by `validate_git_config` declaring `fix: 'priority'`:
 Governed by `validate_script_extensions` when `scriptExtensions.enabled !== false`:
 
 - **Legacy Module Prohibition (`banned-mjs-extension`, `banned-cjs-extension`)**: Standalone `.mjs` and CommonJS `.cjs` files are prohibited anywhere in the repository (`severity: 'error'`).
-- **Untyped Script Prohibition (`banned-raw-js-script`)**: Standalone `.js` scripts in `scriptsRoots` and `cliRoots` must be TypeScript (`.ts`). Standard configuration files (`eslint.config.js`, `postcss.config.js`, `vite.config.js`) are exempt.
+- **Untyped Script Prohibition (`banned-raw-js-script`)**: Standalone `.js` scripts in `scriptsRoots` and `cliRoots` must be TypeScript (`.ts`). Standard configuration files (`vite.config.ts`, `postcss.config.js`, etc.) are exempt.
 - **Automated `--fix` Migration**: `auditor fix` renames files to `.ts` on disk, rewrites relative import references across project code files, and updates package scripts in `package.json`.
 
 ---

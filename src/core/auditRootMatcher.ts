@@ -9,12 +9,13 @@
  */
 export function matchesAnyRoot(normalizedPath: string, roots: readonly string[]): boolean {
   if (!normalizedPath || !roots || roots.length === 0) return false;
-  return roots.some(root => {
+  return roots.some((root) => {
     const cleanRoot = root.replace(/^\/+|\/+$/g, '').toLowerCase();
-    return cleanRoot !== '' && (
-      normalizedPath === cleanRoot ||
-      normalizedPath.startsWith(cleanRoot + '/') ||
-      normalizedPath.includes('/' + cleanRoot + '/')
+    return (
+      cleanRoot !== '' &&
+      (normalizedPath === cleanRoot ||
+        normalizedPath.startsWith(cleanRoot + '/') ||
+        normalizedPath.includes('/' + cleanRoot + '/'))
     );
   });
 }

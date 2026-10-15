@@ -1,10 +1,17 @@
 /**
  * scripts/maintenance/audit_rules.ts
- * 
+ *
  * Centralized audit rules and checkers for the unified audit engine.
  */
 
-import { getAuditConfig, isDataPath, isInCodeRoots, isExemptFile, isScriptPath, isTestPath } from '../../core/auditConfig.ts';
+import {
+  getAuditConfig,
+  isDataPath,
+  isInCodeRoots,
+  isExemptFile,
+  isScriptPath,
+  isTestPath
+} from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
 export {
@@ -15,10 +22,7 @@ export {
   type Violation,
   matchesRule
 } from '../../analyzers/auditRuleTypes.ts';
-import {
-  type RuleDescriptor,
-  type AuditRule
-} from '../../analyzers/auditRuleTypes.ts';
+import { type RuleDescriptor, type AuditRule } from '../../analyzers/auditRuleTypes.ts';
 
 export {
   Z_INDEX_CONSISTENCY_DESCRIPTOR,
@@ -32,7 +36,10 @@ export {
   zIndexConstantDeclaration
 } from '../../analyzers/zIndexRules.ts';
 
-export const FALLOW_SUITE_DESCRIPTORS: Record<'dupes' | 'triplets' | 'security' | 'dead-code' | 'health', RuleDescriptor> = {
+export const FALLOW_SUITE_DESCRIPTORS: Record<
+  'dupes' | 'triplets' | 'security' | 'dead-code' | 'health',
+  RuleDescriptor
+> = {
   dupes: {
     id: 'fallow:dupes',
     name: 'Fallow Code Duplication',
@@ -49,7 +56,16 @@ export const FALLOW_SUITE_DESCRIPTORS: Record<'dupes' | 'triplets' | 'security' 
     id: 'fallow:security',
     name: 'Fallow Security CWE Vulnerabilities',
     category: 'Fallow: Vulnerabilidad de seguridad',
-    aliases: ['security', 'seguridad', 'cwe', 'vulnerabilidad', 'vulnerabilidades', 'fallow:security', 'fallow-security', 'fallow']
+    aliases: [
+      'security',
+      'seguridad',
+      'cwe',
+      'vulnerabilidad',
+      'vulnerabilidades',
+      'fallow:security',
+      'fallow-security',
+      'fallow'
+    ]
   },
   'dead-code': {
     id: 'fallow:dead-code',
@@ -80,7 +96,15 @@ export const FALLOW_SUITE_DESCRIPTORS: Record<'dupes' | 'triplets' | 'security' 
     id: 'fallow:health',
     name: 'Fallow Code Health & Complexity',
     category: 'Fallow: Complejidad',
-    aliases: ['health', 'salud', 'complexity', 'complejidad', 'fallow:health', 'fallow-health', 'fallow']
+    aliases: [
+      'health',
+      'salud',
+      'complexity',
+      'complejidad',
+      'fallow:health',
+      'fallow-health',
+      'fallow'
+    ]
   }
 };
 
@@ -90,8 +114,6 @@ export const SASS_MIGRATOR_DESCRIPTOR: RuleDescriptor = {
   category: 'SASS Migrator',
   aliases: ['sass', 'sass-migrator', 'import', '@import', 'scss']
 };
-
-
 
 export {
   normalizeFilePath,
@@ -105,14 +127,15 @@ import {
   isCommentLine
 } from '../../analyzers/auditRuleTypes.ts';
 
-
-export const viewport: AuditRule = { // string-ok: Internal string formatting or DOM token identifier
+export const viewport: AuditRule = {
+  // string-ok: Internal string formatting or DOM token identifier
   id: 'viewport',
   name: 'Viewport Units',
   category: 'Viewport (dvh/dvw)',
   aliases: ['viewport', 'dvh', 'dvw', 'vh', 'vw'],
   regex: /\b\d+(?:\.\d+)?(vw|vh)\b/gi,
-  message: (match: string) => `Unidad legacy detectada: '${match}'. Usa 'd${match.slice(-2)}' para soporte mobile dinámico.`,
+  message: (match: string) =>
+    `Unidad legacy detectada: '${match}'. Usa 'd${match.slice(-2)}' para soporte mobile dinámico.`,
   fix: (match: string) => `d${match.toLowerCase().slice(-2)}` // string-ok: Internal string formatting or DOM token identifier
 };
 
@@ -125,13 +148,11 @@ export const legacyDates: AuditRule = {
   message: "Uso de 'Date' detectado. Usa 'Temporal'.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
   appliesTo: (filePath: string) => {
-    const lowerPath = normalizeFilePath(filePath);
-    return !lowerPath.endsWith('eslint.config.js') && !isExemptFile(filePath) && isInCodeRoots(filePath);
+    return !isExemptFile(filePath) && isInCodeRoots(filePath);
   },
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
-    const lowerPath = normalizeFilePath(filePath);
-    if (lowerPath.endsWith('eslint.config.js') || isExemptFile(filePath)) {
+    if (isExemptFile(filePath)) {
       return false;
     }
     return isInCodeRoots(filePath);
@@ -140,7 +161,8 @@ export const legacyDates: AuditRule = {
 };
 
 export const hardcodedTimezone: AuditRule = {
-  regex: /toZonedDateTimeISO\(\s*['"]([^'"]+)['"]\s*\)|toPlainDateTime\(\s*['"]([^'"]+)['"]\s*\)|Temporal\.TimeZone\.from\(\s*['"]([^'"]+)['"]\s*\)/g,
+  regex:
+    /toZonedDateTimeISO\(\s*['"]([^'"]+)['"]\s*\)|toPlainDateTime\(\s*['"]([^'"]+)['"]\s*\)|Temporal\.TimeZone\.from\(\s*['"]([^'"]+)['"]\s*\)/g,
   message: (match: string) => {
     const tzVar = getAuditConfig().domain?.timezoneVariable ?? 'APP_TIMEZONE';
     const helperMod = getAuditConfig().domain?.timezoneHelperModule;
@@ -162,19 +184,23 @@ export const hardcodedTimezone: AuditRule = {
 
 export function getDomainIdFallbackRegex(): RegExp {
   const config = getAuditConfig();
-  const patterns = config?.domain?.fallbackIdPatterns && config.domain.fallbackIdPatterns.length > 0
-    ? config.domain.fallbackIdPatterns
-    : ['[a-zA-Z0-9_]*[iI]d', 'type', 'status', 'category', 'mode', 'kind'];
+  const patterns =
+    config?.domain?.fallbackIdPatterns && config.domain.fallbackIdPatterns.length > 0
+      ? config.domain.fallbackIdPatterns
+      : ['[a-zA-Z0-9_]*[iI]d', 'type', 'status', 'category', 'mode', 'kind'];
   const joined = patterns.join('|');
   return new RegExp(
     `(?:${joined})\\s*(?:=|:)\\s*[^,;\\n]*?(?:\\?|\\|\\||\\?\\?)\\s*['"]['"]|` +
-    `\\b(?:${joined})\\s*(?:\\|\\||\\?\\?)\\s*[^,\\n;)]*\\b(?:name|description|title)\\b|` +
-    `\\b(?:name|description|title)\\s*(?:\\|\\||\\?\\?)\\s*[^,\\n;)]*\\b(?:${joined})\\b`,
+      `\\b(?:${joined})\\s*(?:\\|\\||\\?\\?)\\s*[^,\\n;)]*\\b(?:name|description|title)\\b|` +
+      `\\b(?:name|description|title)\\s*(?:\\|\\||\\?\\?)\\s*[^,\\n;)]*\\b(?:${joined})\\b`,
     'g'
   );
 }
 
-export function isDomainAuditTarget(filePath?: string, config = getAuditConfig()): filePath is string {
+export function isDomainAuditTarget(
+  filePath?: string,
+  config = getAuditConfig()
+): filePath is string {
   if (!filePath) return false;
   if (config.domain?.enabled === false) return false;
   if (!isInCodeRoots(filePath, config)) return false;
@@ -192,14 +218,15 @@ export function isAllowedDatabaseFile(filePath: string, config = getAuditConfig(
     'db.types.ts',
     ...(config.persistence?.allowedDatabaseFiles ?? [])
   ];
-  return allowedFiles.some(f => norm.endsWith(normalizePosixPath(f)));
+  return allowedFiles.some((f) => norm.endsWith(normalizePosixPath(f)));
 }
 
 export const noDomainIdFallbacks: AuditRule = {
   get regex() {
     return getDomainIdFallbackRegex();
   },
-  message: "FALLBACK SILENCIOSO EN ID DE DOMINIO / NOMBRE DETECTADO. Queda estrictamente prohibido usar fallbacks silenciosos (como || '', ?? '', o alternar id con name) para identificadores de dominio. Debe usarse una función de validación estricta que lance un error explícito (Fail Loud) si el ID falta o es inválido.",
+  message:
+    "FALLBACK SILENCIOSO EN ID DE DOMINIO / NOMBRE DETECTADO. Queda estrictamente prohibido usar fallbacks silenciosos (como || '', ?? '', o alternar id con name) para identificadores de dominio. Debe usarse una función de validación estricta que lance un error explícito (Fail Loud) si el ID falta o es inválido.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
@@ -212,7 +239,7 @@ export const noDomainIdFallbacks: AuditRule = {
     const infraWhitelist = config.domain?.infraIdWhitelist ?? [];
     if (infraWhitelist.length > 0) {
       const matchText = match[0] || '';
-      if (infraWhitelist.some(id => new RegExp(`\\b${id}\\b`).test(matchText))) {
+      if (infraWhitelist.some((id) => new RegExp(`\\b${id}\\b`).test(matchText))) {
         return false;
       }
     }
@@ -220,7 +247,7 @@ export const noDomainIdFallbacks: AuditRule = {
     const configPatterns = getAuditConfig()?.domain?.fallbackIdPatterns;
     if (configPatterns && configPatterns.length > 0) {
       const matchText = match[0] || '';
-      const matchesConfig = configPatterns.some(p => matchText.includes(p));
+      const matchesConfig = configPatterns.some((p) => matchText.includes(p));
       if (!matchesConfig) return false;
     }
 
@@ -236,20 +263,27 @@ export const nodePrefix: AuditRule = {
     if (!filePath || filePath.includes('audit_rules.ts')) return false;
     return true;
   },
-  fix: (match: string) => match.replace(/['"](fs|path|os|crypto|util|url|events|stream|child_process)['"]/, (m) => m.slice(0, 1) + 'node:' + m.slice(1))
+  fix: (match: string) =>
+    match.replace(
+      /['"](fs|path|os|crypto|util|url|events|stream|child_process)['"]/,
+      (m) => m.slice(0, 1) + 'node:' + m.slice(1)
+    )
 };
 
 const RULES_TARGET_NODE_VERSION_LABEL = '26';
 
 export const esmExtensions: AuditRule = {
   regex: /import\s[\s\S]*?\sfrom\s+['"](\.[^'"]+)['"]/g,
-  message: (match: string) => `Import relativo sin extensión: '${match}'. En Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ nativo las extensiones son obligatorias.`,
+  message: (match: string) =>
+    `Import relativo sin extensión: '${match}'. En Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ nativo las extensiones son obligatorias.`,
   severity: 'error',
-  fix: (match: string) => match.replace(/(['"])(\.\.?\/[^'"]+)(?<!\.[jt]s)(?<!\.vue)(?<!\.json)(['"])/g, '$1$2.ts$3'),
+  fix: (match: string) =>
+    match.replace(/(['"])(\.\.?\/[^'"]+)(?<!\.[jt]s)(?<!\.vue)(?<!\.json)(['"])/g, '$1$2.ts$3'),
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath || filePath.endsWith('.vue') || filePath.includes('audit_rules.ts')) return false;
     const importPath = match[1] || '';
-    if (/\.(?:ts|js|vue|json|scss|css|svg|png|jpg|jpeg|webp|ogg|mp3|wasm)$/i.test(importPath)) return false;
+    if (/\.(?:ts|js|vue|json|scss|css|svg|png|jpg|jpeg|webp|ogg|mp3|wasm)$/i.test(importPath))
+      return false;
     return true;
   }
 };
@@ -270,14 +304,14 @@ export {
   noLiteralSuffixInConstantName,
   badConstantNames
 } from '../../analyzers/constantRules.ts';
-import {
-  isAuditableCodeFile
-} from '../../analyzers/constantRules.ts';
+import { isAuditableCodeFile } from '../../analyzers/constantRules.ts';
 
 export const timersPromises: AuditRule = {
   regex: /new Promise\(r => setTimeout\(r, (\d+)\)\)/g,
-  message: "Uso de setTimeout manual en script Node. Considera 'import { setTimeout } from \"node:timers/promises\"'.",
-  check: (_content: string, _match: RegExpExecArray, filePath?: string) => !!filePath && isScriptPath(filePath) && !normalizeFilePath(filePath).includes('node_modules'),
+  message:
+    'Uso de setTimeout manual en script Node. Considera \'import { setTimeout } from "node:timers/promises"\'.',
+  check: (_content: string, _match: RegExpExecArray, filePath?: string) =>
+    !!filePath && isScriptPath(filePath) && !normalizeFilePath(filePath).includes('node_modules'),
   fixable: false
 };
 
@@ -299,7 +333,8 @@ export const zeroTimerLogic: AuditRule = {
   name: 'Zero Timer Logic',
   aliases: ['zerotimerlogic'],
   regex: /(?<!\.)\b(sleep)\s*\(/g,
-  message: "Uso de 'sleep()' nativo detectado en lógica central. Las funciones de lógica de negocio deben ser 100% deterministas y orientadas a eventos.",
+  message:
+    "Uso de 'sleep()' nativo detectado en lógica central. Las funciones de lógica de negocio deben ser 100% deterministas y orientadas a eventos.",
   severity: 'error',
   check: (content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -312,69 +347,87 @@ export const zeroTimerLogic: AuditRule = {
   fixable: false
 };
 
-
 export const jsonStringifyInWatch: AuditRule = {
   regex: /\bwatch\s*\(\s*(?:\(\)\s*=>\s*)?JSON\.stringify/g,
-  message: "Uso de 'JSON.stringify' dentro de un watcher detectado. Serializar objetos/arrays en watchers de alta frecuencia satura la CPU. Realiza comparaciones directas por elementos o usa watchers profundos ({ deep: true }) con moderación.",
+  message:
+    "Uso de 'JSON.stringify' dentro de un watcher detectado. Serializar objetos/arrays en watchers de alta frecuencia satura la CPU. Realiza comparaciones directas por elementos o usa watchers profundos ({ deep: true }) con moderación.",
   severity: 'error',
   fixable: false
 };
 
 export const intersectionObserverRoot: AuditRule = {
   regex: /new\s+IntersectionObserver\s*\([^,]+,\s*\{[^}]*root\s*:\s*(?!null\b)[\w$]/g,
-  message: "Uso de 'root' dinámico o DOM en IntersectionObserver detectado. En contenedores escalados o con zoom (ej: #zoomable-content), usar un root distinto de null genera fallos de cálculo de visibilidad que apagan animaciones. Deja 'root' como 'null' (viewport) o no lo declares.",
+  message:
+    "Uso de 'root' dinámico o DOM en IntersectionObserver detectado. En contenedores escalados o con zoom (ej: #zoomable-content), usar un root distinto de null genera fallos de cálculo de visibilidad que apagan animaciones. Deja 'root' como 'null' (viewport) o no lo declares.",
   severity: 'warning',
   fixable: false
 };
 
-
 export const functionCallsInTemplates: AuditRule = {
   regex: /(?::[a-z0-9-]+|v-bind:[a-z0-9-]+)="([\w$]+)\([^"]*\)"|\{\{\s*([\w$]+)\([^}]*\)\}/gi,
-  message: (match: string) => `Llamada a función/método '${match}' detectada en plantilla Vue. Está PROHIBIDO llamar a funciones que realicen consultas a bases de datos, transformaciones de array (.map/.filter) o lógica pesada en el render loop. Cachea los datos con 'computed'.`,
+  message: (match: string) =>
+    `Llamada a función/método '${match}' detectada en plantilla Vue. Está PROHIBIDO llamar a funciones que realicen consultas a bases de datos, transformaciones de array (.map/.filter) o lógica pesada en el render loop. Cachea los datos con 'computed'.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     const funcName = match[1] || match[2];
     if (!funcName) return false;
-    
+
     const config = getAuditConfig();
     const userSafe = config.templates?.safeTemplateFunctions ?? [];
-    const defaultSafe = ['t', 'i18n', 'translate', 'formatNumber', 'class', 'style', 'typeof'] as const;
-    const allSafe = new Set([...defaultSafe, ...userSafe].map(f => f.toLowerCase())); // runtime-set: Fast O(1) membership lookup set
+    const defaultSafe = [
+      't',
+      'i18n',
+      'translate',
+      'formatNumber',
+      'class',
+      'style',
+      'typeof'
+    ] as const;
+    const allSafe = new Set([...defaultSafe, ...userSafe].map((f) => f.toLowerCase())); // runtime-set: Fast O(1) membership lookup set
     if (allSafe.has(funcName.toLowerCase())) return false;
-    
+
     try {
       const scriptStart = content.indexOf('<script');
       const scriptEnd = content.indexOf('</script>');
       if (scriptStart === -1 || scriptEnd === -1) return false;
       const scriptContent = content.substring(scriptStart, scriptEnd);
-      
+
       const funcDefRegex = new RegExp(`(?:const|let|var|function)\\s+${funcName}\\b[^;]*`, 'g');
       const defMatch = funcDefRegex.exec(scriptContent);
       if (!defMatch) return false;
-      
+
       const defStart = defMatch.index;
       const FUNCTION_DEF_LOOKAHEAD_CHARS = 1000;
-      const defContext = scriptContent.substring(defStart, Math.min(scriptContent.length, defStart + FUNCTION_DEF_LOOKAHEAD_CHARS));
-      
-      const prohibitedDb = getAuditConfig().persistence?.prohibitedTemplateIdentifiers && getAuditConfig().persistence!.prohibitedTemplateIdentifiers!.length > 0
-        ? getAuditConfig().persistence!.prohibitedTemplateIdentifiers!
-        : (getAuditConfig().persistence?.engine === 'none' ? [] : ['supabase', 'db']);
+      const defContext = scriptContent.substring(
+        defStart,
+        Math.min(scriptContent.length, defStart + FUNCTION_DEF_LOOKAHEAD_CHARS)
+      );
+
+      const prohibitedDb =
+        getAuditConfig().persistence?.prohibitedTemplateIdentifiers &&
+        getAuditConfig().persistence!.prohibitedTemplateIdentifiers!.length > 0
+          ? getAuditConfig().persistence!.prohibitedTemplateIdentifiers!
+          : getAuditConfig().persistence?.engine === 'none'
+            ? []
+            : ['supabase', 'db'];
       const dbPattern = prohibitedDb.length > 0 ? prohibitedDb.join('|') + '|' : '';
-      const isHeavy = new RegExp(`\\b(${dbPattern}\\.map\\(|\\.filter\\(|\\.reduce\\()`, 'i').test(defContext);
+      const isHeavy = new RegExp(`\\b(${dbPattern}\\.map\\(|\\.filter\\(|\\.reduce\\()`, 'i').test(
+        defContext
+      );
       return isHeavy;
-    } catch (_e) {
+    } catch {
       return false;
     }
   },
   fixable: false
 };
 
-
-
 export const forbiddenFallbacks: AuditRule = {
-  regex: /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b/g,
-  message: (match: string) => `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio o usar descripciones como fallback de ID. Se debe fallar ruidosamente con throw new Error().`,
+  regex:
+    /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b/g,
+  message: (match: string) =>
+    `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio o usar descripciones como fallback de ID. Se debe fallar ruidosamente con throw new Error().`,
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -386,16 +439,19 @@ export const forbiddenFallbacks: AuditRule = {
   fixable: false
 };
 
-
 export const forbiddenTypeCasts: AuditRule = {
-  regex: new RegExp([
-    '\\bas\\s+unknown\\s+as\\b',
-    '\\bas\\s+any\\s+as\\b',
-    '\\bas\\s+any\\b',
-    ':\\s*' + 'any\\b',
-    '<' + 'any>'
-  ].join('|'), 'g'),
-  message: (match: string) => `Casteo arbitrario o tipo 'any' prohibido detectado: '${match}'. Viola las directivas de integridad de tipos (/domain-type-first y Regla 7 de AGENTS.md). Define e importa la interfaz o unión de tipos explícita.`,
+  regex: new RegExp(
+    [
+      '\\bas\\s+unknown\\s+as\\b',
+      '\\bas\\s+any\\s+as\\b',
+      '\\bas\\s+any\\b',
+      ':\\s*' + 'any\\b',
+      '<' + 'any>'
+    ].join('|'),
+    'g'
+  ),
+  message: (match: string) =>
+    `Casteo arbitrario o tipo 'any' prohibido detectado: '${match}'. Viola las directivas de integridad de tipos (/domain-type-first y Regla 7 de AGENTS.md). Define e importa la interfaz o unión de tipos explícita.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -411,18 +467,26 @@ export const forbiddenTypeCasts: AuditRule = {
   fixable: false
 };
 
-
-
-function checkTypeScriptRuleMatch(content: string, match: RegExpExecArray, filePath?: string, extraBypasses: string[] = []): boolean {
+function checkTypeScriptRuleMatch(
+  content: string,
+  match: RegExpExecArray,
+  filePath?: string,
+  extraBypasses: string[] = []
+): boolean {
   if (!filePath) return false;
   const norm = normalizeFilePath(filePath);
   const codeRoots = getAuditConfig()?.paths?.codeRoots ?? [];
-  const isInCodeRoots = codeRoots.some(root => norm.includes(root.replace(/^\/+|\/+$/g, '')));
+  const isInCodeRoots = codeRoots.some((root) => norm.includes(root.replace(/^\/+|\/+$/g, '')));
   if (!isInCodeRoots) return false;
 
   const { line, trimmed } = getLineAtMatch(content, match.index);
   if (isCommentLine(trimmed)) return false;
-  if (line.includes('// domain-ok: Open dynamic text or non-domain string payload') || line.includes('// no-domain: Non-domain utility collection or data structure') || extraBypasses.some(b => line.includes(b))) return false;
+  if (
+    line.includes('// domain-ok: Open dynamic text or non-domain string payload') ||
+    line.includes('// no-domain: Non-domain utility collection or data structure') ||
+    extraBypasses.some((b) => line.includes(b))
+  )
+    return false;
 
   return true;
 }
@@ -446,8 +510,10 @@ function createTypeScriptRule(config: {
 }
 
 export const noLiteralBooleanType: AuditRule = createTypeScriptRule({
-  regex: /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm,
-  message: (match: string) => `Tipo de dato booleano literal detectado: '${match.trim()}'. Queda prohibido declarar tipos de datos con literales booleanos (: true / : false) en lugar del tipo de dato canónico 'boolean'. Usa ': boolean'.`,
+  regex:
+    /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm,
+  message: (match: string) =>
+    `Tipo de dato booleano literal detectado: '${match.trim()}'. Queda prohibido declarar tipos de datos con literales booleanos (: true / : false) en lugar del tipo de dato canónico 'boolean'. Usa ': boolean'.`,
   bypassAnnotations: ['// boolean-ok: Explicit boolean flag annotation'],
   fixable: true,
   fix: (content: string) => content.replace(/:\s*(?:true|false)\b/g, ': boolean')
@@ -455,14 +521,18 @@ export const noLiteralBooleanType: AuditRule = createTypeScriptRule({
 
 export const noInlineAnonymousObjectType: AuditRule = createTypeScriptRule({
   // redos-ok: deterministic parameter signature regex
-  regex: /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*(?:;|,)\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g,
-  message: (match: string) => `Tipo de objeto anónimo inline detectado en parámetro: '${match.trim()}'. Está PROHIBIDO usar estructuras de objeto anónimas inline en firmas de función (estilo Java). Define e importa una interface o tipo nombrado (ej. UserPayload).`,
+  regex:
+    /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*(?:;|,)\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g,
+  message: (match: string) =>
+    `Tipo de objeto anónimo inline detectado en parámetro: '${match.trim()}'. Está PROHIBIDO usar estructuras de objeto anónimas inline en firmas de función (estilo Java). Define e importa una interface o tipo nombrado (ej. UserPayload).`,
   bypassAnnotations: ['// type-ok: Type contract declaration', 'withDefaults']
 });
 
 export const noFloatingPromises: AuditRule = createTypeScriptRule({
-  regex: /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm,
-  message: (match: string) => `Promesa flotante detectada: '${match.trim()}'. Toda llamada a función asíncrona debe ser manejada explícitamente con await, void o .catch().`,
+  regex:
+    /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm,
+  message: (match: string) =>
+    `Promesa flotante detectada: '${match.trim()}'. Toda llamada a función asíncrona debe ser manejada explícitamente con await, void o .catch().`,
   bypassAnnotations: ['// promise-ok: Background promise handler'],
   fixable: true,
   fix: (content: string) => content.replace(/^\s*([a-z]\w*Async\s*\([^)]*\)\s*;)/gm, 'void $1')
@@ -470,21 +540,59 @@ export const noFloatingPromises: AuditRule = createTypeScriptRule({
 
 export const noLeakedGlobalState: AuditRule = createTypeScriptRule({
   regex: /^(?:export\s+)?let\s+[a-z]\w*\s*=/gm,
-  message: (match: string) => `Variable mutable global detectada a nivel de módulo: '${match.trim()}'. Encapsula el estado dentro de un Pinia store, clase o marca // singleton-ok: Singleton instance state container.`,
+  message: (match: string) =>
+    `Variable mutable global detectada a nivel de módulo: '${match.trim()}'. Encapsula el estado dentro de un Pinia store, clase o marca // singleton-ok: Singleton instance state container.`,
   bypassAnnotations: ['// singleton-ok:']
 });
 
-
-const BASE_INFRA_AND_UUID_IDENTIFIERS: ReadonlySet<string> = new Set<string>([ // runtime-set: Fast O(1) membership lookup set
-  'userId', 'user_id', 'clientId', 'client_id', 'profileId', 'profile_id', 'accountId', 'account_id',
-  'sessionId', 'session_id', 'socketId', 'socket_id',
-  'notificationId', 'notification_id', 'taskId', 'task_id', 'jobId', 'job_id',
-  'conversationId', 'conversation_id', 'terminalId', 'terminal_id',
-  'messageId', 'message_id', 'authId', 'auth_id',
-  'elementId', 'modalId', 'tabId', 'domId', 'htmlId', 'uid', 'toastId',
+const BASE_INFRA_AND_UUID_IDENTIFIERS: ReadonlySet<string> = new Set<string>([
+  // runtime-set: Fast O(1) membership lookup set
+  'userId',
+  'user_id',
+  'clientId',
+  'client_id',
+  'profileId',
+  'profile_id',
+  'accountId',
+  'account_id',
+  'sessionId',
+  'session_id',
+  'socketId',
+  'socket_id',
+  'notificationId',
+  'notification_id',
+  'taskId',
+  'task_id',
+  'jobId',
+  'job_id',
+  'conversationId',
+  'conversation_id',
+  'terminalId',
+  'terminal_id',
+  'messageId',
+  'message_id',
+  'authId',
+  'auth_id',
+  'elementId',
+  'modalId',
+  'tabId',
+  'domId',
+  'htmlId',
+  'uid',
+  'toastId',
   'targetUid',
-  'sourceId', 'source_id', 'targetId', 'rawId', 'expectedId', 'expected_id',
-  'eventId', 'event_id', 'categoryId', 'category_id', 'categoryIdOrUid', 'maybeUid'
+  'sourceId',
+  'source_id',
+  'targetId',
+  'rawId',
+  'expectedId',
+  'expected_id',
+  'eventId',
+  'event_id',
+  'categoryId',
+  'category_id',
+  'categoryIdOrUid',
+  'maybeUid'
 ]);
 
 function getEffectiveInfraIdentifiers(): ReadonlySet<string> {
@@ -497,11 +605,12 @@ export const strictDomainParamTypes: AuditRule = {
   id: 'strictDomainParamTypes',
   name: 'Strict Domain Param Types',
   regex: /\b(\w{2,}[iI]d)\s*\??:\s*(?:string\b(?!\s*\[\])|[A-Z]\w*\s*\|\s*string\b)/g,
-  message: (match: string) => match.includes('|')
-    ? `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' combina un tipo de dominio con '| string'.
+  message: (match: string) =>
+    match.includes('|')
+      ? `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' combina un tipo de dominio con '| string'.
    📚 REGLA: (/domain-type-first) está ESTRICTAMENTE PROHIBIDO combinar uniones finitas con '| string'.
    💡 SOLUCIÓN: Usa exclusivamente la unión canónica pura.`
-    : `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' tipado con 'string' plano.
+      : `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' tipado con 'string' plano.
    📚 REGLA: Los IDs de dominio de catálogo DEBEN ser tipados con su unión canónica de dominio.
    💡 INSTANCIAS vs CATÁLOGO:
       - Si representa una instancia dinámica / UUID (ej. ID generado), nómbralo como '*Uid' (ej. 'targetUid', 'instanceUid') para ser reconocido automáticamente.
@@ -575,7 +684,9 @@ export const noInlineLiteralUnions: AuditRule = {
   id: 'noInlineLiteralUnions',
   name: 'No Inline Literal Unions',
   regex: /:\s*(?:'[^']+'|"[^"]+")(?:\s*\|\s*(?:'[^']+'|"[^"]+"))+/g,
-  message: (match: string) => `[TUTORIAL DOMAIN-TYPE-FIRST] Unión literal de strings inline detectada: '${match.slice(1).trim()}'.
+  message: (
+    match: string
+  ) => `[TUTORIAL DOMAIN-TYPE-FIRST] Unión literal de strings inline detectada: '${match.slice(1).trim()}'.
    📚 REGLA: (/domain-type-first) está PROHIBIDO declarar uniones de literales inline ad-hoc dispersas en contratos, componentes o funciones.
    💡 SOLUCIÓN: Centraliza el catálogo en constantes mediante un array 'as const' y deriva el tipo canónico con '(typeof ARRAY)[number]' (ej. 'export const FOOS = [...] as const; export type Foo = (typeof FOOS)[number];').`,
   severity: 'error',
@@ -599,7 +710,8 @@ export const noRawJsonImportsOutsideData: AuditRule = {
   name: 'No Raw JSON Import Outside Data Layer',
   category: 'Optimización de Bundle',
   regex: /\bimport\s[^;]+\sfrom\s+['"][^'"]+\.json['"]/g,
-  message: (match: string) => `Importación estática de JSON fuera de src/data/ o scripts/: '${match}'. Centraliza catálogos en src/data/ o usa importación dinámica para prevenir empaquetado redundante.`,
+  message: (match: string) =>
+    `Importación estática de JSON fuera de src/data/ o scripts/: '${match}'. Centraliza catálogos en src/data/ o usa importación dinámica para prevenir empaquetado redundante.`,
   severity: 'error',
   fixable: false,
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
@@ -614,13 +726,18 @@ export const noSassAtImport: AuditRule = {
   name: 'No SASS @import Deprecated Directive',
   category: 'SASS Migrator',
   regex: /@import\s+['"][^'"]+['"]/g,
-  message: (match: string) => `Regla obsoleta '@import' detectada en Sass: '${match}'. Dart Sass requiere migrar a '@use' o '@forward'.`,
+  message: (match: string) =>
+    `Regla obsoleta '@import' detectada en Sass: '${match}'. Dart Sass requiere migrar a '@use' o '@forward'.`,
   severity: 'error',
   fixable: false,
   check: (content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return true;
     const norm = normalizeFilePath(filePath);
-    return norm.endsWith('.scss') || norm.endsWith('.css') || (norm.endsWith('.vue') && content.includes('lang="scss"'));
+    return (
+      norm.endsWith('.scss') ||
+      norm.endsWith('.css') ||
+      (norm.endsWith('.vue') && content.includes('lang="scss"'))
+    );
   }
 };
 
@@ -649,12 +766,12 @@ for (const [key, rule] of Object.entries(auditRulesConfig)) {
     (r as { id: string }).id = key;
   }
   if (!r.name) {
-    (r as { name: string }).name = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()); // string-ok: Internal string formatting or DOM token identifier
+    (r as { name: string }).name = key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (str) => str.toUpperCase()); // string-ok: Internal string formatting or DOM token identifier
   }
   if (!r.aliases) {
-    const keyParts = key.split(/(?=[A-Z])/).map(s => s.toLowerCase()); // string-ok: Internal string formatting or DOM token identifier
+    const keyParts = key.split(/(?=[A-Z])/).map((s) => s.toLowerCase()); // string-ok: Internal string formatting or DOM token identifier
     (r as { aliases: readonly string[] }).aliases = [key.toLowerCase(), ...keyParts]; // string-ok: Internal string formatting or DOM token identifier
   }
 }
-
-

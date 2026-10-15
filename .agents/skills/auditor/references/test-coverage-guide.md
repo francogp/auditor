@@ -20,20 +20,24 @@ AI agents and developers are **STRICTLY PROHIBITED** from writing custom `node -
 
 ---
 
-## 2. Vitest & Framework Setup
+## 2. Vite+ & Test Coverage Setup
 
-To generate standard coverage data compatible with `@francogp/auditor`, configure Vitest with `@vitest/coverage-v8` or `@vitest/coverage-istanbul`:
+To generate standard coverage data compatible with `@francogp/auditor`, configure the `test.coverage` block inside `vite.config.ts` using Vite+ (`vite-plus`):
 
-### 2.1. Install Provider
+### 2.1. Coverage Engine & Provider
+
+In Vite+ repositories, coverage capabilities are natively provided via `@vitest/coverage-v8` or `@vitest/coverage-istanbul`:
 
 ```bash
 npm install -D @vitest/coverage-v8
 ```
 
-### 2.2. Configure `vitest.config.ts`
+### 2.2. Configure `vite.config.ts`
+
+Configure the `test.coverage` block directly within your unified `vite.config.ts`:
 
 ```ts
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
   test: {
@@ -58,7 +62,7 @@ export default defineAuditConfig({
     enabled: true,
     threshold: 80,
     path: 'coverage/coverage-final.json',
-    runCommand: 'npm test -- --coverage',
+    runCommand: 'vp test --coverage', // or 'npm test -- --coverage'
     roots: ['src'],
     extensions: ['.ts', '.vue', '.js'],
     exemptGlobs: [

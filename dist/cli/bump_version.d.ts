@@ -1,47 +1,36 @@
-#!/usr/bin/env -S node --experimental-strip-types
-/**
- * src/cli/bump_version.ts
- *
- * CLI tool for inspecting, analyzing, and applying intelligent SemVer version bumps
- * with build timestamp metadata (@francogp/auditor).
- *
- * Commands:
- *   auditor-version               Print current version and build timestamp
- *   auditor-version analyze       Analyze diff and recommend Major/Minor/Patch
- *   auditor-version bump [type]   Apply version bump (auto|major|minor|patch)
- */
-import { type VersionBumpType } from '../core/versionAnalyzer.ts';
-import { type AuditVersionTargetConfig } from '../core/auditConfig.ts';
+import { AuditVersionTargetConfig } from "../core/auditConfigTypes.js";
+import { VersionBumpType } from "../core/versionAnalyzer.js";
+//#region src/cli/bump_version.d.ts
 export interface MetricTableRow {
-    readonly label: string;
-    readonly value: string;
+  readonly label: string;
+  readonly value: string;
 }
 export declare const CLI_BUMP_TYPES: readonly ["major", "minor", "patch", "build", "auto"];
 export type CliBumpType = (typeof CLI_BUMP_TYPES)[number];
 export declare function isCliBumpType(val: string): val is CliBumpType;
 export interface ApplyBumpOptions {
-    cwd?: string;
-    bumpType?: CliBumpType;
-    targetVersion?: string;
-    commitMessage?: string;
-    versionTsPath?: string;
-    customNow?: Temporal.ZonedDateTime;
-    autoSyncPublicVersionJson?: boolean;
-    syncTargets?: readonly (string | AuditVersionTargetConfig)[];
+  cwd?: string;
+  bumpType?: CliBumpType;
+  targetVersion?: string;
+  commitMessage?: string;
+  versionTsPath?: string;
+  customNow?: Temporal.ZonedDateTime;
+  autoSyncPublicVersionJson?: boolean;
+  syncTargets?: readonly (string | AuditVersionTargetConfig)[];
 }
 export interface ApplyBumpResult {
-    previousVersion: string;
-    newVersion: string;
-    bumpType: VersionBumpType;
-    buildId: string;
-    buildDate: string;
-    packageJsonPath: string;
-    versionTsPath: string;
-    syncedFiles: string[];
+  previousVersion: string;
+  newVersion: string;
+  bumpType: VersionBumpType;
+  buildId: string;
+  buildDate: string;
+  packageJsonPath: string;
+  versionTsPath: string;
+  syncedFiles: string[];
 }
 /**
  * Applies a SemVer bump and persists it to package.json, version.ts, and configured sync targets.
  */
 export declare function applyVersionBump(options?: ApplyBumpOptions): ApplyBumpResult;
 export declare function runBumpCli(rawArgs?: readonly string[]): void;
-//# sourceMappingURL=bump_version.d.ts.map
+//#endregion

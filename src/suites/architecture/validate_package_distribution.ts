@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { publint, type Message } from 'publint';
 import { formatMessage } from 'publint/utils';
-import { BaseAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { PackageDistributionLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
@@ -89,7 +89,8 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_package_distribution',
       name: 'Package Distribution & Exports Hygiene Auditor',
@@ -104,16 +105,19 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
         'pkg-distribution-dual-package-hazard': 'Incompatibilidad dual ESM y CJS'
       },
       ruleRemediations: {
-        'pkg-distribution-invalid-exports': 'Guía de diagnóstico y remediación para pkg-distribution-invalid-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'pkg-distribution-missing-types': 'Guía de diagnóstico y remediación para pkg-distribution-missing-types. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'pkg-distribution-dual-package-hazard': 'Guía de diagnóstico y remediación para pkg-distribution-dual-package-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-distribution-invalid-exports':
+          'Guía de diagnóstico y remediación para pkg-distribution-invalid-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-distribution-missing-types':
+          'Guía de diagnóstico y remediación para pkg-distribution-missing-types. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'pkg-distribution-dual-package-hazard':
+          'Guía de diagnóstico y remediación para pkg-distribution-dual-package-hazard. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: {
         include: ['package.json', 'dist/**']
       },
       configKey: 'packageDistribution.enabled',
       defaultConfig: { enabled: true },
-      criticalConfig: {},
+      criticalConfig: {}
     });
   }
 
@@ -138,7 +142,7 @@ export class ValidatePackageDistributionAuditor extends BaseAuditor<PackageDistr
 
     for (const ruleId of PACKAGE_DISTRIBUTION_RULES) {
       this.runSubAuditorSync(ruleId, () => {
-        const ruleFindings = findings.filter(f => f.ruleId === ruleId);
+        const ruleFindings = findings.filter((f) => f.ruleId === ruleId);
         for (const finding of ruleFindings) {
           this.addViolation({
             ruleId,

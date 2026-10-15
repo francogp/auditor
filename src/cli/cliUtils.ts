@@ -100,14 +100,20 @@ export function bootstrapCliProject(argv: readonly string[] = process.argv): Cli
   const cleanCandidate = sanitizePath(targetCandidate);
   const resolved = path.resolve(auditorHomeDir, cleanCandidate);
   if (!fs.existsSync(resolved)) {
-    throw new Error(`[Remote Execution Error] Target project directory does not exist: '${resolved}'`);
+    throw new Error(
+      `[Remote Execution Error] Target project directory does not exist: '${resolved}'`
+    );
   }
   const stat = fs.statSync(resolved);
   if (!stat.isDirectory()) {
-    throw new Error(`[Remote Execution Error] Target project path is not a directory: '${resolved}'`);
+    throw new Error(
+      `[Remote Execution Error] Target project path is not a directory: '${resolved}'`
+    );
   }
   if (!fs.existsSync(path.join(resolved, 'package.json'))) {
-    throw new Error(`[Remote Execution Error] Target directory does not contain a package.json: '${resolved}'`);
+    throw new Error(
+      `[Remote Execution Error] Target directory does not contain a package.json: '${resolved}'`
+    );
   }
 
   process.env.AUDITOR_HOME_DIR = auditorHomeDir;
@@ -213,9 +219,10 @@ function resolveBinFromPackageJson(pkgDir: string, packageName: string): string 
   if (!fs.existsSync(pkgJsonPath)) return null;
   try {
     const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    const relBin = typeof pkg.bin === 'string'
-      ? pkg.bin
-      : (pkg.bin?.[packageName] || (pkg.bin ? Object.values(pkg.bin)[0] : undefined));
+    const relBin =
+      typeof pkg.bin === 'string'
+        ? pkg.bin
+        : pkg.bin?.[packageName] || (pkg.bin ? Object.values(pkg.bin)[0] : undefined);
     if (typeof relBin === 'string') {
       const binFile = path.resolve(pkgDir, relBin);
       if (fs.existsSync(binFile)) return binFile;
@@ -244,11 +251,13 @@ export function resolvePackageBin(
   }
 
   // Strategy B: try createRequire to resolve main entry then locate package.json
-  const lookupPaths = Array.from(new Set([
-    options?.projectRoot,
-    process.env.AUDITOR_HOME_DIR,
-    process.cwd()
-  ].filter((p): p is string => Boolean(p))));
+  const lookupPaths = Array.from(
+    new Set(
+      [options?.projectRoot, process.env.AUDITOR_HOME_DIR, process.cwd()].filter((p): p is string =>
+        Boolean(p)
+      )
+    )
+  );
 
   const req = createRequire(import.meta.url);
   try {
@@ -270,12 +279,19 @@ export function resolvePackageBin(
   // Strategy C: fallbackRelativeBin in projectRoot node_modules or AUDITOR_HOME_DIR
   if (options?.fallbackRelativeBin) {
     if (options.projectRoot) {
-      const candidate = resolveNodeModuleBin(options.projectRoot, `${packageName}/${options.fallbackRelativeBin}`);
+      const candidate = resolveNodeModuleBin(
+        options.projectRoot,
+        `${packageName}/${options.fallbackRelativeBin}`
+      );
       if (fs.existsSync(candidate)) return candidate;
     }
     if (process.env.AUDITOR_HOME_DIR) {
       const cleanHome = sanitizePath(process.env.AUDITOR_HOME_DIR);
-      const homeCandidate = path.resolve(cleanHome, 'node_modules', `${packageName}/${options.fallbackRelativeBin}`);
+      const homeCandidate = path.resolve(
+        cleanHome,
+        'node_modules',
+        `${packageName}/${options.fallbackRelativeBin}`
+      );
       if (fs.existsSync(homeCandidate)) return homeCandidate;
     }
   }
@@ -336,7 +352,7 @@ export function executeCliAndReadJson<T>(
     if (rawContent.trim()) {
       return JSON.parse(rawContent) as T; // type-ok: Parsed JSON from ephemeral tool output
     }
-  } catch (_err: unknown) {
+  } catch {
     // catch-ok: If output is not JSON, it might be empty or syntax error
     return null;
   }
@@ -345,9 +361,9 @@ export function executeCliAndReadJson<T>(
 }
 
 /**
-  * Resolves coverage CLI arguments for Fallow commands (health, complexity).
-  * Discovers configured coverage path or default 'coverage/coverage-final.json'.
-  */
+ * Resolves coverage CLI arguments for Fallow commands (health, complexity).
+ * Discovers configured coverage path or default 'coverage/coverage-final.json'.
+ */
 export function resolveCoverageArgs(projectRoot: string = process.cwd()): string[] {
   const config = getAuditConfig();
   const configuredPath = config.fallow?.coverage?.path;
@@ -368,8 +384,8 @@ export interface FallowExecutionResult<T> {
 }
 
 /**
-  * Executes a Fallow sub-command with JSON formatting, returning parsed object payload and exit code.
-  */
+ * Executes a Fallow sub-command with JSON formatting, returning parsed object payload and exit code.
+ */
 export function executeFallowJsonCommand<T = Record<string, unknown>>(
   fallowBin: string,
   subCommandArgs: readonly string[],
@@ -388,4 +404,3 @@ export function executeFallowJsonCommand<T = Record<string, unknown>>(
     rawOutput: (proc.stderr || proc.stdout || '').trim()
   };
 }
-

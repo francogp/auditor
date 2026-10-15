@@ -25,15 +25,18 @@ export function polyfillPermissionModelFsync(): void {
   }
 
   try {
-    fsPromises.open(process.execPath, 'r').then(h => {
-      const proto = Object.getPrototypeOf(h);
-      if (proto && typeof proto.sync === 'function') {
-        proto.sync = async () => {};
-      }
-      return h.close();
-    }).catch(() => {
-      // catch-ok: fallback if execPath cannot be opened
-    });
+    fsPromises
+      .open(process.execPath, 'r')
+      .then((h) => {
+        const proto = Object.getPrototypeOf(h);
+        if (proto && typeof proto.sync === 'function') {
+          proto.sync = async () => {};
+        }
+        return h.close();
+      })
+      .catch(() => {
+        // catch-ok: fallback if execPath cannot be opened
+      });
   } catch {
     // catch-ok
   }
@@ -51,7 +54,7 @@ export interface PermissionRequirements {
 
 /**
  * assertRequiredPermissions
- * 
+ *
  * Verifies required Node.js 26 native permissions via process.permission.has().
  * Gracefully no-ops when Node is executed without the experimental permission model.
  */

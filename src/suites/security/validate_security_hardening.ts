@@ -1,5 +1,11 @@
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, LIGHT_RULE_CAPABILITIES, resolveFileScanRoots } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  LIGHT_RULE_CAPABILITIES,
+  resolveFileScanRoots
+} from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -50,16 +56,27 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
         'unvalidated-redirect': 'Redirección abierta sin validar ruta'
       },
       ruleRemediations: {
-        'hardcoded-secrets': 'Guía de diagnóstico y remediación para hardcoded-secrets. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'insecure-random': 'Guía de diagnóstico y remediación para insecure-random. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'vulnerable-regex-redos': 'Guía de diagnóstico y remediación para vulnerable-regex-redos. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'raw-html-injection': 'Guía de diagnóstico y remediación para raw-html-injection. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'missing-csrf-token': 'Guía de diagnóstico y remediación para missing-csrf-token. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'eval-or-function-constructor': 'Guía de diagnóstico y remediación para eval-or-function-constructor. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'permissive-cors': 'Guía de diagnóstico y remediación para permissive-cors. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'unvalidated-redirect': 'Guía de diagnóstico y remediación para unvalidated-redirect. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'hardcoded-secrets':
+          'Guía de diagnóstico y remediación para hardcoded-secrets. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'insecure-random':
+          'Guía de diagnóstico y remediación para insecure-random. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'vulnerable-regex-redos':
+          'Guía de diagnóstico y remediación para vulnerable-regex-redos. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'raw-html-injection':
+          'Guía de diagnóstico y remediación para raw-html-injection. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'missing-csrf-token':
+          'Guía de diagnóstico y remediación para missing-csrf-token. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'eval-or-function-constructor':
+          'Guía de diagnóstico y remediación para eval-or-function-constructor. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'permissive-cors':
+          'Guía de diagnóstico y remediación para permissive-cors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'unvalidated-redirect':
+          'Guía de diagnóstico y remediación para unvalidated-redirect. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
-      ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LIGHT_RULE_CAPABILITIES),
+      ruleCapabilities: createUniformRuleCapabilities(
+        SECURITY_HARDENING_RULES,
+        LIGHT_RULE_CAPABILITIES
+      ),
       projectRoot: effectiveRoot,
       coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
       exemptPaths: config.securityHardening?.exemptPaths
@@ -71,22 +88,27 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
     const isTest = isTestPath(relPath);
 
     this.runSubAuditorSync('hardcoded-secrets', () => {
-      if (!isTest && !content.includes('secret-ok')) this.auditHardcodedSecrets(relPath, content, lines);
+      if (!isTest && !content.includes('secret-ok'))
+        this.auditHardcodedSecrets(relPath, content, lines);
     });
     this.runSubAuditorSync('insecure-random', () => {
-      if (!isTest && !content.includes('random-ok')) this.auditInsecureRandom(relPath, content, lines);
+      if (!isTest && !content.includes('random-ok'))
+        this.auditInsecureRandom(relPath, content, lines);
     });
     this.runSubAuditorSync('vulnerable-regex-redos', () => {
-      if (!isTest && !content.includes('redos-ok')) this.auditVulnerableRegexRedos(relPath, content, lines);
+      if (!isTest && !content.includes('redos-ok'))
+        this.auditVulnerableRegexRedos(relPath, content, lines);
     });
     this.runSubAuditorSync('raw-html-injection', () => {
-      if (!content.includes('html-injection-ok')) this.auditRawHtmlInjection(relPath, content, lines);
+      if (!content.includes('html-injection-ok'))
+        this.auditRawHtmlInjection(relPath, content, lines);
     });
     this.runSubAuditorSync('missing-csrf-token', () => {
       if (!content.includes('csrf-ok')) this.auditMissingCsrfToken(relPath, content, lines);
     });
     this.runSubAuditorSync('eval-or-function-constructor', () => {
-      if (!isTest && !content.includes('eval-ok')) this.auditEvalOrFunctionConstructor(relPath, content, lines);
+      if (!isTest && !content.includes('eval-ok'))
+        this.auditEvalOrFunctionConstructor(relPath, content, lines);
     });
     this.runSubAuditorSync('permissive-cors', () => {
       if (!content.includes('cors-ok')) this.auditPermissiveCors(relPath, content, lines);
@@ -129,7 +151,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
     const secretPatterns = [
       /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/g,
       /(?:bearer\s+|jwt\s*[:=]\s*['"])(eyJ[\w-]{20,}\.[\w-]{20,})/gi,
-      /(?:api_key|apiSecret|client_secret)\s*[:=]\s*['"]([\w\-]{24,})['"]/gi,
+      /(?:api_key|apiSecret|client_secret)\s*[:=]\s*['"]([\w-]{24,})['"]/gi,
       /password\s*[:=]\s*['"](?!example|password|test|placeholder|admin)[\w!@#$%^&*()+]{8,}['"]/gi
     ];
 
@@ -147,7 +169,8 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
   }
 
   private auditInsecureRandom(relPath: string, content: string, lines: readonly string[]): void {
-    const randomRegex = /(?:token|secret|salt|password|nonce|csrf|sessionId|auth)\w*\s*[:=][^;]*Math\.random\(\)/gi;
+    const randomRegex =
+      /(?:token|secret|salt|password|nonce|csrf|sessionId|auth)\w*\s*[:=][^;]*Math\.random\(\)/gi;
     this.scanSecurityPattern(
       relPath,
       content,
@@ -159,7 +182,11 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
     );
   }
 
-  private auditVulnerableRegexRedos(relPath: string, content: string, lines: readonly string[]): void {
+  private auditVulnerableRegexRedos(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
     const redosRegex = /\/([^/\n\r]*\([^\n\r()]+[+*]\)[+*][^/\n\r]*)\/[gimuy]*/g;
     this.scanSecurityPattern(
       relPath,
@@ -182,7 +209,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       'html-injection-ok',
       'raw-html-injection',
       'Directiva v-html sin sanitización con DOMPurify (riesgo de XSS)',
-      m => {
+      (m) => {
         const expr = m[1] ?? '';
         return !expr.includes('DOMPurify.sanitize') && !expr.includes('sanitizeHtml');
       }
@@ -197,7 +224,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       'html-injection-ok',
       'raw-html-injection',
       'Asignación directa a innerHTML sin sanitizar mediante DOMPurify (riesgo de XSS)',
-      m => {
+      (m) => {
         const assigned = (m[1] ?? '').trim();
         // Safe container reset: empty string or empty template literal
         if (assigned === "''" || assigned === '""' || assigned === '``') return false;
@@ -217,14 +244,18 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       'csrf-ok',
       'missing-csrf-token',
       'Formulario con método POST sin token de protección CSRF',
-      m => {
+      (m) => {
         const inner = m[2] ?? '';
         return !/csrf|token|_csrf/i.test(inner);
       }
     );
   }
 
-  private auditEvalOrFunctionConstructor(relPath: string, content: string, lines: readonly string[]): void {
+  private auditEvalOrFunctionConstructor(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
     const evalRegex = /\b(?:eval\s*\(|new\s+Function\s*\()/g;
     this.scanSecurityPattern(
       relPath,
@@ -238,7 +269,8 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
   }
 
   private auditPermissiveCors(relPath: string, content: string, lines: readonly string[]): void {
-    const corsRegex = /cors\(\s*\{\s*origin\s*:\s*['"]\*['"]|Access-Control-Allow-Origin['"]?\s*[:=]\s*['"]\*['"]/gi;
+    const corsRegex =
+      /cors\(\s*\{\s*origin\s*:\s*['"]\*['"]|Access-Control-Allow-Origin['"]?\s*[:=]\s*['"]\*['"]/gi;
     this.scanSecurityPattern(
       relPath,
       content,
@@ -250,8 +282,13 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
     );
   }
 
-  private auditUnvalidatedRedirect(relPath: string, content: string, lines: readonly string[]): void {
-    const redirectRegex = /res\.redirect\s*\(\s*(?:req\.query|req\.body)|location\.href\s*=\s*(?:req\.query|new\s+URLSearchParams)/gi;
+  private auditUnvalidatedRedirect(
+    relPath: string,
+    content: string,
+    lines: readonly string[]
+  ): void {
+    const redirectRegex =
+      /res\.redirect\s*\(\s*(?:req\.query|req\.body)|location\.href\s*=\s*(?:req\.query|new\s+URLSearchParams)/gi;
     this.scanSecurityPattern(
       relPath,
       content,

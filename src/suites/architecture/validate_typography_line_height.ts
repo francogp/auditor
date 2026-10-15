@@ -16,22 +16,19 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import {
-  FileScanAuditor,
-  BaseAuditor
-, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
 export type LineHeightRuleId = 'line-height-overlap';
 
-export const TYPOGRAPHY_LINE_HEIGHT_RULES: readonly LineHeightRuleId[] = [
-  'line-height-overlap'
-];
+export const TYPOGRAPHY_LINE_HEIGHT_RULES: readonly LineHeightRuleId[] = ['line-height-overlap'];
 
-const ICON_ELEMENT_REGEX = /(?:^|[._-])(?:emoji|icon|arrow|bullet|symbol|glyph|avatar|medal|quote|mark|placeholder|checkmark|star|indicator|infinity|dash|tooltip-wrapper|fx-wrapper|clear|close|dismiss)(?:$|[._-])|(?<![\w-])(?:img|svg|canvas)\b/i;
-const TEXT_ELEMENT_REGEX = /(?:^|[._-])(?:title|heading|header|caption|desc|description|sub|subtitle|dialogue|name|label|text|body|wrap|item|card|accordion|content|h[1-6]|paragraph|note|message|banner|alert|prompt|phrase|comment|summary|reason|metric|pill|tag)(?:$|[._-])/i;
+const ICON_ELEMENT_REGEX =
+  /(?:^|[._-])(?:emoji|icon|arrow|bullet|symbol|glyph|avatar|medal|quote|mark|placeholder|checkmark|star|indicator|infinity|dash|tooltip-wrapper|fx-wrapper|clear|close|dismiss)(?:$|[._-])|(?<![\w-])(?:img|svg|canvas)\b/i;
+const TEXT_ELEMENT_REGEX =
+  /(?:^|[._-])(?:title|heading|header|caption|desc|description|sub|subtitle|dialogue|name|label|text|body|wrap|item|card|accordion|content|h[1-6]|paragraph|note|message|banner|alert|prompt|phrase|comment|summary|reason|metric|pill|tag)(?:$|[._-])/i;
 
 interface ExtractedStyleBlock {
   readonly content: string;
@@ -60,7 +57,10 @@ function extractStyleBlocks(filePath: string, fileContent: string): ExtractedSty
 }
 
 function getLeafSelector(fullSelector: string): string {
-  const segments = fullSelector.split(/[\s>+~]/).map(s => s.trim()).filter(Boolean);
+  const segments = fullSelector
+    .split(/[\s>+~]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   const last = segments[segments.length - 1] || fullSelector;
   return last.replace(/::?[\w-]+(\([^)]*\))?/g, '').trim();
 }
@@ -70,7 +70,11 @@ function isEmojiFontContext(lines: readonly string[], currentIndex: number): boo
   const end = Math.min(lines.length - 1, currentIndex + 6);
   for (let idx = start; idx <= end; idx++) {
     const l = lines[idx] || '';
-    if (/font-family\s*:\s*(?:\S.*)?(?:Emoji|Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji)/i.test(l)) {
+    if (
+      /font-family\s*:\s*(?:\S.*)?(?:Emoji|Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji)/i.test(
+        l
+      )
+    ) {
       return true;
     }
   }
@@ -82,7 +86,11 @@ interface SelectorFrame {
   isIgnored: boolean;
 }
 
-function updateSelectorStack(trimmed: string, lineIgnored: boolean, selectorStack: SelectorFrame[]): void {
+function updateSelectorStack(
+  trimmed: string,
+  lineIgnored: boolean,
+  selectorStack: SelectorFrame[]
+): void {
   if (trimmed.includes('{')) {
     const selectorPart = trimmed.slice(0, trimmed.indexOf('{')).trim();
     if (selectorPart) {
@@ -118,11 +126,15 @@ function isLineHeightOverlapCandidate(
 }
 
 function isTextSelectorCandidate(currentSelector: string, leafSelector: string): boolean {
-  return TEXT_ELEMENT_REGEX.test(leafSelector) || currentSelector.includes('&__') || currentSelector.includes('.text');
+  return (
+    TEXT_ELEMENT_REGEX.test(leafSelector) ||
+    currentSelector.includes('&__') ||
+    currentSelector.includes('.text')
+  );
 }
 
 export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleId> {
-private totalRulesChecked = 0;
+  private totalRulesChecked = 0;
 
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
@@ -135,9 +147,10 @@ private totalRulesChecked = 0;
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
-id: 'validate_typography_line_height',
+      id: 'validate_typography_line_height',
       name: 'Typography Line-Height & Interlinear Spacing Validator',
       description: 'Detecta colisiones de line-height en tipografías multilínea',
       family: 'architecture',
@@ -151,7 +164,8 @@ id: 'validate_typography_line_height',
         'line-height-overlap': 'Colisión de line-height'
       },
       ruleRemediations: {
-        'line-height-overlap': 'Guía de diagnóstico y remediación para line-height-overlap. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'line-height-overlap':
+          'Guía de diagnóstico y remediación para line-height-overlap. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css']),
@@ -170,16 +184,17 @@ id: 'validate_typography_line_height',
     if (!line) return;
     const trimmed = line.trim();
 
-    const lineIgnored = this.isLineIgnored(line, ['line-height-ok', 'css-ok']) ||
-                        line.includes('/* line-height-ok */') ||
-                        line.includes('// line-height-ok');
+    const lineIgnored =
+      this.isLineIgnored(line, ['line-height-ok', 'css-ok']) ||
+      line.includes('/* line-height-ok */') ||
+      line.includes('// line-height-ok');
 
     updateSelectorStack(trimmed, lineIgnored, selectorStack);
 
     const lineHeightMatch = isLineHeightOverlapCandidate(trimmed, lineIgnored, selectorStack);
     if (lineHeightMatch) {
       this.totalRulesChecked++;
-      const currentSelector = selectorStack.map(f => f.selector).join(' ') || '(global scope)';
+      const currentSelector = selectorStack.map((f) => f.selector).join(' ') || '(global scope)';
       const leafSelector = getLeafSelector(currentSelector);
 
       if (!ICON_ELEMENT_REGEX.test(leafSelector) && !isEmojiFontContext(blockLines, lineIndex)) {

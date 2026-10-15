@@ -1,15 +1,17 @@
+//#region src/core/auditorEnvironment.ts
 /**
- * packages/auditor/src/core/auditorEnvironment.ts
- *
- * Single Source of Truth for auditor runtime environment detection (Node.js 26+ Native).
- * Governs whether the auditor is running under production mode via AUDITOR_ENV=production.
- */
+* packages/auditor/src/core/auditorEnvironment.ts
+*
+* Single Source of Truth for auditor runtime environment detection (Node.js 26+ Native).
+* Governs whether the auditor is running under production mode via AUDITOR_ENV=production.
+*/
 /**
- * Checks whether the auditor is executing in a production deployment or container build.
- * When true, development-only suites (similar-code Candle ML embeddings, test coverage, and git config)
- * are cleanly omitted, while all other architectural and quality gates run with full rigor.
- */
-export function isProductionEnvironment() {
-    return process.env.AUDITOR_ENV === 'production';
+* Checks whether the auditor is executing in a production deployment or container build.
+* When true, development-only suites (similar-code Candle ML embeddings, test coverage, and git config)
+* are cleanly omitted, while all other architectural and quality gates run with full rigor.
+*/
+function isProductionEnvironment() {
+	return process.env.AUDITOR_ENV === "production";
 }
-//# sourceMappingURL=auditorEnvironment.js.map
+//#endregion
+export { isProductionEnvironment };

@@ -181,12 +181,12 @@ File to edit: UserService.ts
 | **Database & Persistence** | Schema & Parity | `auditor family=persistence` |
 | **Frontend & Styles** | Accessibility & Styles | `npm run auditor -- task=validate_component_styles` (or `auditor task=validate_component_styles`) |
 | **Security & Vulnerabilities** | Security Audit | `npm run auditor:fallow:security` |
-| **Testing & Parity** | Full Vitest Suite | `npm run test` (executes 100% of unit and node projects) |
-| **Any agent** | Lint & Fast Types | `npm run lint` (runs `npm run auditor:lint` executing lint-capable sub-auditors in parallel) |
+| **Testing & Parity** | Full Vite+ Test Suite | `vp test` (or `npm test`, executes 100% of unit and node projects) |
+| **Any agent** | Lint & Fast Types | `vp check` / `npm run lint` (runs `npm run auditor:lint` executing lint-capable sub-auditors in parallel) |
 | **Any agent** | Unified Global Audit | `npm run auditor` (Terminal summary + full JSON in `scratch/audits/latest_audit.json`) |
 
 > ❌ **WRONG:** Running unapproved raw scripts, nonexistent paths, or invoking the removed `audit:for-commit` / `auditor-commit` gate (use `npm run auditor`, which enforces the warning ratchet)
-> ✅ **CORRECT:** Running native TypeScript auditors or official NPM scripts declared in `package.json` (`npm run lint` for fast checks, `npm run auditor` + `npm run test` for full verification)
+> ✅ **CORRECT:** Running native TypeScript auditors or official scripts declared in `package.json` (`vp check` / `npm run lint` for fast checks, `npm run auditor` + `vp test` for full verification)
 
 ---
 

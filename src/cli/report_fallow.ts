@@ -9,7 +9,12 @@ import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolveCoverageArgs, isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import {
+  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+  resolveCoverageArgs,
+  isMainModule,
+  bootstrapCliProject
+} from './cliUtils.ts';
 import { runGuardReport } from './report_guard.ts';
 import { runFlagsReport } from './report_flags.ts';
 import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
@@ -18,13 +23,35 @@ const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
 
 const VALID_CATEGORY_ALIASES = new Set([
-  'dupes', 'duplicates', 'security', 'cwe', 'dead-code', 'deadcode', 'unused',
-  'complexity', 'circular', 'exports', 'orphans', 'boundaries', 'architecture', 'boundary',
-  'coverage-gaps', 'coverage_gaps', 'gaps', 'guard', 'flags', 'suppressions', 'stale-suppressions',
-  'viz', 'all'
+  'dupes',
+  'duplicates',
+  'security',
+  'cwe',
+  'dead-code',
+  'deadcode',
+  'unused',
+  'complexity',
+  'circular',
+  'exports',
+  'orphans',
+  'boundaries',
+  'architecture',
+  'boundary',
+  'coverage-gaps',
+  'coverage_gaps',
+  'gaps',
+  'guard',
+  'flags',
+  'suppressions',
+  'stale-suppressions',
+  'viz',
+  'all'
 ]);
 
-function parsePositionalOption(pos: string, currentCategory: string): { category?: string; top?: number; json?: boolean } {
+function parsePositionalOption(
+  pos: string,
+  currentCategory: string
+): { category?: string; top?: number; json?: boolean } {
   if (pos.startsWith('category=')) {
     const parts = pos.split('=');
     const part = parts[1];
@@ -33,7 +60,10 @@ function parsePositionalOption(pos: string, currentCategory: string): { category
   }
   if (pos.startsWith('top=')) {
     const rawTop = pos.split('=')[1] || '20';
-    const top = rawTop === 'all' ? Number.MAX_SAFE_INTEGER : (parseInt(rawTop, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT);
+    const top =
+      rawTop === 'all'
+        ? Number.MAX_SAFE_INTEGER
+        : parseInt(rawTop, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
     return { top };
   }
   if (pos === 'json') {
@@ -77,8 +107,11 @@ function parseCommandLineArgs() {
   };
 }
 
-
-function runFallowCommand<T = Record<string, unknown>>(command: string, extraArgs: string[] = []): T | null { // open-record: Generic key-value data dictionary container
+function runFallowCommand<T = Record<string, unknown>>(
+  command: string,
+  extraArgs: string[] = []
+): T | null {
+  // open-record: Generic key-value data dictionary container
   try {
     const effectiveExtra = [...extraArgs];
     if (command.startsWith('health')) {
@@ -93,7 +126,9 @@ function runFallowCommand<T = Record<string, unknown>>(command: string, extraArg
       }
     }
     const args = ['--format', 'json', ...effectiveExtra]; // no-domain: Non-domain utility collection or data structure
-    const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+    const fallowBin =
+      resolveFallowBinary(process.cwd()) ??
+      path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
     const cmd = `node "${fallowBin}" ${command} ${args.join(' ')}`;
     const stdout = execSync(cmd, {
       encoding: 'utf8',
@@ -108,17 +143,36 @@ function runFallowCommand<T = Record<string, unknown>>(command: string, extraArg
 
 function reportDupes(top: number, json: boolean): void {
   const data = runFallowCommand('dupes');
-  const groups = (data?.clone_groups as Array<{ duplicated_tokens?: number; token_count?: number; instances?: Array<{ path?: string; file?: string; line?: number; start_line?: number }> }>) || [];
+  const groups =
+    (data?.clone_groups as Array<{
+      duplicated_tokens?: number;
+      token_count?: number;
+      instances?: Array<{ path?: string; file?: string; line?: number; start_line?: number }>;
+    }>) || [];
 
   if (json) {
-    console.log(JSON.stringify({ totalGroups: groups.length, groups: groups.slice(0, top) }, null, 2));
+    console.log(
+      JSON.stringify({ totalGroups: groups.length, groups: groups.slice(0, top) }, null, 2)
+    );
     return;
   }
 
-  console.log('\n' + renderBanner('DUPLICACIÓN Y TRIPLICACIÓN DE CÓDIGO (FALLOW)', `Grupos detectados: ${groups.length}`));
+  console.log(
+    '\n' +
+      renderBanner(
+        'DUPLICACIÓN Y TRIPLICACIÓN DE CÓDIGO (FALLOW)',
+        `Grupos detectados: ${groups.length}`
+      )
+  );
 
   if (groups.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se encontraron bloques de código duplicado ni triplicado.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! No se encontraron bloques de código duplicado ni triplicado.\n'
+        )
+    );
     return;
   }
 
@@ -142,8 +196,12 @@ function reportDupes(top: number, json: boolean): void {
     const tokens = g.token_count || g.duplicated_tokens || 0;
     const instances = g.instances || [];
     const isTriplicate = instances.length >= 3;
-    const typeLabel = isTriplicate ? styleText('yellow', 'TRIPLICADO ⚠️') : styleText('cyan', 'DUPLICADO');
-    const locs = instances.map(i => `${path.basename(i.path || i.file || '')}:${i.start_line || i.line || 0}`).join(', ');
+    const typeLabel = isTriplicate
+      ? styleText('yellow', 'TRIPLICADO ⚠️')
+      : styleText('cyan', 'DUPLICADO');
+    const locs = instances
+      .map((i) => `${path.basename(i.path || i.file || '')}:${i.start_line || i.line || 0}`)
+      .join(', ');
     return {
       index: String(idx + 1),
       type: typeLabel,
@@ -158,23 +216,44 @@ function reportDupes(top: number, json: boolean): void {
 
 function reportSecurity(top: number, json: boolean): void {
   const data = runFallowCommand('security');
-  const rawFindings = (data?.security_findings as Array<{ path?: string; line?: number; cwe?: number; kind?: string; evidence?: string }>) || [];
+  const rawFindings =
+    (data?.security_findings as Array<{
+      path?: string;
+      line?: number;
+      cwe?: number;
+      kind?: string;
+      evidence?: string;
+    }>) || [];
   const config = getAuditConfig();
 
-  const findings = rawFindings.filter(f => {
+  const findings = rawFindings.filter((f) => {
     const norm = (f.path || '').replace(/\\/g, '/');
     return isInCodeRoots(norm, config);
   });
 
   if (json) {
-    console.log(JSON.stringify({ totalSecurity: findings.length, findings: findings.slice(0, top) }, null, 2));
+    console.log(
+      JSON.stringify({ totalSecurity: findings.length, findings: findings.slice(0, top) }, null, 2)
+    );
     return;
   }
 
-  console.log('\n' + renderBanner('SEGURIDAD Y VULNERABILIDADES CWE (FALLOW)', `Hallazgos en código fuente: ${findings.length}`));
+  console.log(
+    '\n' +
+      renderBanner(
+        'SEGURIDAD Y VULNERABILIDADES CWE (FALLOW)',
+        `Hallazgos en código fuente: ${findings.length}`
+      )
+  );
 
   if (findings.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! 0 vulnerabilidades de seguridad CWE detectadas en código fuente.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! 0 vulnerabilidades de seguridad CWE detectadas en código fuente.\n'
+        )
+    );
     return;
   }
 
@@ -212,8 +291,9 @@ interface FallowCycleItem {
 }
 
 function formatCycleString(c: FallowCycleItem): string {
-  const filesList = (Array.isArray(c.files) && c.files.length > 0) ? c.files : (Array.isArray(c.cycle) ? c.cycle : []);
-  return filesList.length > 0 ? filesList.join(' → ') : (c.path || '');
+  const filesList =
+    Array.isArray(c.files) && c.files.length > 0 ? c.files : Array.isArray(c.cycle) ? c.cycle : [];
+  return filesList.length > 0 ? filesList.join(' → ') : c.path || '';
 }
 
 function printCircularCycles(circular: readonly FallowCycleItem[]): void {
@@ -227,13 +307,36 @@ interface DeadCodeReportData {
   unusedExports: Array<{ path: string; line: number; export_name: string }>;
   unusedDeps: Array<{ package_name: string }>;
   circular: Array<FallowCycleItem>;
-  unusedStoreMembers: Array<{ path: string; parent_name: string; member_name: string; line: number }>;
-  unusedClassMembers: Array<{ path: string; parent_name: string; member_name: string; line: number }>;
+  unusedStoreMembers: Array<{
+    path: string;
+    parent_name: string;
+    member_name: string;
+    line: number;
+  }>;
+  unusedClassMembers: Array<{
+    path: string;
+    parent_name: string;
+    member_name: string;
+    line: number;
+  }>;
   unusedTypes: Array<{ path: string; export_name: string; line: number }>;
   unusedEmits: Array<{ path: string; component_name: string; emit_name: string; line: number }>;
-  unlistedDeps: Array<{ package_name: string; imported_from?: Array<{ path: string; line: number }> }>;
-  duplicateExports: Array<{ export_name: string; locations?: Array<{ path: string; line: number }> }>;
-  boundaryViolations: Array<{ from_path?: string; to_path?: string; from_zone?: string; to_zone?: string; import_specifier?: string; line?: number }>;
+  unlistedDeps: Array<{
+    package_name: string;
+    imported_from?: Array<{ path: string; line: number }>;
+  }>;
+  duplicateExports: Array<{
+    export_name: string;
+    locations?: Array<{ path: string; line: number }>;
+  }>;
+  boundaryViolations: Array<{
+    from_path?: string;
+    to_path?: string;
+    from_zone?: string;
+    to_zone?: string;
+    import_specifier?: string;
+    line?: number;
+  }>;
   unusedProps: Array<{ path: string; component_name: string; prop_name: string; line: number }>;
   unrenderedComponents: Array<{ path: string; component_name: string; line: number }>;
   unprovidedInjects: Array<{ path: string; inject_key: string; line: number }>;
@@ -250,25 +353,73 @@ function getArrayField<T>(data: Record<string, unknown> | null, field: string): 
 function parseDeadCodeStructural(data: Record<string, unknown> | null) {
   return {
     unusedFiles: getArrayField<{ path: string }>(data, 'unused_files'),
-    unusedExports: getArrayField<{ path: string; line: number; export_name: string }>(data, 'unused_exports'),
+    unusedExports: getArrayField<{ path: string; line: number; export_name: string }>(
+      data,
+      'unused_exports'
+    ),
     unusedDeps: getArrayField<{ package_name: string }>(data, 'unused_dependencies'),
     circular: getArrayField<FallowCycleItem>(data, 'circular_dependencies'),
-    boundaryViolations: getArrayField<{ from_path?: string; to_path?: string; from_zone?: string; to_zone?: string; import_specifier?: string; line?: number }>(data, 'boundary_violations'),
-    unresolvedImports: getArrayField<{ path: string; specifier: string; line: number }>(data, 'unresolved_imports')
+    boundaryViolations: getArrayField<{
+      from_path?: string;
+      to_path?: string;
+      from_zone?: string;
+      to_zone?: string;
+      import_specifier?: string;
+      line?: number;
+    }>(data, 'boundary_violations'),
+    unresolvedImports: getArrayField<{ path: string; specifier: string; line: number }>(
+      data,
+      'unresolved_imports'
+    )
   };
 }
 
 function parseDeadCodeComponent(data: Record<string, unknown> | null) {
   return {
-    unusedStoreMembers: getArrayField<{ path: string; parent_name: string; member_name: string; line: number }>(data, 'unused_store_members'),
-    unusedClassMembers: getArrayField<{ path: string; parent_name: string; member_name: string; line: number }>(data, 'unused_class_members'),
-    unusedTypes: getArrayField<{ path: string; export_name: string; line: number }>(data, 'unused_types'),
-    unusedEmits: getArrayField<{ path: string; component_name: string; emit_name: string; line: number }>(data, 'unused_component_emits'),
-    unlistedDeps: getArrayField<{ package_name: string; imported_from?: Array<{ path: string; line: number }> }>(data, 'unlisted_dependencies'),
-    duplicateExports: getArrayField<{ export_name: string; locations?: Array<{ path: string; line: number }> }>(data, 'duplicate_exports'),
-    unusedProps: getArrayField<{ path: string; component_name: string; prop_name: string; line: number }>(data, 'unused_component_props'),
-    unrenderedComponents: getArrayField<{ path: string; component_name: string; line: number }>(data, 'unrendered_components'),
-    unprovidedInjects: getArrayField<{ path: string; inject_key: string; line: number }>(data, 'unprovided_injects')
+    unusedStoreMembers: getArrayField<{
+      path: string;
+      parent_name: string;
+      member_name: string;
+      line: number;
+    }>(data, 'unused_store_members'),
+    unusedClassMembers: getArrayField<{
+      path: string;
+      parent_name: string;
+      member_name: string;
+      line: number;
+    }>(data, 'unused_class_members'),
+    unusedTypes: getArrayField<{ path: string; export_name: string; line: number }>(
+      data,
+      'unused_types'
+    ),
+    unusedEmits: getArrayField<{
+      path: string;
+      component_name: string;
+      emit_name: string;
+      line: number;
+    }>(data, 'unused_component_emits'),
+    unlistedDeps: getArrayField<{
+      package_name: string;
+      imported_from?: Array<{ path: string; line: number }>;
+    }>(data, 'unlisted_dependencies'),
+    duplicateExports: getArrayField<{
+      export_name: string;
+      locations?: Array<{ path: string; line: number }>;
+    }>(data, 'duplicate_exports'),
+    unusedProps: getArrayField<{
+      path: string;
+      component_name: string;
+      prop_name: string;
+      line: number;
+    }>(data, 'unused_component_props'),
+    unrenderedComponents: getArrayField<{ path: string; component_name: string; line: number }>(
+      data,
+      'unrendered_components'
+    ),
+    unprovidedInjects: getArrayField<{ path: string; inject_key: string; line: number }>(
+      data,
+      'unprovided_injects'
+    )
   };
 }
 
@@ -300,37 +451,43 @@ function parseDeadCodeReportData(data: Record<string, unknown> | null): DeadCode
 }
 
 function renderDeadCodeJson(report: DeadCodeReportData, top: number): void {
-  console.log(JSON.stringify({
-    totalIssues: report.totalGranular,
-    unusedFilesCount: report.unusedFiles.length,
-    unusedExportsCount: report.unusedExports.length,
-    unusedDepsCount: report.unusedDeps.length,
-    circularDepsCount: report.circular.length,
-    unusedStoreMembersCount: report.unusedStoreMembers.length,
-    unusedClassMembersCount: report.unusedClassMembers.length,
-    unusedTypesCount: report.unusedTypes.length,
-    unusedEmitsCount: report.unusedEmits.length,
-    unlistedDepsCount: report.unlistedDeps.length,
-    duplicateExportsCount: report.duplicateExports.length,
-    boundaryViolationsCount: report.boundaryViolations.length,
-    unusedPropsCount: report.unusedProps.length,
-    unrenderedComponentsCount: report.unrenderedComponents.length,
-    unprovidedInjectsCount: report.unprovidedInjects.length,
-    unusedFiles: report.unusedFiles.slice(0, top),
-    unusedExports: report.unusedExports.slice(0, top),
-    unusedStoreMembers: report.unusedStoreMembers.slice(0, top),
-    unusedClassMembers: report.unusedClassMembers.slice(0, top),
-    unusedTypes: report.unusedTypes.slice(0, top),
-    unusedEmits: report.unusedEmits.slice(0, top),
-    unlistedDeps: report.unlistedDeps.slice(0, top),
-    duplicateExports: report.duplicateExports.slice(0, top),
-    boundaryViolations: report.boundaryViolations,
-    unusedProps: report.unusedProps.slice(0, top),
-    unrenderedComponents: report.unrenderedComponents.slice(0, top),
-    unprovidedInjects: report.unprovidedInjects.slice(0, top),
-    unusedDeps: report.unusedDeps,
-    circular: report.circular
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        totalIssues: report.totalGranular,
+        unusedFilesCount: report.unusedFiles.length,
+        unusedExportsCount: report.unusedExports.length,
+        unusedDepsCount: report.unusedDeps.length,
+        circularDepsCount: report.circular.length,
+        unusedStoreMembersCount: report.unusedStoreMembers.length,
+        unusedClassMembersCount: report.unusedClassMembers.length,
+        unusedTypesCount: report.unusedTypes.length,
+        unusedEmitsCount: report.unusedEmits.length,
+        unlistedDepsCount: report.unlistedDeps.length,
+        duplicateExportsCount: report.duplicateExports.length,
+        boundaryViolationsCount: report.boundaryViolations.length,
+        unusedPropsCount: report.unusedProps.length,
+        unrenderedComponentsCount: report.unrenderedComponents.length,
+        unprovidedInjectsCount: report.unprovidedInjects.length,
+        unusedFiles: report.unusedFiles.slice(0, top),
+        unusedExports: report.unusedExports.slice(0, top),
+        unusedStoreMembers: report.unusedStoreMembers.slice(0, top),
+        unusedClassMembers: report.unusedClassMembers.slice(0, top),
+        unusedTypes: report.unusedTypes.slice(0, top),
+        unusedEmits: report.unusedEmits.slice(0, top),
+        unlistedDeps: report.unlistedDeps.slice(0, top),
+        duplicateExports: report.duplicateExports.slice(0, top),
+        boundaryViolations: report.boundaryViolations,
+        unusedProps: report.unusedProps.slice(0, top),
+        unrenderedComponents: report.unrenderedComponents.slice(0, top),
+        unprovidedInjects: report.unprovidedInjects.slice(0, top),
+        unusedDeps: report.unusedDeps,
+        circular: report.circular
+      },
+      null,
+      2
+    )
+  );
 }
 
 interface DeadCodeSummaryRow {
@@ -347,21 +504,81 @@ function renderDeadCodeSummaryTable(report: DeadCodeReportData): void {
   ];
 
   const deadCodeRows: DeadCodeSummaryRow[] = [
-    { category: 'Dependencias circulares', count: String(report.circular.length), status: report.circular.length === 0 ? '✅' : '❌' },
-    { category: 'Límites arquitectónicos', count: String(report.boundaryViolations.length), status: report.boundaryViolations.length === 0 ? '✅' : '❌' },
-    { category: 'Archivos huérfanos', count: String(report.unusedFiles.length), status: report.unusedFiles.length === 0 ? '✅' : '❌' },
-    { category: 'Imports no resueltos', count: String(report.unresolvedImports.length), status: report.unresolvedImports.length === 0 ? '✅' : '⚠️' },
-    { category: 'Dependencias no usadas', count: String(report.unusedDeps.length), status: report.unusedDeps.length === 0 ? '✅' : '⚠️' },
-    { category: 'Exports de valor no usados', count: String(report.unusedExports.length), status: report.unusedExports.length === 0 ? '✅' : '⚠️' },
-    { category: 'Miembros de Store no usados', count: String(report.unusedStoreMembers.length), status: report.unusedStoreMembers.length === 0 ? '✅' : '⚠️' },
-    { category: 'Miembros de Clase no usados', count: String(report.unusedClassMembers.length), status: report.unusedClassMembers.length === 0 ? '✅' : '⚠️' },
-    { category: 'Tipos exportados no usados', count: String(report.unusedTypes.length), status: report.unusedTypes.length === 0 ? '✅' : '⚠️' },
-    { category: 'Dependencias no listadas', count: String(report.unlistedDeps.length), status: report.unlistedDeps.length === 0 ? '✅' : '⚠️' },
-    { category: 'Exports duplicados', count: String(report.duplicateExports.length), status: report.duplicateExports.length === 0 ? '✅' : '⚠️' },
-    { category: 'Emits de componentes (Vue)', count: String(report.unusedEmits.length), status: report.unusedEmits.length === 0 ? '✅' : '⚠️' },
-    { category: 'Props no usados (Vue SFC)', count: String(report.unusedProps.length), status: report.unusedProps.length === 0 ? '✅' : '⚠️' },
-    { category: 'Componentes no renderizados', count: String(report.unrenderedComponents.length), status: report.unrenderedComponents.length === 0 ? '✅' : '⚠️' },
-    { category: 'Inyecciones no provistas', count: String(report.unprovidedInjects.length), status: report.unprovidedInjects.length === 0 ? '✅' : '⚠️' }
+    {
+      category: 'Dependencias circulares',
+      count: String(report.circular.length),
+      status: report.circular.length === 0 ? '✅' : '❌'
+    },
+    {
+      category: 'Límites arquitectónicos',
+      count: String(report.boundaryViolations.length),
+      status: report.boundaryViolations.length === 0 ? '✅' : '❌'
+    },
+    {
+      category: 'Archivos huérfanos',
+      count: String(report.unusedFiles.length),
+      status: report.unusedFiles.length === 0 ? '✅' : '❌'
+    },
+    {
+      category: 'Imports no resueltos',
+      count: String(report.unresolvedImports.length),
+      status: report.unresolvedImports.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Dependencias no usadas',
+      count: String(report.unusedDeps.length),
+      status: report.unusedDeps.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Exports de valor no usados',
+      count: String(report.unusedExports.length),
+      status: report.unusedExports.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Miembros de Store no usados',
+      count: String(report.unusedStoreMembers.length),
+      status: report.unusedStoreMembers.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Miembros de Clase no usados',
+      count: String(report.unusedClassMembers.length),
+      status: report.unusedClassMembers.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Tipos exportados no usados',
+      count: String(report.unusedTypes.length),
+      status: report.unusedTypes.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Dependencias no listadas',
+      count: String(report.unlistedDeps.length),
+      status: report.unlistedDeps.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Exports duplicados',
+      count: String(report.duplicateExports.length),
+      status: report.duplicateExports.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Emits de componentes (Vue)',
+      count: String(report.unusedEmits.length),
+      status: report.unusedEmits.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Props no usados (Vue SFC)',
+      count: String(report.unusedProps.length),
+      status: report.unusedProps.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Componentes no renderizados',
+      count: String(report.unrenderedComponents.length),
+      status: report.unrenderedComponents.length === 0 ? '✅' : '⚠️'
+    },
+    {
+      category: 'Inyecciones no provistas',
+      count: String(report.unprovidedInjects.length),
+      status: report.unprovidedInjects.length === 0 ? '✅' : '⚠️'
+    }
   ];
 
   console.log('\n' + renderBoxTable(deadCodeCols, deadCodeRows));
@@ -388,13 +605,13 @@ function printDeadCodeStructural(report: DeadCodeReportData, top: number): void 
 
   if (report.unusedDeps.length > 0) {
     console.log(`\n📦 Dependencias de package.json no usadas (${report.unusedDeps.length}):`);
-    report.unusedDeps.forEach(d => console.log(`  • ${d.package_name}`));
+    report.unusedDeps.forEach((d) => console.log(`  • ${d.package_name}`));
   }
 
   if (report.duplicateExports.length > 0) {
     console.log(`\n📤 Exports Duplicados (${report.duplicateExports.length}):`);
     report.duplicateExports.forEach((d, idx) => {
-      const locs = d.locations?.map(l => `${l.path}:${l.line}`).join(', ') || '';
+      const locs = d.locations?.map((l) => `${l.path}:${l.line}`).join(', ') || '';
       console.log(`  [${idx + 1}] '${d.export_name}' en: ${locs}`);
     });
   }
@@ -402,7 +619,9 @@ function printDeadCodeStructural(report: DeadCodeReportData, top: number): void 
   if (report.unlistedDeps.length > 0) {
     console.log(`\n📦 Dependencias No Listadas en package.json (${report.unlistedDeps.length}):`);
     report.unlistedDeps.forEach((d, idx) => {
-      const firstLoc = d.imported_from?.[0] ? ` (importada en ${d.imported_from[0].path}:${d.imported_from[0].line})` : '';
+      const firstLoc = d.imported_from?.[0]
+        ? ` (importada en ${d.imported_from[0].path}:${d.imported_from[0].line})`
+        : '';
       console.log(`  [${idx + 1}] '${d.package_name}'${firstLoc}`);
     });
   }
@@ -412,28 +631,54 @@ function printDeadCodeSymbols(report: DeadCodeReportData, top: number): void {
   if (report.unusedEmits.length > 0) {
     console.log(`\n🔔 Emits de Componente No Usados (${report.unusedEmits.length}):`);
     report.unusedEmits.forEach((e, idx) => {
-      console.log(`  [${idx + 1}] ${e.path}:${e.line} -> '${e.component_name}' emit '${e.emit_name}'`);
+      console.log(
+        `  [${idx + 1}] ${e.path}:${e.line} -> '${e.component_name}' emit '${e.emit_name}'`
+      );
     });
   }
 
   if (report.unusedStoreMembers.length > 0) {
-    console.log(`\n🏬 Top Miembros de Store No Usados (${Math.min(top, report.unusedStoreMembers.length)} de ${report.unusedStoreMembers.length}):`);
-    report.unusedStoreMembers.slice(0, top).forEach((sm, idx) => console.log(`  [${idx + 1}] ${sm.path}:${sm.line} -> ${sm.parent_name}.${sm.member_name}`));
+    console.log(
+      `\n🏬 Top Miembros de Store No Usados (${Math.min(top, report.unusedStoreMembers.length)} de ${report.unusedStoreMembers.length}):`
+    );
+    report.unusedStoreMembers
+      .slice(0, top)
+      .forEach((sm, idx) =>
+        console.log(`  [${idx + 1}] ${sm.path}:${sm.line} -> ${sm.parent_name}.${sm.member_name}`)
+      );
   }
 
   if (report.unusedClassMembers.length > 0) {
-    console.log(`\n🏛️ Top Miembros de Clase No Usados (${Math.min(top, report.unusedClassMembers.length)} de ${report.unusedClassMembers.length}):`);
-    report.unusedClassMembers.slice(0, top).forEach((cm, idx) => console.log(`  [${idx + 1}] ${cm.path}:${cm.line} -> ${cm.parent_name}.${cm.member_name}`));
+    console.log(
+      `\n🏛️ Top Miembros de Clase No Usados (${Math.min(top, report.unusedClassMembers.length)} de ${report.unusedClassMembers.length}):`
+    );
+    report.unusedClassMembers
+      .slice(0, top)
+      .forEach((cm, idx) =>
+        console.log(`  [${idx + 1}] ${cm.path}:${cm.line} -> ${cm.parent_name}.${cm.member_name}`)
+      );
   }
 
   if (report.unusedTypes.length > 0) {
-    console.log(`\n🏷️ Top Tipos Exportados No Usados (${Math.min(top, report.unusedTypes.length)} de ${report.unusedTypes.length}):`);
-    report.unusedTypes.slice(0, top).forEach((ut, idx) => console.log(`  [${idx + 1}] ${ut.path}:${ut.line} -> type '${ut.export_name}'`));
+    console.log(
+      `\n🏷️ Top Tipos Exportados No Usados (${Math.min(top, report.unusedTypes.length)} de ${report.unusedTypes.length}):`
+    );
+    report.unusedTypes
+      .slice(0, top)
+      .forEach((ut, idx) =>
+        console.log(`  [${idx + 1}] ${ut.path}:${ut.line} -> type '${ut.export_name}'`)
+      );
   }
 
   if (report.unusedExports.length > 0) {
-    console.log(`\n📤 Top Exports de Valor No Usados (${Math.min(top, report.unusedExports.length)} de ${report.unusedExports.length}):`);
-    report.unusedExports.slice(0, top).forEach((x, idx) => console.log(`  [${idx + 1}] ${x.path}:${x.line} -> export '${x.export_name}'`));
+    console.log(
+      `\n📤 Top Exports de Valor No Usados (${Math.min(top, report.unusedExports.length)} de ${report.unusedExports.length}):`
+    );
+    report.unusedExports
+      .slice(0, top)
+      .forEach((x, idx) =>
+        console.log(`  [${idx + 1}] ${x.path}:${x.line} -> export '${x.export_name}'`)
+      );
   }
 }
 
@@ -446,7 +691,13 @@ function reportDeadCode(top: number, json: boolean): void {
     return;
   }
 
-  console.log('\n' + renderBanner('CÓDIGO MUERTO Y DEPENDENCIAS (FALLOW)', `Total de incidencias: ${report.totalGranular}`));
+  console.log(
+    '\n' +
+      renderBanner(
+        'CÓDIGO MUERTO Y DEPENDENCIAS (FALLOW)',
+        `Total de incidencias: ${report.totalGranular}`
+      )
+  );
   renderDeadCodeSummaryTable(report);
   printDeadCodeStructural(report, top);
   printDeadCodeSymbols(report, top);
@@ -455,17 +706,27 @@ function reportDeadCode(top: number, json: boolean): void {
 
 function reportCircular(json: boolean): void {
   const data = runFallowCommand('dead-code', ['--circular-deps']);
-  const circular = (data?.circular_dependencies as Array<{ path?: string; cycle?: string[]; files?: string[] }>) || [];
+  const circular =
+    (data?.circular_dependencies as Array<{ path?: string; cycle?: string[]; files?: string[] }>) ||
+    [];
 
   if (json) {
     console.log(JSON.stringify({ circularDepsCount: circular.length, circular }, null, 2));
     return;
   }
 
-  console.log('\n' + renderBanner('DEPENDENCIAS CIRCULARES (FALLOW)', `Ciclos detectados: ${circular.length}`));
+  console.log(
+    '\n' + renderBanner('DEPENDENCIAS CIRCULARES (FALLOW)', `Ciclos detectados: ${circular.length}`)
+  );
 
   if (circular.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se detectaron dependencias circulares en el proyecto.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! No se detectaron dependencias circulares en el proyecto.\n'
+        )
+    );
     return;
   }
 
@@ -476,17 +737,28 @@ function reportCircular(json: boolean): void {
 
 function reportExports(top: number, json: boolean): void {
   const data = runFallowCommand('dead-code', ['--unused-exports']);
-  const unusedExports = (data?.unused_exports as Array<{ path: string; line: number; export_name: string }>) || [];
+  const unusedExports =
+    (data?.unused_exports as Array<{ path: string; line: number; export_name: string }>) || [];
 
   if (json) {
-    console.log(JSON.stringify({ unusedExportsCount: unusedExports.length, unusedExports: unusedExports.slice(0, top) }, null, 2));
+    console.log(
+      JSON.stringify(
+        { unusedExportsCount: unusedExports.length, unusedExports: unusedExports.slice(0, top) },
+        null,
+        2
+      )
+    );
     return;
   }
 
-  console.log('\n' + renderBanner('EXPORTS NO USADOS (FALLOW)', `Total sin uso: ${unusedExports.length}`));
+  console.log(
+    '\n' + renderBanner('EXPORTS NO USADOS (FALLOW)', `Total sin uso: ${unusedExports.length}`)
+  );
 
   if (unusedExports.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! 0 exports sin uso detectados.\n'));
+    console.log(
+      '\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! 0 exports sin uso detectados.\n')
+    );
     return;
   }
 
@@ -517,17 +789,39 @@ function reportExports(top: number, json: boolean): void {
 
 function reportBoundaries(json: boolean): void {
   const data = runFallowCommand('dead-code');
-  const boundaries = (data?.boundary_violations as Array<{ from_path?: string; to_path?: string; from_zone?: string; to_zone?: string; import_specifier?: string; line?: number }>) || [];
+  const boundaries =
+    (data?.boundary_violations as Array<{
+      from_path?: string;
+      to_path?: string;
+      from_zone?: string;
+      to_zone?: string;
+      import_specifier?: string;
+      line?: number;
+    }>) || [];
 
   if (json) {
-    console.log(JSON.stringify({ totalBoundaries: boundaries.length, violations: boundaries }, null, 2));
+    console.log(
+      JSON.stringify({ totalBoundaries: boundaries.length, violations: boundaries }, null, 2)
+    );
     return;
   }
 
-  console.log('\n' + renderBanner('LÍMITES ARQUITECTÓNICOS (FALLOW)', `Violaciones detectadas: ${boundaries.length}`));
+  console.log(
+    '\n' +
+      renderBanner(
+        'LÍMITES ARQUITECTÓNICOS (FALLOW)',
+        `Violaciones detectadas: ${boundaries.length}`
+      )
+  );
 
   if (boundaries.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! 0 violaciones de límites arquitectónicos. La arquitectura está 100% aislada.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! 0 violaciones de límites arquitectónicos. La arquitectura está 100% aislada.\n'
+        )
+    );
     return;
   }
 
@@ -585,10 +879,12 @@ function extractHealthMetrics(healthData: Record<string, unknown> | null): {
   targetsCount: number;
   hotspotsCount: number;
 } {
-  const summaryObj = (healthData && typeof healthData.summary === 'object' && healthData.summary !== null)
-    ? healthData.summary as Record<string, number> // open-record: Generic parsed health summary dictionary
-    : null;
-  const maintainability = summaryObj?.average_maintainability ?? summaryObj?.maintainability_index ?? 0;
+  const summaryObj =
+    healthData && typeof healthData.summary === 'object' && healthData.summary !== null
+      ? (healthData.summary as Record<string, number>) // open-record: Generic parsed health summary dictionary
+      : null;
+  const maintainability =
+    summaryObj?.average_maintainability ?? summaryObj?.maintainability_index ?? 0;
   return {
     maintainability,
     complexityCount: countArrayItems(healthData, 'findings'),
@@ -606,7 +902,9 @@ function extractDeadCodeMetrics(deadCodeData: Record<string, unknown> | null): {
   unresolvedImportsCount: number;
   unusedDepsCount: number;
 } {
-  const unusedDeps = countArrayItems(deadCodeData, 'unused_dependencies') + countArrayItems(deadCodeData, 'unused_dev_dependencies');
+  const unusedDeps =
+    countArrayItems(deadCodeData, 'unused_dependencies') +
+    countArrayItems(deadCodeData, 'unused_dev_dependencies');
   return {
     circularCount: countArrayItems(deadCodeData, 'circular_dependencies'),
     boundaryCount: countArrayItems(deadCodeData, 'boundary_violations'),
@@ -626,7 +924,16 @@ function collectSummaryMetrics(): FallowSummaryMetrics {
   const dupeGroupsCount = (dupesData?.clone_groups as Array<unknown>)?.length ?? 0;
   const securityCount = (securityData?.security_findings as Array<unknown>)?.length ?? 0;
 
-  const totalWarnings = health.complexityCount + health.largeCount + health.targetsCount + deadCode.unusedFilesCount + deadCode.unusedExportsCount + deadCode.unresolvedImportsCount + deadCode.unusedDepsCount + dupeGroupsCount + securityCount;
+  const totalWarnings =
+    health.complexityCount +
+    health.largeCount +
+    health.targetsCount +
+    deadCode.unusedFilesCount +
+    deadCode.unusedExportsCount +
+    deadCode.unresolvedImportsCount +
+    deadCode.unusedDepsCount +
+    dupeGroupsCount +
+    securityCount;
 
   return {
     ...health,
@@ -638,35 +945,47 @@ function collectSummaryMetrics(): FallowSummaryMetrics {
 }
 
 function printJsonSummary(m: FallowSummaryMetrics): void {
-  console.log(JSON.stringify({
-    maintainability: m.maintainability,
-    totalQualityIndicators: m.totalWarnings,
-    health: {
-      complexityHotspots: m.complexityCount,
-      largeFunctions: m.largeCount,
-      refactoringTargets: m.targetsCount,
-      churnHotspots: m.hotspotsCount
-    },
-    deadCode: {
-      circularDependencies: m.circularCount,
-      boundaryViolations: m.boundaryCount,
-      unusedFiles: m.unusedFilesCount,
-      unusedExports: m.unusedExportsCount,
-      unresolvedImports: m.unresolvedImportsCount,
-      unusedDependencies: m.unusedDepsCount
-    },
-    dupes: {
-      cloneGroups: m.dupeGroupsCount
-    },
-    security: {
-      findings: m.securityCount
-    }
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        maintainability: m.maintainability,
+        totalQualityIndicators: m.totalWarnings,
+        health: {
+          complexityHotspots: m.complexityCount,
+          largeFunctions: m.largeCount,
+          refactoringTargets: m.targetsCount,
+          churnHotspots: m.hotspotsCount
+        },
+        deadCode: {
+          circularDependencies: m.circularCount,
+          boundaryViolations: m.boundaryCount,
+          unusedFiles: m.unusedFilesCount,
+          unusedExports: m.unusedExportsCount,
+          unresolvedImports: m.unresolvedImportsCount,
+          unusedDependencies: m.unusedDepsCount
+        },
+        dupes: {
+          cloneGroups: m.dupeGroupsCount
+        },
+        security: {
+          findings: m.securityCount
+        }
+      },
+      null,
+      2
+    )
+  );
 }
 
 function printTableSummary(m: FallowSummaryMetrics): void {
   const maintStr = m.maintainability > 0 ? `${m.maintainability.toFixed(1)} / 100` : '-';
-  console.log('\n' + renderBanner('DASHBOARD DE INTELIGENCIA DE CÓDIGO (FALLOW)', `Índice de Mantenibilidad: ${maintStr}`));
+  console.log(
+    '\n' +
+      renderBanner(
+        'DASHBOARD DE INTELIGENCIA DE CÓDIGO (FALLOW)',
+        `Índice de Mantenibilidad: ${maintStr}`
+      )
+  );
 
   interface SummaryRow {
     metric: string;
@@ -680,7 +999,10 @@ function printTableSummary(m: FallowSummaryMetrics): void {
 
   const sumRows: SummaryRow[] = [
     { metric: 'Índice de mantenibilidad del código (Fallow)', value: maintStr },
-    { metric: 'Funciones con alta complejidad (cognitiva/ciclomática)', value: String(m.complexityCount) },
+    {
+      metric: 'Funciones con alta complejidad (cognitiva/ciclomática)',
+      value: String(m.complexityCount)
+    },
     { metric: 'Funciones de gran tamaño (>60 LOC)', value: String(m.largeCount) },
     { metric: 'Archivos con alta rotación / churn hotspots', value: String(m.hotspotsCount) },
     { metric: 'Objetivos de refactorización recomendados', value: String(m.targetsCount) },
@@ -698,7 +1020,9 @@ function printTableSummary(m: FallowSummaryMetrics): void {
 
   console.log('\n🛠️ COMANDOS DISPONIBLES EN NPM:');
   console.log('─────────────────────────────────────────────────────────────────────────────');
-  console.log('  • npm run auditor:complexity         → Reporte de complejidad ciclomática/cognitiva');
+  console.log(
+    '  • npm run auditor:complexity         → Reporte de complejidad ciclomática/cognitiva'
+  );
   console.log('  • npm run auditor:fallow:dupes       → Detección de bloques de código clonados');
   console.log('  • npm run auditor:fallow:circular    → Detección de dependencias circulares');
   console.log('  • npm run auditor:fallow:exports     → Detección de exports no usados');
@@ -717,7 +1041,6 @@ function reportAllSummary(json: boolean): void {
     printTableSummary(metrics);
   }
 }
-
 
 interface CoverageGapAction {
   type?: string;
@@ -756,18 +1079,29 @@ function reportCoverageGaps(top: number, json: boolean): void {
   const summary = !isArray ? (rawGaps as CoverageGapsPayload | undefined)?.summary : undefined;
 
   if (json) {
-    console.log(JSON.stringify({ summary, totalGaps: gaps.length, gaps: gaps.slice(0, top) }, null, 2));
+    console.log(
+      JSON.stringify({ summary, totalGaps: gaps.length, gaps: gaps.slice(0, top) }, null, 2)
+    );
     return;
   }
 
-  const subtitle = summary?.file_coverage_pct !== undefined
-    ? `Cobertura: ${summary.file_coverage_pct}% (${summary.covered_files}/${summary.runtime_files} archivos) • Brechas: ${gaps.length}`
-    : `Exports alcanzables sin test: ${gaps.length}`;
+  const subtitle =
+    summary?.file_coverage_pct !== undefined
+      ? `Cobertura: ${summary.file_coverage_pct}% (${summary.covered_files}/${summary.runtime_files} archivos) • Brechas: ${gaps.length}`
+      : `Exports alcanzables sin test: ${gaps.length}`;
 
-  console.log('\n' + renderBanner('BRECHAS DE COBERTURA DE TESTS (FALLOW COVERAGE GAPS)', subtitle));
+  console.log(
+    '\n' + renderBanner('BRECHAS DE COBERTURA DE TESTS (FALLOW COVERAGE GAPS)', subtitle)
+  );
 
   if (gaps.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se detectaron brechas de cobertura en exports alcanzables.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! No se detectaron brechas de cobertura en exports alcanzables.\n'
+        )
+    );
     return;
   }
 
@@ -802,9 +1136,14 @@ function reportCoverageGaps(top: number, json: boolean): void {
 }
 
 function executeComplexityReport(jsonOutput: boolean): void {
-  const currentDir = import.meta.filename ? path.dirname(import.meta.filename) : path.resolve(process.cwd(), 'src/cli');
+  const currentDir = import.meta.filename
+    ? path.dirname(import.meta.filename)
+    : path.resolve(process.cwd(), 'src/cli');
   const compScript = path.resolve(currentDir, 'report_complexity.ts');
-  execSync(`node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? 'json' : ''}`, { stdio: 'inherit' });
+  execSync(
+    `node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? 'json' : ''}`,
+    { stdio: 'inherit' }
+  );
 }
 
 interface FallowSuppressionItem {
@@ -846,7 +1185,13 @@ function reportSuppressions(top: number, json: boolean): void {
   }
 
   if (json) {
-    console.log(JSON.stringify({ summary, total: flattened.length, suppressions: flattened.slice(0, top) }, null, 2));
+    console.log(
+      JSON.stringify(
+        { summary, total: flattened.length, suppressions: flattened.slice(0, top) },
+        null,
+        2
+      )
+    );
     return;
   }
 
@@ -857,7 +1202,13 @@ function reportSuppressions(top: number, json: boolean): void {
   console.log('\n' + renderBanner('INVENTARIO DE SUPRESIONES ACTIVAS (FALLOW SUPPRESSIONS)', sub));
 
   if (flattened.length === 0) {
-    console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Excelente! No se encontraron comentarios ni reglas de supresión activas.\n'));
+    console.log(
+      '\n  ' +
+        styleText(
+          ['bold', 'green'],
+          '✨ ¡Excelente! No se encontraron comentarios ni reglas de supresión activas.\n'
+        )
+    );
     return;
   }
 
@@ -898,7 +1249,9 @@ function reportSuppressions(top: number, json: boolean): void {
 }
 
 function reportViz(json: boolean): void {
-  const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+  const fallowBin =
+    resolveFallowBinary(process.cwd()) ??
+    path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
   const scratchDir = path.resolve(process.cwd(), 'scratch');
   const targetHtml = path.resolve(scratchDir, 'fallow_map.html');
   const defaultHtml = path.resolve(process.cwd(), 'fallow-viz.html');
@@ -924,20 +1277,40 @@ function reportViz(json: boolean): void {
     }
 
     if (json) {
-      console.log(JSON.stringify({ success: true, outputPath: 'scratch/fallow_map.html', message: stdout.trim() }, null, 2));
+      console.log(
+        JSON.stringify(
+          { success: true, outputPath: 'scratch/fallow_map.html', message: stdout.trim() },
+          null,
+          2
+        )
+      );
       return;
     }
 
-    console.log('\n' + renderBanner('MAPA INTERACTIVO DEL CODEBASE (FALLOW VIZ)', 'Visualización interactiva HTML'));
+    console.log(
+      '\n' +
+        renderBanner('MAPA INTERACTIVO DEL CODEBASE (FALLOW VIZ)', 'Visualización interactiva HTML')
+    );
     console.log('\n  ' + styleText(['bold', 'green'], '✨ ¡Mapa generado con éxito!\n'));
     console.log(`  Archivo generado: ${styleText('cyan', 'scratch/fallow_map.html')}`);
     console.log(`  Para visualizarlo, ábrelo en tu navegador.\n`);
   } catch (err: unknown) {
     if (json) {
-      console.log(JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) }, null, 2));
+      console.log(
+        JSON.stringify(
+          { success: false, error: err instanceof Error ? err.message : String(err) },
+          null,
+          2
+        )
+      );
       return;
     }
-    console.error(styleText('red', `Error generando fallow viz: ${err instanceof Error ? err.message : String(err)}`));
+    console.error(
+      styleText(
+        'red',
+        `Error generando fallow viz: ${err instanceof Error ? err.message : String(err)}`
+      )
+    );
   }
 }
 
@@ -962,7 +1335,9 @@ const REPORT_DISPATCH_MAP: Record<string, FallowReportHandler> = {
   coverage_gaps: (top, json) => reportCoverageGaps(top, json),
   gaps: (top, json) => reportCoverageGaps(top, json),
   guard: (_top, json) => {
-    const posArgs = process.argv.slice(2).filter((a) => !a.startsWith('-') && !a.startsWith('category=') && a !== 'guard');
+    const posArgs = process.argv
+      .slice(2)
+      .filter((a) => !a.startsWith('-') && !a.startsWith('category=') && a !== 'guard');
     return runGuardReport(process.cwd(), posArgs, { json });
   },
   flags: (top, json) => {

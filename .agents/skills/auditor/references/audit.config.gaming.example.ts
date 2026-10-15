@@ -232,7 +232,7 @@ export default defineAuditConfig({
   },
 
   packageTypes: {
-    enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires audit:build)
+    enabled: true // Validates package TypeScript declarations (.d.ts) and module resolution via @arethetypeswrong/core (requires build)
   },
 
   packageHygiene: {
@@ -255,10 +255,6 @@ export default defineAuditConfig({
     enabled: true, // Evaluates Istanbul/C8 coverage artifacts (coverage/coverage-final.json)
     threshold: 80, // Minimum statements/lines/branches/functions threshold percentage
     enforceInAudit: true // Promotes coverage threshold drops to blocking errors during full audit
-  },
-
-  eslint: {
-    enabled: true // Flat config governance and Domain-Type-First compliance verification
   },
 
   htmlValidate: {

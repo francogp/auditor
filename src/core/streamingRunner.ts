@@ -1,6 +1,6 @@
 /**
  * scripts/lib/streamingRunner.ts
- * 
+ *
  * SHARED STREAMING EXECUTION ENGINE (Node.js 26+)
  * Provides unified, non-blocking asynchronous process streaming with:
  *   1. Real-time sub-task and progress output.
@@ -61,7 +61,9 @@ export function colorizeStreamSubLine(
   line: string,
   params: { isSuccess: boolean; hasWarnings?: boolean; subAuditors?: readonly SubAuditorReport[] }
 ): string {
-  const color = getColorFromSubAuditor(line, params.subAuditors) ?? getColorFromLineHeuristic(line, params.isSuccess);
+  const color =
+    getColorFromSubAuditor(line, params.subAuditors) ??
+    getColorFromLineHeuristic(line, params.isSuccess);
   if (color === 'red') return styleText('red', line);
   if (color === 'yellow') return styleText('yellow', line);
   return styleText('dim', line);
@@ -103,12 +105,16 @@ export class TaskStreamCoordinator {
     const statusBadge = params.isSkipped
       ? styleText('cyan', '⏭️  SKIP')
       : params.isSuccess
-        ? (params.hasWarnings ? styleText('yellow', '⚠️ ') : styleText('green', '✅'))
+        ? params.hasWarnings
+          ? styleText('yellow', '⚠️ ')
+          : styleText('green', '✅')
         : styleText('red', '❌');
 
     const taskIcon = params.icon ?? (params.isBuiltin === false ? '🧩' : '⚙️');
 
-    console.log(`${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', formatDurationMs(params.durationMs))}`);
+    console.log(
+      `${this.indent}${styleText('dim', `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText('cyan', params.taskName)} ${styleText('dim', `(${params.taskId})`)}... ${statusBadge} ${styleText('dim', formatDurationMs(params.durationMs))}`
+    );
 
     const subIndent = `${this.indent}   `;
     for (const line of params.subLines) {
@@ -121,8 +127,14 @@ export class TaskStreamCoordinator {
 export function isNodeInternalWarning(line: string): boolean {
   if (/^\s*\^+\s*$/.test(line)) return true;
   if (/^\s*await BaseAuditor\.runCli/i.test(line)) return true;
-  if (line.includes('(node:') || line.includes('[RuntimeWarning]') || line.includes('RuntimeWarning:')) return true;
-  return line.includes('[PERM0001]') ||
+  if (
+    line.includes('(node:') ||
+    line.includes('[RuntimeWarning]') ||
+    line.includes('RuntimeWarning:')
+  )
+    return true;
+  return (
+    line.includes('[PERM0001]') ||
     line.includes('[PERM0002]') ||
     line.includes('[PERM0006]') ||
     line.includes('[DEP0190]') ||
@@ -130,14 +142,19 @@ export function isNodeInternalWarning(line: string): boolean {
     line.includes('SecurityWarning: The flag --allow') ||
     line.includes('DeprecationWarning: Passing args') ||
     line.includes('trace-warnings') ||
-    line.includes('experimental-strip-types');
+    line.includes('experimental-strip-types')
+  );
 }
 
 const DEFAULT_RUNNER_TIMEOUT_MS = 0; // 0 = disabled (zero arbitrary timeout by default)
 const SIGKILL_ESCALATION_DELAY_MS = 2000;
-const PROGRESS_LINE_REGEX = /^(?:[🎨📘🔍⏳✨🧩💾📊✅❌\-[0-9]|🛡️|⚙️|⚠️|Paso|Progreso|Sub-|Loading|Found)/iu;
+const PROGRESS_LINE_REGEX =
+  /^(?:[🎨📘🔍⏳✨🧩💾📊✅❌\-[0-9]|🛡️|⚙️|⚠️|Paso|Progreso|Sub-|Loading|Found)/iu;
 
-function splitChunkIntoLines(buffer: string, chunk: string): { lines: string[]; remainder: string } {
+function splitChunkIntoLines(
+  buffer: string,
+  chunk: string
+): { lines: string[]; remainder: string } {
   const combined = buffer + chunk;
   const lines = combined.split('\n');
   const remainder = lines.pop() || '';
@@ -154,7 +171,10 @@ function emitStreamLines(
     const trimmed = line.trim();
     if (!trimmed) continue;
     if (isNodeInternalWarning(trimmed)) {
-      if (trimmed.includes('Detected unsettled top-level await') || trimmed.includes('RuntimeWarning')) {
+      if (
+        trimmed.includes('Detected unsettled top-level await') ||
+        trimmed.includes('RuntimeWarning')
+      ) {
         skipSnippetLines = 2;
       }
       continue;
@@ -204,13 +224,21 @@ export function executeAuditorStreaming(
     if (timeoutLimit > 0) {
       timer = setTimeout(() => {
         timedOut = true;
-        onSubProgress?.(`Timeout excedido (${timeoutLimit}ms) al ejecutar el auditor '${task.name}' (${task.id}).`);
+        onSubProgress?.(
+          `Timeout excedido (${timeoutLimit}ms) al ejecutar el auditor '${task.name}' (${task.id}).`
+        );
         try {
           child.kill('SIGTERM');
           setTimeout(() => {
-            try { child.kill('SIGKILL'); } catch { /* catch-ok: ignore kill failure on already exited child */ }
+            try {
+              child.kill('SIGKILL');
+            } catch {
+              /* catch-ok: ignore kill failure on already exited child */
+            }
           }, SIGKILL_ESCALATION_DELAY_MS);
-        } catch { /* catch-ok: ignore kill failure on already exited child */ }
+        } catch {
+          /* catch-ok: ignore kill failure on already exited child */
+        }
       }, timeoutLimit);
     }
 
@@ -239,7 +267,11 @@ export function executeAuditorStreaming(
       if (stderrLineBuffer.trim() && !isNodeInternalWarning(stderrLineBuffer.trim())) {
         onSubProgress?.(stderrLineBuffer.trim());
       }
-      if (stdoutLineBuffer.trim() && !isNodeInternalWarning(stdoutLineBuffer.trim()) && PROGRESS_LINE_REGEX.test(stdoutLineBuffer.trim())) {
+      if (
+        stdoutLineBuffer.trim() &&
+        !isNodeInternalWarning(stdoutLineBuffer.trim()) &&
+        PROGRESS_LINE_REGEX.test(stdoutLineBuffer.trim())
+      ) {
         onSubProgress?.(stdoutLineBuffer.trim());
       }
       const durationMs = Math.round(performance.now() - taskStart);

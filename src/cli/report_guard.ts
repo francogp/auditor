@@ -107,12 +107,30 @@ export function runGuardReport(
 
   if (files.length === 0) {
     if (options.json) {
-      console.log(JSON.stringify({ error: 'No files specified for architecture guard check', files: [] }));
+      console.log(
+        JSON.stringify({ error: 'No files specified for architecture guard check', files: [] })
+      );
       return 1;
     }
-    console.log('\n' + renderBanner('PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)', 'Límites, zonas permitidas y políticas'));
-    console.log(styleText('yellow', '  ⚠️  Uso: auditor-guard <ruta/archivo1.ts> [ruta/archivo2.vue...] [--json]'));
-    console.log(styleText('dim', '  Inspecciona qué reglas arquitectónicas y límites de importación aplican antes de editar.\n'));
+    console.log(
+      '\n' +
+        renderBanner(
+          'PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)',
+          'Límites, zonas permitidas y políticas'
+        )
+    );
+    console.log(
+      styleText(
+        'yellow',
+        '  ⚠️  Uso: auditor-guard <ruta/archivo1.ts> [ruta/archivo2.vue...] [--json]'
+      )
+    );
+    console.log(
+      styleText(
+        'dim',
+        '  Inspecciona qué reglas arquitectónicas y límites de importación aplican antes de editar.\n'
+      )
+    );
     return 0;
   }
 
@@ -123,15 +141,28 @@ export function runGuardReport(
   );
 
   if (options.json) {
-    console.log(parsed ? JSON.stringify(parsed, null, 2) : JSON.stringify({ error: 'Fallow guard execution failed', raw: rawOutput }));
+    console.log(
+      parsed
+        ? JSON.stringify(parsed, null, 2)
+        : JSON.stringify({ error: 'Fallow guard execution failed', raw: rawOutput })
+    );
     return status;
   }
 
-  console.log('\n' + renderBanner('PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)', `Archivos evaluados: ${files.length}`));
+  console.log(
+    '\n' +
+      renderBanner('PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)', `Archivos evaluados: ${files.length}`)
+  );
 
   const fileResults = parsed?.files ?? [];
   if (fileResults.length === 0) {
-    console.log('  ' + styleText('yellow', 'No se recibieron datos de reglas arquitectónicas para los archivos indicados.\n'));
+    console.log(
+      '  ' +
+        styleText(
+          'yellow',
+          'No se recibieron datos de reglas arquitectónicas para los archivos indicados.\n'
+        )
+    );
     return status;
   }
 

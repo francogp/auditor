@@ -25,7 +25,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor , createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
@@ -50,12 +50,16 @@ export const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 
 const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
 const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
-const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[\w-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[\w-]+="[^"\n]*"[\w$]/;
-export const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:\w*DataProvider|dataProvider)\.\w+\s*\(/g;
+const SCRIPT_SETUP_EXPORT_REGEX =
+  /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
+const TEMPLATE_QUOTE_ESCAPE_REGEX =
+  /(?:\s:|\bv-bind:)[\w-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[\w-]+="[^"\n]*"[\w$]/;
+export const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX =
+  /\{\{[^}]*\b(?:\w*DataProvider|dataProvider)\.\w+\s*\(/g;
 
 const MULT_DIV_MOD_REGEX = /[*/%]\s*\d+(?:\.\d+)?|\b\d+(?:\.\d+)?\s*[*/%]/;
-const COMPARISON_REGEX = /(?:===|!==|==|!=|<=|>=|<|>)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:===|!==|==|!=|<=|>=|<|>)/g;
+const COMPARISON_REGEX =
+  /(?:===|!==|==|!=|<=|>=|<|>)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:===|!==|==|!=|<=|>=|<|>)/g;
 const ADD_SUB_REGEX = /(?:\+|-)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:\+|-)/g;
 
 function checkMultDivMod(code: string): string | null {
@@ -92,11 +96,16 @@ function detectTemplateMagicCalculation(expression: string): string | null {
   if (!trimmed || !/\d/.test(trimmed)) return null;
   if (/^[+-]?\d+(?:\.\d+)?$/.test(trimmed)) return null;
 
-  const codeOnly = trimmed.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"|`[\s\S]*?`/g, match => ' '.repeat(match.length));
+  const codeOnly = trimmed.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"|`[\s\S]*?`/g, (match) =>
+    ' '.repeat(match.length)
+  );
   return checkMultDivMod(codeOnly) ?? checkMagicComparison(codeOnly) ?? checkMagicAddSub(codeOnly);
 }
 
-function resolveVueSfcScanRoots(roots?: readonly string[], projectRoot?: string): readonly string[] {
+function resolveVueSfcScanRoots(
+  roots?: readonly string[],
+  projectRoot?: string
+): readonly string[] {
   if (roots) return roots;
   const cfg = getAuditConfig(projectRoot);
   return [...(cfg.paths.componentsRoots ?? []), ...(cfg.paths.viewsRoots ?? [])];
@@ -115,7 +124,8 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         fix: 'none',
         md: false,
         ast: false,
-        changedOnly: false, critical: false
+        changedOnly: false,
+        critical: false
       }),
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
@@ -135,11 +145,16 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         'vue-template-magic-calculation': 'Cálculo mágico en template Vue'
       },
       ruleRemediations: {
-        'script-setup-required': 'Guía de diagnóstico y remediación para script-setup-required. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-script-setup-exports': 'Guía de diagnóstico y remediación para no-script-setup-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'vue-template-quote-escaping': 'Guía de diagnóstico y remediación para vue-template-quote-escaping. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'no-data-provider-in-template': 'Guía de diagnóstico y remediación para no-data-provider-in-template. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'vue-template-magic-calculation': 'Guía de diagnóstico y remediación para vue-template-magic-calculation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'script-setup-required':
+          'Guía de diagnóstico y remediación para script-setup-required. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-script-setup-exports':
+          'Guía de diagnóstico y remediación para no-script-setup-exports. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'vue-template-quote-escaping':
+          'Guía de diagnóstico y remediación para vue-template-quote-escaping. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'no-data-provider-in-template':
+          'Guía de diagnóstico y remediación para no-data-provider-in-template. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'vue-template-magic-calculation':
+          'Guía de diagnóstico y remediación para vue-template-magic-calculation. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       allowedExtensions: new Set(['.vue'])
     });
@@ -175,7 +190,10 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   private auditScriptSetup(relPath: string, content: string): void {
     // Options API detection
     let match: RegExpExecArray | null;
-    const optionsRegex = new RegExp(OPTIONS_API_EXPORT_REGEX.source, OPTIONS_API_EXPORT_REGEX.flags);
+    const optionsRegex = new RegExp(
+      OPTIONS_API_EXPORT_REGEX.source,
+      OPTIONS_API_EXPORT_REGEX.flags
+    );
     while ((match = optionsRegex.exec(content)) !== null) {
       const line = this.getLineNumber(content, match.index);
       const lineContent = this.getLineAt(content, line);
@@ -195,13 +213,18 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     }
 
     // Check if component has any script tags, and if none has 'setup'
-    const scriptMatches = [...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))];
+    const scriptMatches = [
+      ...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))
+    ];
     if (scriptMatches.length > 0) {
-      const hasSetup = scriptMatches.some(m => /\bsetup\b/.test(m[1] ?? ''));
+      const hasSetup = scriptMatches.some((m) => /\bsetup\b/.test(m[1] ?? ''));
       if (!hasSetup) {
         const firstScriptLine = this.getLineNumber(content, scriptMatches[0]?.index ?? 0);
         const lineContent = this.getLineAt(content, firstScriptLine);
-        if (!this.hasEscapeHatch(lineContent, ['sfc-ok']) && !this.hasEscapeHatch(content, ['sfc-ok'])) {
+        if (
+          !this.hasEscapeHatch(lineContent, ['sfc-ok']) &&
+          !this.hasEscapeHatch(content, ['sfc-ok'])
+        ) {
           this.addViolation({
             ruleId: 'script-setup-required',
             severity: 'error',
@@ -216,7 +239,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   }
 
   private auditScriptSetupExports(relPath: string, content: string): void {
-    const scriptMatches = [...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))];
+    const scriptMatches = [
+      ...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))
+    ];
 
     for (const sMatch of scriptMatches) {
       const attrs = sMatch[1] ?? '';
@@ -226,7 +251,10 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       const scriptStartIndex = sMatch.index ?? 0;
 
       let expMatch: RegExpExecArray | null;
-      const expRegex = new RegExp(SCRIPT_SETUP_EXPORT_REGEX.source, SCRIPT_SETUP_EXPORT_REGEX.flags);
+      const expRegex = new RegExp(
+        SCRIPT_SETUP_EXPORT_REGEX.source,
+        SCRIPT_SETUP_EXPORT_REGEX.flags
+      );
 
       while ((expMatch = expRegex.exec(scriptBody)) !== null) {
         const fullIndex = scriptStartIndex + expMatch.index;
@@ -249,7 +277,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     }
   }
 
-  private extractTemplateBlock(content: string): { templateContent: string; templateStartIndex: number } | null {
+  private extractTemplateBlock(
+    content: string
+  ): { templateContent: string; templateStartIndex: number } | null {
     const parsed = parseVueSfcBlocks(content);
     if (!parsed.template) return null;
     return {
@@ -288,9 +318,11 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     }
   }
 
-  private extractDynamicExpressions(templateContent: string): Array<{ expression: string; offsetInTemplate: number }> {
+  private extractDynamicExpressions(
+    templateContent: string
+  ): Array<{ expression: string; offsetInTemplate: number }> {
     // 1. Mask HTML comments with whitespace to preserve character indices
-    const masked = templateContent.replace(/<!--[\s\S]*?-->/g, match => ' '.repeat(match.length));
+    const masked = templateContent.replace(/<!--[\s\S]*?-->/g, (match) => ' '.repeat(match.length));
 
     const results: Array<{ expression: string; offsetInTemplate: number }> = [];
 
@@ -341,14 +373,18 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     const { templateStartIndex, dynamicExpressions } = data;
     const config = getAuditConfig(this.projectRoot);
     const customPatterns = config.templates?.forbiddenTemplateCallPatterns;
-    const providerRegex = customPatterns && customPatterns.length > 0
-      ? new RegExp(`\\b(?:${customPatterns.join('|')})`, 'i')
-      : /\b\w*DataProvider\.\w+\s*\(/i;
+    const providerRegex =
+      customPatterns && customPatterns.length > 0
+        ? new RegExp(`\\b(?:${customPatterns.join('|')})`, 'i')
+        : /\b\w*DataProvider\.\w+\s*\(/i;
 
     const prohibitedDb = config.persistence?.prohibitedTemplateIdentifiers?.length
       ? config.persistence.prohibitedTemplateIdentifiers
-      : (config.persistence?.engine === 'none' ? [] : ['supabase', 'db']);
-    const dbRegex = prohibitedDb.length > 0 ? new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'i') : null;
+      : config.persistence?.engine === 'none'
+        ? []
+        : ['supabase', 'db'];
+    const dbRegex =
+      prohibitedDb.length > 0 ? new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'i') : null;
 
     for (const { expression, offsetInTemplate } of dynamicExpressions) {
       // 1. Check heavy data providers (e.g. dataProvider.get...)
@@ -366,7 +402,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       // 2. Check prohibited database client identifiers outside string literals
       if (dbRegex) {
         // Strip string literals inside expression to avoid matching strings like tab === 'db'
-        const strippedExpression = expression.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"/g, match => ' '.repeat(match.length));
+        const strippedExpression = expression.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"/g, (match) =>
+          ' '.repeat(match.length)
+        );
         const dbMatch = dbRegex.exec(strippedExpression);
         if (dbMatch) {
           const fullIndex = templateStartIndex + offsetInTemplate + dbMatch.index;
@@ -386,7 +424,6 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     if (!data) return;
 
     const { templateStartIndex, dynamicExpressions } = data;
-
 
     for (const { expression, offsetInTemplate } of dynamicExpressions) {
       const matchedSnippet = detectTemplateMagicCalculation(expression);

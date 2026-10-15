@@ -12,7 +12,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, type AuditorOptions , createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  type AuditorOptions,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 
 enableCompileCache();
@@ -72,14 +76,19 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
   constructor(options: Partial<AuditorOptions<GitConfigRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'priority',
-        md: false,
-        ast: false,
-        changedOnly: false, critical: false
-      }, [...GIT_CONFIG_RULES]),
+      ruleCapabilities: createRuleCapabilities(
+        GIT_CONFIG_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        [...GIT_CONFIG_RULES]
+      ),
       fixableRuleIds: [...GIT_CONFIG_RULES],
       id: 'validate_git_config',
       name: 'Git Configuration Validator',
@@ -97,9 +106,12 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
         'git-config-eol': 'core.eol debe ser lf en repo'
       },
       ruleRemediations: {
-        'git-config-filemode': 'Guía de diagnóstico y remediación para git-config-filemode. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'git-config-autocrlf': 'Guía de diagnóstico y remediación para git-config-autocrlf. Revisa la incidencia detectada y ajusta el código correspondiente.',
-        'git-config-eol': 'Guía de diagnóstico y remediación para git-config-eol. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'git-config-filemode':
+          'Guía de diagnóstico y remediación para git-config-filemode. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'git-config-autocrlf':
+          'Guía de diagnóstico y remediación para git-config-autocrlf. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'git-config-eol':
+          'Guía de diagnóstico y remediación para git-config-eol. Revisa la incidencia detectada y ajusta el código correspondiente.'
       },
       coverage: { include: ['package.json'] },
       ...options

@@ -1,6 +1,6 @@
 /**
  * packages/auditor/src/cli/auditScanner.ts
- * 
+ *
  * AUDITOR SCANNER & AUTO-DISCOVERY ENGINE (Node.js 26+)
  * Scans packages/auditor/src/suites/ recursively and loads host extensions from audit.config.ts,
  * infers families, generates canonical task definitions, and guarantees that ZERO auditors
@@ -21,7 +21,10 @@ import {
 } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
-import { PackageScriptRegistry, CORE_PACKAGE_SCRIPT_REQUIREMENTS } from '../core/packageScriptRegistry.ts';
+import {
+  PackageScriptRegistry,
+  CORE_PACKAGE_SCRIPT_REQUIREMENTS
+} from '../core/packageScriptRegistry.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 
@@ -30,7 +33,15 @@ export const AUDIT_PRESETS: Record<string, readonly string[]> = {
   security: ['validate_security_hardening']
 };
 
-export type AuditPresetName = 'lint' | 'full' | 'precommit' | 'md' | 'post-build' | 'build' | 'critical' | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
+export type AuditPresetName =
+  | 'lint'
+  | 'full'
+  | 'precommit'
+  | 'md'
+  | 'post-build'
+  | 'build'
+  | 'critical'
+  | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
 
 export {
   type DiscoveryOptions,
@@ -43,10 +54,7 @@ export {
   buildTaskCliArguments,
   createAuditTaskDefinition
 } from './auditTaskFactory.ts';
-import {
-  type DiscoveryOptions,
-  createAuditTaskDefinition
-} from './auditTaskFactory.ts';
+import { type DiscoveryOptions, createAuditTaskDefinition } from './auditTaskFactory.ts';
 
 export {
   type ExtractedAuditorMetadata,
@@ -59,7 +67,9 @@ export async function extractCapabilitiesFromFile(fullPath: string): Promise<Aud
   return (await extractAuditorMetadataFromFile(fullPath)).capabilities;
 }
 
-export async function extractGitIgnoreRequirementsFromFile(fullPath: string): Promise<readonly GitIgnoreRequirement[]> {
+export async function extractGitIgnoreRequirementsFromFile(
+  fullPath: string
+): Promise<readonly GitIgnoreRequirement[]> {
   return (await extractAuditorMetadataFromFile(fullPath)).gitIgnoreEntries;
 }
 
@@ -84,16 +94,22 @@ function resolveTargetSuiteIds(
   if (options.suites && options.suites.length > 0) {
     targetSuiteIds = new Set([...(targetSuiteIds ?? []), ...options.suites]);
   } else if (options.task && options.task.includes(',')) {
-    const list = options.task.split(',').map(s => s.trim()).filter(Boolean);
+    const list = options.task
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     targetSuiteIds = new Set([...(targetSuiteIds ?? []), ...list]);
   }
   return targetSuiteIds;
 }
 
-function inferFamilyFromRelPath(relPath: string, activeFamilies: readonly AuditFamily[]): AuditFamily {
+function inferFamilyFromRelPath(
+  relPath: string,
+  activeFamilies: readonly AuditFamily[]
+): AuditFamily {
   const segments = relPath.split('/');
   const firstSegment = segments[0];
-  if (segments.length > 1 && firstSegment && activeFamilies.some(f => f === firstSegment)) {
+  if (segments.length > 1 && firstSegment && activeFamilies.some((f) => f === firstSegment)) {
     return firstSegment as AuditFamily;
   }
   return 'architecture';
@@ -102,7 +118,8 @@ function inferFamilyFromRelPath(relPath: string, activeFamilies: readonly AuditF
 function isIgnoredFileEntry(entry: string): boolean {
   if (entry.startsWith('_')) return true;
   if (!entry.endsWith('.ts') && !entry.endsWith('.js')) return true;
-  if (entry.endsWith('.d.ts') || entry.endsWith('.d.ts.map') || entry.endsWith('.js.map')) return true;
+  if (entry.endsWith('.d.ts') || entry.endsWith('.d.ts.map') || entry.endsWith('.js.map'))
+    return true;
   return (
     entry.includes('.spec.') ||
     entry.includes('.test.') ||
@@ -171,7 +188,10 @@ interface ExtensionScanParams {
   discovered: AuditTaskDefinition[];
 }
 
-function detectExtensionFamily(extPath: string, activeFamilies: readonly AuditFamily[]): AuditFamily {
+function detectExtensionFamily(
+  extPath: string,
+  activeFamilies: readonly AuditFamily[]
+): AuditFamily {
   const normalized = extPath.replace(/\\/g, '/');
   for (const fam of activeFamilies) {
     if (normalized.includes(`/${fam}/`)) {
@@ -181,7 +201,11 @@ function detectExtensionFamily(extPath: string, activeFamilies: readonly AuditFa
   return 'domain_data';
 }
 
-async function scanSingleExtensionFile(fullPath: string, extPath: string, params: ExtensionScanParams): Promise<void> {
+async function scanSingleExtensionFile(
+  fullPath: string,
+  extPath: string,
+  params: ExtensionScanParams
+): Promise<void> {
   const filename = path.basename(extPath, path.extname(extPath));
   const family = detectExtensionFamily(extPath, params.activeFamilies);
 
@@ -197,7 +221,10 @@ async function scanSingleExtensionFile(fullPath: string, extPath: string, params
   if (task) params.discovered.push(task);
 }
 
-async function scanConfigExtensionEntry(extPath: string, params: ExtensionScanParams): Promise<void> {
+async function scanConfigExtensionEntry(
+  extPath: string,
+  params: ExtensionScanParams
+): Promise<void> {
   const rootDir = params.options.projectRoot || process.cwd();
   const fullPath = path.resolve(rootDir, extPath);
   if (!fsSync.existsSync(fullPath)) return;
@@ -225,14 +252,16 @@ async function scanConfigExtensions(params: ExtensionScanParams): Promise<void> 
   }
 }
 
-export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<AuditTaskDefinition[]> {
+export async function discoverAuditors(
+  options: DiscoveryOptions = {}
+): Promise<AuditTaskDefinition[]> {
   const config = await loadAuditConfig(options.projectRoot);
   const activeFamilies = getActiveFamilies(config.customFamilies);
   const discovered: AuditTaskDefinition[] = [];
 
   const combinedPresets = {
     ...AUDIT_PRESETS,
-    ...(config.presets ?? {})
+    ...config.presets
   };
 
   const targetSuiteIds = resolveTargetSuiteIds(options, combinedPresets);
@@ -248,7 +277,11 @@ export async function discoverAuditors(options: DiscoveryOptions = {}): Promise<
     discovered
   });
 
-  if ((!options.baseDir || options.baseDir === BUILTIN_SUITES_DIR) && config.extensions && config.extensions.length > 0) {
+  if (
+    (!options.baseDir || options.baseDir === BUILTIN_SUITES_DIR) &&
+    config.extensions &&
+    config.extensions.length > 0
+  ) {
     await scanConfigExtensions({
       extensions: config.extensions,
       config,
@@ -276,7 +309,7 @@ export async function collectAllGitIgnoreRequirements(
   projectRoot: string = process.cwd(),
   config?: Awaited<ReturnType<typeof loadAuditConfig>>
 ): Promise<GitIgnoreRequirement[]> {
-  const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
+  const effectiveConfig = config ?? (await loadAuditConfig(projectRoot));
   await discoverAuditors({ projectRoot });
 
   const customEntries = effectiveConfig.gitIgnore?.extraRequiredEntries ?? [];
@@ -304,7 +337,7 @@ export async function collectAllPackageScriptRequirements(
   projectRoot: string = process.cwd(),
   config?: Awaited<ReturnType<typeof loadAuditConfig>>
 ): Promise<readonly AuditorPackageScriptRequirement[]> {
-  const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
+  const effectiveConfig = config ?? (await loadAuditConfig(projectRoot));
   const tasks = await discoverAuditors({ projectRoot });
 
   const seenScriptNames = new Set<string>();
@@ -345,4 +378,3 @@ export async function collectAllPackageScriptRequirements(
 
   return collected;
 }
-
