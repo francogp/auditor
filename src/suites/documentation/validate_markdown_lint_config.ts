@@ -174,6 +174,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
 
     const relPath =
       path.relative(this.projectRoot, resolvedPath) || MARKDOWNLINT_CONFIG_REQUIREMENT.file;
+    this.recordScanned(relPath);
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');

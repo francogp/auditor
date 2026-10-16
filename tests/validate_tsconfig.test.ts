@@ -209,5 +209,24 @@ describe('ValidateTsconfigAuditor', () => {
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
       expect(repaired.include).toContain('src/**/*');
     });
+
+    it('Canary 7 (Secondary tsconfig.*.json & Dead Legacy Include Cleanup): scans tsconfig.*.json and purges dead vitest.config.ts', async () => {
+      const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
+      const tsconfigAppPath = path.join(tmpDir, 'tsconfig.app.json');
+      const rootCfg: TsConfigShape = {
+        ...CANONICAL_TSCONFIG,
+        include: ['src/**/*', 'vitest.config.ts']
+      };
+      fs.writeFileSync(tsconfigPath, JSON.stringify(rootCfg, null, 2), 'utf8');
+      fs.writeFileSync(tsconfigAppPath, JSON.stringify(CANONICAL_TSCONFIG, null, 2), 'utf8');
+
+      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+
+      const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
+      expect(repaired.include).not.toContain('vitest.config.ts');
+    });
   });
 });

@@ -148,7 +148,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
           'Remediación: Ejecuta `auditor fix` para añadir los patrones requeridos sin alterar los existentes.'
       },
       coverage: {
-        include: ['.dockerignore', 'Dockerfile*']
+        include: ['.dockerignore']
       },
       projectRoot,
       fix: optionsObj?.fix,
@@ -183,6 +183,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
 
     const relPath =
       path.relative(this.projectRoot, resolvedPath) || DOCKER_CONFIG_REQUIREMENT.file;
+    this.recordScanned(relPath);
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');

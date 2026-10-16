@@ -250,6 +250,7 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
     const resolvedFile = configFile;
 
     const relPath = toPosixRelative(this.projectRoot, resolvedFile);
+    this.recordScanned(relPath);
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedFile, 'utf-8');

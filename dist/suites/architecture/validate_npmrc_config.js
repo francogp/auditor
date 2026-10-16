@@ -112,6 +112,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 		}
 		const resolvedPath = configFile;
 		const relPath = path.relative(this.projectRoot, resolvedPath) || NPMRC_CONFIG_REQUIREMENT.file;
+		this.recordScanned(relPath);
 		let rawContent;
 		try {
 			rawContent = fs.readFileSync(resolvedPath, "utf8");

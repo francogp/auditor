@@ -49,7 +49,10 @@ function findLegacyEslintIgnores(projectRoot) {
 			const globs = [];
 			const stringRegex = /['"]([^'"]+)['"]/g;
 			let m;
-			while ((m = stringRegex.exec(capturedArray)) !== null) if (m[1]) globs.push(m[1]);
+			while ((m = stringRegex.exec(capturedArray)) !== null) {
+				const candidateGlob = m[1];
+				if (candidateGlob && !LEGACY_CONFIG_FILES.some((f) => f === candidateGlob)) globs.push(candidateGlob);
+			}
 			if (globs.length > 0) return globs;
 		} catch {}
 	}

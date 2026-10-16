@@ -142,6 +142,14 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 		}
 		const resolvedPath = configFile;
 		const relPath = path.relative(this.projectRoot, resolvedPath) || TSCONFIG_REQUIREMENT.file;
+		this.recordScanned(relPath);
+		const extraTsconfigs = [];
+		try {
+			for (const entry of fs.readdirSync(this.projectRoot)) if (/^tsconfig\..+\.json$/.test(entry)) {
+				this.recordScanned(entry);
+				extraTsconfigs.push(entry);
+			}
+		} catch {}
 		let rawContent;
 		try {
 			rawContent = fs.readFileSync(resolvedPath, "utf8");
@@ -153,6 +161,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			return;
 		}
 		let parsed;
+		const extraParsed = /* @__PURE__ */ new Map();
 		this.runSubAuditorSync("tsconfig-syntax", () => {
 			try {
 				parsed = JSON.parse(rawContent);
@@ -166,6 +175,25 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						file: relPath,
 						line: 1,
 						message: `Error de sintaxis JSON en ${relPath}.`
+					});
+				}
+			}
+			for (const extraFile of extraTsconfigs) {
+				const extraFullPath = path.resolve(this.projectRoot, extraFile);
+				try {
+					const extraRaw = fs.readFileSync(extraFullPath, "utf8");
+					try {
+						extraParsed.set(extraFile, JSON.parse(extraRaw));
+					} catch {
+						extraParsed.set(extraFile, JSON.parse(stripComments(extraRaw)));
+					}
+				} catch {
+					this.addViolation({
+						ruleId: "tsconfig-syntax",
+						severity: "error",
+						file: extraFile,
+						line: 1,
+						message: `Error de sintaxis JSON en ${extraFile}.`
 					});
 				}
 			}
@@ -243,6 +271,16 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					message: "compilerOptions.noImplicitThis: false está prohibido. Debe ser true o eliminarse."
 				});
 			}
+			for (const [extraFile, extraCfg] of extraParsed.entries()) {
+				const extraOpts = extraCfg.compilerOptions ?? {};
+				for (const banned of BANNED_COMPILER_OPTIONS) if (extraOpts[banned] !== void 0) this.addViolation({
+					ruleId: "tsconfig-banned-option",
+					severity: "error",
+					file: extraFile,
+					line: 1,
+					message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
+				});
+			}
 		});
 		this.runSubAuditorSync("tsconfig-missing-source-include", () => {
 			if (parsedConfig.include && Array.isArray(parsedConfig.include)) {
@@ -257,6 +295,18 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						line: 1,
 						message: "El arreglo include en tsconfig.json debe abarcar el directorio src/."
 					});
+				}
+				if (isFix) {
+					const deadLegacyConfigs = [
+						"vitest.config.ts",
+						"vitest.config.js",
+						"vitest.config.mjs"
+					];
+					const filtered = parsedConfig.include.filter((p) => !deadLegacyConfigs.some((f) => f === p) || fs.existsSync(path.resolve(this.projectRoot, p)));
+					if (filtered.length !== parsedConfig.include.length) {
+						parsedConfig.include = filtered;
+						modified = true;
+					}
 				}
 			} else if (parsedConfig.include !== void 0) {
 				if (isFix) {

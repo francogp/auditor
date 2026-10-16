@@ -131,5 +131,31 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       expect(repaired).toContain('reporter:');
       expect(repaired).toContain('trace:');
     });
+
+    it('Canary 3 (Legacy Runner Migration): detects npx vite in webServer.command and migrates to vp dev in fix mode', async () => {
+      fs.mkdirSync(path.join(tmpDir, 'tests/e2e'), { recursive: true });
+      const configPath = path.join(tmpDir, 'playwright.config.ts');
+      const legacyCmd = 'npx ' + 'vite --port 5173';
+      const legacyConfig = CANONICAL_PLAYWRIGHT_CONFIG_CONTENT.replace(
+        '});',
+        `  ,webServer: { command: '${legacyCmd}' }\n});`
+      );
+      fs.writeFileSync(configPath, legacyConfig, 'utf8');
+
+      const checkAuditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
+      const checkResult = await checkAuditor.execute();
+      expect(checkResult.status).toBe('failed');
+      expect(
+        checkResult.findings.some((f) => f.ruleId === 'playwright-config-missing-setting')
+      ).toBe(true);
+
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({ fix: true }, tmpDir);
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+
+      const repaired = fs.readFileSync(configPath, 'utf8');
+      expect(repaired).toContain('vp dev --port 5173');
+    });
   });
 });

@@ -172,6 +172,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 		}
 		const resolvedFile = configFile;
 		const relPath = toPosixRelative(this.projectRoot, resolvedFile);
+		this.recordScanned(relPath);
 		let rawContent;
 		try {
 			rawContent = fs.readFileSync(resolvedFile, "utf-8");

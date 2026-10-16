@@ -164,6 +164,7 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
 
     const relPath =
       path.relative(this.projectRoot, resolvedPath) || EDITORCONFIG_REQUIREMENT.file;
+    this.recordScanned(relPath);
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');

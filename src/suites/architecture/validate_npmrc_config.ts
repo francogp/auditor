@@ -156,6 +156,7 @@ export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
 
     const relPath =
       path.relative(this.projectRoot, resolvedPath) || NPMRC_CONFIG_REQUIREMENT.file;
+    this.recordScanned(relPath);
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');

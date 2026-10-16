@@ -73,7 +73,10 @@ export function isPlaywrightProjectContext(projectRoot: string): boolean {
     // catch-ok
   }
 
-  return fs.existsSync(path.join(projectRoot, 'e2e'));
+  return (
+    fs.existsSync(path.join(projectRoot, 'e2e')) ||
+    fs.existsSync(path.join(projectRoot, 'tests/e2e'))
+  );
 }
 
 export const PLAYWRIGHT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<PlaywrightConfigRuleId> = {
@@ -191,6 +194,7 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
 
     const relPath =
       path.relative(this.projectRoot, resolvedPath) || PLAYWRIGHT_CONFIG_REQUIREMENT.file;
+    this.recordScanned(relPath);
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');
@@ -271,6 +275,22 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
             file: relPath,
             line: 1,
             message: 'Se requiere configurar "use.trace" para diagnósticos de fallos en E2E.'
+          });
+        }
+      }
+
+      // Check legacy npx vite in webServer.command
+      if (/\bnpx\s+vite\b/.test(updatedContent)) {
+        if (isFix) {
+          updatedContent = updatedContent.replace(/\bnpx\s+vite\b/g, 'vp dev');
+          modified = true;
+        } else {
+          this.addViolation({
+            ruleId: 'playwright-config-missing-setting',
+            severity: 'error',
+            file: relPath,
+            line: 1,
+            message: 'Se prohíbe usar "npx vite" en webServer.command; utiliza "vp dev".'
           });
         }
       }

@@ -219,6 +219,20 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
     const resolvedPath = configFile;
 
     const relPath = path.relative(this.projectRoot, resolvedPath) || TSCONFIG_REQUIREMENT.file;
+    this.recordScanned(relPath);
+
+    const extraTsconfigs: string[] = []; // no-domain: Discovered secondary tsconfig.*.json filenames
+    try {
+      for (const entry of fs.readdirSync(this.projectRoot)) {
+        if (/^tsconfig\..+\.json$/.test(entry)) {
+          this.recordScanned(entry);
+          extraTsconfigs.push(entry);
+        }
+      }
+    } catch {
+      // catch-ok
+    }
+
     let rawContent: string;
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');
@@ -231,6 +245,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
     }
 
     let parsed: TsConfigShape | undefined;
+    const extraParsed = new Map<string, TsConfigShape>();
     this.runSubAuditorSync('tsconfig-syntax', () => {
       try {
         parsed = JSON.parse(rawContent) as TsConfigShape;
@@ -244,6 +259,26 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
             file: relPath,
             line: 1,
             message: `Error de sintaxis JSON en ${relPath}.`
+          });
+        }
+      }
+
+      for (const extraFile of extraTsconfigs) {
+        const extraFullPath = path.resolve(this.projectRoot, extraFile);
+        try {
+          const extraRaw = fs.readFileSync(extraFullPath, 'utf8');
+          try {
+            extraParsed.set(extraFile, JSON.parse(extraRaw) as TsConfigShape);
+          } catch {
+            extraParsed.set(extraFile, JSON.parse(stripComments(extraRaw)) as TsConfigShape);
+          }
+        } catch {
+          this.addViolation({
+            ruleId: 'tsconfig-syntax',
+            severity: 'error',
+            file: extraFile,
+            line: 1,
+            message: `Error de sintaxis JSON en ${extraFile}.`
           });
         }
       }
@@ -346,6 +381,21 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
           });
         }
       }
+
+      for (const [extraFile, extraCfg] of extraParsed.entries()) {
+        const extraOpts = extraCfg.compilerOptions ?? {};
+        for (const banned of BANNED_COMPILER_OPTIONS) {
+          if (extraOpts[banned] !== undefined) {
+            this.addViolation({
+              ruleId: 'tsconfig-banned-option',
+              severity: 'error',
+              file: extraFile,
+              line: 1,
+              message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
+            });
+          }
+        }
+      }
     });
 
     // 3. Check include covers src
@@ -370,6 +420,23 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
               line: 1,
               message: 'El arreglo include en tsconfig.json debe abarcar el directorio src/.'
             });
+          }
+        }
+
+        if (isFix) {
+          const deadLegacyConfigs = [
+            'vitest.config.ts',
+            'vitest.config.js',
+            'vitest.config.mjs'
+          ] as const;
+          const filtered = parsedConfig.include.filter(
+            (p) =>
+              !deadLegacyConfigs.some((f) => f === p) ||
+              fs.existsSync(path.resolve(this.projectRoot, p))
+          );
+          if (filtered.length !== parsedConfig.include.length) {
+            parsedConfig.include = filtered;
+            modified = true;
           }
         }
       } else if (parsedConfig.include !== undefined) {

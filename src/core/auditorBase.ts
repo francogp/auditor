@@ -2441,6 +2441,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     for (const candidate of candidates) {
       const fullPath = path.resolve(this.projectRoot, candidate);
       if (nodeFs.existsSync(fullPath)) {
+        this.recordScanned(toPosixRelative(this.projectRoot, fullPath));
         return fullPath;
       }
     }
@@ -2464,6 +2465,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     if (!nodeFs.existsSync(targetPath)) {
       nodeFs.writeFileSync(targetPath, content, 'utf-8');
     }
+    this.recordScanned(toPosixRelative(this.projectRoot, targetPath));
     return { resolvedPath: targetPath, created: true };
   }
 

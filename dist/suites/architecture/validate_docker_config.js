@@ -101,7 +101,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 				"dockerignore-missing": "Diagnóstico: El proyecto tiene Dockerfile o compose pero falta .dockerignore.\nRemediación: Ejecuta `auditor fix` para auto-scaffoldear el .dockerignore canónico.",
 				"dockerignore-missing-pattern": "Diagnóstico: Faltan exclusiones críticas en .dockerignore (node_modules, .git, scratch, .env*).\nRemediación: Ejecuta `auditor fix` para añadir los patrones requeridos sin alterar los existentes."
 			},
-			coverage: { include: [".dockerignore", "Dockerfile*"] },
+			coverage: { include: [".dockerignore"] },
 			projectRoot,
 			fix: optionsObj?.fix,
 			...optionsObj
@@ -127,6 +127,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 		}
 		const resolvedPath = configFile;
 		const relPath = path.relative(this.projectRoot, resolvedPath) || DOCKER_CONFIG_REQUIREMENT.file;
+		this.recordScanned(relPath);
 		let rawContent;
 		try {
 			rawContent = fs.readFileSync(resolvedPath, "utf8");

@@ -1323,7 +1323,10 @@ var BaseAuditor = class BaseAuditor {
 		const candidates = requirement.candidateFiles && requirement.candidateFiles.length > 0 ? requirement.candidateFiles : [requirement.file];
 		for (const candidate of candidates) {
 			const fullPath = path.resolve(this.projectRoot, candidate);
-			if (fs.existsSync(fullPath)) return fullPath;
+			if (fs.existsSync(fullPath)) {
+				this.recordScanned(toPosixRelative(this.projectRoot, fullPath));
+				return fullPath;
+			}
 		}
 		return null;
 	}
@@ -1337,6 +1340,7 @@ var BaseAuditor = class BaseAuditor {
 			config
 		});
 		if (!fs.existsSync(targetPath)) fs.writeFileSync(targetPath, content, "utf-8");
+		this.recordScanned(toPosixRelative(this.projectRoot, targetPath));
 		return {
 			resolvedPath: targetPath,
 			created: true

@@ -57,7 +57,10 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
       const stringRegex = /['"]([^'"]+)['"]/g;
       let m: RegExpExecArray | null;
       while ((m = stringRegex.exec(capturedArray)) !== null) {
-        if (m[1]) globs.push(m[1]);
+        const candidateGlob = m[1];
+        if (candidateGlob && !LEGACY_CONFIG_FILES.some((f) => f === candidateGlob)) {
+          globs.push(candidateGlob);
+        }
       }
       if (globs.length > 0) return globs;
     } catch {
