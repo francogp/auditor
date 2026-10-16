@@ -30,6 +30,7 @@ export interface TsConfigShape {
 export declare const CANONICAL_TSCONFIG: TsConfigShape;
 export declare const MANDATORY_STRICT_OPTIONS: readonly (keyof TsCompilerOptionsShape)[];
 export declare const VALID_MODULE_RESOLUTIONS: readonly ["bundler", "node16", "nodenext"];
+export declare const VALID_TARGETS: readonly ["es2025", "esnext"];
 export declare const BANNED_COMPILER_OPTIONS: readonly ["suppressImplicitAnyIndexErrors"];
 export declare const TSCONFIG_REQUIREMENT: AuditorConfigFileRequirement<TsConfigRuleId>;
 export declare class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {

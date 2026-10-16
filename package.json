@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.7.2-build.20261016-110030",
+  "version": "8.7.3-build.20261016-183504",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -17,6 +17,7 @@
     "auditor-build-deploy": "dist/cli/build_deploy.js",
     "auditor-bundle": "dist/cli/audit_bundle.js",
     "auditor-by-file": "dist/cli/report_findings.js",
+    "auditor-by-rule": "dist/cli/report_findings.js",
     "auditor-check-env": "dist/cli/check_environment.js",
     "auditor-complexity": "dist/cli/report_complexity.js",
     "auditor-coverage": "dist/cli/report_test_coverage.js",
@@ -31,6 +32,7 @@
     "auditor-post-build": "dist/cli/audit_post_build.js",
     "auditor-report-findings": "dist/cli/report_findings.js",
     "auditor-review": "dist/cli/report_review.js",
+    "auditor-rules": "dist/cli/report_findings.js",
     "auditor-setup-env": "dist/cli/setup_env.js",
     "auditor-similar": "dist/cli/report_similar_code.js",
     "auditor-sync-env": "dist/cli/sync_env_scripts.js",
@@ -112,6 +114,8 @@
     "auditor:test-coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:coverage-map": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/report_coverage_map.ts",
     "auditor:by-file": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts by-file",
+    "auditor:by-rule": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts by-rule",
+    "auditor:rules": "node --permission --experimental-strip-types --allow-fs-read=* src/cli/report_findings.ts rules",
     "auditor:update": "node --experimental-strip-types src/cli/update_package.ts",
     "auditor:version": "node --experimental-strip-types src/cli/bump_version.ts",
     "version": "node --experimental-strip-types src/cli/bump_version.ts",

@@ -226,4 +226,49 @@ describe('report_findings CLI Tool', () => {
     expect(() => runReport()).not.toThrow();
     expect(consoleLogSpy).toHaveBeenCalled();
   });
+
+  it('supports rule filtering (rule=no-explicit-any)', () => {
+    process.argv = ['node', 'report_findings.ts', 'rule=no-explicit-any', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('renders rules breakdown view (by-rule / rules)', () => {
+    process.argv = ['node', 'report_findings.ts', 'rules', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('supports flat inspection mode without error sample limits', () => {
+    process.argv = ['node', 'report_findings.ts', 'flat', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('supports comma-separated file filters (file=math.ts,other.ts)', () => {
+    process.argv = ['node', 'report_findings.ts', 'file=math.ts,other.ts', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
+
+  it('handles partial audits gracefully without throwing or exiting', () => {
+    fsReadSpy.mockImplementationOnce(() =>
+      JSON.stringify({
+        ...mockReport,
+        meta: {
+          ...mockReport.meta,
+          isFullAudit: false,
+          runMode: 'single',
+          executedSuiteCount: 1,
+          totalDiscoveredSuites: 79,
+          executedSuites: ['validate_oxlint'],
+          timestamp: Temporal.Now.instant().toString()
+        }
+      })
+    );
+
+    process.argv = ['node', 'report_findings.ts', 'allow-stale'];
+    expect(() => runReport()).not.toThrow();
+    expect(consoleLogSpy).toHaveBeenCalled();
+  });
 });

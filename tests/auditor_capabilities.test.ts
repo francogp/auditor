@@ -32,7 +32,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const similarCodePath = path.resolve('src/suites/architecture/validate_similar_code.ts');
     const similarCaps = await extractCapabilitiesFromFile(similarCodePath);
     expect(similarCaps).not.toBeNull();
-    expect(similarCaps?.fix).toBe('normal');
+    expect(similarCaps?.fix).toBe('none');
     expect(similarCaps?.speed).toBe('heavy');
     expect(similarCaps?.critical).toBe(false);
 
@@ -139,7 +139,6 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_package_scripts',
       'validate_playwright_config',
       'validate_script_extensions',
-      'validate_similar_code',
       'validate_stylelint',
       'validate_stylelint_config',
       'validate_tsconfig',

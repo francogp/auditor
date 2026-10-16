@@ -115,6 +115,18 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "reporting"
 	},
 	{
+		name: "auditor:rules",
+		command: "auditor-findings rules",
+		description: "Desglose consolidado de violaciones agrupadas y ordenadas por regla",
+		category: "reporting"
+	},
+	{
+		name: "auditor:by-rule",
+		command: "auditor-findings by-rule",
+		description: "Desglose consolidado de violaciones agrupadas y ordenadas por regla",
+		category: "reporting"
+	},
+	{
 		name: "auditor:complexity",
 		command: "auditor-complexity",
 		description: "Diagnóstico de complejidad ciclomática y refactoring targets de Fallow",

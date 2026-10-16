@@ -94,7 +94,7 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
         fs.writeFileSync(
           path.join(sandbox, 'tsconfig.json'),
           JSON.stringify({
-            compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext' },
+            compilerOptions: { target: 'ES2025', module: 'NodeNext', moduleResolution: 'NodeNext' },
             include: ['src/**/*.ts']
           })
         );
@@ -123,7 +123,7 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
         path.join(sandbox, 'tsconfig.json'),
         JSON.stringify({
           compilerOptions: {
-            target: 'ES2022',
+            target: 'ES2025',
             module: 'NodeNext',
             moduleResolution: 'NodeNext',
             strict: true

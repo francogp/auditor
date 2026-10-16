@@ -55,6 +55,7 @@ const VALID_MODULE_RESOLUTIONS = [
 	"node16",
 	"nodenext"
 ];
+const VALID_TARGETS = ["es2025", "esnext"];
 const BANNED_COMPILER_OPTIONS = ["suppressImplicitAnyIndexErrors"];
 const TSCONFIG_REQUIREMENT = {
 	id: "tsconfig-config",
@@ -113,7 +114,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			ruleRemediations: {
 				"tsconfig-missing": "Diagnóstico: El archivo tsconfig.json no existe en la raíz del proyecto.\nRemediación: Ejecuta `auditor fix` o `npm run auditor:fix` para auto-scaffoldear la configuración canónica estricta de TypeScript.",
 				"tsconfig-syntax": "Diagnóstico: El archivo tsconfig.json contiene errores de sintaxis JSON o caracteres inválidos.\nRemediación: Inspecciona tsconfig.json, corrige comas sobrantes o comillas mal cerradas.",
-				"tsconfig-missing-strict-compiler-option": "Diagnóstico: Se omitieron o degradaron opciones estrictas obligatorias (strict, noImplicitAny, noUncheckedIndexedAccess).\nRemediación: Ejecuta `auditor fix` para reinyectar el baseline estricto o configúralas manualmente en compilerOptions.",
+				"tsconfig-missing-strict-compiler-option": "Diagnóstico: Se omitieron o degradaron opciones estrictas obligatorias (strict, noImplicitAny, noUncheckedIndexedAccess, target >= ES2025).\nRemediación: Ejecuta `auditor fix` para reinyectar el baseline estricto o configúralas manualmente en compilerOptions.",
 				"tsconfig-banned-option": "Diagnóstico: Se detectó una opción permisiva o prohibida (ej. suppressImplicitAnyIndexErrors, noImplicitThis: false).\nRemediación: Ejecuta `auditor fix` para remover las opciones prohibidas y resolver los errores de tipado legítimamente.",
 				"tsconfig-missing-source-include": "Diagnóstico: El arreglo include no abarca el directorio de código fuente principal (`src/**/*`).\nRemediación: Agrega `\"src/**/*\"` al arreglo `include` en tsconfig.json o ejecuta `auditor fix`."
 			},
@@ -245,6 +246,19 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					message: `compilerOptions.moduleResolution debe ser "bundler", "node16" o "nodenext".`
 				});
 			}
+			const targetOpt = compilerOptions.target ? String(compilerOptions.target).toLowerCase() : "";
+			if (!VALID_TARGETS.some((v) => v === targetOpt)) {
+				if (isFix) {
+					compilerOptions.target = "ES2025";
+					modified = true;
+				} else this.addViolation({
+					ruleId: "tsconfig-missing-strict-compiler-option",
+					severity: "error",
+					file: relPath,
+					line: 1,
+					message: `compilerOptions.target debe ser "ES2025" o "ESNext" según el baseline estricto de Node 26+.`
+				});
+			}
 		});
 		this.runSubAuditorSync("tsconfig-banned-option", () => {
 			for (const banned of BANNED_COMPILER_OPTIONS) if (compilerOptions[banned] !== void 0) {
@@ -329,4 +343,4 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTsconfigAuditor());
 //#endregion
-export { BANNED_COMPILER_OPTIONS, CANONICAL_TSCONFIG, MANDATORY_STRICT_OPTIONS, TSCONFIG_REQUIREMENT, TSCONFIG_RULES, VALID_MODULE_RESOLUTIONS, ValidateTsconfigAuditor };
+export { BANNED_COMPILER_OPTIONS, CANONICAL_TSCONFIG, MANDATORY_STRICT_OPTIONS, TSCONFIG_REQUIREMENT, TSCONFIG_RULES, VALID_MODULE_RESOLUTIONS, VALID_TARGETS, ValidateTsconfigAuditor };

@@ -42,7 +42,7 @@ const SIMILAR_CODE_RULE_CAPABILITIES = {
 	"fallow-similar-code-failed": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "normal",
+		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: false,
@@ -178,7 +178,6 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 				fallbackRuleId: "fallow-similar-code-failed"
 			},
 			ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
-			fixableRuleIds: ["fallow-similar-code-failed"],
 			id: "validate_similar_code",
 			name: "Fallow Similar Code Semantics Validator",
 			description: "Detecta duplicados semánticos de funciones",

@@ -46,9 +46,12 @@ interface ReportOptions {
   search: string;
   filePattern: string;
   dirPattern: string;
+  rulePattern: string;
   scope: ReportScope;
   breakdown: boolean;
   byFile: boolean;
+  byRule: boolean;
+  flat: boolean;
   top: number | 'all';
   jsonOutput: boolean;
   summaryOnly: boolean;
@@ -70,6 +73,17 @@ const BY_FILE_FLAGS = new Set([
   'group-by=file',
   'byfile'
 ]);
+const BY_RULE_FLAGS = new Set([
+  'by-rule',
+  '--by-rule',
+  'by_rule',
+  'rules',
+  '--rules',
+  'byrule',
+  'group=rule',
+  'group-by=rule'
+]);
+const FLAT_FLAGS = new Set(['flat', '--flat', 'all-samples', '--all-samples', 'raw', '--raw']);
 const STALE_FLAGS = new Set(['allow-stale', '--allow-stale', 'stale']);
 const PARTIAL_FLAGS = new Set(['allow-partial', '--allow-partial', 'partial']);
 const FIX_FLAGS = new Set(['fix', '--fix', 'fix-report', '--fix-report']);
@@ -78,6 +92,12 @@ function isInvokedAsByFile(): boolean {
   const scriptArg = process.argv[1] ?? '';
   const scriptName = path.basename(scriptArg).toLowerCase();
   return scriptName.includes('auditor-by-file');
+}
+
+function isInvokedAsByRule(): boolean {
+  const scriptArg = process.argv[1] ?? '';
+  const scriptName = path.basename(scriptArg).toLowerCase();
+  return scriptName.includes('auditor-rules') || scriptName.includes('auditor-by-rule');
 }
 
 function parseFlagArg(arg: string, opts: ReportOptions): boolean {
@@ -99,6 +119,14 @@ function parseFlagArg(arg: string, opts: ReportOptions): boolean {
   }
   if (BY_FILE_FLAGS.has(arg)) {
     opts.byFile = true;
+    return true;
+  }
+  if (BY_RULE_FLAGS.has(arg)) {
+    opts.byRule = true;
+    return true;
+  }
+  if (FLAT_FLAGS.has(arg)) {
+    opts.flat = true;
     return true;
   }
   if (STALE_FLAGS.has(arg)) {
@@ -181,6 +209,11 @@ function parseFilterAndValue(arg: string, opts: ReportOptions): boolean {
     opts.filePattern = arg.slice(prefixLen).toLowerCase();
     return true;
   }
+  if (arg.startsWith('rule=') || arg.startsWith('ruleid=') || arg.startsWith('r=')) {
+    const prefixLen = arg.startsWith('ruleid=') ? 7 : (arg.startsWith('rule=') ? 5 : 2);
+    opts.rulePattern = arg.slice(prefixLen).toLowerCase();
+    return true;
+  }
   if (arg.startsWith('top=')) {
     const topVal = arg.slice(4).toLowerCase();
     opts.top =
@@ -200,9 +233,12 @@ function parseReportOptions(): ReportOptions {
     search: '',
     filePattern: '',
     dirPattern: '',
+    rulePattern: '',
     scope: 'all',
     breakdown: false,
     byFile: isInvokedAsByFile(),
+    byRule: isInvokedAsByRule(),
+    flat: false,
     top: DEFAULT_TOP_LIMIT,
     jsonOutput: false,
     summaryOnly: false,
@@ -221,10 +257,15 @@ function parseReportOptions(): ReportOptions {
       continue;
     }
     if (!arg.startsWith('-')) {
-      if (arg.toLowerCase() === 'by-file' || arg.toLowerCase() === 'byfile') {
+      const lower = arg.toLowerCase();
+      if (lower === 'by-file' || lower === 'byfile') {
         opts.byFile = true;
+      } else if (lower === 'by-rule' || lower === 'byrule' || lower === 'rules') {
+        opts.byRule = true;
+      } else if (lower === 'flat' || lower === 'raw') {
+        opts.flat = true;
       } else {
-        opts.category = arg.toLowerCase();
+        opts.category = lower;
       }
     }
   }
@@ -355,25 +396,14 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
 
   if (report.meta.isFullAudit) return;
 
-  if (!args.allowPartial) {
-    if (args.category === 'all') {
-      console.error(
-        styleText(
-          'red',
-          `❌ scratch/audits/${targetFileName} proviene de una auditoría PARCIAL (${report.meta.runMode}, ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites ejecutadas).\n`
-        ) +
-          styleText(
-            'yellow',
-            `   No es posible emitir reportes globales de hallazgos sobre una corrida parcial.\n`
-          ) +
-          styleText(
-            'cyan',
-            `👉 DEBES ejecutar 'npm run auditor' (completo) o agregar 'partial' para inspeccionar esta corrida.`
-          )
-      );
-      process.exit(1);
-    }
+  console.log(
+    styleText(
+      'yellow',
+      `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(', ')}).\n`
+    )
+  );
 
+  if (args.category !== 'all') {
     const matchesExecutedSuite = report.meta.executedSuites.some(
       (s: string) =>
         s.toLowerCase().includes(args.category.toLowerCase()) ||
@@ -400,31 +430,15 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
       );
     });
 
-    if (!matchesExecutedSuite && !matchesExecutedFinding) {
-      console.error(
+    if (!matchesExecutedSuite && !matchesExecutedFinding && !args.allowPartial) {
+      console.warn(
         styleText(
-          'red',
-          `❌ La categoría solicitada ('${args.category}') NO fue auditada en la última corrida parcial.\n`
-        ) +
-          styleText(
-            'yellow',
-            `   Suites ejecutadas en esta corrida: ${report.meta.executedSuites.join(', ')}\n`
-          ) +
-          styleText('yellow', `   Suites omitidas: ${report.meta.omittedSuites.length} suites.\n`) +
-          styleText(
-            'cyan',
-            `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${args.category}' primero.`
-          )
+          'yellow',
+          `⚠️  La categoría solicitada ('${args.category}') podría no haber sido auditada en la última corrida parcial.\n` +
+            `   Suites ejecutadas: ${report.meta.executedSuites.join(', ')}\n`
+        )
       );
-      process.exit(1);
     }
-  } else {
-    console.log(
-      styleText(
-        'yellow',
-        `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(', ')}).\n`
-      )
-    );
   }
 }
 
@@ -478,8 +492,12 @@ function matchesPathFilters(f: Finding, args: ReportOptions): boolean {
     }
   }
 
-  if (args.filePattern && (!f.file || !f.file.toLowerCase().includes(args.filePattern))) {
-    return false;
+  if (args.filePattern) {
+    if (!f.file) return false;
+    const lowerFile = f.file.toLowerCase();
+    const patterns = args.filePattern.split(',').map((p) => p.trim()).filter(Boolean);
+    const matchesAny = patterns.some((p) => lowerFile.includes(p));
+    if (!matchesAny) return false;
   }
   return true;
 }
@@ -499,6 +517,12 @@ function checkFindingMatchesFilter(f: Finding, catKey: string, args: ReportOptio
     const cleanArg = args.category.replace(/[-_]/g, ' ').toLowerCase();
     const cleanCat = catKey.replace(/[-_]/g, ' ').toLowerCase();
     if (!cleanCat.includes(cleanArg)) return false;
+  }
+  if (args.rulePattern) {
+    const cleanRule = args.rulePattern.toLowerCase();
+    const inRuleId = f.ruleId ? f.ruleId.toLowerCase().includes(cleanRule) : false;
+    const inRuleDesc = f.ruleDescription ? f.ruleDescription.toLowerCase().includes(cleanRule) : false;
+    if (!inRuleId && !inRuleDesc) return false;
   }
   if (args.severity !== 'all' && f.severity !== args.severity) return false;
   if (!matchesPathFilters(f, args)) return false;
@@ -606,26 +630,28 @@ function renderCategoryDetailSample(
 }
 
 function renderFilteredDetailSample(matchingFindings: Finding[], args: ReportOptions): void {
-  const limit = args.top === 'all' ? matchingFindings.length : args.top;
+  const limit = args.flat || args.top === 'all' ? matchingFindings.length : args.top;
   const filterInfo = [
     args.severity !== 'all' ? `severity=${args.severity}` : null,
     args.dirPattern ? `dir="${args.dirPattern}"` : null,
+    args.rulePattern ? `rule="${args.rulePattern}"` : null,
     args.scope !== 'all' ? `scope=${args.scope}` : null,
     args.search ? `search="${args.search}"` : null,
-    args.filePattern ? `file="${args.filePattern}"` : null
+    args.filePattern ? `file="${args.filePattern}"` : null,
+    args.flat ? 'flat' : null
   ]
     .filter(Boolean)
     .join(', ');
   console.log(
-    `\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n`
+    `\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo || 'todos'}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n`
   );
   const sample = matchingFindings.slice(0, limit);
   sample.forEach((f, idx) => {
     const loc = formatFindingLocation(f);
-    const ruleTag = f.ruleDescription
-      ? `[${f.ruleDescription}] `
-      : f.ruleId
-        ? `[${f.ruleId}] `
+    const ruleTag = f.ruleId
+      ? `[${f.ruleId}] `
+      : f.ruleDescription
+        ? `[${f.ruleDescription}] `
         : '';
     console.log(`  ${idx + 1}. [${f.severity.toUpperCase()}] ${loc}: ${ruleTag}${f.message}`);
   });
@@ -638,13 +664,9 @@ function renderFindingsDetailSample(
   allFindings: Finding[],
   args: ReportOptions
 ): void {
-  if (args.category !== 'all') {
-    const cleanArg = args.category.replace(/[-_]/g, ' ').toLowerCase();
-    const target = sortedCategories.find(([name]) =>
-      name.toLowerCase().replace(/[-_]/g, ' ').includes(cleanArg)
-    );
-    renderCategoryDetailSample(target, args.category, sortedCategories, args);
-  } else if (
+  if (
+    args.flat ||
+    args.rulePattern ||
     args.search ||
     args.filePattern ||
     args.dirPattern ||
@@ -652,6 +674,12 @@ function renderFindingsDetailSample(
     args.severity !== 'all'
   ) {
     renderFilteredDetailSample(matchingFindings, args);
+  } else if (args.category !== 'all') {
+    const cleanArg = args.category.replace(/[-_]/g, ' ').toLowerCase();
+    const target = sortedCategories.find(([name]) =>
+      name.toLowerCase().replace(/[-_]/g, ' ').includes(cleanArg)
+    );
+    renderCategoryDetailSample(target, args.category, sortedCategories, args);
   } else {
     const allErrors = allFindings.filter((f) => f.severity === 'error');
     if (allErrors.length > 0) {
@@ -664,6 +692,26 @@ function renderFindingsDetailSample(
       console.log(renderSampleFindings(allErrors, limit));
     }
   }
+}
+
+function renderRulesView(matchingFindings: Finding[], args: ReportOptions): void {
+  const sortedRules = aggregateAndSortFindings(
+    matchingFindings,
+    (f) => f.ruleId || f.ruleDescription || 'desconocida'
+  );
+  const rulesToDisplay = args.top === 'all' ? sortedRules : sortedRules.slice(0, args.top);
+  const bannerTitle =
+    args.category !== 'all'
+      ? `DESGLOSE POR REGLA (${args.category})`
+      : 'DESGLOSE POR REGLA DE AUDITORÍA';
+  console.log(
+    '\n' +
+      renderBanner(
+        bannerTitle,
+        `Total hallazgos: ${matchingFindings.length} | Reglas con violaciones: ${sortedRules.length}`
+      )
+  );
+  console.log('\n' + renderFindingsBreakdownTable(rulesToDisplay, 'REGLA / ID DE VERIFICACIÓN') + '\n');
 }
 
 function renderBreakdownView(matchingFindings: Finding[], args: ReportOptions): void {
@@ -804,6 +852,11 @@ export function runReport(): void {
 
   if (args.byFile) {
     renderByFileView(matchingFindings, report, args);
+    return;
+  }
+
+  if (args.byRule) {
+    renderRulesView(matchingFindings, args);
     return;
   }
 

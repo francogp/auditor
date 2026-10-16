@@ -290,7 +290,6 @@ describe('Auditor Architecture Conformance', () => {
         'validate_package_scripts',
         'validate_playwright_config',
         'validate_script_extensions',
-        'validate_similar_code',
         'validate_stylelint',
         'validate_stylelint_config',
         'validate_tsconfig',

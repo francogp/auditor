@@ -187,6 +187,7 @@ describe('ValidateTsconfigAuditor', () => {
       const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
       const missingSrc: TsConfigShape = {
         compilerOptions: {
+          target: 'ES2025',
           strict: true,
           noImplicitAny: true,
           noUncheckedIndexedAccess: true,
@@ -227,6 +228,39 @@ describe('ValidateTsconfigAuditor', () => {
 
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
       expect(repaired.include).not.toContain('vitest.config.ts');
+    });
+
+    it('Canary 8 (Target Minimum ES2025 Mandate): detects outdated target ES2022 and upgrades to ES2025 in fix mode', async () => {
+      const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
+      const outdatedTarget: TsConfigShape = {
+        compilerOptions: {
+          target: 'ES2022',
+          strict: true,
+          noImplicitAny: true,
+          noUncheckedIndexedAccess: true,
+          moduleResolution: 'bundler'
+        },
+        include: ['src/**/*']
+      };
+      fs.writeFileSync(tsconfigPath, JSON.stringify(outdatedTarget, null, 2), 'utf8');
+
+      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkResult = await checkAuditor.execute();
+      expect(checkResult.status).toBe('failed');
+      const targetViolations = checkResult.findings.filter(
+        (f) =>
+          f.ruleId === 'tsconfig-missing-strict-compiler-option' &&
+          f.message.includes('compilerOptions.target')
+      );
+      expect(targetViolations.length).toBe(1);
+
+      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+
+      const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
+      expect(repaired.compilerOptions?.target).toBe('ES2025');
     });
   });
 });

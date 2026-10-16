@@ -89,6 +89,11 @@ export const VALID_MODULE_RESOLUTIONS = [
   'nodenext'
 ] as const;
 
+export const VALID_TARGETS = [
+  'es2025',
+  'esnext'
+] as const;
+
 export const BANNED_COMPILER_OPTIONS = [
   'suppressImplicitAnyIndexErrors'
 ] as const;
@@ -177,7 +182,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
           'Diagnóstico: El archivo tsconfig.json contiene errores de sintaxis JSON o caracteres inválidos.\n' +
           'Remediación: Inspecciona tsconfig.json, corrige comas sobrantes o comillas mal cerradas.',
         'tsconfig-missing-strict-compiler-option':
-          'Diagnóstico: Se omitieron o degradaron opciones estrictas obligatorias (strict, noImplicitAny, noUncheckedIndexedAccess).\n' +
+          'Diagnóstico: Se omitieron o degradaron opciones estrictas obligatorias (strict, noImplicitAny, noUncheckedIndexedAccess, target >= ES2025).\n' +
           'Remediación: Ejecuta `auditor fix` para reinyectar el baseline estricto o configúralas manualmente en compilerOptions.',
         'tsconfig-banned-option':
           'Diagnóstico: Se detectó una opción permisiva o prohibida (ej. suppressImplicitAnyIndexErrors, noImplicitThis: false).\n' +
@@ -342,6 +347,25 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
             file: relPath,
             line: 1,
             message: `compilerOptions.moduleResolution debe ser "bundler", "node16" o "nodenext".`
+          });
+        }
+      }
+
+      // Check target (minimum ES2025 / ESNext standard for Node.js 26+)
+      const targetOpt = compilerOptions.target
+        ? String(compilerOptions.target).toLowerCase()
+        : '';
+      if (!VALID_TARGETS.some((v) => v === targetOpt)) {
+        if (isFix) {
+          compilerOptions.target = 'ES2025';
+          modified = true;
+        } else {
+          this.addViolation({
+            ruleId: 'tsconfig-missing-strict-compiler-option',
+            severity: 'error',
+            file: relPath,
+            line: 1,
+            message: `compilerOptions.target debe ser "ES2025" o "ESNext" según el baseline estricto de Node 26+.`
           });
         }
       }

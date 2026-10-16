@@ -79,10 +79,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v8.7.2`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v8.7.3`):
 
 ```bash
-npm install -D github:francogp/auditor#v8.7.2 --allow-git=all
+npm install -D github:francogp/auditor#v8.7.3 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +92,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v8.7.2"
+    "@francogp/auditor": "github:francogp/auditor#v8.7.3"
   }
 }
 ```
@@ -172,7 +172,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '8.7.2-build.20261016-110030',
+  auditorVersion: '8.7.3-build.20261016-183504',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -229,7 +229,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v8.7.2"`), or install via `npm install -D github:francogp/auditor#v8.7.2 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v8.7.3"`), or install via `npm install -D github:francogp/auditor#v8.7.3 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -445,6 +445,29 @@ flowchart TD
 - **Early Chdir**: Operates natively in the host's directory, ensuring Oxlint / Vite+, Stylelint, HTML-Validate, Fallow (Candle CPU), and Git inspect local host configs directly.
 - **Binary Fallback**: If an external linter binary is not installed in the host's `node_modules/.bin/`, the framework falls back to `AUDITOR_HOME_DIR/node_modules/.bin/`.
 - **Zero Host Pollution**: Runs directly from `@francogp/auditor` in memory and writes reports directly into `host/scratch/audits/`.
+
+### 4.10. Findings & Rule Inspection Tools (`auditor:findings`, `auditor:rules`, `auditor:by-file`)
+
+Inspect, filter, and drill down into audit findings recorded in `scratch/audits/latest_audit.json` without writing custom inspection scripts:
+
+```bash
+# View finding counts grouped by rule in an 80-col Box-Drawing table:
+npm run auditor:rules
+# or:
+auditor-findings rules
+
+# Filter findings by a specific rule ID:
+npm run auditor:findings -- rule=vue-sfc-lang-ts
+
+# Exhaustive un-truncated output (ideal for AI agents and terminals):
+npm run auditor:findings -- flat
+
+# Filter by multiple files or directories:
+npm run auditor:findings -- file=src/core/version.ts,src/cli/report_findings.ts
+
+# Hierarchical directory tree view:
+npm run auditor:by-file
+```
 
 ---
 

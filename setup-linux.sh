@@ -284,6 +284,19 @@ if [ ! -d "$FALLOW_USER_CACHE" ]; then
     echo "  [+] Creado directorio de caché Fallow: $FALLOW_USER_CACHE"
 fi
 
+# Inicializar y verificar modelo de IA de similar-code
+FALLOW_BIN="$SCRIPT_DIR/node_modules/fallow/bin/fallow"
+if [ -f "$FALLOW_BIN" ]; then
+    echo "  [+] Verificando estado del modelo vectorial de similar-code..."
+    STATUS_JSON=$(node "$FALLOW_BIN" similar-code status --format json 2>/dev/null || echo "{}")
+    if echo "$STATUS_JSON" | grep -q '"model_ready":true'; then
+        echo "  [✓] Modelo de embeddings de IA para similar-code verificado y listo."
+    else
+        echo "  [+] Descargando e inicializando modelo de embeddings de IA (jina-embeddings-v2-base-code)..."
+        node "$FALLOW_BIN" similar-code setup --local --yes || echo "  [WARN] No se pudo inicializar similar-code automáticamente."
+    fi
+fi
+
 # Verificación de exclusión de scratch/ en .gitignore
 GITIGNORE_FILE="$SCRIPT_DIR/.gitignore"
 if [ -f "$GITIGNORE_FILE" ]; then

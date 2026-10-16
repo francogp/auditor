@@ -21,6 +21,8 @@ This reference documents the detailed technical specifications, edge-case handli
 13. [Modern Performance, Security & Architecture Expansion Suites](#13-modern-performance-security--architecture-expansion-suites)
 14. [Documented Commands Governance & Dual Resolution Protocol](#14-documented-commands-governance--dual-resolution-protocol)
 15. [Dynamic Sub-Auditor Conformance Testing Mandate](#15-dynamic-sub-auditor-conformance-testing-mandate)
+16. [Markdown Project SemVer Reference Synchronization Mandate](#16-markdown-project-semver-reference-synchronization-mandate)
+17. [TypeScript Compiler Baseline & ES2025 Standard Mandate (`validate_tsconfig`)](#17-typescript-compiler-baseline--es2025-standard-mandate-validate_tsconfig)
 
 ---
 
@@ -271,3 +273,14 @@ Governed by `validate_markdown_code_references` and `src/core/markdownVersionVal
   4. Explicit package version assertions `${pkgName}@X.Y.Z` or `${pkgName} vX.Y.Z`.
 - **Exemptions**: Explicit historical changelogs (`CHANGELOG.md`, `v8-migration-guide.md`) and sentences describing legacy/historical context (e.g. `Since version X.Y.Z`, `legacy vX`, `auditor-update vX.Y.Z`).
 - **Automated Synchronization**: In `--fix` mode (`auditor fix`) and automatically during `auditor-version bump`, all references on disk are updated to the active SemVer.
+
+---
+
+## 17. TypeScript Compiler Baseline & ES2025 Standard Mandate (`validate_tsconfig`)
+
+Governed by `src/suites/architecture/validate_tsconfig.ts`:
+
+- **Node.js 26+ Native Standard**: In modern Node 26+ and TypeScript 6.0+ environments, `compilerOptions.target` must strictly be `'ES2025'` or `'ESNext'` (`ALLOWED_TARGETS = ['es2025', 'esnext']`).
+- **Violation Detection (`tsconfig-missing-strict-compiler-option`)**: Omitting `target` or specifying an outdated target (e.g. `'ES2022'`, `'ES2020'`, `'ES6'`) triggers a blocking violation (`severity: 'error'`).
+- **Anti-Castration Mandate**: Enforces `strict: true`, `noImplicitAny: true`, `noUncheckedIndexedAccess: true`, and `moduleResolution: "bundler" | "node16" | "nodenext"`.
+- **Automated Repair (`auditor fix`)**: Automatically upgrades outdated `target` values to `'ES2025'` and re-injects missing strict compiler options without degrading existing configurations.

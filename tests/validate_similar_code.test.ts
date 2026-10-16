@@ -71,7 +71,7 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(auditor.id).toBe('validate_similar_code');
       expect(auditor.family).toBe('architecture');
       expect(auditor.capabilities.speed).toBe('heavy');
-      expect(auditor.capabilities.fix).not.toBe('none');
+      expect(auditor.capabilities.fix).toBe('none');
     });
   });
 
