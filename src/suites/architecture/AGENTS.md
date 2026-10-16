@@ -80,10 +80,13 @@ Architecture & Tooling Engineers.
 - [`validate_dead_css.ts`](./validate_dead_css.ts): Dead scoped CSS class detection in Vue components powered by shared AST analysis.
 - [`validate_dependency_vulnerabilities.ts`](./validate_dependency_vulnerabilities.ts): Dependency CVE security vulnerabilities analysis via `npm audit --json`.
 - [`validate_dependency_minimums.ts`](./validate_dependency_minimums.ts): Conditional minimum version validator for shared libraries, with floors read from the auditor `peerDependencies`.
+- [`validate_docker_config.ts`](./validate_docker_config.ts): Docker configuration and .dockerignore hygiene verifier enforcing root isolation and automated scaffolding.
+- [`validate_editorconfig.ts`](./validate_editorconfig.ts): EditorConfig baseline integrity verifier enforcing charset, indentation, and newline hygiene.
 - [`validate_environment_engines.ts`](./validate_environment_engines.ts): Package.json engines declaration and active runtime alignment validator with automated setup repair.
 - [`validate_git_config.ts`](./validate_git_config.ts): Local Git repository configuration validator ensuring core.filemode, core.autocrlf, and core.eol standards with automated repair.
 - [`validate_constant_hygiene.ts`](./validate_constant_hygiene.ts): Constant hygiene, duplicate/divergent detection, magic numbers, and identifier naming standards.
 - [`validate_ephemeral_storage_isolation.ts`](./validate_ephemeral_storage_isolation.ts): Strict isolation of temporary files in `scratch/`.
+- [`validate_error_suppression.ts`](./validate_error_suppression.ts): Error suppression and empty catch blocks auditor enforcing justification annotations.
 - [`validate_oxlint.ts`](./validate_oxlint.ts): Oxlint execution and code hygiene violation formatting.
 - [`validate_oxfmt.ts`](./validate_oxfmt.ts): Oxfmt execution and code formatting hygiene validator via Vite+ (`vp fmt`).
 - [`validate_vite_plus_config.ts`](./validate_vite_plus_config.ts): Vite+ configuration governance and legacy config prohibition.
@@ -93,12 +96,15 @@ Architecture & Tooling Engineers.
 - [`validate_gsap_scrolltrigger.ts`](./validate_gsap_scrolltrigger.ts): GSAP ScrollTrigger architectural hygiene enforcing proper timeline nesting, scrub/toggleActions exclusivity, and linear container animation easing.
 - [`validate_gsap_framework_hygiene.ts`](./validate_gsap_framework_hygiene.ts): GSAP framework and component lifecycle hygiene enforcing scoped selectors, cleanup on unmount, and plugin registration.
 - [`validate_html_validate.ts`](./validate_html_validate.ts): W3C/WHATWG Living Standard validator via `html-validate`.
+- [`validate_html_validate_config.ts`](./validate_html_validate_config.ts): HTML-Validate configuration integrity verifier enforcing strict baseline rules and automated scaffolding.
 - [`validate_accessibility.ts`](./validate_accessibility.ts): Vue and web accessibility (WCAG 2.2) standards.
 - [`validate_native_paths.ts`](./validate_native_paths.ts): Path traversal (CWE-22) and unsafe file concatenation detector.
+- [`validate_npmrc_config.ts`](./validate_npmrc_config.ts): NPM runtime configuration (.npmrc) verifier enforcing engine-strict, exact saving, and audit hygiene.
 - [`validate_package_distribution.ts`](./validate_package_distribution.ts): Package.json export map, type definitions, and dual-package hazard auditor via Publint.
 - [`validate_package_types.ts`](./validate_package_types.ts): Package types resolution and dual-package hazard auditor via ATTW (@arethetypeswrong/core).
 - [`validate_package_hygiene.ts`](./validate_package_hygiene.ts): Unused dependencies, phantom unlisted dependencies, and orphan package binaries via Knip.
 - [`validate_pinia_reactivity.ts`](./validate_pinia_reactivity.ts): Pinia store destructuring and reactivity rules.
+- [`validate_playwright_config.ts`](./validate_playwright_config.ts): Playwright test configuration verifier enforcing trace, screenshot, and strict timeout baselines.
 - [`validate_reactive_leaks.ts`](./validate_reactive_leaks.ts): Vue memory leak prevention (uncleaned listeners and timers).
 - [`validate_reactive_purity.ts`](./validate_reactive_purity.ts): Pure computed getters and zero side-effects verification.
 - [`validate_script_commands.ts`](./validate_script_commands.ts): Executable script and CI/CD pipeline command validator ensuring all invoked npm/npx commands exist in package.json.
@@ -110,6 +116,7 @@ Architecture & Tooling Engineers.
 - [`validate_test_fragmentation.ts`](./validate_test_fragmentation.ts): Vitest anti-fragmentation (bans micro-test files <60 LOC).
 - [`validate_test_hygiene.ts`](./validate_test_hygiene.ts): Playwright test hygiene (bans force clicks and blind timeouts).
 - [`validate_test_coverage.ts`](./validate_test_coverage.ts): Test execution coverage and untracked file auditor.
+- [`validate_tsconfig.ts`](./validate_tsconfig.ts): TypeScript configuration (tsconfig.json) verifier enforcing strict compiler options and source file inclusion.
 - [`validate_magic_numbers.ts`](./validate_magic_numbers.ts): TypeScript AST sub-auditor detecting naked magic numbers outside constant declarations with shared AST reuse.
 - [`validate_stylelint_config.ts`](./validate_stylelint_config.ts): Stylelint configuration file integrity validator enforcing declaration-strict-value plugin and auto-repair.
 - [`validate_type_assertion_hygiene.ts`](./validate_type_assertion_hygiene.ts): Strict type assertion and cast hygiene enforcing zero `as any`, no double casting (`as unknown as`), no boolean literal casts, and floating promise prevention.

@@ -529,6 +529,68 @@ sequenceDiagram
     Base-->>Caller: Return result <T> directly
 ```
 
+### 6.2.2. AST Traversal vs. AddViolation Wrapping Contract (Elimination of Dormant Rules)
+
+In AST-based sub-auditors (`BaseAuditor` with `requiresAst: true` or `FileScanAuditor`), a common pitfall is wrapping only the `this.addViolation` call inside `runSubAuditorSync`:
+
+```typescript
+// ❌ WRONG PATTERN: Wrapping only addViolation inside runSubAuditorSync
+const visit = (node: ts.Node) => {
+  if (isViolation(node)) {
+    this.runSubAuditorSync('my-rule', () => {
+      this.addViolation({ ruleId: 'my-rule', ... });
+    });
+  }
+  ts.forEachChild(node, visit);
+};
+visit(sourceFile);
+```
+
+**Why this fails**:
+If the scanned repository is 100% compliant and contains no violations, `isViolation(node)` never evaluates to `true`. Consequently, `runSubAuditorSync('my-rule', ...)` is **never invoked**, leaving the rule with `0 evaluations` in the coverage ledger. When `validate_audit_coverage` runs, it marks the rule as a "dormant rule" (`Regla dormida: 0 evaluaciones`), causing audit suites to fail.
+
+**Canonical Solution**:
+Wrap the visitor traversal itself for that rule inside `runSubAuditorSync`:
+
+```typescript
+// ✅ CANONICAL PATTERN: Wrapping the AST traversal inside runSubAuditorSync
+this.runSubAuditorSync('my-rule', () => {
+  const visit = (node: ts.Node): void => {
+    if (isViolation(node)) {
+      this.addViolation({ ruleId: 'my-rule', ... });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+});
+```
+
+Wrapping the visitor traversal guarantees that `markRuleEvaluated` is invoked and the execution time of scanning that file is accurately registered in the ledger, even when no violations exist.
+
+### 6.2.3. Escape Hatch Inspection on Adjacent Lines (`line - 1`, `line`, `line + 1`)
+
+Modern code formatters like `oxfmt` (as well as Prettier and Biome) frequently reformat and wrap code statements across multiple lines. When an expression or block is reformatted:
+
+- A trailing comment like `if (cond) { // console-ok: debug` might be pushed into the next line inside the block (`line + 1`).
+- A multi-line function call may place the suppress comment on the line preceding the violation (`line - 1`).
+
+**Framework Implementation**:
+In `@francogp/auditor`, `BaseAuditor.scanRegexMatches` and AST document helpers automatically inspect `line - 1`, `line`, and `line + 1` for matching escape hatches (`// <name>-ok:`):
+
+```typescript
+const prevLine = line > 1 ? this.getLineAt(sourceForLines, line - 1) : '';
+const nextLine = this.getLineAt(sourceForLines, line + 1);
+if (
+  this.hasEscapeHatch(lineContent, escapeHatches) ||
+  this.hasEscapeHatch(prevLine, escapeHatches) ||
+  this.hasEscapeHatch(nextLine, escapeHatches)
+) {
+  continue; // Suppressed legitimately across adjacent formatted lines
+}
+```
+
+When authoring custom line or AST escape hatch detectors, sub-auditors must maintain this 3-line adjacent tolerance window to ensure robust compatibility with auto-formatting tools.
+
 ### 6.3. Deconstruction Pattern for External Multi-Rule Tools (Oxlint, Stylelint, Knip, TypeCoverage)
 
 When an auditor wraps a heavy external tool or linter that produces a composite report for multiple rules in a single pass:

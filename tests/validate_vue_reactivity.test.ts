@@ -296,5 +296,28 @@ export const data = computed(
       expect(auditor.collectedViolations).toHaveLength(1);
       expect(auditor.collectedViolations[0]?.ruleId).toBe('no-async-in-computed');
     });
+
+    it('Coverage Ledger Canary: measures all 4 declared rules in durationsByRule even with zero violations', async () => {
+      const auditor = new TestableVueReactivityAuditor();
+      const cleanVueSfc = `<template><div>{{ count }}</div></template>
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+const count = ref(0);
+const doubled = computed(() => count.value * 2);
+</script>`;
+
+      auditor.testScanFile('src/components/CleanCanary.vue', cleanVueSfc);
+      const result = await auditor.finishAudit();
+
+      expect(result.status).toBe('passed');
+      expect(auditor.collectedViolations).toHaveLength(0);
+
+      // Verify all 4 rules were measured and registered in the ledger (preventing dormant rule errors)
+      const durations = auditor.getDurationsByRule();
+      for (const ruleId of VUE_REACTIVITY_RULES) {
+        expect(durations.has(ruleId)).toBe(true);
+        expect(durations.get(ruleId)).toBeGreaterThanOrEqual(0);
+      }
+    });
   });
 });

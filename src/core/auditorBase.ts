@@ -2403,9 +2403,14 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean {
-    return hatches.some(
-      (h) => line.includes(`// ${h}`) || line.includes(`/* ${h}`) || line.includes(`<!-- ${h}`)
-    );
+    return hatches.some((h) => {
+      const cleanH = h.replace(/^(?:\/\/|\/\*|<!--)\s*/, '').trim();
+      return (
+        line.includes(`// ${cleanH}`) ||
+        line.includes(`/* ${cleanH}`) ||
+        line.includes(`<!-- ${cleanH}`)
+      );
+    });
   }
 
   public isFixActive(): boolean {
@@ -2571,7 +2576,15 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         const line = this.getLineNumber(sourceForLines, charOffset + match.index);
         const lineContent = this.getLineAt(sourceForLines, line);
         if (filter && !filter(lineContent, match)) continue;
-        if (this.hasEscapeHatch(lineContent, escapeHatches)) continue;
+        const prevLine = line > 1 ? this.getLineAt(sourceForLines, line - 1) : '';
+        const nextLine = this.getLineAt(sourceForLines, line + 1);
+        if (
+          this.hasEscapeHatch(lineContent, escapeHatches) ||
+          this.hasEscapeHatch(prevLine, escapeHatches) ||
+          this.hasEscapeHatch(nextLine, escapeHatches)
+        ) {
+          continue;
+        }
         this.addViolation({
           ruleId,
           severity: 'error',

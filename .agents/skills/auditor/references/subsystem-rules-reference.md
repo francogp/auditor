@@ -16,6 +16,11 @@ This reference documents the detailed technical specifications, edge-case handli
 8. [Zero False-Fix Mandate & Grounded Fixability Contract](#8-zero-false-fix-mandate--grounded-fixability-contract)
 9. [Script Extensions Governance & Automated TypeScript Migration](#9-script-extensions-governance--automated-typescript-migration)
 10. [Dynamic Exemption Architecture & Anti-Hardcoding Invariant (`isPathExempt`, `auditor-hardcoded-config`)](#10-dynamic-exemption-architecture--anti-hardcoding-invariant-ispathexempt-auditor-hardcoded-config)
+11. [Vite+ Unified Toolchain Governance](#11-vite-unified-toolchain-governance-validate_vite_plus_config-validate_oxlint-validate_oxfmt)
+12. [GSAP UI Animation Governance & Anti-Destruction Mandate](#12-gsap-ui-animation-governance--anti-destruction-mandate)
+13. [Modern Performance, Security & Architecture Expansion Suites](#13-modern-performance-security--architecture-expansion-suites)
+14. [Documented Commands Governance & Dual Resolution Protocol](#14-documented-commands-governance--dual-resolution-protocol)
+15. [Dynamic Sub-Auditor Conformance Testing Mandate](#15-dynamic-sub-auditor-conformance-testing-mandate)
 
 ---
 
@@ -167,3 +172,87 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
 - **Mandatory Canary Verification**:
   All mandatory injected rules and configuration toggles must have active automated canary tests asserting positive detection, negative compliance, and active vs disabled behavior.
+
+---
+
+## 12. GSAP UI Animation Governance & Anti-Destruction Mandate
+
+Governed by `validate_gsap_animations.ts`:
+
+- **Scope of Manual Timers (`manualTimersFrontend`)**: Timer enforcement (`setTimeout`, `setInterval`) is strictly scoped to frontend UI components and views (`.vue` or files within `componentsRoots` and `viewsRoots`). Legitimate Node.js CLI tools and runner scripts are permitted to use standard timers.
+- **Universal GSAP Standard**: `gsapSleep` and `delayedCall` are universal standards for UI delays and animation timing across all projects, scaling deterministically with `timeScale(100)` during automated tests.
+- **GPU Transforms vs Layout Properties (`gsap-no-layout-properties`)**: UI animations must use GPU transforms (`scaleX`, `scaleY`, `x`, `y`, `Flip`). When variable content height legitimately requires layout property animation (e.g. accordion dropdowns), developers must provide a statement-level `// layout-ok: <technical justification>` comment covering the tween.
+- **Anti-Destruction Mandate for CSS/SCSS Transitions**: Developers and AI agents are strictly prohibited from deleting CSS/SCSS transitions (`transition: ...`) to pass audits or silence `gsap-banned-css-animations`. Interactive UI transitions must be cleanly migrated to GSAP tweens (`gsap.to`, `gsap.fromTo`, `useGSAP`). Deleting transitions without migration degrades UX and is treated as architectural sabotage.
+
+---
+
+## 13. Modern Performance, Security & Architecture Expansion Suites
+
+1. **`validate_web_performance.ts`** (`performance` family, 7 rules):
+   - Enforces modern image compression (WebP/AVIF).
+   - Enforces `@font-face` `font-display: swap`.
+   - Restricts inline SVG payload bounds (<=2KB).
+   - Prohibits render-blocking CSS/script resources in `<head>`.
+   - Restricts DOM depth limits (<=16 levels).
+   - Mandates explicit layout dimensions (`width` and `height`) on media.
+   - Enforces compressed streaming video codecs (`webm` / `preload="none"`).
+2. **`validate_query_performance.ts`** (`performance` family, 6 rules):
+   - Enforces foreign key secondary indexing in relational schemas.
+   - Prohibits unbounded `SELECT *` in SQL/ORM queries.
+   - Flags unpaginated collection queries missing `.limit` or `.range`.
+   - Detects N+1 async database queries inside iterative loops.
+   - Blocks full-table `SELECT COUNT(*)`.
+   - Mandates cursor pagination over high `OFFSET`.
+3. **`validate_security_hardening.ts`** (`security` family, 8 rules):
+   - Prohibits hardcoded credentials, API keys, and sensitive tokens.
+   - Prohibits insecure PRNG (`Math.random()`) for sensitive values.
+   - Flags ReDoS-vulnerable regular expressions.
+   - Prohibits raw HTML injection (`v-html`, `innerHTML`).
+   - Mandates CSRF tokens in HTML mutation forms.
+   - Prohibits dynamic evaluation (`eval`, `new Function`).
+   - Bars permissive wildcard CORS headers (`Access-Control-Allow-Origin: *`).
+   - Detects unvalidated open redirects.
+4. **`validate_code_simplification.ts`** (`architecture` family, 6 rules):
+   - Detects accumulated dead code and unreachable branches.
+   - Flags boolean trap parameters.
+   - Restricts excessive control flow nesting (>4 levels).
+   - Flags redundant else branches after `return` or `throw`.
+   - Flags premature abstraction wrappers.
+   - Restricts massive switch branching (>10 cases).
+5. **`validate_scss_architecture.ts`** (`architecture` family, 5 rules):
+   - Enforces SCSS preprocessor architecture across Single File Components.
+   - Governs `:deep()` selector scope.
+   - Prohibits obsolete non-standard spacing units (`pt`, `in`, `cm`, `mm`).
+   - Mandates design system theme token usage.
+   - Limits SCSS selector nesting depth (<=4 levels).
+
+---
+
+## 14. Documented Commands Governance & Dual Resolution Protocol
+
+Governed by `validate_documented_commands.ts`:
+
+- Every command documented across Markdown files (READMEs, manuals, blueprints, AI skills) must be verified against executable truth:
+  - `package.json.scripts`
+  - `node_modules/.bin`
+  - Declared dependencies
+  - `config.documentation.allowedNpxBinaries`
+- **Dual Triage Protocol**: When `validate_documented_commands` reports an unregistered npm script (`documented-cmd-unregistered-npm`), invalid syntax (`documented-cmd-invalid-npm-syntax`), or unregistered npx binary (`documented-cmd-unregistered-npx`), developers and AI agents must NOT blindly delete or suppress the documentation:
+  1. **Declaration Path**: If the command represents a legitimate, intended project workflow, hook, test runner, or lifecycle script, declare it in `package.json.scripts` or dependencies.
+  2. **Documentation Path**: If it is an obsolete legacy leftover or typo, update the documentation or use generic placeholders (e.g. `<script>`, `<command>`).
+
+---
+
+## 15. Dynamic Sub-Auditor Conformance Testing Mandate
+
+Governed by `auditorContractConformance.ts` and `validate_auditor_tests.ts`:
+
+Every sub-auditor and host extension must be covered by a dedicated Vitest unit test fulfilling the strict 5-point contract:
+
+1. **Instantiation & Metadata**: Validated via `validateAuditorConstruction(auditor)`.
+2. **Clean Path Testing**: Asserts `errors === 0`, `status === 'passed'`, and `findings.length === 0`.
+3. **Violation Detection**: Asserts `errors > 0`, `status === 'failed'`, and `severity === 'error'`.
+4. **Warning Path Verification**: Where applicable, asserts `warnings > 0`, `status === 'warned'`, and `severity === 'warning'`.
+5. **100% Rule Coverage**: Asserts that 100% of declared rule IDs are explicitly tested.
+
+To prevent startup failures in consumer projects where Vitest is absent, `auditorContractConformance.ts` strictly avoids top-level static runtime imports of optional peer dependencies (`vitest`), using type-only imports and resolving runner hooks dynamically.

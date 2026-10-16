@@ -19,7 +19,8 @@ import {
   isPathIgnored,
   collectRepositoryFiles,
   BaseAuditor,
-  type AuditorOptions
+  type AuditorOptions,
+  type ViolationInput
 } from '../src/core/auditorBase.ts';
 import { deriveCoverageFromRequiredFiles } from '../src/core/auditCoverage.ts';
 
@@ -643,6 +644,95 @@ describe('auditorBase infrastructure', () => {
           delete process.env.AUDITOR_SPEED;
         }
       }
+    });
+  });
+
+  describe('scanRegexMatches Adjacent-Line Escape Hatch Canaries', () => {
+    class CanaryRegexAuditor extends BaseAuditor<'canary-forbidden'> {
+      constructor() {
+        super({
+          id: 'validate_canary_regex',
+          name: 'Canary Regex Tester',
+          description: 'Tests adjacent-line escape hatch behavior',
+          family: 'architecture',
+          packageName: 'Test',
+          icon: '🐤',
+          configKey: 'paths',
+          defaultConfig: {},
+          criticalConfig: {},
+          ruleIds: ['canary-forbidden'],
+          ruleDescriptions: { 'canary-forbidden': 'Canary forbidden token' },
+          ruleRemediations: { 'canary-forbidden': 'Remove canary token' },
+          usesThirdPartyTool: false,
+          coverage: { include: ['src/**/*.ts'] },
+          ruleCapabilities: {
+            'canary-forbidden': {
+              speed: 'light',
+              phase: 'normal',
+              fix: 'none',
+              md: false,
+              ast: false,
+              changedOnly: false,
+              critical: false
+            }
+          }
+        });
+      }
+
+      public readonly collectedViolations: ViolationInput<'canary-forbidden'>[] = [];
+
+      public override addViolation(v: ViolationInput<'canary-forbidden'>): void {
+        this.collectedViolations.push(v);
+        super.addViolation(v);
+      }
+
+      public testScanRegex(content: string, relPath = 'src/test.ts'): void {
+        this.scanRegexMatches(
+          content,
+          /CANARY_VIOLATION/g,
+          relPath,
+          'canary-forbidden',
+          ['// canary-ok:'],
+          'Forbidden canary token detected'
+        );
+      }
+
+      public override async runAudit(): Promise<void> {}
+    }
+
+    it('Canary 1 (Active Violation): reports error when forbidden pattern has no escape hatch', () => {
+      const auditor = new CanaryRegexAuditor();
+      auditor.testScanRegex('const x = CANARY_VIOLATION;');
+      expect(auditor.collectedViolations).toHaveLength(1);
+      expect(auditor.collectedViolations[0]?.line).toBe(1);
+      expect(auditor.collectedViolations[0]?.ruleId).toBe('canary-forbidden');
+    });
+
+    it('Canary 2 (Same Line): suppresses violation when escape hatch is on the exact same line', () => {
+      const auditor = new CanaryRegexAuditor();
+      auditor.testScanRegex('const x = CANARY_VIOLATION; // canary-ok: permitted same line');
+      expect(auditor.collectedViolations).toHaveLength(0);
+    });
+
+    it('Canary 3 (Previous Line): suppresses violation when escape hatch is on line - 1 (reformatted call)', () => {
+      const auditor = new CanaryRegexAuditor();
+      auditor.testScanRegex('// canary-ok: preceding line comment\nconst x = CANARY_VIOLATION;');
+      expect(auditor.collectedViolations).toHaveLength(0);
+    });
+
+    it('Canary 4 (Next Line): suppresses violation when escape hatch is on line + 1 (reformatted block)', () => {
+      const auditor = new CanaryRegexAuditor();
+      auditor.testScanRegex('const x = CANARY_VIOLATION;\n// canary-ok: next line comment');
+      expect(auditor.collectedViolations).toHaveLength(0);
+    });
+
+    it('Canary 5 (Distant Escape Hatch): does NOT suppress violation when escape hatch is >= 2 lines away', () => {
+      const auditor = new CanaryRegexAuditor();
+      auditor.testScanRegex(
+        '// canary-ok: distant comment 2 lines above\nconst other = 1;\nconst x = CANARY_VIOLATION;'
+      );
+      expect(auditor.collectedViolations).toHaveLength(1);
+      expect(auditor.collectedViolations[0]?.line).toBe(3);
     });
   });
 });

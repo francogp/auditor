@@ -15,7 +15,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 5. [Strict Type Safety & Vite+ (Oxlint) Governance](#5-strict-type-safety--vite-oxlint-governance)
 6. [Integrated Quality & Analysis Tools (SSoT)](#6-integrated-quality--analysis-tools-ssot)
 7. [Bundle & Performance Budget Auditing](#7-bundle--performance-budget-auditing)
-8. [AI Agent Integration (52 Antigravity Skills)](#8-ai-agent-integration-52-antigravity-skills)
+8. [AI Agent Integration (57 Antigravity Skills)](#8-ai-agent-integration-57-antigravity-skills)
 9. [Authoring Custom Sub-Auditors](#9-authoring-custom-sub-auditors)
 10. [Centralized Configuration (`audit.config.ts`)](#10-centralized-configuration-auditconfigts)
 11. [Hermetic Testing with Vite+ & Vitest](#11-hermetic-testing-with-vite--vitest)
@@ -498,6 +498,13 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **`vue-tsc` / `tsc`**         | `validate_type_check`                                                        | Strict compiler type checking without emitting files (`--noEmit`).                                                                                                            |
 | **Script Commands (AST)**     | `validate_script_commands`                                                   | AST-aware syntax verification for Shell (`unbash`), GitHub Actions (`yaml`), Dockerfiles, PowerShell, and TypeScript scripts (process runners & CLI help logs).               |
 | **Documented Commands**       | `validate_documented_commands`                                               | Verifies that every documented `npm run <cmd>` in Markdown and AI skills exists in `package.json.scripts`.                                                                    |
+| **Docker Config**             | `validate_docker_config`                                                     | Container configuration governance (`.dockerignore`, `Dockerfile`) with auto-scaffolding in `--fix`.                                                                           |
+| **EditorConfig**              | `validate_editorconfig`                                                      | Cross-editor coding style synchronization (`.editorconfig`) with canonical auto-scaffolding in `--fix`.                                                                       |
+| **HTML-Validate Config**      | `validate_html_validate_config`                                              | Strict HTML5 linter configuration (`.htmlvalidate.json`) with standard root rules and auto-scaffolding in `--fix`.                                                             |
+| **NPMRC Config**              | `validate_npmrc_config`                                                      | Package manager configuration (`.npmrc`, `allow-git=all`, `engine-strict=true`) with auto-scaffolding in `--fix`.                                                             |
+| **Playwright Config**         | `validate_playwright_config`                                                 | End-to-end browser testing configuration (`playwright.config.ts`) with modern headless presets and auto-scaffolding in `--fix`.                                               |
+| **TypeScript Config**         | `validate_tsconfig`                                                         | Strict compiler configuration (`tsconfig.json`) with modern type safety baseline and auto-scaffolding in `--fix`.                                                            |
+| **MarkdownLint Config**       | `validate_markdown_lint_config`                                              | Markdown linter configuration (`.markdownlint.json`) with strict documentation hygiene and auto-scaffolding in `--fix`.                                                       |
 
 ---
 
@@ -517,9 +524,9 @@ auditor-bundle
 
 ---
 
-## 8. AI Agent Integration (52 Antigravity Skills)
+## 8. AI Agent Integration (57 Antigravity Skills)
 
-`@francogp/auditor` distributes **52 canonical engineering skills** for Google DeepMind Antigravity AI agents.
+`@francogp/auditor` distributes **57 canonical engineering skills** for Google DeepMind Antigravity AI agents.
 
 ### 8.1. Initialize Plugin in Host Projects
 
@@ -538,9 +545,9 @@ Registers `"node_modules/@francogp/auditor"` in `.agents/plugins.json`. Autonomo
 - **Codebase Intelligence & Optimization**: `code-simplification`, `fallow`, `fallow-review`, `performance-optimization`, `ponytail`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`, `ponytail-review`.
 - **Security, Pentesting & Hardening**: `security-and-hardening`, `security-review`.
 - **Database & Validation**: `database-migrations`, `supabase-postgres-best-practices`, `valibot`.
-- **Documentation & DOX Governance**: `dox-navigator`, `learn-with-docs`.
+- **Documentation & DOX Governance**: `dox-navigator`, `grill-with-docs`, `learn-with-docs`, `to-spec`.
 - **Testing & QA Automation**: `playwright-cli`, `tdd`, `vitest`.
-- **DevOps, Design, Discovery & Meta-Agent Skills**: `brainstorming`, `ci-cd-and-automation`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
+- **DevOps, Design, Discovery & Meta-Agent Skills**: `ci-cd-and-automation`, `docker-patterns`, `find-skills`, `frontend-design`, `safe-commit`, `skill-creator`, `systematic-debugging`, `web-design-guidelines`.
 
 ### 8.3. Dynamic Dual-Language Governance (Zero Hardcoding)
 

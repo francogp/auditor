@@ -7,7 +7,7 @@ const THIRD_PARTY_TOOL_TRIGGER_PATTERNS = [
 	/\bexecuteFallowJsonCommand\s*\(/,
 	/\bresolveFallowBinary\s*\(/,
 	/\bstylelint\.lint\s*\(/,
-	/\bhtmlvalidate\b/,
+	/(?<!\.)\bhtmlvalidate\b(?!\.(?:json|js|cjs))\s*\(/,
 	/\b(?:spawnSync|execSync|execFileSync)\s*\(\s*cmd\b/,
 	/\b(?:spawnSync|execSync|execFileSync)\s*\(\s*['"`]?(?:fallow|eslint|stylelint|markdownlint|vue-tsc|type-coverage|knip|secretlint)\b/,
 	/\b(?:spawnSync|execSync|execFileSync)\s*\([^)]*fallowBin\b/,

@@ -13,6 +13,7 @@ Architecture & Tooling Engineers.
 - **Complete RuleId Coverage & Rule Description Verification**: Every declared rule ID in `ruleDescriptions` of every sub-auditor has dedicated dirty fixture assertions for both error and warning severities. `validate_auditor_tests.ts` statically enforces that 100% of declared rules are exercised by corresponding test files.
 - **Mandatory Constructor Metadata Enforcement Tests**: `tests/auditor_contract_enforcement.test.ts` and `tests/validate_critical_config.test.ts` rigorously prove the impossibility of instantiating `BaseAuditor` or registering extensions without mandatory `configKey`, `defaultConfig` (with explicit boolean `enabled`), and `criticalConfig`.
 - **Idempotent Injection & Anti-Duplication Pruning Tests**: `tests/validate_agents_config_mandate.test.ts` and `tests/validate_documentation_language.test.ts` rigorously test and prove that auto-repair operations in `AGENTS.md` never duplicate mandates or whitespace across repeated fix runs.
+- **Mandatory Universal Canary Testing Across All Scenarios Mandate**: Whenever testing any sub-auditor, rule, CLI command, or architectural checker, test suites MUST include dedicated canary tests (`describe('Canary Tests & Auto-Repair', ...)`) systematically exercising all operational scenarios: missing files/configurations, syntax errors and corrupted content, anti-castration enforcement of strict baselines, automated `--fix` scaffolding and repair idempotency, clean path compliance (0 errors, status passed), and clean conditional skips (status skipped). Writing tests that omit canary coverage across positive, negative, and auto-fix failure modes is strictly prohibited.
 
 ## Key Files
 
@@ -63,6 +64,7 @@ Architecture & Tooling Engineers.
 
 - Test fixtures must be isolated from the live repository using temporary scratch directories or virtual file inputs.
 - Always include clean path tests verifying that valid code produces 0 errors and status 'passed'.
+- Always author comprehensive canary tests covering all cases (missing config scaffolding, syntax errors, anti-castration enforcement, auto-repair, clean paths, and conditional skips).
 - Concatenate banned strings (such as banned import tokens) in fixtures to prevent static scanners from misidentifying test fixtures as live code violations.
 
 ## Verification

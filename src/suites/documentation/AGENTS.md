@@ -34,6 +34,7 @@ Architecture & Tooling Engineers.
 - [`validate_markdown_code_references.ts`](./validate_markdown_code_references.ts): Verifier for referenced source files, npm scripts, and skill paths.
 - [`validate_markdown_links.ts`](./validate_markdown_links.ts): Markdown relative link and anchor integrity auditor across all markdown files (including AGENTS.md).
 - [`validate_markdown_lint.ts`](./validate_markdown_lint.ts): Markdown formatting and style verifier via `markdownlint`.
+- [`validate_markdown_lint_config.ts`](./validate_markdown_lint_config.ts): Markdownlint configuration (.markdownlint.json) verifier enforcing strict markdown standards and automated scaffolding.
 - [`validate_markdown_syntax.ts`](./validate_markdown_syntax.ts): Markdown table formatting and npm script exclusivity verifier.
 - [`validate_mermaid_syntax.ts`](./validate_mermaid_syntax.ts): Fast Mermaid diagram syntax and special character quoting validator (preset=lint, preset=md).
 

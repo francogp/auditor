@@ -341,3 +341,83 @@ Never retain dual imports or direct `'vitest'` dependencies. Ensure 100% of test
 ```ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 ```
+
+### 8.5 Third-Party Rollup Plugins Type Compatibility (`as PluginOption`) & Custom Vite Plugins
+
+When declaring plugins in `vite.config.ts`, third-party Rollup plugins (such as `rollup-plugin-visualizer`) often declare slightly incompatible Rollup `Plugin` types with Vite's internal `Plugin` type bundled in `vite` / `vite-plus`.
+
+**Canonical Solution**:
+
+1. Cast third-party Rollup plugins as `as PluginOption` when instantiating them:
+
+   ```ts
+   import visualizer from 'rollup-plugin-visualizer';
+   import type { PluginOption } from 'vite';
+
+   const isAnalyze = process.env.ANALYZE === 'true';
+   const plugins: PluginOption[] = [
+     vue(),
+     ...(isAnalyze ? [visualizer({ open: true, filename: 'dist/stats.html' }) as PluginOption] : [])
+   ];
+   ```
+
+2. Type custom Vite plugins explicitly with the `: Plugin` return type from `'vite'`:
+
+   ```ts
+   import type { Plugin } from 'vite';
+
+   function myCustomPlugin(): Plugin {
+     return {
+       name: 'my-custom-plugin',
+       configureServer(server) { ... }
+     };
+   }
+   ```
+
+### 8.6 Oxlint Type-Aware Mode with Vue SFCs (`src/env.d.ts`)
+
+When `typeAware: true` or `typeCheck: true` is configured in `vite.config.ts` for Oxlint (`vp check`), Oxlint's underlying TypeScript type checker requires module resolution for Vue SFC (`.vue`) imports referenced across TypeScript code.
+
+Without an ambient declaration, Oxlint throws module resolution errors (`Cannot find module '@/components/Foo.vue'`).
+
+**Canonical Solution**:
+
+Ensure `src/env.d.ts` (included in `tsconfig.json` `include` list) declares the standard Vue module:
+
+```ts
+/// <reference types="vite/client" />
+
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue';
+  const component: DefineComponent<{}, {}, any>;
+  export default component;
+}
+```
+
+### 8.7 Oxfmt vs. Html-Validate Doctype Harmonization (`doctype-style: lowercase`)
+
+Vite+'s code formatter (`vp fmt` / `oxfmt`) enforces lowercase `<!doctype html>` in `index.html` following modern HTML and Prettier/Biome standards.
+However, `html-validate:recommended` (when auditing top-level HTML files via `validate_html_validate`) enforces uppercase `<!DOCTYPE html>` by default under its `doctype-style` rule.
+
+**Canonical Solution**:
+
+Align `.htmlvalidate.json` so both tools agree deterministically without relaxing standards:
+
+```json
+{
+  "extends": ["html-validate:recommended", "html-validate-vue:recommended"],
+  "rules": {
+    "doctype-style": ["error", { "style": "lowercase" }]
+  }
+}
+```
+
+This preserves strict doctype validation while allowing `oxfmt` to format the root `index.html` cleanly.
+
+### 8.8 Multi-line SCSS Variables with Oxfmt vs. Stylelint
+
+When `oxfmt` formats long lists or arrays in SCSS (e.g. `$font-mono: '...', '...';`), it may collapse them into single lines or wrap them across colons, potentially triggering Stylelint's `scss/dollar-variable-colon-space-after` or `declaration-colon-space-after`.
+
+**Canonical Solution**:
+
+Structure long variables as an indented multiline list with an inline trailing comment on the first line (e.g., `// Monospace stack`). This instructs `oxfmt` to preserve the multiline structure and satisfies strict Stylelint spacing rules.

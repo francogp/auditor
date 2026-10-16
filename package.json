@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.6.2-build.20261015-235755",
+  "version": "8.7.0-build.20261016-093520",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -186,6 +186,7 @@
     "auditor:vite-plus-config": "auditor task=validate_vite_plus_config",
     "auditor:fallow-config": "auditor task=validate_fallow_config",
     "auditor:html-validate": "auditor task=validate_html_validate",
+    "auditor:html-validate-config": "auditor task=validate_html_validate_config",
     "auditor:native-paths": "auditor task=validate_native_paths",
     "auditor:package-hygiene": "auditor task=validate_package_hygiene",
     "auditor:pinia-reactivity": "auditor task=validate_pinia_reactivity",
@@ -230,6 +231,12 @@
     "auditor:query-performance": "auditor task=validate_query_performance",
     "auditor:web-performance": "auditor task=validate_web_performance",
     "auditor:security-hardening": "auditor task=validate_security_hardening",
+    "auditor:tsconfig": "auditor task=validate_tsconfig",
+    "auditor:markdown-lint-config": "auditor task=validate_markdown_lint_config",
+    "auditor:npmrc-config": "auditor task=validate_npmrc_config",
+    "auditor:editorconfig": "auditor task=validate_editorconfig",
+    "auditor:docker-config": "auditor task=validate_docker_config",
+    "auditor:playwright-config": "auditor task=validate_playwright_config",
     "auditor:dependency-minimums": "auditor task=validate_dependency_minimums",
     "auditor:dependencies": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_dependencies.ts",
     "auditor:full": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts speed=full",

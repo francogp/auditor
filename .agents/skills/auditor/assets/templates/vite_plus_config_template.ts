@@ -1,11 +1,25 @@
 import { defineConfig } from 'vite-plus';
+import type { PluginOption } from 'vite';
 
 /**
  * Canonical Vite+ Unified Configuration Template
  *
  * Governs lint (Oxlint), format (Oxfmt), test (Vitest), staged git hooks, and packaging (tsdown).
  * Required by `validate_vite_plus_config` and @francogp/auditor standards.
+ *
+ * For Web Applications (Vue / React / Vanilla):
+ * - Declare plugins array as `PluginOption[]` outside defineConfig to avoid TypeScript recursion.
+ * - Cast third-party Rollup plugins (e.g. rollup-plugin-visualizer) with `as PluginOption`.
+ * - If using Oxlint typeAware: true with Vue SFCs, declare `declare module '*.vue'` in `src/env.d.ts`.
  */
+
+// Example: Plugin array for web applications or packaging extensions:
+// const isAnalyze = process.env.ANALYZE === 'true';
+// const plugins: PluginOption[] = [
+//   vue(),
+//   ...(isAnalyze ? [visualizer({ open: true }) as PluginOption] : [])
+// ];
+
 export default defineConfig({
   pack: {
     entry: ['src/**/*.ts'],

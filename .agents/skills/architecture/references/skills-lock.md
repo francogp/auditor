@@ -35,11 +35,11 @@ Vendor skills are tracked declaratively in `skills-lock.json`. The framework sea
 {
   "version": 1,
   "skills": {
-    "brainstorming": {
-      "source": "obra/superpowers",
+    "grill-with-docs": {
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "skillPath": "skills/brainstorming/SKILL.md",
-      "computedHash": "b95dc657c5dd79caf7340ee6dead6faf2ce2d1cc613352a027fa8993966b41b7"
+      "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
+      "computedHash": "8341c12d5250aed474553f4a864a93fbd51bc4d01b4a839b1a477193cc163a50"
     },
     "gsap-core": {
       "source": "greensock/gsap-skills",
@@ -135,7 +135,7 @@ When an AI agent is instructed to audit skills, review governance rules, or chec
 | Attribute | Official Locked Skills | Custom In-House Skills |
 | :--- | :--- | :--- |
 | **Tracked in** | `skills-lock.json` | Not in `skills-lock.json` |
-| **Examples** | `gsap-*`, `vitest`, `fallow`, `vue-*`, `brainstorming` | `architecture`, `auditor`, `safe-commit`, `dox-navigator`, `learn-with-docs` |
+| **Examples** | `gsap-*`, `vitest`, `fallow`, `vue-*`, `grill-with-docs`, `to-spec` | `architecture`, `auditor`, `safe-commit`, `dox-navigator`, `learn-with-docs` |
 | **Ownership** | External vendor / upstream ecosystem | Repository authors & tooling engineers |
 | **Immutability** | Strictly immutable (write protected) | Maintainable, editable, and evolvable |
 | **Audit Status** | Skipped by scanners, findings dropped | 100% audited by `@francogp/auditor` |
