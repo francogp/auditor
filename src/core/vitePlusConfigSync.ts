@@ -1115,15 +1115,46 @@ const REQUIRED_VITE_PLUS_SCRIPTS: Record<string, string> = {
   'fmt:check': 'vp fmt --check'
 };
 
+export function migrateViteCommandsToVp(cmd: string): string {
+  let updated = cmd;
+
+  // 1. vite build -> vp build
+  updated = updated.replace(/(^|\s|&&|;|\|)vite\s+build\b/g, '$1vp build');
+
+  // 2. vite preview -> vp preview
+  updated = updated.replace(/(^|\s|&&|;|\|)vite\s+preview\b/g, '$1vp preview');
+
+  // 3. vite --flag -> vp dev --flag
+  updated = updated.replace(/(^|\s|&&|;|\|)vite\s+--/g, '$1vp dev --');
+
+  // 4. vite dev -> vp dev
+  updated = updated.replace(/(^|\s|&&|;|\|)vite\s+dev\b/g, '$1vp dev');
+
+  // 5. standalone vite -> vp dev
+  updated = updated.replace(/(^|\s|&&|;|\|)vite(?=$|\s*(&&|;|\|))/g, '$1vp dev');
+
+  return updated;
+}
+
 function updateVitePlusScripts(scripts: Record<string, string>): boolean {
   let modified = false;
   for (const [sName, sCmd] of Object.entries(scripts)) {
-    if (typeof sCmd === 'string' && /\beslint\b/.test(sCmd)) {
-      if (sName === 'lint') {
-        scripts[sName] = 'vp check';
-        modified = true;
-      } else if (sName === 'lint:fix') {
-        scripts[sName] = 'vp check --fix';
+    if (typeof sCmd === 'string') {
+      if (/\beslint\b/.test(sCmd)) {
+        if (sName === 'lint') {
+          scripts[sName] = 'vp check';
+          modified = true;
+          continue;
+        } else if (sName === 'lint:fix') {
+          scripts[sName] = 'vp check --fix';
+          modified = true;
+          continue;
+        }
+      }
+
+      const migrated = migrateViteCommandsToVp(sCmd);
+      if (migrated !== sCmd) {
+        scripts[sName] = migrated;
         modified = true;
       }
     }

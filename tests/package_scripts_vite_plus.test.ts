@@ -4,8 +4,12 @@ import path from 'node:path';
 import os from 'node:os';
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
 import { ValidatePackageScriptsAuditor } from '../src/suites/architecture/validate_package_scripts.ts';
+import {
+  migrateViteCommandsToVp,
+  syncPackageJsonForVitePlus
+} from '../src/core/vitePlusConfigSync.ts';
 
-describe('package_scripts_vite_plus (4 Canary Matrix)', () => {
+describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -110,5 +114,57 @@ describe('package_scripts_vite_plus (4 Canary Matrix)', () => {
 
     expect(checkResult.summary.errors).toBe(0);
     expect(checkResult.status).toBe('passed');
+  });
+
+  it('C-SCR-05: migrateViteCommandsToVp cleanly transforms legacy vite commands without affecting files', () => {
+    expect(
+      migrateViteCommandsToVp(
+        'npm run servers:configure && npm run auditor && vite build && npm run auditor:post-build'
+      )
+    ).toBe(
+      'npm run servers:configure && npm run auditor && vp build && npm run auditor:post-build'
+    );
+
+    expect(migrateViteCommandsToVp('npm run servers:configure && node -e "..." && vite')).toBe(
+      'npm run servers:configure && node -e "..." && vp dev'
+    );
+
+    expect(migrateViteCommandsToVp('vite preview')).toBe('vp preview');
+    expect(migrateViteCommandsToVp('vite --open /ui-demo/index.html')).toBe(
+      'vp dev --open /ui-demo/index.html'
+    );
+    expect(migrateViteCommandsToVp('node scripts/check.ts vite.config.ts')).toBe(
+      'node scripts/check.ts vite.config.ts'
+    );
+  });
+
+  it('C-SCR-06: syncPackageJsonForVitePlus migrates scripts calling vite into vp', () => {
+    const pkgWithLegacyVite = {
+      name: 'test-consumer',
+      version: '1.0.0',
+      scripts: {
+        dev: 'npm run servers:configure && vite',
+        build:
+          'npm run servers:configure && npm run auditor && vite build && npm run auditor:post-build',
+        preview: 'vite preview',
+        'ui-demo': 'vite --open /ui-demo/index.html'
+      }
+    };
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(pkgWithLegacyVite, null, 2),
+      'utf-8'
+    );
+
+    const modified = syncPackageJsonForVitePlus(tempDir);
+    expect(modified).toBe(true);
+
+    const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+    expect(updatedPkg.scripts.dev).toBe('npm run servers:configure && vp dev');
+    expect(updatedPkg.scripts.build).toBe(
+      'npm run servers:configure && npm run auditor && vp build && npm run auditor:post-build'
+    );
+    expect(updatedPkg.scripts.preview).toBe('vp preview');
+    expect(updatedPkg.scripts['ui-demo']).toBe('vp dev --open /ui-demo/index.html');
   });
 });

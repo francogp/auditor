@@ -24,6 +24,7 @@ export declare function cleanLegacyConfigFiles(projectRoot: string): readonly st
 export declare function rewriteImportsToVitePlus(projectRoot: string, dirs?: readonly string[]): number;
 export declare function migrateNodeVersion(projectRoot: string): boolean;
 export declare function getVitePlusDefaultExcludeGlobs(projectRoot: string): string[];
+export declare function migrateViteCommandsToVp(cmd: string): string;
 export declare function syncPackageJsonForVitePlus(projectRoot: string): boolean;
 export declare function syncVSCodeSettings(projectRoot: string, auditConfig?: AuditConfig): boolean;
 export declare function repairVitePlusProject(projectRoot: string): {

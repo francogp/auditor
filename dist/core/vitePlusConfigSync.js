@@ -832,14 +832,32 @@ const REQUIRED_VITE_PLUS_SCRIPTS = {
 	fmt: "vp fmt",
 	"fmt:check": "vp fmt --check"
 };
+function migrateViteCommandsToVp(cmd) {
+	let updated = cmd;
+	updated = updated.replace(/(^|\s|&&|;|\|)vite\s+build\b/g, "$1vp build");
+	updated = updated.replace(/(^|\s|&&|;|\|)vite\s+preview\b/g, "$1vp preview");
+	updated = updated.replace(/(^|\s|&&|;|\|)vite\s+--/g, "$1vp dev --");
+	updated = updated.replace(/(^|\s|&&|;|\|)vite\s+dev\b/g, "$1vp dev");
+	updated = updated.replace(/(^|\s|&&|;|\|)vite(?=$|\s*(&&|;|\|))/g, "$1vp dev");
+	return updated;
+}
 function updateVitePlusScripts(scripts) {
 	let modified = false;
-	for (const [sName, sCmd] of Object.entries(scripts)) if (typeof sCmd === "string" && /\beslint\b/.test(sCmd)) {
-		if (sName === "lint") {
-			scripts[sName] = "vp check";
-			modified = true;
-		} else if (sName === "lint:fix") {
-			scripts[sName] = "vp check --fix";
+	for (const [sName, sCmd] of Object.entries(scripts)) if (typeof sCmd === "string") {
+		if (/\beslint\b/.test(sCmd)) {
+			if (sName === "lint") {
+				scripts[sName] = "vp check";
+				modified = true;
+				continue;
+			} else if (sName === "lint:fix") {
+				scripts[sName] = "vp check --fix";
+				modified = true;
+				continue;
+			}
+		}
+		const migrated = migrateViteCommandsToVp(sCmd);
+		if (migrated !== sCmd) {
+			scripts[sName] = migrated;
 			modified = true;
 		}
 	}
@@ -935,4 +953,4 @@ function repairVitePlusProject(projectRoot) {
 	};
 }
 //#endregion
-export { LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, extractObjectPropertyBlock, findLegacyEslintIgnores, getVitePlusDefaultExcludeGlobs, migrateNodeVersion, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };
+export { LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, extractObjectPropertyBlock, findLegacyEslintIgnores, getVitePlusDefaultExcludeGlobs, migrateNodeVersion, migrateViteCommandsToVp, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };
