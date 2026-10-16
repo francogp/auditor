@@ -28,6 +28,7 @@ import {
   type AuditEngineConfig,
   type AuditVersionTargetConfig
 } from '../core/auditConfig.ts';
+import { syncDocumentationVersionReferences } from '../core/markdownVersionValidator.ts';
 import { isMainModule } from './cliUtils.ts';
 
 export interface MetricTableRow {
@@ -300,6 +301,13 @@ export function applyVersionBump(options: ApplyBumpOptions = {}): ApplyBumpResul
     syncedFiles.push(syncedVersionTs);
   }
   syncedFiles.push(...additionalSynced);
+
+  const syncedDocs = syncDocumentationVersionReferences(cwd);
+  for (const docPath of syncedDocs) {
+    if (!syncedFiles.includes(docPath)) {
+      syncedFiles.push(docPath);
+    }
+  }
 
   return {
     previousVersion,

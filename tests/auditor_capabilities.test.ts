@@ -128,6 +128,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_git_config',
       'validate_html_validate',
       'validate_html_validate_config',
+      'validate_markdown_code_references',
       'validate_markdown_lint',
       'validate_markdown_lint_config',
       'validate_mermaid_syntax',

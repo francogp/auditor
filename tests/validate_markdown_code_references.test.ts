@@ -345,4 +345,93 @@ Refer to @/domain-type-first and @/auditor.
     expect(dirs).toContain('src');
     expect(dirs).toContain('docs');
   });
+
+  it('detects outdated project and @francogp/auditor version references in markdown and fenced code blocks', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: '@francogp/auditor',
+          version: '8.7.1-build.20261016-103644'
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+
+    const mdContent = `
+# Host Installation
+Install \`@francogp/auditor\` pinned to a release tag (e.g. \`#v8.5.0\`):
+
+\`\`\`bash
+npm install -D github:francogp/auditor#v8.5.0 --allow-git=all
+\`\`\`
+
+\`\`\`ts
+export default defineAuditConfig({
+  auditorVersion: '7.1.2-build.20261012-231518'
+});
+\`\`\`
+
+Using @francogp/auditor@8.4.0 in production.
+Historical note: Since version 7.1.6, legacy v7.0.0 is deprecated.
+Upgrade command example: \`npm run auditor:update -- v9.0.0\`
+`;
+    await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
+
+    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const result = await auditor.execute();
+
+    const outdatedFindings = result.findings.filter(
+      (f) => f.ruleId === 'markdown-outdated-project-version'
+    );
+    expect(outdatedFindings).toHaveLength(4);
+    expect(outdatedFindings.every((f) => f.severity === 'error' && f.fixable === true)).toBe(true);
+  });
+
+  it('auto-fixes outdated project version references in --fix mode while preserving historical notes', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: '@francogp/auditor',
+          version: '8.7.1-build.20261016-103644'
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+
+    const readmePath = path.join(tempDir, 'README.md');
+    const mdContent = [
+      '# Host Installation',
+      'Install `@francogp/auditor` pinned to a release tag (e.g. `#v8.5.0`):',
+      '```bash',
+      'npm install -D github:francogp/auditor#v8.5.0 --allow-git=all',
+      '```',
+      '```ts',
+      "  auditorVersion: '7.1.2-build.20261012-231518',",
+      '```',
+      'Since version 7.1.6, this is automatic.'
+    ].join('\n');
+    await fs.writeFile(readmePath, mdContent, 'utf-8');
+
+    const prevArgv = [...process.argv];
+    process.argv = [...prevArgv, '--fix'];
+    try {
+      const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+      const result = await auditor.execute();
+      expect(result.summary.errors).toBe(0);
+    } finally {
+      process.argv = prevArgv;
+    }
+
+    const updated = await fs.readFile(readmePath, 'utf-8');
+    expect(updated).toContain('(e.g. `#v8.7.1`)');
+    expect(updated).toContain('github:francogp/auditor#v8.7.1');
+    expect(updated).toContain("auditorVersion: '8.7.1-build.20261016-103644'");
+    expect(updated).toContain('Since version 7.1.6, this is automatic.');
+  });
 });

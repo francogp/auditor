@@ -5,6 +5,7 @@ import { toPosixRelative } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
+import { resolveProjectVersionInfo, scanAndFixMarkdownProjectVersions } from "../../core/markdownVersionValidator.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -38,7 +39,8 @@ const MARKDOWN_CODE_REFERENCE_RULES = [
 	"markdown-broken-source-ref",
 	"markdown-hardcoded-runtime-version",
 	"markdown-broken-skill-ref",
-	"markdown-case-mismatch"
+	"markdown-case-mismatch",
+	"markdown-outdated-project-version"
 ];
 const DEFAULT_SCAN_DIRECTORIES = [
 	".agents/skills",
@@ -408,12 +410,13 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
+				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}),
+			}, ["markdown-outdated-project-version"]),
+			fixableRuleIds: ["markdown-outdated-project-version"],
 			id: "validate_markdown_code_references",
 			name: "Markdown Code References Validator",
 			description: "Valida rutas, scripts, casing y skills en markdown",
@@ -428,13 +431,15 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 				"markdown-broken-source-ref": "Ruta de código inexistente",
 				"markdown-hardcoded-runtime-version": "Versión Node/npm hardcodeada",
 				"markdown-broken-skill-ref": "Referencia a skill inexistente",
-				"markdown-case-mismatch": "Casing incorrecto en ruta"
+				"markdown-case-mismatch": "Casing incorrecto en ruta",
+				"markdown-outdated-project-version": "Versión del proyecto desactualizada"
 			},
 			ruleRemediations: {
 				"markdown-broken-source-ref": "Guía de diagnóstico y remediación para markdown-broken-source-ref. Revisa la incidencia detectada y ajusta el código correspondiente.",
 				"markdown-hardcoded-runtime-version": "Guía de diagnóstico y remediación para markdown-hardcoded-runtime-version. Revisa la incidencia detectada y ajusta el código correspondiente.",
 				"markdown-broken-skill-ref": "Guía de diagnóstico y remediación para markdown-broken-skill-ref. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"markdown-case-mismatch": "Guía de diagnóstico y remediación para markdown-case-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente."
+				"markdown-case-mismatch": "Guía de diagnóstico y remediación para markdown-case-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.",
+				"markdown-outdated-project-version": "Actualiza las referencias de versión del proyecto o tags de release en la documentación para que coincidan con el SemVer actual de package.json (o ejecuta auditor fix)."
 			},
 			coverage: { include: ["**/*.md"] },
 			roots: effectiveScanRoots,
@@ -481,7 +486,9 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 		for (const filePath of mdFiles) {
 			this.recordScanned(filePath);
 			const relPath = toPosixRelative(this.rootDir, filePath);
-			const lines = stripCodeBlocks(fs.readFileSync(filePath, "utf8")).split("\n");
+			const rawContent = fs.readFileSync(filePath, "utf8");
+			const rawLines = rawContent.split("\n");
+			const lines = stripCodeBlocks(rawContent).split("\n");
 			const isSkillDoc = relPath.startsWith(".agents/skills/") || relPath.startsWith("skills/");
 			const fileDir = path.dirname(filePath);
 			let dirEntries = [];
@@ -493,6 +500,8 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 			docs.push({
 				filePath,
 				relPath,
+				rawContent,
+				rawLines,
 				lines,
 				isSkillDoc,
 				fileDir,
@@ -510,6 +519,31 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 		});
 		this.runSubAuditorSync("markdown-case-mismatch", () => {
 			this.scanMarkdownDocReferences(docs, "markdown-case-mismatch", knownValidAbstractPaths);
+		});
+		this.runSubAuditorSync("markdown-outdated-project-version", () => {
+			const versionInfo = resolveProjectVersionInfo(this.rootDir);
+			if (!versionInfo) {
+				this.markRuleNotApplicable("markdown-outdated-project-version", "package.json sin campo version");
+				return;
+			}
+			for (const doc of docs) {
+				const { matches, updatedContent } = scanAndFixMarkdownProjectVersions(doc.relPath, doc.rawLines, versionInfo);
+				if (matches.length === 0) continue;
+				referencesChecked += matches.length;
+				if (this.isFixActive() && updatedContent !== null && updatedContent !== doc.rawContent) {
+					fs.writeFileSync(doc.filePath, updatedContent, "utf-8");
+					continue;
+				}
+				for (const m of matches) this.addViolation({
+					ruleId: "markdown-outdated-project-version",
+					severity: "error",
+					file: doc.relPath,
+					line: m.lineNum,
+					message: `Referencia de versión desactualizada "${m.found}" en documentación (versión actual esperada: "${m.expected}").`,
+					context: m.context,
+					fixable: true
+				});
+			}
 		});
 		this.context.setMetric("Archivos Markdown escaneados", mdFiles.length);
 		this.context.setMetric("Referencias de código analizadas", referencesChecked);

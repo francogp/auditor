@@ -5,6 +5,7 @@ import "../core/auditConfig.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
 import { analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
+import { syncDocumentationVersionReferences } from "../core/markdownVersionValidator.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -148,6 +149,8 @@ function applyVersionBump(options = {}) {
 	const syncedFiles = [pkgPath];
 	if (syncedVersionTs) syncedFiles.push(syncedVersionTs);
 	syncedFiles.push(...additionalSynced);
+	const syncedDocs = syncDocumentationVersionReferences(cwd);
+	for (const docPath of syncedDocs) if (!syncedFiles.includes(docPath)) syncedFiles.push(docPath);
 	return {
 		previousVersion,
 		newVersion,

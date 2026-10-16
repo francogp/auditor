@@ -31,6 +31,10 @@ import type { FindingSeverity } from '../../core/auditContract.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
+import {
+  resolveProjectVersionInfo,
+  scanAndFixMarkdownProjectVersions
+} from '../../core/markdownVersionValidator.ts';
 
 enableCompileCache();
 
@@ -38,13 +42,15 @@ export type MarkdownCodeReferenceRuleId =
   | 'markdown-broken-source-ref'
   | 'markdown-hardcoded-runtime-version'
   | 'markdown-broken-skill-ref'
-  | 'markdown-case-mismatch';
+  | 'markdown-case-mismatch'
+  | 'markdown-outdated-project-version';
 
 export const MARKDOWN_CODE_REFERENCE_RULES: readonly MarkdownCodeReferenceRuleId[] = [
   'markdown-broken-source-ref',
   'markdown-hardcoded-runtime-version',
   'markdown-broken-skill-ref',
-  'markdown-case-mismatch'
+  'markdown-case-mismatch',
+  'markdown-outdated-project-version'
 ] as const;
 
 export interface MarkdownCodeViolation {
@@ -64,6 +70,7 @@ interface ViolationEmitter {
     line?: number;
     column?: number;
     context?: string;
+    fixable?: boolean;
   }): void;
 }
 
@@ -597,6 +604,8 @@ function checkAgentsMdInlineTokens(
 interface ParsedMarkdownDoc {
   filePath: string;
   relPath: string;
+  rawContent: string;
+  rawLines: readonly string[];
   lines: readonly string[];
   isSkillDoc: boolean;
   fileDir: string;
@@ -613,15 +622,20 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: true,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }),
+      ruleCapabilities: createRuleCapabilities(
+        MARKDOWN_CODE_REFERENCE_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: true,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['markdown-outdated-project-version']
+      ),
+      fixableRuleIds: ['markdown-outdated-project-version'],
       id: 'validate_markdown_code_references',
       name: 'Markdown Code References Validator',
       description: 'Valida rutas, scripts, casing y skills en markdown',
@@ -636,7 +650,8 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
         'markdown-broken-source-ref': 'Ruta de código inexistente',
         'markdown-hardcoded-runtime-version': 'Versión Node/npm hardcodeada',
         'markdown-broken-skill-ref': 'Referencia a skill inexistente',
-        'markdown-case-mismatch': 'Casing incorrecto en ruta'
+        'markdown-case-mismatch': 'Casing incorrecto en ruta',
+        'markdown-outdated-project-version': 'Versión del proyecto desactualizada'
       },
       ruleRemediations: {
         'markdown-broken-source-ref':
@@ -646,7 +661,9 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
         'markdown-broken-skill-ref':
           'Guía de diagnóstico y remediación para markdown-broken-skill-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
         'markdown-case-mismatch':
-          'Guía de diagnóstico y remediación para markdown-case-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Guía de diagnóstico y remediación para markdown-case-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'markdown-outdated-project-version':
+          'Actualiza las referencias de versión del proyecto o tags de release en la documentación para que coincidan con el SemVer actual de package.json (o ejecuta auditor fix).'
       },
       coverage: {
         include: ['**/*.md']
@@ -743,6 +760,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       this.recordScanned(filePath);
       const relPath = toPosixRelative(this.rootDir, filePath);
       const rawContent = fs.readFileSync(filePath, 'utf8');
+      const rawLines = rawContent.split('\n');
       const cleanContent = stripCodeBlocks(rawContent);
       const lines = cleanContent.split('\n');
       const isSkillDoc = relPath.startsWith('.agents/skills/') || relPath.startsWith('skills/');
@@ -756,7 +774,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
           dirEntries = [];
         }
       }
-      docs.push({ filePath, relPath, lines, isSkillDoc, fileDir, dirEntries });
+      docs.push({ filePath, relPath, rawContent, rawLines, lines, isSkillDoc, fileDir, dirEntries });
     }
 
     // 1. markdown-broken-source-ref
@@ -800,6 +818,47 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
     // 4. markdown-case-mismatch
     this.runSubAuditorSync('markdown-case-mismatch', () => {
       this.scanMarkdownDocReferences(docs, 'markdown-case-mismatch', knownValidAbstractPaths);
+    });
+
+    // 5. markdown-outdated-project-version
+    this.runSubAuditorSync('markdown-outdated-project-version', () => {
+      const versionInfo = resolveProjectVersionInfo(this.rootDir);
+      if (!versionInfo) {
+        this.markRuleNotApplicable(
+          'markdown-outdated-project-version',
+          'package.json sin campo version'
+        );
+        return;
+      }
+
+      for (const doc of docs) {
+        const { matches, updatedContent } = scanAndFixMarkdownProjectVersions(
+          doc.relPath,
+          doc.rawLines,
+          versionInfo
+        );
+        if (matches.length === 0) {
+          continue;
+        }
+        referencesChecked += matches.length;
+
+        if (this.isFixActive() && updatedContent !== null && updatedContent !== doc.rawContent) {
+          fs.writeFileSync(doc.filePath, updatedContent, 'utf-8');
+          continue;
+        }
+
+        for (const m of matches) {
+          this.addViolation({
+            ruleId: 'markdown-outdated-project-version',
+            severity: 'error',
+            file: doc.relPath,
+            line: m.lineNum,
+            message: `Referencia de versión desactualizada "${m.found}" en documentación (versión actual esperada: "${m.expected}").`,
+            context: m.context,
+            fixable: true
+          });
+        }
+      }
     });
 
     this.context.setMetric('Archivos Markdown escaneados', mdFiles.length);

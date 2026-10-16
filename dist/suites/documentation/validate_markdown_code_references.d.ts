@@ -1,6 +1,6 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
 //#region src/suites/documentation/validate_markdown_code_references.d.ts
-export type MarkdownCodeReferenceRuleId = 'markdown-broken-source-ref' | 'markdown-hardcoded-runtime-version' | 'markdown-broken-skill-ref' | 'markdown-case-mismatch';
+export type MarkdownCodeReferenceRuleId = 'markdown-broken-source-ref' | 'markdown-hardcoded-runtime-version' | 'markdown-broken-skill-ref' | 'markdown-case-mismatch' | 'markdown-outdated-project-version';
 export declare const MARKDOWN_CODE_REFERENCE_RULES: readonly MarkdownCodeReferenceRuleId[];
 export interface MarkdownCodeViolation {
   readonly file: string;

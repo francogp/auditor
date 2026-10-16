@@ -115,6 +115,7 @@ Architecture & Tooling Engineers.
 - [`gitIgnoreRegistry.ts`](./gitIgnoreRegistry.ts): Centralized registry for dynamic `.gitignore` requirements declared across sub-auditors and extensions.
 - [`gitignoreMatcher.ts`](./gitignoreMatcher.ts): Gitignore parsing and fast path matching utility.
 - [`markdownReport.ts`](./markdownReport.ts): Comprehensive Markdown audit report generator.
+- [`markdownVersionValidator.ts`](./markdownVersionValidator.ts): Project SemVer and `@francogp/auditor` release version validator and auto-fixer across Markdown documentation.
 - [`npmCommandUtils.ts`](./npmCommandUtils.ts): Centralized utilities for loading package scripts, detecting built-ins, extracting npm/npx command invocations, and validating commands across documentation and executable scripts.
 - [`packageJson.ts`](./packageJson.ts): Canonical package.json caching, reading, and DTO provider.
 - [`packageScriptRegistry.ts`](./packageScriptRegistry.ts): Centralized registry for recommended package scripts, collision detection, and command requirements declared across sub-auditors and extensions.

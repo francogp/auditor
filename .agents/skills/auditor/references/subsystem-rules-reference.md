@@ -256,3 +256,18 @@ Every sub-auditor and host extension must be covered by a dedicated Vitest unit 
 5. **100% Rule Coverage**: Asserts that 100% of declared rule IDs are explicitly tested.
 
 To prevent startup failures in consumer projects where Vitest is absent, `auditorContractConformance.ts` strictly avoids top-level static runtime imports of optional peer dependencies (`vitest`), using type-only imports and resolving runner hooks dynamically.
+
+---
+
+## 16. Markdown Project SemVer Reference Synchronization Mandate
+
+Governed by `validate_markdown_code_references` and `src/core/markdownVersionValidator.ts`:
+
+- **Universal Project Version Verification (`markdown-outdated-project-version`)**: All Markdown documentation across the workspace (including `README.md`, `.agents/skills/**`, and `docs/**`) is scanned across both natural prose and fenced code blocks (`` ```bash ``, `` ```json ``, `` ```ts ``).
+- **Enforced Surfaces**:
+  1. `github:francogp/auditor#vX.Y.Z` install tags must strictly match the current SemVer in `package.json`.
+  2. Release tag examples (e.g. `` `#vX.Y.Z` ``) mentioning `@francogp/auditor` or release tags.
+  3. `auditorVersion: 'X.Y.Z-build...'` properties in config examples.
+  4. Explicit package version assertions `${pkgName}@X.Y.Z` or `${pkgName} vX.Y.Z`.
+- **Exemptions**: Explicit historical changelogs (`CHANGELOG.md`, `v8-migration-guide.md`) and sentences describing legacy/historical context (e.g. `Since version X.Y.Z`, `legacy vX`, `auditor-update vX.Y.Z`).
+- **Automated Synchronization**: In `--fix` mode (`auditor fix`) and automatically during `auditor-version bump`, all references on disk are updated to the active SemVer.
