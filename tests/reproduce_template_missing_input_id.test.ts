@@ -8,11 +8,12 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   TemplateIdAuditor,
   type TemplateIdRuleId
 } from '../src/suites/architecture/validate_template_ids.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 class TestableTemplateIdAuditor extends TemplateIdAuditor {
   public readonly collectedViolations: ViolationInput<TemplateIdRuleId>[] = [];

@@ -55,16 +55,19 @@ function formatStatusCell(item) {
 		case "outdated_range": return styleText("red", "❌ Rango bajo");
 		case "outdated_installed": return styleText("yellow", "⚠️  Lockfile bajo");
 		case "undeclared": return styleText("dim", "⚪ No declarada");
+		case "exceeds_max_range": return styleText("red", "❌ Excede tope");
+		case "exceeds_max_installed": return styleText("red", "❌ Lockfile alto");
 	}
 }
 function formatDeclaredCell(item) {
 	if (!item.declaredRange) return styleText("dim", "---");
-	if (item.status === "outdated_range") return styleText("red", item.declaredRange);
+	if (item.status === "outdated_range" || item.status === "exceeds_max_range") return styleText("red", item.declaredRange);
 	return styleText("cyan", item.declaredRange);
 }
 function formatInstalledCell(item) {
 	if (!item.installedVersion) return styleText("dim", "---");
 	if (item.status === "outdated_installed") return styleText("yellow", item.installedVersion);
+	if (item.status === "exceeds_max_installed") return styleText("red", item.installedVersion);
 	return styleText("white", item.installedVersion);
 }
 function runDependenciesReport(projectRoot = process.cwd(), options = {

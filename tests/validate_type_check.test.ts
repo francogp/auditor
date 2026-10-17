@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   TypeCheckAuditor,
   TYPE_CHECK_RULES,

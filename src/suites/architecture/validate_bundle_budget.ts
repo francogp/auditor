@@ -23,7 +23,7 @@ import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
+import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig, isTestPath, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -207,29 +207,50 @@ function auditSingleChunkBudget(
 }
 
 function auditCompiledChunks(
-  distAssetsDir: string,
+  distDir: string,
   bundleConfig: AuditEngineConfig['bundle'],
   projectRoot: string,
   auditor: BundleBudgetAuditor
 ): number {
-  if (!fs.existsSync(distAssetsDir)) return 0;
+  if (!fs.existsSync(distDir)) return 0;
 
-  const assets = fs.readdirSync(distAssetsDir);
   const exemptPrefixes = bundleConfig?.exemptChunkPrefixes ?? [];
   let chunksAudited = 0;
 
-  for (const asset of assets) {
-    if (!asset.endsWith('.js') || asset.endsWith('.br') || asset.endsWith('.gz')) continue;
-    chunksAudited++;
-    if (exemptPrefixes.some((prefix) => asset.startsWith(prefix))) continue;
+  try {
+    const entries = fs.readdirSync(distDir, { withFileTypes: true, recursive: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const name = entry.name;
+      if (
+        (!name.endsWith('.js') && !name.endsWith('.mjs') && !name.endsWith('.cjs')) ||
+        name.endsWith('.d.ts') ||
+        name.endsWith('.map') ||
+        name.endsWith('.br') ||
+        name.endsWith('.gz')
+      ) {
+        continue;
+      }
 
-    const assetPath = path.join(distAssetsDir, asset);
-    const stats = fs.statSync(assetPath);
-    const relAssetPath = toPosixRelative(projectRoot, assetPath);
+      const parentPath =
+        (entry as { parentPath?: string }).parentPath ?? distDir;
+      const fullPath = path.join(parentPath, name);
+      const relName = normalizePosixPath(path.relative(distDir, fullPath));
 
-    auditor['recordScanned'](relAssetPath);
-    auditor['markRuleEvaluated']('bundle-chunk-size');
-    auditSingleChunkBudget(asset, stats.size, relAssetPath, bundleConfig, auditor);
+      if (exemptPrefixes.some((prefix) => name.startsWith(prefix) || relName.startsWith(prefix))) {
+        continue;
+      }
+
+      chunksAudited++;
+      const stats = fs.statSync(fullPath);
+      const relAssetPath = toPosixRelative(projectRoot, fullPath);
+
+      auditor['recordScanned'](relAssetPath);
+      auditor['markRuleEvaluated']('bundle-chunk-size');
+      auditSingleChunkBudget(relName, stats.size, relAssetPath, bundleConfig, auditor);
+    }
+  } catch {
+    return 0;
   }
 
   return chunksAudited;
@@ -367,10 +388,15 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       }
     }
 
-    const distAssetsDir = path.resolve(this.projectRoot, config.bundle?.distDir ?? 'dist/assets');
+    const configuredDist = config.bundle?.distDir ?? 'dist/assets';
+    const resolvedConfigured = path.resolve(this.projectRoot, configuredDist);
+    const distDir =
+      fs.existsSync(resolvedConfigured) || !fs.existsSync(path.resolve(this.projectRoot, 'dist'))
+        ? resolvedConfigured
+        : path.resolve(this.projectRoot, 'dist');
     let chunksAudited = 0;
     this.runSubAuditorSync('bundle-chunk-size', () => {
-      chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
+      chunksAudited = auditCompiledChunks(distDir, config.bundle, this.projectRoot, this);
     });
     if (chunksAudited === 0) {
       this.markRuleNotApplicable(

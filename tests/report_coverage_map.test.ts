@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   parseCoverageMapCliArgs,
   renderDirectorySummaryTable,

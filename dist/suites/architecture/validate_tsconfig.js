@@ -33,6 +33,8 @@ const CANONICAL_TSCONFIG = {
 		strict: true,
 		noImplicitAny: true,
 		noUncheckedIndexedAccess: true,
+		verbatimModuleSyntax: true,
+		useUnknownInCatchVariables: true,
 		isolatedModules: true,
 		skipLibCheck: true,
 		esModuleInterop: true,
@@ -48,7 +50,9 @@ const CANONICAL_TSCONFIG = {
 const MANDATORY_STRICT_OPTIONS = [
 	"strict",
 	"noImplicitAny",
-	"noUncheckedIndexedAccess"
+	"noUncheckedIndexedAccess",
+	"verbatimModuleSyntax",
+	"useUnknownInCatchVariables"
 ];
 const VALID_MODULE_RESOLUTIONS = [
 	"bundler",

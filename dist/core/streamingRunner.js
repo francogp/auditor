@@ -1,3 +1,4 @@
+import "./auditContract.js";
 import { formatDurationMs } from "./durationFormatter.js";
 import "./unifiedTheme.js";
 import { styleText } from "node:util";

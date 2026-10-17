@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v8.7.3 --allow-git=all
+npm install -D github:francogp/auditor#v9.0.0 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -87,8 +87,8 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 `@francogp/auditor` exports native binaries to `node_modules/.bin`:
 
 - `auditor` (master orchestrator `audit_full.ts`)
-- `auditor-build` (post-build compiled artifact runner `audit_build.ts`)
-- `auditor-build-prod` (production build runner setting `AUDITOR_ENV=production`, `build_prod.ts`)
+- `auditor-post-build` (post-build compiled artifact runner `audit_post_build.ts`)
+- `auditor-build-deploy` (production build runner setting `AUDITOR_ENV=production`, `build_deploy.ts`)
 - `auditor-version` (version inspection, diff analysis, and SemVer bumping `bump_version.ts`)
 - `auditor-findings` / `auditor-report-findings` (interactive findings reporter `report_findings.ts`)
 - `auditor-by-file` (hierarchical tree findings reporter grouped by file and line `report_findings.ts`)
@@ -96,7 +96,6 @@ Host projects **MUST NOT** rewrite or duplicate the 26 generic audit scripts in 
 - `auditor-complexity` (complexity hotspot analysis `report_complexity.ts`)
 - `auditor-similar` (semantic code clone detection `report_similar_code.ts`)
 - `auditor-review` (architectural review brief `report_review.ts`)
-- `auditor-bundle` (chunk budget validation `audit_bundle.ts`)
 - `auditor-css` (Stylelint style duplication & orphan reporter `report_css.ts`)
 - `auditor-guard` (architecture boundary and dependency gating `report_guard.ts`)
 - `auditor-flags` (feature flags status and dead code reporter `report_flags.ts`)

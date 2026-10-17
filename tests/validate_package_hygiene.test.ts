@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
   ValidatePackageHygieneAuditor,
   parseKnipIssues,
   verifyLockfileIntegrity,
   type KnipReport
 } from '../src/suites/architecture/validate_package_hygiene.ts';
-import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
   let tempDir: string;

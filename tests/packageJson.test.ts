@@ -4,9 +4,11 @@
  * Dedicated unit test suite for getPackageJson, clearPackageJsonCache, and writePackageJson.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   getPackageJson,
   clearPackageJsonCache,

@@ -11,9 +11,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
-import { formatDurationMs, formatDuration } from '../src/core/durationFormatter.ts';
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../src/core/auditorBase.ts';
+import { formatDurationMs, formatDuration } from '../src/core/durationFormatter.ts';
 
 describe('Universal Sub-Auditor Timing Integrity', () => {
   beforeEach(() => {

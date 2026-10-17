@@ -10,14 +10,16 @@
  * 4. AST requirements are derived dynamically from capabilities.ast (0 hardcoded suite lists).
  */
 
+import path from 'node:path';
+
 import { describe, it, expect } from 'vite-plus/test';
+
 import {
   discoverAuditors,
   extractCapabilitiesFromFile,
   extractAuditorMetadataFromFile
 } from '../src/cli/auditScanner.ts';
 import { resolveEffectiveSpeed } from '../src/core/auditorBase.ts';
-import path from 'node:path';
 
 describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
   it('extracts capabilities dynamically from sub-auditor files', async () => {

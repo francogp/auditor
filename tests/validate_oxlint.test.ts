@@ -8,9 +8,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   OxlintAuditor,
   OXLINT_RULES,
+  OXLINT_FIXABLE_RULES,
+  isOxlintRuleFixable,
   parseOxlintResults
 } from '../src/suites/architecture/validate_oxlint.ts';
 
@@ -34,6 +37,7 @@ describe('OxlintAuditor & parseOxlintResults', () => {
       expect(auditor.id).toBe('validate_oxlint');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toContain('oxlint-violation');
+      expect(OXLINT_FIXABLE_RULES.size).toBeGreaterThan(0);
     });
   });
 
@@ -112,6 +116,44 @@ describe('OxlintAuditor & parseOxlintResults', () => {
     it('returns empty findings on clean or empty output', () => {
       const findings = parseOxlintResults('[]');
       expect(findings).toHaveLength(0);
+    });
+
+    it('CANARY: accurately propagates fixable: true for fixable oxlint rules', () => {
+      expect(isOxlintRuleFixable('prefer-const')).toBe(true);
+      expect(isOxlintRuleFixable('no-var')).toBe(true);
+      expect(isOxlintRuleFixable('unicorn(prefer-node-protocol)')).toBe(true);
+      expect(isOxlintRuleFixable('typescript(no-unnecessary-type-assertion)')).toBe(true);
+      expect(isOxlintRuleFixable('vitest(no-test-prefixes)')).toBe(true);
+      expect(isOxlintRuleFixable('vue(no-import-compiler-macros)')).toBe(true);
+      expect(isOxlintRuleFixable('no-eval')).toBe(false);
+
+      const oxlintOutput = JSON.stringify({
+        diagnostics: [
+          {
+            message: 'Use const instead of let',
+            code: 'prefer-const',
+            severity: 'error',
+            filename: 'src/fixable.ts',
+            labels: [{ span: { line: 5, column: 1 } }]
+          },
+          {
+            message: 'eval is evil',
+            code: 'no-eval',
+            severity: 'error',
+            filename: 'src/non_fixable.ts',
+            labels: [{ span: { line: 10, column: 1 } }]
+          }
+        ],
+        number_of_files: 2,
+        number_of_rules: 153
+      });
+
+      const findings = parseOxlintResults(oxlintOutput, process.cwd());
+      expect(findings).toHaveLength(2);
+      expect(findings[0]!.context).toBe('prefer-const');
+      expect(findings[0]!.fixable).toBe(true);
+      expect(findings[1]!.context).toBe('no-eval');
+      expect(findings[1]!.fixable).toBe(false);
     });
   });
 

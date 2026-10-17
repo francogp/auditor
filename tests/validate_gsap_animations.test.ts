@@ -10,13 +10,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateGsapAnimationsAuditor,
   GSAP_ANIMATION_RULES,
   type GsapAnimationRuleId
 } from '../src/suites/architecture/validate_gsap_animations.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 class TestableGsapAnimationsAuditor extends ValidateGsapAnimationsAuditor {
   public readonly recordedViolations: ViolationInput<GsapAnimationRuleId>[] = [];

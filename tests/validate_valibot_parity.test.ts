@@ -1,6 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
+
+import ts from 'typescript';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateValibotParityAuditor,
   VALIBOT_PARITY_RULES,
@@ -10,9 +15,6 @@ import {
   extractSerializerKeys,
   extractInitialStateKeys
 } from '../src/suites/persistence/validate_valibot_parity.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
-import ts from 'typescript';
 
 const TEST_DIR = path.resolve(process.cwd(), 'scratch/test_valibot_parity_tmp');
 

@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateNpmrcConfigAuditor,
   NPMRC_CONFIG_RULES,
   CANONICAL_NPMRC_CONTENT
 } from '../src/suites/architecture/validate_npmrc_config.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 
 describe('ValidateNpmrcConfigAuditor', () => {
   let tmpDir: string;

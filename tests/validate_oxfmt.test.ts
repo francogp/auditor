@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
-import { OxfmtAuditor, OXFMT_RULES } from '../src/suites/architecture/validate_oxfmt.ts';
-import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { defineAuditConfig } from '../src/core/auditConfigDefaults.ts';
+import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
+import { OxfmtAuditor, OXFMT_RULES } from '../src/suites/architecture/validate_oxfmt.ts';
 
 describe('validate_oxfmt (4 Canary Matrix)', () => {
   let tempDir: string;

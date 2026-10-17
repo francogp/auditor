@@ -4,9 +4,11 @@
  * Unit tests for post-build audit CLI execution (runAuditPostBuild).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import * as childProcess from 'node:child_process';
 import { EventEmitter } from 'node:events';
+
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
+
 import { runAuditPostBuild } from '../src/cli/audit_post_build.ts';
 
 vi.mock('node:child_process', async (importOriginal) => {

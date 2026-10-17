@@ -1,15 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
-import path from 'node:path';
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
-import childProcess from 'node:child_process';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+
+import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
   ValidateDependencyVulnerabilitiesAuditor,
   DEPENDENCY_VULNERABILITIES_RULES,
   parseNpmAuditReport,
   type NpmAuditReport
 } from '../src/suites/architecture/validate_dependency_vulnerabilities.ts';
-import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () => {
   let tempDir: string;

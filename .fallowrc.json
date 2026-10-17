@@ -18,6 +18,7 @@
     "!.auditor/**"
   ],
   "ignoreDependencies": [
+    "@arethetypeswrong/core",
     "fallow",
     "html-validate",
     "html-validate-vue",
@@ -25,7 +26,6 @@
     "markdownlint-cli",
     "postcss-html",
     "publint",
-    "rollup-plugin-visualizer",
     "stylelint",
     "stylelint-config-standard",
     "stylelint-config-standard-scss",

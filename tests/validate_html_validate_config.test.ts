@@ -12,16 +12,18 @@
  *   5. Missing Vue plugin/transform detection & auto-remediation in fix mode
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateHtmlValidateConfigAuditor,
   HTML_VALIDATE_CONFIG_RULES,
   CANONICAL_HTML_VALIDATE_CONFIG
 } from '../src/suites/architecture/validate_html_validate_config.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 
 describe('ValidateHtmlValidateConfigAuditor', () => {
   let tmpDir: string;

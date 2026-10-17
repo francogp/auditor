@@ -5,8 +5,9 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
-import { evaluateSuiteStatus, AUDIT_LIST_FILTERS } from '../src/core/suiteGating.ts';
+
 import type { AuditConfig } from '../src/core/auditConfigTypes.ts';
+import { evaluateSuiteStatus, AUDIT_LIST_FILTERS } from '../src/core/suiteGating.ts';
 
 describe('suiteGating — evaluateSuiteStatus', () => {
   const baseConfig: AuditConfig = {
@@ -101,14 +102,7 @@ describe('suiteGating — evaluateSuiteStatus', () => {
     expect(status.configKey).toBe('styles.zLayersEnabled');
   });
 
-  it('detects packageDistribution.enabled: false and packageHygiene.enabled: false', () => {
-    const configDist: AuditConfig = {
-      ...baseConfig,
-      packageDistribution: { enabled: false }
-    };
-    const statusDist = evaluateSuiteStatus('validate_package_distribution', configDist);
-    expect(statusDist.enabled).toBe(false);
-
+  it('detects packageHygiene.enabled: false', () => {
     const configHygiene: AuditConfig = {
       ...baseConfig,
       packageHygiene: { enabled: false }

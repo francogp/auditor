@@ -5,10 +5,12 @@
  * and parentheses are properly unwrapped during duplicate constant analysis.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { ConstantHygieneAuditor } from '../src/suites/architecture/validate_constant_hygiene.ts';
 
 describe('ConstantHygieneAuditor Type Unwrapping', () => {

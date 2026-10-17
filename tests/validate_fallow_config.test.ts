@@ -12,9 +12,11 @@
  * - Clean execution verification (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   ValidateFallowConfigAuditor,
   FALLOW_CONFIG_RULES,

@@ -10,16 +10,18 @@
  * - Broad array cast detection
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateTypeAssertionHygieneAuditor,
   TYPE_ASSERTION_RULES
 } from '../src/suites/architecture/validate_type_assertion_hygiene.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateTypeAssertionHygieneAuditor', () => {
   let tempDir: string;

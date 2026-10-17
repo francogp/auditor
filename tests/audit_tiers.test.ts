@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, afterEach } from 'vite-plus/test';
+
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import { BaseAuditor, resolveEffectiveSpeed } from '../src/core/auditorBase.ts';
 
@@ -28,7 +29,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
     for (const task of tasks) {
       expect(task.id).not.toBe('validate_bundle_budget');
-      expect(task.id).not.toBe('validate_package_distribution');
       if (!task.capabilities?.critical) {
         expect(resolveEffectiveSpeed(task.capabilities?.speed, { maxSpeed: 'light' })).toBe(
           'light'
@@ -76,7 +76,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const taskIds = tasks.map((t) => t.id);
     // Post-build suites must NOT be present in pre-build general audit
     expect(taskIds).not.toContain('validate_bundle_budget');
-    expect(taskIds).not.toContain('validate_package_distribution');
 
     // Source suites (light + heavy) must be present
     expect(taskIds).toContain('validate_oxlint');
@@ -118,11 +117,10 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
   it('discovers exclusively post-build suites when phase=post-build is specified', async () => {
     const tasks = await discoverAuditors({ phase: 'post-build' });
-    expect(tasks.length).toBeGreaterThanOrEqual(2);
+    expect(tasks.length).toBeGreaterThanOrEqual(1);
 
     const taskIds = tasks.map((t) => t.id);
     expect(taskIds).toContain('validate_bundle_budget');
-    expect(taskIds).toContain('validate_package_distribution');
 
     // Source suites must NOT be present in post-build phase
     expect(taskIds).not.toContain('validate_oxlint');
@@ -142,7 +140,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const tasks = await discoverAuditors({ withBuild: true });
     const taskIds = tasks.map((t) => t.id);
     expect(taskIds).toContain('validate_bundle_budget');
-    expect(taskIds).toContain('validate_package_distribution');
     expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).toContain('validate_native_paths');
   });

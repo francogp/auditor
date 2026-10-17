@@ -15,6 +15,26 @@ import { getPackageJson } from './packageJson.ts';
 
 export type AuditorMinimumVersions = Readonly<Record<string, string>>; // open-record: package name -> declared semver range
 
+export interface DependencyMaximumSpec {
+  readonly ceiling: string;
+  readonly prohibitedRange: string;
+  readonly reason: string;
+}
+
+export type AuditorMaximumVersions = Readonly<Record<string, DependencyMaximumSpec>>;
+
+export const AUDITOR_MAXIMUM_VERSIONS: AuditorMaximumVersions = Object.freeze({
+  typescript: {
+    ceiling: '<7.0.0',
+    prohibitedRange: '>=7.0.0',
+    reason: 'TypeScript 7+ no está permitido por incompatibilidades con el compilador de componentes Vue.'
+  }
+});
+
+export function getAuditorMaximumVersions(): AuditorMaximumVersions {
+  return AUDITOR_MAXIMUM_VERSIONS;
+}
+
 export function getAuditorMinimumVersions(): AuditorMinimumVersions {
   const auditorPackageJsonPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -93,6 +113,8 @@ export type DependencyEvaluationStatus =
   | 'satisfied'
   | 'outdated_range'
   | 'outdated_installed'
+  | 'exceeds_max_range'
+  | 'exceeds_max_installed'
   | 'undeclared';
 
 export interface DependencyEvaluation {
@@ -124,6 +146,7 @@ export function evaluateProjectDependencies(
 ): ProjectDependenciesReport {
   const root = path.resolve(projectRoot);
   const minimums = getAuditorMinimumVersions();
+  const maximums = getAuditorMaximumVersions();
   const pkg = getPackageJson(root, true);
 
   const evaluated: DependencyEvaluation[] = [];
@@ -157,7 +180,17 @@ export function evaluateProjectDependencies(
 
     let status: DependencyEvaluationStatus = 'satisfied';
 
-    if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) {
+    const maxSpec = maximums[name];
+    if (maxSpec && semver.intersects(declared.range, maxSpec.prohibitedRange)) {
+      status = 'exceeds_max_range';
+    } else if (
+      maxSpec &&
+      installedVersion &&
+      semver.valid(installedVersion) &&
+      semver.satisfies(installedVersion, maxSpec.prohibitedRange)
+    ) {
+      status = 'exceeds_max_installed';
+    } else if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) {
       status = 'outdated_range';
     } else if (
       installedVersion &&

@@ -12,11 +12,12 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
-import { BaseAuditor, FileScanAuditor, type AuditorOptions } from '../src/core/auditorBase.ts';
-import { createDefaultAuditConfigContent } from '../src/suites/architecture/validate_audit_config.ts';
-import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
-import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
+
 import type { AuditConfig } from '../src/core/auditConfigTypes.ts';
+import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
+import { BaseAuditor, FileScanAuditor, type AuditorOptions } from '../src/core/auditorBase.ts';
+import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
+import { createDefaultAuditConfigContent } from '../src/suites/architecture/validate_audit_config.ts';
 
 type SampleRuleId = 'sample-rule-a' | 'sample-rule-b';
 

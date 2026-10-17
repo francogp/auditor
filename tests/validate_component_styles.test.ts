@@ -9,7 +9,9 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   ComponentStylesAuditor,
   COMPONENT_STYLE_RULES,

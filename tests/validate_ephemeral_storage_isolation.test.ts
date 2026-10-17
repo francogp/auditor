@@ -8,10 +8,12 @@
  * - Prohibition on referencing source code temp paths in code (ephemeral-no-source-temp-references)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   EphemeralStorageIsolationAuditor,
   EPHEMERAL_STORAGE_RULES

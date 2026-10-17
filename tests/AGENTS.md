@@ -43,9 +43,7 @@ Architecture & Tooling Engineers.
 - [`validate_vite_plus_config.test.ts`](./validate_vite_plus_config.test.ts): Tests for Vite+ unified configuration and Domain-Type-First enforcement.
 - [`validate_oxlint.test.ts`](./validate_oxlint.test.ts): Tests for Vite+ Oxlint and code hygiene validator.
 - [`validate_dependency_vulnerabilities.test.ts`](./validate_dependency_vulnerabilities.test.ts): Tests for dependency CVE vulnerability scanning via npm audit.
-- [`validate_package_distribution.test.ts`](./validate_package_distribution.test.ts): Tests for package export map and type distribution hygiene via Publint.
 - [`validate_package_hygiene.test.ts`](./validate_package_hygiene.test.ts): Tests for orphan dependency and unused script detection via Knip.
-- [`validate_package_types.test.ts`](./validate_package_types.test.ts): Tests for package types resolution and dual-package hazard checks via ATTW.
 - [`validate_script_commands.test.ts`](./validate_script_commands.test.ts): Tests for npm run, direct npm commands, and npx binary verification in scripts, Dockerfiles, and CI/CD pipelines.
 - [`validate_secret_leaks.test.ts`](./validate_secret_leaks.test.ts): Tests for high-entropy secret, API key, and token leak detection via Secretlint.
 - [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.

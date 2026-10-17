@@ -5,10 +5,13 @@
  * across 100% of discovered sub-auditors and extensions.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { BaseAuditor } from '../src/core/auditorBase.ts';
 import {
   runAuditorContractConformanceTests,
   validateAuditorConstruction,
@@ -18,7 +21,6 @@ import {
   checkCleanVerification,
   checkViolationVerification
 } from '../src/core/auditorContractConformance.ts';
-import { BaseAuditor } from '../src/core/auditorBase.ts';
 
 const BASE_MOCK_CAPS = {
   speed: 'light',

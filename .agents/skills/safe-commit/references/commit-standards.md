@@ -61,7 +61,7 @@ Core Engine & AST Parsers:
 - src/core/unifiedTheme.ts: format 80-column Box-Drawing tables for bundle and chunk metrics
 
 Bundle & Production Chunks:
-- src/cli/audit_bundle.ts: extract and analyze treemap data from rollup-plugin-visualizer (scratch/bundle_stats.html)
+- src/cli/audit_bundle.ts: inspect dist chunk sizes and compute real-time gzip compression metrics via node:zlib
 - tests/audit_bundle.test.ts: verify hermetic chunk size budget validation and duplicate module detection
 
 DOX & Framework Governance:

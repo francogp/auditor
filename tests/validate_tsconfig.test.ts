@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateTsconfigAuditor,
   TSCONFIG_RULES,
   CANONICAL_TSCONFIG,
   type TsConfigShape
 } from '../src/suites/architecture/validate_tsconfig.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 
 describe('ValidateTsconfigAuditor', () => {
   let tmpDir: string;
@@ -108,7 +110,7 @@ describe('ValidateTsconfigAuditor', () => {
       const strictViolations = checkResult.findings.filter(
         (f) => f.ruleId === 'tsconfig-missing-strict-compiler-option'
       );
-      expect(strictViolations.length).toBe(3);
+      expect(strictViolations.length).toBe(5);
 
       // Fix mode
       const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
@@ -119,6 +121,8 @@ describe('ValidateTsconfigAuditor', () => {
       expect(repaired.compilerOptions?.strict).toBe(true);
       expect(repaired.compilerOptions?.noImplicitAny).toBe(true);
       expect(repaired.compilerOptions?.noUncheckedIndexedAccess).toBe(true);
+      expect(repaired.compilerOptions?.verbatimModuleSyntax).toBe(true);
+      expect(repaired.compilerOptions?.useUnknownInCatchVariables).toBe(true);
     });
 
     it('Canary 4 (Module Resolution): detects outdated resolution and auto-repairs to bundler', async () => {
@@ -128,6 +132,8 @@ describe('ValidateTsconfigAuditor', () => {
           strict: true,
           noImplicitAny: true,
           noUncheckedIndexedAccess: true,
+          verbatimModuleSyntax: true,
+          useUnknownInCatchVariables: true,
           moduleResolution: 'classic'
         },
         include: ['src/**/*']
@@ -156,9 +162,12 @@ describe('ValidateTsconfigAuditor', () => {
       const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
       const banned: TsConfigShape = {
         compilerOptions: {
+          target: 'ES2025',
           strict: true,
           noImplicitAny: true,
           noUncheckedIndexedAccess: true,
+          verbatimModuleSyntax: true,
+          useUnknownInCatchVariables: true,
           moduleResolution: 'bundler',
           suppressImplicitAnyIndexErrors: true,
           noImplicitThis: false
@@ -191,6 +200,8 @@ describe('ValidateTsconfigAuditor', () => {
           strict: true,
           noImplicitAny: true,
           noUncheckedIndexedAccess: true,
+          verbatimModuleSyntax: true,
+          useUnknownInCatchVariables: true,
           moduleResolution: 'bundler'
         },
         include: ['tests/**/*']
@@ -238,6 +249,8 @@ describe('ValidateTsconfigAuditor', () => {
           strict: true,
           noImplicitAny: true,
           noUncheckedIndexedAccess: true,
+          verbatimModuleSyntax: true,
+          useUnknownInCatchVariables: true,
           moduleResolution: 'bundler'
         },
         include: ['src/**/*']

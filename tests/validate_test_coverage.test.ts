@@ -3,12 +3,14 @@
  * @description Unit tests for ValidateTestCoverageAuditor.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { ValidateTestCoverageAuditor } from '../src/suites/architecture/validate_test_coverage.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { resetAuditConfig, setAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
+import { ValidateTestCoverageAuditor } from '../src/suites/architecture/validate_test_coverage.ts';
 
 describe('ValidateTestCoverageAuditor', () => {
   let tmpDir: string;

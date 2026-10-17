@@ -22,14 +22,15 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
+import { thirdPartyToolContractDetector } from '../src/analyzers/homebrew/detectors/thirdPartyToolContractDetector.ts';
+import type { HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
 import {
   BaseAuditor,
   createUniformRuleCapabilities,
   type AuditorOptions
 } from '../src/core/auditorBase.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { thirdPartyToolContractDetector } from '../src/analyzers/homebrew/detectors/thirdPartyToolContractDetector.ts';
-import type { HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
 
 type ProbeRuleId = 'probe-external' | 'probe-internal';
 

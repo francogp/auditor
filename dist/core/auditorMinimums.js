@@ -11,6 +11,14 @@ import semver from "semver";
 * The floor of every library is the range declared in the `peerDependencies`
 * of `@francogp/auditor/package.json`. Zero hardcoded versions in code.
 */
+const AUDITOR_MAXIMUM_VERSIONS = Object.freeze({ typescript: {
+	ceiling: "<7.0.0",
+	prohibitedRange: ">=7.0.0",
+	reason: "TypeScript 7+ no está permitido por incompatibilidades con el compilador de componentes Vue."
+} });
+function getAuditorMaximumVersions() {
+	return AUDITOR_MAXIMUM_VERSIONS;
+}
 function getAuditorMinimumVersions() {
 	const auditorPackageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../package.json");
 	if (fs.existsSync(auditorPackageJsonPath)) {
@@ -52,6 +60,7 @@ function readLockfileInstalledVersion(projectRoot, name) {
 function evaluateProjectDependencies(projectRoot = process.cwd()) {
 	const root = path.resolve(projectRoot);
 	const minimums = getAuditorMinimumVersions();
+	const maximums = getAuditorMaximumVersions();
 	const pkg = getPackageJson(root, true);
 	const evaluated = [];
 	const prodUpdates = [];
@@ -77,7 +86,10 @@ function evaluateProjectDependencies(projectRoot = process.cwd()) {
 		const declaredFloor = declaredMin ? declaredMin.version : null;
 		const isProd = declared.isProduction;
 		let status = "satisfied";
-		if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) status = "outdated_range";
+		const maxSpec = maximums[name];
+		if (maxSpec && semver.intersects(declared.range, maxSpec.prohibitedRange)) status = "exceeds_max_range";
+		else if (maxSpec && installedVersion && semver.valid(installedVersion) && semver.satisfies(installedVersion, maxSpec.prohibitedRange)) status = "exceeds_max_installed";
+		else if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) status = "outdated_range";
 		else if (installedVersion && semver.valid(installedVersion) && requiredMin && semver.lt(installedVersion, requiredMin)) status = "outdated_installed";
 		const installCommand = status !== "satisfied" ? `npm install ${isProd ? "" : "-D "}${name}@${floor}` : void 0;
 		if (status !== "satisfied") {
@@ -115,4 +127,4 @@ function evaluateProjectDependencies(projectRoot = process.cwd()) {
 	};
 }
 //#endregion
-export { evaluateProjectDependencies, findDeclaredDependency, getAuditorMinimumVersions };
+export { AUDITOR_MAXIMUM_VERSIONS, evaluateProjectDependencies, findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions };

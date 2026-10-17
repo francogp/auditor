@@ -43,6 +43,10 @@ export interface TsCompilerOptionsShape {
   strict?: boolean;
   noImplicitAny?: boolean;
   noUncheckedIndexedAccess?: boolean;
+  verbatimModuleSyntax?: boolean;
+  useUnknownInCatchVariables?: boolean;
+  noPropertyAccessFromIndexSignature?: boolean;
+  exactOptionalPropertyTypes?: boolean;
   isolatedModules?: boolean;
   skipLibCheck?: boolean;
   esModuleInterop?: boolean;
@@ -68,6 +72,8 @@ export const CANONICAL_TSCONFIG: TsConfigShape = {
     strict: true,
     noImplicitAny: true,
     noUncheckedIndexedAccess: true,
+    verbatimModuleSyntax: true,
+    useUnknownInCatchVariables: true,
     isolatedModules: true,
     skipLibCheck: true,
     esModuleInterop: true,
@@ -80,7 +86,9 @@ export const CANONICAL_TSCONFIG: TsConfigShape = {
 export const MANDATORY_STRICT_OPTIONS: readonly (keyof TsCompilerOptionsShape)[] = [
   'strict',
   'noImplicitAny',
-  'noUncheckedIndexedAccess'
+  'noUncheckedIndexedAccess',
+  'verbatimModuleSyntax',
+  'useUnknownInCatchVariables'
 ] as const;
 
 export const VALID_MODULE_RESOLUTIONS = [

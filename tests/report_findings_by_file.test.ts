@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vite-plus/test';
 import { stripVTControlCharacters } from 'node:util';
+
+import { describe, it, expect } from 'vite-plus/test';
+
 import {
   sortFindingsByFileAndLine,
   groupFindingsByFileMap,

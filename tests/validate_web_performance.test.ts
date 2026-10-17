@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateWebPerformanceAuditor,
   WEB_PERFORMANCE_RULES
 } from '../src/suites/performance/validate_web_performance.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
   let tempDir: string;

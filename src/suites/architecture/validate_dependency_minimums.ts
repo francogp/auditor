@@ -20,6 +20,8 @@ import {
 } from '../../core/auditorBase.ts';
 import {
   getAuditorMinimumVersions,
+  getAuditorMaximumVersions,
+  type DependencyMaximumSpec,
   findDeclaredDependency,
   type DeclaredDependency
 } from '../../core/auditorMinimums.ts';
@@ -30,7 +32,9 @@ enableCompileCache();
 
 export const DEPENDENCY_MINIMUMS_RULES = [
   'dependency-below-minimum-range',
-  'dependency-below-minimum-installed'
+  'dependency-below-minimum-installed',
+  'dependency-exceeds-maximum-range',
+  'dependency-exceeds-maximum-installed'
 ] as const;
 
 export type DependencyMinimumsRuleId = (typeof DEPENDENCY_MINIMUMS_RULES)[number];
@@ -54,7 +58,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
       }),
       id: 'validate_dependency_minimums',
       name: 'Dependency Minimum Versions Validator',
-      description: 'Versión mínima de librerías instaladas',
+      description: 'Versión mínima y máxima de librerías instaladas',
       family: 'architecture',
       ruleIds: DEPENDENCY_MINIMUMS_RULES,
       packageName: 'Dependencias',
@@ -64,13 +68,19 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
       icon: '📌',
       ruleDescriptions: {
         'dependency-below-minimum-range': 'Rango declarado inferior al mínimo',
-        'dependency-below-minimum-installed': 'Versión instalada inferior al mínimo'
+        'dependency-below-minimum-installed': 'Versión instalada inferior al mínimo',
+        'dependency-exceeds-maximum-range': 'Rango declarado excede el máximo',
+        'dependency-exceeds-maximum-installed': 'Versión instalada excede el máximo'
       },
       ruleRemediations: {
         'dependency-below-minimum-range':
-          'Guía de diagnóstico y remediación para dependency-below-minimum-range. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Guía de diagnóstico y remediación para dependency-below-minimum-range. Actualiza el rango declarado en package.json al piso mínimo del auditor.',
         'dependency-below-minimum-installed':
-          'Guía de diagnóstico y remediación para dependency-below-minimum-installed. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Guía de diagnóstico y remediación para dependency-below-minimum-installed. Reinstala la dependencia para actualizar package-lock.json al piso mínimo.',
+        'dependency-exceeds-maximum-range':
+          'Guía de diagnóstico y remediación para dependency-exceeds-maximum-range. Reduce el rango declarado en package.json para no exceder el tope máximo permitido por el auditor.',
+        'dependency-exceeds-maximum-installed':
+          'Guía de diagnóstico y remediación para dependency-exceeds-maximum-installed. Reinstala la dependencia con una versión inferior al tope máximo permitido en package-lock.json.'
       },
       coverage: { include: ['package.json', 'package-lock.json'] },
       ...options
@@ -110,6 +120,24 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     }
   }
 
+  private auditDeclaredRangeMaximum(
+    name: string,
+    floor: string,
+    declared: DeclaredDependency,
+    maxSpec: DependencyMaximumSpec
+  ): void {
+    if (semver.intersects(declared.range, maxSpec.prohibitedRange)) {
+      this.addViolation({
+        ruleId: 'dependency-exceeds-maximum-range',
+        file: 'package.json',
+        message:
+          `"${name}" declara "${declared.range}" que permite versiones superiores al máximo "${maxSpec.ceiling}". ` +
+          `${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
+        severity: 'error'
+      });
+    }
+  }
+
   private auditInstalledVersion(
     name: string,
     floor: string,
@@ -131,24 +159,39 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     }
   }
 
+  private auditInstalledVersionMaximum(
+    name: string,
+    floor: string,
+    declared: DeclaredDependency,
+    lock: LockfileShape,
+    maxSpec: DependencyMaximumSpec
+  ): void {
+    const installed = lock.packages?.[`node_modules/${name}`]?.version;
+    if (!installed || !semver.valid(installed)) return;
+    if (semver.satisfies(installed, maxSpec.prohibitedRange)) {
+      this.addViolation({
+        ruleId: 'dependency-exceeds-maximum-installed',
+        file: 'package-lock.json',
+        message:
+          `"${name}" instalada en ${installed} (package-lock.json) excede el máximo permitido "${maxSpec.ceiling}". ` +
+          `${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
+        severity: 'error'
+      });
+    }
+  }
+
   public override async runAudit(): Promise<void> {
     this.recordScanned('package.json');
     const minimums = getAuditorMinimumVersions();
+    const maximums = getAuditorMaximumVersions();
     const pkg = getPackageJson(this.projectRoot, true);
 
     if (!pkg) {
-      this.runSubAuditorSync('dependency-below-minimum-range', () => {
-        this.markRuleNotApplicable(
-          'dependency-below-minimum-range',
-          'package.json ausente o inválido'
-        );
-      });
-      this.runSubAuditorSync('dependency-below-minimum-installed', () => {
-        this.markRuleNotApplicable(
-          'dependency-below-minimum-installed',
-          'package.json ausente o inválido'
-        );
-      });
+      for (const ruleId of DEPENDENCY_MINIMUMS_RULES) {
+        this.runSubAuditorSync(ruleId, () => {
+          this.markRuleNotApplicable(ruleId, 'package.json ausente o inválido');
+        });
+      }
       return;
     }
 
@@ -158,8 +201,18 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     });
 
     this.runSubAuditorSync('dependency-below-minimum-range', () => {
-      for (const { name, floor, declared } of declaredEntries)
+      for (const { name, floor, declared } of declaredEntries) {
         this.auditDeclaredRange(name, floor, declared);
+      }
+    });
+
+    this.runSubAuditorSync('dependency-exceeds-maximum-range', () => {
+      for (const { name, floor, declared } of declaredEntries) {
+        const maxSpec = maximums[name];
+        if (maxSpec) {
+          this.auditDeclaredRangeMaximum(name, floor, declared, maxSpec);
+        }
+      }
     });
 
     const lock = this.readInstalledVersions();
@@ -172,8 +225,25 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         return;
       }
       this.recordScanned('package-lock.json');
-      for (const { name, floor, declared } of declaredEntries)
+      for (const { name, floor, declared } of declaredEntries) {
         this.auditInstalledVersion(name, floor, declared, lock);
+      }
+    });
+
+    this.runSubAuditorSync('dependency-exceeds-maximum-installed', () => {
+      if (!lock) {
+        this.markRuleNotApplicable(
+          'dependency-exceeds-maximum-installed',
+          'package-lock.json ausente o ilegible'
+        );
+        return;
+      }
+      for (const { name, floor, declared } of declaredEntries) {
+        const maxSpec = maximums[name];
+        if (maxSpec) {
+          this.auditInstalledVersionMaximum(name, floor, declared, lock, maxSpec);
+        }
+      }
     });
   }
 }

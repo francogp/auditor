@@ -9,10 +9,12 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
-import os from 'node:os';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   MarkdownLinkAuditor,
   MARKDOWN_LINK_RULES,

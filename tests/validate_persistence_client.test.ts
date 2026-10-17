@@ -12,11 +12,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidatePersistenceClientAuditor,
   PERSISTENCE_CLIENT_RULES
 } from '../src/suites/persistence/validate_persistence_client.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 
 describe('ValidatePersistenceClientAuditor', () => {
   beforeEach(() => {

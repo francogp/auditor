@@ -113,16 +113,6 @@ const SIMPLE_GATING_SPECS = {
 		reason: "Desactivado en config (styles.zLayersEnabled = false)",
 		path: ["styles", "zLayersEnabled"]
 	},
-	validate_package_distribution: {
-		configKey: "packageDistribution.enabled",
-		reason: "Desactivado en config (packageDistribution.enabled = false)",
-		path: ["packageDistribution", "enabled"]
-	},
-	validate_package_types: {
-		configKey: "packageDistribution.enabled",
-		reason: "Desactivado en config (packageDistribution.enabled = false)",
-		path: ["packageDistribution", "enabled"]
-	},
 	validate_package_hygiene: {
 		configKey: "packageHygiene.enabled",
 		reason: "Desactivado en config (packageHygiene.enabled = false)",

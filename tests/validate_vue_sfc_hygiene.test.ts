@@ -11,11 +11,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   VueSfcHygieneAuditor,
   VUE_SFC_HYGIENE_RULES
 } from '../src/suites/architecture/validate_vue_sfc_hygiene.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 import type { VueSfcHygieneRuleId } from '../src/suites/architecture/validate_vue_sfc_hygiene.ts';
 
 class TestableVueSfcHygieneAuditor extends VueSfcHygieneAuditor {

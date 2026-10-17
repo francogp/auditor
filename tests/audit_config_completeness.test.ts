@@ -5,8 +5,10 @@
  * Validates that all subsystems default to active and omitting declarations is valid.
  */
 
-import { describe, it, expect } from 'vite-plus/test';
 import fs from 'node:fs';
+
+import { describe, it, expect } from 'vite-plus/test';
+
 import {
   defineAuditConfig,
   assertAuditConfigComplete,

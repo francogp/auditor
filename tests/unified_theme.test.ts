@@ -5,7 +5,15 @@
  */
 
 import { stripVTControlCharacters } from 'node:util';
+
 import { describe, it, expect } from 'vite-plus/test';
+
+import { formatSubtitleDetails } from '../src/cli/audit_full.ts';
+import type {
+  StandardAuditResult,
+  AuditFinding,
+  AuditTaskDefinition
+} from '../src/core/auditContract.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -29,12 +37,6 @@ import {
   formatStatusBadge,
   type TableColumn
 } from '../src/core/unifiedTheme.ts';
-import { formatSubtitleDetails } from '../src/cli/audit_full.ts';
-import type {
-  StandardAuditResult,
-  AuditFinding,
-  AuditTaskDefinition
-} from '../src/core/auditContract.ts';
 
 describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderBanner', () => {

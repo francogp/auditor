@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   ConsoleCleanlinessAuditor,
   CONSOLE_CLEANLINESS_RULES

@@ -1,3 +1,4 @@
+import "../core/auditConfig.js";
 import { resolveEffectiveSpeed, resolveFamilyMetadata } from "../core/auditContract.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "../core/packageScriptRegistry.js";

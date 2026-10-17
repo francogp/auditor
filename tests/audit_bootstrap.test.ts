@@ -14,10 +14,12 @@
  * 6. In CI environment (process.env.CI = 'true'), automatic filesystem mutation is inhibited.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { ensureProjectBootstrapped } from '../src/core/auditBootstrap.ts';
 import { AUDIT_CONFIG_FILE, resetAuditConfig } from '../src/core/auditConfig.ts';
 

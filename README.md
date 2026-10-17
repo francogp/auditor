@@ -14,7 +14,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 4. [Execution Modes & Capability-Driven Presets](#4-execution-modes--capability-driven-presets)
 5. [Strict Type Safety & Vite+ (Oxlint) Governance](#5-strict-type-safety--vite-oxlint-governance)
 6. [Integrated Quality & Analysis Tools (SSoT)](#6-integrated-quality--analysis-tools-ssot)
-7. [Bundle & Performance Budget Auditing](#7-bundle--performance-budget-auditing)
+7. [Bundle & Performance Packaging with Vite+](#7-bundle--performance-packaging-with-vite)
 8. [AI Agent Integration (57 Antigravity Skills)](#8-ai-agent-integration-57-antigravity-skills)
 9. [Authoring Custom Sub-Auditors](#9-authoring-custom-sub-auditors)
 10. [Centralized Configuration (`audit.config.ts`)](#10-centralized-configuration-auditconfigts)
@@ -79,10 +79,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v8.7.3`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.0.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v8.7.3 --allow-git=all
+npm install -D github:francogp/auditor#v9.0.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +92,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v8.7.3"
+    "@francogp/auditor": "github:francogp/auditor#v9.0.0"
   }
 }
 ```
@@ -172,7 +172,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '8.7.3-build.20261016-183504',
+  auditorVersion: '9.0.0-build.20261017-002942',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -229,7 +229,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v8.7.3"`), or install via `npm install -D github:francogp/auditor#v8.7.3 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.0.0"`), or install via `npm install -D github:francogp/auditor#v9.0.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -377,7 +377,7 @@ auditor phase=post-build
 auditor-post-build
 ```
 
-Executes `validate_package_distribution` (Publint), `validate_package_types` (ATTW), and `validate_bundle_budget` post-compilation.
+Executes `validate_bundle_budget` post-compilation against `dist/` (ATTW and Publint are executed natively by `vp pack`).
 
 ### 4.8. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
 
@@ -510,8 +510,7 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **Magic Numbers (AST)**       | `validate_magic_numbers`                                                     | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores.                                                 |
 | **Stylelint Config**          | `validate_stylelint_config`                                                  | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`).                                              |
 | **`knip`**                    | `validate_package_hygiene`                                                   | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`.                                                                                   |
-| **`publint`**                 | `validate_package_distribution`                                              | Package export maps, dual ESM/CJS hazard verification, and `.d.ts` entrypoint validation (`phase: 'post-build'`).                                                             |
-| **`@arethetypeswrong/core`**  | `validate_package_types`                                                     | Multi-resolution `.d.ts` typing validation and dual-package hazard checks (`phase: 'post-build'`).                                                                            |
+| **Vite+ Pack (`vp pack`)**    | `vp pack` (Rust Native)                                                      | Official ATTW type resolution and Publint export map hygiene verified during build.                                                                                           |
 | **`@secretlint/core`**        | `validate_secret_leaks`                                                      | High-entropy secret, API key, and cryptographic token leak detection.                                                                                                         |
 | **`npm audit`**               | `validate_dependency_vulnerabilities`                                        | Vulnerability scanning and known CVEs across package dependencies.                                                                                                            |
 | **`type-coverage`**           | `validate_type_coverage`                                                     | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery.                                                                                              |
@@ -531,19 +530,19 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 
 ---
 
-## 7. Bundle & Performance Budget Auditing
+## 7. Bundle & Performance Packaging with Vite+
 
-The `auditor-bundle` command inspects compiled production outputs in `dist/assets/`:
+Production bundling, chunk compression, type validation, and export hygiene are powered natively by **Vite+** (`vp pack`):
 
 ```bash
-npm run auditor:bundle
-# or directly:
-auditor-bundle
+vp pack
+# or via canonical build pipeline:
+npm run build
 ```
 
-- **Main Thread Budget Limits**: Flags JS/CSS chunks exceeding configured thresholds (configurable via `bundle.maxClientChunkWarnBytes` and `bundle.maxClientChunkErrorBytes`).
-- **Web Worker Exemptions**: Legitimate heavy background worker chunks are configured via `bundle.exemptChunkPrefixes` without triggering size penalties.
-- **Backend / CLI Exemption**: Non-web projects disable bundle validation cleanly via `bundle: { enabled: false }`.
+- **Native Rust Compression**: Reports exact bundle sizes, chunk outputs, and real-time Gzip metrics in milliseconds.
+- **Official ATTW & Publint Integration**: Built-in verification of dual ESM/CJS type declarations (`attw: { profile: 'esm-only' }`) and package export hygiene (`publint: true`).
+- **Main Thread Budget Limits**: Governed via `validate_bundle_budget` ensuring zero heavy driver leaks in UI layers and enforcing chunk size limits against `audit.config.ts`.
 
 ---
 
@@ -852,7 +851,6 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor`                     | `src/cli/audit_full.ts`           | Runs global project audit plus the warning ratchet. Supports `--list`, `--info`, `guide <ruleId\|suiteId>`, `speed=light\|heavy\|full`, `only-speed=light\|heavy\|full`, `phase=post-build`, `preset=md`, `fix`, `--family`, `--task`, `--init-baseline`. |
 | `auditor-post-build`          | `src/cli/audit_post_build.ts`     | Runs post-build compiled artifact audit suites against `dist/` (`phase=post-build`).                                                                                                                                                                      |
 | `auditor-build-deploy`        | `src/cli/build_deploy.ts`         | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production`.                                                                                                                                                                            |
-| `auditor-bundle`              | `src/cli/audit_bundle.ts`         | Audits chunk sizes in `dist/assets/`, checking thresholds and worker exemptions.                                                                                                                                                                          |
 | `auditor-findings`            | `src/cli/report_findings.ts`      | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`).                                                                                                                                                                 |
 | `auditor-by-file`             | `src/cli/report_findings.ts`      | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`auditor:by-file`).                                                                                                                                          |
 | `auditor-fallow`              | `src/cli/report_fallow.ts`        | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`).                                                                                                    |

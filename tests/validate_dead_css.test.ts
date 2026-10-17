@@ -7,10 +7,12 @@
  * - Verifies clean execution
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { DeadCssAuditor, DEAD_CSS_RULES } from '../src/suites/architecture/validate_dead_css.ts';
 
 describe('DeadCssAuditor', () => {

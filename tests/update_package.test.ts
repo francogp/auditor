@@ -8,10 +8,12 @@
  * - Clean execution verification
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import childProcess from 'node:child_process';
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+
 import {
   findHostProjectRoot,
   readInstalledAuditorVersion,

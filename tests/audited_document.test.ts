@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
 import { AuditedDocument } from '../src/core/auditedDocument.ts';
 
 describe('AuditedDocument', () => {

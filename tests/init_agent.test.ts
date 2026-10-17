@@ -4,10 +4,12 @@
  * Unit tests for init_agent CLI tool (registering plugins.json and skills.json in consumer host projects).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { initAgentSkill } from '../src/cli/init_agent.ts';
 
 describe('init_agent CLI Tool', () => {

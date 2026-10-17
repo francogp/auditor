@@ -9,10 +9,12 @@
  * - Bilingual: Validates Spanish vs English modes and repairs cross-language mandates in-place.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   AgentsConfigMandateAuditor,
   AGENTS_CONFIG_MANDATE_RULES,

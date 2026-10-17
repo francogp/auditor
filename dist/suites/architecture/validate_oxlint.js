@@ -23,6 +23,94 @@ enableCompileCache();
 const OXLINT_RULES = ["oxlint-violation"];
 const MAX_BUFFER_BYTES = 52428800;
 const EXECUTION_TIMEOUT_MS = 0;
+const OXLINT_FIXABLE_RULES_LIST = [
+	"no-var",
+	"prefer-const",
+	"eqeqeq",
+	"no-else-return",
+	"no-unneeded-ternary",
+	"prefer-object-has-own",
+	"no-useless-computed-key",
+	"no-new-wrappers",
+	"no-array-constructor",
+	"no-useless-call",
+	"no-useless-rename",
+	"no-useless-concat",
+	"no-extra-boolean-cast",
+	"no-unused-labels",
+	"no-compare-neg-zero",
+	"prefer-exponentiation-operator",
+	"prefer-numeric-literals",
+	"prefer-object-spread",
+	"prefer-rest-params",
+	"prefer-spread",
+	"yoda",
+	"no-unnecessary-type-assertion",
+	"@typescript-eslint/no-unnecessary-type-assertion",
+	"consistent-indexed-object-style",
+	"@typescript-eslint/consistent-indexed-object-style",
+	"consistent-type-assertions",
+	"@typescript-eslint/consistent-type-assertions",
+	"no-unnecessary-template-expression",
+	"@typescript-eslint/no-unnecessary-template-expression",
+	"no-unnecessary-type-arguments",
+	"@typescript-eslint/no-unnecessary-type-arguments",
+	"prefer-function-type",
+	"@typescript-eslint/prefer-function-type",
+	"prefer-return-this-type",
+	"@typescript-eslint/prefer-return-this-type",
+	"ban-tslint-comment",
+	"@typescript-eslint/ban-tslint-comment",
+	"ban-ts-comment",
+	"@typescript-eslint/ban-ts-comment",
+	"no-explicit-any",
+	"@typescript-eslint/no-explicit-any",
+	"unicorn/prefer-node-protocol",
+	"unicorn/prefer-string-starts-ends-with",
+	"unicorn/throw-new-error",
+	"unicorn/no-useless-spread",
+	"unicorn/no-unnecessary-slice-end",
+	"unicorn/no-unnecessary-array-splice-count",
+	"unicorn/explicit-timer-delay",
+	"unicorn/prefer-date-now",
+	"unicorn/prefer-prototype-methods",
+	"unicorn/prefer-regexp-test",
+	"unicorn/prefer-optional-catch-binding",
+	"unicorn/prefer-string-trim-start-end",
+	"unicorn/no-useless-promise-resolve-reject",
+	"vitest/no-test-prefixes",
+	"vitest/prefer-to-contain",
+	"vitest/prefer-to-be",
+	"vitest/prefer-comparison-matcher",
+	"vitest/prefer-expect-resolves",
+	"vitest/prefer-mock-promise-shorthand",
+	"vitest/prefer-mock-return-shorthand",
+	"vitest/prefer-to-have-length",
+	"vitest/prefer-to-be-object",
+	"vitest/prefer-todo",
+	"vitest/valid-title",
+	"vue/no-import-compiler-macros",
+	"vue/valid-next-tick",
+	"vue/no-deprecated-destroyed-lifecycle",
+	"vue/component-definition-name-casing",
+	"vue/next-tick-style",
+	"vue/prefer-import-from-vue",
+	"node/no-exports-assign",
+	"promise/no-new-statics",
+	"no-useless-assignment"
+];
+const OXLINT_FIXABLE_RULES = new Set(OXLINT_FIXABLE_RULES_LIST);
+/**
+* Checks whether an Oxlint rule or diagnostic code has automated fix capability.
+*/
+function isOxlintRuleFixable(ruleName) {
+	if (!ruleName) return false;
+	const normalized = ruleName.replace(/\(([^)]+)\)/, "/$1").replace(/^eslint\//, "");
+	if (OXLINT_FIXABLE_RULES.has(normalized)) return true;
+	const bareName = normalized.includes("/") ? normalized.split("/")[1] : normalized;
+	if (bareName && OXLINT_FIXABLE_RULES.has(bareName)) return true;
+	return false;
+}
 /**
 * Parses raw JSON output from Vite+ (Oxlint) into canonical AuditFindings.
 * Elevates all diagnostics to severity: 'error' (Zero-Warning Policy).
@@ -48,7 +136,7 @@ function parseOxlintResults(input, cwd = process.cwd()) {
 					col,
 					context: rule,
 					message: `[${rule}] ${diag.message}`,
-					fixable: false
+					fixable: isOxlintRuleFixable(rule)
 				});
 			}
 			return findings;
@@ -155,4 +243,4 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxlintAuditor());
 //#endregion
-export { OXLINT_RULES, OxlintAuditor, parseOxlintResults };
+export { OXLINT_FIXABLE_RULES, OXLINT_FIXABLE_RULES_LIST, OXLINT_RULES, OxlintAuditor, isOxlintRuleFixable, parseOxlintResults };

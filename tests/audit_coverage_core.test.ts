@@ -9,11 +9,13 @@
  * - exemption policy registry
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
-import { BaseAuditor, FileScanAuditor } from '../src/core/auditorBase.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
   COVERAGE_RUN_ID_ENV,
   CoverageRecorder,
@@ -22,7 +24,7 @@ import {
   readCoverageLedgers,
   validateCoverageDeclaration
 } from '../src/core/auditCoverage.ts';
-import { defineAuditConfig } from '../src/core/auditConfig.ts';
+import { BaseAuditor, FileScanAuditor } from '../src/core/auditorBase.ts';
 import { EXEMPTION_POLICIES, getMatchingExemptionPolicies } from '../src/core/exemptionPolicies.ts';
 
 const BASE_OPTIONS = {

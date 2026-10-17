@@ -2,8 +2,8 @@ import { AuditConfig } from "../../core/auditConfigTypes.js";
 import { AuditFinding, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 //#region src/suites/architecture/validate_vite_plus_config.d.ts
-export type VitePlusConfigRuleId = 'vite-plus-config-missing' | 'vite-plus-config-any-allowed' | 'vite-plus-config-ts-ignore-allowed' | 'vite-plus-config-type-assertions-allowed' | 'vite-plus-config-double-cast-allowed' | 'vite-plus-config-legacy-date-allowed' | 'vite-plus-config-fmt-missing' | 'vite-plus-config-staged-missing' | 'vite-plus-config-test-missing' | 'vite-plus-legacy-config-forbidden' | 'vite-plus-config-ignore-patterns-missing' | 'vite-plus-config-plugin-missing' | 'vite-plus-config-options-missing' | 'vite-plus-config-test-roots-desynced';
-export declare const VITE_PLUS_CONFIG_RULES: readonly VitePlusConfigRuleId[];
+export declare const VITE_PLUS_CONFIG_RULES: readonly ["vite-plus-config-core", "vite-plus-config-lint", "vite-plus-config-fmt", "vite-plus-config-pack", "vite-plus-config-ts"];
+export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
 export interface VitePlusConfigAuditOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;

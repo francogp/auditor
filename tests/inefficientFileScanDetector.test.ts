@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vite-plus/test';
+
 import { inefficientFileScanDetector } from '../src/analyzers/homebrew/detectors/inefficientFileScanDetector.ts';
 import { type HomebrewInspectionContext } from '../src/analyzers/homebrew/homebrewTypes.ts';
 

@@ -1,3 +1,4 @@
+import "../core/auditContract.js";
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from "../core/auditorBase.js";
 import path from "node:path";
 import fs from "node:fs";

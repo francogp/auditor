@@ -9,13 +9,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   ReactivePurityAuditor,
   REACTIVE_PURITY_RULES,
   type ReactivePurityRuleId
 } from '../src/suites/architecture/validate_reactive_purity.ts';
-
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 class TestableReactivePurityAuditor extends ReactivePurityAuditor {
   public readonly collectedViolations: ViolationInput<ReactivePurityRuleId>[] = [];

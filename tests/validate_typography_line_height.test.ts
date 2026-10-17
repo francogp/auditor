@@ -5,14 +5,16 @@
  * Verifies detection of zero/low line-height collisions on multiline text.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   TypographyLineHeightAuditor,
   TYPOGRAPHY_LINE_HEIGHT_RULES,
   type LineHeightRuleId
 } from '../src/suites/architecture/validate_typography_line_height.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 

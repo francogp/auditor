@@ -4,11 +4,14 @@
  * Unit tests for versionAnalyzer and bump_version CLI utilities.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+
+import { applyVersionBump, runBumpCli } from '../src/cli/bump_version.ts';
 import {
   parseBaseSemver,
   calculateNextBaseVersion,
@@ -16,8 +19,6 @@ import {
   analyzeVersionBump,
   collectGitDiffMetrics
 } from '../src/core/versionAnalyzer.ts';
-import { execSync } from 'node:child_process';
-import { applyVersionBump, runBumpCli } from '../src/cli/bump_version.ts';
 
 describe('Version Analyzer & SemVer Heuristics', () => {
   let tempDir: string;

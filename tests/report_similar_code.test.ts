@@ -4,8 +4,10 @@
  * Unit tests for fallow similar code report CLI tool (runSimilarCodeReport).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import * as childProcess from 'node:child_process';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import { runSimilarCodeReport } from '../src/cli/report_similar_code.ts';
 import * as similarCodeModule from '../src/suites/architecture/validate_similar_code.ts';
 

@@ -4,12 +4,14 @@
  * Hermetic unit tests for ValidateDocumentedCommandsAuditor.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
-import { ValidateDocumentedCommandsAuditor } from '../src/suites/documentation/validate_documented_commands.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { ValidateDocumentedCommandsAuditor } from '../src/suites/documentation/validate_documented_commands.ts';
 
 describe('ValidateDocumentedCommandsAuditor', () => {
   let tempDir: string;

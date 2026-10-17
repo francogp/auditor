@@ -5,13 +5,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
 import {
   TaskStreamCoordinator,
   isNodeInternalWarning,
   executeAuditorStreaming,
   type TaskStreamProgressParams
 } from '../src/core/streamingRunner.ts';
-import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
 
 describe('streamingRunner Core Utility', () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;

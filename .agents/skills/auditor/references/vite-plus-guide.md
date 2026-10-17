@@ -272,7 +272,7 @@ During large-scale production migrations (such as Poké Vicio with 431 test suit
 
 ### 8.1 TypeScript Plugin Type Recursion ("Excessive stack depth comparing types")
 
-In complex configurations combining multiple third-party Vite plugins (e.g. `vite-plugin-pwa`, `rollup-plugin-visualizer`) alongside inline custom plugins with closures, TypeScript can fail with `Excessive stack depth comparing types 'Plugin<any>' and 'Plugin<any>'` (TS2321 / TS2589) when all plugins are defined inline inside `defineConfig({ plugins: [...] })`.
+In complex configurations combining multiple third-party Vite plugins (e.g. `vite-plugin-pwa`, `@vitejs/plugin-vue`) alongside inline custom plugins with closures, TypeScript can fail with `Excessive stack depth comparing types 'Plugin<any>' and 'Plugin<any>'` (TS2321 / TS2589) when all plugins are defined inline inside `defineConfig({ plugins: [...] })`.
 
 **Root Cause**: Recursive structural comparison between Vite core types bundled in `vite-plus` and upstream plugin Rollup types.
 
@@ -344,20 +344,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 
 ### 8.5 Third-Party Rollup Plugins Type Compatibility (`as PluginOption`) & Custom Vite Plugins
 
-When declaring plugins in `vite.config.ts`, third-party Rollup plugins (such as `rollup-plugin-visualizer`) often declare slightly incompatible Rollup `Plugin` types with Vite's internal `Plugin` type bundled in `vite` / `vite-plus`.
+When declaring plugins in `vite.config.ts`, third-party Rollup plugins often declare slightly incompatible Rollup `Plugin` types with Vite's internal `Plugin` type bundled in `vite` / `vite-plus`. (Note: for bundle size and compression statistics, use native `vp pack` size reports instead of external visualizer plugins).
 
 **Canonical Solution**:
 
 1. Cast third-party Rollup plugins as `as PluginOption` when instantiating them:
 
    ```ts
-   import visualizer from 'rollup-plugin-visualizer';
    import type { PluginOption } from 'vite';
-
-   const isAnalyze = process.env.ANALYZE === 'true';
+ 
    const plugins: PluginOption[] = [
      vue(),
-     ...(isAnalyze ? [visualizer({ open: true, filename: 'dist/stats.html' }) as PluginOption] : [])
+     ...(customPlugin() as PluginOption)
    ];
    ```
 

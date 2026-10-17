@@ -9,11 +9,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   TestFragmentationAuditor,
   TEST_FRAGMENTATION_RULES
 } from '../src/suites/architecture/validate_test_fragmentation.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 import type { TestFragmentationRuleId } from '../src/suites/architecture/validate_test_fragmentation.ts';
 
 class TestableTestFragmentationAuditor extends TestFragmentationAuditor {

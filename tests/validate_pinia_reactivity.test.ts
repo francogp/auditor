@@ -8,14 +8,16 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   PiniaReactivityAuditor,
   PINIA_REACTIVITY_RULES,
   type PiniaReactivityRuleId
 } from '../src/suites/architecture/validate_pinia_reactivity.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 

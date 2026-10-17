@@ -9,10 +9,14 @@
  * - Canonical domain duplicate and sub-collection detection
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateCanonicalDomainsAuditor,
   CANONICAL_DOMAIN_RULES,
@@ -23,8 +27,6 @@ import {
   extractSortedLiteralsSignature,
   detectProjectDomainDuplicatesAndSubsets
 } from '../src/suites/domain_data/validate_canonical_domains.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateCanonicalDomainsAuditor', () => {
   let tempDir: string;

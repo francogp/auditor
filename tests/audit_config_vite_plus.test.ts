@@ -1,10 +1,12 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, it, expect } from 'vite-plus/test';
+
 import { defineAuditConfig } from '../src/core/auditConfigDefaults.ts';
 import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
 import { syncViteConfigWithAuditConfig } from '../src/core/vitePlusConfigSync.ts';
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
 
 describe('audit_config_vite_plus (8 Canary Matrix)', () => {
   it('C-AC-01: vitePlusConfig.enabled defaults to true with canonical sections', () => {

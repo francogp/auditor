@@ -4,22 +4,24 @@
  * Unit tests and hermetic verification for validate_audit_coverage suite.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
-import {
-  AuditCoverageAuditor,
-  analyzeAuditCoverage,
-  type CoverageAnalysisInput
-} from '../src/suites/architecture/validate_audit_coverage.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { defineAuditConfig, type AuditEngineConfig } from '../src/core/auditConfig.ts';
 import {
   COVERAGE_RUN_ID_ENV,
   COVERAGE_RUN_MODE_ENV,
   COVERAGE_EXPECTED_SUITES_ENV,
   type CoverageLedger
 } from '../src/core/auditCoverage.ts';
-import { defineAuditConfig, type AuditEngineConfig } from '../src/core/auditConfig.ts';
+import {
+  AuditCoverageAuditor,
+  analyzeAuditCoverage,
+  type CoverageAnalysisInput
+} from '../src/suites/architecture/validate_audit_coverage.ts';
 
 describe('validate_audit_coverage Suite', () => {
   let tempDir: string;

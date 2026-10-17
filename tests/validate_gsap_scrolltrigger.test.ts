@@ -10,13 +10,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateGsapScrollTriggerAuditor,
   GSAP_SCROLLTRIGGER_RULES,
   type GsapScrollTriggerRuleId
 } from '../src/suites/architecture/validate_gsap_scrolltrigger.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 class TestableGsapScrollTriggerAuditor extends ValidateGsapScrollTriggerAuditor {
   public readonly recordedViolations: ViolationInput<GsapScrollTriggerRuleId>[] = [];

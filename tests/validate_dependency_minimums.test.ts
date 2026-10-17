@@ -5,16 +5,18 @@
  * metadata, clean path, range violation, installed (lockfile) violation, ignored when not declared.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { getAuditorMinimumVersions } from '../src/core/auditorMinimums.ts';
 import {
   ValidateDependencyMinimumsAuditor,
   DEPENDENCY_MINIMUMS_RULES,
   findDeclaredDependency
 } from '../src/suites/architecture/validate_dependency_minimums.ts';
-import { getAuditorMinimumVersions } from '../src/core/auditorMinimums.ts';
 
 describe('validate_dependency_minimums', () => {
   let tempDir: string;
@@ -59,7 +61,9 @@ describe('validate_dependency_minimums', () => {
   it('declares canonical rules and metadata', () => {
     expect(DEPENDENCY_MINIMUMS_RULES).toEqual([
       'dependency-below-minimum-range',
-      'dependency-below-minimum-installed'
+      'dependency-below-minimum-installed',
+      'dependency-exceeds-maximum-range',
+      'dependency-exceeds-maximum-installed'
     ]);
     const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_dependency_minimums');
@@ -110,6 +114,28 @@ describe('validate_dependency_minimums', () => {
         (f) => f.ruleId === 'dependency-below-minimum-installed' && f.severity === 'error'
       )
     ).toBe(true);
+  });
+
+  it('fails when declared range exceeds maximum allowed (e.g. typescript >= 7.0.0)', async () => {
+    await writeProject({ typescript: '^7.0.0' });
+    const result = await run();
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find((f) => f.ruleId === 'dependency-exceeds-maximum-range');
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('TypeScript 7+ no está permitido');
+  });
+
+  it('fails when installed version exceeds maximum allowed (e.g. typescript 7.0.1 in lockfile)', async () => {
+    await writeProject({ typescript: '^6.0.3' }, { typescript: '7.0.1' });
+    const result = await run();
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(
+      (f) => f.ruleId === 'dependency-exceeds-maximum-installed'
+    );
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('excede el máximo permitido');
   });
 
   it('findDeclaredDependency locates libraries across sections', () => {

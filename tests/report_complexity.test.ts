@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import { runComplexityReport } from '../src/cli/report_complexity.ts';
 
 describe('report_complexity CLI Tool', () => {

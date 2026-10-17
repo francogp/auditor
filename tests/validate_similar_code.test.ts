@@ -8,10 +8,15 @@
  * - Clean execution verification (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import childProcess from 'node:child_process';
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+
+import { discoverAuditors } from '../src/cli/auditScanner.ts';
+import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
+import { renderSimilarCodeWarningBanner } from '../src/core/unifiedTheme.ts';
 import {
   ValidateSimilarCodeAuditor,
   SIMILAR_CODE_RULES,
@@ -19,9 +24,6 @@ import {
   isSimilarCodeSkipped,
   type SimilarCodeCandidate
 } from '../src/suites/architecture/validate_similar_code.ts';
-import { discoverAuditors } from '../src/cli/auditScanner.ts';
-import { setAuditConfig, defineAuditConfig, resetAuditConfig } from '../src/core/auditConfig.ts';
-import { renderSimilarCodeWarningBanner } from '../src/core/unifiedTheme.ts';
 
 describe('ValidateSimilarCodeAuditor', () => {
   const scratchDir = path.resolve(

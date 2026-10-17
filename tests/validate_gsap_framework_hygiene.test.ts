@@ -10,13 +10,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateGsapFrameworkHygieneAuditor,
   GSAP_FRAMEWORK_HYGIENE_RULES,
   type GsapFrameworkHygieneRuleId
 } from '../src/suites/architecture/validate_gsap_framework_hygiene.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 class TestableGsapFrameworkHygieneAuditor extends ValidateGsapFrameworkHygieneAuditor {
   public readonly recordedViolations: ViolationInput<GsapFrameworkHygieneRuleId>[] = [];

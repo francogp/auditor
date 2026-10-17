@@ -8,21 +8,23 @@
  * - Violation detection covering 100% of declared homebrew rules
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import {
+  HomebrewDetectorRegistry,
+  type HomebrewDetector
+} from '../src/analyzers/homebrew/index.ts';
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   AuditorHygieneAuditor,
   AUDITOR_HOMEBREW_RULES,
   type AuditorHomebrewRuleId
 } from '../src/suites/architecture/validate_auditor_hygiene.ts';
-import {
-  HomebrewDetectorRegistry,
-  type HomebrewDetector
-} from '../src/analyzers/homebrew/index.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('AuditorHygieneAuditor', () => {
   let tempDir: string;

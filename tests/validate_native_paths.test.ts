@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   NativePathsAuditor,
   scanFileForNativePathViolations,

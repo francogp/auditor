@@ -4,14 +4,16 @@
  * Unit tests for Unified Configuration File Registry & BaseAuditor Integration.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
-import { ConfigFileRegistry } from '../src/core/configFileRegistry.ts';
-import { BaseAuditor } from '../src/core/auditorBase.ts';
-import { defineAuditorExtension } from '../src/plugin/defineAuditorExtension.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import type { AuditorConfigFileRequirement } from '../src/core/auditContract.ts';
+import { BaseAuditor } from '../src/core/auditorBase.ts';
+import { ConfigFileRegistry } from '../src/core/configFileRegistry.ts';
+import { defineAuditorExtension } from '../src/plugin/defineAuditorExtension.ts';
 
 describe('ConfigFileRegistry & Unified Config Protocol', () => {
   let tempDir: string;

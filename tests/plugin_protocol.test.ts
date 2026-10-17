@@ -5,9 +5,10 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
 import { defineAuditConfig, DEFAULT_AUDIT_CONFIG } from '../src/core/auditConfig.ts';
-import { defineAuditorExtension } from '../src/plugin/defineAuditorExtension.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
+import { defineAuditorExtension } from '../src/plugin/defineAuditorExtension.ts';
 
 describe('Auditor Plugin Protocol', () => {
   it('defines and merges audit configuration with defaults', () => {

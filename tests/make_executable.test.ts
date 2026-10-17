@@ -4,10 +4,12 @@
  * Unit tests for make_executable CLI utility (purgeOrphanedDistFiles & makeCliBinariesExecutable).
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { purgeOrphanedDistFiles, makeCliBinariesExecutable } from '../src/cli/make_executable.ts';
 
 describe('make_executable CLI Utility', () => {

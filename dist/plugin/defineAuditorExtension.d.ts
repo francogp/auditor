@@ -7,8 +7,8 @@ export interface AuditorExtensionDefinition {
   readonly family: AuditFamily;
   readonly description?: string;
   readonly scripts?: readonly AuditorPackageScriptRequirement[];
-  readonly auditorClass?: new () => BaseAuditor<string>;
-  readonly factory?: () => BaseAuditor<string>;
+  readonly auditorClass?: new () => BaseAuditor;
+  readonly factory?: () => BaseAuditor;
   readonly scriptPath?: string;
   readonly fast?: boolean;
   readonly timeoutMs?: number;

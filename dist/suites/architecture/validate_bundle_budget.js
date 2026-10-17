@@ -1,4 +1,5 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
@@ -141,21 +142,32 @@ function auditSingleChunkBudget(asset, statsSize, relAssetPath, bundleConfig, au
 		context: asset
 	});
 }
-function auditCompiledChunks(distAssetsDir, bundleConfig, projectRoot, auditor) {
-	if (!fs.existsSync(distAssetsDir)) return 0;
-	const assets = fs.readdirSync(distAssetsDir);
+function auditCompiledChunks(distDir, bundleConfig, projectRoot, auditor) {
+	if (!fs.existsSync(distDir)) return 0;
 	const exemptPrefixes = bundleConfig?.exemptChunkPrefixes ?? [];
 	let chunksAudited = 0;
-	for (const asset of assets) {
-		if (!asset.endsWith(".js") || asset.endsWith(".br") || asset.endsWith(".gz")) continue;
-		chunksAudited++;
-		if (exemptPrefixes.some((prefix) => asset.startsWith(prefix))) continue;
-		const assetPath = path.join(distAssetsDir, asset);
-		const stats = fs.statSync(assetPath);
-		const relAssetPath = toPosixRelative(projectRoot, assetPath);
-		auditor["recordScanned"](relAssetPath);
-		auditor["markRuleEvaluated"]("bundle-chunk-size");
-		auditSingleChunkBudget(asset, stats.size, relAssetPath, bundleConfig, auditor);
+	try {
+		const entries = fs.readdirSync(distDir, {
+			withFileTypes: true,
+			recursive: true
+		});
+		for (const entry of entries) {
+			if (!entry.isFile()) continue;
+			const name = entry.name;
+			if (!name.endsWith(".js") && !name.endsWith(".mjs") && !name.endsWith(".cjs") || name.endsWith(".d.ts") || name.endsWith(".map") || name.endsWith(".br") || name.endsWith(".gz")) continue;
+			const parentPath = entry.parentPath ?? distDir;
+			const fullPath = path.join(parentPath, name);
+			const relName = normalizePosixPath(path.relative(distDir, fullPath));
+			if (exemptPrefixes.some((prefix) => name.startsWith(prefix) || relName.startsWith(prefix))) continue;
+			chunksAudited++;
+			const stats = fs.statSync(fullPath);
+			const relAssetPath = toPosixRelative(projectRoot, fullPath);
+			auditor["recordScanned"](relAssetPath);
+			auditor["markRuleEvaluated"]("bundle-chunk-size");
+			auditSingleChunkBudget(relName, stats.size, relAssetPath, bundleConfig, auditor);
+		}
+	} catch {
+		return 0;
 	}
 	return chunksAudited;
 }
@@ -254,10 +266,12 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 				if (isUiLayer) checkHeavyImports(imports, relPath, effectiveForbiddenUiImports, this);
 			});
 		}
-		const distAssetsDir = path.resolve(this.projectRoot, config.bundle?.distDir ?? "dist/assets");
+		const configuredDist = config.bundle?.distDir ?? "dist/assets";
+		const resolvedConfigured = path.resolve(this.projectRoot, configuredDist);
+		const distDir = fs.existsSync(resolvedConfigured) || !fs.existsSync(path.resolve(this.projectRoot, "dist")) ? resolvedConfigured : path.resolve(this.projectRoot, "dist");
 		let chunksAudited = 0;
 		this.runSubAuditorSync("bundle-chunk-size", () => {
-			chunksAudited = auditCompiledChunks(distAssetsDir, config.bundle, this.projectRoot, this);
+			chunksAudited = auditCompiledChunks(distDir, config.bundle, this.projectRoot, this);
 		});
 		if (chunksAudited === 0) this.markRuleNotApplicable("bundle-chunk-size", "No se encontraron artefactos compilados en dist");
 		this.context.setMetric("Files Audited", this.filesScannedCount);

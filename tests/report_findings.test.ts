@@ -5,8 +5,10 @@
  * Uses hermetic mocks to avoid race conditions with parallel audit test workers.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import { runReport } from '../src/cli/report_findings.ts';
 import type { ConsolidatedAuditReport } from '../src/core/auditContract.ts';
 

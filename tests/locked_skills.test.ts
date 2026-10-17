@@ -9,10 +9,13 @@
  * 4. Custom in-house skills (not in skills-lock.json) remain fully audited and editable.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { AuditFinding } from '../src/core/auditContract.ts';
 import {
   loadLockedSkills,
   isLockedSkillPath,
@@ -22,7 +25,6 @@ import {
   createUniformRuleCapabilities,
   type AuditorOptions
 } from '../src/core/auditorBase.ts';
-import type { AuditFinding } from '../src/core/auditContract.ts';
 import { safeWriteFileSync, safeWriteFile } from '../src/core/safePath.ts';
 
 class TestSkillAuditor extends BaseAuditor<string> {

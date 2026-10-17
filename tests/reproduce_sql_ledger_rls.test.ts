@@ -9,11 +9,13 @@
  * Desired behavior: canonical ledger tables and persistence.exemptRlsTables must be exempt.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { SqlAntiPatternsAuditor } from '../src/suites/persistence/validate_sql_anti_patterns.ts';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { setAuditConfig, resetAuditConfig, DEFAULT_AUDIT_CONFIG } from '../src/core/auditConfig.ts';
+import { SqlAntiPatternsAuditor } from '../src/suites/persistence/validate_sql_anti_patterns.ts';
 
 describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
   const scratchDir = path.resolve(process.cwd(), 'scratch/test_rls_ledger_' + crypto.randomUUID());

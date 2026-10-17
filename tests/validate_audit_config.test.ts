@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import os from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { collectAllPackageScriptRequirements } from '../src/cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../src/cli/migrateAuditConfig.ts';
 import {
   resetAuditConfig,
@@ -13,7 +15,7 @@ import {
 } from '../src/core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
-import { collectAllPackageScriptRequirements } from '../src/cli/auditScanner.ts';
+import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 
 const AUDIT_CONFIG_MODULE_PATH = path
   .resolve(import.meta.dirname, '../src/core/auditConfig.ts')

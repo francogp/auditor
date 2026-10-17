@@ -8,10 +8,13 @@
  * - BaseAuditor projectRoot isolation for safe, reproducible testing
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { deriveCoverageFromRequiredFiles } from '../src/core/auditCoverage.ts';
 import {
   ALWAYS_IGNORE_DIRS,
   CODE_ONLY_IGNORE_DIRS,
@@ -22,7 +25,6 @@ import {
   type AuditorOptions,
   type ViolationInput
 } from '../src/core/auditorBase.ts';
-import { deriveCoverageFromRequiredFiles } from '../src/core/auditCoverage.ts';
 
 describe('auditorBase infrastructure', () => {
   describe('SSoT Ignore Sets Integrity', () => {

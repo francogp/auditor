@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
-import { ValidatePackageScriptsAuditor } from '../src/suites/architecture/validate_package_scripts.ts';
 import {
   migrateViteCommandsToVp,
   syncPackageJsonForVitePlus
 } from '../src/core/vitePlusConfigSync.ts';
+import { ValidatePackageScriptsAuditor } from '../src/suites/architecture/validate_package_scripts.ts';
 
 describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
   let tempDir: string;

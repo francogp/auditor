@@ -7,10 +7,12 @@
  * - Verifies clean execution when running directly on @francogp/auditor provider
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   AgentPluginAuditor,
   AGENT_PLUGIN_RULES

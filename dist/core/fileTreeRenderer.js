@@ -1,3 +1,4 @@
+import "./auditContract.js";
 import { padVisual } from "./terminalVisuals.js";
 import { formatNumber } from "./durationFormatter.js";
 import path from "node:path";

@@ -5,12 +5,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { Violation } from '../src/analyzers/auditRuleTypes.ts';
 import {
   buildProjectTopFiles,
   getProjectArchitectureRuleDescriptions,
   ProjectArchitectureAuditor
 } from '../src/suites/architecture/audit_project.ts';
-import type { Violation } from '../src/analyzers/auditRuleTypes.ts';
 
 describe('Project Architecture Helpers', () => {
   beforeEach(() => {

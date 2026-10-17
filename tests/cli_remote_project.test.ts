@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import {
   bootstrapCliProject,
   stripProjectCliArgs,
   resolvePackageBin
 } from '../src/cli/cliUtils.ts';
-import { discoverAuditors } from '../src/cli/auditScanner.ts';
 
 describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   let originalCwd: string;

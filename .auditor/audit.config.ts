@@ -168,7 +168,35 @@ export default defineAuditConfig({
     enabled: true
   },
   vitePlusConfig: {
-    enabled: true
+    enabled: true,
+    lint: {
+      rules: {
+        '@typescript-eslint/explicit-member-accessibility': [
+          'error',
+          { accessibility: 'explicit' }
+        ],
+        '@typescript-eslint/explicit-function-return-type': [
+          'error',
+          {
+            allowExpressions: true,
+            allowTypedFunctionExpressions: true,
+            allowHigherOrderFunctions: true,
+            allowDirectConstAssertionInArrowFunctions: true
+          }
+        ],
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          {
+            argsIgnorePattern: '^_',
+            varsIgnorePattern: '^_',
+            caughtErrorsIgnorePattern: '^_'
+          }
+        ],
+        'vue/no-required-prop-with-default': 'error',
+        'vue/no-deprecated-model-definition': 'error',
+        'no-useless-assignment': 'error'
+      }
+    }
   },
   htmlValidate: {
     enabled: true

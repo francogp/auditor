@@ -10,13 +10,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateVueRouterAuditor,
   VUE_ROUTER_RULES,
   type VueRouterRuleId
 } from '../src/suites/architecture/validate_vue_router.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 class TestableVueRouterAuditor extends ValidateVueRouterAuditor {
   public readonly collectedViolations: ViolationInput<VueRouterRuleId>[] = [];

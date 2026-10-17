@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "8.7.3-build.20261016-183504",
+  "version": "9.0.0-build.20261017-002942",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -15,7 +15,6 @@
   "bin": {
     "auditor": "dist/cli/audit_full.js",
     "auditor-build-deploy": "dist/cli/build_deploy.js",
-    "auditor-bundle": "dist/cli/audit_bundle.js",
     "auditor-by-file": "dist/cli/report_findings.js",
     "auditor-by-rule": "dist/cli/report_findings.js",
     "auditor-check-env": "dist/cli/check_environment.js",
@@ -128,7 +127,6 @@
     "test:coverage": "vp test run --coverage",
     "env:post-setup": "node --experimental-strip-types src/cli/init_agent.ts --from-postinstall",
     "auditor": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts",
-    "auditor:bundle": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/audit_bundle.ts",
     "auditor:md": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts preset=md",
     "lint:md": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/documentation/validate_markdown_lint.ts",
     "auditor:mermaid-syntax": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/documentation/validate_mermaid_syntax.ts",
@@ -248,7 +246,6 @@
     "build:deploy": "node --experimental-strip-types src/cli/build_deploy.ts"
   },
   "dependencies": {
-    "@arethetypeswrong/core": "^0.18.5",
     "@secretlint/core": "^13.0.7",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
     "boxen": "^9.0.0",
@@ -263,8 +260,6 @@
     "mermaid": "^12.2.0",
     "postcss-html": "^2.0.0",
     "postcss-value-parser": "^4.2.0",
-    "publint": "^0.3.25",
-    "rollup-plugin-visualizer": "^7.1.1",
     "semver": "^7.8.5",
     "string-width": "^8.3.0",
     "stylelint": "^17.16.0",
@@ -280,10 +275,12 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@arethetypeswrong/core": "0.18.5",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",
     "@types/semver": "^7.8.0",
     "@vitest/coverage-v8": "^5.0.4",
+    "publint": "0.3.25",
     "vite-plus": "^1.2.0"
   },
   "peerDependencies": {

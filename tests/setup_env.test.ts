@@ -4,9 +4,11 @@
  * Unit tests for cross-platform environment setup runner (runSetup).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import * as childProcess from 'node:child_process';
 import path from 'node:path';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import { runSetup } from '../src/cli/setup_env.ts';
 
 vi.mock('node:child_process', async (importOriginal) => {

@@ -4,10 +4,12 @@
  * Hermetic unit test suite for Production Bundle & Chunk Auditor (audit_bundle.ts)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   parseVisualizerData,
   aggregateModuleSizes,
@@ -78,6 +80,8 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
 
       expect(result.status).toBe('passed');
       expect(result.sizeBytes).toBe(100 * 1024);
+      expect(result.gzipBytes).toBeGreaterThan(0);
+      expect(result.compressionRatio).toBeDefined();
     });
 
     it('fails when chunk exceeds configured budget', () => {
@@ -119,6 +123,21 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
       expect(summary.totalErrors).toBe(0);
       expect(summary.topModules.length).toBe(1);
       expect(summary.chunkResults.length).toBe(1);
+    });
+
+    it('passes with zero errors using only compiled dist artifacts without bundle_stats.html', async () => {
+      const distDir = path.join(tempDir, 'dist/assets');
+      fs.mkdirSync(distDir, { recursive: true });
+
+      const chunkFile = path.join(distDir, 'app-core.js');
+      fs.writeFileSync(chunkFile, 'console.log("hello vite plus bundle");');
+
+      const summary = await runBundleAudit(tempDir);
+      expect(summary.success).toBe(true);
+      expect(summary.totalErrors).toBe(0);
+      expect(summary.chunkResults.length).toBe(1);
+      expect(summary.chunkResults[0]?.gzipBytes).toBeGreaterThan(0);
+      expect(summary.chunkResults[0]?.compressionRatio).toBeDefined();
     });
 
     it('detects errors when duplicate module exceeds threshold', async () => {

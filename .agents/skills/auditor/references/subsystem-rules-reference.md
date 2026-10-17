@@ -169,7 +169,7 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   - `@typescript-eslint/ban-ts-comment: 'error'`
   - `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
   - Casting rules banning double unknown casts (`as unknown as`) and legacy `new Date()` / `Date.now()`.
-  Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails with `vite-plus-config-defect`. In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline.
+  Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline.
 - **Source Code Formatting Hygiene (`validate_oxfmt`)**:
   `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
 - **Mandatory Canary Verification**:

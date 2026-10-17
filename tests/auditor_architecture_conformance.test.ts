@@ -8,12 +8,14 @@
  *   3. Align 100% with the dynamic auto-discovery engine in scripts/maintenance/auditScanner.ts.
  */
 
-import { describe, it, expect } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { describe, it, expect } from 'vite-plus/test';
+
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
-import { getActiveFamilies } from '../src/core/auditContract.ts';
 import { loadAuditConfig } from '../src/core/auditConfig.ts';
+import { getActiveFamilies } from '../src/core/auditContract.ts';
 
 const AUDITORS_ROOT = path.resolve(import.meta.dirname, '../src/suites');
 

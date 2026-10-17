@@ -8,14 +8,16 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
 import {
   ReactiveLeaksAuditor,
   REACTIVE_LEAK_RULES,
   type ReactiveLeakRuleId
 } from '../src/suites/architecture/validate_reactive_leaks.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 

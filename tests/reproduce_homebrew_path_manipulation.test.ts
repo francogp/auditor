@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
 import {
   scanFileForNativePathViolations,
   NATIVE_PATH_RULES

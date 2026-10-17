@@ -28,7 +28,9 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "allowJs": false,
-    "checkJs": false
+    "checkJs": false,
+    "verbatimModuleSyntax": true,
+    "useUnknownInCatchVariables": true
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"]
 }

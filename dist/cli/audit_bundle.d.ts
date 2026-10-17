@@ -26,6 +26,9 @@ export interface ChunkAuditResult {
   readonly filename: string;
   readonly sizeBytes: number;
   readonly sizeKB: string;
+  readonly gzipBytes?: number;
+  readonly gzipKB?: string;
+  readonly compressionRatio?: string;
   readonly status: ChunkAuditStatus;
   readonly budgetName?: string;
   readonly budgetLimitBytes?: number;
@@ -47,6 +50,12 @@ export declare const DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES: number;
 export declare function parseVisualizerData(content: string): VisualizerData | null;
 export declare function aggregateModuleSizes(data: VisualizerData, heavyChunkThreshold?: number): readonly AggregatedModule[];
 export declare function auditSingleChunk(filename: string, fullPath: string, budgets: readonly ChunkBudgetConfig[], unbudgetedLimit?: number): ChunkAuditResult;
+export interface DiscoveredChunk {
+  readonly filename: string;
+  readonly fullPath: string;
+}
+export declare function discoverCompiledChunks(targetDir: string): readonly DiscoveredChunk[];
+export declare function resolveDistDir(projectRoot: string, configuredDistDir?: string): string;
 export declare function runBundleAudit(projectRoot?: string): Promise<BundleAuditSummary>;
 export declare function executeCli(): Promise<void>;
 //#endregion

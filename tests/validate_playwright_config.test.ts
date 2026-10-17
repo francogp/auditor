@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidatePlaywrightConfigAuditor,
   PLAYWRIGHT_CONFIG_RULES,
   CANONICAL_PLAYWRIGHT_CONFIG_CONTENT
 } from '../src/suites/architecture/validate_playwright_config.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 
 describe('ValidatePlaywrightConfigAuditor', () => {
   let tmpDir: string;

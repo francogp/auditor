@@ -3,10 +3,13 @@
  * @description Unit tests for testCoverageCore engine.
  */
 
-import { describe, it, expect } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect } from 'vite-plus/test';
+
+import type { AuditTestCoverageConfig } from '../src/core/auditConfig.ts';
 import {
   calculateMetric,
   determineCoverageStatus,
@@ -20,7 +23,6 @@ import {
   analyzeTestCoverage,
   findUntrackedFiles
 } from '../src/core/testCoverageCore.ts';
-import type { AuditTestCoverageConfig } from '../src/core/auditConfig.ts';
 
 describe('testCoverageCore', () => {
   describe('calculateMetric', () => {

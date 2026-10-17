@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
 import { parseVueSfcBlocks } from '../src/core/vueSfcParser.ts';
 
 describe('vueSfcParser core helper', () => {

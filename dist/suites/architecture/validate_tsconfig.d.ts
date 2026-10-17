@@ -10,6 +10,10 @@ export interface TsCompilerOptionsShape {
   strict?: boolean;
   noImplicitAny?: boolean;
   noUncheckedIndexedAccess?: boolean;
+  verbatimModuleSyntax?: boolean;
+  useUnknownInCatchVariables?: boolean;
+  noPropertyAccessFromIndexSignature?: boolean;
+  exactOptionalPropertyTypes?: boolean;
   isolatedModules?: boolean;
   skipLibCheck?: boolean;
   esModuleInterop?: boolean;

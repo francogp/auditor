@@ -7,13 +7,15 @@
  * to developers or AI agents when the errors are architectural or non-mechanical.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseLintResultsToFindings } from '../src/core/reportUtils.ts';
-import { processStylelintResults } from '../src/suites/architecture/validate_stylelint.ts';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { computeFixableViolations } from '../src/cli/audit_full.ts';
 import type { StandardAuditResult, AuditFinding } from '../src/core/auditContract.ts';
+import { parseLintResultsToFindings } from '../src/core/reportUtils.ts';
+import { processStylelintResults } from '../src/suites/architecture/validate_stylelint.ts';
 
 describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () => {
   const fixturesDir = path.resolve(import.meta.dirname, 'fixtures');

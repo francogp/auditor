@@ -4,8 +4,10 @@
  * Unit tests for fallow review report CLI tool (runReviewReport).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import * as childProcess from 'node:child_process';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import { runReviewReport } from '../src/cli/report_review.ts';
 import * as similarCodeModule from '../src/suites/architecture/validate_similar_code.ts';
 

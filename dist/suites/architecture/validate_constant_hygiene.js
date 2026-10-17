@@ -4,6 +4,7 @@ import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import "../../core/astContext.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { detectDuplicateConstants } from "../../analyzers/constantAnalyzer.js";

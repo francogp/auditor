@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
 import * as AuditorPackage from '../src/index.ts';
 
 describe('Public Package Exports (src/index.ts)', () => {

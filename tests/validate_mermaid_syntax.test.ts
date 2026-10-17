@@ -3,8 +3,12 @@
  * @description Dedicated unit test suite for ValidateMermaidSyntaxAuditor and native Mermaid validator.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import type { ViolationInput } from '../src/core/auditorBase.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateMermaidSyntaxAuditor,
   MERMAID_SYNTAX_RULES,
@@ -12,8 +16,6 @@ import {
   validate,
   type MermaidSyntaxRuleId
 } from '../src/suites/documentation/validate_mermaid_syntax.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import type { ViolationInput } from '../src/core/auditorBase.ts';
 
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 

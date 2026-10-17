@@ -4,16 +4,18 @@
  * Exhaustive unit tests for ValidateConstantHygieneAuditor conforming to BaseAuditor 5-point contract.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateConstantHygieneAuditor,
   CONSTANT_HYGIENE_RULES
 } from '../src/suites/architecture/validate_constant_hygiene.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig } from '../src/core/auditConfig.ts';
 
 describe('ValidateConstantHygieneAuditor', () => {
   let tempDir: string;

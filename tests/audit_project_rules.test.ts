@@ -5,6 +5,8 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
+import { ProjectArchitectureAuditor } from '../src/suites/architecture/audit_project.ts';
 import {
   matchesRule,
   forbiddenTypeCasts,
@@ -41,7 +43,6 @@ import {
   CANONICAL_DEFAULT_Z_LAYERS,
   Z_LAYERS
 } from '../src/suites/architecture/audit_rules.ts';
-import { ProjectArchitectureAuditor } from '../src/suites/architecture/audit_project.ts';
 
 describe('Project Architecture Rules & Auditor', () => {
   describe('matchesRule helper', () => {

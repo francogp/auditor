@@ -1,7 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { defineAuditConfig } from '../src/core/auditConfig.ts';
+import { loadAuditConfig } from '../src/core/auditConfigLoader.ts';
 import {
   isDataPath,
   isDemoPath,
@@ -11,13 +15,11 @@ import {
   isSrcPath,
   isCliPath
 } from '../src/core/auditPathPredicates.ts';
-import { isTestPath, isTestFileForCodeAudit } from '../src/core/auditTestPredicates.ts';
-import { matchesAnyRoot } from '../src/core/auditRootMatcher.ts';
 import { isSelfProviderProject } from '../src/core/auditProjectIdentity.ts';
+import { matchesAnyRoot } from '../src/core/auditRootMatcher.ts';
+import { isTestPath, isTestFileForCodeAudit } from '../src/core/auditTestPredicates.ts';
 import { resolveZLayersScssPath, getEffectiveZLayers, Z_LAYERS } from '../src/core/auditZLayers.ts';
 import { advancePastStringOrComment, scanBalancedBraces } from '../src/core/scannerUtils.ts';
-import { defineAuditConfig } from '../src/core/auditConfig.ts';
-import { loadAuditConfig } from '../src/core/auditConfigLoader.ts';
 
 describe('auditPathPredicates', () => {
   let tempDir: string;

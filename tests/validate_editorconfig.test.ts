@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateEditorconfigAuditor,
   EDITORCONFIG_RULES,
   CANONICAL_EDITORCONFIG_CONTENT
 } from '../src/suites/architecture/validate_editorconfig.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 
 describe('ValidateEditorconfigAuditor', () => {
   let tmpDir: string;

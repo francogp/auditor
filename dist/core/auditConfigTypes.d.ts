@@ -456,6 +456,7 @@ export interface AuditVitePlusFmtConfig {
   readonly useTabs?: boolean;
   readonly printWidth?: number;
   readonly sortPackageJson?: boolean;
+  readonly sortImports?: boolean;
   readonly ignorePatterns?: readonly string[];
   readonly overrides?: readonly VitePlusFmtOverrideConfig[];
 }

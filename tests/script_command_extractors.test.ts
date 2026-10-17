@@ -5,6 +5,8 @@
  */
 
 import { describe, it, expect } from 'vite-plus/test';
+
+import type { ExtractedCommand } from '../src/core/npmCommandUtils.ts';
 import {
   extractCommandsFromShell,
   extractCommandsFromYaml,
@@ -14,7 +16,6 @@ import {
   extractScriptCommands,
   inspectCommandTokens
 } from '../src/core/scriptCommandExtractors.ts';
-import type { ExtractedCommand } from '../src/core/npmCommandUtils.ts';
 
 describe('scriptCommandExtractors', () => {
   describe('extractCommandsFromShell', () => {

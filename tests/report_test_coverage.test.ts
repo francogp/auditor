@@ -3,10 +3,12 @@
  * @description Unit tests for report_test_coverage CLI tool.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
+
 import { runTestCoverageReport } from '../src/cli/report_test_coverage.ts';
 
 describe('report_test_coverage CLI Tool', () => {

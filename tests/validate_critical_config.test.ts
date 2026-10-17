@@ -6,20 +6,22 @@
  * and host extensions.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import type { AuditEngineConfig } from '../src/core/auditConfigTypes.ts';
+import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
 import { BaseAuditor, type AuditorOptions } from '../src/core/auditorBase.ts';
+import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 import {
   ValidateStylelintConfigAuditor,
   REQUIRED_STRICT_PROPERTIES
 } from '../src/suites/architecture/validate_stylelint_config.ts';
-import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
-import { resetAuditConfig } from '../src/core/auditConfig.ts';
-import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
-import type { AuditEngineConfig } from '../src/core/auditConfigTypes.ts';
 
 type SampleRuleId = 'sample-rule';
 

@@ -121,10 +121,8 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		...specificTargetIgnores
 	]));
 }
-function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
-	const isLibrary = auditConfig.packageDistribution?.enabled !== false;
-	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
-	const packSection = isLibrary ? `  pack: {
+function buildPackSection(auditConfig) {
+	return auditConfig.packageDistribution?.enabled !== false ? `  pack: {
     entry: ['src/index.ts', 'src/cli/*.ts', 'src/suites/**/*.ts'],
     unbundle: true,
     dts: true,
@@ -132,14 +130,62 @@ function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
     attw: { profile: 'esm-only' },
     outExtensions: () => ({ js: '.js', dts: '.d.ts' })
   },\n` : "";
+}
+function buildFmtSection(auditConfig, projectRoot) {
 	const fmtCfg = auditConfig.vitePlusConfig?.fmt;
 	const singleQuote = fmtCfg?.singleQuote ?? true;
 	const semi = fmtCfg?.semi ?? true;
 	const trailingComma = fmtCfg?.trailingComma ?? "none";
 	const printWidth = fmtCfg?.printWidth ?? 100;
 	const sortPackageJson = fmtCfg?.sortPackageJson ?? true;
+	const sortImports = fmtCfg?.sortImports ?? true;
 	const tabWidthLine = fmtCfg?.tabWidth !== void 0 ? `\n    tabWidth: ${fmtCfg.tabWidth},` : "";
 	const useTabsLine = fmtCfg?.useTabs !== void 0 ? `\n    useTabs: ${fmtCfg.useTabs},` : "";
+	const mergedFmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
+	return `  fmt: {
+    singleQuote: ${singleQuote},
+    semi: ${semi},
+    trailingComma: '${trailingComma}',
+    printWidth: ${printWidth},
+    sortPackageJson: ${sortPackageJson},
+    sortImports: ${sortImports},
+    ignorePatterns: ${JSON.stringify(mergedFmtIgnores, null, 6).replace(/\n/g, "\n    ")}${tabWidthLine}${useTabsLine}
+  }`;
+}
+function buildTestSection(auditConfig) {
+	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
+	const testRoots = auditConfig.paths?.testRoots ?? ["tests"];
+	const testIncludeStr = JSON.stringify(testRoots.map((r) => `${r}/**/*.{test,spec}.ts`), null, 6).replace(/\n/g, "\n    ");
+	const srcRoots = auditConfig.paths?.srcRoots ?? ["src"];
+	const srcIncludeStr = JSON.stringify(srcRoots.map((r) => `${r}/**/*.ts`), null, 8).replace(/\n/g, "\n      ");
+	const cliRoots = auditConfig.paths?.cliRoots ?? ["src/cli"];
+	return `  test: {
+    environment: 'node',
+    include: ${testIncludeStr},
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: 'scratch/coverage',
+      include: ${srcIncludeStr},
+      exclude: ${JSON.stringify([...cliRoots.map((r) => `${r}/**`), ...testRoots.map((r) => `${r}/**`)], null, 8).replace(/\n/g, "\n      ")},
+      thresholds: {
+        lines: ${coverageThreshold},
+        functions: ${coverageThreshold},
+        branches: ${coverageThreshold},
+        statements: ${coverageThreshold}
+      }
+    }
+  }`;
+}
+function buildStagedSection(auditConfig) {
+	const stagedCfg = auditConfig.vitePlusConfig?.staged;
+	let stagedRules = "{ '*': 'vp check --fix' }";
+	if (stagedCfg) {
+		const rulesObj = "rules" in stagedCfg && stagedCfg.rules ? stagedCfg.rules : stagedCfg;
+		if (Object.keys(rulesObj).length > 0) stagedRules = JSON.stringify(rulesObj, null, 4).replace(/\n/g, "\n  ");
+	}
+	return `  staged: ${stagedRules}`;
+}
+function buildLintSection(auditConfig, projectRoot) {
 	const lintCfg = auditConfig.vitePlusConfig?.lint;
 	const typeAware = lintCfg?.typeAware ?? true;
 	const typeCheck = lintCfg?.typeCheck ?? true;
@@ -149,31 +195,17 @@ function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
 	if (lintCfg?.overrides && lintCfg.overrides.length > 0) overridesSection = `,\n    overrides: [\n${lintCfg.overrides.map((ov) => {
 		return `      {\n        files: ${JSON.stringify(ov.files)},\n        rules: {\n${Object.entries(ov.rules).map(([k, v]) => `        '${k}': ${JSON.stringify(v)}`).join(",\n")}\n        }\n      }`;
 	}).join(",\n")}\n    ]`;
-	const stagedCfg = auditConfig.vitePlusConfig?.staged;
-	let stagedRules = "{ '*': 'vp check --fix' }";
-	if (stagedCfg) {
-		const rulesObj = "rules" in stagedCfg && stagedCfg.rules ? stagedCfg.rules : stagedCfg;
-		if (Object.keys(rulesObj).length > 0) stagedRules = JSON.stringify(rulesObj, null, 4).replace(/\n/g, "\n  ");
-	}
 	const mergedLintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
 	const lintIgnoreStr = JSON.stringify(mergedLintIgnores, null, 6).replace(/\n/g, "\n    ");
-	const mergedFmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
-	const fmtIgnoreStr = JSON.stringify(mergedFmtIgnores, null, 6).replace(/\n/g, "\n    ");
-	let extraRulesStr = "";
-	if (auditConfig.vitePlusConfig?.extraLintRules) {
-		const entries = Object.entries(auditConfig.vitePlusConfig.extraLintRules).map(([k, v]) => `      '${k}': '${v}'`);
-		if (entries.length > 0) extraRulesStr = ",\n" + entries.join(",\n");
+	const customRules = [];
+	if (auditConfig.vitePlusConfig?.extraLintRules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) customRules.push(`      '${k}': '${v}'`);
+	if (auditConfig.vitePlusConfig?.lint?.rules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.lint.rules)) {
+		const valStr = typeof v === "string" ? `'${v}'` : JSON.stringify(v);
+		customRules.push(`      '${k}': ${valStr}`);
 	}
-	const testRoots = auditConfig.paths?.testRoots ?? ["tests"];
-	const testIncludeStr = JSON.stringify(testRoots.map((r) => `${r}/**/*.{test,spec}.ts`), null, 6).replace(/\n/g, "\n    ");
-	const srcRoots = auditConfig.paths?.srcRoots ?? ["src"];
-	const srcIncludeStr = JSON.stringify(srcRoots.map((r) => `${r}/**/*.ts`), null, 8).replace(/\n/g, "\n      ");
-	const cliRoots = auditConfig.paths?.cliRoots ?? ["src/cli"];
-	const excludeStr = JSON.stringify([...cliRoots.map((r) => `${r}/**`), ...testRoots.map((r) => `${r}/**`)], null, 8).replace(/\n/g, "\n      ");
-	return `import { defineConfig } from 'vite-plus';
-
-export default defineConfig({
-${packSection}  lint: {
+	let extraRulesStr = "";
+	if (customRules.length > 0) extraRulesStr = ",\n" + customRules.join(",\n");
+	return `  lint: {
     options: {
       typeAware: ${typeAware},
       typeCheck: ${typeCheck}
@@ -189,36 +221,175 @@ ${packSection}  lint: {
           objectLiteralTypeAssertions: 'never'
         }
       ],
+      '@typescript-eslint/no-floating-promises': 'error',
       '@francogp/domain-type/no-double-cast-unknown': 'error',
-      '@francogp/domain-type/no-legacy-date': 'error'${extraRulesStr}
+      '@francogp/domain-type/no-legacy-date': 'error',
+      'unicorn/prefer-node-protocol': 'error',
+      'no-debugger': 'error',
+      'no-else-return': 'error',
+      'no-empty': [
+        'error',
+        {
+          allowEmptyCatch: false
+        }
+      ],
+      'max-depth': ['error', 4],
+      'import/no-duplicates': 'error',
+      'eqeqeq': ['error', 'always'],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-self-compare': 'error',
+      'no-eval': 'error',
+      'vue/no-async-in-computed-properties': 'error',
+      'vue/no-side-effects-in-computed-properties': 'error',
+      'vue/no-export-in-script-setup': 'error',
+      'vue/no-lifecycle-after-await': 'error',
+      'vue/no-watch-after-await': 'error',
+      'vue/prefer-import-from-vue': 'error',
+      'vitest/no-identical-title': 'error',
+      'vitest/no-focused-tests': 'error',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/prefer-to-have-length': 'error',
+      'vitest/valid-title': 'error',
+      'import/no-self-import': 'error',
+      'import/no-empty-named-blocks': 'error',
+      'no-useless-catch': 'error',
+      'no-useless-rename': 'error',
+      'no-sparse-arrays': 'error',
+      'no-shadow-restricted-names': 'error',
+      'unicorn/prefer-string-starts-ends-with': 'error',
+      'unicorn/throw-new-error': 'error',
+      'unicorn/no-useless-spread': 'error',
+      // TypeScript & Type Safety (Java-Like Strictness)
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      '@typescript-eslint/consistent-indexed-object-style': 'error',
+      '@typescript-eslint/no-empty-object-type': 'error',
+      '@typescript-eslint/no-unnecessary-template-expression': 'error',
+      '@typescript-eslint/no-unnecessary-type-arguments': 'error',
+      '@typescript-eslint/no-unnecessary-type-constraint': 'error',
+      '@typescript-eslint/prefer-function-type': 'error',
+      '@typescript-eslint/prefer-return-this-type': 'error',
+      '@typescript-eslint/ban-tslint-comment': 'error',
+      // Immutability & Anti-Dynamic Modification
+      'import/no-mutable-exports': 'error',
+      'no-extend-native': 'error',
+      'no-proto': 'error',
+      'no-iterator': 'error',
+      'prefer-object-has-own': 'error',
+      'no-useless-computed-key': 'error',
+      'node/no-exports-assign': 'error',
+      'import/no-webpack-loader-syntax': 'error',
+      'import/no-dynamic-require': 'error',
+      'import/no-amd': 'error',
+      'import/no-named-default': 'error',
+      'no-new-wrappers': 'error',
+      'no-array-constructor': 'error',
+      'no-caller': 'error',
+      'unicorn/no-new-buffer': 'error',
+      // Execution Safety & Strict Control Flow
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-script-url': 'error',
+      'default-case-last': 'error',
+      'radix': 'error',
+      'no-return-assign': 'error',
+      'no-multi-assign': 'error',
+      'no-sequences': 'error',
+      'no-labels': 'error',
+      'no-void': 'error',
+      'no-useless-call': 'error',
+      'yoda': 'error',
+      'no-unneeded-ternary': 'error',
+      'promise/no-new-statics': 'error',
+      'promise/valid-params': 'error',
+      'promise/no-return-in-finally': 'error',
+      'node/no-new-require': 'error',
+      'node/no-path-concat': 'error',
+      // Modern JS & Performance
+      'unicorn/no-unnecessary-array-flat-depth': 'error',
+      'unicorn/no-unnecessary-array-splice-count': 'error',
+      'unicorn/no-unreadable-iife': 'error',
+      'unicorn/no-useless-switch-case': 'error',
+      'unicorn/no-useless-promise-resolve-reject': 'error',
+      'unicorn/prefer-array-some': 'error',
+      'unicorn/no-unnecessary-slice-end': 'error',
+      'unicorn/explicit-timer-delay': 'error',
+      'unicorn/prefer-date-now': 'error',
+      'unicorn/prefer-math-min-max': 'error',
+      'unicorn/prefer-math-trunc': 'error',
+      'unicorn/prefer-prototype-methods': 'error',
+      'unicorn/prefer-regexp-test': 'error',
+      'unicorn/prefer-default-parameters': 'error',
+      'unicorn/prefer-global-this': 'error',
+      'unicorn/prefer-optional-catch-binding': 'error',
+      'unicorn/prefer-string-trim-start-end': 'error',
+      'prefer-exponentiation-operator': 'error',
+      'prefer-numeric-literals': 'error',
+      'prefer-rest-params': 'error',
+      // Vitest Determinism & Hygiene
+      'vitest/no-duplicate-hooks': 'error',
+      'vitest/no-test-prefixes': 'error',
+      'vitest/no-test-return-statement': 'error',
+      'vitest/prefer-to-contain': 'error',
+      'vitest/prefer-to-be': 'error',
+      'vitest/prefer-comparison-matcher': 'error',
+      'vitest/no-import-node-test': 'error',
+      'vitest/no-interpolation-in-snapshots': 'error',
+      'vitest/prefer-expect-resolves': 'error',
+      'vitest/prefer-mock-promise-shorthand': 'error',
+      'vitest/prefer-mock-return-shorthand': 'error',
+      'vitest/prefer-strict-equal': 'error',
+      'vitest/prefer-to-be-truthy': 'error',
+      'vitest/prefer-to-be-falsy': 'error',
+      'vitest/prefer-to-be-object': 'error',
+      'vitest/prefer-todo': 'error',
+      // Vue 3 SFC & Reactivity Standards
+      'vue/no-expose-after-await': 'error',
+      'vue/return-in-computed-property': 'error',
+      'vue/no-import-compiler-macros': 'error',
+      'vue/valid-next-tick': 'error',
+      'vue/no-deprecated-destroyed-lifecycle': 'error',
+      'vue/component-definition-name-casing': 'error',
+      'vue/define-emits-declaration': 'error',
+      'vue/define-props-declaration': 'error',
+      'vue/next-tick-style': 'error',
+      'vue/prop-name-casing': 'error',
+      'vue/require-direct-export': 'error',
+      'vue/require-typed-ref': 'error',
+      // Java-Like Strictness (Level B)
+      '@typescript-eslint/explicit-member-accessibility': ['error', { accessibility: 'explicit' }],
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+          allowDirectConstAssertionInArrowFunctions: true
+        }
+      ],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
+      'vue/no-required-prop-with-default': 'error',
+      'vue/no-deprecated-model-definition': 'error',
+      'no-useless-assignment': 'error'${extraRulesStr}
     },
     ignorePatterns: ${lintIgnoreStr}${overridesSection}
-  },
-  fmt: {
-    singleQuote: ${singleQuote},
-    semi: ${semi},
-    trailingComma: '${trailingComma}',
-    printWidth: ${printWidth},
-    sortPackageJson: ${sortPackageJson},
-    ignorePatterns: ${fmtIgnoreStr}${tabWidthLine}${useTabsLine}
-  },
-  test: {
-    environment: 'node',
-    include: ${testIncludeStr},
-    coverage: {
-      provider: 'v8',
-      reportsDirectory: 'scratch/coverage',
-      include: ${srcIncludeStr},
-      exclude: ${excludeStr},
-      thresholds: {
-        lines: ${coverageThreshold},
-        functions: ${coverageThreshold},
-        branches: ${coverageThreshold},
-        statements: ${coverageThreshold}
-      }
-    }
-  },
-  staged: ${stagedRules}
+  }`;
+}
+function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
+	return `import { defineConfig } from 'vite-plus';
+
+export default defineConfig({
+${buildPackSection(auditConfig)}${buildLintSection(auditConfig, projectRoot)},
+${buildFmtSection(auditConfig, projectRoot)},
+${buildTestSection(auditConfig)},
+${buildStagedSection(auditConfig)}
 });
 `;
 }
@@ -428,15 +599,202 @@ const STRICT_RULE_CHECKS = [
 	"@typescript-eslint/no-explicit-any",
 	"@typescript-eslint/ban-ts-comment",
 	"@typescript-eslint/consistent-type-assertions",
+	"@typescript-eslint/no-floating-promises",
 	"@francogp/domain-type/no-double-cast-unknown",
-	"@francogp/domain-type/no-legacy-date"
+	"@francogp/domain-type/no-legacy-date",
+	"unicorn/prefer-node-protocol",
+	"no-debugger",
+	"no-else-return",
+	"no-empty",
+	"max-depth",
+	"import/no-duplicates",
+	"eqeqeq",
+	"prefer-const",
+	"no-var",
+	"no-self-compare",
+	"no-eval",
+	"vue/no-async-in-computed-properties",
+	"vue/no-side-effects-in-computed-properties",
+	"vue/no-export-in-script-setup",
+	"vue/no-lifecycle-after-await",
+	"vue/no-watch-after-await",
+	"vue/prefer-import-from-vue",
+	"vitest/no-identical-title",
+	"vitest/no-focused-tests",
+	"vitest/no-disabled-tests",
+	"vitest/prefer-to-have-length",
+	"vitest/valid-title",
+	"import/no-self-import",
+	"import/no-empty-named-blocks",
+	"no-useless-catch",
+	"no-useless-rename",
+	"no-sparse-arrays",
+	"no-shadow-restricted-names",
+	"unicorn/prefer-string-starts-ends-with",
+	"unicorn/throw-new-error",
+	"unicorn/no-useless-spread",
+	"@typescript-eslint/no-unnecessary-type-assertion",
+	"@typescript-eslint/consistent-indexed-object-style",
+	"@typescript-eslint/no-empty-object-type",
+	"@typescript-eslint/no-unnecessary-template-expression",
+	"@typescript-eslint/no-unnecessary-type-arguments",
+	"@typescript-eslint/no-unnecessary-type-constraint",
+	"@typescript-eslint/prefer-function-type",
+	"@typescript-eslint/prefer-return-this-type",
+	"@typescript-eslint/ban-tslint-comment",
+	"import/no-mutable-exports",
+	"no-extend-native",
+	"no-proto",
+	"no-iterator",
+	"prefer-object-has-own",
+	"no-useless-computed-key",
+	"node/no-exports-assign",
+	"import/no-webpack-loader-syntax",
+	"import/no-dynamic-require",
+	"import/no-amd",
+	"import/no-named-default",
+	"no-new-wrappers",
+	"no-array-constructor",
+	"no-caller",
+	"unicorn/no-new-buffer",
+	"no-implied-eval",
+	"no-new-func",
+	"no-script-url",
+	"default-case-last",
+	"radix",
+	"no-return-assign",
+	"no-multi-assign",
+	"no-sequences",
+	"no-labels",
+	"no-void",
+	"no-useless-call",
+	"yoda",
+	"no-unneeded-ternary",
+	"promise/no-new-statics",
+	"promise/valid-params",
+	"promise/no-return-in-finally",
+	"node/no-new-require",
+	"node/no-path-concat",
+	"unicorn/no-unnecessary-array-flat-depth",
+	"unicorn/no-unnecessary-array-splice-count",
+	"unicorn/no-unreadable-iife",
+	"unicorn/no-useless-switch-case",
+	"unicorn/no-useless-promise-resolve-reject",
+	"unicorn/prefer-array-some",
+	"unicorn/no-unnecessary-slice-end",
+	"unicorn/explicit-timer-delay",
+	"unicorn/prefer-date-now",
+	"unicorn/prefer-math-min-max",
+	"unicorn/prefer-math-trunc",
+	"unicorn/prefer-prototype-methods",
+	"unicorn/prefer-regexp-test",
+	"unicorn/prefer-default-parameters",
+	"unicorn/prefer-global-this",
+	"unicorn/prefer-optional-catch-binding",
+	"unicorn/prefer-string-trim-start-end",
+	"prefer-exponentiation-operator",
+	"prefer-numeric-literals",
+	"prefer-rest-params",
+	"vitest/no-duplicate-hooks",
+	"vitest/no-test-prefixes",
+	"vitest/no-test-return-statement",
+	"vitest/prefer-to-contain",
+	"vitest/prefer-to-be",
+	"vitest/prefer-comparison-matcher",
+	"vitest/no-import-node-test",
+	"vitest/no-interpolation-in-snapshots",
+	"vitest/prefer-expect-resolves",
+	"vitest/prefer-mock-promise-shorthand",
+	"vitest/prefer-mock-return-shorthand",
+	"vitest/prefer-strict-equal",
+	"vitest/prefer-to-be-truthy",
+	"vitest/prefer-to-be-falsy",
+	"vitest/prefer-to-be-object",
+	"vitest/prefer-todo",
+	"vue/no-expose-after-await",
+	"vue/return-in-computed-property",
+	"vue/no-import-compiler-macros",
+	"vue/valid-next-tick",
+	"vue/no-deprecated-destroyed-lifecycle",
+	"vue/component-definition-name-casing",
+	"vue/define-emits-declaration",
+	"vue/define-props-declaration",
+	"vue/next-tick-style",
+	"vue/prop-name-casing",
+	"vue/require-direct-export",
+	"vue/require-typed-ref",
+	"@typescript-eslint/explicit-member-accessibility",
+	"@typescript-eslint/explicit-function-return-type",
+	"@typescript-eslint/no-unused-vars",
+	"vue/no-required-prop-with-default",
+	"vue/no-deprecated-model-definition",
+	"no-useless-assignment"
 ];
+const CANONICAL_SPECIAL_RULES = {
+	"@typescript-eslint/consistent-type-assertions": "['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]",
+	"no-empty": "['error', { allowEmptyCatch: false }]",
+	"max-depth": "['error', 4]",
+	eqeqeq: "['error', 'always']",
+	"@typescript-eslint/explicit-member-accessibility": "['error', { accessibility: 'explicit' }]",
+	"@typescript-eslint/explicit-function-return-type": "['error', { allowExpressions: true, allowTypedFunctionExpressions: true, allowHigherOrderFunctions: true, allowDirectConstAssertionInArrowFunctions: true }]",
+	"@typescript-eslint/no-unused-vars": "['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }]"
+};
+function getCanonicalRuleValue(rule, override) {
+	if (override) return override;
+	return CANONICAL_SPECIAL_RULES[rule] ?? "'error'";
+}
+function findClosingBracketWithNesting(content, startIndex) {
+	let depth = 0;
+	let inQuote = null;
+	for (let i = startIndex; i < content.length; i++) {
+		const ch = content[i];
+		if (inQuote) {
+			if (ch === "\\") i++;
+			else if (ch === inQuote) inQuote = null;
+			continue;
+		}
+		if (ch === "'" || ch === "\"") {
+			inQuote = ch;
+			continue;
+		}
+		if (ch === "[" || ch === "{") {
+			depth++;
+			continue;
+		}
+		if (ch === "]" || ch === "}") {
+			depth--;
+			if (depth === 0) return i + 1;
+		}
+	}
+	return content.length;
+}
+function extractRuleValue(content, ruleName) {
+	const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const match = new RegExp(`['"]${escaped}['"]\\s*:`, "m").exec(content);
+	if (!match) return null;
+	let valStart = match.index + match[0].length;
+	while (valStart < content.length && /\s/.test(content[valStart])) valStart++;
+	if (valStart >= content.length) return null;
+	const firstChar = content[valStart];
+	let valEnd = valStart;
+	if (firstChar === "'" || firstChar === "\"") valEnd = skipQuote(content, valStart, firstChar) + 1;
+	else if (firstChar === "[") valEnd = findClosingBracketWithNesting(content, valStart);
+	else {
+		const commaOrBrace = content.slice(valStart).search(/[,}\n]/);
+		valEnd = commaOrBrace !== -1 ? valStart + commaOrBrace : content.length;
+	}
+	const value = content.slice(valStart, valEnd).trim();
+	return {
+		fullMatch: content.slice(match.index, valEnd),
+		value,
+		startIndex: match.index,
+		endIndex: valEnd
+	};
+}
 function applyStrictRule(content, rule, canonicalOverride) {
-	const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	const existingRuleRegex = new RegExp(`['"]${escaped}['"]\\s*:\\s*(['"][^'"]+['"]|\\[[^\\]]+\\])`, "m");
-	const match = existingRuleRegex.exec(content);
-	const canonicalValue = canonicalOverride ?? (rule === "@typescript-eslint/consistent-type-assertions" ? "['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]" : "'error'");
-	if (!match) {
+	const canonicalValue = getCanonicalRuleValue(rule, canonicalOverride);
+	const extracted = extractRuleValue(content, rule);
+	if (!extracted) {
 		if (content.includes("rules: {")) return {
 			content: content.replace(/rules:\s*\{/, `rules: {\n      '${rule}': ${canonicalValue},`),
 			modified: true
@@ -446,8 +804,11 @@ function applyStrictRule(content, rule, canonicalOverride) {
 			modified: false
 		};
 	}
-	if (/['"](?:off|warn|0|1)['"]/.test(match[1] ?? "")) return {
-		content: content.replace(existingRuleRegex, `'${rule}': ${canonicalValue}`),
+	const existingVal = extracted.value;
+	const isNoEmpty = rule === "no-empty";
+	const isEqeqeq = rule === "eqeqeq";
+	if (/['"](?:off|warn|0|1)['"]/.test(existingVal) || isNoEmpty && !existingVal.includes("allowEmptyCatch: false") || isEqeqeq && !existingVal.includes("always")) return {
+		content: content.slice(0, extracted.startIndex) + `'${rule}': ${canonicalValue}` + content.slice(extracted.endIndex),
 		modified: true
 	};
 	return {
@@ -493,10 +854,8 @@ function ensureLintPlugins(content) {
 	};
 }
 function applyConfiguredRule(content, rule, targetValue) {
-	const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	const existingRuleRegex = new RegExp(`(['"]${escaped}['"]\\s*:\\s*)(['"][^'"]+['"]|\\[[^\\]]+\\])`, "m");
-	const match = existingRuleRegex.exec(content);
-	if (!match) {
+	const extracted = extractRuleValue(content, rule);
+	if (!extracted) {
 		if (content.includes("rules: {")) return {
 			content: content.replace(/rules:\s*\{/, `rules: {\n      '${rule}': ${targetValue},`),
 			modified: true
@@ -506,8 +865,8 @@ function applyConfiguredRule(content, rule, targetValue) {
 			modified: false
 		};
 	}
-	if (match[2]?.trim() !== targetValue.trim()) return {
-		content: content.replace(existingRuleRegex, `$1${targetValue}`),
+	if (extracted.value.trim() !== targetValue.trim()) return {
+		content: content.slice(0, extracted.startIndex) + `'${rule}': ${targetValue}` + content.slice(extracted.endIndex),
 		modified: true
 	};
 	return {
@@ -662,6 +1021,38 @@ function ensureIgnorePatterns(content, blockName, config, projectRoot) {
 		modified: false
 	};
 }
+function ensureFmtSorting(content, config) {
+	const fmtBlock = extractObjectPropertyBlock(content, "fmt");
+	if (!fmtBlock) return {
+		content,
+		modified: false
+	};
+	let updatedBlock = fmtBlock;
+	const sortPackageJson = config.vitePlusConfig?.fmt?.sortPackageJson ?? true;
+	const sortImports = config.vitePlusConfig?.fmt?.sortImports ?? true;
+	if (sortPackageJson && !/sortPackageJson\s*:\s*true/.test(updatedBlock)) {
+		if (/sortPackageJson\s*:\s*false/.test(updatedBlock)) updatedBlock = updatedBlock.replace(/sortPackageJson\s*:\s*false/, "sortPackageJson: true");
+		else {
+			const braceIndex = updatedBlock.indexOf("{");
+			if (braceIndex !== -1) updatedBlock = updatedBlock.slice(0, braceIndex + 1) + "\n    sortPackageJson: true," + updatedBlock.slice(braceIndex + 1);
+		}
+	}
+	if (sortImports && !/sortImports\s*:\s*true/.test(updatedBlock)) {
+		if (/sortImports\s*:\s*false/.test(updatedBlock)) updatedBlock = updatedBlock.replace(/sortImports\s*:\s*false/, "sortImports: true");
+		else {
+			const braceIndex = updatedBlock.indexOf("{");
+			if (braceIndex !== -1) updatedBlock = updatedBlock.slice(0, braceIndex + 1) + "\n    sortImports: true," + updatedBlock.slice(braceIndex + 1);
+		}
+	}
+	if (updatedBlock !== fmtBlock) return {
+		content: content.replace(fmtBlock, updatedBlock),
+		modified: true
+	};
+	return {
+		content,
+		modified: false
+	};
+}
 function ensureFmtAndStagedBlocks(content, auditConfig, projectRoot) {
 	const config = auditConfig ?? getAuditConfig(projectRoot);
 	let updated = content;
@@ -672,6 +1063,11 @@ function ensureFmtAndStagedBlocks(content, auditConfig, projectRoot) {
 			updated = injectBlockBeforeConfigEnd(updated, extractedFmt);
 			modified = true;
 		}
+	}
+	const fmtSortingStep = ensureFmtSorting(updated, config);
+	if (fmtSortingStep.modified) {
+		updated = fmtSortingStep.content;
+		modified = true;
 	}
 	const fmtIgnoreStep = ensureIgnorePatterns(updated, "fmt", config, projectRoot);
 	if (fmtIgnoreStep.modified) {

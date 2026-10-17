@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vite-plus/test';
-import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
-import { BaseAuditor } from '../src/core/auditorBase.ts';
+
 import type { AuditorManifestDTO } from '../src/core/auditContract.ts';
+import { BaseAuditor } from '../src/core/auditorBase.ts';
+import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 
 // test-fragmentation-ok: Isolated manifest DTO test suite below 60 line threshold
 describe('Auditor Manifest & Introspection Registry', () => {

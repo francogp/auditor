@@ -8,20 +8,22 @@
  * 3. Regression: A dormant rule with 0 evaluations is caught by validate_audit_coverage.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
-import { NativePathsAuditor } from '../src/suites/architecture/validate_native_paths.ts';
-import { ErrorSuppressionAuditor } from '../src/suites/architecture/validate_error_suppression.ts';
-import { AuditCoverageAuditor } from '../src/suites/architecture/validate_audit_coverage.ts';
-import { legacyDates } from '../src/suites/architecture/audit_rules.ts';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
+
 import {
   COVERAGE_RUN_ID_ENV,
   COVERAGE_RUN_MODE_ENV,
   COVERAGE_EXPECTED_SUITES_ENV,
   type CoverageLedger
 } from '../src/core/auditCoverage.ts';
+import { legacyDates } from '../src/suites/architecture/audit_rules.ts';
+import { AuditCoverageAuditor } from '../src/suites/architecture/validate_audit_coverage.ts';
+import { ErrorSuppressionAuditor } from '../src/suites/architecture/validate_error_suppression.ts';
+import { NativePathsAuditor } from '../src/suites/architecture/validate_native_paths.ts';
 
 describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
   let sandboxDir: string;

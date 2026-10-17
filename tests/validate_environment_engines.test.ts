@@ -8,17 +8,19 @@
  * - Clean path execution
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
+import { getAuditorEngines } from '../src/cli/check_environment.ts';
 import {
   ValidateEnvironmentEnginesAuditor,
   ENVIRONMENT_ENGINES_RULES,
   extractBaseNodeVersion,
   syncNodeVersion
 } from '../src/suites/architecture/validate_environment_engines.ts';
-import { getAuditorEngines } from '../src/cli/check_environment.ts';
 
 describe('validate_environment_engines (Environment Engines & Runtime Validator)', () => {
   let tempDir: string;
